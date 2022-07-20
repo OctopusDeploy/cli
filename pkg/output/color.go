@@ -17,6 +17,7 @@ var (
 	blue           = ansi.ColorFunc("blue")
 	green          = ansi.ColorFunc("green")
 	bold           = ansi.ColorFunc("default+b")
+	dim            = ansi.ColorFunc("default+d")
 )
 
 func Blue(s string) string {
@@ -94,4 +95,15 @@ func Bold(s string) string {
 
 func Boldf(s string, args ...interface{}) string {
 	return Bold(fmt.Sprintf(s, args...))
+}
+
+func Dim(s string) string {
+	if !isColorEnabled {
+		return s
+	}
+	return dim(s)
+}
+
+func Dimf(s string, args ...interface{}) string {
+	return Dim(fmt.Sprintf(s, args...))
 }
