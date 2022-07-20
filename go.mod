@@ -3,6 +3,7 @@ module github.com/OctopusDeploy/cli
 go 1.18
 
 require (
+	github.com/AlecAivazis/survey/v2 v2.3.5
 	github.com/MakeNowJust/heredoc/v2 v2.0.1
 	github.com/OctopusDeploy/go-octopusdeploy/v2 v2.1.0
 	github.com/joho/godotenv v1.4.0
@@ -21,6 +22,7 @@ require (
 	github.com/google/go-querystring v1.1.0 // indirect
 	github.com/google/uuid v1.3.0 // indirect
 	github.com/inconshreveable/mousetrap v1.0.0 // indirect
+	github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51 // indirect
 	github.com/leodido/go-urn v1.2.1 // indirect
 	github.com/mattn/go-colorable v0.1.12 // indirect
 	github.com/mattn/go-isatty v0.0.14 // indirect

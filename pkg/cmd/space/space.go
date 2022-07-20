@@ -5,6 +5,7 @@ import (
 
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/apiclient"
+	cmdCreate "github.com/OctopusDeploy/cli/pkg/cmd/space/create"
 	cmdList "github.com/OctopusDeploy/cli/pkg/cmd/space/list"
 	cmdView "github.com/OctopusDeploy/cli/pkg/cmd/space/view"
 	"github.com/OctopusDeploy/cli/pkg/constants"
@@ -22,6 +23,7 @@ func NewCmdSpace(client apiclient.ClientFactory) *cobra.Command {
 		`), constants.ExecutableName, constants.ExecutableName),
 	}
 
+	cmd.AddCommand(cmdCreate.NewCmdCreate(client))
 	cmd.AddCommand(cmdList.NewCmdList(client))
 	cmd.AddCommand(cmdView.NewCmdView(client))
 
