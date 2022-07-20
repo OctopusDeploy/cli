@@ -4,11 +4,18 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/joho/godotenv"
+
 	"github.com/OctopusDeploy/cli/pkg/apiclient"
 	"github.com/OctopusDeploy/cli/pkg/cmd/root"
 )
 
 func main() {
+	err := godotenv.Load()
+	if err != nil {
+		fmt.Printf("Warning: Error loading .env file: %s\n", err)
+	}
+
 	client, err := apiclient.NewFromEnvironment()
 	if err != nil {
 		fmt.Println(err)

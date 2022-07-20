@@ -1,6 +1,7 @@
 package apiclient
 
 import (
+	"errors"
 	octopusApiClient "github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
 	"net/url"
 	"os"
@@ -28,6 +29,11 @@ func NewFromEnvironment() (ClientFactory, error) {
 	host := os.Getenv("OCTOPUS_HOST")
 	apiKey := os.Getenv("OCTOPUS_API_KEY")
 	space := os.Getenv("OCTOPUS_SPACE")
+
+	if host == "" {
+		// TODO a proper set of Error types
+		return nil, errors.New("OCTOPUS_HOST environment variable is missing or blank")
+	}
 
 	hostUrl, err := url.Parse(host)
 	if err != nil {

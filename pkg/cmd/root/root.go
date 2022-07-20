@@ -3,6 +3,7 @@ package root
 import (
 	"github.com/OctopusDeploy/cli/pkg/apiclient"
 	accountCmd "github.com/OctopusDeploy/cli/pkg/cmd/account"
+	environmentCmd "github.com/OctopusDeploy/cli/pkg/cmd/environment"
 	"github.com/spf13/cobra"
 )
 
@@ -15,8 +16,10 @@ func NewCmdRoot(client apiclient.ClientFactory) *cobra.Command {
 	}
 	cmd.PersistentFlags().BoolP("help", "h", false, "Show help for command")
 	cmd.PersistentFlags().StringP("space", "s", "", "Set Space")
+	cmd.PersistentFlags().StringP("outputFormat", "f", "", "Output Format (supported values: json)")
 
 	// Child Commands
 	cmd.AddCommand(accountCmd.NewCmdAccount(client))
+	cmd.AddCommand(environmentCmd.NewCmdEnvironment(client))
 	return cmd
 }
