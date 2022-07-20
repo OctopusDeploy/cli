@@ -10,21 +10,24 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/apiclient"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/output"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/spaces"
 	"github.com/spf13/cobra"
 )
 
 type ViewOptions struct {
-	Host        string
-	IO          io.Writer
-	SelectorArg string
-	Space       *spaces.Space
+	Client   *client.Client
+	Host     string
+	IO       io.Writer
+	Selector string
+	Space    *spaces.Space
 }
 
 func NewCmdView(f apiclient.ClientFactory) *cobra.Command {
 	opts := &ViewOptions{}
 
 	cmd := &cobra.Command{
+		Args:  cobra.ExactArgs(1),
 		Use:   "view",
 		Short: "View a space in an instance of Octopus Deploy",
 		Long:  "View a space in an instance of Octopus Deploy.",
@@ -32,21 +35,15 @@ func NewCmdView(f apiclient.ClientFactory) *cobra.Command {
 			$ %s space view"
 		`), constants.ExecutableName),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			client, err := f.Get(true)
+			client, err := f.Get(false)
 			if err != nil {
 				return err
 			}
 
-			// TODO: validate arguments
-
-			space, err := client.Spaces.GetByIDOrName(args[0])
-			if err != nil {
-				return err
-			}
-
+			opts.Client = client
 			opts.Host = os.Getenv("OCTOPUS_HOST")
-			opts.Space = space
 			opts.IO = cmd.OutOrStdout()
+			opts.Selector = args[0]
 
 			return viewRun(opts)
 		},
@@ -56,13 +53,15 @@ func NewCmdView(f apiclient.ClientFactory) *cobra.Command {
 }
 
 func viewRun(opts *ViewOptions) error {
-	return printHumanSpacePreview(opts)
+	space, err := opts.Client.Spaces.GetByIDOrName(opts.Selector)
+	if err != nil {
+		return err
+	}
+
+	return printHumanSpacePreview(opts.Host, space, opts.IO)
 }
 
-func printHumanSpacePreview(opts *ViewOptions) error {
-	out := opts.IO
-	space := opts.Space
-
+func printHumanSpacePreview(host string, space *spaces.Space, out io.Writer) error {
 	// header
 	fmt.Fprintf(out, "%s (%s)\n", output.Bold(space.Name), space.GetID())
 
@@ -84,7 +83,7 @@ func printHumanSpacePreview(opts *ViewOptions) error {
 	// BUG: the hypermedia link, "Web" is not represented correctly in Octopus REST API
 	link := strings.Split(space.Links["Web"], "/app#/")
 	webLink := "/app#/configuration/" + link[1]
-	spaceURL := opts.Host + webLink
+	spaceURL := host + webLink
 
 	// footer
 	fmt.Fprintf(out, output.Dim("View this space in Octopus Deploy: %s\n"), spaceURL)
