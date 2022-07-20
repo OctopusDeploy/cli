@@ -2,6 +2,7 @@ package environment
 
 import (
 	"fmt"
+
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/apiclient"
 	cmdList "github.com/OctopusDeploy/cli/pkg/cmd/environment/list"
