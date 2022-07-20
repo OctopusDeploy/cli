@@ -28,7 +28,7 @@ func NewCmdView(f apiclient.ClientFactory) *cobra.Command {
 
 	cmd := &cobra.Command{
 		Args:  cobra.ExactArgs(1),
-		Use:   "view",
+		Use:   "view {<name> | <id>}",
 		Short: "View a space in an instance of Octopus Deploy",
 		Long:  "View a space in an instance of Octopus Deploy.",
 		Example: fmt.Sprintf(heredoc.Doc(`
