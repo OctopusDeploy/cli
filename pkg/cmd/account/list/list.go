@@ -2,9 +2,10 @@ package list
 
 import (
 	"fmt"
+
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/apiclient"
-	"github.com/OctopusDeploy/cli/pkg/cliOutput"
+	"github.com/OctopusDeploy/cli/pkg/output"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/accounts"
 	"github.com/spf13/cobra"
 )
@@ -29,9 +30,9 @@ func NewCmdList(client apiclient.ClientFactory) *cobra.Command {
 				return err
 			}
 
-			return cliOutput.PrintArray(allAccounts, cmd,
+			return output.PrintArray(allAccounts, cmd,
 				func(item accounts.IAccount) any {
-					return cliOutput.IdAndName{Id: item.GetID(), Name: item.GetName()}
+					return output.IdAndName{Id: item.GetID(), Name: item.GetName()}
 				}, func(e accounts.IAccount) string {
 					return fmt.Sprintf("%s\t%s\t%s", e.GetID(), e.GetName(), e.GetDescription())
 				})

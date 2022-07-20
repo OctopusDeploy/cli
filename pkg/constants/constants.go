@@ -1,3 +1,5 @@
 package constants
 
-const ExecutableName = "octopus"
+const (
+	ExecutableName = "octopus"
+)

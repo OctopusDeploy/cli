@@ -1,11 +1,12 @@
-package cliOutput
+package output
 
 import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/spf13/cobra"
 	"strings"
+
+	"github.com/spf13/cobra"
 )
 
 // Common struct used for rendering JSON summaries of things that just have an ID and a Name
