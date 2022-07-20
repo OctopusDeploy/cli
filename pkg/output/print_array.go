@@ -79,12 +79,6 @@ func PrintArray[T any](items []T, cmd *cobra.Command, mappers Mappers[T]) error 
 		t := NewTable(ioWriter)
 		if tableMapper.Header != nil {
 			t.AddRow(tableMapper.Header...)
-
-			headerSeparators := []string{}
-			for _, h := range tableMapper.Header {
-				headerSeparators = append(headerSeparators, strings.Repeat("-", len(h)))
-			}
-			t.AddRow(headerSeparators...)
 		}
 
 		for _, item := range items {
