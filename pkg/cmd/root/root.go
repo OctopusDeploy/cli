@@ -4,6 +4,7 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/apiclient"
 	accountCmd "github.com/OctopusDeploy/cli/pkg/cmd/account"
 	environmentCmd "github.com/OctopusDeploy/cli/pkg/cmd/environment"
+	spaceCmd "github.com/OctopusDeploy/cli/pkg/cmd/space"
 	"github.com/spf13/cobra"
 )
 
@@ -21,5 +22,6 @@ func NewCmdRoot(client apiclient.ClientFactory) *cobra.Command {
 	// Child Commands
 	cmd.AddCommand(accountCmd.NewCmdAccount(client))
 	cmd.AddCommand(environmentCmd.NewCmdEnvironment(client))
+	cmd.AddCommand(spaceCmd.NewCmdSpace(client))
 	return cmd
 }
