@@ -3,6 +3,7 @@ module github.com/OctopusDeploy/cli
 go 1.18
 
 require (
+	github.com/MakeNowJust/heredoc/v2 v2.0.1
 	github.com/OctopusDeploy/go-octopusdeploy/v2 v2.1.0
 	github.com/spf13/cobra v1.5.0
 )
