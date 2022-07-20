@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -15,11 +16,43 @@ type IdAndName struct {
 	Name string `json:"Name"`
 }
 
-func PrintArray[T any](items []T, cmd *cobra.Command, jsonMapper func(item T) any, stringMapper func(item T) string) error {
-	outputFormat, _ := cmd.Flags().GetString("outputFormat")
-	switch strings.ToLower(outputFormat) {
+type TableDefinition[T any] struct {
+	Header []string
+	Row    func(item T, writer io.Writer) []string
+}
 
+// carries conversion functions used by PrintArray and potentially other output code in future
+type Mappers[T any] struct {
+	// A function which will convert T into an output structure suitable for json.Marshal (e.g. IdAndName).
+	// If you leave this as nil, then the command will simply not support output as JSON and will
+	// fail if someone asks for it
+	Json func(item T) any
+
+	// A function which will convert T into ?? suitable for table printing
+	// If you leave this as nil, then the command will simply not support output as
+	// a table and will fail if someone asks for it
+	Table TableDefinition[T]
+
+	// A function which will convert T into a string suitable for basic text display
+	// If you leave this as nil, then the command will simply not support output as basic text and will
+	// fail if someone asks for it
+	Basic func(item T) string
+
+	// NOTE: We might have some kinds of entities where table formatting doesn't make sense, and we want to
+	// render those as basic text instead. This seems unlikely though, defer it until the issue comes up.
+
+	// NOTE: The structure for printing tables would also work for CSV... perhaps we can have --outputFormat=csv for free?
+}
+
+func PrintArray[T any](items []T, cmd *cobra.Command, mappers Mappers[T]) error {
+	outputFormat, _ := cmd.Flags().GetString("outputFormat")
+
+	switch strings.ToLower(outputFormat) {
 	case "json":
+		jsonMapper := mappers.Json
+		if jsonMapper == nil {
+			return errors.New("Command does not support output in JSON format")
+		}
 		var outputJson []any
 		for _, e := range items {
 			outputJson = append(outputJson, jsonMapper(e))
@@ -27,18 +60,42 @@ func PrintArray[T any](items []T, cmd *cobra.Command, jsonMapper func(item T) an
 
 		data, _ := json.MarshalIndent(outputJson, "", "  ")
 		fmt.Println(string(data))
-	case "":
-		itemCount := len(items)
-		if itemCount == 1 {
-			fmt.Printf("1 item found.\n")
-		} else {
-			fmt.Printf("%d items found.\n", itemCount)
+
+	case "basic", "text":
+		textMapper := mappers.Basic
+		if textMapper == nil {
+			return errors.New("Command does not support output in plain text")
 		}
 		for _, e := range items {
-			fmt.Println(stringMapper(e)) // TODO this would become fancy and feed into a table
+			fmt.Println(textMapper(e))
 		}
+
+	case "table", "": // table is the default of unspecified
+		tableMapper := mappers.Table
+		if tableMapper.Row == nil {
+			return errors.New("Command does not support output in table format")
+		}
+
+		ioWriter := cmd.OutOrStdout()
+		t := NewTable(ioWriter)
+		if tableMapper.Header != nil {
+			t.AddRow(tableMapper.Header...)
+			
+			headerSeparators := []string{}
+			for _, h := range tableMapper.Header {
+				headerSeparators = append(headerSeparators, strings.Repeat("-", len(h)))
+			}
+			t.AddRow(headerSeparators...)
+		}
+
+		for _, item := range items {
+			t.AddRow(tableMapper.Row(item, ioWriter)...)
+		}
+
+		return t.Print()
+
 	default:
-		return errors.New(fmt.Sprintf("Unsupported outputFormat %s. Valid values are 'json' or an empty string", outputFormat))
+		return errors.New(fmt.Sprintf("Unsupported outputFormat %s. Valid values are 'json', 'table', 'basic'. Defaults to table", outputFormat))
 	}
 	return nil
 }

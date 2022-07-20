@@ -2,13 +2,13 @@ package list
 
 import (
 	"fmt"
-
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/apiclient"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/output"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/environments"
 	"github.com/spf13/cobra"
+	"io"
 )
 
 func NewCmdList(client apiclient.ClientFactory) *cobra.Command {
@@ -31,12 +31,20 @@ func NewCmdList(client apiclient.ClientFactory) *cobra.Command {
 				return err
 			}
 
-			return output.PrintArray(allEnvs, cmd,
-				func(e *environments.Environment) any {
-					return output.IdAndName{Id: e.GetID(), Name: e.Name}
-				}, func(e *environments.Environment) string {
-					return fmt.Sprintf("%s\t%s\t%s", e.GetID(), e.Name, e.Description)
-				})
+			return output.PrintArray(allEnvs, cmd, output.Mappers[*environments.Environment]{
+				Json: func(item *environments.Environment) any {
+					return output.IdAndName{Id: item.GetID(), Name: item.Name}
+				},
+				Table: output.TableDefinition[*environments.Environment]{
+					Header: []string{"ID", "NAME", "DESCRIPTION"},
+					Row: func(item *environments.Environment, io io.Writer) []string {
+						return []string{item.GetID(), output.Bold(item.Name), item.Description}
+					},
+				},
+				Basic: func(item *environments.Environment) string {
+					return item.Name
+				},
+			})
 		},
 	}
 

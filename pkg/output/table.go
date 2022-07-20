@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"runtime"
 	"sort"
 	"strings"
 
@@ -29,6 +30,14 @@ type table struct {
 
 func NewTable(writer io.Writer) Table {
 	width, _, _ := term.GetSize(int(os.Stdin.Fd()))
+
+	//goland:noinspection ALL    -- goland says that runtime.GOOS == "windows" is always true. Technically correct but useless
+	if width == 0 && runtime.GOOS == "windows" {
+		// terminal.GetSize may return 0 for Stdin on windows, need to use Stdout instead
+		// https://github.com/golang/go/issues/20388#issuecomment-302010373
+		width, _, _ = term.GetSize(int(os.Stdout.Fd()))
+	}
+
 	return &table{
 		out:      writer,
 		maxWidth: width,

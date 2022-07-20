@@ -2,6 +2,7 @@ package list
 
 import (
 	"fmt"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/spaces"
 	"io"
 
 	"github.com/MakeNowJust/heredoc/v2"
@@ -21,14 +22,14 @@ func NewCmdList(f apiclient.ClientFactory) *cobra.Command {
 		`), constants.ExecutableName),
 		Aliases: []string{"ls"},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return listRun(f, cmd.OutOrStdout())
+			return listRun(f, cmd)
 		},
 	}
 
 	return cmd
 }
 
-func listRun(f apiclient.ClientFactory, w io.Writer) error {
+func listRun(f apiclient.ClientFactory, cmd *cobra.Command) error {
 	client, err := f.Get(false)
 	if err != nil {
 		return err
@@ -39,17 +40,40 @@ func listRun(f apiclient.ClientFactory, w io.Writer) error {
 		return err
 	}
 
-	t := output.NewTable(w)
-	t.AddRow("NAME", "DESCRIPTION", "TASK QUEUE")
-
-	for _, space := range allSpaces {
-		name := output.Bold(space.Name)
-		taskQueue := output.Green("Running")
-		if space.TaskQueueStopped {
-			taskQueue = output.Yellow("Stopped")
-		}
-		t.AddRow(name, space.Description, taskQueue)
+	type SpaceAsJson struct {
+		Id          string `json:"Id"`
+		Name        string `json:"Name"`
+		Description string `json:"Description"`
+		TaskQueue   string `json:"TaskQueue"`
 	}
 
-	return t.Print()
+	return output.PrintArray(allSpaces, cmd, output.Mappers[*spaces.Space]{
+		Json: func(item *spaces.Space) any {
+			taskQueue := "Running"
+			if item.TaskQueueStopped {
+				taskQueue = "Stopped"
+			}
+			return SpaceAsJson{
+				Id:          item.GetID(),
+				Name:        item.Name,
+				Description: item.Description,
+				TaskQueue:   taskQueue,
+			}
+		},
+		Table: output.TableDefinition[*spaces.Space]{
+			Header: []string{"NAME", "DESCRIPTION", "TASK QUEUE"},
+			Row: func(item *spaces.Space, io io.Writer) []string {
+				name := output.Bold(item.Name)
+
+				taskQueue := output.Green("Running")
+				if item.TaskQueueStopped {
+					taskQueue = output.Yellow("Stopped")
+				}
+				return []string{name, item.Description, taskQueue}
+			},
+		},
+		Basic: func(item *spaces.Space) string {
+			return item.Name
+		},
+	})
 }

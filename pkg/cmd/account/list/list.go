@@ -1,7 +1,7 @@
 package list
 
 import (
-	"fmt"
+	"io"
 
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/apiclient"
@@ -30,12 +30,19 @@ func NewCmdList(client apiclient.ClientFactory) *cobra.Command {
 				return err
 			}
 
-			return output.PrintArray(allAccounts, cmd,
-				func(item accounts.IAccount) any {
+			return output.PrintArray(allAccounts, cmd, output.Mappers[accounts.IAccount]{
+				Json: func(item accounts.IAccount) any {
 					return output.IdAndName{Id: item.GetID(), Name: item.GetName()}
-				}, func(e accounts.IAccount) string {
-					return fmt.Sprintf("%s\t%s\t%s", e.GetID(), e.GetName(), e.GetDescription())
-				})
+				},
+				Table: output.TableDefinition[accounts.IAccount]{
+					Header: []string{"ID", "NAME", "DESCRIPTION"},
+					Row: func(item accounts.IAccount, io io.Writer) []string {
+						return []string{item.GetID(), output.Bold(item.GetName()), item.GetDescription()}
+					}},
+				Basic: func(item accounts.IAccount) string {
+					return item.GetName()
+				},
+			})
 		},
 	}
 
