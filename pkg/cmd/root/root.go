@@ -15,13 +15,17 @@ func NewCmdRoot(client apiclient.ClientFactory) *cobra.Command {
 		Short: "Octopus Deploy CLI",
 		Long:  `Work seamlessly with Octopus Deploy from the command line.`,
 	}
+
 	cmd.PersistentFlags().BoolP("help", "h", false, "Show help for command")
 	cmd.PersistentFlags().StringP("space", "s", "", "Set Space")
 	cmd.PersistentFlags().StringP("outputFormat", "f", "", "Output Format (supported values: json)")
 
-	// Child Commands
+	// infrastructure commands
 	cmd.AddCommand(accountCmd.NewCmdAccount(client))
 	cmd.AddCommand(environmentCmd.NewCmdEnvironment(client))
+
+	// configuration commands
 	cmd.AddCommand(spaceCmd.NewCmdSpace(client))
+
 	return cmd
 }
