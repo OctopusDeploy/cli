@@ -8,7 +8,6 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/output"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/environments"
 	"github.com/spf13/cobra"
-	"io"
 )
 
 func NewCmdList(client apiclient.ClientFactory) *cobra.Command {
@@ -37,7 +36,7 @@ func NewCmdList(client apiclient.ClientFactory) *cobra.Command {
 				},
 				Table: output.TableDefinition[*environments.Environment]{
 					Header: []string{"ID", "NAME", "DESCRIPTION"},
-					Row: func(item *environments.Environment, io io.Writer) []string {
+					Row: func(item *environments.Environment) []string {
 						return []string{item.GetID(), output.Bold(item.Name), item.Description}
 					},
 				},

@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -18,7 +17,7 @@ type IdAndName struct {
 
 type TableDefinition[T any] struct {
 	Header []string
-	Row    func(item T, writer io.Writer) []string
+	Row    func(item T) []string
 }
 
 // carries conversion functions used by PrintArray and potentially other output code in future
@@ -80,7 +79,7 @@ func PrintArray[T any](items []T, cmd *cobra.Command, mappers Mappers[T]) error 
 		t := NewTable(ioWriter)
 		if tableMapper.Header != nil {
 			t.AddRow(tableMapper.Header...)
-			
+
 			headerSeparators := []string{}
 			for _, h := range tableMapper.Header {
 				headerSeparators = append(headerSeparators, strings.Repeat("-", len(h)))
@@ -89,7 +88,7 @@ func PrintArray[T any](items []T, cmd *cobra.Command, mappers Mappers[T]) error 
 		}
 
 		for _, item := range items {
-			t.AddRow(tableMapper.Row(item, ioWriter)...)
+			t.AddRow(tableMapper.Row(item)...)
 		}
 
 		return t.Print()

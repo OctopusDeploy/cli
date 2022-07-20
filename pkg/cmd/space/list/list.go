@@ -2,13 +2,11 @@ package list
 
 import (
 	"fmt"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/spaces"
-	"io"
-
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/apiclient"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/output"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/spaces"
 	"github.com/spf13/cobra"
 )
 
@@ -62,7 +60,7 @@ func listRun(f apiclient.ClientFactory, cmd *cobra.Command) error {
 		},
 		Table: output.TableDefinition[*spaces.Space]{
 			Header: []string{"NAME", "DESCRIPTION", "TASK QUEUE"},
-			Row: func(item *spaces.Space, io io.Writer) []string {
+			Row: func(item *spaces.Space) []string {
 				name := output.Bold(item.Name)
 
 				taskQueue := output.Green("Running")
