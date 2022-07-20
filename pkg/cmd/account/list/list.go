@@ -33,9 +33,9 @@ func NewCmdList(client apiclient.ClientFactory) *cobra.Command {
 					return output.IdAndName{Id: item.GetID(), Name: item.GetName()}
 				},
 				Table: output.TableDefinition[accounts.IAccount]{
-					Header: []string{"ID", "NAME", "DESCRIPTION"},
+					Header: []string{"NAME", "DESCRIPTION"},
 					Row: func(item accounts.IAccount) []string {
-						return []string{item.GetID(), output.Bold(item.GetName()), item.GetDescription()}
+						return []string{output.Bold(item.GetName()), item.GetDescription()}
 					}},
 				Basic: func(item accounts.IAccount) string {
 					return item.GetName()
