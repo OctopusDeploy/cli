@@ -11,10 +11,8 @@ import (
 )
 
 func main() {
-	err := godotenv.Load()
-	if err != nil {
-		fmt.Printf("Warning: Error loading .env file: %s\n", err)
-	}
+	// if there is a missing or invalid .env file anywhere, we don't care, just ignore it
+	_ = godotenv.Load()
 
 	client, err := apiclient.NewFromEnvironment()
 	if err != nil {
