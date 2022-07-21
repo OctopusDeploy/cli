@@ -7,6 +7,7 @@ import (
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/apiclient"
 	"github.com/OctopusDeploy/cli/pkg/constants"
+	"github.com/OctopusDeploy/cli/pkg/usage"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/services"
 	"github.com/spf13/cobra"
 	"strconv"
@@ -15,7 +16,7 @@ import (
 
 func NewCmdDelete(f apiclient.ClientFactory) *cobra.Command {
 	cmd := &cobra.Command{
-		Args:    cobra.ExactArgs(1),
+		Args:    usage.ExactArgs(1),
 		Use:     "delete {<name> | <id>}",
 		Short:   "Delete a space in an instance of Octopus Deploy",
 		Long:    "Delete a space in an instance of Octopus Deploy.",
@@ -76,20 +77,24 @@ func NewCmdDelete(f apiclient.ClientFactory) *cobra.Command {
 
 				if !confirm {
 					// user aborted
-					return nil
+					return errors.New("Canceled")
 				}
-
-				// we need to stop the task queue on a space before we can delete it
-				space.TaskQueueStopped = true
-				space, err = client.Spaces.Update(space)
-				if err != nil { // e.g can't stop the task queue
-					return err
-				}
-
-				return client.Spaces.DeleteByID(space.GetID())
 			}
 
-			return nil
+			// we need to stop the task queue on a space before we can delete it
+			space.TaskQueueStopped = true
+			space, err = client.Spaces.Update(space)
+			if err != nil { // e.g can't stop the task queue
+				return err
+			}
+
+			err = client.Spaces.DeleteByID(space.GetID())
+			if err != nil { // e.g can't stop the task queue
+				return err
+			}
+
+			cmd.Printf("Deleted Space %s (%s).\n", space.Name, space.GetID())
+			return err
 		},
 	}
 	// TODO confirm might want to be a global flag?

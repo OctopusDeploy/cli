@@ -2,6 +2,7 @@ package view
 
 import (
 	"fmt"
+	"github.com/OctopusDeploy/cli/pkg/usage"
 	"io"
 	"os"
 	"strings"
@@ -27,7 +28,7 @@ func NewCmdView(f apiclient.ClientFactory) *cobra.Command {
 	opts := &ViewOptions{}
 
 	cmd := &cobra.Command{
-		Args:  cobra.ExactArgs(1),
+		Args:  usage.ExactArgs(1),
 		Use:   "view {<name> | <id>}",
 		Short: "View a space in an instance of Octopus Deploy",
 		Long:  "View a space in an instance of Octopus Deploy.",

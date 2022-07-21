@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/OctopusDeploy/cli/pkg/usage"
 	"os"
 
 	"github.com/joho/godotenv"
@@ -21,8 +22,19 @@ func main() {
 	}
 
 	cmd := root.NewCmdRoot(client)
+	// commands are expected to print their own errors to avoid double-ups
+	cmd.SilenceUsage = true
+	cmd.SilenceErrors = true
+
 	if err := cmd.Execute(); err != nil {
 		cmd.PrintErr(err)
+		cmd.Println()
+
+		if usageError, ok := err.(*usage.UsageError); ok {
+			// if the code returns a UsageError, print the usage information
+			cmd.Println(usageError.Command().UsageString())
+		}
+
 		os.Exit(1)
 	}
 }

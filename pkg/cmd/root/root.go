@@ -18,7 +18,7 @@ func NewCmdRoot(client apiclient.ClientFactory) *cobra.Command {
 
 	cmd.PersistentFlags().BoolP("help", "h", false, "Show help for command")
 	cmd.PersistentFlags().StringP("space", "s", "", "Set Space")
-	cmd.PersistentFlags().StringP("outputFormat", "f", "", "Output Format (supported values: json)")
+	cmd.PersistentFlags().StringP("outputFormat", "f", "", "Output Format (Valid values are 'json', 'table', 'basic'. Defaults to table)")
 
 	// infrastructure commands
 	cmd.AddCommand(accountCmd.NewCmdAccount(client))

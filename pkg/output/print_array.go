@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/OctopusDeploy/cli/pkg/usage"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -88,7 +89,9 @@ func PrintArray[T any](items []T, cmd *cobra.Command, mappers Mappers[T]) error 
 		return t.Print()
 
 	default:
-		return fmt.Errorf("unsupported outputFormat %s. Valid values are 'json', 'table', 'basic'. Defaults to table", outputFormat)
+		return usage.NewUsageError(
+			fmt.Sprintf("unsupported outputFormat %s. Valid values are 'json', 'table', 'basic'. Defaults to table", outputFormat),
+			cmd)
 	}
 	return nil
 }
