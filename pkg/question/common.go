@@ -3,9 +3,10 @@ package question
 import (
 	"errors"
 	"fmt"
+	"strings"
+
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/OctopusDeploy/cli/pkg/output"
-	"strings"
 )
 
 // If the confirmation was successful, returns a nil error, else returns an error,
@@ -21,7 +22,7 @@ func AskForDeleteConfirmation(itemType string, itemName string, itemID string) e
 	}
 
 	var enteredName string
-	if err := survey.Ask([]*survey.Question{confirmQuestion}, &enteredName); err != nil {
+	if err := Ask([]*survey.Question{confirmQuestion}, &enteredName); err != nil {
 		return err
 	}
 	if enteredName != strings.TrimSpace(itemName) {

@@ -109,7 +109,7 @@ func askSpaceName(existingSpaces []*spaces.Space) (string, error) {
 	}
 
 	var name string
-	err := survey.Ask([]*survey.Question{nameQuestion}, &name)
+	err := question.Ask([]*survey.Question{nameQuestion}, &name)
 	return name, err
 }
 
