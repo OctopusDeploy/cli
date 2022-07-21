@@ -34,8 +34,9 @@ func NewCmdView(f apiclient.ClientFactory) *cobra.Command {
 		Short: "View a space in an instance of Octopus Deploy",
 		Long:  "View a space in an instance of Octopus Deploy.",
 		Example: fmt.Sprintf(heredoc.Doc(`
-			$ %s space view"
-		`), constants.ExecutableName),
+			$ %s space view Spaces-9000
+			$ %s space view Integrations
+		`), constants.ExecutableName, constants.ExecutableName),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			client, err := f.Get(false)
 			if err != nil {
@@ -65,7 +66,7 @@ func viewRun(opts *ViewOptions) error {
 
 func printHumanSpacePreview(host string, space *spaces.Space, out io.Writer) error {
 	// header
-	fmt.Fprintf(out, "%s (%s)\n", output.Bold(space.Name), space.GetID())
+	fmt.Fprintf(out, "%s %s\n", output.Bold(space.Name), output.Dimf("(%s)", space.GetID()))
 
 	// metadata
 	if len(space.Description) == 0 {
