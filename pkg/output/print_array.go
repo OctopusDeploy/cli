@@ -4,8 +4,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/OctopusDeploy/cli/pkg/usage"
 	"strings"
+
+	"github.com/OctopusDeploy/cli/pkg/usage"
 
 	"github.com/spf13/cobra"
 )
@@ -79,6 +80,9 @@ func PrintArray[T any](items []T, cmd *cobra.Command, mappers Mappers[T]) error 
 		ioWriter := cmd.OutOrStdout()
 		t := NewTable(ioWriter)
 		if tableMapper.Header != nil {
+			for k, v := range tableMapper.Header {
+				tableMapper.Header[k] = Dim(v)
+			}
 			t.AddRow(tableMapper.Header...)
 		}
 

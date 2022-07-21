@@ -1,22 +1,21 @@
 package delete
 
 import (
-	"errors"
 	"fmt"
-	"github.com/OctopusDeploy/cli/pkg/question"
-	"github.com/OctopusDeploy/cli/pkg/usage"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/accounts"
-	"strings"
+	"io"
 
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/apiclient"
 	"github.com/OctopusDeploy/cli/pkg/constants"
+	"github.com/OctopusDeploy/cli/pkg/output"
+	"github.com/OctopusDeploy/cli/pkg/question"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/accounts"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
 	"github.com/spf13/cobra"
 )
 
 func NewCmdDelete(f apiclient.ClientFactory) *cobra.Command {
 	cmd := &cobra.Command{
-		Args:    usage.ExactArgs(1),
 		Use:     "delete {<name> | <id>}",
 		Short:   "Delete an account in an instance of Octopus Deploy",
 		Long:    "Delete an account in an instance of Octopus Deploy.",
@@ -27,11 +26,12 @@ func NewCmdDelete(f apiclient.ClientFactory) *cobra.Command {
 		`), constants.ExecutableName, constants.ExecutableName),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) == 0 {
-				return errors.New("please specify the name or ID of the account to delete")
+				return deleteRun(f, cmd.OutOrStdout())
 			}
-			itemIDorName := strings.TrimSpace(args[0])
 
-			alreadyConfirmed, err := cmd.Flags().GetBool("confirm")
+			itemIDOrName := args[0]
+
+			skipConfirmation, err := cmd.Flags().GetBool("confirm")
 			if err != nil {
 				return err
 			}
@@ -44,41 +44,75 @@ func NewCmdDelete(f apiclient.ClientFactory) *cobra.Command {
 			// SDK doesn't have accounts.GetByIDOrName so we emulate it here
 			foundAccounts, err := client.Accounts.Get(accounts.AccountsQuery{
 				// TODO we can't lookup by ID yet because the server doesn't support it
-				PartialName: itemIDorName,
+				PartialName: itemIDOrName,
 			})
 			if err != nil {
 				return err
 			}
 			// need exact match
-			var account accounts.IAccount
+			var itemToDelete accounts.IAccount
 			for _, act := range foundAccounts.Items {
-				if act.GetName() == itemIDorName {
-					account = act
+				if act.GetName() == itemIDOrName {
+					itemToDelete = act
 					break
 				}
 			}
-			if account == nil {
-				return fmt.Errorf("cannot find an account with name or ID of '%s'", itemIDorName)
+			if itemToDelete == nil {
+				return fmt.Errorf("cannot find an account with name or ID of '%s'", itemIDOrName)
 			}
 
-			if !alreadyConfirmed { // TODO NO_PROMPT env var or whatever we do there
-				err := question.AskForDeleteConfirmation(&question.SurveyAsker{}, "account", account.GetName(), account.GetID())
-				if err != nil {
-					return err
-				}
+			if !skipConfirmation { // TODO NO_PROMPT env var or whatever we do there
+				return question.AskForDeleteConfirmation(&question.SurveyAsker{}, "space", itemToDelete.GetName(), itemToDelete.GetID(), func() error {
+					return delete(client, itemToDelete)
+				})
 			}
 
-			err = client.Accounts.DeleteByID(account.GetID())
-			if err != nil { // e.g can't stop the task queue
-				return err
-			}
-
-			cmd.Printf("Deleted Account %s (%s).\n", account.GetName(), account.GetID())
-			return err
+			return delete(client, itemToDelete)
 		},
 	}
 	// TODO confirm might want to be a global flag?
 	cmd.Flags().BoolP("confirm", "y", false, "Don't ask for confirmation before deleting the account.")
 
 	return cmd
+}
+
+func deleteRun(f apiclient.ClientFactory, w io.Writer) error {
+	client, err := f.Get(true)
+	if err != nil {
+		return err
+	}
+
+	existingAccounts, err := client.Accounts.GetAll()
+	if err != nil {
+		return err
+	}
+
+	accountToDelete, err := selectAccount(existingAccounts, "Select the account you wish to delete:")
+	if err != nil {
+		return err
+	}
+
+	return question.AskForDeleteConfirmation(&question.SurveyAsker{}, "account", accountToDelete.GetName(), accountToDelete.GetID(), func() error {
+		return delete(client, accountToDelete)
+	})
+}
+
+func delete(client *client.Client, accountToDelete accounts.IAccount) error {
+	return client.Accounts.DeleteByID(accountToDelete.GetID())
+}
+
+func selectAccount(existingAccounts []accounts.IAccount, message string) (accounts.IAccount, error) {
+	var selectedAccount accounts.IAccount
+	if err := question.Select(message, existingAccounts, func(account accounts.IAccount) string {
+		for _, existingAccount := range existingAccounts {
+			if account.GetID() == existingAccount.GetID() {
+				return fmt.Sprintf("%s %s", account.GetName(), output.Dimf("(%s)", account.GetID()))
+			}
+		}
+		return ""
+	}, &selectedAccount); err != nil {
+		return nil, err
+	}
+
+	return selectedAccount, nil
 }

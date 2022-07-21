@@ -1,22 +1,21 @@
 package delete
 
 import (
-	"errors"
 	"fmt"
-	"github.com/OctopusDeploy/cli/pkg/question"
-	"github.com/OctopusDeploy/cli/pkg/usage"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/environments"
-	"strings"
+	"io"
 
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/apiclient"
 	"github.com/OctopusDeploy/cli/pkg/constants"
+	"github.com/OctopusDeploy/cli/pkg/output"
+	"github.com/OctopusDeploy/cli/pkg/question"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/environments"
 	"github.com/spf13/cobra"
 )
 
 func NewCmdDelete(f apiclient.ClientFactory) *cobra.Command {
 	cmd := &cobra.Command{
-		Args:    usage.ExactArgs(1),
 		Use:     "delete {<name> | <id>}",
 		Short:   "Delete an environment in an instance of Octopus Deploy",
 		Long:    "Delete an environment in an instance of Octopus Deploy.",
@@ -27,11 +26,12 @@ func NewCmdDelete(f apiclient.ClientFactory) *cobra.Command {
 		`), constants.ExecutableName, constants.ExecutableName),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) == 0 {
-				return errors.New("please specify the name or ID of the environment to delete")
+				return deleteRun(f, cmd.OutOrStdout())
 			}
-			itemIDorName := strings.TrimSpace(args[0])
 
-			alreadyConfirmed, err := cmd.Flags().GetBool("confirm")
+			itemIDOrName := args[0]
+
+			skipConfirmation, err := cmd.Flags().GetBool("confirm")
 			if err != nil {
 				return err
 			}
@@ -44,42 +44,75 @@ func NewCmdDelete(f apiclient.ClientFactory) *cobra.Command {
 			// SDK doesn't have accounts.GetByIDOrName so we emulate it here
 			foundEnvironments, err := client.Environments.Get(environments.EnvironmentsQuery{
 				// TODO we can't lookup by ID here because the server will AND it with the ItemName and produce no results
-				PartialName: itemIDorName,
+				PartialName: itemIDOrName,
 			})
 			if err != nil {
 				return err
 			}
 			// need exact match
-			var environment *environments.Environment
+			var itemToDelete *environments.Environment
 			for _, item := range foundEnvironments.Items {
-				if item.Name == itemIDorName {
-					environment = item
+				if item.Name == itemIDOrName {
+					itemToDelete = item
 					break
 				}
 			}
-			if environment == nil {
-				return fmt.Errorf("cannot find an environment with name or ID of '%s'", itemIDorName)
+			if itemToDelete == nil {
+				return fmt.Errorf("cannot find an environment with name or ID of '%s'", itemIDOrName)
 			}
 
-			if !alreadyConfirmed { // TODO NO_PROMPT env var or whatever we do there
-				// TODO we'll pass the "asker" up through a Factory or something
-				err = question.AskForDeleteConfirmation(&question.SurveyAsker{}, "environment", environment.Name, environment.GetID())
-				if err != nil {
-					return err
-				}
+			if !skipConfirmation { // TODO NO_PROMPT env var or whatever we do there
+				return question.AskForDeleteConfirmation(&question.SurveyAsker{}, "space", itemToDelete.Name, itemToDelete.GetID(), func() error {
+					return delete(client, itemToDelete)
+				})
 			}
 
-			err = client.Environments.DeleteByID(environment.GetID())
-			if err != nil { // e.g can't stop the task queue
-				return err
-			}
-
-			cmd.Printf("Deleted Environment %s (%s).\n", environment.Name, environment.GetID())
-			return err
+			return delete(client, itemToDelete)
 		},
 	}
 	// TODO confirm might want to be a global flag?
 	cmd.Flags().BoolP("confirm", "y", false, "Don't ask for confirmation before deleting the space.")
 
 	return cmd
+}
+
+func deleteRun(f apiclient.ClientFactory, w io.Writer) error {
+	client, err := f.Get(true)
+	if err != nil {
+		return err
+	}
+
+	existingItems, err := client.Environments.GetAll()
+	if err != nil {
+		return err
+	}
+
+	itemToDelete, err := selectEnvironment(existingItems, "Select the environment you wish to delete:")
+	if err != nil {
+		return err
+	}
+
+	return question.AskForDeleteConfirmation(&question.SurveyAsker{}, "environment", itemToDelete.Name, itemToDelete.GetID(), func() error {
+		return delete(client, itemToDelete)
+	})
+}
+
+func delete(client *client.Client, itemToDelete *environments.Environment) error {
+	return client.Environments.DeleteByID(itemToDelete.GetID())
+}
+
+func selectEnvironment(existingItems []*environments.Environment, message string) (*environments.Environment, error) {
+	var selectedItem *environments.Environment
+	if err := question.Select(message, existingItems, func(item *environments.Environment) string {
+		for _, existingItem := range existingItems {
+			if item.GetID() == existingItem.GetID() {
+				return fmt.Sprintf("%s %s", item.Name, output.Dimf("(%s)", item.GetID()))
+			}
+		}
+		return ""
+	}, &selectedItem); err != nil {
+		return nil, err
+	}
+
+	return selectedItem, nil
 }

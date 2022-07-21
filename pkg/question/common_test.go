@@ -24,7 +24,7 @@ func TestQuestion_AskForDeleteConfirmation_Success(t *testing.T) {
 		return "dog", nil // the user typed this
 	}}
 
-	err := question.AskForDeleteConfirmation(asker, "animal", "dog", "1")
+	err := question.AskForDeleteConfirmation(asker, "animal", "dog", "1", func() error { return nil })
 	assert.Nil(t, err) // no error
 }
 
@@ -32,7 +32,7 @@ func TestQuestion_AskForDeleteConfirmation_invalidResponse(t *testing.T) {
 	asker := &MockAsker{OnSimpleTextQuestion: func(name string, promptMessage string) (string, error) {
 		return "cat", nil // the user typed this
 	}}
-	err := question.AskForDeleteConfirmation(asker, "animal", "dog", "1")
+	err := question.AskForDeleteConfirmation(asker, "animal", "dog", "1", func() error { return nil })
 	assert.Equal(t, err, errors.New("Canceled"))
 }
 
@@ -41,6 +41,6 @@ func TestQuestion_AskForDeleteConfirmation_error(t *testing.T) {
 		return "", errors.New("Ouch")
 	}}
 
-	err := question.AskForDeleteConfirmation(asker, "animal", "dog", "1")
+	err := question.AskForDeleteConfirmation(asker, "animal", "dog", "1", func() error { return nil })
 	assert.Equal(t, err, errors.New("Ouch"))
 }

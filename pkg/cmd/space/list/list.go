@@ -2,6 +2,7 @@ package list
 
 import (
 	"fmt"
+
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/apiclient"
 	"github.com/OctopusDeploy/cli/pkg/constants"
@@ -61,13 +62,12 @@ func listRun(f apiclient.ClientFactory, cmd *cobra.Command) error {
 		Table: output.TableDefinition[*spaces.Space]{
 			Header: []string{"NAME", "DESCRIPTION", "TASK QUEUE"},
 			Row: func(item *spaces.Space) []string {
-				name := output.Bold(item.Name)
-
 				taskQueue := output.Green("Running")
 				if item.TaskQueueStopped {
 					taskQueue = output.Yellow("Stopped")
 				}
-				return []string{name, item.Description, taskQueue}
+
+				return []string{output.Bold(item.Name), item.Description, taskQueue}
 			},
 		},
 		Basic: func(item *spaces.Space) string {

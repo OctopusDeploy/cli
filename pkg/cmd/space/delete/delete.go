@@ -3,13 +3,13 @@ package delete
 import (
 	"fmt"
 	"io"
-	"strings"
 
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/apiclient"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/output"
 	"github.com/OctopusDeploy/cli/pkg/question"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/services"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/spaces"
 	"github.com/spf13/cobra"
@@ -27,11 +27,10 @@ func NewCmdDelete(f apiclient.ClientFactory) *cobra.Command {
 		`), constants.ExecutableName, constants.ExecutableName),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) == 0 {
-				deleteRun(f, cmd.OutOrStdout())
-				return nil
+				return deleteRun(f, cmd.OutOrStdout())
 			}
 
-			itemIDOrName := strings.TrimSpace(args[0])
+			itemIDOrName := args[0]
 
 			alreadyConfirmed, err := cmd.Flags().GetBool("confirm")
 			if err != nil {
@@ -43,7 +42,7 @@ func NewCmdDelete(f apiclient.ClientFactory) *cobra.Command {
 				return err
 			}
 			// TODO go to the server and lookup the space id/name and how many projects it has
-			spaceToDelete, err := client.Spaces.GetByIDOrName(itemIDOrName)
+			itemToDelete, err := client.Spaces.GetByIDOrName(itemIDOrName)
 			if err != nil { // could be services.itemNotFound if they typed it wrong.
 				if err == services.ErrItemNotFound {
 					return fmt.Errorf("cannot find a space with name or ID of '%s'", itemIDOrName)
@@ -52,25 +51,11 @@ func NewCmdDelete(f apiclient.ClientFactory) *cobra.Command {
 			}
 
 			if !alreadyConfirmed { // TODO NO_PROMPT env var or whatever we do there
-				err = question.AskForDeleteConfirmation(&question.SurveyAsker{}, "space", spaceToDelete.Name, spaceToDelete.GetID())
-				if err != nil {
-					return err
-				}
+				return question.AskForDeleteConfirmation(&question.SurveyAsker{}, "space", itemToDelete.Name, itemToDelete.ID, func() error {
+					return delete(client, itemToDelete)
+				})
 			}
 
-			// we need to stop the task queue on a space before we can delete it
-			if !spaceToDelete.TaskQueueStopped {
-				spaceToDelete.TaskQueueStopped = true
-				if _, err := client.Spaces.Update(spaceToDelete); err != nil {
-					return err
-				}
-			}
-
-			if err := client.Spaces.DeleteByID(spaceToDelete.ID); err != nil {
-				return err
-			}
-
-			cmd.Printf("%s The space, \"%s\" %s was deleted successfully.\n", output.Red("✔"), spaceToDelete.Name, output.Dimf("(%s)", spaceToDelete.ID))
 			return nil
 		},
 	}
@@ -91,15 +76,17 @@ func deleteRun(f apiclient.ClientFactory, w io.Writer) error {
 		return err
 	}
 
-	spaceToDelete, err := selectSpace(existingSpaces, "Select the space you wish to delete:")
+	itemToDelete, err := selectSpace(existingSpaces, "Select the space you wish to delete:")
 	if err != nil {
 		return err
 	}
 
-	if err := question.AskForDeleteConfirmation(&question.SurveyAsker{}, "space", spaceToDelete.Name, spaceToDelete.ID); err != nil {
-		return err
-	}
+	return question.AskForDeleteConfirmation(&question.SurveyAsker{}, "space", itemToDelete.Name, itemToDelete.ID, func() error {
+		return delete(client, itemToDelete)
+	})
+}
 
+func delete(client *client.Client, spaceToDelete *spaces.Space) error {
 	if !spaceToDelete.TaskQueueStopped {
 		spaceToDelete.TaskQueueStopped = true
 		if _, err := client.Spaces.Update(spaceToDelete); err != nil {
@@ -107,12 +94,7 @@ func deleteRun(f apiclient.ClientFactory, w io.Writer) error {
 		}
 	}
 
-	if err := client.Spaces.DeleteByID(spaceToDelete.ID); err != nil {
-		return err
-	}
-
-	fmt.Printf("%s The space, \"%s\" %s was deleted successfully.\n", output.Red("✔"), spaceToDelete.Name, output.Dimf("(%s)", spaceToDelete.ID))
-	return nil
+	return client.Spaces.DeleteByID(spaceToDelete.ID)
 }
 
 func selectSpace(existingSpaces []*spaces.Space, message string) (*spaces.Space, error) {

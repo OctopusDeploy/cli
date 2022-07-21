@@ -3,7 +3,6 @@ package question
 import (
 	"errors"
 	"fmt"
-	"strings"
 
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/OctopusDeploy/cli/pkg/output"
@@ -32,7 +31,7 @@ type Asker interface {
 // If the confirmation was successful, returns a nil error, else returns an error,
 // which may be a legitimate error from Survey, or a "Canceled" error if the user
 // did not type the correct confirmation string
-func AskForDeleteConfirmation(ask Asker, itemType string, itemName string, itemID string) error {
+func AskForDeleteConfirmation(ask Asker, itemType string, itemName string, itemID string, doDelete func() error) error {
 	enteredName, err := ask.SimpleTextQuestion(
 		"Confirm Delete",
 		fmt.Sprintf(`You are about to delete the %s "%s" %s. This action cannot be reversed. To confirm, type the %s name:`,
@@ -41,10 +40,15 @@ func AskForDeleteConfirmation(ask Asker, itemType string, itemName string, itemI
 	if err != nil {
 		return err
 	}
-	if enteredName != strings.TrimSpace(itemName) {
+	if enteredName != itemName {
 		// user aborted
 		return errors.New("Canceled")
 	}
-	// confirm yes!
+
+	if err := doDelete(); err != nil {
+		return err
+	}
+
+	fmt.Printf("%s The %s, \"%s\" %s was deleted successfully.\n", output.Red("✔"), itemType, itemName, output.Dimf("(%s)", itemID))
 	return nil
 }

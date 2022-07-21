@@ -2,10 +2,11 @@ package view
 
 import (
 	"fmt"
-	"github.com/OctopusDeploy/cli/pkg/usage"
 	"io"
 	"os"
 	"strings"
+
+	"github.com/OctopusDeploy/cli/pkg/usage"
 
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/apiclient"
@@ -87,7 +88,7 @@ func printHumanSpacePreview(host string, space *spaces.Space, out io.Writer) err
 	spaceURL := host + webLink
 
 	// footer
-	fmt.Fprintf(out, output.Dim("View this space in Octopus Deploy: %s\n"), spaceURL)
+	fmt.Fprintf(out, output.Dim("View this space in Octopus Deploy: %s\n"), output.Blue(spaceURL))
 
 	return nil
 }
