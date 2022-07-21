@@ -3,6 +3,7 @@ package account
 import (
 	"fmt"
 	"github.com/OctopusDeploy/cli/pkg/apiclient"
+	cmdDelete "github.com/OctopusDeploy/cli/pkg/cmd/account/delete"
 	cmdList "github.com/OctopusDeploy/cli/pkg/cmd/account/list"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/spf13/cobra"
@@ -17,5 +18,6 @@ func NewCmdAccount(client apiclient.ClientFactory) *cobra.Command {
 	}
 
 	cmd.AddCommand(cmdList.NewCmdList(client))
+	cmd.AddCommand(cmdDelete.NewCmdDelete(client))
 	return cmd
 }
