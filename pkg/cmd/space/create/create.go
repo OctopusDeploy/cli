@@ -1,10 +1,8 @@
 package create
 
 import (
-	"errors"
 	"fmt"
 	"io"
-	"strings"
 
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/MakeNowJust/heredoc/v2"
@@ -12,6 +10,7 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/output"
 	"github.com/OctopusDeploy/cli/pkg/question"
+	"github.com/OctopusDeploy/cli/pkg/validation"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/spaces"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/teams"
@@ -41,19 +40,32 @@ func createRun(f apiclient.ClientFactory, w io.Writer) error {
 		return err
 	}
 
-	allSpaces, err := client.Spaces.GetAll()
+	existingSpaces, err := client.Spaces.GetAll()
 	if err != nil {
 		return err
 	}
 
-	name, err := askSpaceName(allSpaces)
+	spaceNames := []string{}
+	for _, existingSpace := range existingSpaces {
+		spaceNames = append(spaceNames, existingSpace.Name)
+	}
+
+	var name string
+	err = question.AskOne(&survey.Input{
+		Help:    "The name of the space being created.",
+		Message: "Name",
+	}, &name, survey.WithValidator(survey.ComposeValidators(
+		survey.MaxLength(20),
+		survey.MinLength(1),
+		survey.Required,
+		validation.NotEquals(spaceNames, "a space with this name already exists"),
+	)))
 	if err != nil {
 		return err
 	}
-
 	space := spaces.NewSpace(name)
 
-	teams, err := selectTeams(client, allSpaces, "Select one or more teams to manage this space:")
+	teams, err := selectTeams(client, existingSpaces, "Select one or more teams to manage this space:")
 	if err != nil {
 		return err
 	}
@@ -79,38 +91,6 @@ func createRun(f apiclient.ClientFactory, w io.Writer) error {
 	fmt.Printf("%s The space, \"%s\" %s was created successfully.\n", output.Green("✔"), createdSpace.Name, output.Dimf("(%s)", createdSpace.ID))
 
 	return nil
-}
-
-func askSpaceName(existingSpaces []*spaces.Space) (string, error) {
-	nameQuestion := &survey.Question{
-		Name: "name",
-		Prompt: &survey.Input{
-			Help:    "The name of the new space to be created. This name must be unique and cannot exceed 20 characters.",
-			Message: "Name",
-		},
-		Validate: func(val interface{}) error {
-			if s, ok := val.(string); ok {
-				name := strings.TrimSpace(s)
-				if len(name) <= 0 {
-					return errors.New("name is required")
-				}
-				if len(name) > 20 {
-					return errors.New("name cannot exceed 20 characters")
-				}
-
-				for _, existingSpace := range existingSpaces {
-					if name == existingSpace.Name {
-						return errors.New("a space with this name already exists; please specify a unique name")
-					}
-				}
-			}
-			return nil
-		},
-	}
-
-	var name string
-	err := question.Ask([]*survey.Question{nameQuestion}, &name)
-	return name, err
 }
 
 func selectTeams(client *client.Client, existingSpaces []*spaces.Space, message string) ([]*teams.Team, error) {
