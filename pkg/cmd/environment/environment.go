@@ -5,6 +5,7 @@ import (
 
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/apiclient"
+	cmdDelete "github.com/OctopusDeploy/cli/pkg/cmd/environment/delete"
 	cmdList "github.com/OctopusDeploy/cli/pkg/cmd/environment/list"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/spf13/cobra"
@@ -23,5 +24,6 @@ func NewCmdEnvironment(client apiclient.ClientFactory) *cobra.Command {
 	}
 
 	cmd.AddCommand(cmdList.NewCmdList(client))
+	cmd.AddCommand(cmdDelete.NewCmdDelete(client))
 	return cmd
 }

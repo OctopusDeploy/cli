@@ -29,7 +29,7 @@ func NewCmdDelete(f apiclient.ClientFactory) *cobra.Command {
 			if len(args) == 0 {
 				return errors.New("please specify the name or ID of the space to delete")
 			}
-			spaceIDorName := strings.TrimSpace(args[0])
+			itemIDorName := strings.TrimSpace(args[0])
 
 			alreadyConfirmed, err := cmd.Flags().GetBool("confirm")
 			if err != nil {
@@ -41,10 +41,10 @@ func NewCmdDelete(f apiclient.ClientFactory) *cobra.Command {
 				return err
 			}
 			// TODO go to the server and lookup the space id/name and how many projects it has
-			space, err := client.Spaces.GetByIDOrName(spaceIDorName)
+			space, err := client.Spaces.GetByIDOrName(itemIDorName)
 			if err != nil { // could be services.itemNotFound if they typed it wrong.
 				if err == services.ErrItemNotFound {
-					return fmt.Errorf("cannot find a space with name or ID of '%s'", spaceIDorName)
+					return fmt.Errorf("cannot find a space with name or ID of '%s'", itemIDorName)
 				}
 				return err
 			}
