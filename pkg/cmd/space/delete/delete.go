@@ -3,14 +3,15 @@ package delete
 import (
 	"errors"
 	"fmt"
+	"strings"
+
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/apiclient"
 	"github.com/OctopusDeploy/cli/pkg/constants"
+	"github.com/OctopusDeploy/cli/pkg/output"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/services"
 	"github.com/spf13/cobra"
-	"strconv"
-	"strings"
 )
 
 func NewCmdDelete(f apiclient.ClientFactory) *cobra.Command {
@@ -26,7 +27,7 @@ func NewCmdDelete(f apiclient.ClientFactory) *cobra.Command {
 		`), constants.ExecutableName, constants.ExecutableName),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) == 0 {
-				return errors.New("Please specify the name or ID of the space to delete")
+				return errors.New("please specify the name or ID of the space to delete")
 			}
 			spaceIDorName := strings.TrimSpace(args[0])
 
@@ -43,7 +44,7 @@ func NewCmdDelete(f apiclient.ClientFactory) *cobra.Command {
 			space, err := client.Spaces.GetByIDOrName(spaceIDorName)
 			if err != nil { // could be services.itemNotFound if they typed it wrong.
 				if err == services.ErrItemNotFound {
-					return errors.New(fmt.Sprintf("Cannot find a space with name or ID of '%s'", spaceIDorName))
+					return fmt.Errorf("cannot find a space with name or ID of '%s'", spaceIDorName)
 				}
 				return err
 			}
@@ -52,41 +53,29 @@ func NewCmdDelete(f apiclient.ClientFactory) *cobra.Command {
 				confirmQuestion := &survey.Question{
 					Name: "Confirm Delete",
 					Prompt: &survey.Input{
-						Message: fmt.Sprintf("Are you sure you want to delete the Space %s (%s). Enter yes or no:", space.Name, space.GetID()),
+						Message: fmt.Sprintf(`You are about to delete the space, "%s" %s. This action cannot be reversed. To confirm, type the space name:`, space.Name, output.Dimf("(%s)", space.ID)),
 					},
 				}
 
-				var confirmStr string
-				err = survey.Ask([]*survey.Question{confirmQuestion}, &confirmStr)
-				if err != nil {
+				var spaceName string
+				if err = survey.Ask([]*survey.Question{confirmQuestion}, &spaceName); err != nil {
 					return err
 				}
 
-				confirm, err := strconv.ParseBool(confirmStr)
-				if err != nil {
-					// not a parseable bool, try yes/no
-					confirmStr = strings.ToLower(strings.TrimSpace(confirmStr))
-					switch confirmStr {
-					case "yes", "y", "ye":
-						confirm = true
-					default:
-						confirm = false
+				if spaceName == space.Name {
+					// we need to stop the task queue on a space before we can delete it
+					space.TaskQueueStopped = true
+					space, err = client.Spaces.Update(space)
+					if err != nil { // e.g can't stop the task queue
+						return err
 					}
-				}
 
-				if !confirm {
-					// user aborted
-					return nil
-				}
+					if err := client.Spaces.DeleteByID(space.GetID()); err != nil {
+						return err
+					}
 
-				// we need to stop the task queue on a space before we can delete it
-				space.TaskQueueStopped = true
-				space, err = client.Spaces.Update(space)
-				if err != nil { // e.g can't stop the task queue
-					return err
+					fmt.Printf(`%s The space, "%s" %s was deleted successfully.`, output.Red("✔"), space.Name, output.Dimf("(%s)", space.ID))
 				}
-
-				return client.Spaces.DeleteByID(space.GetID())
 			}
 
 			return nil
