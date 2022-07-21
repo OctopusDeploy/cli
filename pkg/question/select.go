@@ -5,7 +5,7 @@ import "github.com/AlecAivazis/survey/v2"
 func MultiSelect[T any](message string, items []T, getKey func(item T) string, selected *[]T) error {
 	optionMap, options := makeItemMapAndOptions(items, getKey)
 	var selectedKeys []string
-	if err := survey.AskOne(&survey.MultiSelect{
+	if err := AskOne(&survey.MultiSelect{
 		Message: message,
 		Options: options,
 	}, &selectedKeys); err != nil {
@@ -20,7 +20,7 @@ func MultiSelect[T any](message string, items []T, getKey func(item T) string, s
 func Select[T any](message string, items []T, getKey func(item T) string, selected *T) error {
 	optionMap, options := makeItemMapAndOptions(items, getKey)
 	var selectedKey string
-	if err := survey.AskOne(&survey.Select{
+	if err := AskOne(&survey.Select{
 		Message: message,
 		Options: options,
 	}, &selectedKey); err != nil {

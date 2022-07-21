@@ -3,9 +3,10 @@ package delete
 import (
 	"errors"
 	"fmt"
+	"strings"
+
 	"github.com/OctopusDeploy/cli/pkg/question"
 	"github.com/OctopusDeploy/cli/pkg/usage"
-	"strings"
 
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/apiclient"

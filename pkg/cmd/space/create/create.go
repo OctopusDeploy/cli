@@ -46,34 +46,39 @@ func createRun(f apiclient.ClientFactory, w io.Writer) error {
 		return err
 	}
 
-	_, err = askSpaceName(allSpaces)
+	name, err := askSpaceName(allSpaces)
 	if err != nil {
 		return err
 	}
 
-	_, err = selectTeams(client, allSpaces, "Select one or more teams to manage this space:")
+	space := spaces.NewSpace(name)
+
+	teams, err := selectTeams(client, allSpaces, "Select one or more teams to manage this space:")
 	if err != nil {
 		return err
 	}
 
-	_, err = selectUsers(client, "Select one or more users to manage this space:")
+	for _, team := range teams {
+		space.SpaceManagersTeams = append(space.SpaceManagersTeams, team.ID)
+	}
+
+	users, err := selectUsers(client, "Select one or more users to manage this space:")
 	if err != nil {
 		return err
 	}
 
-	t := output.NewTable(w)
-	t.AddRow("NAME", "DESCRIPTION", "TASK QUEUE")
-
-	for _, space := range allSpaces {
-		name := output.Bold(space.Name)
-		taskQueue := output.Green("Running")
-		if space.TaskQueueStopped {
-			taskQueue = output.Yellow("Stopped")
-		}
-		t.AddRow(name, space.Description, taskQueue)
+	for _, user := range users {
+		space.SpaceManagersTeamMembers = append(space.SpaceManagersTeams, user.ID)
 	}
 
-	return t.Print()
+	createdSpace, err := client.Spaces.Add(space)
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("%s The space, \"%s\" %s was created successfully.\n", output.Green("✔"), createdSpace.Name, output.Dimf("(%s)", createdSpace.ID))
+
+	return nil
 }
 
 func askSpaceName(existingSpaces []*spaces.Space) (string, error) {
@@ -104,7 +109,7 @@ func askSpaceName(existingSpaces []*spaces.Space) (string, error) {
 	}
 
 	var name string
-	err := survey.Ask([]*survey.Question{nameQuestion}, &name)
+	err := question.Ask([]*survey.Question{nameQuestion}, &name)
 	return name, err
 }
 
@@ -112,7 +117,7 @@ func selectTeams(client *client.Client, existingSpaces []*spaces.Space, message 
 	selectedTeams := []*teams.Team{}
 
 	systemTeams, err := client.Teams.Get(teams.TeamsQuery{
-		IncludeSystem: false,
+		IncludeSystem: true,
 	})
 	if err != nil {
 		return selectedTeams, err
