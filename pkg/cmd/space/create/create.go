@@ -118,7 +118,7 @@ func selectTeams(client *client.Client, existingSpaces []*spaces.Space, message 
 		return selectedTeams, err
 	}
 
-	question.MultiSelect(message, systemTeams.Items, func(team *teams.Team) string {
+	err = question.MultiSelect(message, systemTeams.Items, func(team *teams.Team) string {
 		if len(team.SpaceID) == 0 {
 			return fmt.Sprintf("%s %s", team.Name, output.Dim("(System Team)"))
 		}
@@ -129,7 +129,6 @@ func selectTeams(client *client.Client, existingSpaces []*spaces.Space, message 
 		}
 		return ""
 	}, &selectedTeams)
-
 	return selectedTeams, err
 }
 
@@ -141,9 +140,8 @@ func selectUsers(client *client.Client, message string) ([]*users.User, error) {
 		return selectedUsers, err
 	}
 
-	question.MultiSelect(message, existingUsers, func(existingUser *users.User) string {
+	err = question.MultiSelect(message, existingUsers, func(existingUser *users.User) string {
 		return fmt.Sprintf("%s %s", existingUser.DisplayName, output.Dimf("(%s)", existingUser.Username))
 	}, &selectedUsers)
-
 	return selectedUsers, err
 }
