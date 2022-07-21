@@ -2,6 +2,8 @@ package list
 
 import (
 	"fmt"
+	"strconv"
+
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/apiclient"
 	"github.com/OctopusDeploy/cli/pkg/constants"
@@ -35,9 +37,10 @@ func NewCmdList(client apiclient.ClientFactory) *cobra.Command {
 					return output.IdAndName{Id: item.GetID(), Name: item.Name}
 				},
 				Table: output.TableDefinition[*environments.Environment]{
-					Header: []string{"NAME", "DESCRIPTION"},
+					Header: []string{"NAME", "GUIDED FAILURE"},
 					Row: func(item *environments.Environment) []string {
-						return []string{output.Bold(item.Name), item.Description}
+
+						return []string{output.Bold(item.Name), strconv.FormatBool(item.UseGuidedFailure)}
 					},
 				},
 				Basic: func(item *environments.Environment) string {
