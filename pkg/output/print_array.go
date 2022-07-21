@@ -50,7 +50,7 @@ func PrintArray[T any](items []T, cmd *cobra.Command, mappers Mappers[T]) error 
 	case "json":
 		jsonMapper := mappers.Json
 		if jsonMapper == nil {
-			return errors.New("Command does not support output in JSON format")
+			return errors.New("command does not support output in JSON format")
 		}
 		var outputJson []any
 		for _, e := range items {
@@ -63,7 +63,7 @@ func PrintArray[T any](items []T, cmd *cobra.Command, mappers Mappers[T]) error 
 	case "basic", "text":
 		textMapper := mappers.Basic
 		if textMapper == nil {
-			return errors.New("Command does not support output in plain text")
+			return errors.New("command does not support output in plain text")
 		}
 		for _, e := range items {
 			fmt.Println(textMapper(e))
@@ -72,7 +72,7 @@ func PrintArray[T any](items []T, cmd *cobra.Command, mappers Mappers[T]) error 
 	case "table", "": // table is the default of unspecified
 		tableMapper := mappers.Table
 		if tableMapper.Row == nil {
-			return errors.New("Command does not support output in table format")
+			return errors.New("command does not support output in table format")
 		}
 
 		ioWriter := cmd.OutOrStdout()
@@ -88,7 +88,7 @@ func PrintArray[T any](items []T, cmd *cobra.Command, mappers Mappers[T]) error 
 		return t.Print()
 
 	default:
-		return errors.New(fmt.Sprintf("Unsupported outputFormat %s. Valid values are 'json', 'table', 'basic'. Defaults to table", outputFormat))
+		return fmt.Errorf("unsupported outputFormat %s. Valid values are 'json', 'table', 'basic'. Defaults to table", outputFormat)
 	}
 	return nil
 }
