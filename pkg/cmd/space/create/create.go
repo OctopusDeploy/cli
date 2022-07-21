@@ -11,6 +11,7 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/apiclient"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/output"
+	"github.com/OctopusDeploy/cli/pkg/question"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/spaces"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/teams"
@@ -107,14 +108,6 @@ func askSpaceName(existingSpaces []*spaces.Space) (string, error) {
 	return name, err
 }
 
-func getKeys(m map[string]string) []string {
-	keys := make([]string, 0, len(m))
-	for key := range m {
-		keys = append(keys, key)
-	}
-	return keys
-}
-
 func selectTeams(client *client.Client, existingSpaces []*spaces.Space, message string) ([]*teams.Team, error) {
 	selectedTeams := []*teams.Team{}
 
@@ -125,38 +118,17 @@ func selectTeams(client *client.Client, existingSpaces []*spaces.Space, message 
 		return selectedTeams, err
 	}
 
-	teamNames := map[string]string{}
-	for _, team := range systemTeams.Items {
+	question.MultiSelect(message, systemTeams.Items, func(team *teams.Team) string {
 		if len(team.SpaceID) == 0 {
-			teamNames[fmt.Sprintf("%s %s", team.Name, output.Dim("(System Team)"))] = team.ID
-		} else {
-			for _, existingSpace := range existingSpaces {
-				if team.SpaceID == existingSpace.ID {
-					teamNames[fmt.Sprintf("%s %s", team.Name, output.Dimf("(%s)", existingSpace.Name))] = team.GetID()
-				}
+			return fmt.Sprintf("%s %s", team.Name, output.Dim("(System Team)"))
+		}
+		for _, existingSpace := range existingSpaces {
+			if team.SpaceID == existingSpace.ID {
+				return fmt.Sprintf("%s %s", team.Name, output.Dimf("(%s)", existingSpace.Name))
 			}
 		}
-	}
-
-	selectedNames := []string{}
-	err = survey.Ask([]*survey.Question{
-		{
-			Name: "teams",
-			Prompt: &survey.MultiSelect{
-				Message: message,
-				Options: getKeys(teamNames),
-			},
-		},
-	}, &selectedNames)
-
-	for _, name := range selectedNames {
-		for _, team := range systemTeams.Items {
-			if team.ID == teamNames[name] {
-				selectedTeams = append(selectedTeams, team)
-				break
-			}
-		}
-	}
+		return ""
+	}, &selectedTeams)
 
 	return selectedTeams, err
 }
@@ -169,30 +141,9 @@ func selectUsers(client *client.Client, message string) ([]*users.User, error) {
 		return selectedUsers, err
 	}
 
-	userDisplayNames := map[string]string{}
-	for _, existingUser := range existingUsers {
-		userDisplayNames[fmt.Sprintf("%s %s", existingUser.DisplayName, output.Dimf("(%s)", existingUser.Username))] = existingUser.GetID()
-	}
-
-	selectedNames := []string{}
-	err = survey.Ask([]*survey.Question{
-		{
-			Name: "users",
-			Prompt: &survey.MultiSelect{
-				Message: message,
-				Options: getKeys(userDisplayNames),
-			},
-		},
-	}, &selectedNames)
-
-	for _, name := range selectedNames {
-		for _, existingUser := range existingUsers {
-			if existingUser.ID == userDisplayNames[name] {
-				selectedUsers = append(selectedUsers, existingUser)
-				break
-			}
-		}
-	}
+	question.MultiSelect(message, existingUsers, func(existingUser *users.User) string {
+		return fmt.Sprintf("%s %s", existingUser.DisplayName, output.Dimf("(%s)", existingUser.Username))
+	}, &selectedUsers)
 
 	return selectedUsers, err
 }
