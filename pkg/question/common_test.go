@@ -2,50 +2,45 @@ package question_test
 
 import (
 	"errors"
-	"reflect"
 	"testing"
 
-	"github.com/AlecAivazis/survey/v2"
 	"github.com/OctopusDeploy/cli/pkg/question"
 	"github.com/stretchr/testify/assert"
 )
 
+type MockAsker struct {
+	OnSimpleTextQuestion func(name string, promptMessage string) (string, error)
+}
+
+func (a *MockAsker) SimpleTextQuestion(name string, promptMessage string) (string, error) {
+	return a.OnSimpleTextQuestion(name, promptMessage)
+}
+
 func TestQuestion_AskForDeleteConfirmation_Success(t *testing.T) {
-	var capturedQs []*survey.Question
-	question.Ask = func(qs []*survey.Question, response interface{}, opts ...survey.AskOpt) error {
-		capturedQs = qs
-		reflect.ValueOf(response).Elem().Set(reflect.ValueOf("dog"))
-		return nil
-	}
+	asker := &MockAsker{OnSimpleTextQuestion: func(name string, promptMessage string) (string, error) {
+		assert.Equal(t, "Confirm Delete", name)
+		assert.Equal(t, `You are about to delete the animal "dog" (1). This action cannot be reversed. To confirm, type the animal name:`, promptMessage)
 
-	err := question.AskForDeleteConfirmation("animal", "dog", "1")
+		return "dog", nil // the user typed this
+	}}
+
+	err := question.AskForDeleteConfirmation(asker, "animal", "dog", "1")
 	assert.Nil(t, err) // no error
-
-	if len(capturedQs) != 1 {
-		assert.Fail(t, "Wrong number of questions")
-		return
-	}
-	q := capturedQs[0]
-	assert.Equal(t, "Confirm Delete", q.Name)
-	// assert.Equal(t, "xx", q.Prompt) // We fall off the grid here because x.prompt is
-	// *survey.Input(&survey.Input{Renderer:survey.Renderer{stdio:terminal.Stdio{In:terminal.FileReader(nil), Out:terminal.FileWriter(nil), Err:io.Writer(nil)}, renderedErrors:bytes.Buffer{buf:[]uint8(nil), off:0, lastRead:0}, renderedText:bytes.Buffer{buf:[]uint8(nil), off:0, lastRead:0}}, Message:"You are about to delete the animal \"dog\" (1). This action cannot be reversed. To confirm, type the animal name:"
 }
 
 func TestQuestion_AskForDeleteConfirmation_invalidResponse(t *testing.T) {
-	question.Ask = func(qs []*survey.Question, response interface{}, opts ...survey.AskOpt) error {
-		reflect.ValueOf(response).Elem().Set(reflect.ValueOf("cat"))
-		return nil
-	}
-
-	err := question.AskForDeleteConfirmation("animal", "dog", "1")
+	asker := &MockAsker{OnSimpleTextQuestion: func(name string, promptMessage string) (string, error) {
+		return "cat", nil // the user typed this
+	}}
+	err := question.AskForDeleteConfirmation(asker, "animal", "dog", "1")
 	assert.Equal(t, err, errors.New("Canceled"))
 }
 
 func TestQuestion_AskForDeleteConfirmation_error(t *testing.T) {
-	question.Ask = func(qs []*survey.Question, response interface{}, opts ...survey.AskOpt) error {
-		return errors.New("Ouch")
-	}
+	asker := &MockAsker{OnSimpleTextQuestion: func(name string, promptMessage string) (string, error) {
+		return "", errors.New("Ouch")
+	}}
 
-	err := question.AskForDeleteConfirmation("animal", "dog", "1")
+	err := question.AskForDeleteConfirmation(asker, "animal", "dog", "1")
 	assert.Equal(t, err, errors.New("Ouch"))
 }
