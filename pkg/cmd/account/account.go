@@ -2,7 +2,9 @@ package account
 
 import (
 	"fmt"
+
 	"github.com/OctopusDeploy/cli/pkg/apiclient"
+	cmdCreate "github.com/OctopusDeploy/cli/pkg/cmd/account/create"
 	cmdDelete "github.com/OctopusDeploy/cli/pkg/cmd/account/delete"
 	cmdList "github.com/OctopusDeploy/cli/pkg/cmd/account/list"
 	"github.com/OctopusDeploy/cli/pkg/constants"
@@ -17,7 +19,8 @@ func NewCmdAccount(client apiclient.ClientFactory) *cobra.Command {
 		Example: fmt.Sprintf("$ %s account list", constants.ExecutableName),
 	}
 
-	cmd.AddCommand(cmdList.NewCmdList(client))
 	cmd.AddCommand(cmdDelete.NewCmdDelete(client))
+	cmd.AddCommand(cmdCreate.NewCmdCreate(client))
+	cmd.AddCommand(cmdList.NewCmdList(client))
 	return cmd
 }
