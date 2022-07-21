@@ -52,7 +52,7 @@ func NewCmdDelete(f apiclient.ClientFactory) *cobra.Command {
 			}
 
 			if !alreadyConfirmed { // TODO NO_PROMPT env var or whatever we do there
-				err = question.AskForDeleteConfirmation("space", spaceToDelete.Name, spaceToDelete.GetID())
+				err = question.AskForDeleteConfirmation(&question.SurveyAsker{}, "space", space.Name, space.GetID())
 				if err != nil {
 					return err
 				}
