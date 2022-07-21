@@ -10,6 +10,7 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/question"
 	"github.com/OctopusDeploy/cli/pkg/validation"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
 	"github.com/spf13/cobra"
 )
 
@@ -30,12 +31,12 @@ func NewCmdCreate(f apiclient.ClientFactory) *cobra.Command {
 }
 
 func createRun(f apiclient.ClientFactory, w io.Writer) error {
-	client, err := f.Get(true)
+	octopus, err := f.Get(true)
 	if err != nil {
 		return err
 	}
 
-	existingAccounts, err := client.Accounts.GetAll()
+	existingAccounts, err := octopus.Accounts.GetAll()
 	if err != nil {
 		return err
 	}
@@ -43,6 +44,25 @@ func createRun(f apiclient.ClientFactory, w io.Writer) error {
 	accountNames := []string{}
 	for _, existingAccount := range existingAccounts {
 		accountNames = append(accountNames, existingAccount.GetName())
+	}
+
+	accountTypes := []string{
+		"AWS Account",
+		"Azure Subscription",
+		"Google Cloud Account",
+		"SSH Key Pair",
+		"Username/Password",
+		"Token",
+	}
+
+	var accountType string
+	err = question.AskOne(&survey.Select{
+		Help:    "The type of account being created.",
+		Message: "Account Type",
+		Options: accountTypes,
+	}, &accountType)
+	if err != nil {
+		return err
 	}
 
 	var name string
@@ -59,7 +79,37 @@ func createRun(f apiclient.ClientFactory, w io.Writer) error {
 		return err
 	}
 
+	var description string
+	err = question.AskOne(&survey.Input{
+		Help:    "A summary explaining the use of the account to other users.",
+		Message: "Description",
+	}, &description)
+	if err != nil {
+		return err
+	}
+
+	switch accountType {
+	case "Azure Subscription":
+		createAzureSubscriptionRun(octopus, w)
+	}
+
 	// TODO: use the name; create the account
+
+	return nil
+}
+
+func createAzureSubscriptionRun(octopus *client.Client, w io.Writer) error {
+	var subscriptionID string
+	err := question.AskOne(&survey.Input{
+		Help:    "Your Azure subscription ID. This is a GUID in the format xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx.",
+		Message: "Subscription ID",
+	}, &subscriptionID, survey.WithValidator(survey.ComposeValidators(
+		survey.Required,
+		validation.IsUuid,
+	)))
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
