@@ -26,12 +26,9 @@ func TestNotEquals(t *testing.T) {
 }
 
 func TestIsUUID(t *testing.T) {
-	isUUIDValidator := IsUuid()
-	assert.NotNil(t, isUUIDValidator)
-
 	testStrings := []string{"foo", "bar", "quxx"}
 	for _, v := range testStrings {
-		err := isUUIDValidator(v)
+		err := IsUuid(v)
 		assert.Error(t, err)
 	}
 
@@ -40,6 +37,6 @@ func TestIsUUID(t *testing.T) {
 	assert.NotNil(t, testUUID)
 
 	testUUIDString := testUUID.String()
-	err = isUUIDValidator(testUUIDString)
+	err = IsUuid(testUUIDString)
 	assert.NoError(t, err)
 }
