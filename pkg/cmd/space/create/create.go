@@ -13,6 +13,8 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/output"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/core"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/teams"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/users"
 	"github.com/spf13/cobra"
 )
 
@@ -43,7 +45,12 @@ func createRun(f apiclient.ClientFactory, w io.Writer) error {
 		return err
 	}
 
-	_, err = selectSpaceManagers(client)
+	_, err = selectTeams(client, "Select one or more teams to manage this space:")
+	if err != nil {
+		return err
+	}
+
+	_, err = selectUsers(client, "Select one or more users to manage this space:")
 	if err != nil {
 		return err
 	}
@@ -107,29 +114,77 @@ func askSpaceName(client *client.Client) (string, error) {
 	return name, err
 }
 
-func selectSpaceManagers(client *client.Client) ([]string, error) {
-	spaceManagers := []string{}
+func getKeys(m map[string]string) []string {
+	keys := make([]string, 0, len(m))
+	for key := range m {
+		keys = append(keys, key)
+	}
+	return keys
+}
 
-	teams, err := client.Teams.GetAll()
+func selectTeams(client *client.Client, message string) ([]*teams.Team, error) {
+	selectedTeams := []*teams.Team{}
+
+	systemTeams, err := client.Teams.Get(teams.TeamsQuery{
+		IncludeSystem: false,
+	})
 	if err != nil {
-		return spaceManagers, err
+		return selectedTeams, err
 	}
 
-	teamNames := []string{}
-	for _, team := range teams {
-		teamNames = append(teamNames, fmt.Sprintf("%s (%s)", team.Name, team.SpaceID))
+	teamNames := map[string]string{}
+	for _, team := range systemTeams.Items {
+		if len(team.SpaceID) == 0 {
+			teamNames[fmt.Sprintf("%s %s", team.Name, output.Dim("(System Team)"))] = team.ID
+		} else {
+			teamNames[fmt.Sprintf("%s %s", team.Name, output.Dimf("(%s)", team.SpaceID))] = team.GetID()
+		}
 	}
 
-	questions := []*survey.Question{
+	selectedNames := []string{}
+	err = survey.Ask([]*survey.Question{
 		{
 			Name: "teams",
 			Prompt: &survey.MultiSelect{
-				Message: "Select one or more teams to manage this space:",
-				Options: teamNames,
+				Message: message,
+				Options: getKeys(teamNames),
 			},
 		},
+	}, &selectedNames)
+
+	for _, name := range selectedNames {
+		for _, team := range systemTeams.Items {
+			if team.ID == teamNames[name] {
+				selectedTeams = append(selectedTeams, team)
+				break
+			}
+		}
 	}
 
-	err = survey.Ask(questions, &spaceManagers)
-	return spaceManagers, err
+	return selectedTeams, err
+}
+
+func selectUsers(client *client.Client, message string) ([]*users.User, error) {
+	selectedUsers := []*users.User{}
+
+	allUsers, err := client.Users.GetAll()
+	if err != nil {
+		return selectedUsers, err
+	}
+
+	userNames := []string{}
+	for _, user := range allUsers {
+		userNames = append(userNames, user.DisplayName)
+	}
+
+	err = survey.Ask([]*survey.Question{
+		{
+			Name: "users",
+			Prompt: &survey.MultiSelect{
+				Message: message,
+				Options: userNames,
+			},
+		},
+	}, &selectedUsers)
+	return selectedUsers, err
 }
