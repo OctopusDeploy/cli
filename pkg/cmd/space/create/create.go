@@ -89,7 +89,6 @@ func createRun(f apiclient.ClientFactory, w io.Writer) error {
 	}
 
 	fmt.Printf("%s The space, \"%s\" %s was created successfully.\n", output.Green("✔"), createdSpace.Name, output.Dimf("(%s)", createdSpace.ID))
-
 	return nil
 }
 
