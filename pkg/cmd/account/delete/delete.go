@@ -3,12 +3,11 @@ package delete
 import (
 	"errors"
 	"fmt"
-	"github.com/OctopusDeploy/cli/pkg/output"
+	"github.com/OctopusDeploy/cli/pkg/question"
 	"github.com/OctopusDeploy/cli/pkg/usage"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/accounts"
 	"strings"
 
-	"github.com/AlecAivazis/survey/v2"
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/apiclient"
 	"github.com/OctopusDeploy/cli/pkg/constants"
@@ -68,20 +67,9 @@ func NewCmdDelete(f apiclient.ClientFactory) *cobra.Command {
 			}
 
 			if !alreadyConfirmed { // TODO NO_PROMPT env var or whatever we do there
-				confirmQuestion := &survey.Question{
-					Name: "Confirm Delete",
-					Prompt: &survey.Input{
-						Message: fmt.Sprintf(`You are about to delete the account, "%s" %s. This action cannot be reversed. To confirm, type the account name:`, account.GetName(), output.Dimf("(%s)", account.GetID())),
-					},
-				}
-
-				var accountName string
-				if err = survey.Ask([]*survey.Question{confirmQuestion}, &accountName); err != nil {
+				err := question.AskForDeleteConfirmation("account", account.GetName(), account.GetID())
+				if err != nil {
 					return err
-				}
-				if accountName != strings.TrimSpace(account.GetName()) {
-					// user aborted
-					return errors.New("Canceled")
 				}
 			}
 

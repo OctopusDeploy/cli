@@ -3,11 +3,10 @@ package delete
 import (
 	"errors"
 	"fmt"
-	"github.com/OctopusDeploy/cli/pkg/output"
+	"github.com/OctopusDeploy/cli/pkg/question"
 	"github.com/OctopusDeploy/cli/pkg/usage"
 	"strings"
 
-	"github.com/AlecAivazis/survey/v2"
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/apiclient"
 	"github.com/OctopusDeploy/cli/pkg/constants"
@@ -51,20 +50,9 @@ func NewCmdDelete(f apiclient.ClientFactory) *cobra.Command {
 			}
 
 			if !alreadyConfirmed { // TODO NO_PROMPT env var or whatever we do there
-				confirmQuestion := &survey.Question{
-					Name: "Confirm Delete",
-					Prompt: &survey.Input{
-						Message: fmt.Sprintf(`You are about to delete the space, "%s" %s. This action cannot be reversed. To confirm, type the space name:`, space.Name, output.Dimf("(%s)", space.ID)),
-					},
-				}
-
-				var spaceName string
-				if err = survey.Ask([]*survey.Question{confirmQuestion}, &spaceName); err != nil {
+				err = question.AskForDeleteConfirmation("space", space.Name, space.GetID())
+				if err != nil {
 					return err
-				}
-				if spaceName != strings.TrimSpace(space.Name) {
-					// user aborted
-					return errors.New("Canceled")
 				}
 			}
 
