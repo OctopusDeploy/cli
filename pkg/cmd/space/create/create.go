@@ -12,7 +12,7 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/output"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/core"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/spaces"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/teams"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/users"
 	"github.com/spf13/cobra"
@@ -40,22 +40,22 @@ func createRun(f apiclient.ClientFactory, w io.Writer) error {
 		return err
 	}
 
-	_, err = askSpaceName(client)
+	allSpaces, err := client.Spaces.GetAll()
 	if err != nil {
 		return err
 	}
 
-	_, err = selectTeams(client, "Select one or more teams to manage this space:")
+	_, err = askSpaceName(allSpaces)
+	if err != nil {
+		return err
+	}
+
+	_, err = selectTeams(client, allSpaces, "Select one or more teams to manage this space:")
 	if err != nil {
 		return err
 	}
 
 	_, err = selectUsers(client, "Select one or more users to manage this space:")
-	if err != nil {
-		return err
-	}
-
-	allSpaces, err := client.Spaces.GetAll()
 	if err != nil {
 		return err
 	}
@@ -75,7 +75,7 @@ func createRun(f apiclient.ClientFactory, w io.Writer) error {
 	return t.Print()
 }
 
-func askSpaceName(client *client.Client) (string, error) {
+func askSpaceName(existingSpaces []*spaces.Space) (string, error) {
 	nameQuestion := &survey.Question{
 		Name: "name",
 		Prompt: &survey.Input{
@@ -92,17 +92,10 @@ func askSpaceName(client *client.Client) (string, error) {
 					return errors.New("name cannot exceed 20 characters")
 				}
 
-				space, err := client.Spaces.GetByName(name)
-				if err != nil {
-					if apiError, ok := err.(*core.APIError); ok {
-						if apiError.StatusCode != 404 {
-							return err
-						}
+				for _, existingSpace := range existingSpaces {
+					if name == existingSpace.Name {
+						return errors.New("a space with this name already exists; please specify a unique name")
 					}
-				}
-
-				if space != nil {
-					return errors.New("a space with this name already exists; please specify a unique name")
 				}
 			}
 			return nil
@@ -122,7 +115,7 @@ func getKeys(m map[string]string) []string {
 	return keys
 }
 
-func selectTeams(client *client.Client, message string) ([]*teams.Team, error) {
+func selectTeams(client *client.Client, existingSpaces []*spaces.Space, message string) ([]*teams.Team, error) {
 	selectedTeams := []*teams.Team{}
 
 	systemTeams, err := client.Teams.Get(teams.TeamsQuery{
@@ -137,7 +130,11 @@ func selectTeams(client *client.Client, message string) ([]*teams.Team, error) {
 		if len(team.SpaceID) == 0 {
 			teamNames[fmt.Sprintf("%s %s", team.Name, output.Dim("(System Team)"))] = team.ID
 		} else {
-			teamNames[fmt.Sprintf("%s %s", team.Name, output.Dimf("(%s)", team.SpaceID))] = team.GetID()
+			for _, existingSpace := range existingSpaces {
+				if team.SpaceID == existingSpace.ID {
+					teamNames[fmt.Sprintf("%s %s", team.Name, output.Dimf("(%s)", existingSpace.Name))] = team.GetID()
+				}
+			}
 		}
 	}
 
@@ -167,24 +164,35 @@ func selectTeams(client *client.Client, message string) ([]*teams.Team, error) {
 func selectUsers(client *client.Client, message string) ([]*users.User, error) {
 	selectedUsers := []*users.User{}
 
-	allUsers, err := client.Users.GetAll()
+	existingUsers, err := client.Users.GetAll()
 	if err != nil {
 		return selectedUsers, err
 	}
 
-	userNames := []string{}
-	for _, user := range allUsers {
-		userNames = append(userNames, user.DisplayName)
+	userDisplayNames := map[string]string{}
+	for _, existingUser := range existingUsers {
+		userDisplayNames[fmt.Sprintf("%s %s", existingUser.DisplayName, output.Dimf("(%s)", existingUser.Username))] = existingUser.GetID()
 	}
 
+	selectedNames := []string{}
 	err = survey.Ask([]*survey.Question{
 		{
 			Name: "users",
 			Prompt: &survey.MultiSelect{
 				Message: message,
-				Options: userNames,
+				Options: getKeys(userDisplayNames),
 			},
 		},
-	}, &selectedUsers)
+	}, &selectedNames)
+
+	for _, name := range selectedNames {
+		for _, existingUser := range existingUsers {
+			if existingUser.ID == userDisplayNames[name] {
+				selectedUsers = append(selectedUsers, existingUser)
+				break
+			}
+		}
+	}
+
 	return selectedUsers, err
 }
