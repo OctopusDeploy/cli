@@ -3,7 +3,9 @@ package apiclient
 import (
 	"errors"
 	"fmt"
+	octopusErrors "github.com/OctopusDeploy/cli/pkg/errors"
 	octopusApiClient "github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
+	"github.com/hashicorp/go-multierror"
 	"net/url"
 	"os"
 )
@@ -30,15 +32,15 @@ type Client struct {
 	Space string
 }
 
-// Creates a new Client wrapper structure
+// NewFromEnvironment Creates a new Client wrapper structure
 func NewFromEnvironment() (ClientFactory, error) {
 	host := os.Getenv("OCTOPUS_HOST")
 	apiKey := os.Getenv("OCTOPUS_API_KEY")
 	space := os.Getenv("OCTOPUS_SPACE")
 
-	if host == "" {
-		// TODO a proper set of Error types
-		return nil, errors.New("OCTOPUS_HOST environment variable is missing or blank")
+	errs := ValidateMandatoryEnvironment(host, apiKey)
+	if errs != nil {
+		return nil, errs
 	}
 
 	hostUrl, err := url.Parse(host)
@@ -54,6 +56,19 @@ func NewFromEnvironment() (ClientFactory, error) {
 		Space:             space,
 	}
 	return clientImpl, nil
+}
+
+func ValidateMandatoryEnvironment(host string, apiKey string) error {
+	var result *multierror.Error
+
+	if host == "" {
+		result = multierror.Append(result, &octopusErrors.OsEnvironmentError{EnvironmentVariable: "OCTOPUS_HOST"})
+	}
+	if apiKey == "" {
+		result = multierror.Append(result, &octopusErrors.OsEnvironmentError{EnvironmentVariable: "OCTOPUS_API_KEY"})
+	}
+
+	return result.ErrorOrNil()
 }
 
 func (c *Client) Get(spaceScoped bool) (*octopusApiClient.Client, error) {
