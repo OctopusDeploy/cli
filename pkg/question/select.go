@@ -17,17 +17,18 @@ func MultiSelect[T any](message string, items []T, getKey func(item T) string, s
 	return nil
 }
 
-func Select[T any](message string, items []T, getKey func(item T) string, selected *T) error {
+func Select[T any](message string, items []T, getKey func(item T) string) (T, error) {
 	optionMap, options := makeItemMapAndOptions(items, getKey)
+	var selectedValue T
 	var selectedKey string
 	if err := AskOne(&survey.Select{
 		Message: message,
 		Options: options,
 	}, &selectedKey); err != nil {
-		return err
+		return selectedValue, err
 	}
-	*selected = optionMap[selectedKey]
-	return nil
+	selectedValue = optionMap[selectedKey]
+	return selectedValue, nil
 }
 
 func makeItemMapAndOptions[T any](items []T, getKey func(item T) string) (map[string]T, []string) {

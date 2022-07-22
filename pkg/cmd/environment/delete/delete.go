@@ -7,8 +7,8 @@ import (
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/apiclient"
 	"github.com/OctopusDeploy/cli/pkg/constants"
-	"github.com/OctopusDeploy/cli/pkg/output"
 	"github.com/OctopusDeploy/cli/pkg/question"
+	"github.com/OctopusDeploy/cli/pkg/question/selectors"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/environments"
 	"github.com/spf13/cobra"
@@ -87,7 +87,7 @@ func deleteRun(f apiclient.ClientFactory, w io.Writer) error {
 		return err
 	}
 
-	itemToDelete, err := selectEnvironment(existingItems, "Select the environment you wish to delete:")
+	itemToDelete, err := selectors.ByNameOrID(existingItems, "Select the environment you wish to delete:")
 	if err != nil {
 		return err
 	}
@@ -99,20 +99,4 @@ func deleteRun(f apiclient.ClientFactory, w io.Writer) error {
 
 func delete(client *client.Client, itemToDelete *environments.Environment) error {
 	return client.Environments.DeleteByID(itemToDelete.GetID())
-}
-
-func selectEnvironment(existingItems []*environments.Environment, message string) (*environments.Environment, error) {
-	var selectedItem *environments.Environment
-	if err := question.Select(message, existingItems, func(item *environments.Environment) string {
-		for _, existingItem := range existingItems {
-			if item.GetID() == existingItem.GetID() {
-				return fmt.Sprintf("%s %s", item.Name, output.Dimf("(%s)", item.GetID()))
-			}
-		}
-		return ""
-	}, &selectedItem); err != nil {
-		return nil, err
-	}
-
-	return selectedItem, nil
 }

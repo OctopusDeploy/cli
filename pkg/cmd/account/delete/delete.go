@@ -7,8 +7,8 @@ import (
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/apiclient"
 	"github.com/OctopusDeploy/cli/pkg/constants"
-	"github.com/OctopusDeploy/cli/pkg/output"
 	"github.com/OctopusDeploy/cli/pkg/question"
+	"github.com/OctopusDeploy/cli/pkg/question/selectors"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/accounts"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
 	"github.com/spf13/cobra"
@@ -87,7 +87,7 @@ func deleteRun(f apiclient.ClientFactory, w io.Writer) error {
 		return err
 	}
 
-	accountToDelete, err := selectAccount(existingAccounts, "Select the account you wish to delete:")
+	accountToDelete, err := selectors.Account(existingAccounts, "Select the account you wish to delete:")
 	if err != nil {
 		return err
 	}
@@ -99,20 +99,4 @@ func deleteRun(f apiclient.ClientFactory, w io.Writer) error {
 
 func delete(client *client.Client, accountToDelete accounts.IAccount) error {
 	return client.Accounts.DeleteByID(accountToDelete.GetID())
-}
-
-func selectAccount(existingAccounts []accounts.IAccount, message string) (accounts.IAccount, error) {
-	var selectedAccount accounts.IAccount
-	if err := question.Select(message, existingAccounts, func(account accounts.IAccount) string {
-		for _, existingAccount := range existingAccounts {
-			if account.GetID() == existingAccount.GetID() {
-				return fmt.Sprintf("%s %s", account.GetName(), output.Dimf("(%s)", account.GetID()))
-			}
-		}
-		return ""
-	}, &selectedAccount); err != nil {
-		return nil, err
-	}
-
-	return selectedAccount, nil
 }

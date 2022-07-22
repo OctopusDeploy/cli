@@ -7,8 +7,8 @@ import (
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/apiclient"
 	"github.com/OctopusDeploy/cli/pkg/constants"
-	"github.com/OctopusDeploy/cli/pkg/output"
 	"github.com/OctopusDeploy/cli/pkg/question"
+	"github.com/OctopusDeploy/cli/pkg/question/selectors"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/services"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/spaces"
@@ -76,7 +76,7 @@ func deleteRun(f apiclient.ClientFactory, w io.Writer) error {
 		return err
 	}
 
-	itemToDelete, err := selectSpace(existingSpaces, "Select the space you wish to delete:")
+	itemToDelete, err := selectors.ByNameOrID(existingSpaces, "Select the space you wish to delete:")
 	if err != nil {
 		return err
 	}
@@ -95,20 +95,4 @@ func delete(client *client.Client, spaceToDelete *spaces.Space) error {
 	}
 
 	return client.Spaces.DeleteByID(spaceToDelete.ID)
-}
-
-func selectSpace(existingSpaces []*spaces.Space, message string) (*spaces.Space, error) {
-	var selectedSpace *spaces.Space
-	if err := question.Select(message, existingSpaces, func(space *spaces.Space) string {
-		for _, existingSpace := range existingSpaces {
-			if space.ID == existingSpace.ID {
-				return fmt.Sprintf("%s %s", space.Name, output.Dimf("(%s)", space.ID))
-			}
-		}
-		return ""
-	}, &selectedSpace); err != nil {
-		return nil, err
-	}
-
-	return selectedSpace, nil
 }
