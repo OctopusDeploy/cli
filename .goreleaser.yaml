@@ -16,6 +16,7 @@ builds:
       - arm64
     id: "octopus"
     main: ./cmd/octopus
+    binary: "{{ .ProjectName }}_v{{ .Version }}"
 
 archives:
   - replacements:
@@ -23,8 +24,26 @@ archives:
       linux: Linux
       windows: Windows
       amd64: x86_64
+    format_overrides:
+      - goos: windows
+        format: zip
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+
 checksum:
-  name_template: 'checksums.txt'
+  name_template: '{{ .ProjectName }}_{{ .Version }}_SHA256SUMS'
+  algorithm: sha256
+signs:
+  - artifacts: checksum
+    args:
+      [
+        "--batch",
+        "-u",
+        "{{ .Env.GPG_FINGERPRINT }}",
+        "--output",
+        "${signature}",
+        "--detach-sign",
+        "${artifact}",
+      ]
 
 changelog:
   skip: true
