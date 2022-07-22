@@ -89,7 +89,7 @@ func printHumanSpacePreview(host string, space *spaces.Space, out io.Writer) err
 	spaceURL := host + webLink
 
 	// footer
-	fmt.Fprintf(out, output.Dim("View this space in Octopus Deploy: %s\n"), output.Blue(spaceURL))
+	fmt.Fprintf(out, "View this space in Octopus Deploy: %s\n", output.Blue(spaceURL))
 
 	return nil
 }
