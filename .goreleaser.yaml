@@ -28,15 +28,13 @@ archives:
       - goos: windows
         format: zip
     name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
-
 checksum:
   name_template: '{{ .ProjectName }}_{{ .Version }}_SHA256SUMS'
   algorithm: sha256
 signs:
-  - artifacts: checksum
+  - artifacts: all
     args:
       [
-        "--batch",
         "-u",
         "{{ .Env.GPG_FINGERPRINT }}",
         "--output",
@@ -44,6 +42,6 @@ signs:
         "--detach-sign",
         "${artifact}",
       ]
-
+    stdin: '{{ .Env.GPG_PASSWORD }}'
 changelog:
   skip: true
