@@ -8,13 +8,18 @@ ifeq ($(GOOS),windows)
 rmdir /s /q bin/
 endif
 
+ifeq (run,$(firstword $(MAKECMDGOALS)))
+  RUN_ARGS := $(wordlist 2,$(words $(MAKECMDGOALS)),$(MAKECMDGOALS))
+  $(eval $(RUN_ARGS):;@:)
+endif
+
 .PHONY: bin/octopus$(EXE)
 bin/octopus$(EXE):
 	go build -o bin/octopus cmd/octopus/main.go
 
 .PHONY: run
 run:
-	go run cmd/octopus/main.go
+	go run cmd/octopus/main.go $(RUN_ARGS)
 
 .PHONY: clean
 clean:
