@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.0.2](https://github.com/OctopusDeploy/cli/compare/v0.0.1...v0.0.2) (2022-07-22)
+
+
+### Bug Fixes
+
+* package signing ([#20](https://github.com/OctopusDeploy/cli/issues/20)) ([d9ea487](https://github.com/OctopusDeploy/cli/commit/d9ea487220e4ba7a8dbeff98ace9b7680dd67679))
+
 ## [0.0.1](https://github.com/OctopusDeploy/cli/compare/v0.0.1...v0.0.1) (2022-07-22)
 
 
