@@ -10,7 +10,7 @@ jobs:
       - uses: google-github-actions/release-please-action@v3
         id: release
         with:
-          release-type: go
+          release-type: simple
           token: ${{ secrets.INTEGRATIONS_FNM_BOT_TOKEN }}
           command: github-release
   release-please-pr:
