@@ -70,19 +70,20 @@ user-pw-b  UsernamePassword
 			if !EnsureSuccess(t, err, stdOut, stdErr) {
 				return
 			}
-			type IdAndName struct {
+			type AccountSummary struct {
 				Id   string
 				Name string
+				Type string
 			}
-			var results []IdAndName
+			var results []AccountSummary
 			err = json.Unmarshal(stdOut, &results)
 			if !EnsureSuccess(t, err, string(stdOut), string(stdErr)) {
 				return
 			}
 
-			expected := []IdAndName{
-				{Id: accountRef1.GetID(), Name: "user-pw-a"},
-				{Id: accountRef2.GetID(), Name: "user-pw-b"},
+			expected := []AccountSummary{
+				{Id: accountRef1.GetID(), Name: "user-pw-a", Type: "UsernamePassword"},
+				{Id: accountRef2.GetID(), Name: "user-pw-b", Type: "UsernamePassword"},
 			}
 			assert.Equal(t, expected, results)
 		})

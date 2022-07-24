@@ -28,9 +28,16 @@ func NewCmdList(client apiclient.ClientFactory) *cobra.Command {
 				return err
 			}
 
+			type AccountJson struct {
+				Id   string
+				Name string
+				Type string
+				// TODO should we list type-specific fields here? (e.g. an Azure DevOps account may have different attributes than a Username)
+			}
+
 			return output.PrintArray(allAccounts, cmd, output.Mappers[accounts.IAccount]{
 				Json: func(item accounts.IAccount) any {
-					return output.IdAndName{Id: item.GetID(), Name: item.GetName()}
+					return AccountJson{Id: item.GetID(), Name: item.GetName(), Type: string(item.GetAccountType())}
 				},
 				Table: output.TableDefinition[accounts.IAccount]{
 					Header: []string{"NAME", "TYPE"},
