@@ -22,5 +22,5 @@ jobs:
         uses: google-github-actions/release-please-action@v3
         with:
           token: ${{ secrets.INTEGRATIONS_FNM_BOT_TOKEN }}
-          release-type: go
+          release-type: simple
           command: release-pr
