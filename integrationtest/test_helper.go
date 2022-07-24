@@ -1,5 +1,3 @@
-//go:build integration
-
 package integrationtest
 
 import (
@@ -13,10 +11,11 @@ import (
 	"os/exec"
 	"path"
 	"runtime"
+	"testing"
 )
 
-// Integration tests should call this to get a "back door" connection to the Octopus Server
-// so they can create fixture data, cleanup, etc
+// GetApiClient returns a "back door" connection to the Octopus Server
+// that integration tests can use to create fixture data, cleanup, etc
 func GetApiClient(spaceId string) (*client.Client, error) {
 	apiUrl, err := url.Parse(os.Getenv("OCTOPUS_TEST_URL"))
 	apiKey := os.Getenv("OCTOPUS_TEST_APIKEY")
@@ -48,7 +47,7 @@ func GetCliPath() (cliPath string, cliDir string, err error) {
 			cliPath = path.Join(cliDir, "octopus")
 		}
 	} else {
-		err = errors.New("Can't get runtime.caller(1)")
+		err = errors.New("can't get runtime.caller(1)")
 	}
 	return
 }
@@ -59,7 +58,24 @@ var ensureCliHasRun = false
 // It is a particularly bad idea to run this on something that outputs loads and loads
 // of std output over time as we'll consume heaps of memory, but we aren't doing that in
 // our integration tests.
-func runExecutable(executable string, args []string, workingDirectory string, environment []string) (string, string, error) {
+// NOTE: the standard out
+func runExecutable(executable string, args []string, workingDirectory string, environment []string) (stdout string, stderr string, err error) {
+	stdoutBytes, stderrBytes, err := runExecutableRawOutput(executable, args, workingDirectory, environment)
+	if stdoutBytes != nil {
+		stdout = string(stdoutBytes)
+	} else {
+		stdout = ""
+	}
+	if stderrBytes != nil {
+		stderr = string(stderrBytes)
+	} else {
+		stderr = ""
+	}
+	return
+}
+
+// Runs the CLI but returns raw byte output for stdout and stderr. Typically you want to call runExecutable which returns strings instead
+func runExecutableRawOutput(executable string, args []string, workingDirectory string, environment []string) (stdout []byte, stderr []byte, err error) {
 	cmd := exec.Command(executable, args...)
 	cmd.Dir = workingDirectory
 	// don't hook stdin, go isn't going to ask us for anything
@@ -71,26 +87,26 @@ func runExecutable(executable string, args []string, workingDirectory string, en
 		cmd.Env = environment
 	}
 
-	err := cmd.Start()
+	err = cmd.Start()
 	if err != nil {
-		return "", "", err
+		return
 	}
 	err = stdIn.Close()
 	if err != nil {
-		return "", "", err
+		return
 	}
 
-	outBytes, _ := io.ReadAll(stdOut)
-	errBytes, _ := io.ReadAll(stdErr)
+	stdout, _ = io.ReadAll(stdOut)
+	stderr, _ = io.ReadAll(stdErr)
 
 	err = cmd.Wait() // wait for exit
 
 	// note! If the process returned an exit code, then err will be an exec.ExitError
 	// but stdout and stderr strings may have data in them that may be interesting.
-	return string(outBytes), string(errBytes), err
+	return
 }
 
-// builds the CLI using 'go build' if it does not already exist.
+// EnsureCli builds the CLI using 'go build' if it does not already exist.
 // note: this will always deliberately build the CLI the first time you invoke it, just in case
 // you have an existing out-of-date binary lying around from some prior thing
 func EnsureCli() (cliPath string, cliDir string, err error) {
@@ -131,19 +147,43 @@ func EnsureCli() (cliPath string, cliDir string, err error) {
 	return
 }
 
+func mapEnv(space string) []string {
+	// we know that OCTOPUS_TEST_URL is already available.
+	// TODO pass this through rather than re-looking it up
+	return []string{
+		fmt.Sprintf("OCTOPUS_HOST=%s", os.Getenv("OCTOPUS_TEST_URL")),
+		fmt.Sprintf("OCTOPUS_API_KEY=%s", os.Getenv("OCTOPUS_TEST_APIKEY")),
+		fmt.Sprintf("OCTOPUS_SPACE=%s", space),
+	}
+}
+
 func RunCli(space string, args ...string) (string, string, error) {
 	cliPath, cliDir, err := EnsureCli()
 	if err != nil { // failed!
 		return "", "", err
 	}
 
-	// we know that OCTOPUS_TEST_URL is already available.
-	// TODO pass this through rather than re-looking it up
-	env := []string{
-		fmt.Sprintf("OCTOPUS_HOST=%s", os.Getenv("OCTOPUS_TEST_URL")),
-		fmt.Sprintf("OCTOPUS_API_KEY=%s", os.Getenv("OCTOPUS_TEST_APIKEY")),
-		fmt.Sprintf("OCTOPUS_SPACE=%s", space),
+	return runExecutable(cliPath, args, cliDir, mapEnv(space))
+}
+
+func RunCliRawOutput(space string, args ...string) ([]byte, []byte, error) {
+	cliPath, cliDir, err := EnsureCli()
+	if err != nil { // failed!
+		return nil, nil, err
 	}
 
-	return runExecutable(cliPath, args, cliDir, env)
+	return runExecutableRawOutput(cliPath, args, cliDir, mapEnv(space))
+}
+
+// EnsureSuccess checks that err is nil and returns true.
+// If it's not, it will print all the args, then write the Error string, fail the test, and return false
+func EnsureSuccess(t *testing.T, err error, args ...any) bool {
+	if err != nil {
+		for _, arg := range args {
+			t.Log(arg)
+		}
+		t.Errorf(err.Error())
+		return false
+	}
+	return true
 }
