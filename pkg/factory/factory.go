@@ -13,7 +13,8 @@ type factory struct {
 }
 
 type Factory interface {
-	Client(spaceScoped bool) (*client.Client, error)
+	GetSystemClient() (*client.Client, error)
+	GetSpacedClient() (*client.Client, error)
 	Ask(p survey.Prompt, response interface{}, opts ...survey.AskOpt) error
 }
 
@@ -24,8 +25,12 @@ func New(clientFactory apiclient.ClientFactory, asker question.Asker) Factory {
 	}
 }
 
-func (f *factory) Client(spaceScoped bool) (*client.Client, error) {
-	return f.client.Get(spaceScoped)
+func (f *factory) GetSystemClient() (*client.Client, error) {
+	return f.client.GetSystemClient()
+}
+
+func (f *factory) GetSpacedClient() (*client.Client, error) {
+	return f.client.GetSpacedClient()
 }
 
 func (f *factory) Ask(p survey.Prompt, response interface{}, opts ...survey.AskOpt) error {

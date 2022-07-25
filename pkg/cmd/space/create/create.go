@@ -35,12 +35,12 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 }
 
 func createRun(f factory.Factory, w io.Writer) error {
-	client, err := f.Get(false)
+	systemClient, err := f.GetSystemClient()
 	if err != nil {
 		return err
 	}
 
-	existingSpaces, err := client.Spaces.GetAll()
+	existingSpaces, err := systemClient.Spaces.GetAll()
 	if err != nil {
 		return err
 	}
@@ -65,7 +65,7 @@ func createRun(f factory.Factory, w io.Writer) error {
 	}
 	space := spaces.NewSpace(name)
 
-	teams, err := selectTeams(f.Ask, client, existingSpaces, "Select one or more teams to manage this space:")
+	teams, err := selectTeams(f.Ask, systemClient, existingSpaces, "Select one or more teams to manage this space:")
 	if err != nil {
 		return err
 	}
@@ -74,7 +74,7 @@ func createRun(f factory.Factory, w io.Writer) error {
 		space.SpaceManagersTeams = append(space.SpaceManagersTeams, team.ID)
 	}
 
-	users, err := selectUsers(f.Ask, client, "Select one or more users to manage this space:")
+	users, err := selectUsers(f.Ask, systemClient, "Select one or more users to manage this space:")
 	if err != nil {
 		return err
 	}
@@ -83,7 +83,7 @@ func createRun(f factory.Factory, w io.Writer) error {
 		space.SpaceManagersTeamMembers = append(space.SpaceManagersTeams, user.ID)
 	}
 
-	createdSpace, err := client.Spaces.Add(space)
+	createdSpace, err := systemClient.Spaces.Add(space)
 	if err != nil {
 		return err
 	}

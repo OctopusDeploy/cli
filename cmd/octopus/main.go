@@ -18,7 +18,7 @@ func main() {
 	// if there is a missing or invalid .env file anywhere, we don't care, just ignore it
 	_ = godotenv.Load()
 
-	client, err := apiclient.NewClientFactoryFromEnvironment()
+	clientFactory, err := apiclient.NewClientFactoryFromEnvironment()
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(3)
