@@ -14,29 +14,29 @@ env:
 jobs:
   test:
     runs-on: ubuntu-latest
-#    services:
-#      sqlserver:
-#        image: mcr.microsoft.com/mssql/server:2019-latest
-#        env:
-#          ACCEPT_EULA: Y
-#          SA_PASSWORD: ${{ env.SA_PASSWORD }}
-#          MSSQL_PID: Developer
-#        options: >-
-#          --health-cmd "/opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P \"$SA_PASSWORD\" -Q \"SELECT 1\" || exit 1"
-#          --health-interval 10s
-#          --health-timeout 3s
-#          --health-retries 10
-#          --health-start-period 10s
-#      octopusserver:
-#        image: octopusdeploy/octopusdeploy
-#        env:
-#          ACCEPT_EULA: Y
-#          DB_CONNECTION_STRING: 'Server=sqlserver;Database=OctopusDeploy;User Id=sa;Password=${{ env.SA_PASSWORD }};'
-#          ADMIN_API_KEY: ${{ env.ADMIN_API_KEY }}
-#          ENABLE_USAGE: N
-#          OCTOPUS_SERVER_BASE64_LICENSE: ${{ secrets.OCTOPUS_SERVER_BASE64_LICENSE }}
-#        ports:
-#          - 8080:8080
+    services:
+      sqlserver:
+        image: mcr.microsoft.com/mssql/server:2019-latest
+        env:
+          ACCEPT_EULA: Y
+          SA_PASSWORD: ${{ env.SA_PASSWORD }}
+          MSSQL_PID: Developer
+        options: >-
+          --health-cmd "/opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P \"$SA_PASSWORD\" -Q \"SELECT 1\" || exit 1"
+          --health-interval 10s
+          --health-timeout 3s
+          --health-retries 10
+          --health-start-period 10s
+      octopusserver:
+        image: octopusdeploy/octopusdeploy
+        env:
+          ACCEPT_EULA: Y
+          DB_CONNECTION_STRING: 'Server=sqlserver;Database=OctopusDeploy;User Id=sa;Password=${{ env.SA_PASSWORD }};'
+          ADMIN_API_KEY: ${{ env.ADMIN_API_KEY }}
+          ENABLE_USAGE: N
+          OCTOPUS_SERVER_BASE64_LICENSE: ${{ secrets.OCTOPUS_SERVER_BASE64_LICENSE }}
+        ports:
+          - 8080:8080
     # https://github.com/dorny/test-reporter/issues/168
     permissions:
       statuses: write
@@ -56,12 +56,12 @@ jobs:
         run: gotestsum --format testname --junitfile ../unit-tests.xml
         working-directory: ./pkg
 
-#      - name: Integration Tests
-#        env:
-#          OCTOPUS_TEST_URL: ${{ env.SERVER_URL }}
-#          OCTOPUS_TEST_APIKEY: ${{ env.ADMIN_API_KEY }}
-#        run: gotestsum --format testname --junitfile ../integration-tests.xml
-#        working-directory: ./integrationtest
+      - name: Integration Tests
+        env:
+          OCTOPUS_TEST_URL: ${{ env.SERVER_URL }}
+          OCTOPUS_TEST_APIKEY: ${{ env.ADMIN_API_KEY }}
+        run: gotestsum --format testname --junitfile ../integration-tests.xml
+        working-directory: ./integrationtest
 
       - name: Test Report
         uses: dorny/test-reporter@v1
