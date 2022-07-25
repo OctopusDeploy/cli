@@ -112,7 +112,9 @@ user-pw-b  UsernamePassword
 			if _, err := systemApiClient.Spaces.Update(myNewSpace); err != nil {
 				result = multierror.Append(err)
 			}
-			result = multierror.Append(systemApiClient.Spaces.DeleteByID(myNewSpace.GetID()))
+			if err = systemApiClient.Spaces.DeleteByID(myNewSpace.GetID()); err != nil {
+				result = multierror.Append(err)
+			}
 			return result.ErrorOrNil()
 		})
 
