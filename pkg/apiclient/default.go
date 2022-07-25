@@ -41,6 +41,11 @@ type Client struct {
 	// the Octopus Space to work within. Obtained from OCTOPUS_SPACE (TODO: or --space=XYZ on the command line??)
 	// Required for commands that need a space, but may be omitted for server-wide commands such as listing teams
 	Space string
+
+	// TODO here we would put a pointer to the "question asker" (wrapper over Survey)
+	// which GetSpacedClient would use to prompt the user for a space name.
+	// If the CLI is running in no-prompt mode, then said pointer would be nil, signalling
+	// that we can't ask, and should fail instead. Waiting on Dom's PR to merge for that
 }
 
 func NewClientFactory(httpClient *http.Client, host string, apiKey string, space string) (ClientFactory, error) {

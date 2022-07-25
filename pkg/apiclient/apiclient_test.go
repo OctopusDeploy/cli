@@ -11,7 +11,7 @@ import (
 
 const PlaceholderApiKey = "API-XXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
 
-func TestClient_Get_Clients(t *testing.T) {
+func TestClient_GetSystemClient(t *testing.T) {
 	httpClient := testutil.NewMockHttpClient()
 	factory, _ := apiclient.NewClientFactory(httpClient, "http://some-host", "API-XXXXXXXXXXXXXXXXXXXXXXXXXXXXX", "")
 
@@ -37,7 +37,9 @@ func TestClient_Get_Clients(t *testing.T) {
 
 		assert.Same(t, systemClient, systemClient2)
 	})
+}
 
+func TestClient_GetSpacedClient_NoPrompt(t *testing.T) {
 	t.Run("GetSpacedClient returns an error when no space is specified", func(t *testing.T) {
 		rt := testutil.NewFakeApiResponder()
 		testutil.EnqueueRootResponder(rt)
@@ -111,14 +113,15 @@ func TestClient_Get_Clients(t *testing.T) {
 		rt := testutil.NewFakeApiResponder()
 		testutil.EnqueueRootResponder(rt)
 
+		integrationsSpace := spaces.NewSpace("Integrations")
+		integrationsSpace.ID = "Spaces-7"
+
 		rt.EnqueueRawResponder("GET", "/api/spaces/Integrations", func(r *http.Request) (*http.Response, error) {
 			return &http.Response{StatusCode: 404}, nil
 		})
 
 		rt.EnqueueResponder("GET", "/api/spaces?partialName=Integrations", func(r *http.Request) (any, error) {
-			space7 := spaces.NewSpace("Integrations")
-			space7.ID = "Spaces-7"
-			return spaces.Spaces{Items: []*spaces.Space{space7}}, nil
+			return spaces.Spaces{Items: []*spaces.Space{integrationsSpace}}, nil
 		})
 
 		// we need to enqueue this again because after it finds Spaces-7 it will recreate the client and reload the root.
@@ -126,9 +129,7 @@ func TestClient_Get_Clients(t *testing.T) {
 
 		// note it just goes for /api/Spaces-7 this time
 		rt.EnqueueResponder("GET", "/api/Spaces-7", func(r *http.Request) (any, error) {
-			space7 := spaces.NewSpace("Integrations")
-			space7.ID = "Spaces-7"
-			return space7, nil
+			return integrationsSpace, nil
 		})
 
 		factory2, _ := apiclient.NewClientFactory(testutil.NewMockHttpClientWithTransport(rt), "http://server", PlaceholderApiKey, "Integrations")
@@ -142,21 +143,18 @@ func TestClient_Get_Clients(t *testing.T) {
 	t.Run("GetSpacedClient called twice returns the same client instance without additional requests", func(t *testing.T) {
 		rt := testutil.NewFakeApiResponder()
 
-		space7responder := func(r *http.Request) (any, error) {
-			space7 := spaces.NewSpace("Integrations")
-			space7.ID = "Spaces-7"
-			return space7, nil
-		}
+		integrationsSpace := spaces.NewSpace("Integrations")
+		integrationsSpace.ID = "Spaces-7"
 
 		testutil.EnqueueRootResponder(rt)
 
-		rt.EnqueueResponder("GET", "/api/spaces/Spaces-7", space7responder)
+		rt.EnqueueResponder("GET", "/api/spaces/Spaces-7", func(r *http.Request) (any, error) { return integrationsSpace, nil })
 
 		// we need to enqueue this again because after it finds Spaces-7 it will recreate the client and reload the root.
 		testutil.EnqueueRootResponder(rt)
 
 		// note it just goes for /api/Spaces-7 this time
-		rt.EnqueueResponder("GET", "/api/Spaces-7", space7responder)
+		rt.EnqueueResponder("GET", "/api/Spaces-7", func(r *http.Request) (any, error) { return integrationsSpace, nil })
 
 		factory2, _ := apiclient.NewClientFactory(testutil.NewMockHttpClientWithTransport(rt), "http://server", PlaceholderApiKey, "Spaces-7")
 
