@@ -1,15 +1,15 @@
 package root
 
 import (
-	"github.com/OctopusDeploy/cli/pkg/apiclient"
 	accountCmd "github.com/OctopusDeploy/cli/pkg/cmd/account"
 	environmentCmd "github.com/OctopusDeploy/cli/pkg/cmd/environment"
 	spaceCmd "github.com/OctopusDeploy/cli/pkg/cmd/space"
+	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/spf13/cobra"
 )
 
 // NewCmdRoot returns the base command when called without any subcommands
-func NewCmdRoot(client apiclient.ClientFactory) *cobra.Command {
+func NewCmdRoot(f factory.Factory) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "octopus",
 		Short: "Octopus Deploy CLI",
@@ -21,11 +21,11 @@ func NewCmdRoot(client apiclient.ClientFactory) *cobra.Command {
 	cmd.PersistentFlags().StringP("outputFormat", "f", "", "Output Format (Valid values are 'json', 'table', 'basic'. Defaults to table)")
 
 	// infrastructure commands
-	cmd.AddCommand(accountCmd.NewCmdAccount(client))
-	cmd.AddCommand(environmentCmd.NewCmdEnvironment(client))
+	cmd.AddCommand(accountCmd.NewCmdAccount(f))
+	cmd.AddCommand(environmentCmd.NewCmdEnvironment(f))
 
 	// configuration commands
-	cmd.AddCommand(spaceCmd.NewCmdSpace(client))
+	cmd.AddCommand(spaceCmd.NewCmdSpace(f))
 
 	return cmd
 }

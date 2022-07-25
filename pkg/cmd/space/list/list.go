@@ -4,14 +4,14 @@ import (
 	"fmt"
 
 	"github.com/MakeNowJust/heredoc/v2"
-	"github.com/OctopusDeploy/cli/pkg/apiclient"
 	"github.com/OctopusDeploy/cli/pkg/constants"
+	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/OctopusDeploy/cli/pkg/output"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/spaces"
 	"github.com/spf13/cobra"
 )
 
-func NewCmdList(f apiclient.ClientFactory) *cobra.Command {
+func NewCmdList(f factory.Factory) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "list",
 		Short: "List spaces in an instance of Octopus Deploy",
@@ -28,7 +28,7 @@ func NewCmdList(f apiclient.ClientFactory) *cobra.Command {
 	return cmd
 }
 
-func listRun(f apiclient.ClientFactory, cmd *cobra.Command) error {
+func listRun(f factory.Factory, cmd *cobra.Command) error {
 	client, err := f.GetSystemClient()
 	if err != nil {
 		return err

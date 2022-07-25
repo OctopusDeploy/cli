@@ -2,13 +2,13 @@ package list
 
 import (
 	"github.com/MakeNowJust/heredoc/v2"
-	"github.com/OctopusDeploy/cli/pkg/apiclient"
+	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/OctopusDeploy/cli/pkg/output"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/accounts"
 	"github.com/spf13/cobra"
 )
 
-func NewCmdList(client apiclient.ClientFactory) *cobra.Command {
+func NewCmdList(client factory.Factory) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "list",
 		Short: "List accounts in an instance of Octopus Deploy",

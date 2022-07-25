@@ -6,8 +6,8 @@ import (
 
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/MakeNowJust/heredoc/v2"
-	"github.com/OctopusDeploy/cli/pkg/apiclient"
 	"github.com/OctopusDeploy/cli/pkg/constants"
+	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/OctopusDeploy/cli/pkg/output"
 	"github.com/OctopusDeploy/cli/pkg/question"
 	"github.com/OctopusDeploy/cli/pkg/validation"
@@ -18,7 +18,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func NewCmdCreate(f apiclient.ClientFactory) *cobra.Command {
+func NewCmdCreate(f factory.Factory) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "create",
 		Short: "Creates a space in an instance of Octopus Deploy",
@@ -34,8 +34,8 @@ func NewCmdCreate(f apiclient.ClientFactory) *cobra.Command {
 	return cmd
 }
 
-func createRun(f apiclient.ClientFactory, w io.Writer) error {
-	client, err := f.GetSystemClient()
+func createRun(f factory.Factory, w io.Writer) error {
+	client, err := f.Get(false)
 	if err != nil {
 		return err
 	}
@@ -51,7 +51,7 @@ func createRun(f apiclient.ClientFactory, w io.Writer) error {
 	}
 
 	var name string
-	err = question.AskOne(&survey.Input{
+	err = f.Ask(&survey.Input{
 		Help:    "The name of the space being created.",
 		Message: "Name",
 	}, &name, survey.WithValidator(survey.ComposeValidators(
@@ -65,7 +65,7 @@ func createRun(f apiclient.ClientFactory, w io.Writer) error {
 	}
 	space := spaces.NewSpace(name)
 
-	teams, err := selectTeams(client, existingSpaces, "Select one or more teams to manage this space:")
+	teams, err := selectTeams(f.Ask, client, existingSpaces, "Select one or more teams to manage this space:")
 	if err != nil {
 		return err
 	}
@@ -74,7 +74,7 @@ func createRun(f apiclient.ClientFactory, w io.Writer) error {
 		space.SpaceManagersTeams = append(space.SpaceManagersTeams, team.ID)
 	}
 
-	users, err := selectUsers(client, "Select one or more users to manage this space:")
+	users, err := selectUsers(f.Ask, client, "Select one or more users to manage this space:")
 	if err != nil {
 		return err
 	}
@@ -92,7 +92,7 @@ func createRun(f apiclient.ClientFactory, w io.Writer) error {
 	return nil
 }
 
-func selectTeams(client *client.Client, existingSpaces []*spaces.Space, message string) ([]*teams.Team, error) {
+func selectTeams(ask question.Asker, client *client.Client, existingSpaces []*spaces.Space, message string) ([]*teams.Team, error) {
 	selectedTeams := []*teams.Team{}
 
 	systemTeams, err := client.Teams.Get(teams.TeamsQuery{
@@ -102,7 +102,7 @@ func selectTeams(client *client.Client, existingSpaces []*spaces.Space, message 
 		return selectedTeams, err
 	}
 
-	err = question.MultiSelect(message, systemTeams.Items, func(team *teams.Team) string {
+	err = question.MultiSelectMap(ask, message, systemTeams.Items, func(team *teams.Team) string {
 		if len(team.SpaceID) == 0 {
 			return fmt.Sprintf("%s %s", team.Name, output.Dim("(System Team)"))
 		}
@@ -112,11 +112,11 @@ func selectTeams(client *client.Client, existingSpaces []*spaces.Space, message 
 			}
 		}
 		return ""
-	}, &selectedTeams)
+	}, selectedTeams)
 	return selectedTeams, err
 }
 
-func selectUsers(client *client.Client, message string) ([]*users.User, error) {
+func selectUsers(ask question.Asker, client *client.Client, message string) ([]*users.User, error) {
 	selectedUsers := []*users.User{}
 
 	existingUsers, err := client.Users.GetAll()
@@ -124,8 +124,8 @@ func selectUsers(client *client.Client, message string) ([]*users.User, error) {
 		return selectedUsers, err
 	}
 
-	err = question.MultiSelect(message, existingUsers, func(existingUser *users.User) string {
+	err = question.MultiSelectMap(ask, message, existingUsers, func(existingUser *users.User) string {
 		return fmt.Sprintf("%s %s", existingUser.DisplayName, output.Dimf("(%s)", existingUser.Username))
-	}, &selectedUsers)
+	}, selectedUsers)
 	return selectedUsers, err
 }

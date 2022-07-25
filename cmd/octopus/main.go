@@ -2,8 +2,11 @@ package main
 
 import (
 	"fmt"
-	"github.com/OctopusDeploy/cli/pkg/usage"
 	"os"
+
+	"github.com/AlecAivazis/survey/v2"
+	"github.com/OctopusDeploy/cli/pkg/factory"
+	"github.com/OctopusDeploy/cli/pkg/usage"
 
 	"github.com/joho/godotenv"
 
@@ -21,7 +24,9 @@ func main() {
 		os.Exit(3)
 	}
 
-	cmd := root.NewCmdRoot(client)
+	f := factory.New(clientFactory, survey.AskOne)
+
+	cmd := root.NewCmdRoot(f)
 	// commands are expected to print their own errors to avoid double-ups
 	cmd.SilenceUsage = true
 	cmd.SilenceErrors = true
