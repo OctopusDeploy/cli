@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.0](https://github.com/OctopusDeploy/cli/compare/v0.0.3...v0.1.0) (2022-07-24)
+
+
+### Features
+
+* Add os env variable validation ([#19](https://github.com/OctopusDeploy/cli/issues/19)) ([9a577d1](https://github.com/OctopusDeploy/cli/commit/9a577d17f0fdfc365ffcd0b35f4a92c7d1571428))
+
 ## [0.0.3](https://github.com/OctopusDeploy/cli/compare/v0.0.2...v0.0.3) (2022-07-22)
 
 
