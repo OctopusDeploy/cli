@@ -29,9 +29,12 @@ type table struct {
 }
 
 func NewTable(writer io.Writer) Table {
-	width, _, _ := term.GetSize(int(os.Stdout.Fd()))
-	if width == 0 {
-		width = defaultWidth
+	width := defaultWidth
+	if term.IsTerminal(int(os.Stdin.Fd())) {
+		width, _, _ = term.GetSize(int(os.Stdout.Fd()))
+		if width < 1 {
+			width = defaultWidth
+		}
 	}
 
 	return &table{
