@@ -24,9 +24,9 @@ func main() {
 		os.Exit(3)
 	}
 
-	client := factory.New(clientFactory, survey.AskOne)
+	f := factory.New(clientFactory, survey.AskOne)
 
-	cmd := root.NewCmdRoot(client)
+	cmd := root.NewCmdRoot(f)
 	// commands are expected to print their own errors to avoid double-ups
 	cmd.SilenceUsage = true
 	cmd.SilenceErrors = true
