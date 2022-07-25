@@ -3,6 +3,7 @@ package integrationtest
 import (
 	"encoding/json"
 	"github.com/MakeNowJust/heredoc/v2"
+	"github.com/OctopusDeploy/cli/testutil"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/accounts"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/core"
 	"github.com/stretchr/testify/assert"
@@ -12,7 +13,7 @@ import (
 func TestAccountList(t *testing.T) {
 	// setup
 	systemApiClient, err := GetApiClient("")
-	if !EnsureSuccess(t, err) {
+	if !testutil.EnsureSuccess(t, err) {
 		return
 	}
 
@@ -25,7 +26,7 @@ func TestAccountList(t *testing.T) {
 		newAccount.SetUsername("user-a")
 		newAccount.SetPassword(core.NewSensitiveValue("password-a"))
 		accountRef1, err := systemApiClient.Accounts.Add(newAccount)
-		if !EnsureSuccess(t, err) {
+		if !testutil.EnsureSuccess(t, err) {
 			return
 		}
 		cleanupHelper.AddFailable(func() error { return systemApiClient.Accounts.DeleteByID(accountRef1.GetID()) })
@@ -34,14 +35,14 @@ func TestAccountList(t *testing.T) {
 		newAccount2.SetUsername("user-b")
 		newAccount2.SetPassword(core.NewSensitiveValue("password-b"))
 		accountRef2, err := systemApiClient.Accounts.Add(newAccount2)
-		if !EnsureSuccess(t, err) {
+		if !testutil.EnsureSuccess(t, err) {
 			return
 		}
 		cleanupHelper.AddFailable(func() error { return systemApiClient.Accounts.DeleteByID(accountRef2.GetID()) })
 
 		t.Run("--format basic", func(t *testing.T) {
 			stdOut, stdErr, err := RunCli("Default", "account", "list", "--outputFormat=basic")
-			if !EnsureSuccess(t, err, stdOut, stdErr) {
+			if !testutil.EnsureSuccess(t, err, stdOut, stdErr) {
 				return
 			}
 			assert.Equal(t, heredoc.Doc(`
@@ -52,7 +53,7 @@ user-pw-b
 
 		t.Run("--format table", func(t *testing.T) {
 			stdOut, stdErr, err := RunCli("Default", "account", "list", "--outputFormat=table")
-			if !EnsureSuccess(t, err, stdOut, stdErr) {
+			if !testutil.EnsureSuccess(t, err, stdOut, stdErr) {
 				return
 			}
 
@@ -65,7 +66,7 @@ user-pw-b  UsernamePassword
 
 		t.Run("--format json", func(t *testing.T) {
 			stdOut, stdErr, err := RunCliRawOutput("Default", "account", "list", "--outputFormat=json")
-			if !EnsureSuccess(t, err, stdOut, stdErr) {
+			if !testutil.EnsureSuccess(t, err, stdOut, stdErr) {
 				return
 			}
 			type AccountSummary struct {
@@ -75,7 +76,7 @@ user-pw-b  UsernamePassword
 			}
 			var results []AccountSummary
 			err = json.Unmarshal(stdOut, &results)
-			if !EnsureSuccess(t, err, string(stdOut), string(stdErr)) {
+			if !testutil.EnsureSuccess(t, err, string(stdOut), string(stdErr)) {
 				return
 			}
 

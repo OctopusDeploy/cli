@@ -37,7 +37,7 @@ func NewCmdDelete(f apiclient.ClientFactory) *cobra.Command {
 				return err
 			}
 
-			client, err := f.Get(false)
+			client, err := f.GetSystemClient()
 			if err != nil {
 				return err
 			}
@@ -66,7 +66,7 @@ func NewCmdDelete(f apiclient.ClientFactory) *cobra.Command {
 }
 
 func deleteRun(f apiclient.ClientFactory, w io.Writer) error {
-	client, err := f.Get(false)
+	client, err := f.GetSystemClient()
 	if err != nil {
 		return err
 	}

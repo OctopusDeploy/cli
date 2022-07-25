@@ -29,7 +29,7 @@ func NewCmdList(f apiclient.ClientFactory) *cobra.Command {
 }
 
 func listRun(f apiclient.ClientFactory, cmd *cobra.Command) error {
-	client, err := f.Get(false)
+	client, err := f.GetSystemClient()
 	if err != nil {
 		return err
 	}

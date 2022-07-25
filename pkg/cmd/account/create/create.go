@@ -31,7 +31,7 @@ func NewCmdCreate(f apiclient.ClientFactory) *cobra.Command {
 }
 
 func createRun(f apiclient.ClientFactory, w io.Writer) error {
-	octopus, err := f.Get(true)
+	octopus, err := f.GetSpacedClient()
 	if err != nil {
 		return err
 	}
