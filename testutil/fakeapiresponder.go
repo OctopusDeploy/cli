@@ -73,7 +73,7 @@ func (f *FakeApiResponder) EnqueueResponder(method string, pathAndQuery string, 
 	f.responderQueue = append(f.responderQueue, fh)
 }
 
-func (f *FakeApiResponder) EnqueueRawHandler(method string, pathAndQuery string, handler func(r *http.Request) (*http.Response, error)) {
+func (f *FakeApiResponder) EnqueueRawResponder(method string, pathAndQuery string, handler func(r *http.Request) (*http.Response, error)) {
 	fh := FakeRequestHandler{
 		Method:       method,
 		PathAndQuery: pathAndQuery,

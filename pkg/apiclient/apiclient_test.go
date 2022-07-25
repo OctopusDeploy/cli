@@ -61,7 +61,7 @@ func TestClient_Get_Clients(t *testing.T) {
 		testutil.EnqueueRootResponder(rt)
 
 		// first it guesses that we might have a space ID
-		rt.EnqueueRawHandler("GET", "/api/spaces/Integrations", func(r *http.Request) (*http.Response, error) {
+		rt.EnqueueRawResponder("GET", "/api/spaces/Integrations", func(r *http.Request) (*http.Response, error) {
 			return &http.Response{StatusCode: 404}, nil
 		})
 
@@ -111,7 +111,7 @@ func TestClient_Get_Clients(t *testing.T) {
 		rt := testutil.NewFakeApiResponder()
 		testutil.EnqueueRootResponder(rt)
 
-		rt.EnqueueRawHandler("GET", "/api/spaces/Integrations", func(r *http.Request) (*http.Response, error) {
+		rt.EnqueueRawResponder("GET", "/api/spaces/Integrations", func(r *http.Request) (*http.Response, error) {
 			return &http.Response{StatusCode: 404}, nil
 		})
 
