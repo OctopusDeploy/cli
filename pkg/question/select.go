@@ -2,7 +2,7 @@ package question
 
 import "github.com/AlecAivazis/survey/v2"
 
-func MultiSelect[T any](ask Asker, message string, items []T, getKey func(item T) string, selected *[]T) error {
+func MultiSelect[T any](ask Asker, message string, items []T, getKey func(item T) string, selected []T) error {
 	optionMap, options := makeItemMapAndOptions(items, getKey)
 	var selectedKeys []string
 	if err := ask(&survey.MultiSelect{
@@ -12,7 +12,7 @@ func MultiSelect[T any](ask Asker, message string, items []T, getKey func(item T
 		return err
 	}
 	for _, keyName := range selectedKeys {
-		*selected = append(*selected, optionMap[keyName])
+		selected = append(selected, optionMap[keyName])
 	}
 	return nil
 }

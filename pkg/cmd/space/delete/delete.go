@@ -51,7 +51,7 @@ func NewCmdDelete(f factory.Factory) *cobra.Command {
 			}
 
 			if !alreadyConfirmed { // TODO NO_PROMPT env var or whatever we do there
-				return question.AskForDeleteConfirmation(f.Ask, "space", itemToDelete.Name, itemToDelete.ID, func() error {
+				return question.DeleteWithConfirmation(f.Ask, "space", itemToDelete.Name, itemToDelete.ID, func() error {
 					return delete(client, itemToDelete)
 				})
 			}
@@ -81,7 +81,7 @@ func deleteRun(f factory.Factory, w io.Writer) error {
 		return err
 	}
 
-	return question.AskForDeleteConfirmation(f.Ask, "space", itemToDelete.Name, itemToDelete.ID, func() error {
+	return question.DeleteWithConfirmation(f.Ask, "space", itemToDelete.Name, itemToDelete.ID, func() error {
 		return delete(client, itemToDelete)
 	})
 }

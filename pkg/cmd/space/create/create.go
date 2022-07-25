@@ -112,7 +112,7 @@ func selectTeams(ask question.Asker, client *client.Client, existingSpaces []*sp
 			}
 		}
 		return ""
-	}, &selectedTeams)
+	}, selectedTeams)
 	return selectedTeams, err
 }
 
@@ -126,6 +126,6 @@ func selectUsers(ask question.Asker, client *client.Client, message string) ([]*
 
 	err = question.MultiSelect(ask, message, existingUsers, func(existingUser *users.User) string {
 		return fmt.Sprintf("%s %s", existingUser.DisplayName, output.Dimf("(%s)", existingUser.Username))
-	}, &selectedUsers)
+	}, selectedUsers)
 	return selectedUsers, err
 }
