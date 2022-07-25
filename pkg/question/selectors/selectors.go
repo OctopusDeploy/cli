@@ -15,7 +15,7 @@ type NameOrID interface {
 
 func ByNameOrID[T NameOrID](ask question.Asker, list []T, message string) (T, error) {
 	var selectedItem T
-	selectedItem, err := question.Select(ask, message, list, func(item T) string {
+	selectedItem, err := question.SelectMap(ask, message, list, func(item T) string {
 		return fmt.Sprintf("%s %s", item.GetName(), output.Dimf("(%s)", item.GetID()))
 	})
 	if err != nil {
@@ -26,7 +26,7 @@ func ByNameOrID[T NameOrID](ask question.Asker, list []T, message string) (T, er
 
 func Account(ask question.Asker, list []accounts.IAccount, message string) (accounts.IAccount, error) {
 	var selectedItem accounts.IAccount
-	selectedItem, err := question.Select(ask, message, list, func(item accounts.IAccount) string {
+	selectedItem, err := question.SelectMap(ask, message, list, func(item accounts.IAccount) string {
 		return fmt.Sprintf("%s %s", item.GetName(), output.Dimf("(%s)", item.GetID()))
 	})
 	if err != nil {

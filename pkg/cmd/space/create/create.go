@@ -102,7 +102,7 @@ func selectTeams(ask question.Asker, client *client.Client, existingSpaces []*sp
 		return selectedTeams, err
 	}
 
-	err = question.MultiSelect(ask, message, systemTeams.Items, func(team *teams.Team) string {
+	err = question.MultiSelectMap(ask, message, systemTeams.Items, func(team *teams.Team) string {
 		if len(team.SpaceID) == 0 {
 			return fmt.Sprintf("%s %s", team.Name, output.Dim("(System Team)"))
 		}
@@ -124,7 +124,7 @@ func selectUsers(ask question.Asker, client *client.Client, message string) ([]*
 		return selectedUsers, err
 	}
 
-	err = question.MultiSelect(ask, message, existingUsers, func(existingUser *users.User) string {
+	err = question.MultiSelectMap(ask, message, existingUsers, func(existingUser *users.User) string {
 		return fmt.Sprintf("%s %s", existingUser.DisplayName, output.Dimf("(%s)", existingUser.Username))
 	}, selectedUsers)
 	return selectedUsers, err
