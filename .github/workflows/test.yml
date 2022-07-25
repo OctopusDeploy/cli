@@ -1,5 +1,6 @@
-name: 'build-test'
+name: 'Unit and Integration tests'
 on:
+  workflow_dispatch:
   push:
     paths-ignore:
       - '**.md'
