@@ -5,8 +5,6 @@ import (
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/accounts"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/core"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/spaces"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/teams"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
@@ -89,82 +87,77 @@ user-pw-b  UsernamePassword
 		})
 	})
 
-	t.Run("different space ", func(t *testing.T) {
-		cleanupHelper := NewCleanupHelper()
-		defer cleanupHelper.Run(t)
+	//t.Run("different space ", func(t *testing.T) {
+	//		cleanupHelper := NewCleanupHelper()
+	//		defer cleanupHelper.Run(t)
+	//
+	//		systemTeams, err := systemApiClient.Teams.Get(teams.TeamsQuery{
+	//			IncludeSystem: true,
+	//		})
+	//
+	//		space := spaces.NewSpace("my-new-space")
+	//
+	//		for _, team := range systemTeams.Items {
+	//			space.SpaceManagersTeams = append(space.SpaceManagersTeams, team.GetID())
+	//		}
+	//
+	//		space, err = systemApiClient.Spaces.Add(space)
+	//		if !EnsureSuccess(t, err) {
+	//			return
+	//		}
+	//		cleanupHelper.AddFailable(func() error {
+	//			space.TaskQueueStopped = true // make sure we can delete it at the end, we're not actually doing any tasks here
+	//			_, err = systemApiClient.Spaces.Update(space)
+	//			if err != nil {
+	//				return err
+	//			}
+	//
+	//			err = systemApiClient.Spaces.DeleteByID(space.GetID())
+	//			if err != nil {
+	//				return err
+	//			}
+	//
+	//			return nil
+	//		})
+	//
+	//		spacedApiClient, err := GetApiClient(space.GetID())
+	//		if !EnsureSuccess(t, err) {
+	//			return
+	//		}
+	//
+	//		// setup
+	//		newAccount, _ := accounts.NewUsernamePasswordAccount("spaced-user-pw-a")
+	//		newAccount.SetUsername("spaced-user-a")
+	//		newAccount.SetPassword(core.NewSensitiveValue("password-a"))
+	//		accountRef1, err := spacedApiClient.Accounts.Add(newAccount)
+	//		if !EnsureSuccess(t, err) {
+	//			return
+	//		}
+	//		cleanupHelper.AddFailable(func() error {
+	//			return spacedApiClient.Accounts.DeleteByID(accountRef1.GetID())
+	//		})
+	//
+	//		newAccountDifferentSpace, _ := accounts.NewUsernamePasswordAccount("defspace-user-pw-b")
+	//		newAccountDifferentSpace.SetUsername("defspace-user-b")
+	//		newAccountDifferentSpace.SetPassword(core.NewSensitiveValue("password-b"))
+	//		accountRef2, err := systemApiClient.Accounts.Add(newAccountDifferentSpace)
+	//		if !EnsureSuccess(t, err) {
+	//			return
+	//		}
+	//		cleanupHelper.AddFailable(func() error { return systemApiClient.Accounts.DeleteByID(accountRef2.GetID()) })
+	//
+	//		t.Run("--format basic", func(t *testing.T) {
+	//			stdOut, stdErr, err := RunCli("my-new-space", "account", "list", "--outputFormat=basic")
+	//			if !EnsureSuccess(t, err, stdOut, stdErr) {
+	//				return
+	//			}
+	//			// note default spaced item is NOT shown
+	//			assert.Equal(t, heredoc.Doc(`
+	//spaced-user-pw-a
+	//`), stdOut)
+	//		})
 
-		systemTeams, err := systemApiClient.Teams.Get(teams.TeamsQuery{
-			IncludeSystem: true,
-		})
-
-		myNewSpace := spaces.NewSpace("my-new-space")
-
-		for _, team := range systemTeams.Items {
-			myNewSpace.SpaceManagersTeams = append(myNewSpace.SpaceManagersTeams, team.GetID())
-		}
-
-		myNewSpace, err = systemApiClient.Spaces.Add(myNewSpace)
-		if !EnsureSuccess(t, err) {
-			return
-		}
-		spaceToDeleteID := myNewSpace.GetID()
-		cleanupHelper.AddFailable(func() error {
-			space, err := systemApiClient.Spaces.GetByID(spaceToDeleteID)
-			if err != nil {
-				return err
-			}
-			space.TaskQueueStopped = true // make sure we can delete it at the end, we're not actually doing any tasks here
-			_, err = systemApiClient.Spaces.Update(space)
-			if err != nil {
-				return err
-			}
-
-			err = systemApiClient.Spaces.DeleteByID(spaceToDeleteID)
-			if err != nil {
-				return err
-			}
-
-			return nil
-		})
-
-		spacedApiClient, err := GetApiClient(myNewSpace.GetID())
-		if !EnsureSuccess(t, err) {
-			return
-		}
-
-		// setup
-		newAccount, _ := accounts.NewUsernamePasswordAccount("spaced-user-pw-a")
-		newAccount.SetUsername("spaced-user-a")
-		newAccount.SetPassword(core.NewSensitiveValue("password-a"))
-		accountRef1, err := spacedApiClient.Accounts.Add(newAccount)
-		if !EnsureSuccess(t, err) {
-			return
-		}
-		cleanupHelper.AddFailable(func() error {
-			return spacedApiClient.Accounts.DeleteByID(accountRef1.GetID())
-		})
-
-		newAccountDifferentSpace, _ := accounts.NewUsernamePasswordAccount("defspace-user-pw-b")
-		newAccountDifferentSpace.SetUsername("defspace-user-b")
-		newAccountDifferentSpace.SetPassword(core.NewSensitiveValue("password-b"))
-		accountRef2, err := systemApiClient.Accounts.Add(newAccountDifferentSpace)
-		if !EnsureSuccess(t, err) {
-			return
-		}
-		cleanupHelper.AddFailable(func() error { return systemApiClient.Accounts.DeleteByID(accountRef2.GetID()) })
-
-		t.Run("--format basic", func(t *testing.T) {
-			stdOut, stdErr, err := RunCli("my-new-space", "account", "list", "--outputFormat=basic")
-			if !EnsureSuccess(t, err, stdOut, stdErr) {
-				return
-			}
-			// note default spaced item is NOT shown
-			assert.Equal(t, heredoc.Doc(`
-spaced-user-pw-a
-`), stdOut)
-		})
-
-		// tests for JSON and Table are redundant here because the CLI is calling the same API's in the server
-		// that we have just tested. The only difference is output format, which is tested elsewhere
-	})
+	// tests for JSON and Table are redundant here because the CLI is calling the same API's in the server
+	// that we have just tested. The only difference is output format, which is tested elsewhere
+	//})
 }
