@@ -3,11 +3,12 @@ package apiclient
 import (
 	"errors"
 	"fmt"
+	"net/url"
+	"os"
+
 	octopusErrors "github.com/OctopusDeploy/cli/pkg/errors"
 	octopusApiClient "github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
 	"github.com/hashicorp/go-multierror"
-	"net/url"
-	"os"
 )
 
 type ClientFactory interface {

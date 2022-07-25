@@ -5,8 +5,8 @@ import (
 	"io"
 
 	"github.com/MakeNowJust/heredoc/v2"
-	"github.com/OctopusDeploy/cli/pkg/apiclient"
 	"github.com/OctopusDeploy/cli/pkg/constants"
+	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/OctopusDeploy/cli/pkg/question"
 	"github.com/OctopusDeploy/cli/pkg/question/selectors"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/accounts"
@@ -14,7 +14,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func NewCmdDelete(f apiclient.ClientFactory) *cobra.Command {
+func NewCmdDelete(f factory.Factory) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "delete {<name> | <id>}",
 		Short:   "Delete an account in an instance of Octopus Deploy",
@@ -36,7 +36,7 @@ func NewCmdDelete(f apiclient.ClientFactory) *cobra.Command {
 				return err
 			}
 
-			client, err := f.Get(true) // space-scoped
+			client, err := f.Client(true) // space-scoped
 			if err != nil {
 				return err
 			}
@@ -62,7 +62,7 @@ func NewCmdDelete(f apiclient.ClientFactory) *cobra.Command {
 			}
 
 			if !skipConfirmation { // TODO NO_PROMPT env var or whatever we do there
-				return question.AskForDeleteConfirmation(&question.SurveyAsker{}, "space", itemToDelete.GetName(), itemToDelete.GetID(), func() error {
+				return question.DeleteWithConfirmation(f.Ask, "space", itemToDelete.GetName(), itemToDelete.GetID(), func() error {
 					return delete(client, itemToDelete)
 				})
 			}
@@ -76,8 +76,8 @@ func NewCmdDelete(f apiclient.ClientFactory) *cobra.Command {
 	return cmd
 }
 
-func deleteRun(f apiclient.ClientFactory, w io.Writer) error {
-	client, err := f.Get(true)
+func deleteRun(f factory.Factory, w io.Writer) error {
+	client, err := f.Client(true)
 	if err != nil {
 		return err
 	}
@@ -87,12 +87,12 @@ func deleteRun(f apiclient.ClientFactory, w io.Writer) error {
 		return err
 	}
 
-	accountToDelete, err := selectors.Account(existingAccounts, "Select the account you wish to delete:")
+	accountToDelete, err := selectors.Account(f.Ask, existingAccounts, "Select the account you wish to delete:")
 	if err != nil {
 		return err
 	}
 
-	return question.AskForDeleteConfirmation(&question.SurveyAsker{}, "account", accountToDelete.GetName(), accountToDelete.GetID(), func() error {
+	return question.DeleteWithConfirmation(f.Ask, "account", accountToDelete.GetName(), accountToDelete.GetID(), func() error {
 		return delete(client, accountToDelete)
 	})
 }

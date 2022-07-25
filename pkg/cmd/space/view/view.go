@@ -6,10 +6,10 @@ import (
 	"os"
 	"strings"
 
+	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/OctopusDeploy/cli/pkg/usage"
 
 	"github.com/MakeNowJust/heredoc/v2"
-	"github.com/OctopusDeploy/cli/pkg/apiclient"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/output"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
@@ -25,7 +25,7 @@ type ViewOptions struct {
 	Space    *spaces.Space
 }
 
-func NewCmdView(f apiclient.ClientFactory) *cobra.Command {
+func NewCmdView(f factory.Factory) *cobra.Command {
 	opts := &ViewOptions{}
 
 	cmd := &cobra.Command{
@@ -38,7 +38,7 @@ func NewCmdView(f apiclient.ClientFactory) *cobra.Command {
 			$ %s space view Integrations
 		`), constants.ExecutableName, constants.ExecutableName),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			client, err := f.Get(false)
+			client, err := f.Client(false)
 			if err != nil {
 				return err
 			}

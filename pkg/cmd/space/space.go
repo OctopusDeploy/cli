@@ -4,16 +4,16 @@ import (
 	"fmt"
 
 	"github.com/MakeNowJust/heredoc/v2"
-	"github.com/OctopusDeploy/cli/pkg/apiclient"
 	cmdCreate "github.com/OctopusDeploy/cli/pkg/cmd/space/create"
 	cmdDelete "github.com/OctopusDeploy/cli/pkg/cmd/space/delete"
 	cmdList "github.com/OctopusDeploy/cli/pkg/cmd/space/list"
 	cmdView "github.com/OctopusDeploy/cli/pkg/cmd/space/view"
 	"github.com/OctopusDeploy/cli/pkg/constants"
+	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/spf13/cobra"
 )
 
-func NewCmdSpace(client apiclient.ClientFactory) *cobra.Command {
+func NewCmdSpace(f factory.Factory) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "space <command>",
 		Short: "Manage spaces",
@@ -24,10 +24,10 @@ func NewCmdSpace(client apiclient.ClientFactory) *cobra.Command {
 		`), constants.ExecutableName, constants.ExecutableName),
 	}
 
-	cmd.AddCommand(cmdCreate.NewCmdCreate(client))
-	cmd.AddCommand(cmdList.NewCmdList(client))
-	cmd.AddCommand(cmdView.NewCmdView(client))
-	cmd.AddCommand(cmdDelete.NewCmdDelete(client))
+	cmd.AddCommand(cmdCreate.NewCmdCreate(f))
+	cmd.AddCommand(cmdList.NewCmdList(f))
+	cmd.AddCommand(cmdView.NewCmdView(f))
+	cmd.AddCommand(cmdDelete.NewCmdDelete(f))
 
 	return cmd
 }

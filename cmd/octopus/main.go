@@ -2,8 +2,11 @@ package main
 
 import (
 	"fmt"
-	"github.com/OctopusDeploy/cli/pkg/usage"
 	"os"
+
+	"github.com/AlecAivazis/survey/v2"
+	"github.com/OctopusDeploy/cli/pkg/factory"
+	"github.com/OctopusDeploy/cli/pkg/usage"
 
 	"github.com/joho/godotenv"
 
@@ -15,13 +18,15 @@ func main() {
 	// if there is a missing or invalid .env file anywhere, we don't care, just ignore it
 	_ = godotenv.Load()
 
-	client, err := apiclient.NewFromEnvironment()
+	clientFactory, err := apiclient.NewFromEnvironment()
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(3)
 	}
 
-	cmd := root.NewCmdRoot(client)
+	f := factory.New(clientFactory, survey.AskOne)
+
+	cmd := root.NewCmdRoot(f)
 	// commands are expected to print their own errors to avoid double-ups
 	cmd.SilenceUsage = true
 	cmd.SilenceErrors = true

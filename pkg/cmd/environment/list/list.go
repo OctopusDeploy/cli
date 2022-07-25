@@ -5,14 +5,14 @@ import (
 	"strconv"
 
 	"github.com/MakeNowJust/heredoc/v2"
-	"github.com/OctopusDeploy/cli/pkg/apiclient"
 	"github.com/OctopusDeploy/cli/pkg/constants"
+	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/OctopusDeploy/cli/pkg/output"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/environments"
 	"github.com/spf13/cobra"
 )
 
-func NewCmdList(client apiclient.ClientFactory) *cobra.Command {
+func NewCmdList(f factory.Factory) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "list",
 		Short: "List environments in an instance of Octopus Deploy",
@@ -22,7 +22,7 @@ func NewCmdList(client apiclient.ClientFactory) *cobra.Command {
 		`), constants.ExecutableName),
 		Aliases: []string{"ls"},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			client, err := client.Get(true)
+			client, err := f.Client(true)
 			if err != nil {
 				return err
 			}
