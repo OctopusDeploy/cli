@@ -120,6 +120,7 @@ func EnsureCli() (cliPath string, cliDir string, err error) {
 	if err != nil {
 		if os.IsNotExist(err) {
 			shouldCompile = true
+			err = nil // not really an error as we're going to recover it by compiling the app
 		} else {
 			return
 		}
