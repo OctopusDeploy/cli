@@ -104,6 +104,9 @@ user-pw-b  UsernamePassword
 		}
 
 		myNewSpace, err = systemApiClient.Spaces.Add(myNewSpace)
+		if !EnsureSuccess(t, err) {
+			return
+		}
 		spaceToDeleteID := myNewSpace.GetID()
 		cleanupHelper.AddFailable(func() error {
 			space, err := systemApiClient.Spaces.GetByID(spaceToDeleteID)
