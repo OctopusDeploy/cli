@@ -4,43 +4,34 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/AlecAivazis/survey/v2"
 	"github.com/OctopusDeploy/cli/pkg/question"
 	"github.com/stretchr/testify/assert"
 )
 
-type MockAsker struct {
-	OnSimpleTextQuestion func(name string, promptMessage string) (string, error)
-}
-
-func (a *MockAsker) SimpleTextQuestion(name string, promptMessage string) (string, error) {
-	return a.OnSimpleTextQuestion(name, promptMessage)
-}
-
 func TestQuestion_AskForDeleteConfirmation_Success(t *testing.T) {
-	asker := &MockAsker{OnSimpleTextQuestion: func(name string, promptMessage string) (string, error) {
-		assert.Equal(t, "Confirm Delete", name)
-		assert.Equal(t, `You are about to delete the animal "dog" (1). This action cannot be reversed. To confirm, type the animal name:`, promptMessage)
-
-		return "dog", nil // the user typed this
-	}}
+	asker, unasked := NewAskMocker(t, []QA{{
+		prompt: &survey.Input{
+			Message: `You are about to delete the animal "dog" (1). This action cannot be reversed. To confirm, type the animal name:`,
+		},
+		answer: "dog",
+	}})
+	defer unasked()
 
 	err := question.AskForDeleteConfirmation(asker, "animal", "dog", "1", func() error { return nil })
-	assert.Nil(t, err) // no error
+	assert.Nil(t, err)
 }
 
 func TestQuestion_AskForDeleteConfirmation_invalidResponse(t *testing.T) {
-	asker := &MockAsker{OnSimpleTextQuestion: func(name string, promptMessage string) (string, error) {
-		return "cat", nil // the user typed this
-	}}
+	asker, unasked := NewAskMocker(t, []QA{{answer: "cat"}})
+	defer unasked()
 	err := question.AskForDeleteConfirmation(asker, "animal", "dog", "1", func() error { return nil })
 	assert.Equal(t, err, errors.New("Canceled"))
 }
 
 func TestQuestion_AskForDeleteConfirmation_error(t *testing.T) {
-	asker := &MockAsker{OnSimpleTextQuestion: func(name string, promptMessage string) (string, error) {
-		return "", errors.New("Ouch")
-	}}
-
+	asker, unasked := NewAskMocker(t, []QA{{err: errors.New("Ouch")}})
+	defer unasked()
 	err := question.AskForDeleteConfirmation(asker, "animal", "dog", "1", func() error { return nil })
 	assert.Equal(t, err, errors.New("Ouch"))
 }

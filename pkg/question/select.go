@@ -2,10 +2,10 @@ package question
 
 import "github.com/AlecAivazis/survey/v2"
 
-func MultiSelect[T any](message string, items []T, getKey func(item T) string, selected *[]T) error {
+func MultiSelect[T any](ask Asker, message string, items []T, getKey func(item T) string, selected *[]T) error {
 	optionMap, options := makeItemMapAndOptions(items, getKey)
 	var selectedKeys []string
-	if err := AskOne(&survey.MultiSelect{
+	if err := ask(&survey.MultiSelect{
 		Message: message,
 		Options: options,
 	}, &selectedKeys); err != nil {
@@ -17,11 +17,11 @@ func MultiSelect[T any](message string, items []T, getKey func(item T) string, s
 	return nil
 }
 
-func Select[T any](message string, items []T, getKey func(item T) string) (T, error) {
+func Select[T any](ask Asker, message string, items []T, getKey func(item T) string) (T, error) {
 	optionMap, options := makeItemMapAndOptions(items, getKey)
 	var selectedValue T
 	var selectedKey string
-	if err := AskOne(&survey.Select{
+	if err := ask(&survey.Select{
 		Message: message,
 		Options: options,
 	}, &selectedKey); err != nil {

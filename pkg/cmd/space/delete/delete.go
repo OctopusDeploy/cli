@@ -5,8 +5,8 @@ import (
 	"io"
 
 	"github.com/MakeNowJust/heredoc/v2"
-	"github.com/OctopusDeploy/cli/pkg/apiclient"
 	"github.com/OctopusDeploy/cli/pkg/constants"
+	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/OctopusDeploy/cli/pkg/question"
 	"github.com/OctopusDeploy/cli/pkg/question/selectors"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
@@ -15,7 +15,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func NewCmdDelete(f apiclient.ClientFactory) *cobra.Command {
+func NewCmdDelete(f factory.Factory) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "delete {<name> | <id>}",
 		Short:   "Delete a space in an instance of Octopus Deploy",
@@ -37,7 +37,7 @@ func NewCmdDelete(f apiclient.ClientFactory) *cobra.Command {
 				return err
 			}
 
-			client, err := f.Get(false)
+			client, err := f.Client(false)
 			if err != nil {
 				return err
 			}
@@ -51,7 +51,7 @@ func NewCmdDelete(f apiclient.ClientFactory) *cobra.Command {
 			}
 
 			if !alreadyConfirmed { // TODO NO_PROMPT env var or whatever we do there
-				return question.AskForDeleteConfirmation(&question.SurveyAsker{}, "space", itemToDelete.Name, itemToDelete.ID, func() error {
+				return question.AskForDeleteConfirmation(f.Ask, "space", itemToDelete.Name, itemToDelete.ID, func() error {
 					return delete(client, itemToDelete)
 				})
 			}
@@ -65,8 +65,8 @@ func NewCmdDelete(f apiclient.ClientFactory) *cobra.Command {
 	return cmd
 }
 
-func deleteRun(f apiclient.ClientFactory, w io.Writer) error {
-	client, err := f.Get(false)
+func deleteRun(f factory.Factory, w io.Writer) error {
+	client, err := f.Client(false)
 	if err != nil {
 		return err
 	}
@@ -76,12 +76,12 @@ func deleteRun(f apiclient.ClientFactory, w io.Writer) error {
 		return err
 	}
 
-	itemToDelete, err := selectors.ByNameOrID(existingSpaces, "Select the space you wish to delete:")
+	itemToDelete, err := selectors.ByNameOrID(f.Ask, existingSpaces, "Select the space you wish to delete:")
 	if err != nil {
 		return err
 	}
 
-	return question.AskForDeleteConfirmation(&question.SurveyAsker{}, "space", itemToDelete.Name, itemToDelete.ID, func() error {
+	return question.AskForDeleteConfirmation(f.Ask, "space", itemToDelete.Name, itemToDelete.ID, func() error {
 		return delete(client, itemToDelete)
 	})
 }

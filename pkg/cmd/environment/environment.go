@@ -4,14 +4,14 @@ import (
 	"fmt"
 
 	"github.com/MakeNowJust/heredoc/v2"
-	"github.com/OctopusDeploy/cli/pkg/apiclient"
 	cmdDelete "github.com/OctopusDeploy/cli/pkg/cmd/environment/delete"
 	cmdList "github.com/OctopusDeploy/cli/pkg/cmd/environment/list"
 	"github.com/OctopusDeploy/cli/pkg/constants"
+	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/spf13/cobra"
 )
 
-func NewCmdEnvironment(client apiclient.ClientFactory) *cobra.Command {
+func NewCmdEnvironment(f factory.Factory) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "environment <command>",
 		Aliases: []string{"env"},
@@ -23,7 +23,7 @@ func NewCmdEnvironment(client apiclient.ClientFactory) *cobra.Command {
 		`), constants.ExecutableName, constants.ExecutableName),
 	}
 
-	cmd.AddCommand(cmdList.NewCmdList(client))
-	cmd.AddCommand(cmdDelete.NewCmdDelete(client))
+	cmd.AddCommand(cmdList.NewCmdList(f))
+	cmd.AddCommand(cmdDelete.NewCmdDelete(f))
 	return cmd
 }

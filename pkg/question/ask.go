@@ -4,5 +4,4 @@ import (
 	"github.com/AlecAivazis/survey/v2"
 )
 
-var AskOne = survey.AskOne
-var Ask = survey.Ask
+type Asker func(p survey.Prompt, response interface{}, opts ...survey.AskOpt) error
