@@ -60,7 +60,7 @@ func NewClientFactory(httpClient *http.Client, host string, apiKey string, space
 	return clientImpl, nil
 }
 
-// NewFromEnvironment Creates a new Client wrapper structure by reading the environment.
+// NewClientFactoryFromEnvironment Creates a new Client wrapper structure by reading the environment.
 // specifies nil for the HTTP Client, so this is not for unit tests; use NewClientFactory(... instead)
 func NewClientFactoryFromEnvironment() (ClientFactory, error) {
 	host := os.Getenv("OCTOPUS_HOST")
@@ -118,11 +118,23 @@ func (c *Client) GetSpacedClient() (*octopusApiClient.Client, error) {
 	}
 	// stash for future use
 	c.SpaceScopedClient = scopedClient
+	c.SystemClient = nil // system client has been "upgraded", no need for it anymore
 	return scopedClient, nil
 }
 
 func (c *Client) GetSystemClient() (*octopusApiClient.Client, error) {
-	// they are specifically asking for the System Client, return or create it if need be
+	// Internal quirks of the go-octopusdeploy API SDK:
+	// A space-scoped client can do System level things perfectly well, but the inverse is not true.
+	// Essentially:
+	// - we can always create a "system" client which has a Space ID of empty string
+	// - we can only create a "space scoped" client if we have a valid space ID, which requires using the
+	//   system client to look up a space ID and test it first.
+	// - once we have a "space scoped" client we can use it for all the system things and avoid storing
+	//   two client copies in memory, so we can throw out the system client.
+	if c.SpaceScopedClient != nil {
+		return c.SpaceScopedClient, nil
+	}
+
 	if c.SystemClient != nil {
 		return c.SystemClient, nil
 	}

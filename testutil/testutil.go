@@ -20,21 +20,24 @@ func EnsureSuccess(t *testing.T, err error, args ...any) bool {
 	return true
 }
 
-type NewHttpTransport func(r *http.Request) (*http.Response, error)
+type RoundTripper func(r *http.Request) (*http.Response, error)
 
-func (s NewHttpTransport) RoundTrip(r *http.Request) (*http.Response, error) {
+func (s RoundTripper) RoundTrip(r *http.Request) (*http.Response, error) {
 	return s(r)
 }
 
 // NewMockHttpClient returns an Http Client which returns 200 OK with no response body for everything
 func NewMockHttpClient() *http.Client {
-	httpClient := &http.Client{}
-	httpClient.Transport = NewHttpTransport(func(r *http.Request) (*http.Response, error) {
+	return NewMockHttpClientWithTransport(RoundTripper(func(r *http.Request) (*http.Response, error) {
 		return &http.Response{
 			StatusCode: http.StatusOK,
 			Body:       nil,
 		}, nil
-	})
+	}))
+}
 
+func NewMockHttpClientWithTransport(transport http.RoundTripper) *http.Client {
+	httpClient := &http.Client{}
+	httpClient.Transport = transport
 	return httpClient
 }
