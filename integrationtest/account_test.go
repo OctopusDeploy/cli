@@ -7,6 +7,7 @@ import (
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/core"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/spaces"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/teams"
+	"github.com/hashicorp/go-multierror"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
@@ -106,10 +107,13 @@ user-pw-b  UsernamePassword
 		myNewSpace, err = systemApiClient.Spaces.Add(myNewSpace)
 		cleanupHelper.AddFailable(func() error {
 			myNewSpace.TaskQueueStopped = true // make sure we can delete it at the end, we're not actually doing any tasks here
-			// TODO multierror would be convenient here
-			_, err := systemApiClient.Spaces.Update(myNewSpace)
-			err = systemApiClient.Spaces.DeleteByID(myNewSpace.GetID())
-			return err
+
+			var result *multierror.Error
+			if _, err := systemApiClient.Spaces.Update(myNewSpace); err != nil {
+				result = multierror.Append(err)
+			}
+			result = multierror.Append(systemApiClient.Spaces.DeleteByID(myNewSpace.GetID()))
+			return result.ErrorOrNil()
 		})
 
 		spacedApiClient, err := GetApiClient(myNewSpace.GetID())
