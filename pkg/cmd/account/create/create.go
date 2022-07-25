@@ -2,6 +2,7 @@ package create
 
 import (
 	"fmt"
+	"github.com/OctopusDeploy/cli/pkg/executor"
 	"io"
 
 	"github.com/AlecAivazis/survey/v2"
@@ -84,6 +85,18 @@ func createRun(f apiclient.ClientFactory, w io.Writer) error {
 		Help:    "A summary explaining the use of the account to other users.",
 		Message: "Description",
 	}, &description)
+	if err != nil {
+		return err
+	}
+
+	// TODO
+	task := executor.NewTask(executor.TaskTypeCreateAccount, map[string]any{
+		executor.NameKey:        name,
+		executor.DescriptionKey: description,
+		executor.TypeKey:        accountType,
+	})
+
+	err = executor.ProcessTasks(f, []executor.Task{task})
 	if err != nil {
 		return err
 	}
