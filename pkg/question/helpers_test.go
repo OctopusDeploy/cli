@@ -45,7 +45,8 @@ func NewAskMocker(t assert.TestingT, questions []QA) (question.Asker, func()) {
 
 			}
 			return qa.err
-		}, func() {
+		},
+		func() {
 			extraQuestions := make([]string, 0)
 			for {
 				qa, more := <-c
@@ -59,4 +60,8 @@ func NewAskMocker(t assert.TestingT, questions []QA) (question.Asker, func()) {
 				extraQuestions = append(extraQuestions, qa.String())
 			}
 		}
+}
+
+func NewAskOneMocker(t assert.TestingT, question QA) (question.Asker, func()) {
+	return NewAskMocker(t, []QA{question})
 }
