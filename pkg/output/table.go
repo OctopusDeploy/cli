@@ -29,15 +29,12 @@ type table struct {
 }
 
 func NewTable(writer io.Writer) Table {
-	width, _, _ := term.GetSize(int(os.Stdin.Fd()))
-	fmt.Printf("DEBUG: NewTable term width from os.Stdin is %d\n", width)
-	if width == 0 { // on windows, Stdin tends to have width of 0, whereas stdout is correct
+	width := defaultWidth
+	if term.IsTerminal(int(os.Stdin.Fd())) {
 		width, _, _ = term.GetSize(int(os.Stdout.Fd()))
-		fmt.Printf("DEBUG: NewTable term width from os.Stdout is %d\n", width)
-	}
-	if width == 0 {
-		fmt.Printf("DEBUG: Zero width: defaulting to %d\n", defaultWidth)
-		width = defaultWidth
+		if width < 1 {
+			width = defaultWidth
+		}
 	}
 
 	return &table{
