@@ -125,19 +125,27 @@ func (c *Client) GetSpacedClient() (*octopusApiClient.Client, error) {
 			return nil, err
 		}
 
-		selectedSpace, err := question.SelectMap(
-			c.Ask,
-			"You have not specified a Space. Please select one:", allSpaces, func(item *spaces.Space) string { return item.ID })
+		switch len(allSpaces) {
+		case 0:
+			return nil, errors.New("No spaces found")
+		case 1:
+			// TODO should we log here that we are inferring the first space?
+			// should we assert that it is the DEFAULT space? That feels significant.
+			selectedSpace := allSpaces[0]
+			c.Space = selectedSpace.ID
+			spaceID = selectedSpace.ID
+		default:
+			selectedSpace, err := question.SelectMap(
+				c.Ask,
+				"You have not specified a Space. Please select one:", allSpaces, func(item *spaces.Space) string { return item.GetName() })
 
-		if err != nil {
-			return nil, err
+			if err != nil {
+				return nil, err
+			}
+			c.Space = selectedSpace.ID
+			spaceID = selectedSpace.ID
 		}
-		c.Space = selectedSpace.ID
-		spaceID = ""
 	}
-
-	/* TODO: There was some discussion around having this code just pick the first space (if there is only one) in
-	situations where the caller has not supplied a space. Do we want to still do that? In which case we need to GetAll on the spaces, not just GetByIdOrName */
 
 	if spaceID == "" {
 		// TODO: Are we supposed to match a space by name first or by ID first? ID seems more reasonable, but confirm that
