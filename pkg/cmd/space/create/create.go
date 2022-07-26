@@ -93,16 +93,14 @@ func createRun(f factory.Factory, w io.Writer) error {
 }
 
 func selectTeams(ask question.Asker, client *client.Client, existingSpaces []*spaces.Space, message string) ([]*teams.Team, error) {
-	selectedTeams := []*teams.Team{}
-
 	systemTeams, err := client.Teams.Get(teams.TeamsQuery{
 		IncludeSystem: true,
 	})
 	if err != nil {
-		return selectedTeams, err
+		return []*teams.Team{}, err
 	}
 
-	err = question.MultiSelectMap(ask, message, systemTeams.Items, func(team *teams.Team) string {
+	return question.MultiSelectMap(ask, message, systemTeams.Items, func(team *teams.Team) string {
 		if len(team.SpaceID) == 0 {
 			return fmt.Sprintf("%s %s", team.Name, output.Dim("(System Team)"))
 		}
@@ -112,8 +110,7 @@ func selectTeams(ask question.Asker, client *client.Client, existingSpaces []*sp
 			}
 		}
 		return ""
-	}, selectedTeams)
-	return selectedTeams, err
+	})
 }
 
 func selectUsers(ask question.Asker, client *client.Client, message string) ([]*users.User, error) {
@@ -124,8 +121,7 @@ func selectUsers(ask question.Asker, client *client.Client, message string) ([]*
 		return selectedUsers, err
 	}
 
-	err = question.MultiSelectMap(ask, message, existingUsers, func(existingUser *users.User) string {
+	return question.MultiSelectMap(ask, message, existingUsers, func(existingUser *users.User) string {
 		return fmt.Sprintf("%s %s", existingUser.DisplayName, output.Dimf("(%s)", existingUser.Username))
-	}, selectedUsers)
-	return selectedUsers, err
+	})
 }
