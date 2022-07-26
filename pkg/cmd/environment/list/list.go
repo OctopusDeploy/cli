@@ -22,7 +22,7 @@ func NewCmdList(f factory.Factory) *cobra.Command {
 		`), constants.ExecutableName),
 		Aliases: []string{"ls"},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			client, err := f.Client(true)
+			client, err := f.GetSpacedClient()
 			if err != nil {
 				return err
 			}

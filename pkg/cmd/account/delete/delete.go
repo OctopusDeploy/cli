@@ -36,7 +36,7 @@ func NewCmdDelete(f factory.Factory) *cobra.Command {
 				return err
 			}
 
-			client, err := f.Client(true) // space-scoped
+			client, err := f.GetSpacedClient()
 			if err != nil {
 				return err
 			}
@@ -77,7 +77,7 @@ func NewCmdDelete(f factory.Factory) *cobra.Command {
 }
 
 func deleteRun(f factory.Factory, w io.Writer) error {
-	client, err := f.Client(true)
+	client, err := f.GetSpacedClient()
 	if err != nil {
 		return err
 	}

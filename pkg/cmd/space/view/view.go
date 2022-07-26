@@ -38,7 +38,7 @@ func NewCmdView(f factory.Factory) *cobra.Command {
 			$ %s space view Integrations
 		`), constants.ExecutableName, constants.ExecutableName),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			client, err := f.Client(false)
+			client, err := f.GetSystemClient()
 			if err != nil {
 				return err
 			}

@@ -11,8 +11,9 @@ import (
 	"os/exec"
 	"path"
 	"runtime"
-	"testing"
 )
+
+// This file contains utilities to help with integration testing
 
 // GetApiClient returns a "back door" connection to the Octopus Server
 // that integration tests can use to create fixture data, cleanup, etc
@@ -174,17 +175,4 @@ func RunCliRawOutput(space string, args ...string) ([]byte, []byte, error) {
 	}
 
 	return runExecutableRawOutput(cliPath, args, cliDir, mapEnv(space))
-}
-
-// EnsureSuccess checks that err is nil and returns true.
-// If it's not, it will print all the args, then write the Error string, fail the test, and return false
-func EnsureSuccess(t *testing.T, err error, args ...any) bool {
-	if err != nil {
-		for _, arg := range args {
-			t.Log(arg)
-		}
-		t.Errorf(err.Error())
-		return false
-	}
-	return true
 }
