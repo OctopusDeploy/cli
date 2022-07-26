@@ -3,6 +3,9 @@ package apiclient
 import (
 	"errors"
 	"fmt"
+	"github.com/AlecAivazis/survey/v2"
+	"github.com/OctopusDeploy/cli/pkg/question"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/spaces"
 	"net/url"
 	"os"
 
@@ -43,13 +46,11 @@ type Client struct {
 	// Required for commands that need a space, but may be omitted for server-wide commands such as listing teams
 	Space string
 
-	// TODO here we would put a pointer to the "question asker" (wrapper over Survey)
-	// which GetSpacedClient would use to prompt the user for a space name.
-	// If the CLI is running in no-prompt mode, then said pointer would be nil, signalling
-	// that we can't ask, and should fail instead. Waiting on Dom's PR to merge for that
+	// Handle out to prompt the user for things. If this is nil, it means we're in no-prompt mode
+	Ask question.Asker
 }
 
-func NewClientFactory(httpClient *http.Client, host string, apiKey string, space string) (ClientFactory, error) {
+func NewClientFactory(httpClient *http.Client, host string, apiKey string, space string, asker question.Asker) (ClientFactory, error) {
 	hostUrl, err := url.Parse(host)
 	if err != nil {
 		return nil, err
@@ -62,6 +63,7 @@ func NewClientFactory(httpClient *http.Client, host string, apiKey string, space
 		ApiUrl:            hostUrl,
 		ApiKey:            apiKey,
 		Space:             space,
+		Ask:               asker,
 	}
 	return clientImpl, nil
 }
@@ -73,12 +75,20 @@ func NewClientFactoryFromEnvironment() (ClientFactory, error) {
 	apiKey := os.Getenv("OCTOPUS_API_KEY")
 	space := os.Getenv("OCTOPUS_SPACE")
 
+	var ask question.Asker = nil
+
+	// TODO put this in some other function as we may check many things to determine if we're suppressing prompting
+	_, ci := os.LookupEnv("CI")
+	if !ci {
+		ask = survey.AskOne
+	}
+
 	errs := ValidateMandatoryEnvironment(host, apiKey)
 	if errs != nil {
 		return nil, errs
 	}
 
-	return NewClientFactory(nil, host, apiKey, space)
+	return NewClientFactory(nil, host, apiKey, space, ask)
 }
 
 func ValidateMandatoryEnvironment(host string, apiKey string) error {
@@ -106,19 +116,40 @@ func (c *Client) GetSpacedClient() (*octopusApiClient.Client, error) {
 		return nil, err
 	}
 
-	// TODO if the caller has not specified a space, prompt interactively
+	// if the caller has not specified a space, prompt interactively
+	var spaceID string
+	// if c.Ask is nil it means we're in automation mode.
+	if c.Space == "" && c.Ask != nil {
+		allSpaces, err := systemClient.Spaces.GetAll()
+		if err != nil {
+			return nil, err
+		}
+
+		selectedSpace, err := question.SelectMap(
+			c.Ask,
+			"You have not specified a Space. Please select one:", allSpaces, func(item *spaces.Space) string { return item.ID })
+
+		if err != nil {
+			return nil, err
+		}
+		c.Space = selectedSpace.ID
+		spaceID = ""
+	}
 
 	/* TODO: There was some discussion around having this code just pick the first space (if there is only one) in
 	situations where the caller has not supplied a space. Do we want to still do that? In which case we need to GetAll on the spaces, not just GetByIdOrName */
 
-	// TODO: Are we supposed to match a space by name first or by ID first? ID seems more reasonable, but confirm that
-	space, err := systemClient.Spaces.GetByIDOrName(c.Space)
-	if err != nil {
-		return nil, errors.New(fmt.Sprintf("Cannot use specified space '%s'. Error: %s", c.Space, err))
+	if spaceID == "" {
+		// TODO: Are we supposed to match a space by name first or by ID first? ID seems more reasonable, but confirm that
+		space, err := systemClient.Spaces.GetByIDOrName(c.Space)
+		if err != nil {
+			return nil, errors.New(fmt.Sprintf("Cannot use specified space '%s'. Error: %s", c.Space, err))
+		}
+		// ok we found a space
+		spaceID = space.ID
 	}
-	// ok we found a space
 
-	scopedClient, err := octopusApiClient.NewClient(c.HttpClient, c.ApiUrl, c.ApiKey, space.GetID())
+	scopedClient, err := octopusApiClient.NewClient(c.HttpClient, c.ApiUrl, c.ApiKey, spaceID)
 	if err != nil {
 		return nil, err
 	}
