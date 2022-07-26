@@ -183,10 +183,8 @@ func TestClient_GetSpacedClient_Prompt(t *testing.T) {
 			return []*spaces.Space{integrationsSpace}, nil
 		})
 
-		// after it gets all the spaces it will restart
+		// after it gets all the spaces it will restart and go directly for the specific space to get the links
 		testutil.EnqueueRootResponder(rt)
-
-		// note it just goes for /api/Spaces-7 this time
 		rt.EnqueueResponder("GET", "/api/Spaces-23", func(r *http.Request) (any, error) { return integrationsSpace, nil })
 
 		// question/answer doesn't matter, just the presence of the mock signals it's allowed to auto-select the space
@@ -225,10 +223,8 @@ func TestClient_GetSpacedClient_Prompt(t *testing.T) {
 		})
 		defer unasked()
 
-		// after it gets all the spaces it will restart
+		// after it gets all the spaces it will restart and go directly for the specific space to get the links
 		testutil.EnqueueRootResponder(rt)
-
-		// note it just goes for the Space this time
 		rt.EnqueueResponder("GET", "/api/Spaces-39", func(r *http.Request) (any, error) { return integrationsSpace, nil })
 
 		factory2, _ := apiclient.NewClientFactory(testutil.NewMockHttpClientWithTransport(rt), "http://server", PlaceholderApiKey, "", asker)
