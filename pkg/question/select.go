@@ -2,19 +2,20 @@ package question
 
 import "github.com/AlecAivazis/survey/v2"
 
-func MultiSelectMap[T any](ask Asker, message string, items []T, getKey func(item T) string, selected []T) error {
+func MultiSelectMap[T any](ask Asker, message string, items []T, getKey func(item T) string) ([]T, error) {
 	optionMap, options := makeItemMapAndOptions(items, getKey)
 	var selectedKeys []string
 	if err := ask(&survey.MultiSelect{
 		Message: message,
 		Options: options,
 	}, &selectedKeys); err != nil {
-		return err
+		return nil, err
 	}
+	selected := []T{}
 	for _, keyName := range selectedKeys {
 		selected = append(selected, optionMap[keyName])
 	}
-	return nil
+	return selected, nil
 }
 
 func SelectMap[T any](ask Asker, message string, items []T, getKey func(item T) string) (T, error) {
