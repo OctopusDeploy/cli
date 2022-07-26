@@ -1,13 +1,18 @@
 package executor
 
+const CreateAccountTaskType = "createAccount"
+
 type Task struct {
-	CommandType string
-	Inputs      map[string]any
+	// which type of task this is. Use the XyzTaskType set of constant strings
+	Type string
+
+	// task-specific payload (usually a struct containing the data required for this task)
+	Options any
 }
 
-func NewTask(commandType string, inputs map[string]any) Task {
+func NewTask(taskType string, options any) Task {
 	return Task{
-		CommandType: commandType,
-		Inputs:      inputs,
+		Type:    taskType,
+		Options: options,
 	}
 }

@@ -3,6 +3,7 @@ package create
 import (
 	"fmt"
 	"github.com/OctopusDeploy/cli/pkg/executor"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/core"
 	"io"
 
 	"github.com/AlecAivazis/survey/v2"
@@ -89,24 +90,28 @@ func createRun(f factory.Factory, w io.Writer) error {
 		return err
 	}
 
-	// TODO
-	task := executor.NewTask(executor.TaskTypeCreateAccount, map[string]any{
-		executor.NameKey:        name,
-		executor.DescriptionKey: description,
-		executor.TypeKey:        accountType,
-	})
-
-	err = executor.ProcessTasks(f, []executor.Task{task})
-	if err != nil {
-		return err
-	}
-
 	switch accountType {
 	case "Azure Subscription":
 		createAzureSubscriptionRun(f.Ask, octopus, w)
 	}
 
 	// TODO: use the name; create the account
+
+	// TODO switch on type
+	task := executor.NewTask(executor.TaskTypeCreateAccount, executor.TaskOptionsCreateAccount{
+		Type:        executor.AccountTypeUsernamePassword,
+		Name:        name,
+		Description: description,
+		Options: executor.TaskOptionsCreateAccountUsernamePassword{
+			Username: "todo",
+			Password: core.NewSensitiveValue("todo"),
+		},
+	})
+
+	err = executor.ProcessTasks(f, []executor.Task{task})
+	if err != nil {
+		return err
+	}
 
 	return nil
 }

@@ -17,96 +17,113 @@ const TaskTypeCreateAccount = "createAccount"
 // TODO some kind of progress callback?
 func ProcessTasks(clientFactory apiclient.ClientFactory, tasks []Task) error {
 	for _, task := range tasks {
-		switch task.CommandType {
-		case "accountCreate":
-			if err := accountCreate(clientFactory, task.Inputs); err != nil {
+		switch task.Type {
+		case TaskTypeCreateAccount:
+			if err := accountCreate(clientFactory, task.Options); err != nil {
 				return err
 			}
 		default:
-			return errors.New(fmt.Sprintf("Unhandled task CommandType %s", task.CommandType))
+			return errors.New(fmt.Sprintf("Unhandled task CommandType %s", task.Type))
 		}
 	}
 	return nil
 }
 
-// attribute keys
-const NameKey = "name"
-const TypeKey = "type"
-const DescriptionKey = "description"
-const AccountUsernameKey = "username"
-const AccountPasswordKey = "password"
-const AccountTokenKey = "token"
-const AccountEnvironmentIDsKey = "environmentids"
-
 // account type values match the UI
-const AccountUsernamePasswordType = "Username/Password"
-const AccountTokenType = "Token"
+const AccountTypeUsernamePassword = "Username/Password"
+const AccountTypeToken = "Token"
 
-func accountCreate(clientFactory apiclient.ClientFactory, inputs map[string]any) error {
+type TaskOptionsCreateAccount struct {
+	Type           string   // REQUIRED. refer to AccountType constant strings
+	Name           string   // REQUIRED.
+	Description    string   // optional
+	EnvironmentIds []string // optional. // TODO the user may have specified environment string names; the outer code should resolve them before building the TaskInput
+	Options        any      // subtype-specific payload
+}
+
+type TaskOptionsCreateAccountUsernamePassword struct {
+	Username string
+	Password *core.SensitiveValue
+}
+
+type TaskOptionsCreateAccountToken struct {
+	Token *core.SensitiveValue
+}
+
+func accountCreate(clientFactory apiclient.ClientFactory, input any) error {
+	params, ok := input.(TaskOptionsCreateAccount)
+	if !ok {
+		return errors.New("invalid input type; expecting TaskOptionsCreateAccount")
+	}
+
 	client, err := clientFactory.GetSpacedClient()
 	if err != nil {
 		return err
 	}
 
-	accountName, ok := inputs[NameKey].(string)
-	if !ok || accountName == "" {
+	// TODO should we validate these here, or should we assume that the outer code has already validated them?
+	// most of the lines of code here are validation
+	accountName := params.Name
+	if params.Name == "" {
 		return errors.New("must specify account name")
 	}
 
-	// TODO set of environments
-
 	var account accounts.IAccount = nil
-
-	accountType, ok := inputs[TypeKey].(string)
-	if !ok {
-		accountType = ""
-	}
-	switch accountType {
+	switch params.Type {
 	// Note the Command Processor will have screened and converted any user input first,
 	// so if we want to be nice and allow multiple options with the same meaning, that is the place to handle it,
 	// rather than here
-	case AccountUsernamePasswordType:
+	case AccountTypeUsernamePassword:
+		options, ok := params.Options.(TaskOptionsCreateAccountUsernamePassword)
+		if !ok {
+			return errors.New("Options must be TaskInputCreateAccountUsernamePassword")
+		}
+
 		p, err := accounts.NewUsernamePasswordAccount(accountName)
 		if err != nil {
 			return err
 		}
 		account = p
 
-		username, ok := inputs[AccountUsernameKey].(string)
-		if !ok || username == "" {
+		if options.Username == "" {
 			return errors.New("must specify username")
 		}
-		p.Username = username
+		p.Username = options.Username
 
-		password, ok := inputs[AccountPasswordKey].(string)
-		if !ok || password == "" {
+		if !options.Password.HasValue {
 			return errors.New("must specify password")
 		}
-		p.SetPassword(core.NewSensitiveValue(password))
-	case AccountTokenType:
-		token, ok := inputs[AccountTokenKey].(string)
-		if !ok || token == "" {
+		p.Password = options.Password
+
+	case AccountTypeToken:
+		options, ok := params.Options.(TaskOptionsCreateAccountToken)
+		if !ok {
+			return errors.New("Options must be TaskInputCreateAccountUsernamePassword")
+		}
+
+		if !options.Token.HasValue {
 			return errors.New("must specify token")
 		}
 
-		p, err := accounts.NewTokenAccount(accountName, core.NewSensitiveValue(token))
+		p, err := accounts.NewTokenAccount(accountName, options.Token)
 		if err != nil {
 			return err
 		}
 		account = p
+
+		// TODO AWS, Azure, Google accounts etc
+
 	default:
-		return errors.New(fmt.Sprintf("Unhandled account type %s", accountType))
+		return errors.New(fmt.Sprintf("Unhandled account type %s", params.Type))
 	}
 
 	// common
-	description, ok := inputs[DescriptionKey].(string)
-	if ok && description != "" {
-		account.SetDescription("description")
+	if params.Description != "" {
+		account.SetDescription(params.Description)
 	}
 
-	environmentIDs, ok := inputs[AccountEnvironmentIDsKey].([]string)
-	if ok && len(environmentIDs) > 0 {
-		account.SetEnvironmentIDs(environmentIDs)
+	if len(params.EnvironmentIds) > 0 {
+		account.SetEnvironmentIDs(params.EnvironmentIds)
 	}
 
 	_, err = client.Accounts.Add(account)
