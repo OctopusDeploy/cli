@@ -12,7 +12,7 @@
 
 ## Overview
 
-This project aims to create a new CLI for communicating with the Octopus Deploy Server, written in Go.
+This project aims to create a new CLI (written in Go) for communicating with the Octopus Deploy Server.
 
 It does **not** seek to be a drop-in replacement for the existing CLI which is written in C# using .NET.
 https://github.com/OctopusDeploy/OctopusCLI
@@ -23,7 +23,7 @@ The new CLI will not initially contain all the features of the existing .NET CLI
 Over time we plan to add features and may eventually reach parity, but our intent is that both the 
 .NET and Go CLI's will co-exist for a significant period of time.
 
-The New CLI restructures the command line to be more consistent, and fit with convention
+The new CLI restructures the command line to be more consistent, and fit with convention
 across other popular CLI apps. It is built on the popular and widely-used [Cobra](https://github.com/spf13/cobra) 
 command line processing library.
 
@@ -72,6 +72,11 @@ go build .
 If successful, the go compiler does not output anything. You should now have an `octopus` binary 
 (`octopus.exe` on windows) in your current directory.
 
+**Makefile**
+
+If you are using a sytem that has `make` installed, then you can also simpl run `make` in the cli root folder. 
+The default action for the `Makefile` is to run `go build`, as above.
+
 ## Running the CLI
 
 The CLI needs to authenticate with the octopus server.
@@ -81,7 +86,7 @@ This is currently managed using environment variables which you must set before 
 
 ```shell
 export OCTOPUS_HOST="http://localhost:8050" # replace with your octopus URL
-export OCTOPUS_API_KEY: "API-XXXXXXXXXXXXXXXXXXXXXXXXXXXXX" # replace with your API key
+export OCTOPUS_API_KEY="API-XXXXXXXXXXXXXXXXXXXXXXXXXXXXX" # replace with your API key
 ./octopus space list # should list all the spaces
 ```
 
@@ -89,7 +94,7 @@ export OCTOPUS_API_KEY: "API-XXXXXXXXXXXXXXXXXXXXXXXXXXXXX" # replace with your 
 
 ```shell
 $env:OCTOPUS_HOST="http://localhost:8050" # replace with your octopus URL
-$env:OCTOPUS_API_KEY: "API-XXXXXXXXXXXXXXXXXXXXXXXXXXXXX" # replace with your API key
+$env:OCTOPUS_API_KEY="API-XXXXXXXXXXXXXXXXXXXXXXXXXXXXX" # replace with your API key
 ./octopus.exe space list # should list all the spaces
 ```
 
@@ -97,7 +102,7 @@ $env:OCTOPUS_API_KEY: "API-XXXXXXXXXXXXXXXXXXXXXXXXXXXXX" # replace with your AP
 
 ```shell
 set OCTOPUS_HOST="http://localhost:8050" # replace with your octopus URL
-set OCTOPUS_API_KEY: "API-XXXXXXXXXXXXXXXXXXXXXXXXXXXXX" # replace with your API key
+set OCTOPUS_API_KEY="API-XXXXXXXXXXXXXXXXXXXXXXXXXXXXX" # replace with your API key
 octopus.exe space list # should list all the spaces
 ```
 
