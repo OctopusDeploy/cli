@@ -13,10 +13,10 @@ import (
 )
 
 func MapCollectionWithLookup[T any, TResult any](
-	cache map[string]string,                    // cache for keys (typically this will store a mapping of ID->Name)
-	collection []T,                             // input (e.g. list of Releases)
-	keySelector func(T) string,                 // fetches the key (e.g given a Release, returns the ChannelID)
-	mapper func(T, string) TResult,             // fetches the value to lookup (e.g given a Channel and the name, does the mapping to return the output struct)
+	cache map[string]string, // cache for keys (typically this will store a mapping of ID->Name)
+	collection []T, // input (e.g. list of Releases)
+	keySelector func(T) string, // fetches the key (e.g given a Release, returns the ChannelID)
+	mapper func(T, string) TResult, // fetches the value to lookup (e.g given a Channel and the name, does the mapping to return the output struct)
 	runLookup func([]string) ([]string, error), // callback to go fetch values for the keys (given a list of Channel IDs, it should return the list of associated Channel Names)
 ) ([]TResult, error) {
 	// this works in two passes. First it walks the collection and sees if there is anything it needs to look up.
@@ -69,11 +69,11 @@ func MapCollectionWithLookup[T any, TResult any](
 // like MapCollectionWithLookup except it can lookup more than one attribute.
 // e.g. a Release has both a Project and a Channel that we'd like to lookup the name of
 func MapCollectionWithLookups[T any, TResult any](
-	caches []map[string]string,                    // cache for keys (typically this will store a mapping of ID->[Name, Name]). YOU MUST PREALLOCATE THIS
-	collection []T,                                // input (e.g. list of Releases)
-	keySelector func(T) []string,                  // fetches the keys (e.g given a Release, returns the [ChannelID, ProjectID]
-	mapper func(T, []string) TResult,              // fetches the value to lookup (e.g given a Release and the [ChannelName,ProjectName], does the mapping to return the output struct)
-	runLookups []func([]string) ([]string, error), // callbacks to go fetch values for the keys (given a list of Channel IDs, it should return the list of associated Channel Names)
+	caches []map[string]string, // cache for keys (typically this will store a mapping of ID->[Name, Name]). YOU MUST PREALLOCATE THIS
+	collection []T, // input (e.g. list of Releases)
+	keySelector func(T) []string, // fetches the keys (e.g given a Release, returns the [ChannelID, ProjectID]
+	mapper func(T, []string) TResult, // fetches the value to lookup (e.g given a Release and the [ChannelName,ProjectName], does the mapping to return the output struct)
+	runLookups ...func([]string) ([]string, error), // callbacks to go fetch values for the keys (given a list of Channel IDs, it should return the list of associated Channel Names)
 ) ([]TResult, error) {
 	// this works in two passes. First it walks the collection and sees if there is anything it needs to look up.
 	// (it doesn't produce any results or do any mapping, just key selection).
@@ -131,6 +131,37 @@ func MapCollectionWithLookups[T any, TResult any](
 	return results, nil
 }
 
+// Given a collection of items, and a collection of keys to match within that collection,
+// returns a collection of values which matched those keys, in the exact order matching keys.
+// This makes no sense, hopefully an example helps:
+// - Given an array of Channels [<id:C1, name:'C1Name'>, <id:C7, name:'C7Name'> , <id:C2, name:'C2Name'>]
+// - And a set of keys [C2, C7]
+// - Returns the extracted values ['C2Name', 'C7Name']
+//
+// Note: if something can't be found, then the extracted values collection will contain a zero value in-place
+func ExtractValuesMatchingKeys[T any](collection []T, keys []string, idSelector func(T) string, valueSelector func(T) string) []string {
+	// the server doesn't neccessarily return items in the order matching 'keys'
+	// so we have to build the association manually
+	results := make([]string, len(keys))
+	for idx, key := range keys {
+		// find the key in the lookupResult.Items and slot it into the correct array index
+		foundItem := false
+		for _, item := range collection {
+			if idSelector(item) == key {
+				results[idx] = valueSelector(item)
+				foundItem = true
+				break
+				// TODO we could optimise this by removing something from 'collection' once we've found it,
+				// or by front-loading them into a map[string]string. Dig into that later for performance if need be
+			}
+		}
+		if !foundItem {
+			results[idx] = ""
+		}
+	}
+	return results
+}
+
 func NewCmdList(client factory.Factory) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "list",
@@ -169,61 +200,39 @@ func NewCmdList(client factory.Factory) *cobra.Command {
 				pageOutput, err := MapCollectionWithLookups(
 					caches,
 					releasesPage.Items,
-					func(item *releases.Release) []string {
+					func(item *releases.Release) []string { // set of keys to lookup
 						return []string{item.ChannelID, item.ProjectID}
 					},
-					func(item *releases.Release, cachedValues []string) ReleaseOutput {
-						return ReleaseOutput{Channel: cachedValues[0], Project: cachedValues[1], Version: item.Version}
+					func(item *releases.Release, lookup []string) ReleaseOutput { // result producer
+						return ReleaseOutput{Channel: lookup[0], Project: lookup[1], Version: item.Version}
 					},
-					[]func(keys []string) ([]string, error){
-						// lookup for channel names
-						func(keys []string) ([]string, error) {
-							lookupResult, err := octopusClient.Channels.Get(channels.Query{
-								IDs:  keys,
-								Take: len(keys), // important here just in case we have more than 30 channelsToLookup (server's default page size is 30 and we'd have to deal with pagination)
-							})
-							if err != nil {
-								return nil, err
-							}
-
-							// the server doesn't neccessarily return items in the order matching 'keys'
-							// so we have to build the association manually
-							results := make([]string, len(keys))
-							for idx, key := range keys {
-								// find the key in the lookupResult.Items and slot it into the correct array index
-								for _, item := range lookupResult.Items {
-									if item.ID == key {
-										results[idx] = item.Name
-										// TODO we could optimise this by removing something from lookupResult.Items once we've found it,
-										// or by front-loading them into a map[string]string. Dig into that later for performance if need be
-									}
-								}
-							}
-							return results, nil
-						},
-						// lookup for project names
-						func(keys []string) ([]string, error) {
-							lookupResult, err := octopusClient.Projects.Get(projects.ProjectsQuery{
-								IDs:  keys,
-								Take: len(keys),
-							})
-							if err != nil {
-								return nil, err
-							}
-
-							results := make([]string, len(keys))
-							for idx, key := range keys {
-								// find the key in the lookupResult.Items and slot it into the correct array index
-								for _, item := range lookupResult.Items {
-									if item.ID == key {
-										results[idx] = item.Name
-									}
-								}
-							}
-							return results, nil
-						},
+					// lookup for channel names
+					func(keys []string) ([]string, error) {
+						// Take(len) is important here just in case we have more than 30 channelsToLookup (server's default page size is 30 and we'd have to deal with pagination)
+						lookupResult, err := octopusClient.Channels.Get(channels.Query{IDs: keys, Take: len(keys)})
+						if err != nil {
+							return nil, err
+						}
+						return ExtractValuesMatchingKeys(
+							lookupResult.Items,
+							keys,
+							func(x *channels.Channel) string { return x.ID },
+							func(x *channels.Channel) string { return x.Name },
+						), nil
 					},
-				)
+					// lookup for project names
+					func(keys []string) ([]string, error) {
+						lookupResult, err := octopusClient.Projects.Get(projects.ProjectsQuery{IDs: keys, Take: len(keys)})
+						if err != nil {
+							return nil, err
+						}
+						return ExtractValuesMatchingKeys(
+							lookupResult.Items,
+							keys,
+							func(x *projects.Project) string { return x.ID },
+							func(x *projects.Project) string { return x.Name },
+						), nil
+					})
 
 				releaseOutput = append(releaseOutput, pageOutput...)
 
@@ -250,9 +259,9 @@ func NewCmdList(client factory.Factory) *cobra.Command {
 					return item
 				},
 				Table: output.TableDefinition[ReleaseOutput]{
-					Header: []string{"PROJECT", "CHANNEL", "VERSION"},
+					Header: []string{"VERSION", "PROJECT", "CHANNEL"},
 					Row: func(item ReleaseOutput) []string {
-						return []string{output.Bold(item.Project), item.Channel, item.Version}
+						return []string{output.Bold(item.Version), item.Project, item.Channel}
 					}},
 				Basic: func(item ReleaseOutput) string {
 					return item.Version
