@@ -270,6 +270,50 @@ func TestMapCollectionWithLookups(t *testing.T) {
 		}, results)
 	})
 
+	t.Run("only looks up the minimum required if data is partially cached", func(t *testing.T) {
+		// preload the cache with not-quite-right data to check that the function fetches it from the cache rather than lookup
+		caches := util.MapCollectionCacheContainer{
+			Caches: []map[string]string{
+				{"S": "zzSales"}, // marketing is not cached
+				{"AU": "zzAustralia", "NZ": "zzNewZealand"}, // full country data is cached
+			},
+		}
+
+		results, err := util.MapCollectionWithLookups(
+			&caches,
+			people,
+			func(p Person) []string { return []string{p.DepartmentID, p.CountryID} },
+			func(p Person, lookup []string) PersonWithCountryDepartment {
+				return PersonWithCountryDepartment{
+					PersonID:       p.ID,
+					Name:           fmt.Sprintf("%s %s", p.FirstName, p.LastName),
+					DepartmentName: lookup[0],
+					CountryName:    lookup[1],
+				}
+			},
+			// lookup for departments
+			func(departmentIds []string) ([]string, error) {
+				assert.Equal(t, []string{"M"}, departmentIds, "only the Marketing department should be looked up, sales is already cached")
+
+				return util.MapSlice(departmentIds, func(deptId string) string {
+					return departments[deptId].Name
+				}), nil
+			},
+			// lookup for countries
+			func(countryIds []string) ([]string, error) {
+				assert.Fail(t, "Should not get here")
+				return nil, nil
+			},
+		)
+
+		assert.Nil(t, err)
+		assert.Equal(t, []PersonWithCountryDepartment{
+			{PersonID: "1", Name: "John Smith", CountryName: "zzNewZealand", DepartmentName: "zzSales"},
+			{PersonID: "2", Name: "Jane Doe", CountryName: "zzNewZealand", DepartmentName: "Marketing"},
+			{PersonID: "3", Name: "Alan Walker", CountryName: "zzAustralia", DepartmentName: "zzSales"},
+		}, results)
+	})
+
 	t.Run("returns error if the first lookup fails", func(t *testing.T) {
 		caches := util.MapCollectionCacheContainer{}
 

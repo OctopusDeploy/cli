@@ -57,17 +57,12 @@ type MapCollectionCacheContainer struct {
 // items as it iterates the collection, and call out to lambdas to look those values up.
 // See the unit tests for examples which should clarify the use-cases for this.
 func MapCollectionWithLookups[T any, TResult any](
-	cacheContainer *MapCollectionCacheContainer,    // cache for keys (typically this will store a mapping of ID->[Name, Name]). YOU MUST PREALLOCATE THIS
-	collection []T,                                 // input (e.g. list of Releases)
-	keySelector func(T) []string,                   // fetches the keys (e.g given a Release, returns the [ChannelID, ProjectID]
-	mapper func(T, []string) TResult,               // fetches the value to lookup (e.g given a Release and the [ChannelName,ProjectName], does the mapping to return the output struct)
+	cacheContainer *MapCollectionCacheContainer, // cache for keys (typically this will store a mapping of ID->[Name, Name]).
+	collection []T, // input (e.g. list of Releases)
+	keySelector func(T) []string, // fetches the keys (e.g given a Release, returns the [ChannelID, ProjectID]
+	mapper func(T, []string) TResult, // fetches the value to lookup (e.g given a Release and the [ChannelName,ProjectName], does the mapping to return the output struct)
 	runLookups ...func([]string) ([]string, error), // callbacks to go fetch values for the keys (given a list of Channel IDs, it should return the list of associated Channel Names)
 ) ([]TResult, error) {
-	// this works in two passes. First it walks the collection and sees if there is anything it needs to look up.
-	// (it doesn't produce any results or do any mapping, just key selection).
-	// then, if necessary, it looks up the keys and populates the cache
-	// for the second pass we walk the collection and assign keys to cached values
-
 	// if the caller didn't specify an external cache, create an internal one.
 	// it'll work, but we lose the ability to cache across multiple lookups
 	// (e.g. when fetching more than one page of results from the server)
@@ -85,6 +80,9 @@ func MapCollectionWithLookups[T any, TResult any](
 
 	caches := cacheContainer.Caches
 
+	// first pass: walk the collection and see if there's anything we need to look up.
+	// if we detect a situation where all the lookups are already satisfied by the cache,
+	// then we may not need to do any lookups at all.
 	var allKeysToLookup = make([][]string, len(caches)) // preallocate the right number of nils
 	for _, item := range collection {
 		keys := keySelector(item)
@@ -102,9 +100,7 @@ func MapCollectionWithLookups[T any, TResult any](
 		}
 	}
 
-	// if we don't know the names of some things, go and look them up, then restart the mapping process.
-	// we do a second pass over the whole array, which isn't perfectly efficient, but it's simpler, and
-	// we are dealing with small numbers here (page size of 100 or less) so perf will be fine
+	// if we have things we need to look up, go and look them up and insert them into the cache.
 	for lookupIdx, keysToLookup := range allKeysToLookup {
 		if keysToLookup != nil {
 			lookedUpValues, err := runLookups[lookupIdx](keysToLookup)
@@ -117,6 +113,7 @@ func MapCollectionWithLookups[T any, TResult any](
 		}
 	}
 
+	// Now we do a second pass over the array in order to produce the output (incorporating the looked-up values from cache)
 	var results []TResult
 	for _, item := range collection {
 		keys := keySelector(item)
