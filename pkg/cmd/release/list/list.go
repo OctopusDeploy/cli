@@ -27,11 +27,6 @@ func NewCmdList(client factory.Factory) *cobra.Command {
 				return err
 			}
 
-			caches := []map[string]string{
-				{}, // first cache for Channel Names
-				{}, // second cache for Project Names
-			}
-
 			type ReleaseOutput struct {
 				Channel string
 				Project string
@@ -41,6 +36,8 @@ func NewCmdList(client factory.Factory) *cobra.Command {
 			// page-fetching loop. TODO sync with dom
 			releaseOutput := []ReleaseOutput{}
 
+			caches := util.MapCollectionCacheContainer{}
+
 			releasesPage, err := octopusClient.Releases.Get(releases.ReleasesQuery{}) // get all; server's default page size
 			for releasesPage != nil {
 				if err != nil {
@@ -48,7 +45,7 @@ func NewCmdList(client factory.Factory) *cobra.Command {
 				}
 
 				pageOutput, err := util.MapCollectionWithLookups(
-					caches,
+					&caches,
 					releasesPage.Items,
 					func(item *releases.Release) []string { // set of keys to lookup
 						return []string{item.ChannelID, item.ProjectID}

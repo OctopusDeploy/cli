@@ -48,19 +48,40 @@ func ExtractValuesMatchingKeys[T any](collection []T, keys []string, idSelector 
 	return results
 }
 
+type MapCollectionCacheContainer struct {
+	Caches []map[string]string
+}
+
 // like MapCollectionWithLookup except it can lookup more than one attribute.
 // e.g. a Release has both a Project and a Channel that we'd like to lookup the name of
 func MapCollectionWithLookups[T any, TResult any](
-	caches []map[string]string, // cache for keys (typically this will store a mapping of ID->[Name, Name]). YOU MUST PREALLOCATE THIS
-	collection []T, // input (e.g. list of Releases)
-	keySelector func(T) []string, // fetches the keys (e.g given a Release, returns the [ChannelID, ProjectID]
-	mapper func(T, []string) TResult, // fetches the value to lookup (e.g given a Release and the [ChannelName,ProjectName], does the mapping to return the output struct)
+	cacheContainer *MapCollectionCacheContainer,    // cache for keys (typically this will store a mapping of ID->[Name, Name]). YOU MUST PREALLOCATE THIS
+	collection []T,                                 // input (e.g. list of Releases)
+	keySelector func(T) []string,                   // fetches the keys (e.g given a Release, returns the [ChannelID, ProjectID]
+	mapper func(T, []string) TResult,               // fetches the value to lookup (e.g given a Release and the [ChannelName,ProjectName], does the mapping to return the output struct)
 	runLookups ...func([]string) ([]string, error), // callbacks to go fetch values for the keys (given a list of Channel IDs, it should return the list of associated Channel Names)
 ) ([]TResult, error) {
 	// this works in two passes. First it walks the collection and sees if there is anything it needs to look up.
 	// (it doesn't produce any results or do any mapping, just key selection).
 	// then, if necessary, it looks up the keys and populates the cache
 	// for the second pass we walk the collection and assign keys to cached values
+
+	// if the caller didn't specify an external cache, create an internal one.
+	// it'll work, but we lose the ability to cache across multiple lookups
+	// (e.g. when fetching more than one page of results from the server)
+	if cacheContainer == nil {
+		cacheContainer = &MapCollectionCacheContainer{}
+	}
+
+	if len(cacheContainer.Caches) < len(runLookups) {
+		// caches aren't allocated, we need to do that
+		cacheContainer.Caches = nil
+		for i := 0; i < len(runLookups); i++ {
+			cacheContainer.Caches = append(cacheContainer.Caches, map[string]string{})
+		}
+	}
+
+	caches := cacheContainer.Caches
 
 	var allKeysToLookup = make([][]string, len(caches)) // preallocate the right number of nils
 	for _, item := range collection {

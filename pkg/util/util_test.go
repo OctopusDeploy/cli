@@ -106,13 +106,104 @@ func TestMapCollectionWithLookups(t *testing.T) {
 	}
 
 	t.Run("typical with two lookups", func(t *testing.T) {
-		// need to preallocate two caches
-		caches := []map[string]string{
-			{}, {},
-		}
+		caches := util.MapCollectionCacheContainer{}
 
 		results, err := util.MapCollectionWithLookups(
-			caches,
+			&caches,
+			people,
+			func(p Person) []string { return []string{p.DepartmentID, p.CountryID} },
+			func(p Person, lookup []string) PersonWithCountryDepartment {
+				return PersonWithCountryDepartment{
+					PersonID:       p.ID,
+					Name:           fmt.Sprintf("%s %s", p.FirstName, p.LastName),
+					DepartmentName: lookup[0],
+					CountryName:    lookup[1],
+				}
+			},
+			// lookup for departments
+			func(departmentIds []string) ([]string, error) {
+				return util.MapSlice(departmentIds, func(deptId string) string {
+					return departments[deptId].Name
+				}), nil
+			},
+			// lookup for countries
+			func(countryIds []string) ([]string, error) {
+				return util.MapSlice(countryIds, func(cid string) string {
+					return countries[cid].Name
+				}), nil
+			},
+		)
+
+		assert.Nil(t, err)
+		assert.Equal(t, []PersonWithCountryDepartment{
+			{PersonID: "1", Name: "John Smith", CountryName: "New Zealand", DepartmentName: "Sales"},
+			{PersonID: "2", Name: "Jane Doe", CountryName: "New Zealand", DepartmentName: "Marketing"},
+			{PersonID: "3", Name: "Alan Walker", CountryName: "Australia", DepartmentName: "Sales"},
+		}, results)
+
+		// should have populated the caches for the next page of lookups
+		assert.Equal(t, []map[string]string{
+			{"S": "Sales", "M": "Marketing"},
+			{"NZ": "New Zealand", "AU": "Australia"},
+		}, caches.Caches)
+	})
+
+	t.Run("just one lookup", func(t *testing.T) {
+		caches := util.MapCollectionCacheContainer{}
+
+		results, err := util.MapCollectionWithLookups(
+			&caches,
+			people,
+			func(p Person) []string { return []string{p.DepartmentID} },
+			func(p Person, lookup []string) PersonWithCountryDepartment {
+				return PersonWithCountryDepartment{
+					PersonID:       p.ID,
+					Name:           fmt.Sprintf("%s %s", p.FirstName, p.LastName),
+					DepartmentName: lookup[0],
+				}
+			},
+			// lookup for departments
+			func(departmentIds []string) ([]string, error) {
+				return util.MapSlice(departmentIds, func(deptId string) string {
+					return departments[deptId].Name
+				}), nil
+			},
+		)
+
+		assert.Nil(t, err)
+		assert.Equal(t, []PersonWithCountryDepartment{
+			{PersonID: "1", Name: "John Smith", DepartmentName: "Sales"},
+			{PersonID: "2", Name: "Jane Doe", DepartmentName: "Marketing"},
+			{PersonID: "3", Name: "Alan Walker", DepartmentName: "Sales"},
+		}, results)
+	})
+
+	t.Run("no lookups", func(t *testing.T) {
+		caches := util.MapCollectionCacheContainer{}
+
+		results, err := util.MapCollectionWithLookups(
+			&caches,
+			people,
+			func(p Person) []string { return []string{} },
+			func(p Person, lookup []string) PersonWithCountryDepartment {
+				return PersonWithCountryDepartment{
+					PersonID: p.ID,
+					Name:     fmt.Sprintf("%s %s", p.FirstName, p.LastName),
+				}
+			},
+		)
+
+		assert.Nil(t, err)
+		assert.Equal(t, []PersonWithCountryDepartment{
+			{PersonID: "1", Name: "John Smith"},
+			{PersonID: "2", Name: "Jane Doe"},
+			{PersonID: "3", Name: "Alan Walker"},
+		}, results)
+	})
+
+	t.Run("allocates internal cache if storage isn't provided", func(t *testing.T) {
+		results, err := util.MapCollectionWithLookups(
+			nil, // no cache storage provided; we lose the ability to cache across calls but it should still work
 			people,
 			func(p Person) []string { return []string{p.DepartmentID, p.CountryID} },
 			func(p Person, lookup []string) PersonWithCountryDepartment {
@@ -145,70 +236,16 @@ func TestMapCollectionWithLookups(t *testing.T) {
 		}, results)
 	})
 
-	t.Run("just one lookup", func(t *testing.T) {
-		// just one cache needed
-		caches := []map[string]string{
-			{},
-		}
-
-		results, err := util.MapCollectionWithLookups(
-			caches,
-			people,
-			func(p Person) []string { return []string{p.DepartmentID} },
-			func(p Person, lookup []string) PersonWithCountryDepartment {
-				return PersonWithCountryDepartment{
-					PersonID:       p.ID,
-					Name:           fmt.Sprintf("%s %s", p.FirstName, p.LastName),
-					DepartmentName: lookup[0],
-				}
-			},
-			// lookup for departments
-			func(departmentIds []string) ([]string, error) {
-				return util.MapSlice(departmentIds, func(deptId string) string {
-					return departments[deptId].Name
-				}), nil
-			},
-		)
-
-		assert.Nil(t, err)
-		assert.Equal(t, []PersonWithCountryDepartment{
-			{PersonID: "1", Name: "John Smith", DepartmentName: "Sales"},
-			{PersonID: "2", Name: "Jane Doe", DepartmentName: "Marketing"},
-			{PersonID: "3", Name: "Alan Walker", DepartmentName: "Sales"},
-		}, results)
-	})
-
-	t.Run("no lookups", func(t *testing.T) {
-		var caches []map[string]string = nil
-
-		results, err := util.MapCollectionWithLookups(
-			caches,
-			people,
-			func(p Person) []string { return []string{} },
-			func(p Person, lookup []string) PersonWithCountryDepartment {
-				return PersonWithCountryDepartment{
-					PersonID: p.ID,
-					Name:     fmt.Sprintf("%s %s", p.FirstName, p.LastName),
-				}
-			},
-		)
-
-		assert.Nil(t, err)
-		assert.Equal(t, []PersonWithCountryDepartment{
-			{PersonID: "1", Name: "John Smith"},
-			{PersonID: "2", Name: "Jane Doe"},
-			{PersonID: "3", Name: "Alan Walker"},
-		}, results)
-	})
-
 	t.Run("doesn't use lookup if values are already cached", func(t *testing.T) {
 		// preload the cache with not-quite-right data to check that the function fetches it from the cache rather than lookup
-		caches := []map[string]string{
-			{"S": "zzSales", "M": "zzMarketing"},
+		caches := util.MapCollectionCacheContainer{
+			Caches: []map[string]string{
+				{"S": "zzSales", "M": "zzMarketing"},
+			},
 		}
 
 		results, err := util.MapCollectionWithLookups(
-			caches,
+			&caches,
 			people,
 			func(p Person) []string { return []string{p.DepartmentID} },
 			func(p Person, lookup []string) PersonWithCountryDepartment {
@@ -234,13 +271,10 @@ func TestMapCollectionWithLookups(t *testing.T) {
 	})
 
 	t.Run("returns error if the first lookup fails", func(t *testing.T) {
-		// need to preallocate two caches
-		caches := []map[string]string{
-			{}, {},
-		}
+		caches := util.MapCollectionCacheContainer{}
 
 		results, err := util.MapCollectionWithLookups(
-			caches,
+			&caches,
 			people,
 			func(p Person) []string { return []string{p.DepartmentID, p.CountryID} },
 			func(p Person, lookup []string) PersonWithCountryDepartment {
@@ -268,13 +302,10 @@ func TestMapCollectionWithLookups(t *testing.T) {
 	})
 
 	t.Run("returns error if the second lookup fails", func(t *testing.T) {
-		// need to preallocate two caches
-		caches := []map[string]string{
-			{}, {},
-		}
+		caches := util.MapCollectionCacheContainer{}
 
 		results, err := util.MapCollectionWithLookups(
-			caches,
+			&caches,
 			people,
 			func(p Person) []string { return []string{p.DepartmentID, p.CountryID} },
 			func(p Person, lookup []string) PersonWithCountryDepartment {
