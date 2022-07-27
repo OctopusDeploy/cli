@@ -52,8 +52,10 @@ type MapCollectionCacheContainer struct {
 	Caches []map[string]string
 }
 
-// like MapCollectionWithLookup except it can lookup more than one attribute.
-// e.g. a Release has both a Project and a Channel that we'd like to lookup the name of
+// MapCollectionWithLookups does a 'map' operation over the collection, transforming each input row
+// into an output row according to `mapper`, however it also provides the ability to collect ID's of related
+// items as it iterates the collection, and call out to lambdas to look those values up.
+// See the unit tests for examples which should clarify the use-cases for this.
 func MapCollectionWithLookups[T any, TResult any](
 	cacheContainer *MapCollectionCacheContainer,    // cache for keys (typically this will store a mapping of ID->[Name, Name]). YOU MUST PREALLOCATE THIS
 	collection []T,                                 // input (e.g. list of Releases)
