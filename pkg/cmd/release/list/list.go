@@ -27,14 +27,16 @@ func NewCmdList(client factory.Factory) *cobra.Command {
 				return err
 			}
 
-			type ReleaseOutput struct {
-				Channel string
-				Project string
-				Version string
+			type ReleaseViewModel struct {
+				Channel   string
+				ChannelID string `json:",omitempty"`
+				Project   string
+				ProjectID string `json:",omitempty"`
+				Version   string
 			}
 
 			// page-fetching loop. TODO sync with dom
-			releaseOutput := []ReleaseOutput{}
+			var allOutput []ReleaseViewModel
 
 			caches := util.MapCollectionCacheContainer{}
 
@@ -50,8 +52,13 @@ func NewCmdList(client factory.Factory) *cobra.Command {
 					func(item *releases.Release) []string { // set of keys to lookup
 						return []string{item.ChannelID, item.ProjectID}
 					},
-					func(item *releases.Release, lookup []string) ReleaseOutput { // result producer
-						return ReleaseOutput{Channel: lookup[0], Project: lookup[1], Version: item.Version}
+					func(item *releases.Release, lookup []string) ReleaseViewModel { // result producer
+						return ReleaseViewModel{
+							ChannelID: item.ChannelID,
+							Channel:   lookup[0],
+							ProjectID: item.ProjectID,
+							Project:   lookup[1],
+							Version:   item.Version}
 					},
 					// lookup for channel names
 					func(keys []string) ([]string, error) {
@@ -81,13 +88,13 @@ func NewCmdList(client factory.Factory) *cobra.Command {
 						), nil
 					})
 
-				releaseOutput = append(releaseOutput, pageOutput...)
-
 				if err != nil {
 					return err
 				}
 
-				// TODO extend the API Client to add FetchNextPage() so we can make this cleaner
+				allOutput = append(allOutput, pageOutput...)
+
+				// TODO replace with proper API client page fetching when that becomes available
 				if releasesPage.Links.PageNext != "" {
 					nextPage := releases.Releases{}
 					resp, err := services.ApiGet(octopusClient.Releases.GetClient(), &nextPage, releasesPage.Links.PageNext)
@@ -101,16 +108,16 @@ func NewCmdList(client factory.Factory) *cobra.Command {
 				}
 			}
 
-			return output.PrintArray(releaseOutput, cmd, output.Mappers[ReleaseOutput]{
-				Json: func(item ReleaseOutput) any {
+			return output.PrintArray(allOutput, cmd, output.Mappers[ReleaseViewModel]{
+				Json: func(item ReleaseViewModel) any {
 					return item
 				},
-				Table: output.TableDefinition[ReleaseOutput]{
+				Table: output.TableDefinition[ReleaseViewModel]{
 					Header: []string{"VERSION", "PROJECT", "CHANNEL"},
-					Row: func(item ReleaseOutput) []string {
+					Row: func(item ReleaseViewModel) []string {
 						return []string{output.Bold(item.Version), item.Project, item.Channel}
 					}},
-				Basic: func(item ReleaseOutput) string {
+				Basic: func(item ReleaseViewModel) string {
 					return item.Version
 				},
 			})
