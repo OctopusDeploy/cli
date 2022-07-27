@@ -83,7 +83,6 @@ func MapCollectionWithLookups[T any, TResult any](
 	var allKeysToLookup = make([][]string, len(caches)) // preallocate the right number of nils
 	for _, item := range collection {
 		keys := keySelector(item)
-		// we can't use an array of strings as a map key; build a composite key.
 		for i, key := range keys {
 			_, ok := caches[i][key]
 			if !ok { // we haven't seen this value in the cache, we need to go and look something up
