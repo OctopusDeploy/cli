@@ -1,5 +1,6 @@
 package util
 
+// SliceContains returns true if it finds an item in the slice that is equal to the target
 func SliceContains[T comparable](slice []T, target T) bool {
 	for _, item := range slice {
 		if item == target {
@@ -9,10 +10,12 @@ func SliceContains[T comparable](slice []T, target T) bool {
 	return false
 }
 
-func MapSlice[T any, TResult any](slice []T, mapper func(item T) TResult) []TResult {
+// SliceTransform takes an input collection, applies the transform function to each row, and returns the output.
+// Known as 'map' in most other languages or 'Select' in C# Linq.
+func SliceTransform[T any, TResult any](slice []T, transform func(item T) TResult) []TResult {
 	var results []TResult = nil
 	for _, item := range slice {
-		results = append(results, mapper(item))
+		results = append(results, transform(item))
 	}
 	return results
 }

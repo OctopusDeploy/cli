@@ -122,13 +122,13 @@ func TestMapCollectionWithLookups(t *testing.T) {
 			},
 			// lookup for departments
 			func(departmentIds []string) ([]string, error) {
-				return util.MapSlice(departmentIds, func(deptId string) string {
+				return util.SliceTransform(departmentIds, func(deptId string) string {
 					return departments[deptId].Name
 				}), nil
 			},
 			// lookup for countries
 			func(countryIds []string) ([]string, error) {
-				return util.MapSlice(countryIds, func(cid string) string {
+				return util.SliceTransform(countryIds, func(cid string) string {
 					return countries[cid].Name
 				}), nil
 			},
@@ -164,7 +164,7 @@ func TestMapCollectionWithLookups(t *testing.T) {
 			},
 			// lookup for departments
 			func(departmentIds []string) ([]string, error) {
-				return util.MapSlice(departmentIds, func(deptId string) string {
+				return util.SliceTransform(departmentIds, func(deptId string) string {
 					return departments[deptId].Name
 				}), nil
 			},
@@ -216,13 +216,13 @@ func TestMapCollectionWithLookups(t *testing.T) {
 			},
 			// lookup for departments
 			func(departmentIds []string) ([]string, error) {
-				return util.MapSlice(departmentIds, func(deptId string) string {
+				return util.SliceTransform(departmentIds, func(deptId string) string {
 					return departments[deptId].Name
 				}), nil
 			},
 			// lookup for countries
 			func(countryIds []string) ([]string, error) {
-				return util.MapSlice(countryIds, func(cid string) string {
+				return util.SliceTransform(countryIds, func(cid string) string {
 					return countries[cid].Name
 				}), nil
 			},
@@ -295,7 +295,7 @@ func TestMapCollectionWithLookups(t *testing.T) {
 			func(departmentIds []string) ([]string, error) {
 				assert.Equal(t, []string{"M"}, departmentIds, "only the Marketing department should be looked up, sales is already cached")
 
-				return util.MapSlice(departmentIds, func(deptId string) string {
+				return util.SliceTransform(departmentIds, func(deptId string) string {
 					return departments[deptId].Name
 				}), nil
 			},
@@ -335,7 +335,7 @@ func TestMapCollectionWithLookups(t *testing.T) {
 			},
 			// lookup for countries
 			func(countryIds []string) ([]string, error) {
-				return util.MapSlice(countryIds, func(cid string) string {
+				return util.SliceTransform(countryIds, func(cid string) string {
 					return countries[cid].Name
 				}), nil
 			},
@@ -362,7 +362,7 @@ func TestMapCollectionWithLookups(t *testing.T) {
 			},
 			// lookup for departments
 			func(departmentIds []string) ([]string, error) {
-				return util.MapSlice(departmentIds, func(deptId string) string {
+				return util.SliceTransform(departmentIds, func(deptId string) string {
 					return departments[deptId].Name
 				}), nil
 			},
