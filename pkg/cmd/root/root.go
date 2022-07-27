@@ -3,6 +3,7 @@ package root
 import (
 	accountCmd "github.com/OctopusDeploy/cli/pkg/cmd/account"
 	environmentCmd "github.com/OctopusDeploy/cli/pkg/cmd/environment"
+	releaseCmd "github.com/OctopusDeploy/cli/pkg/cmd/release"
 	spaceCmd "github.com/OctopusDeploy/cli/pkg/cmd/space"
 	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/spf13/cobra"
@@ -26,6 +27,8 @@ func NewCmdRoot(f factory.Factory) *cobra.Command {
 
 	// configuration commands
 	cmd.AddCommand(spaceCmd.NewCmdSpace(f))
+
+	cmd.AddCommand(releaseCmd.NewCmdRelease(f))
 
 	return cmd
 }
