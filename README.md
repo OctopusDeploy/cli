@@ -72,6 +72,35 @@ go build .
 If successful, the go compiler does not output anything. You should now have an `octopus` binary 
 (`octopus.exe` on windows) in your current directory.
 
+## Running the CLI
+
+The CLI needs to authenticate with the octopus server.
+This is currently managed using environment variables which you must set before launching it.
+
+**macOS/Linux:**
+
+```shell
+export OCTOPUS_HOST="http://localhost:8050" # replace with your octopus URL
+export OCTOPUS_API_KEY: "API-XXXXXXXXXXXXXXXXXXXXXXXXXXXXX" # replace with your API key
+./octopus space list # should list all the spaces
+```
+
+**Windows (powershell):**
+
+```shell
+$env:OCTOPUS_HOST="http://localhost:8050" # replace with your octopus URL
+$env:OCTOPUS_API_KEY: "API-XXXXXXXXXXXXXXXXXXXXXXXXXXXXX" # replace with your API key
+./octopus.exe space list # should list all the spaces
+```
+
+**Windows (cmd):**
+
+```shell
+set OCTOPUS_HOST="http://localhost:8050" # replace with your octopus URL
+set OCTOPUS_API_KEY: "API-XXXXXXXXXXXXXXXXXXXXXXXXXXXXX" # replace with your API key
+octopus.exe space list # should list all the spaces
+```
+
 ### go-octopusdeploy library
 
 The CLI depends heavily on the [go-octopusdeploy](https://github.com/OctopusDeploy/go-octopusdeploy) library, which manages
