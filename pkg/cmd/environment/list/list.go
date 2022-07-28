@@ -22,15 +22,23 @@ func NewCmdList(f factory.Factory) *cobra.Command {
 		`), constants.ExecutableName),
 		Aliases: []string{"ls"},
 		RunE: func(cmd *cobra.Command, args []string) error {
+			f.Spinner().Start()
 			client, err := f.GetSpacedClient()
 			if err != nil {
 				return err
 			}
 
-			allEnvs, err := client.Environments.GetAll()
+			envResources, err := client.Environments.Get(environments.EnvironmentsQuery{
+				Take: 1,
+			})
 			if err != nil {
 				return err
 			}
+			allEnvs, err := envResources.GetAllPages(client.Environments.GetClient())
+			if err != nil {
+				return err
+			}
+			f.Spinner().Stop()
 
 			return output.PrintArray(allEnvs, cmd, output.Mappers[*environments.Environment]{
 				Json: func(item *environments.Environment) any {

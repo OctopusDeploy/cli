@@ -1,13 +1,15 @@
 package apiclient_test
 
 import (
-	"github.com/AlecAivazis/survey/v2"
-	"github.com/OctopusDeploy/cli/pkg/apiclient"
-	"github.com/OctopusDeploy/cli/testutil"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/spaces"
-	"github.com/stretchr/testify/assert"
 	"net/http"
 	"testing"
+
+	"github.com/AlecAivazis/survey/v2"
+	"github.com/OctopusDeploy/cli/pkg/apiclient"
+	"github.com/OctopusDeploy/cli/test/testutil"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/resources"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/spaces"
+	"github.com/stretchr/testify/assert"
 )
 
 const PlaceholderApiKey = "API-XXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
@@ -46,7 +48,7 @@ func TestClient_GetSpacedClient_NoPrompt(t *testing.T) {
 		testutil.EnqueueRootResponder(rt)
 
 		rt.EnqueueResponder("GET", "/api/spaces", func(r *http.Request) (any, error) {
-			return spaces.Spaces{Items: []*spaces.Space{
+			return resources.Resources[*spaces.Space]{Items: []*spaces.Space{
 				spaces.NewSpace("Integrations"),
 			}}, nil
 		})
@@ -55,7 +57,7 @@ func TestClient_GetSpacedClient_NoPrompt(t *testing.T) {
 
 		apiClient, err := factory2.GetSpacedClient()
 		assert.Nil(t, apiClient)
-		assert.Equal(t, "Cannot use specified space ''. Error: cannot find the item", err.Error()) // some strongly-typed errors would probably be nicer
+		assert.Equal(t, "cannot use specified space ''. Error: cannot find the item", err.Error()) // some strongly-typed errors would probably be nicer
 		assert.Equal(t, 0, rt.RemainingQueueLength())
 	})
 
@@ -70,7 +72,7 @@ func TestClient_GetSpacedClient_NoPrompt(t *testing.T) {
 
 		// then it tries a partial name search
 		rt.EnqueueResponder("GET", "/api/spaces?partialName=Integrations", func(r *http.Request) (any, error) {
-			return spaces.Spaces{Items: []*spaces.Space{
+			return resources.Resources[*spaces.Space]{Items: []*spaces.Space{
 				spaces.NewSpace("NotIntegrations"),
 			}}, nil
 		})
@@ -79,7 +81,7 @@ func TestClient_GetSpacedClient_NoPrompt(t *testing.T) {
 
 		apiClient, err := factory2.GetSpacedClient()
 		assert.Nil(t, apiClient)
-		assert.Equal(t, "Cannot use specified space 'Integrations'. Error: cannot find the item", err.Error()) // some strongly-typed errors would probably be nicer
+		assert.Equal(t, "cannot use specified space 'Integrations'. Error: cannot find the item", err.Error()) // some strongly-typed errors would probably be nicer
 		assert.Equal(t, 0, rt.RemainingQueueLength())
 	})
 
@@ -122,7 +124,7 @@ func TestClient_GetSpacedClient_NoPrompt(t *testing.T) {
 		})
 
 		rt.EnqueueResponder("GET", "/api/spaces?partialName=Integrations", func(r *http.Request) (any, error) {
-			return spaces.Spaces{Items: []*spaces.Space{integrationsSpace}}, nil
+			return resources.Resources[*spaces.Space]{Items: []*spaces.Space{integrationsSpace}}, nil
 		})
 
 		// we need to enqueue this again because after it finds Spaces-7 it will recreate the client and reload the root.
@@ -165,7 +167,7 @@ func TestClient_GetSpacedClient_NoPrompt(t *testing.T) {
 		assert.Equal(t, 0, rt.RemainingQueueLength())
 
 		// we haven't queued any responders, so if this makes any API requests the test will fail
-		apiClient2, err := factory2.GetSpacedClient()
+		apiClient2, _ := factory2.GetSpacedClient()
 		assert.Same(t, apiClient, apiClient2)
 	})
 }
@@ -246,7 +248,7 @@ func TestClient_GetSpacedClient_Prompt(t *testing.T) {
 
 		// then it tries a partial name search
 		rt.EnqueueResponder("GET", "/api/spaces?partialName=Integrations", func(r *http.Request) (any, error) {
-			return spaces.Spaces{Items: []*spaces.Space{
+			return resources.Resources[*spaces.Space]{Items: []*spaces.Space{
 				spaces.NewSpace("NotIntegrations"),
 			}}, nil
 		})
@@ -259,7 +261,7 @@ func TestClient_GetSpacedClient_Prompt(t *testing.T) {
 
 		apiClient, err := factory2.GetSpacedClient()
 		assert.Nil(t, apiClient)
-		assert.Equal(t, "Cannot use specified space 'Integrations'. Error: cannot find the item", err.Error()) // some strongly-typed errors would probably be nicer
+		assert.Equal(t, "cannot use specified space 'Integrations'. Error: cannot find the item", err.Error()) // some strongly-typed errors would probably be nicer
 		assert.Equal(t, 0, rt.RemainingQueueLength())
 	})
 }
