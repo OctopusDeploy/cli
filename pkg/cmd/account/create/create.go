@@ -108,7 +108,7 @@ func createRun(f factory.Factory, w io.Writer) error {
 		},
 	})
 
-	err = executor.ProcessTasks(f, []executor.Task{task})
+	err = executor.ProcessTasks(f, []*executor.Task{task})
 	if err != nil {
 		return err
 	}

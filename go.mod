@@ -5,7 +5,7 @@ go 1.18
 require (
 	github.com/AlecAivazis/survey/v2 v2.3.5
 	github.com/MakeNowJust/heredoc/v2 v2.0.1
-	github.com/OctopusDeploy/go-octopusdeploy/v2 v2.2.0
+	github.com/OctopusDeploy/go-octopusdeploy/v2 v2.2.1-0.20220727231304-6bd1cc88239a
 	github.com/google/uuid v1.3.0
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/joho/godotenv v1.4.0

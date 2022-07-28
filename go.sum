@@ -6,6 +6,8 @@ github.com/Netflix/go-expect v0.0.0-20220104043353-73e0943537d2 h1:+vx7roKuyA63n
 github.com/Netflix/go-expect v0.0.0-20220104043353-73e0943537d2/go.mod h1:HBCaDeC1lPdgDeDbhX8XFpy1jqjK0IBG8W5K+xYqA0w=
 github.com/OctopusDeploy/go-octopusdeploy/v2 v2.2.0 h1:nIdE5J8BAIbMLMgoLeKROP3ovJoMaadaHfEQNAueG8Q=
 github.com/OctopusDeploy/go-octopusdeploy/v2 v2.2.0/go.mod h1:Fa2zv2io46wAvWaaCKIbrNG1FW3qj7KtBpXj19dWKiE=
+github.com/OctopusDeploy/go-octopusdeploy/v2 v2.2.1-0.20220727231304-6bd1cc88239a h1:xr+2+Xu5CbpAHAxLXD8cm/Pd6MnrN8lfKhNcHEBlXuw=
+github.com/OctopusDeploy/go-octopusdeploy/v2 v2.2.1-0.20220727231304-6bd1cc88239a/go.mod h1:Fa2zv2io46wAvWaaCKIbrNG1FW3qj7KtBpXj19dWKiE=
 github.com/cpuguy83/go-md2man/v2 v2.0.2/go.mod h1:tgQtvFlXSQOSOSIRvRPT7W67SCa46tRHOmNcaadrF8o=
 github.com/creack/pty v1.1.9/go.mod h1:oKZEueFk5CKHvIhNR5MUki03XCEU+Q6VDXinZuGJ33E=
 github.com/creack/pty v1.1.17 h1:QeVUsEDNrLBW4tMgZHvxy18sKtr6VI492kBhUfhDJNI=

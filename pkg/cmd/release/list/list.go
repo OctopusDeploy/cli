@@ -8,7 +8,6 @@ import (
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/channels"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/releases"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/services"
 	"github.com/spf13/cobra"
 )
 
@@ -35,20 +34,19 @@ func NewCmdList(client factory.Factory) *cobra.Command {
 				Version   string
 			}
 
-			// page-fetching loop. TODO sync with dom
-			var allOutput []ReleaseViewModel
+			var allReleases []ReleaseViewModel
 
 			caches := util.MapCollectionCacheContainer{}
 
-			releasesPage, err := octopusClient.Releases.Get(releases.ReleasesQuery{}) // get all; server's default page size
-			for releasesPage != nil {
+			pageOfReleases, err := octopusClient.Releases.Get(releases.ReleasesQuery{}) // get all; server's default page size
+			for pageOfReleases != nil && len(pageOfReleases.Items) > 0 {
 				if err != nil {
 					return err
 				}
 
 				pageOutput, err := util.MapCollectionWithLookups(
 					&caches,
-					releasesPage.Items,
+					pageOfReleases.Items,
 					func(item *releases.Release) []string { // set of keys to lookup
 						return []string{item.ChannelID, item.ProjectID}
 					},
@@ -92,23 +90,15 @@ func NewCmdList(client factory.Factory) *cobra.Command {
 					return err
 				}
 
-				allOutput = append(allOutput, pageOutput...)
+				allReleases = append(allReleases, pageOutput...)
 
-				// TODO replace with proper API client page fetching when that becomes available
-				if releasesPage.Links.PageNext != "" {
-					nextPage := releases.Releases{}
-					resp, err := services.ApiGet(octopusClient.Releases.GetClient(), &nextPage, releasesPage.Links.PageNext)
-					if err != nil {
-						return err
-					}
-
-					releasesPage = resp.(*releases.Releases)
-				} else {
-					releasesPage = nil // break the loop
-				}
+				pageOfReleases, err = pageOfReleases.GetNextPage(octopusClient.Releases.GetClient())
+				if err != nil {
+					return err
+				} // if there are no more pages, then GetNextPage will return nil, which breaks us out of the loop
 			}
 
-			return output.PrintArray(allOutput, cmd, output.Mappers[ReleaseViewModel]{
+			return output.PrintArray(allReleases, cmd, output.Mappers[ReleaseViewModel]{
 				Json: func(item ReleaseViewModel) any {
 					return item
 				},

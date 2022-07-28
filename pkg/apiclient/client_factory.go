@@ -23,6 +23,11 @@ type ClientFactory interface {
 	// GetSystemClient returns an Octopus api Client instance which isn't bound to any Space.
 	// Use it for things that live outside of a space, such as Teams, or Spaces themselves
 	GetSystemClient() (*octopusApiClient.Client, error)
+
+	// GetCurrentSpace returns the currently selected space.
+	// Note this is lazily populated when you call GetSpacedClient;
+	// if you have not yet done so then it may return nil
+	GetCurrentSpace() *spaces.Space
 }
 
 type Client struct {
@@ -42,15 +47,19 @@ type Client struct {
 	ApiUrl *url.URL
 	// the Octopus API Key, obtained from OCTOPUS_API_KEY
 	ApiKey string
-	// the Octopus Space to work within. Obtained from OCTOPUS_SPACE (TODO: or --space=XYZ on the command line??)
+	// the Octopus SpaceNameOrID to work within. Obtained from OCTOPUS_SPACE (TODO: or --space=XYZ on the command line??)
 	// Required for commands that need a space, but may be omitted for server-wide commands such as listing teams
-	Space string
+	SpaceNameOrID string
+
+	// After the space lookup process has occurred, we cache a reference to the SpaceNameOrID object for future use
+	// May be nil if we haven't done space lookup yet
+	SelectedSpace *spaces.Space
 
 	// Handle out to prompt the user for things. If this is nil, it means we're in no-prompt mode
 	Ask question.Asker
 }
 
-func NewClientFactory(httpClient *http.Client, host string, apiKey string, space string, asker question.Asker) (ClientFactory, error) {
+func NewClientFactory(httpClient *http.Client, host string, apiKey string, spaceNameOrID string, asker question.Asker) (ClientFactory, error) {
 	hostUrl, err := url.Parse(host)
 	if err != nil {
 		return nil, err
@@ -62,7 +71,8 @@ func NewClientFactory(httpClient *http.Client, host string, apiKey string, space
 		SpaceScopedClient: nil,
 		ApiUrl:            hostUrl,
 		ApiKey:            apiKey,
-		Space:             space,
+		SpaceNameOrID:     spaceNameOrID,
+		SelectedSpace:     nil,
 		Ask:               asker,
 	}
 	return clientImpl, nil
@@ -73,7 +83,7 @@ func NewClientFactory(httpClient *http.Client, host string, apiKey string, space
 func NewClientFactoryFromEnvironment() (ClientFactory, error) {
 	host := os.Getenv("OCTOPUS_HOST")
 	apiKey := os.Getenv("OCTOPUS_API_KEY")
-	space := os.Getenv("OCTOPUS_SPACE")
+	spaceNameOrID := os.Getenv("OCTOPUS_SPACE")
 
 	var ask question.Asker = nil
 
@@ -88,7 +98,7 @@ func NewClientFactoryFromEnvironment() (ClientFactory, error) {
 		return nil, errs
 	}
 
-	return NewClientFactory(nil, host, apiKey, space, ask)
+	return NewClientFactory(nil, host, apiKey, spaceNameOrID, ask)
 }
 
 func ValidateMandatoryEnvironment(host string, apiKey string) error {
@@ -102,6 +112,10 @@ func ValidateMandatoryEnvironment(host string, apiKey string) error {
 	}
 
 	return result.ErrorOrNil()
+}
+
+func (c *Client) GetCurrentSpace() *spaces.Space {
+	return c.SelectedSpace
 }
 
 func (c *Client) GetSpacedClient() (*octopusApiClient.Client, error) {
@@ -119,7 +133,7 @@ func (c *Client) GetSpacedClient() (*octopusApiClient.Client, error) {
 	// if the caller has not specified a space, prompt interactively
 	var spaceID string
 	// if c.Ask is nil it means we're in automation mode.
-	if c.Space == "" && c.Ask != nil {
+	if c.SpaceNameOrID == "" && c.Ask != nil {
 		allSpaces, err := systemClient.Spaces.GetAll()
 		if err != nil {
 			return nil, err
@@ -132,7 +146,8 @@ func (c *Client) GetSpacedClient() (*octopusApiClient.Client, error) {
 			// TODO should we log here that we are inferring the first space?
 			// should we assert that it is the DEFAULT space? That feels significant.
 			selectedSpace := allSpaces[0]
-			c.Space = selectedSpace.ID
+			c.SelectedSpace = selectedSpace
+			c.SpaceNameOrID = selectedSpace.ID
 			spaceID = selectedSpace.ID
 		default:
 			selectedSpace, err := question.SelectMap(
@@ -142,18 +157,20 @@ func (c *Client) GetSpacedClient() (*octopusApiClient.Client, error) {
 			if err != nil {
 				return nil, err
 			}
-			c.Space = selectedSpace.ID
+			c.SelectedSpace = selectedSpace
+			c.SpaceNameOrID = selectedSpace.ID
 			spaceID = selectedSpace.ID
 		}
 	}
 
 	if spaceID == "" {
 		// TODO: Are we supposed to match a space by name first or by ID first? ID seems more reasonable, but confirm that
-		space, err := systemClient.Spaces.GetByIDOrName(c.Space)
+		space, err := systemClient.Spaces.GetByIDOrName(c.SpaceNameOrID)
 		if err != nil {
-			return nil, errors.New(fmt.Sprintf("Cannot use specified space '%s'. Error: %s", c.Space, err))
+			return nil, errors.New(fmt.Sprintf("Cannot use specified space '%s'. Error: %s", c.SpaceNameOrID, err))
 		}
 		// ok we found a space
+		c.SelectedSpace = space
 		spaceID = space.ID
 	}
 
