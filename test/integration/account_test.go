@@ -85,8 +85,8 @@ user-pw-b  Username/Password
 			}
 
 			expected := []AccountSummary{
-				{Id: accountRef1.GetID(), Name: "user-pw-a", Type: "Username/Password"},
-				{Id: accountRef2.GetID(), Name: "user-pw-b", Type: "Username/Password"},
+				{Id: accountRef1.GetID(), Name: "user-pw-a", Type: "UsernamePassword"},
+				{Id: accountRef2.GetID(), Name: "user-pw-b", Type: "UsernamePassword"},
 			}
 			assert.Equal(t, expected, results)
 		})

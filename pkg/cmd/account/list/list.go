@@ -38,13 +38,13 @@ func NewCmdList(f factory.Factory) *cobra.Command {
 				Type string
 			}
 
-			accountTypeMap := map[string]string{
-				"AmazonWebServicesAccount": "AWS Account",
-				"AzureServicePrincipal":    "Azure Subscription",
-				"GoogleCloudAccount":       "Google Cloud Account",
-				"SshKeyPair":               "SSH Key Pair",
-				"UsernamePassword":         "Username/Password",
-				"Token":                    "Token",
+			accountTypeMap := map[accounts.AccountType]string{
+				accounts.AccountTypeAmazonWebServicesAccount:   "AWS Account",
+				accounts.AccountTypeAzureServicePrincipal:      "Azure Subscription",
+				accounts.AccountTypeGoogleCloudPlatformAccount: "Google Cloud Account",
+				accounts.AccountTypeSSHKeyPair:                 "SSH Key Pair",
+				accounts.AccountTypeUsernamePassword:           "Username/Password",
+				accounts.AccountTypeToken:                      "Token",
 			}
 
 			return output.PrintArray(items, cmd, output.Mappers[accounts.IAccount]{
@@ -54,7 +54,7 @@ func NewCmdList(f factory.Factory) *cobra.Command {
 				Table: output.TableDefinition[accounts.IAccount]{
 					Header: []string{"NAME", "TYPE"},
 					Row: func(item accounts.IAccount) []string {
-						return []string{output.Bold(item.GetName()), accountTypeMap[string(item.GetAccountType())]}
+						return []string{output.Bold(item.GetName()), accountTypeMap[item.GetAccountType()]}
 					}},
 				Basic: func(item accounts.IAccount) string {
 					return item.GetName()
