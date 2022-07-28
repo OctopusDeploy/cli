@@ -3,8 +3,9 @@ package question_test
 import (
 	"errors"
 	"fmt"
-	"github.com/OctopusDeploy/cli/testutil"
 	"testing"
+
+	"github.com/OctopusDeploy/cli/test/testutil"
 
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/OctopusDeploy/cli/pkg/question"

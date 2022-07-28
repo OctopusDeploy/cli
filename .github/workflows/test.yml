@@ -61,7 +61,7 @@ jobs:
           OCTOPUS_TEST_URL: ${{ env.SERVER_URL }}
           OCTOPUS_TEST_APIKEY: ${{ env.ADMIN_API_KEY }}
         run: gotestsum --format testname --junitfile ../integration-tests.xml
-        working-directory: ./integrationtest
+        working-directory: ./test/integration
 
       - name: Test Report
         uses: dorny/test-reporter@v1

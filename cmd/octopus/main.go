@@ -3,10 +3,12 @@ package main
 import (
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/OctopusDeploy/cli/pkg/usage"
+	"github.com/briandowns/spinner"
 
 	"github.com/joho/godotenv"
 
@@ -24,7 +26,9 @@ func main() {
 		os.Exit(3)
 	}
 
-	f := factory.New(clientFactory, survey.AskOne)
+	s := spinner.New(spinner.CharSets[11], 100*time.Millisecond, spinner.WithColor("cyan"))
+
+	f := factory.New(clientFactory, survey.AskOne, s)
 
 	cmd := root.NewCmdRoot(f)
 	// commands are expected to print their own errors to avoid double-ups

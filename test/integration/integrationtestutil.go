@@ -1,16 +1,17 @@
-package integrationtest
+package integration
 
 import (
 	"errors"
 	"fmt"
-	"github.com/OctopusDeploy/cli/pkg/output"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
 	"io"
 	"net/url"
 	"os"
 	"os/exec"
 	"path"
 	"runtime"
+
+	"github.com/OctopusDeploy/cli/pkg/output"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
 )
 
 // This file contains utilities to help with integration testing
