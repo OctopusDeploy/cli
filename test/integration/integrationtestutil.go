@@ -1,16 +1,17 @@
-package integrationtest
+package integration
 
 import (
 	"errors"
 	"fmt"
-	"github.com/OctopusDeploy/cli/pkg/output"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
 	"io"
 	"net/url"
 	"os"
 	"os/exec"
 	"path"
 	"runtime"
+
+	"github.com/OctopusDeploy/cli/pkg/output"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
 )
 
 // This file contains utilities to help with integration testing
@@ -35,9 +36,9 @@ func GetCliPath() (cliPath string, cliDir string, err error) {
 		// we expect to be in <base>\integrationtest
 		// we expect the CLI executable to be in <base>\cmd\octopus
 		myDir := path.Dir(fileName)
-		cliDir = path.Join(myDir, "..", "cmd", "octopus")
+		cliDir = path.Join(myDir, "../..", "cmd", "octopus")
 		if _, err = os.Stat(cliDir); os.IsNotExist(err) {
-			err = errors.New(fmt.Sprintf("expected directory %s not found!", cliDir))
+			err = fmt.Errorf("expected directory %s not found", cliDir)
 			return
 		}
 
@@ -139,7 +140,7 @@ func EnsureCli() (cliPath string, cliDir string, err error) {
 
 		if runErr != nil {
 			if exiterr, ok := runErr.(*exec.ExitError); ok {
-				err = errors.New(fmt.Sprintf("go build failed with exit code %d", exiterr.ExitCode()))
+				err = fmt.Errorf("go build failed with exit code %d", exiterr.ExitCode())
 			}
 			return // fail
 		}

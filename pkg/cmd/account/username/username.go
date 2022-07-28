@@ -1,0 +1,23 @@
+package aws
+
+import (
+	"fmt"
+
+	cmdList "github.com/OctopusDeploy/cli/pkg/cmd/account/username/list"
+	"github.com/OctopusDeploy/cli/pkg/constants"
+	"github.com/OctopusDeploy/cli/pkg/factory"
+	"github.com/spf13/cobra"
+)
+
+func NewCmdUsername(f factory.Factory) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:     "username <command>",
+		Short:   "Manage Username/Password accounts",
+		Long:    `Work with Octopus Deploy Username and Password accounts.`,
+		Example: fmt.Sprintf("$ %s account username list", constants.ExecutableName),
+	}
+
+	cmd.AddCommand(cmdList.NewCmdList(f))
+
+	return cmd
+}

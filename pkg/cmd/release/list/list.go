@@ -8,7 +8,6 @@ import (
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/channels"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/releases"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/services"
 	"github.com/spf13/cobra"
 )
 
@@ -96,13 +95,10 @@ func NewCmdList(client factory.Factory) *cobra.Command {
 
 				// TODO replace with proper API client page fetching when that becomes available
 				if releasesPage.Links.PageNext != "" {
-					nextPage := releases.Releases{}
-					resp, err := services.ApiGet(octopusClient.Releases.GetClient(), &nextPage, releasesPage.Links.PageNext)
+					releasesPage, err = releasesPage.GetNextPage(octopusClient.Releases.GetClient())
 					if err != nil {
 						return err
 					}
-
-					releasesPage = resp.(*releases.Releases)
 				} else {
 					releasesPage = nil // break the loop
 				}

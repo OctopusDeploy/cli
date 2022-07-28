@@ -1,26 +1,28 @@
-package integrationtest
+package integration_test
 
 import (
 	"encoding/json"
+	"testing"
+
 	"github.com/MakeNowJust/heredoc/v2"
-	"github.com/OctopusDeploy/cli/testutil"
+	"github.com/OctopusDeploy/cli/test/integration"
+	"github.com/OctopusDeploy/cli/test/testutil"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/accounts"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/core"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/spaces"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/teams"
 	"github.com/stretchr/testify/assert"
-	"testing"
 )
 
 func TestAccountList(t *testing.T) {
 	// setup
-	systemApiClient, err := GetApiClient("")
+	systemApiClient, err := integration.GetApiClient("")
 	if !testutil.EnsureSuccess(t, err) {
 		return
 	}
 
 	t.Run("default space", func(t *testing.T) {
-		cleanupHelper := NewCleanupHelper()
+		cleanupHelper := integration.NewCleanupHelper()
 		defer cleanupHelper.Run(t)
 
 		// setup
@@ -43,7 +45,7 @@ func TestAccountList(t *testing.T) {
 		cleanupHelper.AddFailable(func() error { return systemApiClient.Accounts.DeleteByID(accountRef2.GetID()) })
 
 		t.Run("--format basic", func(t *testing.T) {
-			stdOut, stdErr, err := RunCli("Default", "account", "list", "--outputFormat=basic")
+			stdOut, stdErr, err := integration.RunCli("Default", "account", "list", "--outputFormat=basic")
 			if !testutil.EnsureSuccess(t, err, stdOut, stdErr) {
 				return
 			}
@@ -54,20 +56,20 @@ user-pw-b
 		})
 
 		t.Run("--format table", func(t *testing.T) {
-			stdOut, stdErr, err := RunCli("Default", "account", "list", "--outputFormat=table")
+			stdOut, stdErr, err := integration.RunCli("Default", "account", "list", "--outputFormat=table")
 			if !testutil.EnsureSuccess(t, err, stdOut, stdErr) {
 				return
 			}
 
 			assert.Equal(t, heredoc.Doc(`
 NAME       TYPE
-user-pw-a  UsernamePassword
-user-pw-b  UsernamePassword
+user-pw-a  Username/Password
+user-pw-b  Username/Password
 `), stdOut)
 		})
 
 		t.Run("--format json", func(t *testing.T) {
-			stdOut, stdErr, err := RunCliRawOutput("Default", "account", "list", "--outputFormat=json")
+			stdOut, stdErr, err := integration.RunCliRawOutput("Default", "account", "list", "--outputFormat=json")
 			if !testutil.EnsureSuccess(t, err, stdOut, stdErr) {
 				return
 			}
@@ -91,7 +93,7 @@ user-pw-b  UsernamePassword
 	})
 
 	t.Run("different space ", func(t *testing.T) {
-		cleanupHelper := NewCleanupHelper()
+		cleanupHelper := integration.NewCleanupHelper()
 		defer cleanupHelper.Run(t)
 
 		systemTeams, err := systemApiClient.Teams.Get(teams.TeamsQuery{
@@ -123,7 +125,7 @@ user-pw-b  UsernamePassword
 			return nil
 		})
 
-		spacedApiClient, err := GetApiClient(space.GetID())
+		spacedApiClient, err := integration.GetApiClient(space.GetID())
 		if !testutil.EnsureSuccess(t, err) {
 			return
 		}
@@ -150,7 +152,7 @@ user-pw-b  UsernamePassword
 		cleanupHelper.AddFailable(func() error { return systemApiClient.Accounts.DeleteByID(accountRef2.GetID()) })
 
 		t.Run("--format basic", func(t *testing.T) {
-			stdOut, stdErr, err := RunCli("my-new-space", "account", "list", "--outputFormat=basic")
+			stdOut, stdErr, err := integration.RunCli("my-new-space", "account", "list", "--outputFormat=basic")
 			if !testutil.EnsureSuccess(t, err, stdOut, stdErr) {
 				return
 			}

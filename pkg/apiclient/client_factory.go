@@ -3,16 +3,18 @@ package apiclient
 import (
 	"errors"
 	"fmt"
+	"net/url"
+	"os"
+
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/OctopusDeploy/cli/pkg/question"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/spaces"
-	"net/url"
-	"os"
+
+	"net/http"
 
 	octopusErrors "github.com/OctopusDeploy/cli/pkg/errors"
 	octopusApiClient "github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
 	"github.com/hashicorp/go-multierror"
-	"net/http"
 )
 
 type ClientFactory interface {
@@ -127,7 +129,7 @@ func (c *Client) GetSpacedClient() (*octopusApiClient.Client, error) {
 
 		switch len(allSpaces) {
 		case 0:
-			return nil, errors.New("No spaces found")
+			return nil, errors.New("no spaces found")
 		case 1:
 			// TODO should we log here that we are inferring the first space?
 			// should we assert that it is the DEFAULT space? That feels significant.
@@ -151,7 +153,7 @@ func (c *Client) GetSpacedClient() (*octopusApiClient.Client, error) {
 		// TODO: Are we supposed to match a space by name first or by ID first? ID seems more reasonable, but confirm that
 		space, err := systemClient.Spaces.GetByIDOrName(c.Space)
 		if err != nil {
-			return nil, errors.New(fmt.Sprintf("Cannot use specified space '%s'. Error: %s", c.Space, err))
+			return nil, fmt.Errorf("cannot use specified space '%s'. Error: %s", c.Space, err)
 		}
 		// ok we found a space
 		spaceID = space.ID
