@@ -38,7 +38,7 @@ func releaseCreate(f factory.Factory, input any) error {
 
 	createReleaseParams := releases.NewCreateReleaseV1(currentSpace.ID, params.ProjectName)
 	if params.ChannelName != "" {
-		createReleaseParams.ChannelName = params.ChannelName
+		createReleaseParams.ChannelNameOrID = params.ChannelName
 	}
 	// TODO all the other flags
 

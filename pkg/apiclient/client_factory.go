@@ -12,7 +12,7 @@ import (
 
 	"net/http"
 
-	octopusErrors "github.com/OctopusDeploy/cli/pkg/errors"
+	cliErrors "github.com/OctopusDeploy/cli/pkg/errors"
 	octopusApiClient "github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
 	"github.com/hashicorp/go-multierror"
 )
@@ -107,10 +107,10 @@ func ValidateMandatoryEnvironment(host string, apiKey string) error {
 	var result *multierror.Error
 
 	if host == "" {
-		result = multierror.Append(result, &octopusErrors.OsEnvironmentError{EnvironmentVariable: "OCTOPUS_HOST"})
+		result = multierror.Append(result, &cliErrors.OsEnvironmentError{EnvironmentVariable: "OCTOPUS_HOST"})
 	}
 	if apiKey == "" {
-		result = multierror.Append(result, &octopusErrors.OsEnvironmentError{EnvironmentVariable: "OCTOPUS_API_KEY"})
+		result = multierror.Append(result, &cliErrors.OsEnvironmentError{EnvironmentVariable: "OCTOPUS_API_KEY"})
 	}
 
 	return result.ErrorOrNil()

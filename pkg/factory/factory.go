@@ -3,6 +3,7 @@ package factory
 import (
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/OctopusDeploy/cli/pkg/apiclient"
+	cliErrors "github.com/OctopusDeploy/cli/pkg/errors"
 	"github.com/OctopusDeploy/cli/pkg/question"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/spaces"
@@ -19,6 +20,7 @@ type Factory interface {
 	GetSystemClient() (*client.Client, error)
 	GetSpacedClient() (*client.Client, error)
 	GetCurrentSpace() *spaces.Space
+	IsInteractive() bool
 	Spinner() *spinner.Spinner
 	Ask(p survey.Prompt, response interface{}, opts ...survey.AskOpt) error
 }
@@ -47,7 +49,15 @@ func (f *factory) GetCurrentSpace() *spaces.Space {
 	return f.client.GetCurrentSpace()
 }
 
+func (f *factory) IsInteractive() bool {
+	return f.asker != nil
+}
+
 func (f *factory) Ask(p survey.Prompt, response interface{}, opts ...survey.AskOpt) error {
+	if f.asker == nil {
+		// this shouldn't happen; commands should check IsInteractive before attempting to prompt
+		return &cliErrors.PromptDisabledError{}
+	}
 	return f.asker(p, response, opts...)
 }
 
