@@ -37,14 +37,16 @@ func listSshAccounts(client *client.Client, cmd *cobra.Command, s *spinner.Spinn
 		AccountType: accounts.AccountTypeSSHKeyPair,
 	})
 	if err != nil {
+		s.Stop()
 		return err
 	}
 	items, err := accountResources.GetAllPages(client.Accounts.GetClient())
 	if err != nil {
+		s.Stop()
 		return err
 	}
-
 	s.Stop()
+
 	output.PrintArray(items, cmd, output.Mappers[accounts.IAccount]{
 		Json: func(item accounts.IAccount) any {
 			acc := item.(*accounts.SSHKeyAccount)

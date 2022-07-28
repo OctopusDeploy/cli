@@ -37,10 +37,12 @@ func listTokenAccounts(client *client.Client, cmd *cobra.Command, s *spinner.Spi
 		AccountType: accounts.AccountTypeToken,
 	})
 	if err != nil {
+		s.Stop()
 		return err
 	}
 	items, err := accountResources.GetAllPages(client.Accounts.GetClient())
 	if err != nil {
+		s.Stop()
 		return err
 	}
 	s.Stop()

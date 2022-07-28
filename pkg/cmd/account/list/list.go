@@ -22,15 +22,18 @@ func NewCmdList(f factory.Factory) *cobra.Command {
 			if err != nil {
 				return err
 			}
-
+			f.Spinner().Start()
 			accountResoures, err := client.Accounts.Get()
 			if err != nil {
+				f.Spinner().Stop()
 				return err
 			}
 			items, err := accountResoures.GetAllPages(client.Accounts.GetClient())
 			if err != nil {
+				f.Spinner().Stop()
 				return err
 			}
+			f.Spinner().Stop()
 
 			type AccountJson struct {
 				Id   string

@@ -37,10 +37,12 @@ func listAwsAccounts(client *client.Client, cmd *cobra.Command, s *spinner.Spinn
 		AccountType: accounts.AccountTypeAmazonWebServicesAccount,
 	})
 	if err != nil {
+		s.Stop()
 		return err
 	}
 	items, err := accountResources.GetAllPages(client.Accounts.GetClient())
 	if err != nil {
+		s.Stop()
 		return err
 	}
 	s.Stop()
