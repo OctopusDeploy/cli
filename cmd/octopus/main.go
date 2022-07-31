@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/spf13/cobra"
 	"os"
 	"time"
 
@@ -34,6 +35,19 @@ func main() {
 	// commands are expected to print their own errors to avoid double-ups
 	cmd.SilenceUsage = true
 	cmd.SilenceErrors = true
+
+	// if we attempt to check the flags before Execute is called, cobra hasn't parsed anything yet,
+	// so we'll get bad values. PersistentPreRun is a convenient callback for setting up our
+	// environment after parsing but before execution.
+	cmd.PersistentPreRun = func(_ *cobra.Command, args []string) {
+		if noPrompt, err := cmd.PersistentFlags().GetBool(root.FlagNoPrompt); err == nil && noPrompt {
+			f.SetPromptDisabled()
+		}
+
+		if spaceNameOrId, err := cmd.PersistentFlags().GetString(root.FlagSpace); err == nil && spaceNameOrId != "" {
+			clientFactory.SetSpaceNameOrId(spaceNameOrId)
+		}
+	}
 
 	if err := cmd.Execute(); err != nil {
 		cmd.PrintErr(err)

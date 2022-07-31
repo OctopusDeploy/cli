@@ -59,13 +59,14 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 			t := &executor.TaskOptionsCreateRelease{
 				ProjectName: project,
 			}
-			if rn, err := cmd.Flags().GetString(flagReleaseNotes); err != nil && rn != "" {
+			// ignore errors when fetching flags
+			if rn, _ := cmd.Flags().GetString(flagReleaseNotes); rn != "" {
 				t.ReleaseNotes = rn
 			}
-			if ch, err := cmd.Flags().GetString(flagChannel); err != nil && ch != "" {
+			if ch, _ := cmd.Flags().GetString(flagChannel); ch != "" {
 				t.ChannelName = ch
 			}
-			if v, err := cmd.Flags().GetString(flagVersion); err != nil && v != "" {
+			if v, _ := cmd.Flags().GetString(flagVersion); v != "" {
 				t.Version = v
 			}
 
@@ -91,7 +92,7 @@ func createRun(f factory.Factory, w io.Writer, options *executor.TaskOptionsCrea
 		return err
 	}
 
-	if f.IsInteractive() {
+	if f.IsPromptEnabled() {
 		err := askQuestions(octopus, f.Ask, options)
 		if err != nil {
 			return err
@@ -107,43 +108,58 @@ func createRun(f factory.Factory, w io.Writer, options *executor.TaskOptionsCrea
 }
 
 func askQuestions(octopus *octopusApiClient.Client, asker question.Asker, options *executor.TaskOptionsCreateRelease) error {
+	// Note on output: survey prints things; if the option is specified already from the command line,
+	// we should emulate that so there is always a line where you can see what the item was when specified on the command line,
+	// however if we support a "quiet mode" then we shouldn't emit those
+
 	var err error
 	var selectedProject *projects.Project
 	if options.ProjectName == "" {
 		selectedProject, err = selectProject(octopus, asker)
-		if err != nil {
-			return err
-		}
 		options.ProjectName = selectedProject.Name
+	} else { // project name is already provided, fetch the object because it's needed for further questions
+		selectedProject, err = findProject(octopus, options.ProjectName)
+		if selectedProject != nil {
+			_, _ = fmt.Printf("Project %s\n", output.Cyan(selectedProject.Name))
+		}
+	}
+	if err != nil {
+		return err
+	}
+
+	var selectedChannel *channels.Channel
+	if options.ChannelName == "" {
+		selectedChannel, err = selectChannel(octopus, asker, selectedProject)
+		options.ChannelName = selectedChannel.Name
 	} else {
-		// project name is already provided, fetch the object
-		projectsPage, err := octopus.Projects.Get(projects.ProjectsQuery{Name: options.ProjectName})
+		selectedChannel, err = findChannel(octopus, selectedProject, options.ChannelName)
+		if selectedChannel != nil {
+			_, _ = fmt.Printf("Channel %s\n", output.Cyan(selectedChannel.Name))
+		}
+	}
+
+	if err != nil {
+		return err
+	}
+
+	if options.Version == "" {
+		version, err := askVersion(octopus, asker, selectedProject, selectedChannel)
 		if err != nil {
 			return err
 		}
-		if len(projectsPage.Items) < 1 {
-			// TODO should we prompt here instead?
-			return errors.New(fmt.Sprintf("no project found with name of %s", options.ProjectName))
-		}
-		selectedProject = projectsPage.Items[0]
+		options.Version = version
+	} else {
+		_, _ = fmt.Printf("Version %s\n", output.Cyan(options.Version))
 	}
 
-	selectedChannel, err := selectChannel(octopus, asker, selectedProject)
-	if err != nil {
-		return err
-	}
-
-	version, err := askVersion(octopus, asker, selectedProject, selectedChannel)
-	if err != nil {
-		return err
-	}
-
-	_, err = selectPackageOverrides(octopus, asker, selectedProject, selectedChannel, "")
-	if err != nil {
-		return err
-	}
-
-	fmt.Printf("version: %s\n", version)
+	// TODO package overrides
+	//
+	//_, err = selectPackageOverrides(octopus, asker, selectedProject, selectedChannel, "")
+	//if err != nil {
+	//	return err
+	//}
+	//
+	//fmt.Printf("version: %s\n", version)
 
 	// fmt.Printf("%s The space, \"%s\" %s was created successfully.\n", output.Green("✔"), createdSpace.Name, output.Dimf("(%s)", createdSpace.ID))
 	return nil
@@ -190,6 +206,31 @@ func selectChannel(octopus *octopusApiClient.Client, ask question.Asker, project
 	})
 }
 
+func findChannel(octopus *octopusApiClient.Client, project *projects.Project, channelName string) (*channels.Channel, error) {
+	foundChannels, err := octopus.Projects.GetChannels(project) // TODO server-side filtering support in future
+	if err != nil {
+		return nil, err
+	}
+	for _, c := range foundChannels { // server doesn't support channel search by exact name so we must emulate it
+		if c.Name == channelName {
+			return c, nil
+		}
+	}
+	// TODO should we prompt here instead?
+	return nil, fmt.Errorf("no channel found with name of %s", channelName)
+}
+
+func findProject(octopus *octopusApiClient.Client, projectName string) (*projects.Project, error) {
+	projectsPage, err := octopus.Projects.Get(projects.ProjectsQuery{Name: projectName})
+	if err != nil {
+		return nil, err
+	}
+	if len(projectsPage.Items) < 1 {
+		return nil, fmt.Errorf("no project found with name of %s", projectName)
+	}
+	return projectsPage.Items[0], nil
+}
+
 func selectPackageOverrides(octopus *octopusApiClient.Client, ask question.Asker, project *projects.Project, channel *channels.Channel, releaseID string) (string, error) {
 	deploymentProcess, err := octopus.DeploymentProcesses.Get(project, "")
 	if err != nil {
@@ -201,7 +242,7 @@ func selectPackageOverrides(octopus *octopusApiClient.Client, ask question.Asker
 		return "", err
 	}
 
-	feedsToQuery := []string{}
+	feedsToQuery := make([]string, len(template.Packages))
 	for _, v := range template.Packages {
 		feedsToQuery = append(feedsToQuery, v.FeedID)
 	}

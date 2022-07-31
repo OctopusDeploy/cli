@@ -20,7 +20,8 @@ type Factory interface {
 	GetSystemClient() (*client.Client, error)
 	GetSpacedClient() (*client.Client, error)
 	GetCurrentSpace() *spaces.Space
-	IsInteractive() bool
+	IsPromptEnabled() bool
+	SetPromptDisabled()
 	Spinner() *spinner.Spinner
 	Ask(p survey.Prompt, response interface{}, opts ...survey.AskOpt) error
 }
@@ -46,16 +47,22 @@ func (f *factory) GetSpacedClient() (*client.Client, error) {
 }
 
 func (f *factory) GetCurrentSpace() *spaces.Space {
-	return f.client.GetCurrentSpace()
+	return f.client.GetActiveSpace()
 }
 
-func (f *factory) IsInteractive() bool {
+func (f *factory) IsPromptEnabled() bool {
 	return f.asker != nil
+}
+
+// SetPromptDisabled prevents the CLI from prompting for user input.
+// Note this is a one-way function; once we disable it, we can't re-enable
+func (f *factory) SetPromptDisabled() {
+	f.asker = nil
 }
 
 func (f *factory) Ask(p survey.Prompt, response interface{}, opts ...survey.AskOpt) error {
 	if f.asker == nil {
-		// this shouldn't happen; commands should check IsInteractive before attempting to prompt
+		// this shouldn't happen; commands should check IsPromptEnabled before attempting to prompt
 		return &cliErrors.PromptDisabledError{}
 	}
 	return f.asker(p, response, opts...)

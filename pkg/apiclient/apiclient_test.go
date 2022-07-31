@@ -7,7 +7,6 @@ import (
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/OctopusDeploy/cli/pkg/apiclient"
 	"github.com/OctopusDeploy/cli/test/testutil"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/resources"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/spaces"
 	"github.com/stretchr/testify/assert"
 )
@@ -43,21 +42,39 @@ func TestClient_GetSystemClient(t *testing.T) {
 }
 
 func TestClient_GetSpacedClient_NoPrompt(t *testing.T) {
-	t.Run("GetSpacedClient returns an error when no space is specified", func(t *testing.T) {
-		rt := testutil.NewFakeApiResponder()
-		testutil.EnqueueRootResponder(rt)
+	integrationsSpace := spaces.NewSpace("Integrations")
+	integrationsSpace.ID = "Spaces-7"
 
-		rt.EnqueueResponder("GET", "/api/spaces", func(r *http.Request) (any, error) {
-			return resources.Resources[*spaces.Space]{Items: []*spaces.Space{
-				spaces.NewSpace("Integrations"),
-			}}, nil
-		})
+	cloudSpace := spaces.NewSpace("Cloud")
+	cloudSpace.ID = "Spaces-39"
+
+	spaceNotSpecifiedMessage := "space must be specified when not running interactively; please set the OCTOPUS_SPACE environment variable or specify --space on the command line"
+
+	t.Run("GetSpacedClient returns an error when no space is specified and only one space exists", func(t *testing.T) {
+		// this would pass in interactive mode; we'd auto select the space, however we don't want to do
+		// that in no-prompt mode because otherwise people could write a CI script that worked due to
+		// auto-selection of the first space, which would then unexpectedly break later if someone added a
+		// second space to the octopus server
+		rt := testutil.NewFakeApiResponder()
+		testutil.EnqueueRootResponder(rt) // even though the config is invalid it still hits /api to check auth, etc
 
 		factory2, _ := apiclient.NewClientFactory(testutil.NewMockHttpClientWithTransport(rt), "http://server", PlaceholderApiKey, "", nil)
 
 		apiClient, err := factory2.GetSpacedClient()
 		assert.Nil(t, apiClient)
-		assert.Equal(t, "cannot use specified space ''. Error: cannot find the item", err.Error()) // some strongly-typed errors would probably be nicer
+		assert.Equal(t, spaceNotSpecifiedMessage, err.Error()) // some strongly-typed errors would probably be nicer
+		assert.Equal(t, 0, rt.RemainingQueueLength())
+	})
+
+	t.Run("GetSpacedClient returns an error when no space is specified and more than one space exists", func(t *testing.T) {
+		rt := testutil.NewFakeApiResponder()
+		testutil.EnqueueRootResponder(rt) // even though the config is invalid it still hits /api to check auth, etc
+
+		factory2, _ := apiclient.NewClientFactory(testutil.NewMockHttpClientWithTransport(rt), "http://server", PlaceholderApiKey, "", nil)
+
+		apiClient, err := factory2.GetSpacedClient()
+		assert.Nil(t, apiClient)
+		assert.Equal(t, spaceNotSpecifiedMessage, err.Error()) // some strongly-typed errors would probably be nicer
 		assert.Equal(t, 0, rt.RemainingQueueLength())
 	})
 
@@ -65,44 +82,34 @@ func TestClient_GetSpacedClient_NoPrompt(t *testing.T) {
 		rt := testutil.NewFakeApiResponder()
 		testutil.EnqueueRootResponder(rt)
 
-		// first it guesses that we might have a space ID
-		rt.EnqueueRawResponder("GET", "/api/spaces/Integrations", func(r *http.Request) (*http.Response, error) {
-			return &http.Response{StatusCode: 404}, nil
-		})
-
-		// then it tries a partial name search
-		rt.EnqueueResponder("GET", "/api/spaces?partialName=Integrations", func(r *http.Request) (any, error) {
-			return resources.Resources[*spaces.Space]{Items: []*spaces.Space{
-				spaces.NewSpace("NotIntegrations"),
-			}}, nil
+		rt.EnqueueResponder("GET", "/api/spaces/all", func(r *http.Request) (any, error) {
+			return []*spaces.Space{cloudSpace}, nil
 		})
 
 		factory2, _ := apiclient.NewClientFactory(testutil.NewMockHttpClientWithTransport(rt), "http://server", PlaceholderApiKey, "Integrations", nil)
 
 		apiClient, err := factory2.GetSpacedClient()
 		assert.Nil(t, apiClient)
-		assert.Equal(t, "cannot use specified space 'Integrations'. Error: cannot find the item", err.Error()) // some strongly-typed errors would probably be nicer
+		assert.Equal(t, "cannot find space 'Integrations'", err.Error()) // some strongly-typed errors would probably be nicer
 		assert.Equal(t, 0, rt.RemainingQueueLength())
 	})
 
 	t.Run("GetSpacedClient works when the Space ID is directly specified", func(t *testing.T) {
 		rt := testutil.NewFakeApiResponder()
 
-		space7responder := func(r *http.Request) (any, error) {
-			space7 := spaces.NewSpace("Integrations")
-			space7.ID = "Spaces-7"
-			return space7, nil
-		}
-
 		testutil.EnqueueRootResponder(rt)
 
-		rt.EnqueueResponder("GET", "/api/spaces/Spaces-7", space7responder)
+		rt.EnqueueResponder("GET", "/api/spaces/all", func(r *http.Request) (any, error) {
+			return []*spaces.Space{integrationsSpace}, nil
+		})
 
 		// we need to enqueue this again because after it finds Spaces-7 it will recreate the client and reload the root.
 		testutil.EnqueueRootResponder(rt)
 
 		// note it just goes for /api/Spaces-7 this time
-		rt.EnqueueResponder("GET", "/api/Spaces-7", space7responder)
+		rt.EnqueueResponder("GET", "/api/Spaces-7", func(r *http.Request) (any, error) {
+			return integrationsSpace, nil
+		})
 
 		factory2, _ := apiclient.NewClientFactory(testutil.NewMockHttpClientWithTransport(rt), "http://server", PlaceholderApiKey, "Spaces-7", nil)
 
@@ -116,15 +123,8 @@ func TestClient_GetSpacedClient_NoPrompt(t *testing.T) {
 		rt := testutil.NewFakeApiResponder()
 		testutil.EnqueueRootResponder(rt)
 
-		integrationsSpace := spaces.NewSpace("Integrations")
-		integrationsSpace.ID = "Spaces-7"
-
-		rt.EnqueueRawResponder("GET", "/api/spaces/Integrations", func(r *http.Request) (*http.Response, error) {
-			return &http.Response{StatusCode: 404}, nil
-		})
-
-		rt.EnqueueResponder("GET", "/api/spaces?partialName=Integrations", func(r *http.Request) (any, error) {
-			return resources.Resources[*spaces.Space]{Items: []*spaces.Space{integrationsSpace}}, nil
+		rt.EnqueueResponder("GET", "/api/spaces/all", func(r *http.Request) (any, error) {
+			return []*spaces.Space{integrationsSpace}, nil
 		})
 
 		// we need to enqueue this again because after it finds Spaces-7 it will recreate the client and reload the root.
@@ -143,21 +143,49 @@ func TestClient_GetSpacedClient_NoPrompt(t *testing.T) {
 		assert.Equal(t, 0, rt.RemainingQueueLength())
 	})
 
+	t.Run("GetSpacedClient will select by name in preference to ID where there is a collision", func(t *testing.T) {
+		missedSpace := spaces.NewSpace("Missed")
+		missedSpace.ID = "Spaces-7"
+
+		spaces7space := spaces.NewSpace("Spaces-7") // nobody would do this in reality, but our software must still work properly
+		spaces7space.ID = "Spaces-209"
+
+		rt := testutil.NewFakeApiResponder()
+		testutil.EnqueueRootResponder(rt)
+
+		rt.EnqueueResponder("GET", "/api/spaces/all", func(r *http.Request) (any, error) {
+			return []*spaces.Space{
+				missedSpace,
+				spaces7space,
+			}, nil
+		})
+
+		testutil.EnqueueRootResponder(rt)
+
+		rt.EnqueueResponder("GET", "/api/Spaces-209", func(r *http.Request) (any, error) {
+			return spaces7space, nil
+		})
+
+		factory2, _ := apiclient.NewClientFactory(testutil.NewMockHttpClientWithTransport(rt), "http://server", PlaceholderApiKey, "Spaces-7", nil)
+
+		apiClient, err := factory2.GetSpacedClient()
+		assert.Nil(t, err)
+		assert.NotNil(t, apiClient)
+		assert.Equal(t, 0, rt.RemainingQueueLength())
+	})
+
 	t.Run("GetSpacedClient called twice returns the same client instance without additional requests", func(t *testing.T) {
 		rt := testutil.NewFakeApiResponder()
-
-		integrationsSpace := spaces.NewSpace("Integrations")
-		integrationsSpace.ID = "Spaces-7"
-
 		testutil.EnqueueRootResponder(rt)
 
-		rt.EnqueueResponder("GET", "/api/spaces/Spaces-7", func(r *http.Request) (any, error) { return integrationsSpace, nil })
+		rt.EnqueueResponder("GET", "/api/spaces/all", func(r *http.Request) (any, error) {
+			return []*spaces.Space{integrationsSpace}, nil
+		})
 
-		// we need to enqueue this again because after it finds Spaces-7 it will recreate the client and reload the root.
 		testutil.EnqueueRootResponder(rt)
-
-		// note it just goes for /api/Spaces-7 this time
-		rt.EnqueueResponder("GET", "/api/Spaces-7", func(r *http.Request) (any, error) { return integrationsSpace, nil })
+		rt.EnqueueResponder("GET", "/api/Spaces-7", func(r *http.Request) (any, error) {
+			return integrationsSpace, nil
+		})
 
 		factory2, _ := apiclient.NewClientFactory(testutil.NewMockHttpClientWithTransport(rt), "http://server", PlaceholderApiKey, "Spaces-7", nil)
 
@@ -173,10 +201,10 @@ func TestClient_GetSpacedClient_NoPrompt(t *testing.T) {
 }
 
 func TestClient_GetSpacedClient_Prompt(t *testing.T) {
-	t.Run("GetSpacedClient auto-selects the first space when only one exists", func(t *testing.T) {
-		integrationsSpace := spaces.NewSpace("Integrations")
-		integrationsSpace.ID = "Spaces-23"
+	integrationsSpace := spaces.NewSpace("Integrations")
+	integrationsSpace.ID = "Spaces-23"
 
+	t.Run("GetSpacedClient auto-selects the first space when only one exists", func(t *testing.T) {
 		rt := testutil.NewFakeApiResponder()
 		testutil.EnqueueRootResponder(rt)
 
@@ -202,9 +230,6 @@ func TestClient_GetSpacedClient_Prompt(t *testing.T) {
 	})
 
 	t.Run("GetSpacedClient prompts for selection when more than one space exists", func(t *testing.T) {
-		integrationsSpace := spaces.NewSpace("Integrations")
-		integrationsSpace.ID = "Spaces-23"
-
 		cloudSpace := spaces.NewSpace("Cloud")
 		cloudSpace.ID = "Spaces-39"
 
@@ -241,16 +266,12 @@ func TestClient_GetSpacedClient_Prompt(t *testing.T) {
 		rt := testutil.NewFakeApiResponder()
 		testutil.EnqueueRootResponder(rt)
 
-		// first it guesses that we might have a space ID
-		rt.EnqueueRawResponder("GET", "/api/spaces/Integrations", func(r *http.Request) (*http.Response, error) {
-			return &http.Response{StatusCode: 404}, nil
-		})
+		cloudSpace := spaces.NewSpace("CloudSpace")
+		cloudSpace.ID = "Spaces-39"
 
 		// then it tries a partial name search
-		rt.EnqueueResponder("GET", "/api/spaces?partialName=Integrations", func(r *http.Request) (any, error) {
-			return resources.Resources[*spaces.Space]{Items: []*spaces.Space{
-				spaces.NewSpace("NotIntegrations"),
-			}}, nil
+		rt.EnqueueResponder("GET", "/api/spaces/all", func(r *http.Request) (any, error) {
+			return []*spaces.Space{cloudSpace}, nil
 		})
 
 		// question/answer doesn't matter, just the presence of the mock signals it's allowed to auto-select the space
@@ -261,7 +282,7 @@ func TestClient_GetSpacedClient_Prompt(t *testing.T) {
 
 		apiClient, err := factory2.GetSpacedClient()
 		assert.Nil(t, apiClient)
-		assert.Equal(t, "cannot use specified space 'Integrations'. Error: cannot find the item", err.Error()) // some strongly-typed errors would probably be nicer
+		assert.Equal(t, "cannot find space 'Integrations'", err.Error()) // some strongly-typed errors would probably be nicer
 		assert.Equal(t, 0, rt.RemainingQueueLength())
 	})
 }
