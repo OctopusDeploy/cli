@@ -39,11 +39,10 @@ func NewCmdList(client factory.Factory) *cobra.Command {
 			caches := util.MapCollectionCacheContainer{}
 
 			pageOfReleases, err := octopusClient.Releases.Get(releases.ReleasesQuery{}) // get all; server's default page size
+			if err != nil {
+				return err
+			}
 			for pageOfReleases != nil && len(pageOfReleases.Items) > 0 {
-				if err != nil {
-					return err
-				}
-
 				pageOutput, err := util.MapCollectionWithLookups(
 					&caches,
 					pageOfReleases.Items,

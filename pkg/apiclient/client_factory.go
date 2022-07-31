@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/url"
 	"os"
+	"strings"
 
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/OctopusDeploy/cli/pkg/question"
@@ -196,11 +197,11 @@ func (c *Client) GetSpacedClient() (*octopusApiClient.Client, error) {
 		var foundSpace *spaces.Space = nil
 		var foundSpaceByID *spaces.Space = nil // second-tier match, only use this if foundSpace is nilt
 		for _, space := range allSpaces {
-			if space.Name == c.SpaceNameOrID { // direct hit on the name, this is the one we want
+			if strings.EqualFold(space.Name, c.SpaceNameOrID) { // direct hit on the name, this is the one we want
 				foundSpace = space
 				break
 			}
-			if space.ID == c.SpaceNameOrID { // hit on the ID; we prefer name so keep this as a fallback
+			if strings.EqualFold(space.ID, c.SpaceNameOrID) { // hit on the ID; we prefer name so keep this as a fallback
 				foundSpaceByID = space
 			}
 		}

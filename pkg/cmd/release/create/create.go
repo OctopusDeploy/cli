@@ -12,6 +12,7 @@ import (
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/feeds"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
 	"io"
+	"strings"
 
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/constants"
@@ -212,7 +213,7 @@ func findChannel(octopus *octopusApiClient.Client, project *projects.Project, ch
 		return nil, err
 	}
 	for _, c := range foundChannels { // server doesn't support channel search by exact name so we must emulate it
-		if c.Name == channelName {
+		if strings.EqualFold(c.Name, channelName) {
 			return c, nil
 		}
 	}
@@ -221,14 +222,24 @@ func findChannel(octopus *octopusApiClient.Client, project *projects.Project, ch
 }
 
 func findProject(octopus *octopusApiClient.Client, projectName string) (*projects.Project, error) {
-	projectsPage, err := octopus.Projects.Get(projects.ProjectsQuery{Name: projectName})
+	// projectsQuery has "Name" but it's just an alias in the server for PartialName; we need to filter client side
+	projectsPage, err := octopus.Projects.Get(projects.ProjectsQuery{PartialName: projectName})
 	if err != nil {
 		return nil, err
 	}
-	if len(projectsPage.Items) < 1 {
-		return nil, fmt.Errorf("no project found with name of %s", projectName)
+	for projectsPage != nil && len(projectsPage.Items) > 0 {
+		for _, c := range projectsPage.Items { // server doesn't support channel search by exact name so we must emulate it
+			if strings.EqualFold(c.Name, projectName) {
+				return c, nil
+			}
+		}
+		projectsPage, err = projectsPage.GetNextPage(octopus.Projects.GetClient())
+		if err != nil {
+			return nil, err
+		} // if there are no more pages, then GetNextPage will return nil, which breaks us out of the loop
 	}
-	return projectsPage.Items[0], nil
+
+	return nil, fmt.Errorf("no project found with name of %s", projectName)
 }
 
 func selectPackageOverrides(octopus *octopusApiClient.Client, ask question.Asker, project *projects.Project, channel *channels.Channel, releaseID string) (string, error) {

@@ -119,6 +119,31 @@ func TestClient_GetSpacedClient_NoPrompt(t *testing.T) {
 		assert.Equal(t, 0, rt.RemainingQueueLength())
 	})
 
+	t.Run("GetSpacedClient works when the Space ID is directly specified (case insensitive)", func(t *testing.T) {
+		rt := testutil.NewFakeApiResponder()
+
+		testutil.EnqueueRootResponder(rt)
+
+		rt.EnqueueResponder("GET", "/api/spaces/all", func(r *http.Request) (any, error) {
+			return []*spaces.Space{integrationsSpace}, nil
+		})
+
+		// we need to enqueue this again because after it finds Spaces-7 it will recreate the client and reload the root.
+		testutil.EnqueueRootResponder(rt)
+
+		// note it just goes for /api/Spaces-7 this time
+		rt.EnqueueResponder("GET", "/api/Spaces-7", func(r *http.Request) (any, error) {
+			return integrationsSpace, nil
+		})
+
+		factory2, _ := apiclient.NewClientFactory(testutil.NewMockHttpClientWithTransport(rt), "http://server", PlaceholderApiKey, "spaCeS-7", nil)
+
+		apiClient, err := factory2.GetSpacedClient()
+		assert.Nil(t, err)
+		assert.NotNil(t, apiClient)
+		assert.Equal(t, 0, rt.RemainingQueueLength())
+	})
+
 	t.Run("GetSpacedClient works when the Space Name is directly specified", func(t *testing.T) {
 		rt := testutil.NewFakeApiResponder()
 		testutil.EnqueueRootResponder(rt)
@@ -136,6 +161,30 @@ func TestClient_GetSpacedClient_NoPrompt(t *testing.T) {
 		})
 
 		factory2, _ := apiclient.NewClientFactory(testutil.NewMockHttpClientWithTransport(rt), "http://server", PlaceholderApiKey, "Integrations", nil)
+
+		apiClient, err := factory2.GetSpacedClient()
+		assert.Nil(t, err)
+		assert.NotNil(t, apiClient)
+		assert.Equal(t, 0, rt.RemainingQueueLength())
+	})
+
+	t.Run("GetSpacedClient works when the Space Name is directly specified (case insensitive)", func(t *testing.T) {
+		rt := testutil.NewFakeApiResponder()
+		testutil.EnqueueRootResponder(rt)
+
+		rt.EnqueueResponder("GET", "/api/spaces/all", func(r *http.Request) (any, error) {
+			return []*spaces.Space{integrationsSpace}, nil
+		})
+
+		// we need to enqueue this again because after it finds Spaces-7 it will recreate the client and reload the root.
+		testutil.EnqueueRootResponder(rt)
+
+		// note it just goes for /api/Spaces-7 this time
+		rt.EnqueueResponder("GET", "/api/Spaces-7", func(r *http.Request) (any, error) {
+			return integrationsSpace, nil
+		})
+
+		factory2, _ := apiclient.NewClientFactory(testutil.NewMockHttpClientWithTransport(rt), "http://server", PlaceholderApiKey, "iNtegrationS", nil)
 
 		apiClient, err := factory2.GetSpacedClient()
 		assert.Nil(t, err)
