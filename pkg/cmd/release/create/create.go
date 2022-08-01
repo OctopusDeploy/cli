@@ -120,7 +120,6 @@ func AskQuestions(octopus *octopusApiClient.Client, asker question.Asker, option
 		if err != nil {
 			return err
 		}
-		options.ProjectName = selectedProject.Name
 	} else { // project name is already provided, fetch the object because it's needed for further questions
 		selectedProject, err = findProject(octopus, options.ProjectName)
 		if err != nil {
@@ -128,6 +127,7 @@ func AskQuestions(octopus *octopusApiClient.Client, asker question.Asker, option
 		}
 		_, _ = fmt.Printf("Project %s\n", output.Cyan(selectedProject.Name))
 	}
+	options.ProjectName = selectedProject.Name
 
 	var selectedChannel *channels.Channel
 	if options.ChannelName == "" {
@@ -135,7 +135,6 @@ func AskQuestions(octopus *octopusApiClient.Client, asker question.Asker, option
 		if err != nil {
 			return err
 		}
-		options.ChannelName = selectedChannel.Name
 	} else {
 		selectedChannel, err = findChannel(octopus, selectedProject, options.ChannelName)
 		if err != nil {
@@ -143,6 +142,7 @@ func AskQuestions(octopus *octopusApiClient.Client, asker question.Asker, option
 		}
 		_, _ = fmt.Printf("Channel %s\n", output.Cyan(selectedChannel.Name))
 	}
+	options.ChannelName = selectedChannel.Name
 
 	if err != nil {
 		return err

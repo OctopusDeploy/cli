@@ -40,64 +40,103 @@ func TestCreate_AskQuestions(t *testing.T) {
 		"DeploymentProcess": "/api/Spaces-1/projects/" + fireProjectID + "/deploymentprocesses",
 	}
 
-	// mock octopus server
-	rt := testutil.NewFakeApiResponder()
-	testutil.EnqueueRootResponder(rt)
-	octopus, _ := octopusApiClient.NewClient(testutil.NewMockHttpClientWithTransport(rt), serverUrl, placeholderApiKey, "")
+	t.Run("standard process asking for everything (no package versions)", func(t *testing.T) {
+		rt := testutil.NewFakeApiResponder()
+		testutil.EnqueueRootResponder(rt)
+		octopus, _ := octopusApiClient.NewClient(testutil.NewMockHttpClientWithTransport(rt), serverUrl, placeholderApiKey, "")
 
-	rt.EnqueueResponder("GET", "/api/Spaces-1/projects/all", func(r *http.Request) (any, error) {
-		return []*projects.Project{fireProject}, nil
-	})
+		rt.EnqueueResponder("GET", "/api/Spaces-1/projects/all", func(r *http.Request) (any, error) {
+			return []*projects.Project{fireProject}, nil
+		})
 
-	rt.EnqueueResponder("GET", "/api/Spaces-1/projects/"+fireProjectID+"/channels", func(r *http.Request) (any, error) {
-		return resources.Resources[*channels.Channel]{
-			Items: []*channels.Channel{defaultChannel},
-		}, nil
-	})
+		rt.EnqueueResponder("GET", "/api/Spaces-1/projects/"+fireProjectID+"/channels", func(r *http.Request) (any, error) {
+			return resources.Resources[*channels.Channel]{
+				Items: []*channels.Channel{defaultChannel},
+			}, nil
+		})
 
-	rt.EnqueueResponder("GET", "/api/Spaces-1/deploymentprocesses/deploymentprocess-"+fireProjectID, func(r *http.Request) (any, error) {
-		return depProcess, nil
-	})
+		rt.EnqueueResponder("GET", "/api/Spaces-1/deploymentprocesses/deploymentprocess-"+fireProjectID, func(r *http.Request) (any, error) {
+			return depProcess, nil
+		})
 
-	rt.EnqueueResponder("GET", "/api/Spaces-1/projects/"+fireProjectID+"/deploymentprocesses/template", func(r *http.Request) (any, error) {
-		return &deployments.DeploymentProcessTemplate{NextVersionIncrement: "27.9.3"}, nil // TODO
-	})
+		rt.EnqueueResponder("GET", "/api/Spaces-1/projects/"+fireProjectID+"/deploymentprocesses/template", func(r *http.Request) (any, error) {
+			return &deployments.DeploymentProcessTemplate{NextVersionIncrement: "27.9.3"}, nil // TODO
+		})
 
-	// mock survey
-	asker, unasked := testutil.NewAskMocker(t, []testutil.QA{
-		{
-			Prompt: &survey.Select{
-				Message: "Select the project in which the release will be created",
-				Options: []string{"Fire Project"},
+		// mock survey
+		asker, unasked := testutil.NewAskMocker(t, []testutil.QA{
+			{
+				Prompt: &survey.Select{
+					Message: "Select the project in which the release will be created",
+					Options: []string{"Fire Project"},
+				},
+				Answer: "Fire Project",
 			},
-			Answer: "Fire Project",
-		},
-		{
-			Prompt: &survey.Select{
-				Message: "Select the channel in which the release will be created",
-				Options: []string{"Fire Project Default Channel"},
+			{
+				Prompt: &survey.Select{
+					Message: "Select the channel in which the release will be created",
+					Options: []string{"Fire Project Default Channel"},
+				},
+				Answer: "Fire Project Default Channel",
 			},
-			Answer: "Fire Project Default Channel",
-		},
-		{
-			Prompt: &survey.Input{
-				Message: "Version",
-				Default: "27.9.3",
+			{
+				Prompt: &survey.Input{
+					Message: "Version",
+					Default: "27.9.3",
+				},
+				Answer: "27.9.3",
 			},
-			Answer: "27.9.3",
-		},
+		})
+		defer unasked()
+
+		options := &executor.TaskOptionsCreateRelease{}
+
+		err := create.AskQuestions(octopus, asker, options)
+		assert.Nil(t, err)
+
+		// check that the question-asking process has filled out the things we told it to
+		assert.Equal(t, "Fire Project", options.ProjectName)
+		assert.Equal(t, "Fire Project Default Channel", options.ChannelName)
+		assert.Equal(t, "27.9.3", options.Version)
+
+		assert.Equal(t, 0, rt.RemainingQueueLength())
 	})
-	defer unasked()
 
-	options := &executor.TaskOptionsCreateRelease{}
+	t.Run("asking for nothing in interactive mode (testing case insensitivity)", func(t *testing.T) {
+		rt := testutil.NewFakeApiResponder()
+		testutil.EnqueueRootResponder(rt)
+		octopus, _ := octopusApiClient.NewClient(testutil.NewMockHttpClientWithTransport(rt), serverUrl, placeholderApiKey, "")
 
-	err := create.AskQuestions(octopus, asker, options)
-	assert.Nil(t, err)
+		rt.EnqueueResponder("GET", "/api/Spaces-1/projects?clonedFromProjectId=&partialName=fire+project", func(r *http.Request) (any, error) {
+			return resources.Resources[*projects.Project]{
+				Items: []*projects.Project{fireProject},
+			}, nil
+		})
 
-	// check that the question-asking process has filled out the things we told it to
-	assert.Equal(t, "Fire Project", options.ProjectName)
-	assert.Equal(t, "Fire Project Default Channel", options.ChannelName)
-	assert.Equal(t, "27.9.3", options.Version)
+		rt.EnqueueResponder("GET", "/api/Spaces-1/projects/"+fireProjectID+"/channels", func(r *http.Request) (any, error) {
+			return resources.Resources[*channels.Channel]{
+				Items: []*channels.Channel{defaultChannel},
+			}, nil
+		})
 
-	assert.Equal(t, 0, rt.RemainingQueueLength())
+		// mock survey
+		asker, _ := testutil.NewAskMocker(t, []testutil.QA{})
+
+		options := &executor.TaskOptionsCreateRelease{
+			ProjectName: "fire project",
+			ChannelName: "fire project default channel",
+			Version:     "9.8.4-prerelease",
+		}
+
+		err := create.AskQuestions(octopus, asker, options)
+		assert.Nil(t, err)
+
+		// check that the question-asking process has filled out the things we told it to
+		assert.Equal(t, "Fire Project", options.ProjectName)
+		assert.Equal(t, "Fire Project Default Channel", options.ChannelName)
+		assert.Equal(t, "9.8.4-prerelease", options.Version)
+
+		assert.Equal(t, 0, rt.RemainingQueueLength())
+	})
+
 }
