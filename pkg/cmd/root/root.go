@@ -5,17 +5,9 @@ import (
 	environmentCmd "github.com/OctopusDeploy/cli/pkg/cmd/environment"
 	releaseCmd "github.com/OctopusDeploy/cli/pkg/cmd/release"
 	spaceCmd "github.com/OctopusDeploy/cli/pkg/cmd/space"
+	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/spf13/cobra"
-	"github.com/spf13/pflag"
-)
-
-const (
-	FlagHelp               = "help"
-	FlagSpace              = "space"
-	FlagOutputFormat       = "output-format"
-	flagOutputFormatLegacy = "outputFormat"
-	FlagNoPrompt           = "no-prompt"
 )
 
 // NewCmdRoot returns the base command when called without any subcommands
@@ -26,20 +18,26 @@ func NewCmdRoot(f factory.Factory) *cobra.Command {
 		Long:  `Work seamlessly with Octopus Deploy from the command line.`,
 	}
 
-	cmd.PersistentFlags().BoolP(FlagHelp, "h", false, "Show help for command")
-	cmd.PersistentFlags().StringP(FlagSpace, "s", "", "Set Space")
-	cmd.PersistentFlags().StringP(FlagOutputFormat, "f", "", "Output Format (Valid values are 'json', 'table', 'basic'. Defaults to table)")
-	cmd.PersistentFlags().BoolP(FlagNoPrompt, "", false, "disable prompting in interactive mode")
+	cmdPFlags := cmd.PersistentFlags()
 
-	// translate flags inherited from .NET CLI
-	cmd.PersistentFlags().SetNormalizeFunc(func(f *pflag.FlagSet, name string) pflag.NormalizedName {
-		switch name {
-		case flagOutputFormatLegacy:
-			name = FlagOutputFormat
-			break
-		}
-		return pflag.NormalizedName(name)
-	})
+	cmdPFlags.BoolP(constants.FlagHelp, "h", false, "Show help for command")
+	cmdPFlags.StringP(constants.FlagSpace, "s", "", "Set Space")
+
+	// remember if you read FlagOutputFormat you also need to check FlagOutputFormatLegacy
+	cmdPFlags.StringP(constants.FlagOutputFormat, "f", "", "Output Format (Valid values are 'json', 'table', 'basic'. Defaults to table)")
+
+	cmdPFlags.BoolP(constants.FlagNoPrompt, "", false, "disable prompting in interactive mode")
+
+	// Legacy flags brought across from the .NET CLI.
+	// Consumers of these flags will have to explicitly check for them as well as the new
+	// flags. The pflag documentation says you can use SetNormalizeFunc to translate/alias flag
+	// names, however this doesn't actually work; It normalizes both the old and new flag
+	// names to the same thing at configuration time, then panics due to duplicate flag declarations.
+	cmdPFlags.StringP(constants.FlagOutputFormatLegacy, "", "", "Output Format")
+	_ = cmdPFlags.MarkHidden(constants.FlagOutputFormatLegacy)
+
+	// we want to allow outputFormat as well as output-format, but don't advertise it.
+	// must add this AFTER setting the normalize func or it strips out the flag
 
 	// infrastructure commands
 	cmd.AddCommand(accountCmd.NewCmdAccount(f))

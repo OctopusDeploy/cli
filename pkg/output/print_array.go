@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/OctopusDeploy/cli/pkg/constants"
+	"github.com/OctopusDeploy/cli/pkg/util"
 	"strings"
 
 	"github.com/OctopusDeploy/cli/pkg/usage"
@@ -46,7 +48,7 @@ type Mappers[T any] struct {
 }
 
 func PrintArray[T any](items []T, cmd *cobra.Command, mappers Mappers[T]) error {
-	outputFormat, _ := cmd.Flags().GetString("outputFormat")
+	outputFormat, _ := util.GetFlagString(cmd, constants.FlagOutputFormat, constants.FlagOutputFormatLegacy)
 
 	switch strings.ToLower(outputFormat) {
 	case "json":

@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/spf13/cobra"
 	"os"
 	"time"
@@ -40,11 +41,11 @@ func main() {
 	// so we'll get bad values. PersistentPreRun is a convenient callback for setting up our
 	// environment after parsing but before execution.
 	cmd.PersistentPreRun = func(_ *cobra.Command, args []string) {
-		if noPrompt, err := cmd.PersistentFlags().GetBool(root.FlagNoPrompt); err == nil && noPrompt {
+		if noPrompt, err := cmd.PersistentFlags().GetBool(constants.FlagNoPrompt); err == nil && noPrompt {
 			f.SetPromptDisabled()
 		}
 
-		if spaceNameOrId, err := cmd.PersistentFlags().GetString(root.FlagSpace); err == nil && spaceNameOrId != "" {
+		if spaceNameOrId, err := cmd.PersistentFlags().GetString(constants.FlagSpace); err == nil && spaceNameOrId != "" {
 			clientFactory.SetSpaceNameOrId(spaceNameOrId)
 		}
 	}
