@@ -51,13 +51,17 @@ func CreateAWSAccount(ask question.Asker, info *question.NameAndDescription, cli
 	ask(&survey.Input{
 		Message: "Access Key",
 		Help:    "The AWS access key to use when authenticating against Amazon Web Services.",
-	}, &accessKey)
+	}, &accessKey, survey.WithValidator(survey.ComposeValidators(
+		survey.Required,
+	)))
 
 	var secretKey string
 	ask(&survey.Password{
 		Message: "Secret Key",
 		Help:    "The AWS secret key to use when authenticating against Amazon Web Services.",
-	}, &secretKey)
+	}, &secretKey, survey.WithValidator(survey.ComposeValidators(
+		survey.Required,
+	)))
 
 	awsAccount, err := accounts.NewAmazonWebServicesAccount(info.Name, accessKey, core.NewSensitiveValue(secretKey))
 	if err != nil {
