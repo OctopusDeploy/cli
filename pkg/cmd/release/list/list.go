@@ -1,4 +1,4 @@
-package release
+package list
 
 import (
 	"github.com/MakeNowJust/heredoc/v2"

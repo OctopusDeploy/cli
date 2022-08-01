@@ -11,7 +11,8 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-const PlaceholderApiKey = "API-XXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+const serverUrl = "http://server"
+const placeholderApiKey = "API-XXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
 
 func TestClient_GetSystemClient(t *testing.T) {
 	httpClient := testutil.NewMockHttpClient()
@@ -58,7 +59,7 @@ func TestClient_GetSpacedClient_NoPrompt(t *testing.T) {
 		rt := testutil.NewFakeApiResponder()
 		testutil.EnqueueRootResponder(rt) // even though the config is invalid it still hits /api to check auth, etc
 
-		factory2, _ := apiclient.NewClientFactory(testutil.NewMockHttpClientWithTransport(rt), "http://server", PlaceholderApiKey, "", nil)
+		factory2, _ := apiclient.NewClientFactory(testutil.NewMockHttpClientWithTransport(rt), "http://server", placeholderApiKey, "", nil)
 
 		apiClient, err := factory2.GetSpacedClient()
 		assert.Nil(t, apiClient)
@@ -70,7 +71,7 @@ func TestClient_GetSpacedClient_NoPrompt(t *testing.T) {
 		rt := testutil.NewFakeApiResponder()
 		testutil.EnqueueRootResponder(rt) // even though the config is invalid it still hits /api to check auth, etc
 
-		factory2, _ := apiclient.NewClientFactory(testutil.NewMockHttpClientWithTransport(rt), "http://server", PlaceholderApiKey, "", nil)
+		factory2, _ := apiclient.NewClientFactory(testutil.NewMockHttpClientWithTransport(rt), serverUrl, placeholderApiKey, "", nil)
 
 		apiClient, err := factory2.GetSpacedClient()
 		assert.Nil(t, apiClient)
@@ -86,7 +87,7 @@ func TestClient_GetSpacedClient_NoPrompt(t *testing.T) {
 			return []*spaces.Space{cloudSpace}, nil
 		})
 
-		factory2, _ := apiclient.NewClientFactory(testutil.NewMockHttpClientWithTransport(rt), "http://server", PlaceholderApiKey, "Integrations", nil)
+		factory2, _ := apiclient.NewClientFactory(testutil.NewMockHttpClientWithTransport(rt), "http://server", placeholderApiKey, "Integrations", nil)
 
 		apiClient, err := factory2.GetSpacedClient()
 		assert.Nil(t, apiClient)
@@ -111,7 +112,7 @@ func TestClient_GetSpacedClient_NoPrompt(t *testing.T) {
 			return integrationsSpace, nil
 		})
 
-		factory2, _ := apiclient.NewClientFactory(testutil.NewMockHttpClientWithTransport(rt), "http://server", PlaceholderApiKey, "Spaces-7", nil)
+		factory2, _ := apiclient.NewClientFactory(testutil.NewMockHttpClientWithTransport(rt), "http://server", placeholderApiKey, "Spaces-7", nil)
 
 		apiClient, err := factory2.GetSpacedClient()
 		assert.Nil(t, err)
@@ -136,7 +137,7 @@ func TestClient_GetSpacedClient_NoPrompt(t *testing.T) {
 			return integrationsSpace, nil
 		})
 
-		factory2, _ := apiclient.NewClientFactory(testutil.NewMockHttpClientWithTransport(rt), "http://server", PlaceholderApiKey, "spaCeS-7", nil)
+		factory2, _ := apiclient.NewClientFactory(testutil.NewMockHttpClientWithTransport(rt), "http://server", placeholderApiKey, "spaCeS-7", nil)
 
 		apiClient, err := factory2.GetSpacedClient()
 		assert.Nil(t, err)
@@ -160,7 +161,7 @@ func TestClient_GetSpacedClient_NoPrompt(t *testing.T) {
 			return integrationsSpace, nil
 		})
 
-		factory2, _ := apiclient.NewClientFactory(testutil.NewMockHttpClientWithTransport(rt), "http://server", PlaceholderApiKey, "Integrations", nil)
+		factory2, _ := apiclient.NewClientFactory(testutil.NewMockHttpClientWithTransport(rt), "http://server", placeholderApiKey, "Integrations", nil)
 
 		apiClient, err := factory2.GetSpacedClient()
 		assert.Nil(t, err)
@@ -184,7 +185,7 @@ func TestClient_GetSpacedClient_NoPrompt(t *testing.T) {
 			return integrationsSpace, nil
 		})
 
-		factory2, _ := apiclient.NewClientFactory(testutil.NewMockHttpClientWithTransport(rt), "http://server", PlaceholderApiKey, "iNtegrationS", nil)
+		factory2, _ := apiclient.NewClientFactory(testutil.NewMockHttpClientWithTransport(rt), "http://server", placeholderApiKey, "iNtegrationS", nil)
 
 		apiClient, err := factory2.GetSpacedClient()
 		assert.Nil(t, err)
@@ -215,7 +216,7 @@ func TestClient_GetSpacedClient_NoPrompt(t *testing.T) {
 			return spaces7space, nil
 		})
 
-		factory2, _ := apiclient.NewClientFactory(testutil.NewMockHttpClientWithTransport(rt), "http://server", PlaceholderApiKey, "Spaces-7", nil)
+		factory2, _ := apiclient.NewClientFactory(testutil.NewMockHttpClientWithTransport(rt), "http://server", placeholderApiKey, "Spaces-7", nil)
 
 		apiClient, err := factory2.GetSpacedClient()
 		assert.Nil(t, err)
@@ -236,7 +237,7 @@ func TestClient_GetSpacedClient_NoPrompt(t *testing.T) {
 			return integrationsSpace, nil
 		})
 
-		factory2, _ := apiclient.NewClientFactory(testutil.NewMockHttpClientWithTransport(rt), "http://server", PlaceholderApiKey, "Spaces-7", nil)
+		factory2, _ := apiclient.NewClientFactory(testutil.NewMockHttpClientWithTransport(rt), "http://server", placeholderApiKey, "Spaces-7", nil)
 
 		apiClient, err := factory2.GetSpacedClient()
 		assert.Nil(t, err)
@@ -270,7 +271,7 @@ func TestClient_GetSpacedClient_Prompt(t *testing.T) {
 		asker, unasked := testutil.NewAskMocker(t, []testutil.QA{})
 		defer unasked()
 
-		factory2, _ := apiclient.NewClientFactory(testutil.NewMockHttpClientWithTransport(rt), "http://server", PlaceholderApiKey, "", asker)
+		factory2, _ := apiclient.NewClientFactory(testutil.NewMockHttpClientWithTransport(rt), "http://server", placeholderApiKey, "", asker)
 
 		apiClient, err := factory2.GetSpacedClient()
 		assert.Nil(t, err)
@@ -303,7 +304,7 @@ func TestClient_GetSpacedClient_Prompt(t *testing.T) {
 		testutil.EnqueueRootResponder(rt)
 		rt.EnqueueResponder("GET", "/api/Spaces-39", func(r *http.Request) (any, error) { return integrationsSpace, nil })
 
-		factory2, _ := apiclient.NewClientFactory(testutil.NewMockHttpClientWithTransport(rt), "http://server", PlaceholderApiKey, "", asker)
+		factory2, _ := apiclient.NewClientFactory(testutil.NewMockHttpClientWithTransport(rt), "http://server", placeholderApiKey, "", asker)
 
 		apiClient, err := factory2.GetSpacedClient()
 		assert.Nil(t, err)
@@ -327,7 +328,7 @@ func TestClient_GetSpacedClient_Prompt(t *testing.T) {
 		asker, unasked := testutil.NewAskMocker(t, []testutil.QA{})
 		defer unasked()
 
-		factory2, _ := apiclient.NewClientFactory(testutil.NewMockHttpClientWithTransport(rt), "http://server", PlaceholderApiKey, "Integrations", asker)
+		factory2, _ := apiclient.NewClientFactory(testutil.NewMockHttpClientWithTransport(rt), "http://server", placeholderApiKey, "Integrations", asker)
 
 		apiClient, err := factory2.GetSpacedClient()
 		assert.Nil(t, apiClient)

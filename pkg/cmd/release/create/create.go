@@ -1,4 +1,4 @@
-package release
+package create
 
 import (
 	"errors"
@@ -94,7 +94,7 @@ func createRun(f factory.Factory, w io.Writer, options *executor.TaskOptionsCrea
 	}
 
 	if f.IsPromptEnabled() {
-		err := askQuestions(octopus, f.Ask, options)
+		err := AskQuestions(octopus, f.Ask, options)
 		if err != nil {
 			return err
 		}
@@ -108,7 +108,7 @@ func createRun(f factory.Factory, w io.Writer, options *executor.TaskOptionsCrea
 	return executor.ProcessTasks(f, []*executor.Task{executor.NewTask(executor.TaskTypeCreateRelease, options)})
 }
 
-func askQuestions(octopus *octopusApiClient.Client, asker question.Asker, options *executor.TaskOptionsCreateRelease) error {
+func AskQuestions(octopus *octopusApiClient.Client, asker question.Asker, options *executor.TaskOptionsCreateRelease) error {
 	// Note on output: survey prints things; if the option is specified already from the command line,
 	// we should emulate that so there is always a line where you can see what the item was when specified on the command line,
 	// however if we support a "quiet mode" then we shouldn't emit those
@@ -117,26 +117,31 @@ func askQuestions(octopus *octopusApiClient.Client, asker question.Asker, option
 	var selectedProject *projects.Project
 	if options.ProjectName == "" {
 		selectedProject, err = selectProject(octopus, asker)
+		if err != nil {
+			return err
+		}
 		options.ProjectName = selectedProject.Name
 	} else { // project name is already provided, fetch the object because it's needed for further questions
 		selectedProject, err = findProject(octopus, options.ProjectName)
-		if selectedProject != nil {
-			_, _ = fmt.Printf("Project %s\n", output.Cyan(selectedProject.Name))
+		if err != nil {
+			return err
 		}
-	}
-	if err != nil {
-		return err
+		_, _ = fmt.Printf("Project %s\n", output.Cyan(selectedProject.Name))
 	}
 
 	var selectedChannel *channels.Channel
 	if options.ChannelName == "" {
 		selectedChannel, err = selectChannel(octopus, asker, selectedProject)
+		if err != nil {
+			return err
+		}
 		options.ChannelName = selectedChannel.Name
 	} else {
 		selectedChannel, err = findChannel(octopus, selectedProject, options.ChannelName)
-		if selectedChannel != nil {
-			_, _ = fmt.Printf("Channel %s\n", output.Cyan(selectedChannel.Name))
+		if err != nil {
+			return err
 		}
+		_, _ = fmt.Printf("Channel %s\n", output.Cyan(selectedChannel.Name))
 	}
 
 	if err != nil {
