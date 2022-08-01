@@ -12,7 +12,7 @@ import (
 	"testing"
 )
 
-// like a crap version of a Promise that you can't chain (on purpose)
+// ResultWaiter1 is like a cheap version of a Promise that you can't chain (on purpose)
 type ResultWaiter1[TResult1 any] struct {
 	wg sync.WaitGroup
 	r1 TResult1
@@ -35,7 +35,6 @@ func GoBeginFunc1[TResult1 any](action func() TResult1) *ResultWaiter1[TResult1]
 	return waiter
 }
 
-// wherefore art thou variadic generics
 type ResultWaiter2[TResult1 any, TResult2 any] struct {
 	wg sync.WaitGroup
 	r1 TResult1
