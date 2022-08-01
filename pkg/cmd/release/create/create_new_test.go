@@ -30,6 +30,7 @@ func TestCreate_AskQuestions_NewStyle(t *testing.T) {
 	}
 
 	defaultChannel := channels.NewChannel("Fire Project Default Channel", fireProjectID)
+	altChannel := channels.NewChannel("Fire Project Alt Channel", fireProjectID)
 
 	fireProject := projects.NewProject("Fire Project", "Lifecycles-1", "ProjectGroups-1")
 	fireProject.ID = fireProjectID
@@ -62,13 +63,13 @@ func TestCreate_AskQuestions_NewStyle(t *testing.T) {
 		}).AnswerWith("Fire Project")
 
 		api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+fireProjectID+"/channels").RespondWith(resources.Resources[*channels.Channel]{
-			Items: []*channels.Channel{defaultChannel},
+			Items: []*channels.Channel{defaultChannel, altChannel},
 		})
 
 		qa.ExpectQuestion(t, &survey.Select{
 			Message: "Select the channel in which the release will be created",
-			Options: []string{"Fire Project Default Channel"},
-		}).AnswerWith("Fire Project Default Channel")
+			Options: []string{defaultChannel.Name, altChannel.Name},
+		}).AnswerWith("Fire Project Alt Channel")
 
 		api.ExpectRequest(t, "GET", "/api/Spaces-1/deploymentprocesses/deploymentprocess-"+fireProjectID).RespondWith(depProcess)
 
@@ -85,7 +86,7 @@ func TestCreate_AskQuestions_NewStyle(t *testing.T) {
 
 		// check that the question-asking process has filled out the things we told it to
 		assert.Equal(t, "Fire Project", options.ProjectName)
-		assert.Equal(t, "Fire Project Default Channel", options.ChannelName)
+		assert.Equal(t, "Fire Project Alt Channel", options.ChannelName)
 		assert.Equal(t, "27.9.999", options.Version)
 
 		assert.Equal(t, 0, api.GetPendingMessageCount()+qa.GetPendingMessageCount())
