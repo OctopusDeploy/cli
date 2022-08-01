@@ -52,12 +52,14 @@ func NameAndDescription(ask Asker, itemType string) (*NameAndDescriptionOutput, 
 	var description string
 	if err := ask(&surveyext.OctoEditor{
 		Editor: &survey.Editor{
-			Message: "Description",
-			Help:    fmt.Sprintf("A summary explaining the use of the %s to other users.", itemType),
+			Message:  "Description",
+			Help:     fmt.Sprintf("A summary explaining the use of the %s to other users.", itemType),
+			FileName: "*.md",
 		},
 		Optional: true,
 	}, &description); err != nil {
 		return nil, err
 	}
+	output.Description = description
 	return output, nil
 }
