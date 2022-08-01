@@ -108,6 +108,9 @@ func EnqueueRootResponder(fakeServer *FakeApiResponder) {
 	fakeServer.EnqueueResponder("GET", "/api", func(r *http.Request) (any, error) {
 		root := octopusApiClient.NewRootResource()
 		root.Links["Spaces"] = "/api/spaces{/id}{?skip,ids,take,partialName}"
+		root.Links["Projects"] = "/api/Spaces-1/projects{/id}{?name,skip,ids,clone,take,partialName,clonedFromProjectId}"
+		root.Links["Channels"] = "/api/Spaces-1/channels{/id}{?skip,take,ids,partialName}"
+		root.Links["DeploymentProcesses"] = "/api/Spaces-1/deploymentprocesses{/id}{?skip,take,ids}"
 		return root, nil
 	})
 }

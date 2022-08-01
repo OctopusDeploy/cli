@@ -1,4 +1,4 @@
-package release
+package list
 
 import (
 	"github.com/MakeNowJust/heredoc/v2"
@@ -34,20 +34,18 @@ func NewCmdList(client factory.Factory) *cobra.Command {
 				Version   string
 			}
 
-			// page-fetching loop. TODO sync with dom
-			var allOutput []ReleaseViewModel
+			var allReleases []ReleaseViewModel
 
 			caches := util.MapCollectionCacheContainer{}
 
-			releasesPage, err := octopusClient.Releases.Get(releases.ReleasesQuery{}) // get all; server's default page size
-			for releasesPage != nil {
-				if err != nil {
-					return err
-				}
-
+			pageOfReleases, err := octopusClient.Releases.Get(releases.ReleasesQuery{}) // get all; server's default page size
+			if err != nil {
+				return err
+			}
+			for pageOfReleases != nil && len(pageOfReleases.Items) > 0 {
 				pageOutput, err := util.MapCollectionWithLookups(
 					&caches,
-					releasesPage.Items,
+					pageOfReleases.Items,
 					func(item *releases.Release) []string { // set of keys to lookup
 						return []string{item.ChannelID, item.ProjectID}
 					},
@@ -91,20 +89,15 @@ func NewCmdList(client factory.Factory) *cobra.Command {
 					return err
 				}
 
-				allOutput = append(allOutput, pageOutput...)
+				allReleases = append(allReleases, pageOutput...)
 
-				// TODO replace with proper API client page fetching when that becomes available
-				if releasesPage.Links.PageNext != "" {
-					releasesPage, err = releasesPage.GetNextPage(octopusClient.Releases.GetClient())
-					if err != nil {
-						return err
-					}
-				} else {
-					releasesPage = nil // break the loop
-				}
+				pageOfReleases, err = pageOfReleases.GetNextPage(octopusClient.Releases.GetClient())
+				if err != nil {
+					return err
+				} // if there are no more pages, then GetNextPage will return nil, which breaks us out of the loop
 			}
 
-			return output.PrintArray(allOutput, cmd, output.Mappers[ReleaseViewModel]{
+			return output.PrintArray(allReleases, cmd, output.Mappers[ReleaseViewModel]{
 				Json: func(item ReleaseViewModel) any {
 					return item
 				},

@@ -1,5 +1,9 @@
 package util
 
+import (
+	"github.com/spf13/cobra"
+)
+
 // SliceContains returns true if it finds an item in the slice that is equal to the target
 func SliceContains[T comparable](slice []T, target T) bool {
 	for _, item := range slice {
@@ -18,6 +22,22 @@ func SliceTransform[T any, TResult any](slice []T, transform func(item T) TResul
 		results = append(results, transform(item))
 	}
 	return results
+}
+
+// GetFlagString calls cmd.Flags().GetString repeatedly for each flag name, returning
+// the first time it finds a non-empty value. Use it for compatibility with old flags
+// because pflag SetNormalizeFunc doesn't work properly.
+func GetFlagString(cmd *cobra.Command, flagNames ...string) (string, error) {
+	for _, flagName := range flagNames {
+		result, err := cmd.Flags().GetString(flagName)
+		if err != nil {
+			return "", err
+		}
+		if result != "" {
+			return result, nil
+		}
+	}
+	return "", nil
 }
 
 // ExtractValuesMatchingKeys returns a collection of values which matched a specified set of keys, in the exact order of keys.
