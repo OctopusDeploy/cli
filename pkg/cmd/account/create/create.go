@@ -2,8 +2,6 @@ package create
 
 import (
 	"fmt"
-	"github.com/OctopusDeploy/cli/pkg/executor"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/core"
 	"io"
 
 	"github.com/AlecAivazis/survey/v2"
@@ -67,29 +65,35 @@ func createRun(f factory.Factory, w io.Writer) error {
 		return err
 	}
 
-	var name string
-	err = f.Ask(&survey.Input{
-		Help:    "The name of the account being created.",
-		Message: "Name",
-	}, &name, survey.WithValidator(survey.ComposeValidators(
-		survey.MaxLength(200),
-		survey.MinLength(1),
-		survey.Required,
-		validation.NotEquals(accountNames, "an account with this name already exists"),
-	)))
+	// var name string
+	// err = f.Ask(&survey.Input{
+	// 	Help:    "The name of the account being created.",
+	// 	Message: "Name",
+	// }, &name, survey.WithValidator(survey.ComposeValidators(
+	// 	survey.MaxLength(200),
+	// 	survey.MinLength(1),
+	// 	survey.Required,
+	// 	validation.NotEquals(accountNames, "an account with this name already exists"),
+	// )))
+	// if err != nil {
+	// 	return err
+	// }
+
+	// var description string
+	// err = f.Ask(&survey.Input{
+	// 	Help:    "A summary explaining the use of the account to other users.",
+	// 	Message: "Description",
+	// }, &description)
+	// if err != nil {
+	// 	return err
+	// }
+
+	name, err := question.NameAndDescription(f.Ask, "account")
 	if err != nil {
 		return err
 	}
 
-	var description string
-	err = f.Ask(&survey.Input{
-		Help:    "A summary explaining the use of the account to other users.",
-		Message: "Description",
-	}, &description)
-	if err != nil {
-		return err
-	}
-
+	println(name.Name, "\n", name.Description)
 	switch accountType {
 	case "Azure Subscription":
 		createAzureSubscriptionRun(f.Ask, octopus, w)
@@ -98,20 +102,20 @@ func createRun(f factory.Factory, w io.Writer) error {
 	// TODO: use the name; create the account
 
 	// TODO switch on type
-	task := executor.NewTask(executor.TaskTypeCreateAccount, executor.TaskOptionsCreateAccount{
-		Type:        executor.AccountTypeUsernamePassword,
-		Name:        name,
-		Description: description,
-		Options: executor.TaskOptionsCreateAccountUsernamePassword{
-			Username: "todo",
-			Password: core.NewSensitiveValue("todo"),
-		},
-	})
+	// task := executor.NewTask(executor.TaskTypeCreateAccount, executor.TaskOptionsCreateAccount{
+	// 	Type:        executor.AccountTypeUsernamePassword,
+	// 	Name:        name,
+	// 	Description: description,
+	// 	Options: executor.TaskOptionsCreateAccountUsernamePassword{
+	// 		Username: "todo",
+	// 		Password: core.NewSensitiveValue("todo"),
+	// 	},
+	// })
 
-	err = executor.ProcessTasks(f, []*executor.Task{task})
-	if err != nil {
-		return err
-	}
+	// err = executor.ProcessTasks(f, []executor.Task{task})
+	// if err != nil {
+	// 	return err
+	// }
 
 	return nil
 }
