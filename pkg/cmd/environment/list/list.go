@@ -28,14 +28,14 @@ func NewCmdList(f factory.Factory) *cobra.Command {
 				return err
 			}
 
-			envResources, err := client.Environments.Get(environments.EnvironmentsQuery{
-				Take: 1,
-			})
+			envResources, err := client.Environments.Get(environments.EnvironmentsQuery{})
 			if err != nil {
+				f.Spinner().Stop()
 				return err
 			}
 			allEnvs, err := envResources.GetAllPages(client.Environments.GetClient())
 			if err != nil {
+				f.Spinner().Stop()
 				return err
 			}
 			f.Spinner().Stop()

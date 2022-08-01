@@ -65,30 +65,7 @@ func createRun(f factory.Factory, w io.Writer) error {
 		return err
 	}
 
-	// var name string
-	// err = f.Ask(&survey.Input{
-	// 	Help:    "The name of the account being created.",
-	// 	Message: "Name",
-	// }, &name, survey.WithValidator(survey.ComposeValidators(
-	// 	survey.MaxLength(200),
-	// 	survey.MinLength(1),
-	// 	survey.Required,
-	// 	validation.NotEquals(accountNames, "an account with this name already exists"),
-	// )))
-	// if err != nil {
-	// 	return err
-	// }
-
-	// var description string
-	// err = f.Ask(&survey.Input{
-	// 	Help:    "A summary explaining the use of the account to other users.",
-	// 	Message: "Description",
-	// }, &description)
-	// if err != nil {
-	// 	return err
-	// }
-
-	name, err := question.NameAndDescription(f.Ask, "account")
+	name, err := question.AskNameAndDescription(f.Ask, "account")
 	if err != nil {
 		return err
 	}

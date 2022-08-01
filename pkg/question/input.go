@@ -30,13 +30,13 @@ func DeleteWithConfirmation(ask Asker, itemType string, itemName string, itemID 
 	return nil
 }
 
-type NameAndDescriptionOutput struct {
+type NameAndDescription struct {
 	Name        string
 	Description string
 }
 
-func NameAndDescription(ask Asker, itemType string) (*NameAndDescriptionOutput, error) {
-	output := &NameAndDescriptionOutput{}
+func AskNameAndDescription(ask Asker, itemType string) (*NameAndDescription, error) {
+	output := &NameAndDescription{}
 	var name string
 	if err := ask(&survey.Input{
 		Message: "Name",
