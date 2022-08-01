@@ -41,25 +41,25 @@ func TestCreate_AskQuestions(t *testing.T) {
 	}
 
 	t.Run("standard process asking for everything (no package versions)", func(t *testing.T) {
-		rt := testutil.NewFakeApiResponder()
-		testutil.EnqueueRootResponder(rt)
-		octopus, _ := octopusApiClient.NewClient(testutil.NewMockHttpClientWithTransport(rt), serverUrl, placeholderApiKey, "")
+		api := testutil.NewFakeApiResponder()
+		testutil.EnqueueRootResponder(api)
+		octopus, _ := octopusApiClient.NewClient(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "")
 
-		rt.EnqueueResponder("GET", "/api/Spaces-1/projects/all", func(r *http.Request) (any, error) {
+		api.EnqueueResponder("GET", "/api/Spaces-1/projects/all", func(r *http.Request) (any, error) {
 			return []*projects.Project{fireProject}, nil
 		})
 
-		rt.EnqueueResponder("GET", "/api/Spaces-1/projects/"+fireProjectID+"/channels", func(r *http.Request) (any, error) {
+		api.EnqueueResponder("GET", "/api/Spaces-1/projects/"+fireProjectID+"/channels", func(r *http.Request) (any, error) {
 			return resources.Resources[*channels.Channel]{
 				Items: []*channels.Channel{defaultChannel},
 			}, nil
 		})
 
-		rt.EnqueueResponder("GET", "/api/Spaces-1/deploymentprocesses/deploymentprocess-"+fireProjectID, func(r *http.Request) (any, error) {
+		api.EnqueueResponder("GET", "/api/Spaces-1/deploymentprocesses/deploymentprocess-"+fireProjectID, func(r *http.Request) (any, error) {
 			return depProcess, nil
 		})
 
-		rt.EnqueueResponder("GET", "/api/Spaces-1/projects/"+fireProjectID+"/deploymentprocesses/template", func(r *http.Request) (any, error) {
+		api.EnqueueResponder("GET", "/api/Spaces-1/projects/"+fireProjectID+"/deploymentprocesses/template", func(r *http.Request) (any, error) {
 			return &deployments.DeploymentProcessTemplate{NextVersionIncrement: "27.9.3"}, nil // TODO
 		})
 
@@ -99,21 +99,21 @@ func TestCreate_AskQuestions(t *testing.T) {
 		assert.Equal(t, "Fire Project Default Channel", options.ChannelName)
 		assert.Equal(t, "27.9.3", options.Version)
 
-		assert.Equal(t, 0, rt.RemainingQueueLength())
+		assert.Equal(t, 0, api.RemainingQueueLength())
 	})
 
 	t.Run("asking for nothing in interactive mode (testing case insensitivity)", func(t *testing.T) {
-		rt := testutil.NewFakeApiResponder()
-		testutil.EnqueueRootResponder(rt)
-		octopus, _ := octopusApiClient.NewClient(testutil.NewMockHttpClientWithTransport(rt), serverUrl, placeholderApiKey, "")
+		api := testutil.NewFakeApiResponder()
+		testutil.EnqueueRootResponder(api)
+		octopus, _ := octopusApiClient.NewClient(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "")
 
-		rt.EnqueueResponder("GET", "/api/Spaces-1/projects?clonedFromProjectId=&partialName=fire+project", func(r *http.Request) (any, error) {
+		api.EnqueueResponder("GET", "/api/Spaces-1/projects?clonedFromProjectId=&partialName=fire+project", func(r *http.Request) (any, error) {
 			return resources.Resources[*projects.Project]{
 				Items: []*projects.Project{fireProject},
 			}, nil
 		})
 
-		rt.EnqueueResponder("GET", "/api/Spaces-1/projects/"+fireProjectID+"/channels", func(r *http.Request) (any, error) {
+		api.EnqueueResponder("GET", "/api/Spaces-1/projects/"+fireProjectID+"/channels", func(r *http.Request) (any, error) {
 			return resources.Resources[*channels.Channel]{
 				Items: []*channels.Channel{defaultChannel},
 			}, nil
@@ -136,7 +136,7 @@ func TestCreate_AskQuestions(t *testing.T) {
 		assert.Equal(t, "Fire Project Default Channel", options.ChannelName)
 		assert.Equal(t, "9.8.4-prerelease", options.Version)
 
-		assert.Equal(t, 0, rt.RemainingQueueLength())
+		assert.Equal(t, 0, api.RemainingQueueLength())
 	})
 
 }

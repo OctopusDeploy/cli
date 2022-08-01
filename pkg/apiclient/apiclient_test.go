@@ -56,141 +56,141 @@ func TestClient_GetSpacedClient_NoPrompt(t *testing.T) {
 		// that in no-prompt mode because otherwise people could write a CI script that worked due to
 		// auto-selection of the first space, which would then unexpectedly break later if someone added a
 		// second space to the octopus server
-		rt := testutil.NewFakeApiResponder()
-		testutil.EnqueueRootResponder(rt) // even though the config is invalid it still hits /api to check auth, etc
+		api := testutil.NewFakeApiResponder()
+		testutil.EnqueueRootResponder(api) // even though the config is invalid it still hits /api to check auth, etc
 
-		factory2, _ := apiclient.NewClientFactory(testutil.NewMockHttpClientWithTransport(rt), "http://server", placeholderApiKey, "", nil)
+		factory2, _ := apiclient.NewClientFactory(testutil.NewMockHttpClientWithTransport(api), "http://server", placeholderApiKey, "", nil)
 
 		apiClient, err := factory2.GetSpacedClient()
 		assert.Nil(t, apiClient)
 		assert.Equal(t, spaceNotSpecifiedMessage, err.Error()) // some strongly-typed errors would probably be nicer
-		assert.Equal(t, 0, rt.RemainingQueueLength())
+		assert.Equal(t, 0, api.RemainingQueueLength())
 	})
 
 	t.Run("GetSpacedClient returns an error when no space is specified and more than one space exists", func(t *testing.T) {
-		rt := testutil.NewFakeApiResponder()
-		testutil.EnqueueRootResponder(rt) // even though the config is invalid it still hits /api to check auth, etc
+		api := testutil.NewFakeApiResponder()
+		testutil.EnqueueRootResponder(api) // even though the config is invalid it still hits /api to check auth, etc
 
-		factory2, _ := apiclient.NewClientFactory(testutil.NewMockHttpClientWithTransport(rt), serverUrl, placeholderApiKey, "", nil)
+		factory2, _ := apiclient.NewClientFactory(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "", nil)
 
 		apiClient, err := factory2.GetSpacedClient()
 		assert.Nil(t, apiClient)
 		assert.Equal(t, spaceNotSpecifiedMessage, err.Error()) // some strongly-typed errors would probably be nicer
-		assert.Equal(t, 0, rt.RemainingQueueLength())
+		assert.Equal(t, 0, api.RemainingQueueLength())
 	})
 
 	t.Run("GetSpacedClient returns an error when a space with the wrong name is specified", func(t *testing.T) {
-		rt := testutil.NewFakeApiResponder()
-		testutil.EnqueueRootResponder(rt)
+		api := testutil.NewFakeApiResponder()
+		testutil.EnqueueRootResponder(api)
 
-		rt.EnqueueResponder("GET", "/api/spaces/all", func(r *http.Request) (any, error) {
+		api.EnqueueResponder("GET", "/api/spaces/all", func(r *http.Request) (any, error) {
 			return []*spaces.Space{cloudSpace}, nil
 		})
 
-		factory2, _ := apiclient.NewClientFactory(testutil.NewMockHttpClientWithTransport(rt), "http://server", placeholderApiKey, "Integrations", nil)
+		factory2, _ := apiclient.NewClientFactory(testutil.NewMockHttpClientWithTransport(api), "http://server", placeholderApiKey, "Integrations", nil)
 
 		apiClient, err := factory2.GetSpacedClient()
 		assert.Nil(t, apiClient)
 		assert.Equal(t, "cannot find space 'Integrations'", err.Error()) // some strongly-typed errors would probably be nicer
-		assert.Equal(t, 0, rt.RemainingQueueLength())
+		assert.Equal(t, 0, api.RemainingQueueLength())
 	})
 
 	t.Run("GetSpacedClient works when the Space ID is directly specified", func(t *testing.T) {
-		rt := testutil.NewFakeApiResponder()
+		api := testutil.NewFakeApiResponder()
 
-		testutil.EnqueueRootResponder(rt)
+		testutil.EnqueueRootResponder(api)
 
-		rt.EnqueueResponder("GET", "/api/spaces/all", func(r *http.Request) (any, error) {
+		api.EnqueueResponder("GET", "/api/spaces/all", func(r *http.Request) (any, error) {
 			return []*spaces.Space{integrationsSpace}, nil
 		})
 
 		// we need to enqueue this again because after it finds Spaces-7 it will recreate the client and reload the root.
-		testutil.EnqueueRootResponder(rt)
+		testutil.EnqueueRootResponder(api)
 
 		// note it just goes for /api/Spaces-7 this time
-		rt.EnqueueResponder("GET", "/api/Spaces-7", func(r *http.Request) (any, error) {
+		api.EnqueueResponder("GET", "/api/Spaces-7", func(r *http.Request) (any, error) {
 			return integrationsSpace, nil
 		})
 
-		factory2, _ := apiclient.NewClientFactory(testutil.NewMockHttpClientWithTransport(rt), "http://server", placeholderApiKey, "Spaces-7", nil)
+		factory2, _ := apiclient.NewClientFactory(testutil.NewMockHttpClientWithTransport(api), "http://server", placeholderApiKey, "Spaces-7", nil)
 
 		apiClient, err := factory2.GetSpacedClient()
 		assert.Nil(t, err)
 		assert.NotNil(t, apiClient)
-		assert.Equal(t, 0, rt.RemainingQueueLength())
+		assert.Equal(t, 0, api.RemainingQueueLength())
 	})
 
 	t.Run("GetSpacedClient works when the Space ID is directly specified (case insensitive)", func(t *testing.T) {
-		rt := testutil.NewFakeApiResponder()
+		api := testutil.NewFakeApiResponder()
 
-		testutil.EnqueueRootResponder(rt)
+		testutil.EnqueueRootResponder(api)
 
-		rt.EnqueueResponder("GET", "/api/spaces/all", func(r *http.Request) (any, error) {
+		api.EnqueueResponder("GET", "/api/spaces/all", func(r *http.Request) (any, error) {
 			return []*spaces.Space{integrationsSpace}, nil
 		})
 
 		// we need to enqueue this again because after it finds Spaces-7 it will recreate the client and reload the root.
-		testutil.EnqueueRootResponder(rt)
+		testutil.EnqueueRootResponder(api)
 
 		// note it just goes for /api/Spaces-7 this time
-		rt.EnqueueResponder("GET", "/api/Spaces-7", func(r *http.Request) (any, error) {
+		api.EnqueueResponder("GET", "/api/Spaces-7", func(r *http.Request) (any, error) {
 			return integrationsSpace, nil
 		})
 
-		factory2, _ := apiclient.NewClientFactory(testutil.NewMockHttpClientWithTransport(rt), "http://server", placeholderApiKey, "spaCeS-7", nil)
+		factory2, _ := apiclient.NewClientFactory(testutil.NewMockHttpClientWithTransport(api), "http://server", placeholderApiKey, "spaCeS-7", nil)
 
 		apiClient, err := factory2.GetSpacedClient()
 		assert.Nil(t, err)
 		assert.NotNil(t, apiClient)
-		assert.Equal(t, 0, rt.RemainingQueueLength())
+		assert.Equal(t, 0, api.RemainingQueueLength())
 	})
 
 	t.Run("GetSpacedClient works when the Space Name is directly specified", func(t *testing.T) {
-		rt := testutil.NewFakeApiResponder()
-		testutil.EnqueueRootResponder(rt)
+		api := testutil.NewFakeApiResponder()
+		testutil.EnqueueRootResponder(api)
 
-		rt.EnqueueResponder("GET", "/api/spaces/all", func(r *http.Request) (any, error) {
+		api.EnqueueResponder("GET", "/api/spaces/all", func(r *http.Request) (any, error) {
 			return []*spaces.Space{integrationsSpace}, nil
 		})
 
 		// we need to enqueue this again because after it finds Spaces-7 it will recreate the client and reload the root.
-		testutil.EnqueueRootResponder(rt)
+		testutil.EnqueueRootResponder(api)
 
 		// note it just goes for /api/Spaces-7 this time
-		rt.EnqueueResponder("GET", "/api/Spaces-7", func(r *http.Request) (any, error) {
+		api.EnqueueResponder("GET", "/api/Spaces-7", func(r *http.Request) (any, error) {
 			return integrationsSpace, nil
 		})
 
-		factory2, _ := apiclient.NewClientFactory(testutil.NewMockHttpClientWithTransport(rt), "http://server", placeholderApiKey, "Integrations", nil)
+		factory2, _ := apiclient.NewClientFactory(testutil.NewMockHttpClientWithTransport(api), "http://server", placeholderApiKey, "Integrations", nil)
 
 		apiClient, err := factory2.GetSpacedClient()
 		assert.Nil(t, err)
 		assert.NotNil(t, apiClient)
-		assert.Equal(t, 0, rt.RemainingQueueLength())
+		assert.Equal(t, 0, api.RemainingQueueLength())
 	})
 
 	t.Run("GetSpacedClient works when the Space Name is directly specified (case insensitive)", func(t *testing.T) {
-		rt := testutil.NewFakeApiResponder()
-		testutil.EnqueueRootResponder(rt)
+		api := testutil.NewFakeApiResponder()
+		testutil.EnqueueRootResponder(api)
 
-		rt.EnqueueResponder("GET", "/api/spaces/all", func(r *http.Request) (any, error) {
+		api.EnqueueResponder("GET", "/api/spaces/all", func(r *http.Request) (any, error) {
 			return []*spaces.Space{integrationsSpace}, nil
 		})
 
 		// we need to enqueue this again because after it finds Spaces-7 it will recreate the client and reload the root.
-		testutil.EnqueueRootResponder(rt)
+		testutil.EnqueueRootResponder(api)
 
 		// note it just goes for /api/Spaces-7 this time
-		rt.EnqueueResponder("GET", "/api/Spaces-7", func(r *http.Request) (any, error) {
+		api.EnqueueResponder("GET", "/api/Spaces-7", func(r *http.Request) (any, error) {
 			return integrationsSpace, nil
 		})
 
-		factory2, _ := apiclient.NewClientFactory(testutil.NewMockHttpClientWithTransport(rt), "http://server", placeholderApiKey, "iNtegrationS", nil)
+		factory2, _ := apiclient.NewClientFactory(testutil.NewMockHttpClientWithTransport(api), "http://server", placeholderApiKey, "iNtegrationS", nil)
 
 		apiClient, err := factory2.GetSpacedClient()
 		assert.Nil(t, err)
 		assert.NotNil(t, apiClient)
-		assert.Equal(t, 0, rt.RemainingQueueLength())
+		assert.Equal(t, 0, api.RemainingQueueLength())
 	})
 
 	t.Run("GetSpacedClient will select by name in preference to ID where there is a collision", func(t *testing.T) {
@@ -200,49 +200,49 @@ func TestClient_GetSpacedClient_NoPrompt(t *testing.T) {
 		spaces7space := spaces.NewSpace("Spaces-7") // nobody would do this in reality, but our software must still work properly
 		spaces7space.ID = "Spaces-209"
 
-		rt := testutil.NewFakeApiResponder()
-		testutil.EnqueueRootResponder(rt)
+		api := testutil.NewFakeApiResponder()
+		testutil.EnqueueRootResponder(api)
 
-		rt.EnqueueResponder("GET", "/api/spaces/all", func(r *http.Request) (any, error) {
+		api.EnqueueResponder("GET", "/api/spaces/all", func(r *http.Request) (any, error) {
 			return []*spaces.Space{
 				missedSpace,
 				spaces7space,
 			}, nil
 		})
 
-		testutil.EnqueueRootResponder(rt)
+		testutil.EnqueueRootResponder(api)
 
-		rt.EnqueueResponder("GET", "/api/Spaces-209", func(r *http.Request) (any, error) {
+		api.EnqueueResponder("GET", "/api/Spaces-209", func(r *http.Request) (any, error) {
 			return spaces7space, nil
 		})
 
-		factory2, _ := apiclient.NewClientFactory(testutil.NewMockHttpClientWithTransport(rt), "http://server", placeholderApiKey, "Spaces-7", nil)
+		factory2, _ := apiclient.NewClientFactory(testutil.NewMockHttpClientWithTransport(api), "http://server", placeholderApiKey, "Spaces-7", nil)
 
 		apiClient, err := factory2.GetSpacedClient()
 		assert.Nil(t, err)
 		assert.NotNil(t, apiClient)
-		assert.Equal(t, 0, rt.RemainingQueueLength())
+		assert.Equal(t, 0, api.RemainingQueueLength())
 	})
 
 	t.Run("GetSpacedClient called twice returns the same client instance without additional requests", func(t *testing.T) {
-		rt := testutil.NewFakeApiResponder()
-		testutil.EnqueueRootResponder(rt)
+		api := testutil.NewFakeApiResponder()
+		testutil.EnqueueRootResponder(api)
 
-		rt.EnqueueResponder("GET", "/api/spaces/all", func(r *http.Request) (any, error) {
+		api.EnqueueResponder("GET", "/api/spaces/all", func(r *http.Request) (any, error) {
 			return []*spaces.Space{integrationsSpace}, nil
 		})
 
-		testutil.EnqueueRootResponder(rt)
-		rt.EnqueueResponder("GET", "/api/Spaces-7", func(r *http.Request) (any, error) {
+		testutil.EnqueueRootResponder(api)
+		api.EnqueueResponder("GET", "/api/Spaces-7", func(r *http.Request) (any, error) {
 			return integrationsSpace, nil
 		})
 
-		factory2, _ := apiclient.NewClientFactory(testutil.NewMockHttpClientWithTransport(rt), "http://server", placeholderApiKey, "Spaces-7", nil)
+		factory2, _ := apiclient.NewClientFactory(testutil.NewMockHttpClientWithTransport(api), "http://server", placeholderApiKey, "Spaces-7", nil)
 
 		apiClient, err := factory2.GetSpacedClient()
 		assert.Nil(t, err)
 		assert.NotNil(t, apiClient)
-		assert.Equal(t, 0, rt.RemainingQueueLength())
+		assert.Equal(t, 0, api.RemainingQueueLength())
 
 		// we haven't queued any responders, so if this makes any API requests the test will fail
 		apiClient2, _ := factory2.GetSpacedClient()
@@ -255,38 +255,38 @@ func TestClient_GetSpacedClient_Prompt(t *testing.T) {
 	integrationsSpace.ID = "Spaces-23"
 
 	t.Run("GetSpacedClient auto-selects the first space when only one exists", func(t *testing.T) {
-		rt := testutil.NewFakeApiResponder()
-		testutil.EnqueueRootResponder(rt)
+		api := testutil.NewFakeApiResponder()
+		testutil.EnqueueRootResponder(api)
 
-		rt.EnqueueResponder("GET", "/api/spaces/all", func(r *http.Request) (any, error) {
+		api.EnqueueResponder("GET", "/api/spaces/all", func(r *http.Request) (any, error) {
 			// we just have one space here; note spaces.all just returns an array there's no outer wrapper object
 			return []*spaces.Space{integrationsSpace}, nil
 		})
 
 		// after it gets all the spaces it will restart and go directly for the specific space to get the links
-		testutil.EnqueueRootResponder(rt)
-		rt.EnqueueResponder("GET", "/api/Spaces-23", func(r *http.Request) (any, error) { return integrationsSpace, nil })
+		testutil.EnqueueRootResponder(api)
+		api.EnqueueResponder("GET", "/api/Spaces-23", func(r *http.Request) (any, error) { return integrationsSpace, nil })
 
 		// question/answer doesn't matter, just the presence of the mock signals it's allowed to auto-select the space
 		asker, unasked := testutil.NewAskMocker(t, []testutil.QA{})
 		defer unasked()
 
-		factory2, _ := apiclient.NewClientFactory(testutil.NewMockHttpClientWithTransport(rt), "http://server", placeholderApiKey, "", asker)
+		factory2, _ := apiclient.NewClientFactory(testutil.NewMockHttpClientWithTransport(api), "http://server", placeholderApiKey, "", asker)
 
 		apiClient, err := factory2.GetSpacedClient()
 		assert.Nil(t, err)
 		assert.NotNil(t, apiClient)
-		assert.Equal(t, 0, rt.RemainingQueueLength())
+		assert.Equal(t, 0, api.RemainingQueueLength())
 	})
 
 	t.Run("GetSpacedClient prompts for selection when more than one space exists", func(t *testing.T) {
 		cloudSpace := spaces.NewSpace("Cloud")
 		cloudSpace.ID = "Spaces-39"
 
-		rt := testutil.NewFakeApiResponder()
-		testutil.EnqueueRootResponder(rt)
+		api := testutil.NewFakeApiResponder()
+		testutil.EnqueueRootResponder(api)
 
-		rt.EnqueueResponder("GET", "/api/spaces/all", func(r *http.Request) (any, error) {
+		api.EnqueueResponder("GET", "/api/spaces/all", func(r *http.Request) (any, error) {
 			return []*spaces.Space{integrationsSpace, cloudSpace}, nil
 		})
 
@@ -301,26 +301,26 @@ func TestClient_GetSpacedClient_Prompt(t *testing.T) {
 		defer unasked()
 
 		// after it gets all the spaces it will restart and go directly for the specific space to get the links
-		testutil.EnqueueRootResponder(rt)
-		rt.EnqueueResponder("GET", "/api/Spaces-39", func(r *http.Request) (any, error) { return integrationsSpace, nil })
+		testutil.EnqueueRootResponder(api)
+		api.EnqueueResponder("GET", "/api/Spaces-39", func(r *http.Request) (any, error) { return integrationsSpace, nil })
 
-		factory2, _ := apiclient.NewClientFactory(testutil.NewMockHttpClientWithTransport(rt), "http://server", placeholderApiKey, "", asker)
+		factory2, _ := apiclient.NewClientFactory(testutil.NewMockHttpClientWithTransport(api), "http://server", placeholderApiKey, "", asker)
 
 		apiClient, err := factory2.GetSpacedClient()
 		assert.Nil(t, err)
 		assert.NotNil(t, apiClient)
-		assert.Equal(t, 0, rt.RemainingQueueLength())
+		assert.Equal(t, 0, api.RemainingQueueLength())
 	})
 
 	t.Run("GetSpacedClient returns an error when a space with the wrong name is specified", func(t *testing.T) {
-		rt := testutil.NewFakeApiResponder()
-		testutil.EnqueueRootResponder(rt)
+		api := testutil.NewFakeApiResponder()
+		testutil.EnqueueRootResponder(api)
 
 		cloudSpace := spaces.NewSpace("CloudSpace")
 		cloudSpace.ID = "Spaces-39"
 
 		// then it tries a partial name search
-		rt.EnqueueResponder("GET", "/api/spaces/all", func(r *http.Request) (any, error) {
+		api.EnqueueResponder("GET", "/api/spaces/all", func(r *http.Request) (any, error) {
 			return []*spaces.Space{cloudSpace}, nil
 		})
 
@@ -328,11 +328,11 @@ func TestClient_GetSpacedClient_Prompt(t *testing.T) {
 		asker, unasked := testutil.NewAskMocker(t, []testutil.QA{})
 		defer unasked()
 
-		factory2, _ := apiclient.NewClientFactory(testutil.NewMockHttpClientWithTransport(rt), "http://server", placeholderApiKey, "Integrations", asker)
+		factory2, _ := apiclient.NewClientFactory(testutil.NewMockHttpClientWithTransport(api), "http://server", placeholderApiKey, "Integrations", asker)
 
 		apiClient, err := factory2.GetSpacedClient()
 		assert.Nil(t, apiClient)
 		assert.Equal(t, "cannot find space 'Integrations'", err.Error()) // some strongly-typed errors would probably be nicer
-		assert.Equal(t, 0, rt.RemainingQueueLength())
+		assert.Equal(t, 0, api.RemainingQueueLength())
 	})
 }
