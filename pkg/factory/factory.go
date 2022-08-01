@@ -35,14 +35,19 @@ func New(clientFactory apiclient.ClientFactory, asker question.Asker, s *spinner
 }
 
 func (f *factory) GetSystemClient() (*client.Client, error) {
+	// Fine to start the spinner here because we guarantee no
+	// user-input is triggered by GetSystemClient
 	f.spinner.Start()
 	defer f.spinner.Stop()
 	return f.client.GetSystemClient()
 }
 
 func (f *factory) GetSpacedClient() (*client.Client, error) {
-	f.spinner.Start()
-	defer f.spinner.Stop()
+	// NOTE: Don't start the spinner here because it may prompt for user input,
+	// and GetSpacedClient has no access to the spinner in order to stop it.
+	//
+	// We could link the spinner into GetSpacedClient, but that feels like we're jumping through
+	// too many hoops when this is a niche situation and we can just turn the spinner off.
 	return f.client.GetSpacedClient()
 }
 
