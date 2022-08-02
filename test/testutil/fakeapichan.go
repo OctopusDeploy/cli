@@ -33,6 +33,11 @@ func GoBegin2[TResult1 any, TResult2 any](action func() (TResult1, TResult2)) ch
 	return c
 }
 
+func ReceivePair[T1 any, T2 any](receiver chan Pair[T1, T2]) (T1, T2) {
+	pair := <-receiver
+	return pair.R1, pair.R2
+}
+
 type responseOrError struct {
 	response *http.Response
 	error    error
