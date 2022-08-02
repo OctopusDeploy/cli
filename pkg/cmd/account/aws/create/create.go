@@ -7,6 +7,7 @@ import (
 
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/MakeNowJust/heredoc/v2"
+	"github.com/OctopusDeploy/cli/pkg/cmd/account/helper"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/OctopusDeploy/cli/pkg/output"
@@ -16,7 +17,6 @@ import (
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/accounts"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/core"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/environments"
 	"github.com/briandowns/spinner"
 	"github.com/spf13/cobra"
 )
@@ -70,7 +70,7 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 			}
 			opts.NoPrompt = noPrompt
 			if opts.Environments != nil {
-				opts.Environments, err = resolveEnvNamesOrId(opts.Environments, opts.Octopus, opts.Spinner)
+				opts.Environments, err = helper.ResolveEnvironmentNames(opts.Environments, opts.Octopus, opts.Spinner)
 				if err != nil {
 					return err
 				}
@@ -170,32 +170,4 @@ func promptMissing(opts *CreateOptions) error {
 		opts.Environments = environmentIDs
 	}
 	return nil
-}
-
-func resolveEnvNamesOrId(envs []string, octopus *client.Client, spinner *spinner.Spinner) ([]string, error) {
-	spinner.Start()
-	envIds := make([]string, 0, len(envs))
-loop:
-	for _, envName := range envs {
-		matches, err := octopus.Environments.Get(environments.EnvironmentsQuery{
-			Name: envName,
-		})
-		if err != nil {
-			return nil, err
-		}
-		allMatches, err := matches.GetAllPages(octopus.Environments.GetClient())
-		if err != nil {
-			spinner.Stop()
-			return nil, err
-		}
-		for _, match := range allMatches {
-			if envName == match.Name {
-				envIds = append(envIds, match.ID)
-				continue loop
-			}
-		}
-		envIds = append(envIds, envName)
-	}
-	spinner.Stop()
-	return envIds, nil
 }
