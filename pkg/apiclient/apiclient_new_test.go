@@ -23,17 +23,17 @@ func TestClient_GetSpacedClient_NoPrompt_NewStyle(t *testing.T) {
 		// that in no-prompt mode because otherwise people could write a CI script that worked due to
 		// auto-selection of the first space, which would then unexpectedly break later if someone added a
 		// second space to the octopus server
-
 		api := testutil.NewMockHttpServer()
 
 		factory2, _ := apiclient.NewClientFactory(testutil.NewMockHttpClientWithTransport(api), "http://server", placeholderApiKey, "", nil)
 
-		p := testutil.GoBeginFunc2(factory2.GetSpacedClient)
+		clientReceiver := testutil.GoBegin2(factory2.GetSpacedClient)
 
 		api.ExpectRequest(t, "GET", "/api").RespondWith(root)
 
-		apiClient, err := p.Wait()
+		p := <-clientReceiver
 
+		apiClient, err := p.R1, p.R2
 		assert.Nil(t, apiClient)
 		assert.Equal(t, spaceNotSpecifiedMessage, err.Error()) // some strongly-typed errors would probably be nicer
 		// assert.Equal(t, 0, rt.RemainingQueueLength())
@@ -50,7 +50,7 @@ func TestClient_GetSpacedClient_NoPrompt_NewStyle(t *testing.T) {
 		api := testutil.NewMockHttpServer()
 		factory2, _ := apiclient.NewClientFactory(testutil.NewMockHttpClientWithTransport(api), "http://server", placeholderApiKey, "Spaces-7", nil)
 
-		p := testutil.GoBeginFunc2(factory2.GetSpacedClient)
+		clientReceiver := testutil.GoBegin2(factory2.GetSpacedClient)
 
 		api.ExpectRequest(t, "GET", "/api").RespondWith(root)
 
@@ -63,7 +63,9 @@ func TestClient_GetSpacedClient_NoPrompt_NewStyle(t *testing.T) {
 
 		api.ExpectRequest(t, "GET", "/api/Spaces-209").RespondWith(spaces7space)
 
-		apiClient, err := p.Wait()
+		p := <-clientReceiver
+
+		apiClient, err := p.R1, p.R2
 
 		assert.Nil(t, err)
 		assert.NotNil(t, apiClient)

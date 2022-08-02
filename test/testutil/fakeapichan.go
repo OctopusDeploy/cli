@@ -7,56 +7,30 @@ import (
 	"github.com/stretchr/testify/assert"
 	"io/ioutil"
 	"net/http"
-	"sync"
 	"sync/atomic"
 	"testing"
 )
 
-// ResultWaiter1 is like a cheap version of a Promise that you can't chain (on purpose)
-type ResultWaiter1[TResult1 any] struct {
-	wg sync.WaitGroup
-	r1 TResult1
-}
-
-func (w *ResultWaiter1[TResult1]) Wait() TResult1 {
-	w.wg.Wait()
-	return w.r1
-}
-
-func GoBeginFunc1[TResult1 any](action func() TResult1) *ResultWaiter1[TResult1] {
-	waiter := &ResultWaiter1[TResult1]{}
-	waiter.wg.Add(1)
-
+func GoBegin1[TResult1 any](action func() TResult1) chan TResult1 {
+	c := make(chan TResult1)
 	go func() {
-		defer waiter.wg.Done()
-		waiter.r1 = action()
+		c <- action()
 	}()
-
-	return waiter
+	return c
 }
 
-type ResultWaiter2[TResult1 any, TResult2 any] struct {
-	wg sync.WaitGroup
-	r1 TResult1
-	r2 TResult2
+type Pair[T1 any, T2 any] struct {
+	R1 T1
+	R2 T2
 }
 
-func (w *ResultWaiter2[TResult1, TResult2]) Wait() (TResult1, TResult2) {
-	w.wg.Wait()
-	return w.r1, w.r2
-}
-
-func GoBeginFunc2[TResult1 any, TResult2 any](action func() (TResult1, TResult2)) *ResultWaiter2[TResult1, TResult2] {
-	waiter := &ResultWaiter2[TResult1, TResult2]{}
-
-	waiter.wg.Add(1)
-
+func GoBegin2[TResult1 any, TResult2 any](action func() (TResult1, TResult2)) chan Pair[TResult1, TResult2] {
+	c := make(chan Pair[TResult1, TResult2])
 	go func() {
-		defer waiter.wg.Done()
-		waiter.r1, waiter.r2 = action()
+		r1, r2 := action()
+		c <- Pair[TResult1, TResult2]{R1: r1, R2: r2}
 	}()
-
-	return waiter
+	return c
 }
 
 type responseOrError struct {
