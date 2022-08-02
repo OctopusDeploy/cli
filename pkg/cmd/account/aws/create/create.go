@@ -31,6 +31,8 @@ type CreateOptions struct {
 	AccessKey    string
 	SecretKey    string
 	Environments []string
+
+	NoPrompt bool
 }
 
 func NewCmdCreate(f factory.Factory) *cobra.Command {
@@ -61,6 +63,17 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 				}
 				opts.Description = string(data)
 			}
+			noPrompt, err := cmd.Flags().GetBool(constants.FlagNoPrompt)
+			if err != nil {
+				return nil
+			}
+			opts.NoPrompt = noPrompt
+			if opts.Environments != nil {
+				opts.Environments, err = resolveEnvNamesOrId(opts.Environments, opts.Octopus, opts.Spinner)
+				if err != nil {
+					return err
+				}
+			}
 			return CreateRun(opts)
 		},
 	}
@@ -69,13 +82,39 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 	cmd.Flags().StringVarP(&opts.Description, "description", "d", "", "A summary explaining the use of the account to other users.")
 	cmd.Flags().StringVar(&opts.AccessKey, "access-key", "", "The AWS access key to use when authenticating against Amazon Web Services.")
 	cmd.Flags().StringVar(&opts.SecretKey, "secret-key", "", "The AWS secret key to use when authenticating against Amazon Web Services.")
-	cmd.Flags().StringArrayVarP(&opts.Environments, "environments", "e", nil, "Choose the environments that are allowed to use this account")
+	cmd.Flags().StringArrayVarP(&opts.Environments, "environments", "e", nil, "The environments that are allowed to use this account")
 	cmd.Flags().StringVarP(&descriptionFilePath, "description-file", "F", "", "Read the description from `file`")
 
 	return cmd
 }
 
 func CreateRun(opts *CreateOptions) error {
+	if !opts.NoPrompt {
+		promptMissing(opts)
+	}
+	awsAccount, err := accounts.NewAmazonWebServicesAccount(opts.Name, opts.AccessKey, core.NewSensitiveValue(opts.SecretKey))
+	if err != nil {
+		return err
+	}
+	awsAccount.Description = opts.Description
+	awsAccount.EnvironmentIDs = opts.Environments
+
+	opts.Spinner.Start()
+	createdAccount, err := opts.Octopus.Accounts.Add(awsAccount)
+	if err != nil {
+		opts.Spinner.Stop()
+		return err
+	}
+	opts.Spinner.Stop()
+
+	_, err = fmt.Fprintf(opts.Writer, "Successfully created AWS Account %s %s.\n", createdAccount.GetName(), output.Dimf("(%s)", createdAccount.GetID()))
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func promptMissing(opts *CreateOptions) error {
 	if opts.Name == "" {
 		if err := opts.Ask(&survey.Input{
 			Message: "Name",
@@ -120,12 +159,6 @@ func CreateRun(opts *CreateOptions) error {
 		)))
 	}
 
-	awsAccount, err := accounts.NewAmazonWebServicesAccount(opts.Name, opts.AccessKey, core.NewSensitiveValue(opts.SecretKey))
-	if err != nil {
-		return err
-	}
-	awsAccount.Description = opts.Description
-
 	if opts.Environments == nil {
 		environmentIDs, err := selectors.EnvironmentsMultiSelect(opts.Ask, opts.Octopus, opts.Spinner,
 			"Choose the environments that are allowed to use this account.\n"+
@@ -135,23 +168,27 @@ func CreateRun(opts *CreateOptions) error {
 		}
 		opts.Environments = environmentIDs
 	}
-	awsAccount.EnvironmentIDs = opts.Environments
-
-	opts.Spinner.Start()
-	createdAccount, err := opts.Octopus.Accounts.Add(awsAccount)
-	if err != nil {
-		opts.Spinner.Stop()
-		return err
-	}
-	opts.Spinner.Stop()
-
-	_, err = fmt.Fprintf(opts.Writer, "Successfully created AWS Account %s %s.\n", createdAccount.GetName(), output.Dimf("(%s)", createdAccount.GetID()))
-	if err != nil {
-		return err
-	}
 	return nil
 }
 
-func createPrompts() {
-
+func resolveEnvNamesOrId(envs []string, octopus *client.Client, spinner *spinner.Spinner) ([]string, error) {
+	spinner.Start()
+	envIds := make([]string, 0, len(envs))
+loop:
+	for _, envName := range envs {
+		matches, err := octopus.Environments.GetByName(envName)
+		if err != nil {
+			spinner.Stop()
+			return nil, err
+		}
+		for _, match := range matches {
+			if envName == match.Name {
+				envIds = append(envIds, match.ID)
+				continue loop
+			}
+		}
+		envIds = append(envIds, envName)
+	}
+	spinner.Stop()
+	return envIds, nil
 }
