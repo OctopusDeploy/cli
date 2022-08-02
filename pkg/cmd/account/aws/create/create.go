@@ -3,6 +3,7 @@ package create
 import (
 	"fmt"
 	"io"
+	"os"
 
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/MakeNowJust/heredoc/v2"
@@ -11,6 +12,7 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/output"
 	"github.com/OctopusDeploy/cli/pkg/question"
 	"github.com/OctopusDeploy/cli/pkg/question/selectors"
+	"github.com/OctopusDeploy/cli/pkg/surveyext"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/accounts"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/core"
@@ -18,7 +20,26 @@ import (
 	"github.com/spf13/cobra"
 )
 
+type CreateOptions struct {
+	Writer  io.Writer
+	Octopus *client.Client
+	Ask     question.Asker
+	Spinner *spinner.Spinner
+
+	Name         string
+	Description  string
+	AccessKey    string
+	SecretKey    string
+	Environments []string
+}
+
 func NewCmdCreate(f factory.Factory) *cobra.Command {
+	opts := &CreateOptions{
+		Ask:     f.Ask,
+		Spinner: f.Spinner(),
+	}
+	descriptionFilePath := ""
+
 	cmd := &cobra.Command{
 		Use:   "create",
 		Short: "Creates an aws account",
@@ -31,63 +52,106 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return createRun(f.Ask, client, cmd.OutOrStdout(), f.Spinner())
+			opts.Octopus = client
+			opts.Writer = cmd.OutOrStdout()
+			if descriptionFilePath != "" {
+				data, err := os.ReadFile(descriptionFilePath)
+				if err != nil {
+					return err
+				}
+				opts.Description = string(data)
+			}
+			return CreateRun(opts)
 		},
 	}
+
+	cmd.Flags().StringVarP(&opts.Name, "name", "n", "", "A short, memorable, unique name for this account.")
+	cmd.Flags().StringVarP(&opts.Description, "description", "d", "", "A summary explaining the use of the account to other users.")
+	cmd.Flags().StringVar(&opts.AccessKey, "access-key", "", "The AWS access key to use when authenticating against Amazon Web Services.")
+	cmd.Flags().StringVar(&opts.SecretKey, "secret-key", "", "The AWS secret key to use when authenticating against Amazon Web Services.")
+	cmd.Flags().StringArrayVarP(&opts.Environments, "environments", "e", nil, "Choose the environments that are allowed to use this account")
+	cmd.Flags().StringVarP(&descriptionFilePath, "description-file", "F", "", "Read the description from `file`")
 
 	return cmd
 }
 
-func createRun(ask question.Asker, client *client.Client, out io.Writer, s *spinner.Spinner) error {
-	info, err := question.AskNameAndDescription(ask, "account")
+func CreateRun(opts *CreateOptions) error {
+	if opts.Name == "" {
+		if err := opts.Ask(&survey.Input{
+			Message: "Name",
+			Help:    "A short, memorable, unique name for this account.",
+		}, &opts.Name, survey.WithValidator(survey.ComposeValidators(
+			survey.MaxLength(200),
+			survey.MinLength(1),
+			survey.Required,
+		))); err != nil {
+			return err
+		}
+	}
+
+	if opts.Description == "" {
+		if err := opts.Ask(&surveyext.OctoEditor{
+			Editor: &survey.Editor{
+				Message:  "Description",
+				Help:     "A summary explaining the use of the account to other users.",
+				FileName: "*.md",
+			},
+			Optional: true,
+		}, &opts.Description); err != nil {
+			return err
+		}
+	}
+
+	if opts.AccessKey == "" {
+		opts.Ask(&survey.Input{
+			Message: "Access Key",
+			Help:    "The AWS access key to use when authenticating against Amazon Web Services.",
+		}, &opts.AccessKey, survey.WithValidator(survey.ComposeValidators(
+			survey.Required,
+		)))
+	}
+
+	if opts.SecretKey == "" {
+		opts.Ask(&survey.Password{
+			Message: "Secret Key",
+			Help:    "The AWS secret key to use when authenticating against Amazon Web Services.",
+		}, &opts.SecretKey, survey.WithValidator(survey.ComposeValidators(
+			survey.Required,
+		)))
+	}
+
+	awsAccount, err := accounts.NewAmazonWebServicesAccount(opts.Name, opts.AccessKey, core.NewSensitiveValue(opts.SecretKey))
 	if err != nil {
 		return err
 	}
-	return CreateAWSAccount(ask, info, client, out, s)
-}
+	awsAccount.Description = opts.Description
 
-func CreateAWSAccount(ask question.Asker, info *question.NameAndDescription, client *client.Client, out io.Writer, s *spinner.Spinner) error {
-	var accessKey string
-	ask(&survey.Input{
-		Message: "Access Key",
-		Help:    "The AWS access key to use when authenticating against Amazon Web Services.",
-	}, &accessKey, survey.WithValidator(survey.ComposeValidators(
-		survey.Required,
-	)))
+	if opts.Environments == nil {
+		environmentIDs, err := selectors.EnvironmentsMultiSelect(opts.Ask, opts.Octopus, opts.Spinner,
+			"Choose the environments that are allowed to use this account.\n"+
+				output.Dim("If nothing is selected, the account can be used for deployments to any environment."))
+		if err != nil {
+			return err
+		}
+		opts.Environments = environmentIDs
+	}
+	awsAccount.EnvironmentIDs = opts.Environments
 
-	var secretKey string
-	ask(&survey.Password{
-		Message: "Secret Key",
-		Help:    "The AWS secret key to use when authenticating against Amazon Web Services.",
-	}, &secretKey, survey.WithValidator(survey.ComposeValidators(
-		survey.Required,
-	)))
-
-	awsAccount, err := accounts.NewAmazonWebServicesAccount(info.Name, accessKey, core.NewSensitiveValue(secretKey))
+	opts.Spinner.Start()
+	createdAccount, err := opts.Octopus.Accounts.Add(awsAccount)
 	if err != nil {
+		opts.Spinner.Stop()
 		return err
 	}
-	awsAccount.Description = info.Description
+	opts.Spinner.Stop()
 
-	environmentIDs, err := selectors.EnvironmentsMultiSelect(ask, client, s,
-		"Choose the environments that are allowed to use this account.\n"+
-			output.Dim("If nothing is selected, the account can be used for deployments to any environment."))
-	if err != nil {
-		return err
-	}
-	awsAccount.EnvironmentIDs = environmentIDs
-
-	s.Start()
-	createdAccount, err := client.Accounts.Add(awsAccount)
-	if err != nil {
-		s.Stop()
-		return err
-	}
-	s.Stop()
-
-	_, err = fmt.Fprintf(out, "Successfully created AWS Account %s %s.\n", createdAccount.GetName(), output.Dimf("(%s)", createdAccount.GetID()))
+	_, err = fmt.Fprintf(opts.Writer, "Successfully created AWS Account %s %s.\n", createdAccount.GetName(), output.Dimf("(%s)", createdAccount.GetID()))
 	if err != nil {
 		return err
 	}
 	return nil
+}
+
+func createPrompts() {
+
 }

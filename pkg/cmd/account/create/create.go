@@ -9,7 +9,6 @@ import (
 	awsCreate "github.com/OctopusDeploy/cli/pkg/cmd/account/aws/create"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/factory"
-	"github.com/OctopusDeploy/cli/pkg/question"
 	"github.com/spf13/cobra"
 )
 
@@ -54,14 +53,15 @@ func createRun(f factory.Factory, w io.Writer) error {
 		return err
 	}
 
-	info, err := question.AskNameAndDescription(f.Ask, "account")
-	if err != nil {
-		return err
-	}
-
 	switch accountType {
 	case "AWS Account":
-		awsCreate.CreateAWSAccount(f.Ask, info, client, w, f.Spinner())
+		opts := &awsCreate.CreateOptions{
+			Writer:  w,
+			Octopus: client,
+			Spinner: f.Spinner(),
+			Ask:     f.Ask,
+		}
+		awsCreate.CreateRun(opts)
 	}
 
 	return nil
