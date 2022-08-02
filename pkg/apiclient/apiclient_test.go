@@ -199,7 +199,6 @@ func TestClient_GetSpacedClient_NoPrompt_NewStyle(t *testing.T) {
 
 		assert.Nil(t, err)
 		assert.NotNil(t, apiClient)
-		assert.Equal(t, 0, api.GetPendingMessageCount())
 	})
 
 	t.Run("GetSpacedClient called twice returns the same client instance without additional requests", func(t *testing.T) {

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	octopusApiClient "github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
 	"github.com/stretchr/testify/assert"
 	"io/ioutil"
 	"net/http"
@@ -11,8 +12,8 @@ import (
 	"testing"
 )
 
-func GoBegin1[TResult1 any](action func() TResult1) chan TResult1 {
-	c := make(chan TResult1)
+func GoBegin[TResult any](action func() TResult) chan TResult {
+	c := make(chan TResult)
 	go func() {
 		c <- action()
 	}()
@@ -20,22 +21,22 @@ func GoBegin1[TResult1 any](action func() TResult1) chan TResult1 {
 }
 
 type Pair[T1 any, T2 any] struct {
-	R1 T1
-	R2 T2
+	Item1 T1
+	Item2 T2
 }
 
 func GoBegin2[TResult1 any, TResult2 any](action func() (TResult1, TResult2)) chan Pair[TResult1, TResult2] {
 	c := make(chan Pair[TResult1, TResult2])
 	go func() {
 		r1, r2 := action()
-		c <- Pair[TResult1, TResult2]{R1: r1, R2: r2}
+		c <- Pair[TResult1, TResult2]{Item1: r1, Item2: r2}
 	}()
 	return c
 }
 
 func ReceivePair[T1 any, T2 any](receiver chan Pair[T1, T2]) (T1, T2) {
 	pair := <-receiver
-	return pair.R1, pair.R2
+	return pair.Item1, pair.Item2
 }
 
 type responseOrError struct {
@@ -132,4 +133,13 @@ func (r *RequestWrapper) RespondWith(responseObject any) {
 		Body:          ioutil.NopCloser(bytes.NewReader(body)),
 		ContentLength: int64(len(body)),
 	}, nil)
+}
+
+func NewRootResource() *octopusApiClient.RootResource {
+	root := octopusApiClient.NewRootResource()
+	root.Links["Spaces"] = "/api/spaces{/id}{?skip,ids,take,partialName}"
+	root.Links["Projects"] = "/api/Spaces-1/projects{/id}{?name,skip,ids,clone,take,partialName,clonedFromProjectId}"
+	root.Links["Channels"] = "/api/Spaces-1/channels{/id}{?skip,take,ids,partialName}"
+	root.Links["DeploymentProcesses"] = "/api/Spaces-1/deploymentprocesses{/id}{?skip,take,ids}"
+	return root
 }

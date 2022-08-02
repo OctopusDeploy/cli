@@ -44,11 +44,11 @@ func TestCreate_AskQuestions_NewStyle(t *testing.T) {
 
 	t.Run("standard process asking for everything (no package versions)", func(t *testing.T) {
 		api := testutil.NewMockHttpServer()
-		qa := testutil.NewAskMocker2()
+		qa := testutil.NewAskMocker()
 
 		options := &executor.TaskOptionsCreateRelease{}
 
-		errReceiver := testutil.GoBegin1(func() error {
+		errReceiver := testutil.GoBegin(func() error {
 			// NewClient makes network calls so we have to run it in the goroutine
 			octopus, _ := octopusApiClient.NewClient(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "")
 			return create.AskQuestions(octopus, qa.AsAsker(), options)
@@ -89,13 +89,11 @@ func TestCreate_AskQuestions_NewStyle(t *testing.T) {
 		assert.Equal(t, "Fire Project", options.ProjectName)
 		assert.Equal(t, "Fire Project Alt Channel", options.ChannelName)
 		assert.Equal(t, "27.9.999", options.Version)
-
-		assert.Equal(t, 0, api.GetPendingMessageCount()+qa.GetPendingMessageCount())
 	})
 
 	t.Run("asking for nothing in interactive mode (testing case insensitivity)", func(t *testing.T) {
 		api := testutil.NewMockHttpServer()
-		qa := testutil.NewAskMocker2()
+		qa := testutil.NewAskMocker()
 
 		options := &executor.TaskOptionsCreateRelease{
 			ProjectName: "fire project",
@@ -103,7 +101,7 @@ func TestCreate_AskQuestions_NewStyle(t *testing.T) {
 			Version:     "9.8.4-prerelease",
 		}
 
-		errReceiver := testutil.GoBegin1(func() error {
+		errReceiver := testutil.GoBegin(func() error {
 			// NewClient makes network calls so we have to run it in the goroutine
 			octopus, _ := octopusApiClient.NewClient(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "")
 			return create.AskQuestions(octopus, qa.AsAsker(), options)
@@ -128,8 +126,6 @@ func TestCreate_AskQuestions_NewStyle(t *testing.T) {
 		assert.Equal(t, "Fire Project", options.ProjectName)
 		assert.Equal(t, "Fire Project Default Channel", options.ChannelName)
 		assert.Equal(t, "9.8.4-prerelease", options.Version)
-
-		assert.Equal(t, 0, api.GetPendingMessageCount()+qa.GetPendingMessageCount())
 	})
 
 }
