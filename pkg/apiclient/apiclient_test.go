@@ -51,7 +51,7 @@ func TestClient_GetSystemClient(t *testing.T) {
 	})
 }
 
-func TestClient_GetSpacedClient_NoPrompt_NewStyle(t *testing.T) {
+func TestClient_GetSpacedClient_NoPrompt(t *testing.T) {
 	integrationsSpace := spaces.NewSpace("Integrations")
 	integrationsSpace.ID = "Spaces-7"
 
