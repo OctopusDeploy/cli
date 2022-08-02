@@ -40,6 +40,12 @@ func releaseCreate(f factory.Factory, input any) error {
 	if params.ChannelName != "" {
 		createReleaseParams.ChannelNameOrID = params.ChannelName
 	}
+	if params.GitReference != "" {
+		createReleaseParams.GitRef = params.GitReference
+	}
+	if params.Version != "" {
+		createReleaseParams.ReleaseVersion = params.Version
+	}
 	// TODO all the other flags
 
 	if params.ReleaseNotes != "" {

@@ -14,7 +14,6 @@ import (
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/releases"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
-	"math"
 	"testing"
 )
 
@@ -112,7 +111,7 @@ func TestReleaseCreate(t *testing.T) {
 		}
 
 		t.Cleanup(func() {
-			releasesPage, err := apiClient.Releases.Get(releases.ReleasesQuery{Take: math.MaxInt})
+			releasesPage, err := apiClient.Releases.Get(releases.ReleasesQuery{Take: 999999})
 			if !testutil.EnsureSuccess(t, err) {
 				return
 			}
@@ -122,10 +121,10 @@ func TestReleaseCreate(t *testing.T) {
 		})
 
 		assert.Equal(t, heredoc.Docf(`
-			Project project-%s
-			Channel channel-%s
+			Project %s
+			Channel %s
 			Version 2.3.4
-			`, runId, runId), stdOut)
+			`, project.Name, channel.Name), stdOut)
 
 		projectReleases, err := apiClient.Projects.GetReleases(project)
 		assert.Equal(t, 1, len(projectReleases))
