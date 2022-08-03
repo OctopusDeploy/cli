@@ -105,7 +105,7 @@ func createRun(f factory.Factory, w io.Writer, options *executor.TaskOptionsCrea
 
 	if options.Response != nil {
 		// TODO AutomaticallyDeployedEnvironments. Discuss with Team
-		_, err = fmt.Fprintf(w, "Successfully created Release Version %s %s.\n", options.Response.ReleaseVersion, output.Dimf("(%s)", options.Response.ReleaseID))
+		_, err = fmt.Fprintf(w, "Successfully created release %s with version %s\n", output.Dimf("(%s)", options.Response.ReleaseID), options.Response.ReleaseVersion)
 		if err != nil {
 			return err
 		}

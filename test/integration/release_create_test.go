@@ -130,7 +130,7 @@ func TestReleaseCreate(t *testing.T) {
 		assert.Equal(t, "2.3.4", r1.Version)
 
 		// assert CLI output *after* we've gone to the server and looked up what we expect the release ID to be.
-		assert.Equal(t, fmt.Sprintf("Successfully created Release Version 2.3.4 (%s).\n", r1.ID), stdOut)
+		assert.Equal(t, fmt.Sprintf("Successfully created release (%s) with version 2.3.4\n", r1.ID), stdOut)
 	})
 
 	t.Run("create a release specifying project,channel - server allocates version", func(t *testing.T) {
@@ -156,7 +156,7 @@ func TestReleaseCreate(t *testing.T) {
 		assert.Equal(t, "5.0.1", r1.Version)
 
 		// assert CLI output *after* we've gone to the server and looked up what we expect the release ID to be.
-		assert.Equal(t, fmt.Sprintf("Successfully created Release Version 5.0.1 (%s).\n", r1.ID), stdOut)
+		assert.Equal(t, fmt.Sprintf("Successfully created release (%s) with version 5.0.1\n", r1.ID), stdOut)
 	})
 
 	t.Run("create a release specifying project and version - server uses default channel", func(t *testing.T) {
@@ -177,7 +177,7 @@ func TestReleaseCreate(t *testing.T) {
 		// TODO should the CLI output that it's using the Default channel, and possibly what the name of that channel is?
 
 		// assert CLI output *after* we've gone to the server and looked up what we expect the release ID to be.
-		assert.Equal(t, fmt.Sprintf("Successfully created Release Version 6.0.0 (%s).\n", r1.ID), stdOut)
+		assert.Equal(t, fmt.Sprintf("Successfully created release (%s) with version 6.0.0\n", r1.ID), stdOut)
 	})
 
 	t.Run("create a release specifying project - server uses default channel and allocates version", func(t *testing.T) {
@@ -205,7 +205,7 @@ func TestReleaseCreate(t *testing.T) {
 		// TODO should the CLI output that it's using the Default channel, and possibly what the name of that channel is?
 
 		// assert CLI output *after* we've gone to the server and looked up what we expect the release ID to be.
-		assert.Equal(t, fmt.Sprintf("Successfully created Release Version 7.0.1 (%s).\n", r1.ID), stdOut)
+		assert.Equal(t, fmt.Sprintf("Successfully created release (%s) with version 7.0.1\n", r1.ID), stdOut)
 	})
 
 	t.Run("cli returns an error if project is not specified", func(t *testing.T) {

@@ -12,8 +12,8 @@ type Asker func(p survey.Prompt, response interface{}, opts ...survey.AskOpt) er
 // automation mode. This wrapper fills that gap.
 
 type AskProvider interface {
-	IsPromptEnabled() bool
-	SetPromptDisabled()
+	IsInteractive() bool
+	DisableInteractive()
 	Ask(p survey.Prompt, response interface{}, opts ...survey.AskOpt) error
 }
 
@@ -27,11 +27,11 @@ func NewAskProvider(asker Asker) AskProvider {
 	}
 }
 
-func (a *askWrapper) IsPromptEnabled() bool {
+func (a *askWrapper) IsInteractive() bool {
 	return a.asker != nil
 }
 
-func (a *askWrapper) SetPromptDisabled() {
+func (a *askWrapper) DisableInteractive() {
 	a.asker = nil
 }
 
@@ -39,7 +39,7 @@ func (a *askWrapper) Ask(p survey.Prompt, response interface{}, opts ...survey.A
 	if a.asker != nil {
 		return a.asker(p, response, opts...)
 	} else {
-		// this shouldn't happen; commands should check IsPromptEnabled before attempting to prompt
+		// this shouldn't happen; commands should check IsInteractive before attempting to prompt
 		return &cliErrors.PromptDisabledError{}
 	}
 }

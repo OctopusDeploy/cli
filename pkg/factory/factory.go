@@ -54,7 +54,7 @@ func (f *factory) GetCurrentSpace() *spaces.Space {
 }
 
 func (f *factory) IsPromptEnabled() bool {
-	return f.asker.IsPromptEnabled()
+	return f.asker.IsInteractive()
 }
 
 func (f *factory) Ask(p survey.Prompt, response interface{}, opts ...survey.AskOpt) error {

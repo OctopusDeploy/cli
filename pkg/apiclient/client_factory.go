@@ -86,24 +86,16 @@ func requireArguments(items map[string]any) error {
 }
 
 func NewClientFactory(httpClient *http.Client, host string, apiKey string, spaceNameOrID string, ask question.AskProvider) (ClientFactory, error) {
-	if httpClient == nil {
-		return nil, errors.New("required argument httpClient was nil")
-	}
+	// httpClient is allowed to be nil; it is passed through to the go-octopusdeploy library which falls back to a default httpClient
 	if host == "" {
 		return nil, errors.New("required argument host was empty")
 	}
 	if apiKey == "" {
 		return nil, errors.New("required argument apiKey was empty")
 	}
-	// space is allowed to be blank, we will prompt
+	// space is allowed to be blank, we will prompt for a space in interactive mode, or error if not
 	if ask == nil {
 		return nil, errors.New("required argument ask was empty")
-	}
-
-	if err := requireArguments(map[string]any{
-		"httpClient": httpClient, "host": host, "apiKey": apiKey, "ask": ask,
-	}); err != nil {
-		return nil, err
 	}
 
 	hostUrl, err := url.Parse(host)
@@ -183,7 +175,7 @@ func (c *Client) GetSpacedClient() (*octopusApiClient.Client, error) {
 	var foundSpaceID string
 	// if c.Ask is nil it means we're in automation mode.
 	if c.SpaceNameOrID == "" {
-		if !c.Ask.IsPromptEnabled() {
+		if !c.Ask.IsInteractive() {
 			return nil, errors.New("space must be specified when not running interactively; please set the OCTOPUS_SPACE environment variable or specify --space on the command line")
 		}
 

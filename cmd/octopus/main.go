@@ -29,7 +29,7 @@ func main() {
 	_, ci := os.LookupEnv("CI")
 	// TODO move this to some other function and have it look for GITHUB_ACTIONS etc as we learn more about it
 	if ci {
-		askProvider.SetPromptDisabled()
+		askProvider.DisableInteractive()
 	}
 
 	clientFactory, err := apiclient.NewClientFactoryFromEnvironment(askProvider)
@@ -52,7 +52,7 @@ func main() {
 	// environment after parsing but before execution.
 	cmd.PersistentPreRun = func(_ *cobra.Command, args []string) {
 		if noPrompt, err := cmd.PersistentFlags().GetBool(constants.FlagNoPrompt); err == nil && noPrompt {
-			askProvider.SetPromptDisabled()
+			askProvider.DisableInteractive()
 		}
 
 		if spaceNameOrId, err := cmd.PersistentFlags().GetString(constants.FlagSpace); err == nil && spaceNameOrId != "" {
