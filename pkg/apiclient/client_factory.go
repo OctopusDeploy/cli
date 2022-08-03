@@ -17,6 +17,12 @@ import (
 	"github.com/hashicorp/go-multierror"
 )
 
+const (
+	EnvOctopusHost   = "OCTOPUS_HOST"
+	EnvOctopusApiKey = "OCTOPUS_API_KEY"
+	EnvOctopusSpace  = "OCTOPUS_SPACE"
+)
+
 type ClientFactory interface {
 	// GetSpacedClient returns an Octopus api Client instance which is bound to the Space
 	// specified in the OCTOPUS_SPACE environment variable, or the command line. It should be the default
@@ -80,6 +86,20 @@ func requireArguments(items map[string]any) error {
 }
 
 func NewClientFactory(httpClient *http.Client, host string, apiKey string, spaceNameOrID string, ask question.AskProvider) (ClientFactory, error) {
+	if httpClient == nil {
+		return nil, errors.New("required argument httpClient was nil")
+	}
+	if host == "" {
+		return nil, errors.New("required argument host was empty")
+	}
+	if apiKey == "" {
+		return nil, errors.New("required argument apiKey was empty")
+	}
+	// space is allowed to be blank, we will prompt
+	if ask == nil {
+		return nil, errors.New("required argument ask was empty")
+	}
+
 	if err := requireArguments(map[string]any{
 		"httpClient": httpClient, "host": host, "apiKey": apiKey, "ask": ask,
 	}); err != nil {
@@ -107,9 +127,9 @@ func NewClientFactory(httpClient *http.Client, host string, apiKey string, space
 // NewClientFactoryFromEnvironment Creates a new Client wrapper structure by reading the environment.
 // specifies nil for the HTTP Client, so this is not for unit tests; use NewClientFactory(... instead)
 func NewClientFactoryFromEnvironment(ask question.AskProvider) (ClientFactory, error) {
-	host := os.Getenv("OCTOPUS_HOST")
-	apiKey := os.Getenv("OCTOPUS_API_KEY")
-	spaceNameOrID := os.Getenv("OCTOPUS_SPACE")
+	host := os.Getenv(EnvOctopusHost)
+	apiKey := os.Getenv(EnvOctopusApiKey)
+	spaceNameOrID := os.Getenv(EnvOctopusSpace)
 
 	errs := ValidateMandatoryEnvironment(host, apiKey)
 	if errs != nil {
