@@ -11,7 +11,6 @@ import (
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/resources"
 	"github.com/stretchr/testify/assert"
-	"net/http"
 	"net/url"
 	"testing"
 )
@@ -21,6 +20,8 @@ var serverUrl, _ = url.Parse("http://server")
 const placeholderApiKey = "API-XXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
 
 func TestCreate_AskQuestions(t *testing.T) {
+	root := testutil.NewRootResource()
+
 	const fireProjectID = "Projects-22"
 
 	depProcess := deployments.NewDeploymentProcess(fireProjectID)
@@ -30,6 +31,7 @@ func TestCreate_AskQuestions(t *testing.T) {
 	}
 
 	defaultChannel := channels.NewChannel("Fire Project Default Channel", fireProjectID)
+	altChannel := channels.NewChannel("Fire Project Alt Channel", fireProjectID)
 
 	fireProject := projects.NewProject("Fire Project", "Lifecycles-1", "ProjectGroups-1")
 	fireProject.ID = fireProjectID
@@ -41,86 +43,57 @@ func TestCreate_AskQuestions(t *testing.T) {
 	}
 
 	t.Run("standard process asking for everything (no package versions)", func(t *testing.T) {
-		rt := testutil.NewFakeApiResponder()
-		testutil.EnqueueRootResponder(rt)
-		octopus, _ := octopusApiClient.NewClient(testutil.NewMockHttpClientWithTransport(rt), serverUrl, placeholderApiKey, "")
-
-		rt.EnqueueResponder("GET", "/api/Spaces-1/projects/all", func(r *http.Request) (any, error) {
-			return []*projects.Project{fireProject}, nil
-		})
-
-		rt.EnqueueResponder("GET", "/api/Spaces-1/projects/"+fireProjectID+"/channels", func(r *http.Request) (any, error) {
-			return resources.Resources[*channels.Channel]{
-				Items: []*channels.Channel{defaultChannel},
-			}, nil
-		})
-
-		rt.EnqueueResponder("GET", "/api/Spaces-1/deploymentprocesses/deploymentprocess-"+fireProjectID, func(r *http.Request) (any, error) {
-			return depProcess, nil
-		})
-
-		rt.EnqueueResponder("GET", "/api/Spaces-1/projects/"+fireProjectID+"/deploymentprocesses/template", func(r *http.Request) (any, error) {
-			return &deployments.DeploymentProcessTemplate{NextVersionIncrement: "27.9.3"}, nil // TODO
-		})
-
-		// mock survey
-		asker, unasked := testutil.NewAskMocker(t, []testutil.QA{
-			{
-				Prompt: &survey.Select{
-					Message: "Select the project in which the release will be created",
-					Options: []string{"Fire Project"},
-				},
-				Answer: "Fire Project",
-			},
-			{
-				Prompt: &survey.Select{
-					Message: "Select the channel in which the release will be created",
-					Options: []string{"Fire Project Default Channel"},
-				},
-				Answer: "Fire Project Default Channel",
-			},
-			{
-				Prompt: &survey.Input{
-					Message: "Version",
-					Default: "27.9.3",
-				},
-				Answer: "27.9.3",
-			},
-		})
-		defer unasked()
+		api := testutil.NewMockHttpServer()
+		qa := testutil.NewAskMocker()
 
 		options := &executor.TaskOptionsCreateRelease{}
 
-		err := create.AskQuestions(octopus, asker, options)
+		errReceiver := testutil.GoBegin(func() error {
+			// NewClient makes network calls so we have to run it in the goroutine
+			octopus, _ := octopusApiClient.NewClient(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "")
+			return create.AskQuestions(octopus, qa.AsAsker(), options)
+		})
+
+		api.ExpectRequest(t, "GET", "/api").RespondWith(root)
+
+		api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/all").RespondWith([]*projects.Project{fireProject})
+
+		qa.ExpectQuestion(t, &survey.Select{
+			Message: "Select the project in which the release will be created",
+			Options: []string{"Fire Project"},
+		}).AnswerWith("Fire Project")
+
+		api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+fireProjectID+"/channels").RespondWith(resources.Resources[*channels.Channel]{
+			Items: []*channels.Channel{defaultChannel, altChannel},
+		})
+
+		qa.ExpectQuestion(t, &survey.Select{
+			Message: "Select the channel in which the release will be created",
+			Options: []string{defaultChannel.Name, altChannel.Name},
+		}).AnswerWith("Fire Project Alt Channel")
+
+		api.ExpectRequest(t, "GET", "/api/Spaces-1/deploymentprocesses/deploymentprocess-"+fireProjectID).RespondWith(depProcess)
+
+		api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+fireProjectID+"/deploymentprocesses/template").
+			RespondWith(&deployments.DeploymentProcessTemplate{NextVersionIncrement: "27.9.3"})
+
+		qa.ExpectQuestion(t, &survey.Input{
+			Message: "Version",
+			Default: "27.9.3",
+		}).AnswerWith("27.9.999")
+
+		err := <-errReceiver
 		assert.Nil(t, err)
 
 		// check that the question-asking process has filled out the things we told it to
 		assert.Equal(t, "Fire Project", options.ProjectName)
-		assert.Equal(t, "Fire Project Default Channel", options.ChannelName)
-		assert.Equal(t, "27.9.3", options.Version)
-
-		assert.Equal(t, 0, rt.RemainingQueueLength())
+		assert.Equal(t, "Fire Project Alt Channel", options.ChannelName)
+		assert.Equal(t, "27.9.999", options.Version)
 	})
 
 	t.Run("asking for nothing in interactive mode (testing case insensitivity)", func(t *testing.T) {
-		rt := testutil.NewFakeApiResponder()
-		testutil.EnqueueRootResponder(rt)
-		octopus, _ := octopusApiClient.NewClient(testutil.NewMockHttpClientWithTransport(rt), serverUrl, placeholderApiKey, "")
-
-		rt.EnqueueResponder("GET", "/api/Spaces-1/projects?clonedFromProjectId=&partialName=fire+project", func(r *http.Request) (any, error) {
-			return resources.Resources[*projects.Project]{
-				Items: []*projects.Project{fireProject},
-			}, nil
-		})
-
-		rt.EnqueueResponder("GET", "/api/Spaces-1/projects/"+fireProjectID+"/channels", func(r *http.Request) (any, error) {
-			return resources.Resources[*channels.Channel]{
-				Items: []*channels.Channel{defaultChannel},
-			}, nil
-		})
-
-		// mock survey
-		asker, _ := testutil.NewAskMocker(t, []testutil.QA{})
+		api := testutil.NewMockHttpServer()
+		qa := testutil.NewAskMocker()
 
 		options := &executor.TaskOptionsCreateRelease{
 			ProjectName: "fire project",
@@ -128,15 +101,31 @@ func TestCreate_AskQuestions(t *testing.T) {
 			Version:     "9.8.4-prerelease",
 		}
 
-		err := create.AskQuestions(octopus, asker, options)
+		errReceiver := testutil.GoBegin(func() error {
+			// NewClient makes network calls so we have to run it in the goroutine
+			octopus, _ := octopusApiClient.NewClient(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "")
+			return create.AskQuestions(octopus, qa.AsAsker(), options)
+		})
+
+		api.ExpectRequest(t, "GET", "/api").RespondWith(root)
+
+		api.ExpectRequest(t, "GET", "/api/Spaces-1/projects?clonedFromProjectId=&partialName=fire+project").
+			RespondWith(resources.Resources[*projects.Project]{
+				Items: []*projects.Project{fireProject},
+			})
+
+		api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+fireProjectID+"/channels").
+			RespondWith(resources.Resources[*channels.Channel]{
+				Items: []*channels.Channel{defaultChannel},
+			})
+
+		err := <-errReceiver
 		assert.Nil(t, err)
 
 		// check that the question-asking process has filled out the things we told it to
 		assert.Equal(t, "Fire Project", options.ProjectName)
 		assert.Equal(t, "Fire Project Default Channel", options.ChannelName)
 		assert.Equal(t, "9.8.4-prerelease", options.Version)
-
-		assert.Equal(t, 0, rt.RemainingQueueLength())
 	})
 
 }

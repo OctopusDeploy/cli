@@ -2,6 +2,7 @@ package integration_test
 
 import (
 	"encoding/json"
+	"github.com/stretchr/testify/require"
 	"testing"
 
 	"github.com/MakeNowJust/heredoc/v2"
@@ -22,9 +23,6 @@ func TestAccountList(t *testing.T) {
 	}
 
 	t.Run("default space", func(t *testing.T) {
-		cleanupHelper := integration.NewCleanupHelper()
-		defer cleanupHelper.Run(t)
-
 		// setup
 		newAccount, _ := accounts.NewUsernamePasswordAccount("user-pw-a")
 		newAccount.SetUsername("user-a")
@@ -33,7 +31,7 @@ func TestAccountList(t *testing.T) {
 		if !testutil.EnsureSuccess(t, err) {
 			return
 		}
-		cleanupHelper.AddFailable(func() error { return systemApiClient.Accounts.DeleteByID(accountRef1.GetID()) })
+		t.Cleanup(func() { require.Nil(t, systemApiClient.Accounts.DeleteByID(accountRef1.GetID())) })
 
 		newAccount2, _ := accounts.NewUsernamePasswordAccount("user-pw-b")
 		newAccount2.SetUsername("user-b")
@@ -42,7 +40,7 @@ func TestAccountList(t *testing.T) {
 		if !testutil.EnsureSuccess(t, err) {
 			return
 		}
-		cleanupHelper.AddFailable(func() error { return systemApiClient.Accounts.DeleteByID(accountRef2.GetID()) })
+		t.Cleanup(func() { assert.Nil(t, systemApiClient.Accounts.DeleteByID(accountRef2.GetID())) })
 
 		t.Run("--format basic", func(t *testing.T) {
 			stdOut, stdErr, err := integration.RunCli("Default", "account", "list", "--outputFormat=basic")
@@ -93,9 +91,6 @@ user-pw-b  Username/Password
 	})
 
 	t.Run("different space ", func(t *testing.T) {
-		cleanupHelper := integration.NewCleanupHelper()
-		defer cleanupHelper.Run(t)
-
 		systemTeams, err := systemApiClient.Teams.Get(teams.TeamsQuery{
 			IncludeSystem: true,
 		})
@@ -110,19 +105,13 @@ user-pw-b  Username/Password
 		if !testutil.EnsureSuccess(t, err) {
 			return
 		}
-		cleanupHelper.AddFailable(func() error {
+		t.Cleanup(func() {
 			space.TaskQueueStopped = true // make sure we can delete it at the end, we're not actually doing any tasks here
 			_, err = systemApiClient.Spaces.Update(space)
-			if err != nil {
-				return err
-			}
+			require.Nil(t, err)
 
 			err = systemApiClient.Spaces.DeleteByID(space.GetID())
-			if err != nil {
-				return err
-			}
-
-			return nil
+			require.Nil(t, err)
 		})
 
 		spacedApiClient, err := integration.GetApiClient(space.GetID())
@@ -138,8 +127,8 @@ user-pw-b  Username/Password
 		if !testutil.EnsureSuccess(t, err) {
 			return
 		}
-		cleanupHelper.AddFailable(func() error {
-			return spacedApiClient.Accounts.DeleteByID(accountRef1.GetID())
+		t.Cleanup(func() {
+			require.Nil(t, spacedApiClient.Accounts.DeleteByID(accountRef1.GetID()))
 		})
 
 		newAccountDifferentSpace, _ := accounts.NewUsernamePasswordAccount("defspace-user-pw-b")
@@ -149,7 +138,7 @@ user-pw-b  Username/Password
 		if !testutil.EnsureSuccess(t, err) {
 			return
 		}
-		cleanupHelper.AddFailable(func() error { return systemApiClient.Accounts.DeleteByID(accountRef2.GetID()) })
+		t.Cleanup(func() { require.Nil(t, systemApiClient.Accounts.DeleteByID(accountRef2.GetID())) })
 
 		t.Run("--format basic", func(t *testing.T) {
 			stdOut, stdErr, err := integration.RunCli("my-new-space", "account", "list", "--outputFormat=basic")
