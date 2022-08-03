@@ -2,6 +2,7 @@ package testutil
 
 import (
 	"net/http"
+	"runtime/debug"
 	"testing"
 )
 
@@ -14,6 +15,7 @@ func AssertSuccess(t *testing.T, err error, args ...any) bool {
 		for _, arg := range args {
 			t.Log(arg)
 		}
+		debug.PrintStack()
 		t.Errorf(err.Error())
 		return false
 	}
@@ -25,6 +27,7 @@ func RequireSuccess(t *testing.T, err error, args ...any) bool {
 		for _, arg := range args {
 			t.Log(arg)
 		}
+		debug.PrintStack()
 		t.Fatalf(err.Error())
 		return false
 	}
