@@ -7,6 +7,7 @@ import (
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/MakeNowJust/heredoc/v2"
 	awsCreate "github.com/OctopusDeploy/cli/pkg/cmd/account/aws/create"
+	azureCreate "github.com/OctopusDeploy/cli/pkg/cmd/account/azure/create"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/spf13/cobra"
@@ -36,7 +37,7 @@ func createRun(f factory.Factory, w io.Writer) error {
 
 	accountTypes := []string{
 		"AWS Account",
-		"Azure Subscription",
+		"Azure Account",
 		"Google Cloud Account",
 		"SSH Key Pair",
 		"Username/Password",
@@ -61,7 +62,19 @@ func createRun(f factory.Factory, w io.Writer) error {
 			Spinner: f.Spinner(),
 			Ask:     f.Ask,
 		}
-		awsCreate.CreateRun(opts)
+		if err := awsCreate.CreateRun(opts); err != nil {
+			return err
+		}
+	case "Azure Account":
+		opts := &azureCreate.CreateOptions{
+			Writer:  w,
+			Octopus: client,
+			Spinner: f.Spinner(),
+			Ask:     f.Ask,
+		}
+		if err := azureCreate.CreateRun(opts); err != nil {
+			return err
+		}
 	}
 
 	return nil

@@ -80,14 +80,16 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 	cmd.Flags().StringVar(&opts.AccessKey, "access-key", "", "The AWS access key to use when authenticating against Amazon Web Services.")
 	cmd.Flags().StringVar(&opts.SecretKey, "secret-key", "", "The AWS secret key to use when authenticating against Amazon Web Services.")
 	cmd.Flags().StringArrayVarP(&opts.Environments, "environments", "e", nil, "The environments that are allowed to use this account")
-	cmd.Flags().StringVarP(&descriptionFilePath, "description-file", "F", "", "Read the description from `file`")
+	cmd.Flags().StringVarP(&descriptionFilePath, "description-file", "D", "", "Read the description from `file`")
 
 	return cmd
 }
 
 func CreateRun(opts *CreateOptions) error {
 	if !opts.NoPrompt {
-		promptMissing(opts)
+		if err := promptMissing(opts); err != nil {
+			return err
+		}
 	}
 	awsAccount, err := accounts.NewAmazonWebServicesAccount(opts.Name, opts.AccessKey, core.NewSensitiveValue(opts.SecretKey))
 	if err != nil {

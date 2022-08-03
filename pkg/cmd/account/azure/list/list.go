@@ -45,6 +45,15 @@ func listAzureAccounts(client *client.Client, cmd *cobra.Command, s *spinner.Spi
 		s.Stop()
 		return err
 	}
+	accountResources, err = client.Accounts.Get(accounts.AccountsQuery{
+		AccountType: accounts.AccountTypeAzureSubscription,
+	})
+	extraItems, err := accountResources.GetAllPages(client.Accounts.GetClient())
+	if err != nil {
+		s.Stop()
+		return err
+	}
+	items = append(items, extraItems...)
 
 	azureEnvMap := map[string]string{
 		"":                  "Global Cloud",
@@ -53,32 +62,60 @@ func listAzureAccounts(client *client.Client, cmd *cobra.Command, s *spinner.Spi
 		"AzureGermanCloud":  "German Cloud",
 		"AzureUSGovernment": "US Government",
 	}
+	azureAccountTypeMap := map[string]string{
+		"AzureSubscription":     "Subscription",
+		"AzureServicePrincipal": "Service Principal",
+	}
 	s.Stop()
 
 	output.PrintArray(items, cmd, output.Mappers[accounts.IAccount]{
 		Json: func(item accounts.IAccount) any {
-			acc := item.(*accounts.AzureServicePrincipalAccount)
+			if acc, ok := item.(*accounts.AzureServicePrincipalAccount); ok {
+				return &struct {
+					Id                 string
+					Name               string
+					SubscriptionNumber string
+					AccountType        string
+					AzureEnvironment   string
+				}{
+					Id:                 acc.GetID(),
+					Name:               acc.GetName(),
+					SubscriptionNumber: acc.SubscriptionID.String(),
+					AccountType:        string(acc.AccountType),
+					AzureEnvironment:   acc.AzureEnvironment,
+				}
+			}
+			acc := item.(*accounts.AzureSubscriptionAccount)
 			return &struct {
 				Id                 string
 				Name               string
 				SubscriptionNumber string
-				TenantId           string
-				ClientId           string
+				AccountType        string
 				AzureEnvironment   string
 			}{
 				Id:                 acc.GetID(),
 				Name:               acc.GetName(),
 				SubscriptionNumber: acc.SubscriptionID.String(),
-				TenantId:           acc.TenantID.String(),
-				ClientId:           acc.ApplicationID.String(),
+				AccountType:        string(acc.AccountType),
 				AzureEnvironment:   acc.AzureEnvironment,
 			}
 		},
 		Table: output.TableDefinition[accounts.IAccount]{
-			Header: []string{"NAME", "SUBSCRIPTION ID", "TENANT ID", "APPLICATION ID", "AZURE ENV"},
+			Header: []string{"NAME", "SUBSCRIPTION ID", "AUTHENTICATION METHOD", "AZURE ENV"},
 			Row: func(item accounts.IAccount) []string {
-				acc := item.(*accounts.AzureServicePrincipalAccount)
-				return []string{output.Bold(acc.GetName()), acc.SubscriptionID.String(), acc.TenantID.String(), acc.ApplicationID.String(), azureEnvMap[acc.AzureEnvironment]}
+				if acc, ok := item.(*accounts.AzureServicePrincipalAccount); ok {
+					return []string{
+						output.Bold(acc.GetName()),
+						acc.SubscriptionID.String(),
+						azureAccountTypeMap[string(acc.AccountType)],
+						azureEnvMap[acc.AzureEnvironment]}
+				}
+				acc := item.(*accounts.AzureSubscriptionAccount)
+				return []string{
+					output.Bold(acc.GetName()),
+					acc.SubscriptionID.String(),
+					azureAccountTypeMap[string(acc.AccountType)],
+					azureEnvMap[acc.AzureEnvironment]}
 			}},
 		Basic: func(item accounts.IAccount) string {
 			return item.GetName()

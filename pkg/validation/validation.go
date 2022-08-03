@@ -29,7 +29,7 @@ func NotEquals(stringsToCheck []string, errorMessage string) survey.Validator {
 }
 
 // IsUuid requires that the string is a valid UUID
-func IsUuid(val interface{}) error {
+func IsUUID(val interface{}) error {
 	if str, ok := val.(string); ok {
 		if _, err := uuid.Parse(str); err != nil {
 			return fmt.Errorf("not a valid UUID")
