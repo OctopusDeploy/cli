@@ -1,7 +1,6 @@
 package create
 
 import (
-	"errors"
 	"fmt"
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/OctopusDeploy/cli/pkg/executor"
@@ -49,7 +48,7 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 		Short: "Creates a release in an instance of Octopus Deploy",
 		Long:  "Creates a release in an instance of Octopus Deploy.",
 		Example: fmt.Sprintf(heredoc.Doc(`
-			$ %s release create"
+			$ %s release create --project MyProject --channel Beta -v "1.2.3"
 		`), constants.ExecutableName),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			project, err := cmd.Flags().GetString(flagProject)
@@ -86,8 +85,6 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 }
 
 func createRun(f factory.Factory, w io.Writer, options *executor.TaskOptionsCreateRelease) error {
-	// TODO go through the UI flow and prompt for any values that have not already been specified from flags
-	// At this point our options should be fully populated
 	octopus, err := f.GetSpacedClient()
 	if err != nil {
 		return err
@@ -98,14 +95,23 @@ func createRun(f factory.Factory, w io.Writer, options *executor.TaskOptionsCrea
 		if err != nil {
 			return err
 		}
-	} else {
-		// TODO make a proper function for ValidateRequiredFlags or something like that
-		if options.ProjectName == "" {
-			return errors.New("project must be specified")
+	}
+
+	// the executor will raise errors if any required options are missing
+	err = executor.ProcessTasks(f, []*executor.Task{executor.NewTask(executor.TaskTypeCreateRelease, options)})
+	if err != nil {
+		return err
+	}
+
+	if options.Response != nil {
+		// TODO AutomaticallyDeployedEnvironments. Discuss with Team
+		_, err = fmt.Fprintf(w, "Successfully created Release Version %s %s.\n", options.Response.ReleaseVersion, output.Dimf("(%s)", options.Response.ReleaseID))
+		if err != nil {
+			return err
 		}
 	}
 
-	return executor.ProcessTasks(f, []*executor.Task{executor.NewTask(executor.TaskTypeCreateRelease, options)})
+	return nil
 }
 
 func AskQuestions(octopus *octopusApiClient.Client, asker question.Asker, options *executor.TaskOptionsCreateRelease) error {
@@ -157,6 +163,8 @@ func AskQuestions(octopus *octopusApiClient.Client, asker question.Asker, option
 	} else {
 		_, _ = fmt.Printf("Version %s\n", output.Cyan(options.Version))
 	}
+
+	// TODO release notes
 
 	// TODO package overrides
 	//

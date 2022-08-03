@@ -150,10 +150,9 @@ func EnsureCli() (cliPath string, cliDir string, err error) {
 	return
 }
 
-func mapEnv(space string) []string {
-	// we know that OCTOPUS_TEST_URL is already available.
-	// TODO pass this through rather than re-looking it up
+func createEnvForCli(space string) []string {
 	return []string{
+		"CI=1", // disable prompting
 		fmt.Sprintf("OCTOPUS_HOST=%s", os.Getenv("OCTOPUS_TEST_URL")),
 		fmt.Sprintf("OCTOPUS_API_KEY=%s", os.Getenv("OCTOPUS_TEST_APIKEY")),
 		fmt.Sprintf("OCTOPUS_SPACE=%s", space),
@@ -166,7 +165,7 @@ func RunCli(space string, args ...string) (string, string, error) {
 		return "", "", err
 	}
 
-	return runExecutable(cliPath, args, cliDir, mapEnv(space))
+	return runExecutable(cliPath, args, cliDir, createEnvForCli(space))
 }
 
 func RunCliRawOutput(space string, args ...string) ([]byte, []byte, error) {
@@ -175,5 +174,5 @@ func RunCliRawOutput(space string, args ...string) ([]byte, []byte, error) {
 		return nil, nil, err
 	}
 
-	return runExecutableRawOutput(cliPath, args, cliDir, mapEnv(space))
+	return runExecutableRawOutput(cliPath, args, cliDir, createEnvForCli(space))
 }
