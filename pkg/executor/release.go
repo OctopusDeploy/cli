@@ -2,6 +2,7 @@ package executor
 
 import (
 	"errors"
+	"fmt"
 	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/releases"
 )
@@ -59,10 +60,14 @@ func releaseCreate(f factory.Factory, input any) error {
 		createReleaseParams.ReleaseNotes = params.ReleaseNotes
 	}
 
+	fmt.Println("ABOUT TO CALL EXECUTIONS API CreateV1")
+
 	createReleaseResponse, err := apiClient.Releases.CreateV1(createReleaseParams)
 	if err != nil {
+		fmt.Printf("CALLED EXECUTIONS API; failed with %v\n", err)
 		return err
 	}
+	fmt.Println("CALLED EXECUTIONS API; success")
 
 	params.Response = createReleaseResponse
 	return nil

@@ -15,8 +15,9 @@ func AssertSuccess(t *testing.T, err error, args ...any) bool {
 		for _, arg := range args {
 			t.Log(arg)
 		}
-		debug.PrintStack()
 		t.Errorf(err.Error())
+		debug.PrintStack()
+
 		return false
 	}
 	return true
