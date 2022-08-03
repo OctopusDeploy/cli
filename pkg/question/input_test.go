@@ -3,45 +3,67 @@ package question_test
 import (
 	"errors"
 	"fmt"
+	"github.com/AlecAivazis/survey/v2"
 	"testing"
 
 	"github.com/OctopusDeploy/cli/test/testutil"
 
-	"github.com/AlecAivazis/survey/v2"
 	"github.com/OctopusDeploy/cli/pkg/question"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestQuestion_DeleteWithConfirmation_Success(t *testing.T) {
-	asker, unasked := testutil.NewAskOneMocker(t, testutil.QA{
-		Prompt: &survey.Input{
-			Message: `You are about to delete the animal "dog" (1). This action cannot be reversed. To confirm, type the animal name:`,
-		},
-		Answer: "dog",
+	qa := testutil.NewAskMocker()
+	errReceiver := testutil.GoBegin(func() error {
+		return question.DeleteWithConfirmation(qa.AsAsker(), "animal", "dog", "1", func() error { return nil })
 	})
-	defer unasked()
 
-	err := question.DeleteWithConfirmation(asker, "animal", "dog", "1", func() error { return nil })
+	qa.ExpectQuestion(t, &survey.Input{
+		Message: `You are about to delete the animal "dog" (1). This action cannot be reversed. To confirm, type the animal name:`,
+	}).AnswerWith("dog")
+
+	err := <-errReceiver
 	assert.Nil(t, err)
 }
 
 func TestQuestion_DeleteWithConfirmation_invalidResponse(t *testing.T) {
-	asker, unasked := testutil.NewAskOneMocker(t, testutil.QA{Answer: "cat"})
-	defer unasked()
-	err := question.DeleteWithConfirmation(asker, "animal", "dog", "1", func() error { return nil })
+	qa := testutil.NewAskMocker()
+	errReceiver := testutil.GoBegin(func() error {
+		return question.DeleteWithConfirmation(qa.AsAsker(), "animal", "dog", "1", func() error { return nil })
+	})
+
+	qa.ExpectQuestion(t, &survey.Input{
+		Message: `You are about to delete the animal "dog" (1). This action cannot be reversed. To confirm, type the animal name:`,
+	}).AnswerWith("cat")
+
+	err := <-errReceiver
 	assert.Equal(t, err, fmt.Errorf("input value %s does match expected value %s", "cat", "dog"))
 }
 
 func TestQuestion_DeleteWithConfirmation_error(t *testing.T) {
-	asker, unasked := testutil.NewAskOneMocker(t, testutil.QA{Err: errors.New("Ouch")})
-	defer unasked()
-	err := question.DeleteWithConfirmation(asker, "animal", "dog", "1", func() error { return nil })
-	assert.Equal(t, err, errors.New("Ouch"))
+	qa := testutil.NewAskMocker()
+	errReceiver := testutil.GoBegin(func() error {
+		return question.DeleteWithConfirmation(qa.AsAsker(), "animal", "dog", "1", func() error { return nil })
+	})
+
+	qa.ExpectQuestion(t, &survey.Input{
+		Message: `You are about to delete the animal "dog" (1). This action cannot be reversed. To confirm, type the animal name:`,
+	}).AnswerWithError(errors.New("ouch"))
+
+	err := <-errReceiver
+	assert.Equal(t, errors.New("ouch"), err)
 }
 
 func TestQuestion_DeleteWithConfirmation_deleteError(t *testing.T) {
-	asker, unasked := testutil.NewAskOneMocker(t, testutil.QA{Answer: "dog"})
-	defer unasked()
-	err := question.DeleteWithConfirmation(asker, "animal", "dog", "1", func() error { return errors.New("Ouch") })
-	assert.Equal(t, err, errors.New("Ouch"))
+	qa := testutil.NewAskMocker()
+	errReceiver := testutil.GoBegin(func() error {
+		return question.DeleteWithConfirmation(qa.AsAsker(), "animal", "dog", "1", func() error { return errors.New("ouch") })
+	})
+
+	qa.ExpectQuestion(t, &survey.Input{
+		Message: `You are about to delete the animal "dog" (1). This action cannot be reversed. To confirm, type the animal name:`,
+	}).AnswerWith("dog")
+
+	err := <-errReceiver
+	assert.Equal(t, errors.New("ouch"), err)
 }
