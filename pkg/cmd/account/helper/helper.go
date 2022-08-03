@@ -1,6 +1,8 @@
 package helper
 
 import (
+	"strings"
+
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/environments"
 	"github.com/briandowns/spinner"
@@ -26,7 +28,7 @@ loop:
 			return nil, err
 		}
 		for _, match := range allMatches {
-			if envName == match.Name {
+			if strings.EqualFold(envName, match.Name) {
 				envIds = append(envIds, match.ID)
 				continue loop
 			}
