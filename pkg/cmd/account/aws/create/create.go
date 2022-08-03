@@ -64,7 +64,7 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 				}
 				opts.Description = string(data)
 			}
-			opts.NoPrompt = f.IsPromptEnabled()
+			opts.NoPrompt = !f.IsPromptEnabled()
 			if opts.Environments != nil {
 				opts.Environments, err = helper.ResolveEnvironmentNames(opts.Environments, opts.Octopus, opts.Spinner)
 				if err != nil {
