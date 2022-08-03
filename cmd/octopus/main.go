@@ -2,12 +2,13 @@ package main
 
 import (
 	"fmt"
+	"github.com/AlecAivazis/survey/v2"
 	"github.com/OctopusDeploy/cli/pkg/constants"
+	"github.com/OctopusDeploy/cli/pkg/question"
 	"github.com/spf13/cobra"
 	"os"
 	"time"
 
-	"github.com/AlecAivazis/survey/v2"
 	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/OctopusDeploy/cli/pkg/usage"
 	"github.com/briandowns/spinner"
@@ -22,7 +23,16 @@ func main() {
 	// if there is a missing or invalid .env file anywhere, we don't care, just ignore it
 	_ = godotenv.Load()
 
-	clientFactory, err := apiclient.NewClientFactoryFromEnvironment()
+	// initialize our wrapper around survey, which is also used as a flag for whether
+	// we are in interactive mode or automation mode
+	askProvider := question.NewAskProvider(survey.AskOne)
+	_, ci := os.LookupEnv("CI")
+	// TODO move this to some other function and have it look for GITHUB_ACTIONS etc as we learn more about it
+	if ci {
+		askProvider.SetPromptDisabled()
+	}
+
+	clientFactory, err := apiclient.NewClientFactoryFromEnvironment(askProvider)
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(3)
@@ -30,7 +40,7 @@ func main() {
 
 	s := spinner.New(spinner.CharSets[11], 100*time.Millisecond, spinner.WithColor("cyan"))
 
-	f := factory.New(clientFactory, survey.AskOne, s)
+	f := factory.New(clientFactory, askProvider, s)
 
 	cmd := root.NewCmdRoot(f)
 	// commands are expected to print their own errors to avoid double-ups
@@ -42,7 +52,7 @@ func main() {
 	// environment after parsing but before execution.
 	cmd.PersistentPreRun = func(_ *cobra.Command, args []string) {
 		if noPrompt, err := cmd.PersistentFlags().GetBool(constants.FlagNoPrompt); err == nil && noPrompt {
-			f.SetPromptDisabled()
+			askProvider.SetPromptDisabled()
 		}
 
 		if spaceNameOrId, err := cmd.PersistentFlags().GetString(constants.FlagSpace); err == nil && spaceNameOrId != "" {

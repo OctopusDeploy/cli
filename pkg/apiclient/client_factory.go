@@ -7,7 +7,6 @@ import (
 	"os"
 	"strings"
 
-	"github.com/AlecAivazis/survey/v2"
 	"github.com/OctopusDeploy/cli/pkg/question"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/spaces"
 
@@ -64,11 +63,10 @@ type Client struct {
 	// May be nil if we haven't done space lookup yet
 	ActiveSpace *spaces.Space
 
-	// Handle out to prompt the user for things. If this is nil, it means we're in no-prompt mode
-	Ask question.Asker
+	Ask question.AskProvider
 }
 
-func NewClientFactory(httpClient *http.Client, host string, apiKey string, spaceNameOrID string, asker question.Asker) (ClientFactory, error) {
+func NewClientFactory(httpClient *http.Client, host string, apiKey string, spaceNameOrID string, ask question.AskProvider) (ClientFactory, error) {
 	hostUrl, err := url.Parse(host)
 	if err != nil {
 		return nil, err
@@ -82,25 +80,17 @@ func NewClientFactory(httpClient *http.Client, host string, apiKey string, space
 		ApiKey:            apiKey,
 		SpaceNameOrID:     spaceNameOrID,
 		ActiveSpace:       nil,
-		Ask:               asker,
+		Ask:               ask,
 	}
 	return clientImpl, nil
 }
 
 // NewClientFactoryFromEnvironment Creates a new Client wrapper structure by reading the environment.
 // specifies nil for the HTTP Client, so this is not for unit tests; use NewClientFactory(... instead)
-func NewClientFactoryFromEnvironment() (ClientFactory, error) {
+func NewClientFactoryFromEnvironment(ask question.AskProvider) (ClientFactory, error) {
 	host := os.Getenv("OCTOPUS_HOST")
 	apiKey := os.Getenv("OCTOPUS_API_KEY")
 	spaceNameOrID := os.Getenv("OCTOPUS_SPACE")
-
-	var ask question.Asker = nil
-
-	// TODO put this in some other function as we may check many things to determine if we're suppressing prompting
-	_, ci := os.LookupEnv("CI")
-	if !ci {
-		ask = survey.AskOne
-	}
 
 	errs := ValidateMandatoryEnvironment(host, apiKey)
 	if errs != nil {
@@ -154,7 +144,7 @@ func (c *Client) GetSpacedClient() (*octopusApiClient.Client, error) {
 	var foundSpaceID string
 	// if c.Ask is nil it means we're in automation mode.
 	if c.SpaceNameOrID == "" {
-		if c.Ask == nil {
+		if !c.Ask.IsPromptEnabled() {
 			return nil, errors.New("space must be specified when not running interactively; please set the OCTOPUS_SPACE environment variable or specify --space on the command line")
 		}
 
@@ -173,7 +163,7 @@ func (c *Client) GetSpacedClient() (*octopusApiClient.Client, error) {
 			foundSpaceID = selectedSpace.ID
 		default:
 			selectedSpace, err := question.SelectMap(
-				c.Ask,
+				c.Ask.Ask,
 				"You have not specified a Space. Please select one:", allSpaces, func(item *spaces.Space) string { return item.GetName() })
 
 			if err != nil {
