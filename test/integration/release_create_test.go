@@ -13,6 +13,7 @@ import (
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
+	"os"
 	"os/exec"
 	"testing"
 )
@@ -54,6 +55,16 @@ func deleteAllReleasesInProject(t *testing.T, apiClient *octopusApiClient.Client
 }
 
 func TestReleaseCreate(t *testing.T) {
+	_, isGithubActions := os.LookupEnv("GITHUB_ACTIONS")
+	if isGithubActions {
+		// temp hack to disable these tests when running in Github actions
+		// because at time of writing, the current public octopus server docker image is version 2022.2,
+		// and the API's we are trying to call don't exist until 2022.3. The API's also don't
+		// expose hypermedia links that we can use to feature-detect, and the Go SDK library doesn't
+		// expose the server version either.
+		return
+	}
+
 	runId := uuid.New()
 
 	// setup; we need a project in a project and a channel in order to release things
