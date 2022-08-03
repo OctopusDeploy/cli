@@ -18,7 +18,7 @@ import (
 func TestAccountList(t *testing.T) {
 	// setup
 	systemApiClient, err := integration.GetApiClient("")
-	if !testutil.EnsureSuccess(t, err) {
+	if !testutil.AssertSuccess(t, err) {
 		return
 	}
 
@@ -28,7 +28,7 @@ func TestAccountList(t *testing.T) {
 		newAccount.SetUsername("user-a")
 		newAccount.SetPassword(core.NewSensitiveValue("password-a"))
 		accountRef1, err := systemApiClient.Accounts.Add(newAccount)
-		if !testutil.EnsureSuccess(t, err) {
+		if !testutil.AssertSuccess(t, err) {
 			return
 		}
 		t.Cleanup(func() { require.Nil(t, systemApiClient.Accounts.DeleteByID(accountRef1.GetID())) })
@@ -37,14 +37,14 @@ func TestAccountList(t *testing.T) {
 		newAccount2.SetUsername("user-b")
 		newAccount2.SetPassword(core.NewSensitiveValue("password-b"))
 		accountRef2, err := systemApiClient.Accounts.Add(newAccount2)
-		if !testutil.EnsureSuccess(t, err) {
+		if !testutil.AssertSuccess(t, err) {
 			return
 		}
 		t.Cleanup(func() { assert.Nil(t, systemApiClient.Accounts.DeleteByID(accountRef2.GetID())) })
 
 		t.Run("--format basic", func(t *testing.T) {
 			stdOut, stdErr, err := integration.RunCli("Default", "account", "list", "--outputFormat=basic")
-			if !testutil.EnsureSuccess(t, err, stdOut, stdErr) {
+			if !testutil.AssertSuccess(t, err, stdOut, stdErr) {
 				return
 			}
 			assert.Equal(t, heredoc.Doc(`
@@ -55,7 +55,7 @@ user-pw-b
 
 		t.Run("--format table", func(t *testing.T) {
 			stdOut, stdErr, err := integration.RunCli("Default", "account", "list", "--outputFormat=table")
-			if !testutil.EnsureSuccess(t, err, stdOut, stdErr) {
+			if !testutil.AssertSuccess(t, err, stdOut, stdErr) {
 				return
 			}
 
@@ -68,7 +68,7 @@ user-pw-b  Username/Password
 
 		t.Run("--format json", func(t *testing.T) {
 			stdOut, stdErr, err := integration.RunCliRawOutput("Default", "account", "list", "--outputFormat=json")
-			if !testutil.EnsureSuccess(t, err, stdOut, stdErr) {
+			if !testutil.AssertSuccess(t, err, stdOut, stdErr) {
 				return
 			}
 			type AccountSummary struct {
@@ -78,7 +78,7 @@ user-pw-b  Username/Password
 			}
 			var results []AccountSummary
 			err = json.Unmarshal(stdOut, &results)
-			if !testutil.EnsureSuccess(t, err, string(stdOut), string(stdErr)) {
+			if !testutil.AssertSuccess(t, err, string(stdOut), string(stdErr)) {
 				return
 			}
 
@@ -102,7 +102,7 @@ user-pw-b  Username/Password
 		}
 
 		space, err = systemApiClient.Spaces.Add(space)
-		if !testutil.EnsureSuccess(t, err) {
+		if !testutil.AssertSuccess(t, err) {
 			return
 		}
 		t.Cleanup(func() {
@@ -115,7 +115,7 @@ user-pw-b  Username/Password
 		})
 
 		spacedApiClient, err := integration.GetApiClient(space.GetID())
-		if !testutil.EnsureSuccess(t, err) {
+		if !testutil.AssertSuccess(t, err) {
 			return
 		}
 
@@ -124,7 +124,7 @@ user-pw-b  Username/Password
 		newAccount.SetUsername("spaced-user-a")
 		newAccount.SetPassword(core.NewSensitiveValue("password-a"))
 		accountRef1, err := spacedApiClient.Accounts.Add(newAccount)
-		if !testutil.EnsureSuccess(t, err) {
+		if !testutil.AssertSuccess(t, err) {
 			return
 		}
 		t.Cleanup(func() {
@@ -135,14 +135,14 @@ user-pw-b  Username/Password
 		newAccountDifferentSpace.SetUsername("defspace-user-b")
 		newAccountDifferentSpace.SetPassword(core.NewSensitiveValue("password-b"))
 		accountRef2, err := systemApiClient.Accounts.Add(newAccountDifferentSpace)
-		if !testutil.EnsureSuccess(t, err) {
+		if !testutil.AssertSuccess(t, err) {
 			return
 		}
 		t.Cleanup(func() { require.Nil(t, systemApiClient.Accounts.DeleteByID(accountRef2.GetID())) })
 
 		t.Run("--format basic", func(t *testing.T) {
 			stdOut, stdErr, err := integration.RunCli("my-new-space", "account", "list", "--outputFormat=basic")
-			if !testutil.EnsureSuccess(t, err, stdOut, stdErr) {
+			if !testutil.AssertSuccess(t, err, stdOut, stdErr) {
 				return
 			}
 			// note default spaced item is NOT shown

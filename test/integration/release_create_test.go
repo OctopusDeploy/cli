@@ -45,7 +45,7 @@ const space1ID = "Spaces-1"
 
 func deleteAllReleasesInProject(t *testing.T, apiClient *octopusApiClient.Client, project *projects.Project) {
 	projectReleases, err := apiClient.Projects.GetReleases(project)
-	if !testutil.EnsureSuccess(t, err) {
+	if !testutil.AssertSuccess(t, err) {
 		return
 	}
 	for _, r := range projectReleases {
@@ -58,33 +58,33 @@ func TestReleaseCreate(t *testing.T) {
 
 	// setup; we need a project in a project and a channel in order to release things
 	apiClient, err := integration.GetApiClient(space1ID)
-	if !testutil.EnsureSuccess(t, err) {
+	if !testutil.AssertSuccess(t, err) {
 		return
 	}
 
 	projectGroup := projectgroups.NewProjectGroup(fmt.Sprintf("pg-%s", runId))
 	projectGroup, err = apiClient.ProjectGroups.Add(projectGroup)
-	if !testutil.EnsureSuccess(t, err) {
+	if !testutil.AssertSuccess(t, err) {
 		return
 	}
 	t.Cleanup(func() { assert.Nil(t, apiClient.ProjectGroups.DeleteByID(projectGroup.ID)) })
 
 	lifecycle := lifecycles.NewLifecycle(fmt.Sprintf("lifecycle-%s", runId))
 	lifecycle, err = apiClient.Lifecycles.Add(lifecycle)
-	if !testutil.EnsureSuccess(t, err) {
+	if !testutil.AssertSuccess(t, err) {
 		return
 	}
 	t.Cleanup(func() { assert.Nil(t, apiClient.Lifecycles.DeleteByID(lifecycle.ID)) })
 
 	project := projects.NewProject(fmt.Sprintf("project-%s", runId), lifecycle.ID, projectGroup.ID)
 	project, err = apiClient.Projects.Add(project)
-	if !testutil.EnsureSuccess(t, err) {
+	if !testutil.AssertSuccess(t, err) {
 		return
 	}
 	t.Cleanup(func() { assert.Nil(t, apiClient.Projects.DeleteByID(project.ID)) })
 
 	dep, err := apiClient.DeploymentProcesses.Get(project, "")
-	if !testutil.EnsureSuccess(t, err) {
+	if !testutil.AssertSuccess(t, err) {
 		return
 	}
 	dep.Steps = []*deployments.DeploymentStep{
@@ -103,20 +103,20 @@ func TestReleaseCreate(t *testing.T) {
 		},
 	}
 	dep, err = apiClient.DeploymentProcesses.Update(dep)
-	if !testutil.EnsureSuccess(t, err) {
+	if !testutil.AssertSuccess(t, err) {
 		return
 	}
 
 	channel := channels.NewChannel(fmt.Sprintf("channel-%s", runId), project.ID)
 	channel, err = apiClient.Channels.Add(channel)
-	if !testutil.EnsureSuccess(t, err) {
+	if !testutil.AssertSuccess(t, err) {
 		return
 	}
 	t.Cleanup(func() { assert.Nil(t, apiClient.Channels.DeleteByID(channel.ID)) })
 
 	t.Run("create a release specifying project,channel,version", func(t *testing.T) {
 		stdOut, stdErr, err := integration.RunCli(space1ID, "release", "create", "--project", project.Name, "--channel", channel.Name, "--version", "2.3.4")
-		if !testutil.EnsureSuccess(t, err, stdOut, stdErr) {
+		if !testutil.AssertSuccess(t, err, stdOut, stdErr) {
 			return
 		}
 		t.Cleanup(func() { deleteAllReleasesInProject(t, apiClient, project) })
@@ -136,13 +136,13 @@ func TestReleaseCreate(t *testing.T) {
 	t.Run("create a release specifying project,channel - server allocates version", func(t *testing.T) {
 		// create a phoney release so that when the server allocates the version for the next release it will be predictable
 		stdOut, stdErr, err := integration.RunCli(space1ID, "release", "create", "--project", project.Name, "--channel", channel.Name, "--version", "5.0.0")
-		if !testutil.EnsureSuccess(t, err, stdOut, stdErr) {
+		if !testutil.AssertSuccess(t, err, stdOut, stdErr) {
 			return
 		}
 
 		// the one we care about
 		stdOut, stdErr, err = integration.RunCli(space1ID, "release", "create", "--project", project.Name, "--channel", channel.Name)
-		if !testutil.EnsureSuccess(t, err, stdOut, stdErr) {
+		if !testutil.AssertSuccess(t, err, stdOut, stdErr) {
 			return
 		}
 		t.Cleanup(func() { deleteAllReleasesInProject(t, apiClient, project) })
@@ -161,7 +161,7 @@ func TestReleaseCreate(t *testing.T) {
 
 	t.Run("create a release specifying project and version - server uses default channel", func(t *testing.T) {
 		stdOut, stdErr, err := integration.RunCli(space1ID, "release", "create", "--project", project.Name, "--version", "6.0.0")
-		if !testutil.EnsureSuccess(t, err, stdOut, stdErr) {
+		if !testutil.AssertSuccess(t, err, stdOut, stdErr) {
 			return
 		}
 		t.Cleanup(func() { deleteAllReleasesInProject(t, apiClient, project) })
@@ -183,13 +183,13 @@ func TestReleaseCreate(t *testing.T) {
 	t.Run("create a release specifying project - server uses default channel and allocates version", func(t *testing.T) {
 		// create a phoney release so that when the server allocates the version for the next release it will be predictable
 		stdOut, stdErr, err := integration.RunCli(space1ID, "release", "create", "--project", project.Name, "--version", "7.0.0")
-		if !testutil.EnsureSuccess(t, err, stdOut, stdErr) {
+		if !testutil.AssertSuccess(t, err, stdOut, stdErr) {
 			return
 		}
 
 		// the one we care about
 		stdOut, stdErr, err = integration.RunCli(space1ID, "release", "create", "--project", project.Name)
-		if !testutil.EnsureSuccess(t, err, stdOut, stdErr) {
+		if !testutil.AssertSuccess(t, err, stdOut, stdErr) {
 			return
 		}
 		t.Cleanup(func() { deleteAllReleasesInProject(t, apiClient, project) })

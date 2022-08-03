@@ -7,14 +7,25 @@ import (
 
 // This file contains utilities to help with unit and integration testing
 
-// EnsureSuccess checks that err is nil and returns true.
+// AssertSuccess checks that err is nil and returns true.
 // If it's not, it will print all the args, then write the Error string, fail the test, and return false
-func EnsureSuccess(t *testing.T, err error, args ...any) bool {
+func AssertSuccess(t *testing.T, err error, args ...any) bool {
 	if err != nil {
 		for _, arg := range args {
 			t.Log(arg)
 		}
 		t.Errorf(err.Error())
+		return false
+	}
+	return true
+}
+
+func RequireSuccess(t *testing.T, err error, args ...any) bool {
+	if err != nil {
+		for _, arg := range args {
+			t.Log(arg)
+		}
+		t.Fatalf(err.Error())
 		return false
 	}
 	return true

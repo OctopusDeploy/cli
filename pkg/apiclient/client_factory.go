@@ -66,7 +66,26 @@ type Client struct {
 	Ask question.AskProvider
 }
 
+func requireArguments(items map[string]any) error {
+	for k, v := range items {
+		if v == nil {
+			return fmt.Errorf("required argument %s was nil", k)
+		}
+
+		if vstr, ok := v.(string); ok && vstr == "" {
+			return fmt.Errorf("required string argument %s was empty", k)
+		}
+	}
+	return nil
+}
+
 func NewClientFactory(httpClient *http.Client, host string, apiKey string, spaceNameOrID string, ask question.AskProvider) (ClientFactory, error) {
+	if err := requireArguments(map[string]any{
+		"httpClient": httpClient, "host": host, "apiKey": apiKey, "ask": ask,
+	}); err != nil {
+		return nil, err
+	}
+
 	hostUrl, err := url.Parse(host)
 	if err != nil {
 		return nil, err
