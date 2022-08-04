@@ -47,8 +47,8 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "create",
-		Short: "Creates an gcp account",
-		Long:  "Creates an Google Cloud Account in an instance of Octopus Deploy.",
+		Short: "Creates a gcp account",
+		Long:  "Creates a Google Cloud Account in an instance of Octopus Deploy.",
 		Example: fmt.Sprintf(heredoc.Doc(`
 			$ %s account gcp create"
 		`), constants.ExecutableName),

@@ -73,7 +73,7 @@ func listAzureAccounts(client *client.Client, cmd *cobra.Command, s *spinner.Spi
 			}
 		},
 		Table: output.TableDefinition[accounts.IAccount]{
-			Header: []string{"NAME", "SUBSCRIPTION ID", "AZURE ENV"},
+			Header: []string{"NAME", "SUBSCRIPTION ID", "AZURE ENVIRONMENT"},
 			Row: func(item accounts.IAccount) []string {
 				acc := item.(*accounts.AzureServicePrincipalAccount)
 				return []string{

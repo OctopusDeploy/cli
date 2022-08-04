@@ -49,8 +49,8 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "create",
-		Short: "Creates an ssh account",
-		Long:  "Creates an SSH Account in an instance of Octopus Deploy.",
+		Short: "Creates a ssh account",
+		Long:  "Creates a SSH Account in an instance of Octopus Deploy.",
 		Example: fmt.Sprintf(heredoc.Doc(`
 			$ %s account ssh create"
 		`), constants.ExecutableName),

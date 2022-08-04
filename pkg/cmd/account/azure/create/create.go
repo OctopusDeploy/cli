@@ -72,8 +72,8 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "create",
-		Short: "Creates an azure account",
-		Long:  "Creates an azure account in an instance of Octopus Deploy.",
+		Short: "Creates an Azure account",
+		Long:  "Creates an Azure account in an instance of Octopus Deploy.",
 		Example: fmt.Sprintf(heredoc.Doc(`
 			$ %s account azure create"
 		`), constants.ExecutableName),
@@ -302,7 +302,7 @@ func promptMissing(opts *CreateOptions) error {
 	if opts.AzureEnvironment != "" {
 		if opts.ADEndpointBaseUrl == "" {
 			if err := opts.Ask(&survey.Input{
-				Message: "AD Endpoint Base Uri",
+				Message: "Active Directory endpoint base URI",
 				Default: azureADEndpointBaseUri[opts.AzureEnvironment],
 				Help:    "Set this only if you need to override the default Active Directory Endpoint. In most cases you should leave the pre-populated value as is.",
 			}, &opts.ADEndpointBaseUrl); err != nil {
@@ -311,7 +311,7 @@ func promptMissing(opts *CreateOptions) error {
 		}
 		if opts.RMBaseUri == "" {
 			if err := opts.Ask(&survey.Input{
-				Message: "Resource Management Base Uri",
+				Message: "Resource Management Base URI",
 				Default: azureResourceManagementBaseUri[opts.AzureEnvironment],
 				Help:    "Set this only if you need to override the default Resource Management Endpoint. In most cases you should leave the pre-populated value as is.",
 			}, &opts.RMBaseUri); err != nil {

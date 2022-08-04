@@ -45,8 +45,8 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "create",
-		Short: "Creates an token account",
-		Long:  "Creates an Token Account in an instance of Octopus Deploy.",
+		Short: "Creates a token account",
+		Long:  "Creates a Token Account in an instance of Octopus Deploy.",
 		Example: fmt.Sprintf(heredoc.Doc(`
 			$ %s account token create"
 		`), constants.ExecutableName),
