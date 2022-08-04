@@ -2,12 +2,13 @@ package main
 
 import (
 	"fmt"
+	"os"
+	"time"
+
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/question"
 	"github.com/spf13/cobra"
-	"os"
-	"time"
 
 	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/OctopusDeploy/cli/pkg/usage"

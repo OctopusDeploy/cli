@@ -43,7 +43,8 @@ func NewCmdList(f factory.Factory) *cobra.Command {
 
 			accountTypeMap := map[accounts.AccountType]string{
 				accounts.AccountTypeAmazonWebServicesAccount:   "AWS Account",
-				accounts.AccountTypeAzureServicePrincipal:      "Azure Subscription",
+				accounts.AccountTypeAzureSubscription:          "Azure Subscription",
+				accounts.AccountTypeAzureServicePrincipal:      "Azure Service Principal",
 				accounts.AccountTypeGoogleCloudPlatformAccount: "Google Cloud Account",
 				accounts.AccountTypeSSHKeyPair:                 "SSH Key Pair",
 				accounts.AccountTypeUsernamePassword:           "Username/Password",

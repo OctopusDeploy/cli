@@ -62,23 +62,24 @@ func listAzureAccounts(client *client.Client, cmd *cobra.Command, s *spinner.Spi
 				Id                 string
 				Name               string
 				SubscriptionNumber string
-				TenantId           string
-				ClientId           string
+				AccountType        string
 				AzureEnvironment   string
 			}{
 				Id:                 acc.GetID(),
 				Name:               acc.GetName(),
 				SubscriptionNumber: acc.SubscriptionID.String(),
-				TenantId:           acc.TenantID.String(),
-				ClientId:           acc.ApplicationID.String(),
+				AccountType:        string(acc.AccountType),
 				AzureEnvironment:   acc.AzureEnvironment,
 			}
 		},
 		Table: output.TableDefinition[accounts.IAccount]{
-			Header: []string{"NAME", "SUBSCRIPTION ID", "TENANT ID", "APPLICATION ID", "AZURE ENV"},
+			Header: []string{"NAME", "SUBSCRIPTION ID", "AZURE ENVIRONMENT"},
 			Row: func(item accounts.IAccount) []string {
 				acc := item.(*accounts.AzureServicePrincipalAccount)
-				return []string{output.Bold(acc.GetName()), acc.SubscriptionID.String(), acc.TenantID.String(), acc.ApplicationID.String(), azureEnvMap[acc.AzureEnvironment]}
+				return []string{
+					output.Bold(acc.GetName()),
+					acc.SubscriptionID.String(),
+					azureEnvMap[acc.AzureEnvironment]}
 			}},
 		Basic: func(item accounts.IAccount) string {
 			return item.GetName()

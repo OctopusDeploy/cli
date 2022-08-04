@@ -1,6 +1,7 @@
 package create
 
 import (
+	b64 "encoding/base64"
 	"fmt"
 	"io"
 	"os"
@@ -30,8 +31,7 @@ type CreateOptions struct {
 
 	Name         string
 	Description  string
-	AccessKey    string
-	SecretKey    string
+	KeyFileData  []byte
 	Environments []string
 
 	NoPrompt bool
@@ -43,13 +43,14 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 		Spinner: f.Spinner(),
 	}
 	descriptionFilePath := ""
+	keyFilePath := ""
 
 	cmd := &cobra.Command{
 		Use:   "create",
-		Short: "Creates an aws account",
-		Long:  "Creates an aws account in an instance of Octopus Deploy.",
+		Short: "Creates a gcp account",
+		Long:  "Creates a Google Cloud Account in an instance of Octopus Deploy.",
 		Example: fmt.Sprintf(heredoc.Doc(`
-			$ %s account aws create"
+			$ %s account gcp create"
 		`), constants.ExecutableName),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			client, err := f.GetSpacedClient()
@@ -68,6 +69,16 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 				}
 				opts.Description = string(data)
 			}
+			if keyFilePath != "" {
+				if err := validation.IsExistingFile(keyFilePath); err != nil {
+					return err
+				}
+				data, err := os.ReadFile(keyFilePath)
+				if err != nil {
+					return err
+				}
+				opts.KeyFileData = data
+			}
 			opts.NoPrompt = !f.IsPromptEnabled()
 			if opts.Environments != nil {
 				opts.Environments, err = helper.ResolveEnvironmentNames(opts.Environments, opts.Octopus, opts.Spinner)
@@ -81,8 +92,7 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 
 	cmd.Flags().StringVarP(&opts.Name, "name", "n", "", "A short, memorable, unique name for this account.")
 	cmd.Flags().StringVarP(&opts.Description, "description", "d", "", "A summary explaining the use of the account to other users.")
-	cmd.Flags().StringVar(&opts.AccessKey, "access-key", "", "The AWS access key to use when authenticating against Amazon Web Services.")
-	cmd.Flags().StringVar(&opts.SecretKey, "secret-key", "", "The AWS secret key to use when authenticating against Amazon Web Services.")
+	cmd.Flags().StringVarP(&keyFilePath, "key-file", "K", "", "The json key file to use when authenticating against Google Cloud.")
 	cmd.Flags().StringArrayVarP(&opts.Environments, "environments", "e", nil, "The environments that are allowed to use this account")
 	cmd.Flags().StringVarP(&descriptionFilePath, "description-file", "D", "", "Read the description from `file`")
 
@@ -95,22 +105,25 @@ func CreateRun(opts *CreateOptions) error {
 			return err
 		}
 	}
-	awsAccount, err := accounts.NewAmazonWebServicesAccount(opts.Name, opts.AccessKey, core.NewSensitiveValue(opts.SecretKey))
+	gcpAccount, err := accounts.NewGoogleCloudPlatformAccount(
+		opts.Name,
+		core.NewSensitiveValue(b64.StdEncoding.EncodeToString(opts.KeyFileData)),
+	)
 	if err != nil {
 		return err
 	}
-	awsAccount.Description = opts.Description
-	awsAccount.EnvironmentIDs = opts.Environments
+	gcpAccount.Description = opts.Description
+	gcpAccount.EnvironmentIDs = opts.Environments
 
 	opts.Spinner.Start()
-	createdAccount, err := opts.Octopus.Accounts.Add(awsAccount)
+	createdAccount, err := opts.Octopus.Accounts.Add(gcpAccount)
 	if err != nil {
 		opts.Spinner.Stop()
 		return err
 	}
 	opts.Spinner.Stop()
 
-	_, err = fmt.Fprintf(opts.Writer, "Successfully created AWS Account %s %s.\n", createdAccount.GetName(), output.Dimf("(%s)", createdAccount.GetID()))
+	_, err = fmt.Fprintf(opts.Writer, "Successfully created GCP Account %s %s.\n", createdAccount.GetName(), output.Dimf("(%s)", createdAccount.GetID()))
 	if err != nil {
 		return err
 	}
@@ -144,26 +157,22 @@ func promptMissing(opts *CreateOptions) error {
 		}
 	}
 
-	if opts.AccessKey == "" {
+	if len(opts.KeyFileData) == 0 {
+		keyFilePath := ""
 		if err := opts.Ask(&survey.Input{
-			Message: "Access Key",
-			Help:    "The AWS access key to use when authenticating against Amazon Web Services.",
-		}, &opts.AccessKey, survey.WithValidator(survey.ComposeValidators(
+			Message: "Key File Path",
+			Help:    "Path to the json key file to use when authenticating against Google Cloud.",
+		}, &keyFilePath, survey.WithValidator(survey.ComposeValidators(
 			survey.Required,
+			validation.IsExistingFile,
 		))); err != nil {
 			return err
 		}
-	}
-
-	if opts.SecretKey == "" {
-		if err := opts.Ask(&survey.Password{
-			Message: "Secret Key",
-			Help:    "The AWS secret key to use when authenticating against Amazon Web Services.",
-		}, &opts.SecretKey, survey.WithValidator(survey.ComposeValidators(
-			survey.Required,
-		))); err != nil {
+		data, err := os.ReadFile(keyFilePath)
+		if err != nil {
 			return err
 		}
+		opts.KeyFileData = data
 	}
 
 	if opts.Environments == nil {

@@ -1,6 +1,7 @@
 package create
 
 import (
+	b64 "encoding/base64"
 	"fmt"
 	"io"
 	"os"
@@ -30,8 +31,9 @@ type CreateOptions struct {
 
 	Name         string
 	Description  string
-	AccessKey    string
-	SecretKey    string
+	KeyFileData  []byte
+	Username     string
+	Passphrase   string
 	Environments []string
 
 	NoPrompt bool
@@ -43,13 +45,14 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 		Spinner: f.Spinner(),
 	}
 	descriptionFilePath := ""
+	keyFilePath := ""
 
 	cmd := &cobra.Command{
 		Use:   "create",
-		Short: "Creates an aws account",
-		Long:  "Creates an aws account in an instance of Octopus Deploy.",
+		Short: "Creates a ssh account",
+		Long:  "Creates a SSH Account in an instance of Octopus Deploy.",
 		Example: fmt.Sprintf(heredoc.Doc(`
-			$ %s account aws create"
+			$ %s account ssh create"
 		`), constants.ExecutableName),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			client, err := f.GetSpacedClient()
@@ -68,6 +71,16 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 				}
 				opts.Description = string(data)
 			}
+			if keyFilePath != "" {
+				if err := validation.IsExistingFile(keyFilePath); err != nil {
+					return err
+				}
+				data, err := os.ReadFile(keyFilePath)
+				if err != nil {
+					return err
+				}
+				opts.KeyFileData = data
+			}
 			opts.NoPrompt = !f.IsPromptEnabled()
 			if opts.Environments != nil {
 				opts.Environments, err = helper.ResolveEnvironmentNames(opts.Environments, opts.Octopus, opts.Spinner)
@@ -81,10 +94,11 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 
 	cmd.Flags().StringVarP(&opts.Name, "name", "n", "", "A short, memorable, unique name for this account.")
 	cmd.Flags().StringVarP(&opts.Description, "description", "d", "", "A summary explaining the use of the account to other users.")
-	cmd.Flags().StringVar(&opts.AccessKey, "access-key", "", "The AWS access key to use when authenticating against Amazon Web Services.")
-	cmd.Flags().StringVar(&opts.SecretKey, "secret-key", "", "The AWS secret key to use when authenticating against Amazon Web Services.")
-	cmd.Flags().StringArrayVarP(&opts.Environments, "environments", "e", nil, "The environments that are allowed to use this account")
-	cmd.Flags().StringVarP(&descriptionFilePath, "description-file", "D", "", "Read the description from `file`")
+	cmd.Flags().StringVarP(&keyFilePath, "private-key", "K", "", "Path to the private key file portion of the key pair.")
+	cmd.Flags().StringVarP(&opts.Username, "username", "u", "", "The username to use when authenticating against the remote host.")
+	cmd.Flags().StringVarP(&opts.Passphrase, "passphrase", "p", "", "The passphrase for the private key, if required.")
+	cmd.Flags().StringArrayVarP(&opts.Environments, "environments", "e", nil, "The environments that are allowed to use this account.")
+	cmd.Flags().StringVarP(&descriptionFilePath, "description-file", "D", "", "Read the description from `file`.")
 
 	return cmd
 }
@@ -95,22 +109,29 @@ func CreateRun(opts *CreateOptions) error {
 			return err
 		}
 	}
-	awsAccount, err := accounts.NewAmazonWebServicesAccount(opts.Name, opts.AccessKey, core.NewSensitiveValue(opts.SecretKey))
+	sshAccount, err := accounts.NewSSHKeyAccount(
+		opts.Name,
+		opts.Username,
+		core.NewSensitiveValue(b64.StdEncoding.EncodeToString(opts.KeyFileData)),
+	)
 	if err != nil {
 		return err
 	}
-	awsAccount.Description = opts.Description
-	awsAccount.EnvironmentIDs = opts.Environments
+	sshAccount.Description = opts.Description
+	sshAccount.EnvironmentIDs = opts.Environments
+	if opts.Passphrase != "" {
+		sshAccount.PrivateKeyPassphrase = core.NewSensitiveValue(opts.Passphrase)
+	}
 
 	opts.Spinner.Start()
-	createdAccount, err := opts.Octopus.Accounts.Add(awsAccount)
+	createdAccount, err := opts.Octopus.Accounts.Add(sshAccount)
 	if err != nil {
 		opts.Spinner.Stop()
 		return err
 	}
 	opts.Spinner.Stop()
 
-	_, err = fmt.Fprintf(opts.Writer, "Successfully created AWS Account %s %s.\n", createdAccount.GetName(), output.Dimf("(%s)", createdAccount.GetID()))
+	_, err = fmt.Fprintf(opts.Writer, "Successfully created SSH Account %s %s.\n", createdAccount.GetName(), output.Dimf("(%s)", createdAccount.GetID()))
 	if err != nil {
 		return err
 	}
@@ -144,24 +165,40 @@ func promptMissing(opts *CreateOptions) error {
 		}
 	}
 
-	if opts.AccessKey == "" {
+	if opts.Username == "" {
 		if err := opts.Ask(&survey.Input{
-			Message: "Access Key",
-			Help:    "The AWS access key to use when authenticating against Amazon Web Services.",
-		}, &opts.AccessKey, survey.WithValidator(survey.ComposeValidators(
+			Message: "Username",
+			Help:    "The username to use when authenticating against the remote host.",
+		}, &opts.Username, survey.WithValidator(survey.ComposeValidators(
 			survey.Required,
 		))); err != nil {
 			return err
 		}
 	}
 
-	if opts.SecretKey == "" {
-		if err := opts.Ask(&survey.Password{
-			Message: "Secret Key",
-			Help:    "The AWS secret key to use when authenticating against Amazon Web Services.",
-		}, &opts.SecretKey, survey.WithValidator(survey.ComposeValidators(
+	if len(opts.KeyFileData) == 0 {
+		keyFilePath := ""
+		if err := opts.Ask(&survey.Input{
+			Message: "Private Key File Path",
+			Help:    "Path to the the private key file portion of the key pair.",
+		}, &keyFilePath, survey.WithValidator(survey.ComposeValidators(
 			survey.Required,
+			validation.IsExistingFile,
 		))); err != nil {
+			return err
+		}
+		data, err := os.ReadFile(keyFilePath)
+		if err != nil {
+			return err
+		}
+		opts.KeyFileData = data
+	}
+
+	if opts.Passphrase == "" {
+		if err := opts.Ask(&survey.Input{
+			Message: "Passphrase",
+			Help:    "The passphrase for the private key, if required.",
+		}, &opts.Passphrase); err != nil {
 			return err
 		}
 	}

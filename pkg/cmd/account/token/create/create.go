@@ -30,8 +30,7 @@ type CreateOptions struct {
 
 	Name         string
 	Description  string
-	AccessKey    string
-	SecretKey    string
+	Token        string
 	Environments []string
 
 	NoPrompt bool
@@ -46,10 +45,10 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "create",
-		Short: "Creates an aws account",
-		Long:  "Creates an aws account in an instance of Octopus Deploy.",
+		Short: "Creates a token account",
+		Long:  "Creates a Token Account in an instance of Octopus Deploy.",
 		Example: fmt.Sprintf(heredoc.Doc(`
-			$ %s account aws create"
+			$ %s account token create"
 		`), constants.ExecutableName),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			client, err := f.GetSpacedClient()
@@ -81,10 +80,9 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 
 	cmd.Flags().StringVarP(&opts.Name, "name", "n", "", "A short, memorable, unique name for this account.")
 	cmd.Flags().StringVarP(&opts.Description, "description", "d", "", "A summary explaining the use of the account to other users.")
-	cmd.Flags().StringVar(&opts.AccessKey, "access-key", "", "The AWS access key to use when authenticating against Amazon Web Services.")
-	cmd.Flags().StringVar(&opts.SecretKey, "secret-key", "", "The AWS secret key to use when authenticating against Amazon Web Services.")
-	cmd.Flags().StringArrayVarP(&opts.Environments, "environments", "e", nil, "The environments that are allowed to use this account")
-	cmd.Flags().StringVarP(&descriptionFilePath, "description-file", "D", "", "Read the description from `file`")
+	cmd.Flags().StringVarP(&opts.Token, "token", "t", "", "The password to use to when authenticating against the remote host.")
+	cmd.Flags().StringArrayVarP(&opts.Environments, "environments", "e", nil, "The environments that are allowed to use this account.")
+	cmd.Flags().StringVarP(&descriptionFilePath, "description-file", "D", "", "Read the description from `file`.")
 
 	return cmd
 }
@@ -95,22 +93,25 @@ func CreateRun(opts *CreateOptions) error {
 			return err
 		}
 	}
-	awsAccount, err := accounts.NewAmazonWebServicesAccount(opts.Name, opts.AccessKey, core.NewSensitiveValue(opts.SecretKey))
+	tokenAccount, err := accounts.NewTokenAccount(
+		opts.Name,
+		core.NewSensitiveValue(opts.Token),
+	)
 	if err != nil {
 		return err
 	}
-	awsAccount.Description = opts.Description
-	awsAccount.EnvironmentIDs = opts.Environments
+	tokenAccount.Description = opts.Description
+	tokenAccount.EnvironmentIDs = opts.Environments
 
 	opts.Spinner.Start()
-	createdAccount, err := opts.Octopus.Accounts.Add(awsAccount)
+	createdAccount, err := opts.Octopus.Accounts.Add(tokenAccount)
 	if err != nil {
 		opts.Spinner.Stop()
 		return err
 	}
 	opts.Spinner.Stop()
 
-	_, err = fmt.Fprintf(opts.Writer, "Successfully created AWS Account %s %s.\n", createdAccount.GetName(), output.Dimf("(%s)", createdAccount.GetID()))
+	_, err = fmt.Fprintf(opts.Writer, "Successfully created Token Account %s %s.\n", createdAccount.GetName(), output.Dimf("(%s)", createdAccount.GetID()))
 	if err != nil {
 		return err
 	}
@@ -144,22 +145,11 @@ func promptMissing(opts *CreateOptions) error {
 		}
 	}
 
-	if opts.AccessKey == "" {
-		if err := opts.Ask(&survey.Input{
-			Message: "Access Key",
-			Help:    "The AWS access key to use when authenticating against Amazon Web Services.",
-		}, &opts.AccessKey, survey.WithValidator(survey.ComposeValidators(
-			survey.Required,
-		))); err != nil {
-			return err
-		}
-	}
-
-	if opts.SecretKey == "" {
+	if opts.Token == "" {
 		if err := opts.Ask(&survey.Password{
-			Message: "Secret Key",
-			Help:    "The AWS secret key to use when authenticating against Amazon Web Services.",
-		}, &opts.SecretKey, survey.WithValidator(survey.ComposeValidators(
+			Message: "Token",
+			Help:    "The password to use to when authenticating against the remote host.",
+		}, &opts.Token, survey.WithValidator(survey.ComposeValidators(
 			survey.Required,
 		))); err != nil {
 			return err
