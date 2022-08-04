@@ -62,6 +62,9 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 			opts.Octopus = client
 			opts.Writer = cmd.OutOrStdout()
 			if descriptionFilePath != "" {
+				if err := validation.IsExistingFile(descriptionFilePath); err != nil {
+					return err
+				}
 				data, err := os.ReadFile(descriptionFilePath)
 				if err != nil {
 					return err

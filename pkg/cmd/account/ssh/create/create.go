@@ -32,6 +32,8 @@ type CreateOptions struct {
 	Name         string
 	Description  string
 	KeyFileData  []byte
+	Username     string
+	Passphrase   string
 	Environments []string
 
 	NoPrompt bool
@@ -47,10 +49,10 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "create",
-		Short: "Creates an gcp account",
-		Long:  "Creates an Google Cloud Account in an instance of Octopus Deploy.",
+		Short: "Creates an ssh account",
+		Long:  "Creates an SSH Account in an instance of Octopus Deploy.",
 		Example: fmt.Sprintf(heredoc.Doc(`
-			$ %s account gcp create"
+			$ %s account ssh create"
 		`), constants.ExecutableName),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			client, err := f.GetSpacedClient()
@@ -92,9 +94,11 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 
 	cmd.Flags().StringVarP(&opts.Name, "name", "n", "", "A short, memorable, unique name for this account.")
 	cmd.Flags().StringVarP(&opts.Description, "description", "d", "", "A summary explaining the use of the account to other users.")
-	cmd.Flags().StringVarP(&keyFilePath, "key-file", "K", "", "The json key file to use when authenticating against Google Cloud.")
-	cmd.Flags().StringArrayVarP(&opts.Environments, "environments", "e", nil, "The environments that are allowed to use this account")
-	cmd.Flags().StringVarP(&descriptionFilePath, "description-file", "D", "", "Read the description from `file`")
+	cmd.Flags().StringVarP(&keyFilePath, "private-key", "K", "", "Path to the private key file portion of the key pair.")
+	cmd.Flags().StringVarP(&opts.Username, "username", "u", "", "The username to use when authenticating against the remote host.")
+	cmd.Flags().StringVarP(&opts.Passphrase, "passphrase", "p", "", "The passphrase for the private key, if required.")
+	cmd.Flags().StringArrayVarP(&opts.Environments, "environments", "e", nil, "The environments that are allowed to use this account.")
+	cmd.Flags().StringVarP(&descriptionFilePath, "description-file", "D", "", "Read the description from `file`.")
 
 	return cmd
 }
@@ -105,25 +109,29 @@ func CreateRun(opts *CreateOptions) error {
 			return err
 		}
 	}
-	gcpAccount, err := accounts.NewGoogleCloudPlatformAccount(
+	sshAccount, err := accounts.NewSSHKeyAccount(
 		opts.Name,
+		opts.Username,
 		core.NewSensitiveValue(b64.StdEncoding.EncodeToString(opts.KeyFileData)),
 	)
 	if err != nil {
 		return err
 	}
-	gcpAccount.Description = opts.Description
-	gcpAccount.EnvironmentIDs = opts.Environments
+	sshAccount.Description = opts.Description
+	sshAccount.EnvironmentIDs = opts.Environments
+	if opts.Passphrase != "" {
+		sshAccount.PrivateKeyPassphrase = core.NewSensitiveValue(opts.Passphrase)
+	}
 
 	opts.Spinner.Start()
-	createdAccount, err := opts.Octopus.Accounts.Add(gcpAccount)
+	createdAccount, err := opts.Octopus.Accounts.Add(sshAccount)
 	if err != nil {
 		opts.Spinner.Stop()
 		return err
 	}
 	opts.Spinner.Stop()
 
-	_, err = fmt.Fprintf(opts.Writer, "Successfully created GCP Account %s %s.\n", createdAccount.GetName(), output.Dimf("(%s)", createdAccount.GetID()))
+	_, err = fmt.Fprintf(opts.Writer, "Successfully created SSH Account %s %s.\n", createdAccount.GetName(), output.Dimf("(%s)", createdAccount.GetID()))
 	if err != nil {
 		return err
 	}
@@ -157,11 +165,22 @@ func promptMissing(opts *CreateOptions) error {
 		}
 	}
 
+	if opts.Username == "" {
+		if err := opts.Ask(&survey.Input{
+			Message: "Username",
+			Help:    "The username to use when authenticating against the remote host.",
+		}, &opts.Username, survey.WithValidator(survey.ComposeValidators(
+			survey.Required,
+		))); err != nil {
+			return err
+		}
+	}
+
 	if len(opts.KeyFileData) == 0 {
 		keyFilePath := ""
 		if err := opts.Ask(&survey.Input{
-			Message: "Key File Path",
-			Help:    "Path to the json key file to use when authenticating against Google Cloud.",
+			Message: "Private Key File Path",
+			Help:    "Path to the the private key file portion of the key pair.",
 		}, &keyFilePath, survey.WithValidator(survey.ComposeValidators(
 			survey.Required,
 			validation.IsExistingFile,
@@ -173,6 +192,15 @@ func promptMissing(opts *CreateOptions) error {
 			return err
 		}
 		opts.KeyFileData = data
+	}
+
+	if opts.Passphrase == "" {
+		if err := opts.Ask(&survey.Input{
+			Message: "Passphrase",
+			Help:    "The passphrase for the private key, if required.",
+		}, &opts.Passphrase); err != nil {
+			return err
+		}
 	}
 
 	if opts.Environments == nil {

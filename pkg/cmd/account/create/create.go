@@ -9,6 +9,7 @@ import (
 	awsCreate "github.com/OctopusDeploy/cli/pkg/cmd/account/aws/create"
 	azureCreate "github.com/OctopusDeploy/cli/pkg/cmd/account/azure/create"
 	gcpCreate "github.com/OctopusDeploy/cli/pkg/cmd/account/gcp/create"
+	sshCreate "github.com/OctopusDeploy/cli/pkg/cmd/account/ssh/create"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/spf13/cobra"
@@ -84,6 +85,16 @@ func createRun(f factory.Factory, w io.Writer) error {
 			Ask:     f.Ask,
 		}
 		if err := gcpCreate.CreateRun(opts); err != nil {
+			return err
+		}
+	case "SSH Key Pair":
+		opts := &sshCreate.CreateOptions{
+			Writer:  w,
+			Octopus: client,
+			Spinner: f.Spinner(),
+			Ask:     f.Ask,
+		}
+		if err := sshCreate.CreateRun(opts); err != nil {
 			return err
 		}
 	}

@@ -14,6 +14,7 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/question"
 	"github.com/OctopusDeploy/cli/pkg/question/selectors"
 	"github.com/OctopusDeploy/cli/pkg/surveyext"
+	"github.com/OctopusDeploy/cli/pkg/validation"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/accounts"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/core"
@@ -58,6 +59,9 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 			opts.Octopus = client
 			opts.Writer = cmd.OutOrStdout()
 			if descriptionFilePath != "" {
+				if err := validation.IsExistingFile(descriptionFilePath); err != nil {
+					return err
+				}
 				data, err := os.ReadFile(descriptionFilePath)
 				if err != nil {
 					return err
@@ -141,21 +145,25 @@ func promptMissing(opts *CreateOptions) error {
 	}
 
 	if opts.AccessKey == "" {
-		opts.Ask(&survey.Input{
+		if err := opts.Ask(&survey.Input{
 			Message: "Access Key",
 			Help:    "The AWS access key to use when authenticating against Amazon Web Services.",
 		}, &opts.AccessKey, survey.WithValidator(survey.ComposeValidators(
 			survey.Required,
-		)))
+		))); err != nil {
+			return err
+		}
 	}
 
 	if opts.SecretKey == "" {
-		opts.Ask(&survey.Password{
+		if err := opts.Ask(&survey.Password{
 			Message: "Secret Key",
 			Help:    "The AWS secret key to use when authenticating against Amazon Web Services.",
 		}, &opts.SecretKey, survey.WithValidator(survey.ComposeValidators(
 			survey.Required,
-		)))
+		))); err != nil {
+			return err
+		}
 	}
 
 	if opts.Environments == nil {

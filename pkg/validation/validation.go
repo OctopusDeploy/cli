@@ -2,6 +2,7 @@ package validation
 
 import (
 	"fmt"
+	"os"
 	"reflect"
 
 	"github.com/AlecAivazis/survey/v2"
@@ -40,5 +41,21 @@ func IsUuid(val interface{}) error {
 	}
 
 	// the input is fine
+	return nil
+}
+
+func IsExistingFile(val interface{}) error {
+	if str, ok := val.(string); ok {
+		info, err := os.Stat(str)
+		if os.IsNotExist(err) {
+			return fmt.Errorf("\"%s\" is not a valid file path", str)
+		}
+		if info.IsDir() {
+			return fmt.Errorf("\"%s\" is a directory, the path must be a file", str)
+		}
+	} else {
+		return fmt.Errorf("cannont check value on response of type %v", reflect.TypeOf(val).Name())
+	}
+	// path is real file
 	return nil
 }
