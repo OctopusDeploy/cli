@@ -7,6 +7,7 @@ import (
 
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/OctopusDeploy/cli/pkg/constants"
+	"github.com/OctopusDeploy/cli/pkg/question"
 	"github.com/spf13/cobra"
 
 	"github.com/OctopusDeploy/cli/pkg/factory"
