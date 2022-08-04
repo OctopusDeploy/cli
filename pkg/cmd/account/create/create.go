@@ -11,6 +11,7 @@ import (
 	gcpCreate "github.com/OctopusDeploy/cli/pkg/cmd/account/gcp/create"
 	sshCreate "github.com/OctopusDeploy/cli/pkg/cmd/account/ssh/create"
 	tokenCreate "github.com/OctopusDeploy/cli/pkg/cmd/account/token/create"
+	usernameCreate "github.com/OctopusDeploy/cli/pkg/cmd/account/username/create"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/spf13/cobra"
@@ -106,6 +107,16 @@ func createRun(f factory.Factory, w io.Writer) error {
 			Ask:     f.Ask,
 		}
 		if err := tokenCreate.CreateRun(opts); err != nil {
+			return err
+		}
+	case "Username/Password":
+		opts := &usernameCreate.CreateOptions{
+			Writer:  w,
+			Octopus: client,
+			Spinner: f.Spinner(),
+			Ask:     f.Ask,
+		}
+		if err := usernameCreate.CreateRun(opts); err != nil {
 			return err
 		}
 	}

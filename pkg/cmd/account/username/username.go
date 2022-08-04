@@ -1,8 +1,9 @@
-package aws
+package username
 
 import (
 	"fmt"
 
+	cmdCreate "github.com/OctopusDeploy/cli/pkg/cmd/account/username/create"
 	cmdList "github.com/OctopusDeploy/cli/pkg/cmd/account/username/list"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/factory"
@@ -18,6 +19,7 @@ func NewCmdUsername(f factory.Factory) *cobra.Command {
 	}
 
 	cmd.AddCommand(cmdList.NewCmdList(f))
+	cmd.AddCommand(cmdCreate.NewCmdCreate(f))
 
 	return cmd
 }

@@ -30,7 +30,8 @@ type CreateOptions struct {
 
 	Name         string
 	Description  string
-	Token        string
+	Username     string
+	Password     string
 	Environments []string
 
 	NoPrompt bool
@@ -45,10 +46,10 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "create",
-		Short: "Creates an token account",
-		Long:  "Creates an Token Account in an instance of Octopus Deploy.",
+		Short: "Creates an username/password account",
+		Long:  "Creates an Username and Password Account in an instance of Octopus Deploy.",
 		Example: fmt.Sprintf(heredoc.Doc(`
-			$ %s account token create"
+			$ %s account username create"
 		`), constants.ExecutableName),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			client, err := f.GetSpacedClient()
@@ -80,7 +81,8 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 
 	cmd.Flags().StringVarP(&opts.Name, "name", "n", "", "A short, memorable, unique name for this account.")
 	cmd.Flags().StringVarP(&opts.Description, "description", "d", "", "A summary explaining the use of the account to other users.")
-	cmd.Flags().StringVarP(&opts.Token, "token", "t", "", "The password to use to when authenticating against the remote host.")
+	cmd.Flags().StringVarP(&opts.Username, "username", "u", "", "The username to use when authenticating against the remote host.")
+	cmd.Flags().StringVarP(&opts.Password, "password", "p", "", "The password to use to when authenticating against the remote host.")
 	cmd.Flags().StringArrayVarP(&opts.Environments, "environments", "e", nil, "The environments that are allowed to use this account.")
 	cmd.Flags().StringVarP(&descriptionFilePath, "description-file", "D", "", "Read the description from `file`.")
 
@@ -93,18 +95,19 @@ func CreateRun(opts *CreateOptions) error {
 			return err
 		}
 	}
-	tokenAccount, err := accounts.NewTokenAccount(
+	usernameAccount, err := accounts.NewUsernamePasswordAccount(
 		opts.Name,
-		core.NewSensitiveValue(opts.Token),
 	)
 	if err != nil {
 		return err
 	}
-	tokenAccount.Description = opts.Description
-	tokenAccount.EnvironmentIDs = opts.Environments
+	usernameAccount.Username = opts.Username
+	usernameAccount.Password = core.NewSensitiveValue(opts.Password)
+	usernameAccount.Description = opts.Description
+	usernameAccount.EnvironmentIDs = opts.Environments
 
 	opts.Spinner.Start()
-	createdAccount, err := opts.Octopus.Accounts.Add(tokenAccount)
+	createdAccount, err := opts.Octopus.Accounts.Add(usernameAccount)
 	if err != nil {
 		opts.Spinner.Stop()
 		return err
@@ -145,11 +148,22 @@ func promptMissing(opts *CreateOptions) error {
 		}
 	}
 
-	if opts.Token == "" {
+	if opts.Username == "" {
+		if err := opts.Ask(&survey.Input{
+			Message: "Username",
+			Help:    "The username to use when authenticating against the remote host.",
+		}, &opts.Username, survey.WithValidator(survey.ComposeValidators(
+			survey.Required,
+		))); err != nil {
+			return err
+		}
+	}
+
+	if opts.Password == "" {
 		if err := opts.Ask(&survey.Password{
-			Message: "Token",
+			Message: "Password",
 			Help:    "The password to use to when authenticating against the remote host.",
-		}, &opts.Token, survey.WithValidator(survey.ComposeValidators(
+		}, &opts.Password, survey.WithValidator(survey.ComposeValidators(
 			survey.Required,
 		))); err != nil {
 			return err
