@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/MakeNowJust/heredoc/v2"
@@ -41,6 +42,25 @@ type CreateOptions struct {
 	RMBaseUri              string
 
 	NoPrompt bool
+}
+
+var azureEnvMap = map[string]string{
+	"Global Cloud (Default)": "AzureCloud",
+	"China Cloud":            "AzureChinaCloud",
+	"German Cloud":           "AzureGermanCloud",
+	"US Government":          "AzureUSGovernment",
+}
+var azureADEndpointBaseUri = map[string]string{
+	"AzureCloud":        "https://login.microsoftonline.com/",
+	"AzureChinaCloud":   "https://login.chinacloudapi.cn/",
+	"AzureGermanCloud":  "https://login.microsoftonline.de/",
+	"AzureUSGovernment": "https://login.microsoftonline.us/",
+}
+var azureResourceManagementBaseUri = map[string]string{
+	"AzureCloud":        "https://management.azure.com/",
+	"AzureChinaCloud":   "https://management.chinacloudapi.cn/",
+	"AzureGermanCloud":  "https://management.microsoftazure.de/",
+	"AzureUSGovernment": "https://management.usgovcloudapi.net/",
 }
 
 func NewCmdCreate(f factory.Factory) *cobra.Command {
@@ -89,6 +109,25 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 			if opts.ApplicationID != "" {
 				if err := validation.IsUuid(opts.ApplicationID); err != nil {
 					return err
+				}
+			}
+			if opts.AzureEnvironment != "" {
+				isAzureEnvCorrect := false
+				for _, value := range azureEnvMap {
+					if strings.EqualFold(value, opts.AzureEnvironment) {
+						opts.AzureEnvironment = value
+						isAzureEnvCorrect = true
+						break
+					}
+				}
+				if !isAzureEnvCorrect {
+					return fmt.Errorf("the Azure environment %s is not correct, please use AzureChinaCloud, AzureChinaCloud, AzureGermanCloud or AzureUSGovernment", opts.AzureEnvironment)
+				}
+				if opts.RMBaseUri == "" && opts.NoPrompt {
+					opts.RMBaseUri = azureResourceManagementBaseUri[opts.AzureEnvironment]
+				}
+				if opts.ADEndpointBaseUrl == "" && opts.NoPrompt {
+					opts.ADEndpointBaseUrl = azureADEndpointBaseUri[opts.AzureEnvironment]
 				}
 			}
 			if opts.Environments != nil {
@@ -245,24 +284,6 @@ func promptMissing(opts *CreateOptions) error {
 			return err
 		}
 		if shouldConfigureAzureEnvironment {
-			azureEnvMap := map[string]string{
-				"Global Cloud (Default)": "AzureCloud",
-				"China Cloud":            "AzureChinaCloud",
-				"German Cloud":           "AzureGermanCloud",
-				"US Government":          "AzureUSGovernment",
-			}
-			azureADEndpointBaseUri := map[string]string{
-				"AzureCloud":        "https://login.microsoftonline.com/",
-				"AzureChinaCloud":   "https://login.chinacloudapi.cn/",
-				"AzureGermanCloud":  "https://login.microsoftonline.de/",
-				"AzureUSGovernment": "https://login.microsoftonline.us/",
-			}
-			azureResourceManagementBaseUri := map[string]string{
-				"AzureCloud":        "https://management.azure.com/",
-				"AzureChinaCloud":   "https://management.chinacloudapi.cn/",
-				"AzureGermanCloud":  "https://management.microsoftazure.de/",
-				"AzureUSGovernment": "https://management.usgovcloudapi.net/",
-			}
 			envMapKeys := make([]string, 0, len(azureEnvMap))
 			for keys := range azureEnvMap {
 				envMapKeys = append(envMapKeys, keys)
@@ -275,23 +296,26 @@ func promptMissing(opts *CreateOptions) error {
 				return err
 			}
 			opts.AzureEnvironment = azureEnvMap[opts.AzureEnvironment]
-			if opts.ADEndpointBaseUrl == "" {
-				if err := opts.Ask(&survey.Input{
-					Message: "AD Endpoint Base Uri",
-					Default: azureADEndpointBaseUri[opts.AzureEnvironment],
-					Help:    "Set this only if you need to override the default Active Directory Endpoint. In most cases you should leave the pre-populated value as is.",
-				}, &opts.ADEndpointBaseUrl); err != nil {
-					return err
-				}
+		}
+	}
+
+	if opts.AzureEnvironment != "" {
+		if opts.ADEndpointBaseUrl == "" {
+			if err := opts.Ask(&survey.Input{
+				Message: "AD Endpoint Base Uri",
+				Default: azureADEndpointBaseUri[opts.AzureEnvironment],
+				Help:    "Set this only if you need to override the default Active Directory Endpoint. In most cases you should leave the pre-populated value as is.",
+			}, &opts.ADEndpointBaseUrl); err != nil {
+				return err
 			}
-			if opts.RMBaseUri == "" {
-				if err := opts.Ask(&survey.Input{
-					Message: "Resource Management Base Uri",
-					Default: azureResourceManagementBaseUri[opts.AzureEnvironment],
-					Help:    "Set this only if you need to override the default Resource Management Endpoint. In most cases you should leave the pre-populated value as is.",
-				}, &opts.RMBaseUri); err != nil {
-					return err
-				}
+		}
+		if opts.RMBaseUri == "" {
+			if err := opts.Ask(&survey.Input{
+				Message: "Resource Management Base Uri",
+				Default: azureResourceManagementBaseUri[opts.AzureEnvironment],
+				Help:    "Set this only if you need to override the default Resource Management Endpoint. In most cases you should leave the pre-populated value as is.",
+			}, &opts.RMBaseUri); err != nil {
+				return err
 			}
 		}
 	}
