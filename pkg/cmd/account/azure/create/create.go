@@ -71,17 +71,17 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 			opts.NoPrompt = !f.IsPromptEnabled()
 
 			if opts.SubscriptionID != "" {
-				if err := validation.IsUUID(opts.SubscriptionID); err != nil {
+				if err := validation.IsUuid(opts.SubscriptionID); err != nil {
 					return err
 				}
 			}
 			if opts.TenantID != "" {
-				if err := validation.IsUUID(opts.TenantID); err != nil {
+				if err := validation.IsUuid(opts.TenantID); err != nil {
 					return err
 				}
 			}
 			if opts.ApplicationID != "" {
-				if err := validation.IsUUID(opts.ApplicationID); err != nil {
+				if err := validation.IsUuid(opts.ApplicationID); err != nil {
 					return err
 				}
 			}
@@ -183,7 +183,7 @@ func promptMissing(opts *CreateOptions) error {
 			Help:    "Your Azure subscription ID. This is a GUID in the format xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx.",
 		}, &opts.SubscriptionID, survey.WithValidator(survey.ComposeValidators(
 			survey.Required,
-			validation.IsUUID,
+			validation.IsUuid,
 		))); err != nil {
 			return err
 		}
@@ -195,7 +195,7 @@ func promptMissing(opts *CreateOptions) error {
 			Help:    "Your Azure Active Directory Tenant ID. This is a GUID in the format xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx.",
 		}, &opts.TenantID, survey.WithValidator(survey.ComposeValidators(
 			survey.Required,
-			validation.IsUUID,
+			validation.IsUuid,
 		))); err != nil {
 			return err
 		}
@@ -207,7 +207,7 @@ func promptMissing(opts *CreateOptions) error {
 			Help:    "Your Azucire Active Directory Tenant ID. This is a GUID in the format xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx.",
 		}, &opts.ApplicationID, survey.WithValidator(survey.ComposeValidators(
 			survey.Required,
-			validation.IsUUID,
+			validation.IsUuid,
 		))); err != nil {
 			return err
 		}
