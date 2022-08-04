@@ -8,6 +8,7 @@ import (
 	"github.com/MakeNowJust/heredoc/v2"
 	awsCreate "github.com/OctopusDeploy/cli/pkg/cmd/account/aws/create"
 	azureCreate "github.com/OctopusDeploy/cli/pkg/cmd/account/azure/create"
+	gcpCreate "github.com/OctopusDeploy/cli/pkg/cmd/account/gcp/create"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/spf13/cobra"
@@ -73,6 +74,16 @@ func createRun(f factory.Factory, w io.Writer) error {
 			Ask:     f.Ask,
 		}
 		if err := azureCreate.CreateRun(opts); err != nil {
+			return err
+		}
+	case "Google Cloud Account":
+		opts := &gcpCreate.CreateOptions{
+			Writer:  w,
+			Octopus: client,
+			Spinner: f.Spinner(),
+			Ask:     f.Ask,
+		}
+		if err := gcpCreate.CreateRun(opts); err != nil {
 			return err
 		}
 	}
