@@ -3,7 +3,6 @@ package factory
 import (
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/OctopusDeploy/cli/pkg/apiclient"
-	cliErrors "github.com/OctopusDeploy/cli/pkg/errors"
 	"github.com/OctopusDeploy/cli/pkg/question"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/spaces"
@@ -12,7 +11,7 @@ import (
 
 type factory struct {
 	client  apiclient.ClientFactory
-	asker   question.Asker
+	asker   question.AskProvider
 	spinner *spinner.Spinner
 }
 
@@ -20,13 +19,12 @@ type Factory interface {
 	GetSystemClient() (*client.Client, error)
 	GetSpacedClient() (*client.Client, error)
 	GetCurrentSpace() *spaces.Space
-	IsPromptEnabled() bool
-	SetPromptDisabled()
 	Spinner() *spinner.Spinner
+	IsPromptEnabled() bool
 	Ask(p survey.Prompt, response interface{}, opts ...survey.AskOpt) error
 }
 
-func New(clientFactory apiclient.ClientFactory, asker question.Asker, s *spinner.Spinner) Factory {
+func New(clientFactory apiclient.ClientFactory, asker question.AskProvider, s *spinner.Spinner) Factory {
 	return &factory{
 		client:  clientFactory,
 		asker:   asker,
@@ -56,21 +54,11 @@ func (f *factory) GetCurrentSpace() *spaces.Space {
 }
 
 func (f *factory) IsPromptEnabled() bool {
-	return f.asker != nil
-}
-
-// SetPromptDisabled prevents the CLI from prompting for user input.
-// Note this is a one-way function; once we disable it, we can't re-enable
-func (f *factory) SetPromptDisabled() {
-	f.asker = nil
+	return f.asker.IsInteractive()
 }
 
 func (f *factory) Ask(p survey.Prompt, response interface{}, opts ...survey.AskOpt) error {
-	if f.asker == nil {
-		// this shouldn't happen; commands should check IsPromptEnabled before attempting to prompt
-		return &cliErrors.PromptDisabledError{}
-	}
-	return f.asker(p, response, opts...)
+	return f.asker.Ask(p, response, opts...)
 }
 
 func (f *factory) Spinner() *spinner.Spinner {

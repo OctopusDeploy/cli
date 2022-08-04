@@ -12,7 +12,7 @@ func (e *OsEnvironmentError) Error() string {
 }
 
 // PromptDisabledError is a fallback error if code attempts to prompt the user when prompting is disabled.
-// If you see it, it represents a bug because Commands should check IsPromptEnabled before attempting to prompt
+// If you see it, it represents a bug because Commands should check IsInteractive before attempting to prompt
 type PromptDisabledError struct {
 }
 

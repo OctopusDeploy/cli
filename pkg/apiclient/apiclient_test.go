@@ -2,6 +2,7 @@ package apiclient_test
 
 import (
 	"github.com/OctopusDeploy/cli/pkg/apiclient"
+	"github.com/OctopusDeploy/cli/pkg/question"
 	"github.com/OctopusDeploy/cli/test/testutil"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/spaces"
 	"github.com/stretchr/testify/assert"
@@ -12,18 +13,20 @@ const serverUrl = "http://server"
 const placeholderApiKey = "API-XXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
 
 var root = testutil.NewRootResource()
+var qa = question.NewAskProvider(nil)
 
 func TestClient_GetSystemClient(t *testing.T) {
 	api := testutil.NewMockHttpServer()
 
 	t.Run("GetSystemClient returns the client", func(t *testing.T) {
-		factory, _ := apiclient.NewClientFactory(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "", nil)
+		factory, err := apiclient.NewClientFactory(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "", qa)
+		testutil.RequireSuccess(t, err)
 		clientReceiver := testutil.GoBegin2(factory.GetSystemClient)
 
 		api.ExpectRequest(t, "GET", "/api").RespondWith(root)
 
 		systemClient, err := testutil.ReceivePair(clientReceiver)
-		if !testutil.EnsureSuccess(t, err) {
+		if !testutil.AssertSuccess(t, err) {
 			return
 		}
 
@@ -31,20 +34,21 @@ func TestClient_GetSystemClient(t *testing.T) {
 	})
 
 	t.Run("GetSystemClient called twice returns the same client instance", func(t *testing.T) {
-		factory, _ := apiclient.NewClientFactory(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "", nil)
+		factory, err := apiclient.NewClientFactory(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "", qa)
+		testutil.RequireSuccess(t, err)
 		clientReceiver := testutil.GoBegin2(factory.GetSystemClient)
 
 		api.ExpectRequest(t, "GET", "/api").RespondWith(root)
 
 		systemClient, err := testutil.ReceivePair(clientReceiver)
-		if !testutil.EnsureSuccess(t, err) {
+		if !testutil.AssertSuccess(t, err) {
 			return
 		}
 
 		// Note that if this were to invoke any network requests, the test would fail because the mock API is not
 		// prepared for that
 		systemClient2, err := factory.GetSystemClient()
-		if !testutil.EnsureSuccess(t, err) {
+		if !testutil.AssertSuccess(t, err) {
 			return
 		}
 		assert.Same(t, systemClient, systemClient2)
@@ -67,7 +71,8 @@ func TestClient_GetSpacedClient_NoPrompt(t *testing.T) {
 		// that in no-prompt mode because otherwise people could write a CI script that worked due to
 		// auto-selection of the first space, which would then unexpectedly break later if someone added a
 		// second space to the octopus server
-		factory, _ := apiclient.NewClientFactory(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "", nil)
+		factory, err := apiclient.NewClientFactory(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "", qa)
+		testutil.RequireSuccess(t, err)
 
 		clientReceiver := testutil.GoBegin2(factory.GetSpacedClient)
 
@@ -80,7 +85,8 @@ func TestClient_GetSpacedClient_NoPrompt(t *testing.T) {
 	})
 
 	t.Run("GetSpacedClient returns an error when a space with the wrong name is specified", func(t *testing.T) {
-		factory, _ := apiclient.NewClientFactory(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "Integrations", nil)
+		factory, err := apiclient.NewClientFactory(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "Integrations", qa)
+		testutil.RequireSuccess(t, err)
 
 		clientReceiver := testutil.GoBegin2(factory.GetSpacedClient)
 
@@ -94,7 +100,8 @@ func TestClient_GetSpacedClient_NoPrompt(t *testing.T) {
 	})
 
 	t.Run("GetSpacedClient works when the Space ID is directly specified", func(t *testing.T) {
-		factory, _ := apiclient.NewClientFactory(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "Spaces-7", nil)
+		factory, err := apiclient.NewClientFactory(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "Spaces-7", qa)
+		testutil.RequireSuccess(t, err)
 
 		clientReceiver := testutil.GoBegin2(factory.GetSpacedClient)
 
@@ -114,7 +121,8 @@ func TestClient_GetSpacedClient_NoPrompt(t *testing.T) {
 	})
 
 	t.Run("GetSpacedClient works when the Space ID is directly specified (case insensitive)", func(t *testing.T) {
-		factory, _ := apiclient.NewClientFactory(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "spaCeS-7", nil)
+		factory, err := apiclient.NewClientFactory(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "spaCeS-7", qa)
+		testutil.RequireSuccess(t, err)
 
 		clientReceiver := testutil.GoBegin2(factory.GetSpacedClient)
 
@@ -134,7 +142,8 @@ func TestClient_GetSpacedClient_NoPrompt(t *testing.T) {
 	})
 
 	t.Run("GetSpacedClient works when the Space Name is directly specified", func(t *testing.T) {
-		factory, _ := apiclient.NewClientFactory(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "Integrations", nil)
+		factory, err := apiclient.NewClientFactory(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "Integrations", qa)
+		testutil.RequireSuccess(t, err)
 
 		clientReceiver := testutil.GoBegin2(factory.GetSpacedClient)
 
@@ -154,7 +163,8 @@ func TestClient_GetSpacedClient_NoPrompt(t *testing.T) {
 	})
 
 	t.Run("GetSpacedClient works when the Space Name is directly specified (case insensitive)", func(t *testing.T) {
-		factory, _ := apiclient.NewClientFactory(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "iNtegrationS", nil)
+		factory, err := apiclient.NewClientFactory(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "iNtegrationS", qa)
+		testutil.RequireSuccess(t, err)
 
 		clientReceiver := testutil.GoBegin2(factory.GetSpacedClient)
 
@@ -180,7 +190,8 @@ func TestClient_GetSpacedClient_NoPrompt(t *testing.T) {
 		spaces7space := spaces.NewSpace("Spaces-7") // nobody would do this in reality, but our software must still work properly
 		spaces7space.ID = "Spaces-209"
 
-		factory2, _ := apiclient.NewClientFactory(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "Spaces-7", nil)
+		factory2, err := apiclient.NewClientFactory(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "Spaces-7", qa)
+		testutil.RequireSuccess(t, err)
 
 		clientReceiver := testutil.GoBegin2(factory2.GetSpacedClient)
 
@@ -202,7 +213,8 @@ func TestClient_GetSpacedClient_NoPrompt(t *testing.T) {
 	})
 
 	t.Run("GetSpacedClient called twice returns the same client instance without additional requests", func(t *testing.T) {
-		factory, _ := apiclient.NewClientFactory(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "Integrations", nil)
+		factory, err := apiclient.NewClientFactory(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "Integrations", qa)
+		testutil.RequireSuccess(t, err)
 
 		clientReceiver := testutil.GoBegin2(factory.GetSpacedClient)
 
@@ -222,7 +234,7 @@ func TestClient_GetSpacedClient_NoPrompt(t *testing.T) {
 
 		// this isn't in a goroutine so the test will crash if it were to make any network calls
 		apiClient2, err := factory.GetSpacedClient()
-		if !testutil.EnsureSuccess(t, err) {
+		if !testutil.AssertSuccess(t, err) {
 			return
 		}
 		assert.Same(t, apiClient, apiClient2)

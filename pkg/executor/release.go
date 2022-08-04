@@ -6,6 +6,10 @@ import (
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/releases"
 )
 
+type TaskResultCreateRelease struct {
+	Version string
+}
+
 // the command processor is responsible for accepting related entity names from the end user
 // and looking them up for their ID's; we should only deal with strong references at this level
 type TaskOptionsCreateRelease struct {
@@ -15,6 +19,9 @@ type TaskOptionsCreateRelease struct {
 	ChannelName  string // optional
 	// TODO array of package version overrides
 	ReleaseNotes string // optional
+
+	// if the task succeeds, the resulting output will be stored here
+	Response *releases.CreateReleaseResponseV1
 }
 
 func releaseCreate(f factory.Factory, input any) error {
@@ -33,12 +40,18 @@ func releaseCreate(f factory.Factory, input any) error {
 
 	// we have the provided project name; go look it up
 	if params.ProjectName == "" {
-		return errors.New("Project must be specified")
+		return errors.New("project must be specified")
 	}
 
 	createReleaseParams := releases.NewCreateReleaseV1(currentSpace.ID, params.ProjectName)
 	if params.ChannelName != "" {
 		createReleaseParams.ChannelIDOrName = params.ChannelName
+	}
+	if params.GitReference != "" {
+		createReleaseParams.GitRef = params.GitReference
+	}
+	if params.Version != "" {
+		createReleaseParams.ReleaseVersion = params.Version
 	}
 	// TODO all the other flags
 
@@ -46,8 +59,11 @@ func releaseCreate(f factory.Factory, input any) error {
 		createReleaseParams.ReleaseNotes = params.ReleaseNotes
 	}
 
-	_, err = apiClient.Releases.CreateV1(createReleaseParams)
-	// TODO the response contains the output release information, we should probably return or log that
+	createReleaseResponse, err := apiClient.Releases.CreateV1(createReleaseParams)
+	if err != nil {
+		return err
+	}
 
-	return err
+	params.Response = createReleaseResponse
+	return nil
 }
