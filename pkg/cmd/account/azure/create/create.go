@@ -2,6 +2,9 @@ package create
 
 import (
 	"fmt"
+	"io"
+	"os"
+
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/cmd/account/helper"
@@ -18,8 +21,6 @@ import (
 	"github.com/briandowns/spinner"
 	"github.com/google/uuid"
 	"github.com/spf13/cobra"
-	"io"
-	"os"
 )
 
 type CreateOptions struct {
@@ -36,6 +37,8 @@ type CreateOptions struct {
 	ApplicationID          string
 	ApplicationPasswordKey string
 	AzureEnvironment       string
+	ADEndpointBaseUrl      string
+	RMBaseUri              string
 
 	NoPrompt bool
 }
@@ -105,7 +108,9 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 	cmd.Flags().StringVar(&opts.ApplicationID, "application-id", "", "Your Azure Active Directory Application ID.")
 	cmd.Flags().StringVar(&opts.ApplicationPasswordKey, "application-key", "", "The password for the Azure Active Directory application.")
 	cmd.Flags().StringArrayVarP(&opts.Environments, "environments", "e", nil, "The environments that are allowed to use this account")
-	cmd.Flags().StringVar(&opts.AzureEnvironment, "azure-environment", "", "Configure isolated Azure Environment.")
+	cmd.Flags().StringVar(&opts.AzureEnvironment, "azure-environment", "", "Set only if you are using an isolated Azure Environment. Configure isolated Azure Environment. Valid option are AzureChinaCloud, AzureChinaCloud, AzureGermanCloud or AzureUSGovernment")
+	cmd.Flags().StringVar(&opts.ADEndpointBaseUrl, "ad-endpoint-base-uri", "", "Set this only if you need to override the default Active Directory Endpoint.")
+	cmd.Flags().StringVar(&opts.RMBaseUri, "resource-management-base-uri", "", "Set this only if you need to override the default Resource Management Endpoint.")
 	cmd.Flags().StringVarP(&descriptionFilePath, "description-file", "D", "", "Read the description from `file`")
 
 	return cmd
@@ -134,17 +139,21 @@ func CreateRun(opts *CreateOptions) error {
 		appID,
 		core.NewSensitiveValue(opts.ApplicationPasswordKey),
 	)
-	servicePrincipalAccount.Description = opts.Description
 	if err != nil {
 		return err
 	}
+	servicePrincipalAccount.Description = opts.Description
+	servicePrincipalAccount.AzureEnvironment = opts.AzureEnvironment
+	servicePrincipalAccount.ResourceManagerEndpoint = opts.RMBaseUri
+	servicePrincipalAccount.AuthenticationEndpoint = opts.ADEndpointBaseUrl
+
 	createdAccount, err = opts.Octopus.Accounts.Add(servicePrincipalAccount)
 	if err != nil {
 		return err
 	}
 
 	opts.Spinner.Start()
-	_, err = fmt.Fprintf(opts.Writer, "Successfully created azure Account %s %s.\n", createdAccount.GetName(), output.Dimf("(%s)", createdAccount.GetID()))
+	_, err = fmt.Fprintf(opts.Writer, "Successfully created Azure Account %s %s.\n", createdAccount.GetName(), output.Dimf("(%s)", createdAccount.GetID()))
 	if err != nil {
 		opts.Spinner.Stop()
 		return err
@@ -207,7 +216,7 @@ func promptMissing(opts *CreateOptions) error {
 	if opts.ApplicationID == "" {
 		if err := opts.Ask(&survey.Input{
 			Message: "Application ID",
-			Help:    "Your Azucire Active Directory Tenant ID. This is a GUID in the format xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx.",
+			Help:    "Your Azure Active Directory Tenant ID. This is a GUID in the format xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx.",
 		}, &opts.ApplicationID, survey.WithValidator(survey.ComposeValidators(
 			survey.Required,
 			validation.IsUuid,
@@ -224,6 +233,66 @@ func promptMissing(opts *CreateOptions) error {
 			survey.Required,
 		))); err != nil {
 			return err
+		}
+	}
+
+	if opts.AzureEnvironment == "" {
+		var shouldConfigureAzureEnvironment bool
+		if err := opts.Ask(&survey.Confirm{
+			Message: "Configure isolated Azure Environment connection.",
+			Default: false,
+		}, &shouldConfigureAzureEnvironment); err != nil {
+			return err
+		}
+		if shouldConfigureAzureEnvironment {
+			azureEnvMap := map[string]string{
+				"Global Cloud (Default)": "AzureCloud",
+				"China Cloud":            "AzureChinaCloud",
+				"German Cloud":           "AzureGermanCloud",
+				"US Government":          "AzureUSGovernment",
+			}
+			azureADEndpointBaseUri := map[string]string{
+				"AzureCloud":        "https://login.microsoftonline.com/",
+				"AzureChinaCloud":   "https://login.chinacloudapi.cn/",
+				"AzureGermanCloud":  "https://login.microsoftonline.de/",
+				"AzureUSGovernment": "https://login.microsoftonline.us/",
+			}
+			azureResourceManagementBaseUri := map[string]string{
+				"AzureCloud":        "https://management.azure.com/",
+				"AzureChinaCloud":   "https://management.chinacloudapi.cn/",
+				"AzureGermanCloud":  "https://management.microsoftazure.de/",
+				"AzureUSGovernment": "https://management.usgovcloudapi.net/",
+			}
+			envMapKeys := make([]string, 0, len(azureEnvMap))
+			for keys := range azureEnvMap {
+				envMapKeys = append(envMapKeys, keys)
+			}
+			if err := opts.Ask(&survey.Select{
+				Message: "Azure Environment",
+				Options: envMapKeys,
+				Default: "Global Cloud (Default)",
+			}, &opts.AzureEnvironment); err != nil {
+				return err
+			}
+			opts.AzureEnvironment = azureEnvMap[opts.AzureEnvironment]
+			if opts.ADEndpointBaseUrl == "" {
+				if err := opts.Ask(&survey.Input{
+					Message: "AD Endpoint Base Uri",
+					Default: azureADEndpointBaseUri[opts.AzureEnvironment],
+					Help:    "Set this only if you need to override the default Active Directory Endpoint. In most cases you should leave the pre-populated value as is.",
+				}, &opts.ADEndpointBaseUrl); err != nil {
+					return err
+				}
+			}
+			if opts.RMBaseUri == "" {
+				if err := opts.Ask(&survey.Input{
+					Message: "Resource Management Base Uri",
+					Default: azureResourceManagementBaseUri[opts.AzureEnvironment],
+					Help:    "Set this only if you need to override the default Resource Management Endpoint. In most cases you should leave the pre-populated value as is.",
+				}, &opts.RMBaseUri); err != nil {
+					return err
+				}
+			}
 		}
 	}
 
