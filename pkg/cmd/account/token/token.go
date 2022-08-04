@@ -3,6 +3,7 @@ package aws
 import (
 	"fmt"
 
+	cmdCreate "github.com/OctopusDeploy/cli/pkg/cmd/account/token/create"
 	cmdList "github.com/OctopusDeploy/cli/pkg/cmd/account/token/list"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/factory"
@@ -18,6 +19,7 @@ func NewCmdToken(f factory.Factory) *cobra.Command {
 	}
 
 	cmd.AddCommand(cmdList.NewCmdList(f))
+	cmd.AddCommand(cmdCreate.NewCmdCreate(f))
 
 	return cmd
 }
