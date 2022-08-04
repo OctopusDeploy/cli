@@ -47,6 +47,8 @@ func main() {
 	// commands are expected to print their own errors to avoid double-ups
 	cmd.SilenceUsage = true
 	cmd.SilenceErrors = true
+	// if we don't do this then cmd.Print will get sent to stderr
+	cmd.SetOut(os.Stdout)
 
 	// if we attempt to check the flags before Execute is called, cobra hasn't parsed anything yet,
 	// so we'll get bad values. PersistentPreRun is a convenient callback for setting up our

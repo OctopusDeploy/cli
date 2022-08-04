@@ -217,7 +217,7 @@ func TestReleaseCreate(t *testing.T) {
 			assert.Fail(t, fmt.Sprintf("Expected ExitError from process, got %v", err))
 		}
 
-		assert.Equal(t, "", stdOut)
-		assert.Equal(t, "project must be specified\n", stdErr) // why does go print this?
+		assert.Equal(t, "\n", stdOut)
+		assert.Equal(t, "project must be specified", stdErr) // why does go print this?
 	})
 }
