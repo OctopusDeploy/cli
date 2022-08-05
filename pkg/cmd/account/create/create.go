@@ -65,6 +65,7 @@ func createRun(f factory.Factory, w io.Writer) error {
 			Octopus: client,
 			Spinner: f.Spinner(),
 			Ask:     f.Ask,
+			Space:   f.GetCurrentSpace().GetID(),
 		}
 		if err := awsCreate.CreateRun(opts); err != nil {
 			return err
@@ -75,6 +76,7 @@ func createRun(f factory.Factory, w io.Writer) error {
 			Octopus: client,
 			Spinner: f.Spinner(),
 			Ask:     f.Ask,
+			Space:   f.GetCurrentSpace().GetID(),
 		}
 		if err := azureCreate.CreateRun(opts); err != nil {
 			return err
@@ -85,6 +87,7 @@ func createRun(f factory.Factory, w io.Writer) error {
 			Octopus: client,
 			Spinner: f.Spinner(),
 			Ask:     f.Ask,
+			Space:   f.GetCurrentSpace().GetID(),
 		}
 		if err := gcpCreate.CreateRun(opts); err != nil {
 			return err
@@ -95,6 +98,7 @@ func createRun(f factory.Factory, w io.Writer) error {
 			Octopus: client,
 			Spinner: f.Spinner(),
 			Ask:     f.Ask,
+			Space:   f.GetCurrentSpace().GetID(),
 		}
 		if err := sshCreate.CreateRun(opts); err != nil {
 			return err
@@ -105,6 +109,7 @@ func createRun(f factory.Factory, w io.Writer) error {
 			Octopus: client,
 			Spinner: f.Spinner(),
 			Ask:     f.Ask,
+			Space:   f.GetCurrentSpace().GetID(),
 		}
 		if err := tokenCreate.CreateRun(opts); err != nil {
 			return err
@@ -115,6 +120,7 @@ func createRun(f factory.Factory, w io.Writer) error {
 			Octopus: client,
 			Spinner: f.Spinner(),
 			Ask:     f.Ask,
+			Space:   f.GetCurrentSpace().GetID(),
 		}
 		if err := usernameCreate.CreateRun(opts); err != nil {
 			return err

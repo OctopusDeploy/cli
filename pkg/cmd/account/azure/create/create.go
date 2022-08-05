@@ -81,6 +81,7 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 			if err != nil {
 				return err
 			}
+			opts.Space = f.GetCurrentSpace().GetID()
 			opts.Octopus = client
 			opts.Writer = cmd.OutOrStdout()
 			if descriptionFilePath != "" {
@@ -185,18 +186,21 @@ func CreateRun(opts *CreateOptions) error {
 	servicePrincipalAccount.ResourceManagerEndpoint = opts.RMBaseUri
 	servicePrincipalAccount.AuthenticationEndpoint = opts.ADEndpointBaseUrl
 
+	opts.Spinner.Start()
 	createdAccount, err = opts.Octopus.Accounts.Add(servicePrincipalAccount)
+	opts.Spinner.Stop()
 	if err != nil {
 		return err
 	}
 
-	opts.Spinner.Start()
-	_, err = fmt.Fprintf(opts.Writer, "Successfully created Azure Account %s %s.\n", createdAccount.GetName(), output.Dimf("(%s)", createdAccount.GetID()))
+	_, err = fmt.Fprintf(opts.Writer, "Successfully created Azure account %s %s.\n", createdAccount.GetName(), output.Dimf("(%s)", createdAccount.GetID()))
 	if err != nil {
-		opts.Spinner.Stop()
 		return err
 	}
-	opts.Spinner.Stop()
+	if host, ok := os.LookupEnv("OCTOPUS_HOST"); ok {
+		link := output.Bluef("%s/app#/%s/infrastructure/accounts/%s", host, opts.Space, createdAccount.GetID())
+		fmt.Fprintf(opts.Writer, "\nView this account on Octopus Deploy: %s\n", link)
+	}
 	return nil
 }
 

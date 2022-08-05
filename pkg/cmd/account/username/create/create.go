@@ -57,6 +57,7 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 			}
 			opts.Octopus = client
 			opts.Writer = cmd.OutOrStdout()
+			opts.Space = f.GetCurrentSpace().GetID()
 			if descriptionFilePath != "" {
 				if err := validation.IsExistingFile(descriptionFilePath); err != nil {
 					return err
@@ -107,15 +108,18 @@ func CreateRun(opts *CreateOptions) error {
 
 	opts.Spinner.Start()
 	createdAccount, err := opts.Octopus.Accounts.Add(usernameAccount)
+	opts.Spinner.Stop()
 	if err != nil {
-		opts.Spinner.Stop()
 		return err
 	}
-	opts.Spinner.Stop()
 
 	_, err = fmt.Fprintf(opts.Writer, "Successfully created Token Account %s %s.\n", createdAccount.GetName(), output.Dimf("(%s)", createdAccount.GetID()))
 	if err != nil {
 		return err
+	}
+	if host, ok := os.LookupEnv("OCTOPUS_HOST"); ok {
+		link := output.Bluef("%s/app#/%s/infrastructure/accounts/%s", host, opts.Space, createdAccount.GetID())
+		fmt.Fprintf(opts.Writer, "\nView this account on Octopus Deploy: %s\n", link)
 	}
 	return nil
 }

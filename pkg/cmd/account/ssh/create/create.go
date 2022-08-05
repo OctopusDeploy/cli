@@ -58,6 +58,7 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 			if err != nil {
 				return err
 			}
+			opts.Space = f.GetCurrentSpace().GetID()
 			opts.Octopus = client
 			opts.Writer = cmd.OutOrStdout()
 			if descriptionFilePath != "" {
@@ -124,15 +125,18 @@ func CreateRun(opts *CreateOptions) error {
 
 	opts.Spinner.Start()
 	createdAccount, err := opts.Octopus.Accounts.Add(sshAccount)
+	opts.Spinner.Stop()
 	if err != nil {
-		opts.Spinner.Stop()
 		return err
 	}
-	opts.Spinner.Stop()
 
-	_, err = fmt.Fprintf(opts.Writer, "Successfully created SSH Account %s %s.\n", createdAccount.GetName(), output.Dimf("(%s)", createdAccount.GetID()))
+	_, err = fmt.Fprintf(opts.Writer, "Successfully created SSH account %s %s.\n", createdAccount.GetName(), output.Dimf("(%s)", createdAccount.GetID()))
 	if err != nil {
 		return err
+	}
+	if host, ok := os.LookupEnv("OCTOPUS_HOST"); ok {
+		link := output.Bluef("%s/app#/%s/infrastructure/accounts/%s", host, opts.Space, createdAccount.GetID())
+		fmt.Fprintf(opts.Writer, "\nView this account on Octopus Deploy: %s\n", link)
 	}
 	return nil
 }
@@ -194,7 +198,7 @@ func promptMissing(opts *CreateOptions) error {
 	}
 
 	if opts.Passphrase == "" {
-		if err := opts.Ask(&survey.Input{
+		if err := opts.Ask(&survey.Password{
 			Message: "Passphrase",
 			Help:    "The passphrase for the private key, if required.",
 		}, &opts.Passphrase); err != nil {
