@@ -56,32 +56,30 @@ func deleteAllReleasesInProject(t *testing.T, apiClient *octopusApiClient.Client
 func TestReleaseCreate(t *testing.T) {
 	runId := uuid.New()
 
-	// setup; we need a project in a project and a channel in order to release things
+	// pre-requisites
 	apiClient, err := integration.GetApiClient(space1ID)
-	if !testutil.AssertSuccess(t, err) {
-		return
-	}
+	testutil.RequireSuccess(t, err)
 
 	projectGroup := projectgroups.NewProjectGroup(fmt.Sprintf("pg-%s", runId))
 	projectGroup, err = apiClient.ProjectGroups.Add(projectGroup)
-	if !testutil.AssertSuccess(t, err) {
-		return
-	}
+	testutil.RequireSuccess(t, err)
 	t.Cleanup(func() { assert.Nil(t, apiClient.ProjectGroups.DeleteByID(projectGroup.ID)) })
 
 	lifecycle := lifecycles.NewLifecycle(fmt.Sprintf("lifecycle-%s", runId))
 	lifecycle, err = apiClient.Lifecycles.Add(lifecycle)
-	if !testutil.AssertSuccess(t, err) {
-		return
-	}
+	testutil.RequireSuccess(t, err)
 	t.Cleanup(func() { assert.Nil(t, apiClient.Lifecycles.DeleteByID(lifecycle.ID)) })
 
+	// The project creates its own Default channel, using the specified lifecycle
 	project := projects.NewProject(fmt.Sprintf("project-%s", runId), lifecycle.ID, projectGroup.ID)
 	project, err = apiClient.Projects.Add(project)
-	if !testutil.AssertSuccess(t, err) {
-		return
-	}
+	testutil.RequireSuccess(t, err)
 	t.Cleanup(func() { assert.Nil(t, apiClient.Projects.DeleteByID(project.ID)) })
+
+	projectChannels, err := apiClient.Projects.GetChannels(project)
+	testutil.RequireSuccess(t, err)
+	assert.Equal(t, 1, len(projectChannels))
+	projectDefaultChannel := projectChannels[0]
 
 	dep, err := apiClient.DeploymentProcesses.Get(project, "")
 	if !testutil.AssertSuccess(t, err) {
@@ -107,15 +105,17 @@ func TestReleaseCreate(t *testing.T) {
 		return
 	}
 
-	channel := channels.NewChannel(fmt.Sprintf("channel-%s", runId), project.ID)
-	channel, err = apiClient.Channels.Add(channel)
+	// whilst the project already has a Default channel, we make an explicit one
+	// so we can verify things aren't just silently using the default when we tell them not to
+	customChannel := channels.NewChannel(fmt.Sprintf("channel-%s", runId), project.ID)
+	customChannel, err = apiClient.Channels.Add(customChannel)
 	if !testutil.AssertSuccess(t, err) {
 		return
 	}
-	t.Cleanup(func() { assert.Nil(t, apiClient.Channels.DeleteByID(channel.ID)) })
+	t.Cleanup(func() { assert.Nil(t, apiClient.Channels.DeleteByID(customChannel.ID)) })
 
 	t.Run("create a release specifying project,channel,version", func(t *testing.T) {
-		stdOut, stdErr, err := integration.RunCli(space1ID, "release", "create", "--project", project.Name, "--channel", channel.Name, "--version", "2.3.4")
+		stdOut, stdErr, err := integration.RunCli(space1ID, "release", "create", "--project", project.Name, "--channel", customChannel.Name, "--version", "2.3.4")
 		if !testutil.AssertSuccess(t, err, stdOut, stdErr) {
 			return
 		}
@@ -126,22 +126,22 @@ func TestReleaseCreate(t *testing.T) {
 		r1 := projectReleases[0]
 
 		assert.Equal(t, project.ID, r1.ProjectID)
-		assert.Equal(t, channel.ID, r1.ChannelID)
+		assert.Equal(t, customChannel.ID, r1.ChannelID)
 		assert.Equal(t, "2.3.4", r1.Version)
 
 		// assert CLI output *after* we've gone to the server and looked up what we expect the release ID to be.
-		assert.Equal(t, fmt.Sprintf("Successfully created release (%s) with version 2.3.4\n", r1.ID), stdOut)
+		assert.Equal(t, fmt.Sprintf("Successfully created release version 2.3.4 (%s) using channel %s (%s)\n", r1.ID, customChannel.Name, customChannel.ID), stdOut)
 	})
 
 	t.Run("create a release specifying project,channel - server allocates version", func(t *testing.T) {
 		// create a phoney release so that when the server allocates the version for the next release it will be predictable
-		stdOut, stdErr, err := integration.RunCli(space1ID, "release", "create", "--project", project.Name, "--channel", channel.Name, "--version", "5.0.0")
+		stdOut, stdErr, err := integration.RunCli(space1ID, "release", "create", "--project", project.Name, "--channel", customChannel.Name, "--version", "5.0.0")
 		if !testutil.AssertSuccess(t, err, stdOut, stdErr) {
 			return
 		}
 
 		// the one we care about
-		stdOut, stdErr, err = integration.RunCli(space1ID, "release", "create", "--project", project.Name, "--channel", channel.Name)
+		stdOut, stdErr, err = integration.RunCli(space1ID, "release", "create", "--project", project.Name, "--channel", customChannel.Name)
 		if !testutil.AssertSuccess(t, err, stdOut, stdErr) {
 			return
 		}
@@ -152,11 +152,11 @@ func TestReleaseCreate(t *testing.T) {
 		r1 := projectReleases[0] // API returns newer releases first
 
 		assert.Equal(t, project.ID, r1.ProjectID)
-		assert.Equal(t, channel.ID, r1.ChannelID)
+		assert.Equal(t, customChannel.ID, r1.ChannelID)
 		assert.Equal(t, "5.0.1", r1.Version)
 
 		// assert CLI output *after* we've gone to the server and looked up what we expect the release ID to be.
-		assert.Equal(t, fmt.Sprintf("Successfully created release (%s) with version 5.0.1\n", r1.ID), stdOut)
+		assert.Equal(t, fmt.Sprintf("Successfully created release version 5.0.1 (%s) using channel %s (%s)\n", r1.ID, customChannel.Name, customChannel.ID), stdOut)
 	})
 
 	t.Run("create a release specifying project and version - server uses default channel", func(t *testing.T) {
@@ -171,13 +171,13 @@ func TestReleaseCreate(t *testing.T) {
 		r1 := projectReleases[0]
 
 		assert.Equal(t, project.ID, r1.ProjectID)
-		assert.NotEqual(t, channel.ID, r1.ChannelID) // should be the default channel rather than the one we created
+		assert.Equal(t, projectDefaultChannel.ID, r1.ChannelID)
 		assert.Equal(t, "6.0.0", r1.Version)
 
 		// TODO should the CLI output that it's using the Default channel, and possibly what the name of that channel is?
 
 		// assert CLI output *after* we've gone to the server and looked up what we expect the release ID to be.
-		assert.Equal(t, fmt.Sprintf("Successfully created release (%s) with version 6.0.0\n", r1.ID), stdOut)
+		assert.Equal(t, fmt.Sprintf("Successfully created release version 6.0.0 (%s) using channel Default (%s)\n", r1.ID, projectDefaultChannel.ID), stdOut)
 	})
 
 	t.Run("create a release specifying project - server uses default channel and allocates version", func(t *testing.T) {
@@ -199,13 +199,13 @@ func TestReleaseCreate(t *testing.T) {
 		r1 := projectReleases[0]
 
 		assert.Equal(t, project.ID, r1.ProjectID)
-		assert.NotEqual(t, channel.ID, r1.ChannelID) // should be the default channel rather than the one we created
+		assert.Equal(t, projectDefaultChannel.ID, r1.ChannelID)
 		assert.Equal(t, "7.0.1", r1.Version)
 
 		// TODO should the CLI output that it's using the Default channel, and possibly what the name of that channel is?
 
 		// assert CLI output *after* we've gone to the server and looked up what we expect the release ID to be.
-		assert.Equal(t, fmt.Sprintf("Successfully created release (%s) with version 7.0.1\n", r1.ID), stdOut)
+		assert.Equal(t, fmt.Sprintf("Successfully created release version 7.0.1 (%s) using channel Default (%s)\n", r1.ID, projectDefaultChannel.ID), stdOut)
 	})
 
 	t.Run("cli returns an error if project is not specified", func(t *testing.T) {
@@ -218,6 +218,6 @@ func TestReleaseCreate(t *testing.T) {
 		}
 
 		assert.Equal(t, "\n", stdOut)
-		assert.Equal(t, "project must be specified", stdErr) // why does go print this?
+		assert.Equal(t, "project must be specified", stdErr)
 	})
 }

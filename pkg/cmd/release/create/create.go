@@ -117,12 +117,12 @@ func createRun(cmd *cobra.Command, f factory.Factory) error {
 		options.IgnoreIfAlreadyExists = value
 	}
 
-	if f.IsPromptEnabled() {
-		octopus, err := f.GetSpacedClient()
-		if err != nil {
-			return err
-		}
+	octopus, err := f.GetSpacedClient()
+	if err != nil {
+		return err
+	}
 
+	if f.IsPromptEnabled() {
 		err = AskQuestions(octopus, f.Ask, options)
 		if err != nil {
 			return err
@@ -136,11 +136,34 @@ func createRun(cmd *cobra.Command, f factory.Factory) error {
 	}
 
 	if options.Response != nil {
-		// TODO AutomaticallyDeployedEnvironments. Discuss with Team
-		cmd.Printf("Successfully created release %s with version %s\n", output.Dimf("(%s)", options.Response.ReleaseID), options.Response.ReleaseVersion)
-		if err != nil {
-			return err
+		// the API response doesn't tell us what channel it selected, so we need to go look that up to tell the end user
+		// TODO unit test for the error cases
+		newlyCreatedRelease, lookupErr := octopus.Releases.GetByID(options.Response.ReleaseID)
+		if lookupErr != nil { // ignorable error
+			cmd.Printf("Successfully created release version %s %s\n",
+				options.Response.ReleaseVersion,
+				output.Dimf("(%s)", options.Response.ReleaseID))
+
+			cmd.PrintErrf("Warning: cannot fetch release details: %v\n", lookupErr)
+		} else {
+			releaseChan, lookupErr := octopus.Channels.GetByID(newlyCreatedRelease.ChannelID)
+			if lookupErr != nil { // ignorable error
+				cmd.Printf("Successfully created release version %s %s using channel %s\n",
+					options.Response.ReleaseVersion,
+					output.Dimf("(%s)", options.Response.ReleaseID),
+					output.Dimf("(%s)", releaseChan.ID))
+
+				cmd.PrintErrf("Warning: cannot fetch release channel details: %v\n", lookupErr)
+			} else {
+				cmd.Printf("Successfully created release version %s %s using channel %s %s\n",
+					options.Response.ReleaseVersion,
+					output.Dimf("(%s)", options.Response.ReleaseID),
+					releaseChan.Name,
+					output.Dimf("(%s)", releaseChan.ID))
+			}
 		}
+
+		// TODO AutomaticallyDeployedEnvironments. Discuss with Team
 	}
 
 	return nil
@@ -166,6 +189,11 @@ func AskQuestions(octopus *octopusApiClient.Client, asker question.Asker, option
 		_, _ = fmt.Printf("Project %s\n", output.Cyan(selectedProject.Name))
 	}
 	options.ProjectName = selectedProject.Name
+
+	if selectedProject.PersistenceSettings.GetType() == "VersionControlled" && options.GitReference != "" || options.GitCommit != "" {
+		// it's a config-as-code project, we need to ask for Git Ref or Commit
+
+	}
 
 	var selectedChannel *channels.Channel
 	if options.ChannelName == "" {
