@@ -47,9 +47,6 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - name: Init git repo in octopus container shared space
-        run: cd /tmp/integrationtest && git init repo1 --bare
-
       - name: Set up Go
         uses: actions/setup-go@v3
         with:

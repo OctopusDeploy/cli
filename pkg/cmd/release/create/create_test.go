@@ -16,6 +16,7 @@ import (
 )
 
 var serverUrl, _ = url.Parse("http://server")
+var fakeRepoUrl, _ = url.Parse("https://gitserver/repo")
 
 const placeholderApiKey = "API-XXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
 
@@ -23,6 +24,7 @@ func TestReleaseCreate_AskQuestions(t *testing.T) {
 	root := testutil.NewRootResource()
 
 	const fireProjectID = "Projects-22"
+	const cacProjectID = "Projects-92"
 
 	depProcess := deployments.NewDeploymentProcess(fireProjectID)
 	depProcess.ID = "deploymentprocess-" + fireProjectID
@@ -40,6 +42,20 @@ func TestReleaseCreate_AskQuestions(t *testing.T) {
 	fireProject.Links = map[string]string{
 		"Channels":          "/api/Spaces-1/projects/" + fireProjectID + "/channels{/id}{?skip,take,partialName}",
 		"DeploymentProcess": "/api/Spaces-1/projects/" + fireProjectID + "/deploymentprocesses",
+	}
+
+	cacProject := projects.NewProject("CaC Project", "Lifecycles-1", "ProjectGroups-1")
+	cacProject.ID = cacProjectID
+	cacProject.PersistenceSettings = projects.NewGitPersistenceSettings(
+		".octopus",
+		projects.NewAnonymousGitCredential(),
+		"main",
+		fakeRepoUrl,
+	)
+	cacProject.DeploymentProcessID = depProcess.ID
+	cacProject.Links = map[string]string{
+		"Channels":          "/api/Spaces-1/projects/" + cacProjectID + "/channels{/id}{?skip,take,partialName}",
+		"DeploymentProcess": "/api/Spaces-1/projects/" + cacProjectID + "/deploymentprocesses",
 	}
 
 	t.Run("standard process asking for everything (no package versions)", func(t *testing.T) {
