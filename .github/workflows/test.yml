@@ -41,7 +41,7 @@ jobs:
         ports:
           - 8080:8080
         volumes:
-          - ${{runner.temp}}:/tmp/integrationtest
+          - ${{ runner.temp }}:/tmp/integrationtest
 
     permissions: # https://github.com/dorny/test-reporter/issues/168
       statuses: write
