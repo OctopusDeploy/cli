@@ -203,6 +203,7 @@ func TestReleaseCreateBasics(t *testing.T) {
 }
 
 // for config-as-code projects
+// NOTE these tests will fail if they can't run git
 func TestReleaseCreateVersionControlled(t *testing.T) {
 	runId := uuid.New()
 	apiClient, err := integration.GetApiClient(space1ID)
@@ -210,6 +211,11 @@ func TestReleaseCreateVersionControlled(t *testing.T) {
 
 	fx, err := integration.CreateCommonProject(t, apiClient, runId)
 	testutil.RequireSuccess(t, err)
+
+	//project := fx.Project
+	//gitCredentials := projects.NewUsernamePasswordGitCredential()
+	//
+	//project.PersistenceSettings = projects.NewVersionControlSettings("basePath")
 
 	dep, err := apiClient.DeploymentProcesses.Get(fx.Project, "")
 	if !testutil.AssertSuccess(t, err) {

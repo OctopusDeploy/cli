@@ -40,12 +40,17 @@ jobs:
           OCTOPUS_SERVER_BASE64_LICENSE: ${{ secrets.OCTOPUS_SERVER_BASE64_LICENSE }}
         ports:
           - 8080:8080
-    # https://github.com/dorny/test-reporter/issues/168
-    permissions:
+        volumes:
+          - ${{runner.temp}}:/tmp/integrationtest
+
+    permissions: # https://github.com/dorny/test-reporter/issues/168
       statuses: write
       checks: write
     steps:
       - uses: actions/checkout@v3
+
+      - name: Init git repo in octopus container shared space
+        run: cd /tmp/integrationtest && git init repo1 --bare
 
       - name: Set up Go
         uses: actions/setup-go@v3
