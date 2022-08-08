@@ -130,7 +130,9 @@ func createRun(cmd *cobra.Command, f factory.Factory) error {
 	}
 
 	// the executor will raise errors if any required options are missing
-	err = executor.ProcessTasks(f, []*executor.Task{executor.NewTask(executor.TaskTypeCreateRelease, options)})
+	err = executor.ProcessTasks(octopus, f.GetCurrentSpace(), []*executor.Task{
+		executor.NewTask(executor.TaskTypeCreateRelease, options),
+	})
 	if err != nil {
 		return err
 	}

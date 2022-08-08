@@ -19,7 +19,7 @@ var serverUrl, _ = url.Parse("http://server")
 
 const placeholderApiKey = "API-XXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
 
-func TestCreate_AskQuestions(t *testing.T) {
+func TestReleaseCreate_AskQuestions(t *testing.T) {
 	root := testutil.NewRootResource()
 
 	const fireProjectID = "Projects-22"

@@ -2,8 +2,9 @@ package executor
 
 import (
 	"errors"
-	"github.com/OctopusDeploy/cli/pkg/factory"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/releases"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/spaces"
 )
 
 type TaskResultCreateRelease struct {
@@ -28,19 +29,11 @@ type TaskOptionsCreateRelease struct {
 	Response *releases.CreateReleaseResponseV1
 }
 
-func releaseCreate(f factory.Factory, input any) error {
+func releaseCreate(octopus *client.Client, space *spaces.Space, input any) error {
 	params, ok := input.(*TaskOptionsCreateRelease)
 	if !ok {
 		return errors.New("invalid input type; expecting TaskOptionsCreateRelease")
 	}
-
-	apiClient, err := f.GetSpacedClient()
-	if err != nil {
-		return err
-	}
-
-	// we know which space to use as the client is already bound to it
-	currentSpace := f.GetCurrentSpace()
 
 	// we have the provided project name; go look it up
 	if params.ProjectName == "" {
@@ -60,7 +53,7 @@ func releaseCreate(f factory.Factory, input any) error {
 	//IgnoreIfAlreadyExists bool     `json:"ignoreIfAlreadyExists,omitempty"`
 	//IgnoreChannelRules    bool     `json:"ignoreChannelRules,omitempty"`
 	//PackagePrerelease     string   `json:"packagePrerelease,omitempty"`
-	createReleaseParams := releases.NewCreateReleaseV1(currentSpace.ID, params.ProjectName)
+	createReleaseParams := releases.NewCreateReleaseV1(space.ID, params.ProjectName)
 
 	if params.PackageVersion != "" {
 		createReleaseParams.PackageVersion = params.PackageVersion
@@ -92,7 +85,7 @@ func releaseCreate(f factory.Factory, input any) error {
 
 	// TODO PackagePrerelease
 
-	createReleaseResponse, err := apiClient.Releases.CreateV1(createReleaseParams)
+	createReleaseResponse, err := octopus.Releases.CreateV1(createReleaseParams)
 	if err != nil {
 		return err
 	}

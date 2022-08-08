@@ -3,7 +3,8 @@ package executor
 import (
 	"errors"
 	"fmt"
-	"github.com/OctopusDeploy/cli/pkg/factory"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/spaces"
 )
 
 // task type definitions
@@ -34,15 +35,15 @@ func NewTask(taskType TaskType, options any) *Task {
 // If everything goes well, a nil error will be returned.
 // On the first failure, the error will be returned.
 // TODO some kind of progress/results callback? A Goroutine with channels?
-func ProcessTasks(f factory.Factory, tasks []*Task) error {
+func ProcessTasks(octopus *client.Client, space *spaces.Space, tasks []*Task) error {
 	for _, task := range tasks {
 		switch task.Type {
 		case TaskTypeCreateAccount:
-			if err := accountCreate(f, task.Options); err != nil {
+			if err := accountCreate(octopus, space, task.Options); err != nil {
 				return err
 			}
 		case TaskTypeCreateRelease:
-			if err := releaseCreate(f, task.Options); err != nil {
+			if err := releaseCreate(octopus, space, task.Options); err != nil {
 				return err
 			}
 		default:

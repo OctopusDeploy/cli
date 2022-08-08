@@ -3,9 +3,10 @@ package executor
 import (
 	"errors"
 	"fmt"
-	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/accounts"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/core"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/spaces"
 )
 
 // account type values match the UI
@@ -29,15 +30,10 @@ type TaskOptionsCreateAccountToken struct {
 	Token *core.SensitiveValue
 }
 
-func accountCreate(f factory.Factory, input any) error {
+func accountCreate(octopus *client.Client, space *spaces.Space, input any) error {
 	params, ok := input.(*TaskOptionsCreateAccount)
 	if !ok {
 		return errors.New("invalid input type; expecting TaskOptionsCreateAccount")
-	}
-
-	client, err := f.GetSpacedClient()
-	if err != nil {
-		return err
 	}
 
 	// TODO should we validate these here, or should we assume that the outer code has already validated them?
@@ -105,6 +101,6 @@ func accountCreate(f factory.Factory, input any) error {
 		account.SetEnvironmentIDs(params.EnvironmentIds)
 	}
 
-	_, err = client.Accounts.Add(account)
+	_, err := octopus.Accounts.Add(account)
 	return err
 }

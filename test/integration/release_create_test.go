@@ -202,46 +202,19 @@ func TestReleaseCreateBasics(t *testing.T) {
 	})
 }
 
-// for config-as-code projects
-// NOTE these tests will fail if they can't run git
 func TestReleaseCreateVersionControlled(t *testing.T) {
-	runId := uuid.New()
-	apiClient, err := integration.GetApiClient(space1ID)
-	testutil.RequireSuccess(t, err)
-
-	fx, err := integration.CreateCommonProject(t, apiClient, runId)
-	testutil.RequireSuccess(t, err)
-
-	//project := fx.Project
-	//gitCredentials := projects.NewUsernamePasswordGitCredential()
-	//
-	//project.PersistenceSettings = projects.NewVersionControlSettings("basePath")
-
-	dep, err := apiClient.DeploymentProcesses.Get(fx.Project, "")
-	if !testutil.AssertSuccess(t, err) {
-		return
-	}
-	dep.Steps = []*deployments.DeploymentStep{
-		{
-			Name:       fmt.Sprintf("step1-%s", runId),
-			Properties: map[string]core.PropertyValue{"Octopus.Action.TargetRoles": core.NewPropertyValue("deploy", false)},
-			Actions: []*deployments.DeploymentAction{
-				{
-					ActionType: "Octopus.Script",
-					Name:       "Run a script",
-					Properties: map[string]core.PropertyValue{
-						"Octopus.Action.Script.ScriptBody": core.NewPropertyValue("echo 'hello'", false),
-					},
-				},
-			},
-		},
-	}
-	dep, err = apiClient.DeploymentProcesses.Update(dep)
-	if !testutil.AssertSuccess(t, err) {
-		return
-	}
-
-	t.Run("create a release without gitRef fails", func(t *testing.T) {
-
+	t.Run("Config As Code projects aren't covered by integration tests; see unit tests", func(t *testing.T) {
+		// Explanation: A CaC project requires that the octopus server be able to access the git repository.
+		// The CaC server tests do this by running on the same machine as the server, creating a git repository
+		// in the temp folder, then pointing the server at file://...temp/...
+		// Our Go CLI however, builds and runs in GitHub actions, and we run the octopus server as a 'service'
+		// in a docker container with an isolated filesystem. We can't just put things in the local temp and
+		// expect the server to be able to access them.
+		//
+		// We discussed options such as launching the octopus server explicitly using 'docker run' rather than
+		// GHA services, or hosting a separate sidecar "Git HTTP server" service container. Both seem viable,
+		// but costly, and we chose to accept test coverage from unit tests only for CaC project release creation
+		// instead. Essentially we just check that we send the right-shaped JSON request to a fake octopus server,
+		// and trust that the real server would handle this correctly.
 	})
 }
