@@ -1,4 +1,4 @@
-name: 'Unit tests'
+name: 'PR and Commit Validation'
 on:
   workflow_dispatch:
   push:
@@ -18,6 +18,11 @@ jobs:
         uses: actions/setup-go@v3
         with:
           go-version: 1.18
+
+      # if we just run the unit tests then go doesn't compile the parts of the app that aren't covered by
+      # unit tests; this forces it
+      - name: Build binary
+        run: go build -o bin/octopus cmd/octopus/main.go
 
       - name: Setup gotestsum
         run: go install gotest.tools/gotestsum@latest
