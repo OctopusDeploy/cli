@@ -1,6 +1,8 @@
 package testutil
 
 import (
+	"encoding/json"
+	"io"
 	"net/http"
 	"runtime/debug"
 	"testing"
@@ -55,4 +57,22 @@ func NewMockHttpClientWithTransport(transport http.RoundTripper) *http.Client {
 	httpClient := &http.Client{}
 	httpClient.Transport = transport
 	return httpClient
+}
+
+// NOTE max length of 8k
+func ReadJson[T any](body io.ReadCloser) (T, error) {
+	buf := make([]byte, 8192)
+
+	bytesRead, err := body.Read(buf)
+	if err != nil {
+		return *new(T), err
+	}
+
+	var unmarshalled T
+	err = json.Unmarshal(buf[:bytesRead], &unmarshalled)
+	if err != nil {
+		return *new(T), err
+	}
+
+	return unmarshalled, nil
 }

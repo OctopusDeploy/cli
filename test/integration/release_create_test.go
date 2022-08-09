@@ -154,8 +154,6 @@ func TestReleaseCreateBasics(t *testing.T) {
 		assert.Equal(t, fx.ProjectDefaultChannel.ID, r1.ChannelID)
 		assert.Equal(t, "6.0.0", r1.Version)
 
-		// TODO should the CLI output that it's using the Default channel, and possibly what the name of that channel is?
-
 		// assert CLI output *after* we've gone to the server and looked up what we expect the release ID to be.
 		assert.Equal(t, fmt.Sprintf("Successfully created release version 6.0.0 (%s) using channel Default (%s)\n", r1.ID, fx.ProjectDefaultChannel.ID), stdOut)
 	})
@@ -199,22 +197,5 @@ func TestReleaseCreateBasics(t *testing.T) {
 
 		assert.Equal(t, "\n", stdOut)
 		assert.Equal(t, "project must be specified", stdErr)
-	})
-}
-
-func TestReleaseCreateVersionControlled(t *testing.T) {
-	t.Run("Config As Code projects aren't covered by integration tests; see unit tests", func(t *testing.T) {
-		// Explanation: A CaC project requires that the octopus server be able to access the git repository.
-		// The CaC server tests do this by running on the same machine as the server, creating a git repository
-		// in the temp folder, then pointing the server at file://...temp/...
-		// Our Go CLI however, builds and runs in GitHub actions, and we run the octopus server as a 'service'
-		// in a docker container with an isolated filesystem. We can't just put things in the local temp and
-		// expect the server to be able to access them.
-		//
-		// We discussed options such as launching the octopus server explicitly using 'docker run' rather than
-		// GHA services, or hosting a separate sidecar "Git HTTP server" service container. Both seem viable,
-		// but costly, and we chose to accept test coverage from unit tests only for CaC project release creation
-		// instead. Essentially we just check that we send the right-shaped JSON request to a fake octopus server,
-		// and trust that the real server would handle this correctly.
 	})
 }

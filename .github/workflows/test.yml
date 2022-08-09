@@ -1,45 +1,12 @@
-name: 'Unit and Integration tests'
+name: 'Unit tests'
 on:
   workflow_dispatch:
   push:
     paths-ignore:
       - '**.md'
-  schedule:
-    # Daily 5am australian/brisbane time (7pm UTC)
-    - cron: '0 19 * * *'
-env:
-  SA_PASSWORD: ${{ secrets.DB_IMAGE_SA_PASSWORD }}
-  ADMIN_API_KEY: ${{ secrets.OD_IMAGE_ADMIN_API_KEY }}
-  SERVER_URL: 'http://localhost:8080'
 jobs:
   test:
     runs-on: ubuntu-latest
-    services:
-      sqlserver:
-        image: mcr.microsoft.com/mssql/server:2019-latest
-        env:
-          ACCEPT_EULA: Y
-          SA_PASSWORD: ${{ env.SA_PASSWORD }}
-          MSSQL_PID: Developer
-        options: >-
-          --health-cmd "/opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P \"$SA_PASSWORD\" -Q \"SELECT 1\" || exit 1"
-          --health-interval 10s
-          --health-timeout 3s
-          --health-retries 10
-          --health-start-period 10s
-      octopusserver:
-        # NOTE: we'd rather pin to a major version (e.g. 2022.3), but because 2022.3 is not
-        # generally available for onprem customers yet this isn't possible.
-        # Change this when it GA's later
-        image: docker.packages.octopushq.com/octopusdeploy/octopusdeploy:2022.3.7064-linux
-        env:
-          ACCEPT_EULA: Y
-          DB_CONNECTION_STRING: 'Server=sqlserver;Database=OctopusDeploy;User Id=sa;Password=${{ env.SA_PASSWORD }};'
-          ADMIN_API_KEY: ${{ env.ADMIN_API_KEY }}
-          ENABLE_USAGE: N
-          OCTOPUS_SERVER_BASE64_LICENSE: ${{ secrets.OCTOPUS_SERVER_BASE64_LICENSE }}
-        ports:
-          - 8080:8080
 
     permissions: # https://github.com/dorny/test-reporter/issues/168
       statuses: write
@@ -58,13 +25,6 @@ jobs:
       - name: Unit Tests
         run: gotestsum --format testname --junitfile ../unit-tests.xml
         working-directory: ./pkg
-
-      - name: Integration Tests
-        env:
-          OCTOPUS_TEST_URL: ${{ env.SERVER_URL }}
-          OCTOPUS_TEST_APIKEY: ${{ env.ADMIN_API_KEY }}
-        run: gotestsum --format testname --junitfile ../integration-tests.xml
-        working-directory: ./test/integration
 
       - name: Test Report
         uses: dorny/test-reporter@v1
