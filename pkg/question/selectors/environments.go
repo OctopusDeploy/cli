@@ -1,13 +1,13 @@
 package selectors
 
 import (
+	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/OctopusDeploy/cli/pkg/question"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/environments"
-	"github.com/briandowns/spinner"
 )
 
-func EnvironmentsMultiSelect(ask question.Asker, client *client.Client, s *spinner.Spinner, message string) ([]string, error) {
+func EnvironmentsMultiSelect(ask question.Asker, client *client.Client, s factory.Spinner, message string) ([]string, error) {
 	s.Start()
 	envResources, err := client.Environments.Get(environments.EnvironmentsQuery{})
 	if err != nil {

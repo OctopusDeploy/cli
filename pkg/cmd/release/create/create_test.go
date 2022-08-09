@@ -1,8 +1,10 @@
 package create_test
 
 import (
+	"bytes"
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/OctopusDeploy/cli/pkg/cmd/release/create"
+	cmdCreate "github.com/OctopusDeploy/cli/pkg/cmd/release/create"
 	"github.com/OctopusDeploy/cli/pkg/executor"
 	"github.com/OctopusDeploy/cli/test/fixtures"
 	"github.com/OctopusDeploy/cli/test/testutil"
@@ -18,7 +20,6 @@ import (
 )
 
 var serverUrl, _ = url.Parse("http://server")
-var fakeRepoUrl, _ = url.Parse("https://gitserver/repo")
 
 const placeholderApiKey = "API-XXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
 
@@ -27,7 +28,6 @@ func TestReleaseCreate_AskQuestions(t *testing.T) {
 
 	const spaceID = "Spaces-1"
 	const fireProjectID = "Projects-22"
-	const cacProjectID = "Projects-92"
 
 	depProcess := fixtures.NewDeploymentProcessForProject(spaceID, fireProjectID)
 
@@ -35,14 +35,6 @@ func TestReleaseCreate_AskQuestions(t *testing.T) {
 	altChannel := channels.NewChannel("Fire Project Alt Channel", fireProjectID)
 
 	fireProject := fixtures.NewProject(spaceID, fireProjectID, "Fire Project", "Lifecycles-1", "ProjectGroups-1", depProcess.ID)
-
-	cacProject := fixtures.NewProject(spaceID, cacProjectID, "CaC Project", "Lifecycles-1", "ProjectGroups-1", depProcess.ID)
-	cacProject.PersistenceSettings = projects.NewGitPersistenceSettings(
-		".octopus",
-		projects.NewAnonymousGitCredential(),
-		"main",
-		fakeRepoUrl,
-	)
 
 	t.Run("standard process asking for everything (no package versions) or CaC", func(t *testing.T) {
 		api := testutil.NewMockHttpServer()
@@ -134,6 +126,17 @@ func TestReleaseCreate_AskQuestions(t *testing.T) {
 		api := testutil.NewMockHttpServer()
 		qa := testutil.NewAskMocker()
 
+		cacProjectID := "Projects-87"
+		repoUrl, _ := url.Parse("http://server/repo.git")
+
+		cacProject := fixtures.NewProject(spaceID, cacProjectID, "CaC Project", "Lifecycles-1", "ProjectGroups-1", depProcess.ID)
+		cacProject.PersistenceSettings = projects.NewGitPersistenceSettings(
+			".octopus",
+			projects.NewAnonymousGitCredential(),
+			"main",
+			repoUrl,
+		)
+
 		options := &executor.TaskOptionsCreateRelease{}
 
 		errReceiver := testutil.GoBegin(func() error {
@@ -180,7 +183,8 @@ func TestReleaseCreate_AskQuestions(t *testing.T) {
 	})
 }
 
-func TestReleaseCreate_AutomationModeCaCProject(t *testing.T) {
+// These tests ensure that given the right input, we call the server's API appropriately
+func TestReleaseCreate_Functional(t *testing.T) {
 	fakeRepoUrl, _ := url.Parse("https://gitserver/repo")
 
 	root := testutil.NewRootResource()
@@ -201,27 +205,29 @@ func TestReleaseCreate_AutomationModeCaCProject(t *testing.T) {
 
 	api := testutil.NewMockHttpServer()
 
-	t.Run("release creation sanity check", func(t *testing.T) {
-		taskOptions := &executor.TaskOptionsCreateRelease{
-			ProjectName: cacProject.Name,
-		}
+	t.Run("release creation minimal inputs", func(t *testing.T) {
+		fac := testutil.NewMockFactoryWithSpace(api, space1)
+		
+		// TODO should we build the root command and let it do the rest, or should we jump in here?
+		cmd := cmdCreate.NewCmdCreate(fac)
+		_ = cmd.Flags().Set(cmdCreate.FlagProject, cacProject.Name)
+
+		var stdOut bytes.Buffer
+		cmd.SetOut(&stdOut)
+
+		var stdErr bytes.Buffer
+		cmd.SetErr(&stdErr)
 
 		errReceiver := testutil.GoBegin(func() error {
-			// NewClient makes network calls so we have to run it in the goroutine
-			octopus, _ := octopusApiClient.NewClient(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "")
-			return executor.ProcessTasks(octopus, space1, []*executor.Task{
-				executor.NewTask(executor.TaskTypeCreateRelease, taskOptions),
-			})
+			return cmd.RunE(cmd, []string{})
 		})
 
 		api.ExpectRequest(t, "GET", "/api").RespondWith(root)
 
 		req := api.ExpectRequest(t, "POST", "/api/Spaces-1/releases/create/v1")
 
-		reader, err := req.Request.GetBody()
-		assert.Nil(t, err)
-
-		requestBody, err := testutil.ReadJson[releases.CreateReleaseV1](reader)
+		// check that it sent us the right request body
+		requestBody, err := testutil.ReadJson[releases.CreateReleaseV1](req.Request.Body)
 		assert.Nil(t, err)
 
 		assert.Equal(t, releases.CreateReleaseV1{
@@ -231,17 +237,24 @@ func TestReleaseCreate_AutomationModeCaCProject(t *testing.T) {
 
 		req.RespondWith(&releases.CreateReleaseResponseV1{
 			ReleaseID:      "Releases-999", // new release
-			ReleaseVersion: "Blah",
+			ReleaseVersion: "1.2.3",
 		})
+
+		// after it creates the release it's going to go back to the server and lookup the release by it's ID
+		// so it can tell the user what channel got selected
+
+		releaseInfo := releases.NewRelease("Channels-32", cacProject.ID, "1.2.3")
+		api.ExpectRequest(t, "GET", "/api/Spaces-1/releases/Releases-999").RespondWith(releaseInfo)
+
+		// and now it wants to lookup the channel name too
+		channelInfo := fixtures.NewChannel(space1.ID, "Channels-32", "Alpha channel", cacProject.ID)
+		api.ExpectRequest(t, "GET", "/api/Spaces-1/channels/Channels-32").RespondWith(channelInfo)
 
 		err = <-errReceiver
 		assert.Nil(t, err)
 
-		assert.Equal(t, &releases.CreateReleaseResponseV1{
-			ReleaseID:                         "Releases-999",
-			ReleaseVersion:                    "Blah",
-			AutomaticallyDeployedEnvironments: "",
-		}, taskOptions.Response)
+		assert.Equal(t, "Successfully created release version 1.2.3 (Releases-999) using channel Alpha channel (Channels-32)\n", stdOut.String())
+		assert.Equal(t, "", stdErr.String())
 	})
 
 	t.Run("release creation specifies gitcommit and gitref", func(t *testing.T) {

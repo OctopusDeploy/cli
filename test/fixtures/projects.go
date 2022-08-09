@@ -2,6 +2,7 @@ package fixtures
 
 import (
 	"fmt"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/channels"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/deployments"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/spaces"
@@ -34,5 +35,12 @@ func NewProject(spaceID string, projectID string, projectName string, lifecycleI
 		"Channels":          fmt.Sprintf("/api/%s/projects/%s/channels{/id}{?skip,take,partialName}", spaceID, projectID),
 		"DeploymentProcess": fmt.Sprintf("/api/%s/projects/%s/deploymentprocesses", spaceID, projectID),
 	}
+	return result
+}
+
+func NewChannel(spaceID string, channelID string, channelName string, projectID string) *channels.Channel {
+	result := channels.NewChannel(channelName, projectID)
+	result.ID = channelID
+	result.SpaceID = spaceID
 	return result
 }

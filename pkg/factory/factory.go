@@ -6,25 +6,30 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/question"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/spaces"
-	"github.com/briandowns/spinner"
 )
+
+// wrapper over the underlying spinner so we can mock it
+type Spinner interface {
+	Start()
+	Stop()
+}
 
 type factory struct {
 	client  apiclient.ClientFactory
 	asker   question.AskProvider
-	spinner *spinner.Spinner
+	spinner Spinner
 }
 
 type Factory interface {
 	GetSystemClient() (*client.Client, error)
 	GetSpacedClient() (*client.Client, error)
 	GetCurrentSpace() *spaces.Space
-	Spinner() *spinner.Spinner
+	Spinner() Spinner
 	IsPromptEnabled() bool
 	Ask(p survey.Prompt, response interface{}, opts ...survey.AskOpt) error
 }
 
-func New(clientFactory apiclient.ClientFactory, asker question.AskProvider, s *spinner.Spinner) Factory {
+func New(clientFactory apiclient.ClientFactory, asker question.AskProvider, s Spinner) Factory {
 	return &factory{
 		client:  clientFactory,
 		asker:   asker,
@@ -61,6 +66,6 @@ func (f *factory) Ask(p survey.Prompt, response interface{}, opts ...survey.AskO
 	return f.asker.Ask(p, response, opts...)
 }
 
-func (f *factory) Spinner() *spinner.Spinner {
+func (f *factory) Spinner() Spinner {
 	return f.spinner
 }

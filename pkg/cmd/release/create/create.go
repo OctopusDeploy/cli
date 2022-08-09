@@ -19,17 +19,17 @@ import (
 )
 
 const (
-	flagProject                = "project"
-	flagPackageVersion         = "package-version" // would default-package-version? be a better name?
-	flagReleaseNotes           = "release-notes"   // should we also add release-notes-file?
-	flagChannel                = "channel"
-	flagVersion                = "version"
-	flagGitRef                 = "git-ref"
-	flagGitCommit              = "git-commit"
-	flagIgnoreExisting         = "ignore-existing"
-	flagIgnoreChannelRules     = "ignore-channel-rules"
-	flagPackagePrerelease      = "prerelease-packages"
-	flagPackageVersionOverride = "package-override" // package-version-override? This one should allow multiple occurrences
+	FlagProject                = "project"
+	FlagPackageVersion         = "package-version" // would default-package-version? be a better name?
+	FlagReleaseNotes           = "release-notes"   // should we also add release-notes-file?
+	FlagChannel                = "channel"
+	FlagVersion                = "version"
+	FlagGitRef                 = "git-ref"
+	FlagGitCommit              = "git-commit"
+	FlagIgnoreExisting         = "ignore-existing"
+	FlagIgnoreChannelRules     = "ignore-channel-rules"
+	FlagPackagePrerelease      = "prerelease-packages"
+	FlagPackageVersionOverride = "package-override" // package-version-override? This one should allow multiple occurrences
 )
 
 type PackageVersions struct {
@@ -62,18 +62,18 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 	}
 
 	// project is required in automation mode, other options are not. Nothing is required in interactive mode because we prompt for everything
-	cmd.Flags().StringP(flagProject, "p", "", "Name or ID of the project to create the release in")
-	cmd.Flags().StringP(flagChannel, "c", "", "Name or ID of the channel to use")
-	cmd.Flags().StringP(flagGitRef, "r", "", "Git Reference e.g. refs/head/main. Only relevant for config-as-code projects")
-	cmd.Flags().StringP(flagGitCommit, "", "", "Git Commit Hash; Use as an alternative to Git Reference for advanced cases.")
-	cmd.Flags().StringP(flagPackageVersion, "", "", "Default version to use for all Packages")
-	cmd.Flags().StringP(flagReleaseNotes, "n", "", "Release notes to attach")
-	cmd.Flags().StringP(flagVersion, "v", "", "Version Override")
-	cmd.Flags().BoolP(flagIgnoreExisting, "x", false, "If a release with the same version exists, do nothing rather than failing.")
-	cmd.Flags().BoolP(flagIgnoreChannelRules, "", false, "Force creation of a release where channel rules would otherwise prevent it.")
-	cmd.Flags().BoolP(flagPackagePrerelease, "", false, "Allow selection of prerelease packages.") // TODO does this make sense? The server is going to follow channel rules anyway isn't it?
+	cmd.Flags().StringP(FlagProject, "p", "", "Name or ID of the project to create the release in")
+	cmd.Flags().StringP(FlagChannel, "c", "", "Name or ID of the channel to use")
+	cmd.Flags().StringP(FlagGitRef, "r", "", "Git Reference e.g. refs/head/main. Only relevant for config-as-code projects")
+	cmd.Flags().StringP(FlagGitCommit, "", "", "Git Commit Hash; Use as an alternative to Git Reference for advanced cases.")
+	cmd.Flags().StringP(FlagPackageVersion, "", "", "Default version to use for all Packages")
+	cmd.Flags().StringP(FlagReleaseNotes, "n", "", "Release notes to attach")
+	cmd.Flags().StringP(FlagVersion, "v", "", "Version Override")
+	cmd.Flags().BoolP(FlagIgnoreExisting, "x", false, "If a release with the same version exists, do nothing rather than failing.")
+	cmd.Flags().BoolP(FlagIgnoreChannelRules, "", false, "Force creation of a release where channel rules would otherwise prevent it.")
+	cmd.Flags().BoolP(FlagPackagePrerelease, "", false, "Allow selection of prerelease packages.") // TODO does this make sense? The server is going to follow channel rules anyway isn't it?
 	// stringSlice also allows comma-separated things
-	cmd.Flags().StringSliceP(flagPackageVersionOverride, "o", []string{}, "Version Override for a specific package.\nFormat as {step}:{package}:{version}\nYou may specify this multiple times")
+	cmd.Flags().StringSliceP(FlagPackageVersionOverride, "o", []string{}, "Version Override for a specific package.\nFormat as {step}:{package}:{version}\nYou may specify this multiple times")
 
 	// we want the help text to display in the above order, rather than alphabetical
 	cmd.Flags().SortFlags = false
@@ -82,7 +82,7 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 }
 
 func createRun(cmd *cobra.Command, f factory.Factory) error {
-	project, err := cmd.Flags().GetString(flagProject)
+	project, err := cmd.Flags().GetString(FlagProject)
 	if err != nil {
 		return err
 	}
@@ -91,29 +91,29 @@ func createRun(cmd *cobra.Command, f factory.Factory) error {
 		ProjectName: project,
 	}
 	// ignore errors when fetching flags
-	if value, _ := cmd.Flags().GetString(flagPackageVersion); value != "" {
+	if value, _ := cmd.Flags().GetString(FlagPackageVersion); value != "" {
 		options.PackageVersion = value
 	}
-	if value, _ := cmd.Flags().GetString(flagChannel); value != "" {
+	if value, _ := cmd.Flags().GetString(FlagChannel); value != "" {
 		options.ChannelName = value
 	}
 
-	if value, _ := cmd.Flags().GetString(flagGitRef); value != "" {
+	if value, _ := cmd.Flags().GetString(FlagGitRef); value != "" {
 		options.GitReference = value
 	}
-	if value, _ := cmd.Flags().GetString(flagGitCommit); value != "" {
+	if value, _ := cmd.Flags().GetString(FlagGitCommit); value != "" {
 		options.GitCommit = value
 	}
 
-	if value, _ := cmd.Flags().GetString(flagVersion); value != "" {
+	if value, _ := cmd.Flags().GetString(FlagVersion); value != "" {
 		options.Version = value
 	}
 
-	if value, _ := cmd.Flags().GetString(flagReleaseNotes); value != "" {
+	if value, _ := cmd.Flags().GetString(FlagReleaseNotes); value != "" {
 		options.ReleaseNotes = value
 	}
 
-	if value, _ := cmd.Flags().GetBool(flagIgnoreExisting); value {
+	if value, _ := cmd.Flags().GetBool(FlagIgnoreExisting); value {
 		options.IgnoreIfAlreadyExists = value
 	}
 

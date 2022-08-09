@@ -1,17 +1,17 @@
 package helper
 
 import (
+	"github.com/OctopusDeploy/cli/pkg/factory"
 	"strings"
 
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/environments"
-	"github.com/briandowns/spinner"
 )
 
 // ResolveNamesOrId takes in an array of names and trys to find an exact match.
 // If a match is found it will return its corresponding ID. If no match is found
 // it will return the name as is, in assumption it is an ID.
-func ResolveEnvironmentNames(envs []string, octopus *client.Client, spinner *spinner.Spinner) ([]string, error) {
+func ResolveEnvironmentNames(envs []string, octopus *client.Client, spinner factory.Spinner) ([]string, error) {
 	spinner.Start()
 	envIds := make([]string, 0, len(envs))
 loop:

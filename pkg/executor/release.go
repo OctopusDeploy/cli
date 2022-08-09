@@ -35,6 +35,10 @@ func releaseCreate(octopus *client.Client, space *spaces.Space, input any) error
 		return errors.New("invalid input type; expecting TaskOptionsCreateRelease")
 	}
 
+	if space == nil {
+		return errors.New("space must be specified")
+	}
+
 	// we have the provided project name; go look it up
 	if params.ProjectName == "" {
 		return errors.New("project must be specified")
