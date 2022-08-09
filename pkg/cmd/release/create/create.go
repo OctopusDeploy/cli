@@ -64,8 +64,8 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 	// project is required in automation mode, other options are not. Nothing is required in interactive mode because we prompt for everything
 	cmd.Flags().StringP(FlagProject, "p", "", "Name or ID of the project to create the release in")
 	cmd.Flags().StringP(FlagChannel, "c", "", "Name or ID of the channel to use")
-	cmd.Flags().StringP(FlagGitRef, "r", "", "Git Reference e.g. refs/head/main. Only relevant for config-as-code projects")
-	cmd.Flags().StringP(FlagGitCommit, "", "", "Git Commit Hash; Use as an alternative to Git Reference for advanced cases.")
+	cmd.Flags().StringP(FlagGitRef, "r", "", "Git Reference e.g. refs/heads/main. Only relevant for config-as-code projects")
+	cmd.Flags().StringP(FlagGitCommit, "", "", "Git Commit Hash; Specify this in addition to Git Reference if you want to reference a commit other than the latest for that branch/tag.")
 	cmd.Flags().StringP(FlagPackageVersion, "", "", "Default version to use for all Packages")
 	cmd.Flags().StringP(FlagReleaseNotes, "n", "", "Release notes to attach")
 	cmd.Flags().StringP(FlagVersion, "v", "", "Version Override")
