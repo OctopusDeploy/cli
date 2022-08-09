@@ -18,7 +18,6 @@ import (
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/accounts"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/core"
-	"github.com/briandowns/spinner"
 	"github.com/spf13/cobra"
 )
 
@@ -26,7 +25,7 @@ type CreateOptions struct {
 	Writer  io.Writer
 	Octopus *client.Client
 	Ask     question.Asker
-	Spinner *spinner.Spinner
+	Spinner factory.Spinner
 
 	Name         string
 	Description  string

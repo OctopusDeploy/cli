@@ -1,9 +1,7 @@
-name: 'Unit and Integration tests'
+name: 'Integration tests'
 on:
   workflow_dispatch:
-  push:
-    paths-ignore:
-      - '**.md'
+  # no push trigger, this only runs nightly
   schedule:
     # Daily 5am australian/brisbane time (7pm UTC)
     - cron: '0 19 * * *'
@@ -31,7 +29,7 @@ jobs:
         # NOTE: we'd rather pin to a major version (e.g. 2022.3), but because 2022.3 is not
         # generally available for onprem customers yet this isn't possible.
         # Change this when it GA's later
-        image: docker.packages.octopushq.com/octopusdeploy/octopusdeploy:2022.3.7064-linux
+        image: docker.packages.octopushq.com/octopusdeploy/octopusdeploy:2022.3.7584-linux
         env:
           ACCEPT_EULA: Y
           DB_CONNECTION_STRING: 'Server=sqlserver;Database=OctopusDeploy;User Id=sa;Password=${{ env.SA_PASSWORD }};'
@@ -40,8 +38,8 @@ jobs:
           OCTOPUS_SERVER_BASE64_LICENSE: ${{ secrets.OCTOPUS_SERVER_BASE64_LICENSE }}
         ports:
           - 8080:8080
-    # https://github.com/dorny/test-reporter/issues/168
-    permissions:
+
+    permissions: # https://github.com/dorny/test-reporter/issues/168
       statuses: write
       checks: write
     steps:
@@ -55,6 +53,7 @@ jobs:
       - name: Setup gotestsum
         run: go install gotest.tools/gotestsum@latest
 
+      # we don't technically need to run the unit tests but they're fast so why not
       - name: Unit Tests
         run: gotestsum --format testname --junitfile ../unit-tests.xml
         working-directory: ./pkg

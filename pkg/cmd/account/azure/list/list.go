@@ -6,7 +6,6 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/output"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/accounts"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
-	"github.com/briandowns/spinner"
 	"github.com/spf13/cobra"
 )
 
@@ -31,7 +30,7 @@ func NewCmdList(f factory.Factory) *cobra.Command {
 	return cmd
 }
 
-func listAzureAccounts(client *client.Client, cmd *cobra.Command, s *spinner.Spinner) error {
+func listAzureAccounts(client *client.Client, cmd *cobra.Command, s factory.Spinner) error {
 	s.Start()
 	accountResources, err := client.Accounts.Get(accounts.AccountsQuery{
 		AccountType: accounts.AccountTypeAzureServicePrincipal,

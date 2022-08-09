@@ -138,8 +138,13 @@ func (r *RequestWrapper) RespondWith(responseObject any) {
 func NewRootResource() *octopusApiClient.RootResource {
 	root := octopusApiClient.NewRootResource()
 	root.Links["Spaces"] = "/api/spaces{/id}{?skip,ids,take,partialName}"
+
+	// Note: all this stuff typically doesn't appear at the root resource level
+	// has assigned a default space. We don't like default spaces, so the unit tests
+	// should probably not mimic that structure; clean it up one day
 	root.Links["Projects"] = "/api/Spaces-1/projects{/id}{?name,skip,ids,clone,take,partialName,clonedFromProjectId}"
 	root.Links["Channels"] = "/api/Spaces-1/channels{/id}{?skip,take,ids,partialName}"
 	root.Links["DeploymentProcesses"] = "/api/Spaces-1/deploymentprocesses{/id}{?skip,take,ids}"
+	root.Links["Releases"] = "/api/Spaces-1/releases{/id}{?skip,ignoreChannelRules,take,ids}"
 	return root
 }

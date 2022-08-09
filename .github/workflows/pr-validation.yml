@@ -1,0 +1,40 @@
+name: 'PR and Commit Validation'
+on:
+  workflow_dispatch:
+  push:
+    paths-ignore:
+      - '**.md'
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    permissions: # https://github.com/dorny/test-reporter/issues/168
+      statuses: write
+      checks: write
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Go
+        uses: actions/setup-go@v3
+        with:
+          go-version: 1.18
+
+      # if we just run the unit tests then go doesn't compile the parts of the app that aren't covered by
+      # unit tests; this forces it
+      - name: Build binary
+        run: go build -o bin/octopus cmd/octopus/main.go
+
+      - name: Setup gotestsum
+        run: go install gotest.tools/gotestsum@latest
+
+      - name: Unit Tests
+        run: gotestsum --format testname --junitfile ../unit-tests.xml
+        working-directory: ./pkg
+
+      - name: Test Report
+        uses: dorny/test-reporter@v1
+        if: success() || failure()
+        with:
+          name: Test Results
+          path: '*-tests.xml'
+          reporter: java-junit

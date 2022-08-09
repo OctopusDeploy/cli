@@ -10,7 +10,6 @@ import (
 	octopusApiClient "github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/feeds"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
-	"io"
 	"strings"
 
 	"github.com/MakeNowJust/heredoc/v2"
@@ -20,10 +19,17 @@ import (
 )
 
 const (
-	flagProject      = "project"
-	flagReleaseNotes = "release-notes"
-	flagChannel      = "channel"
-	flagVersion      = "version"
+	FlagProject                = "project"
+	FlagPackageVersion         = "package-version" // would default-package-version? be a better name?
+	FlagReleaseNotes           = "release-notes"   // should we also add release-notes-file?
+	FlagChannel                = "channel"
+	FlagVersion                = "version"
+	FlagGitRef                 = "git-ref"
+	FlagGitCommit              = "git-commit"
+	FlagIgnoreExisting         = "ignore-existing"
+	FlagIgnoreChannelRules     = "ignore-channel-rules"
+	FlagPackagePrerelease      = "prerelease-packages"
+	FlagPackageVersionOverride = "package-override" // package-version-override? This one should allow multiple occurrences
 )
 
 type PackageVersions struct {
@@ -49,66 +55,117 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 		Long:  "Creates a release in an instance of Octopus Deploy.",
 		Example: fmt.Sprintf(heredoc.Doc(`
 			$ %s release create --project MyProject --channel Beta -v "1.2.3"
-		`), constants.ExecutableName),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			project, err := cmd.Flags().GetString(flagProject)
-			if err != nil {
-				return err
-			}
 
-			t := &executor.TaskOptionsCreateRelease{
-				ProjectName: project,
-			}
-			// ignore errors when fetching flags
-			if rn, _ := cmd.Flags().GetString(flagReleaseNotes); rn != "" {
-				t.ReleaseNotes = rn
-			}
-			if ch, _ := cmd.Flags().GetString(flagChannel); ch != "" {
-				t.ChannelName = ch
-			}
-			if v, _ := cmd.Flags().GetString(flagVersion); v != "" {
-				t.Version = v
-			}
-
-			return createRun(f, cmd.OutOrStdout(), t)
-		},
+			$ %s release create -p MyProject -c default -o "installstep:utils:1.2.3" -o "installstep:helpers:5.6.7"
+		`), constants.ExecutableName, constants.ExecutableName),
+		RunE: func(cmd *cobra.Command, args []string) error { return createRun(cmd, f) },
 	}
 
-	// project is required in automation mode, other options are not.
-	// nothing is required in interactive mode because we prompt for everything
-	cmd.Flags().StringP(flagProject, "p", "", "Name or ID of the project to create the release in")
-	cmd.Flags().StringP(flagReleaseNotes, "n", "", "Release notes to attach")
-	cmd.Flags().StringP(flagChannel, "c", "", "Channel to use")
-	cmd.Flags().StringP(flagVersion, "v", "", "Version Override")
+	// project is required in automation mode, other options are not. Nothing is required in interactive mode because we prompt for everything
+	cmd.Flags().StringP(FlagProject, "p", "", "Name or ID of the project to create the release in")
+	cmd.Flags().StringP(FlagChannel, "c", "", "Name or ID of the channel to use")
+	cmd.Flags().StringP(FlagGitRef, "r", "", "Git Reference e.g. refs/heads/main. Only relevant for config-as-code projects")
+	cmd.Flags().StringP(FlagGitCommit, "", "", "Git Commit Hash; Specify this in addition to Git Reference if you want to reference a commit other than the latest for that branch/tag.")
+	cmd.Flags().StringP(FlagPackageVersion, "", "", "Default version to use for all Packages")
+	cmd.Flags().StringP(FlagReleaseNotes, "n", "", "Release notes to attach")
+	cmd.Flags().StringP(FlagVersion, "v", "", "Version Override")
+	cmd.Flags().BoolP(FlagIgnoreExisting, "x", false, "If a release with the same version exists, do nothing rather than failing.")
+	cmd.Flags().BoolP(FlagIgnoreChannelRules, "", false, "Force creation of a release where channel rules would otherwise prevent it.")
+	cmd.Flags().BoolP(FlagPackagePrerelease, "", false, "Allow selection of prerelease packages.") // TODO does this make sense? The server is going to follow channel rules anyway isn't it?
+	// stringSlice also allows comma-separated things
+	cmd.Flags().StringSliceP(FlagPackageVersionOverride, "o", []string{}, "Version Override for a specific package.\nFormat as {step}:{package}:{version}\nYou may specify this multiple times")
+
+	// we want the help text to display in the above order, rather than alphabetical
+	cmd.Flags().SortFlags = false
 
 	return cmd
 }
 
-func createRun(f factory.Factory, w io.Writer, options *executor.TaskOptionsCreateRelease) error {
+func createRun(cmd *cobra.Command, f factory.Factory) error {
+	project, err := cmd.Flags().GetString(FlagProject)
+	if err != nil {
+		return err
+	}
+
+	options := &executor.TaskOptionsCreateRelease{
+		ProjectName: project,
+	}
+	// ignore errors when fetching flags
+	if value, _ := cmd.Flags().GetString(FlagPackageVersion); value != "" {
+		options.PackageVersion = value
+	}
+	if value, _ := cmd.Flags().GetString(FlagChannel); value != "" {
+		options.ChannelName = value
+	}
+
+	if value, _ := cmd.Flags().GetString(FlagGitRef); value != "" {
+		options.GitReference = value
+	}
+	if value, _ := cmd.Flags().GetString(FlagGitCommit); value != "" {
+		options.GitCommit = value
+	}
+
+	if value, _ := cmd.Flags().GetString(FlagVersion); value != "" {
+		options.Version = value
+	}
+
+	if value, _ := cmd.Flags().GetString(FlagReleaseNotes); value != "" {
+		options.ReleaseNotes = value
+	}
+
+	if value, _ := cmd.Flags().GetBool(FlagIgnoreExisting); value {
+		options.IgnoreIfAlreadyExists = value
+	}
+
 	octopus, err := f.GetSpacedClient()
 	if err != nil {
 		return err
 	}
 
 	if f.IsPromptEnabled() {
-		err := AskQuestions(octopus, f.Ask, options)
+		err = AskQuestions(octopus, f.Ask, options)
 		if err != nil {
 			return err
 		}
 	}
 
 	// the executor will raise errors if any required options are missing
-	err = executor.ProcessTasks(f, []*executor.Task{executor.NewTask(executor.TaskTypeCreateRelease, options)})
+	err = executor.ProcessTasks(octopus, f.GetCurrentSpace(), []*executor.Task{
+		executor.NewTask(executor.TaskTypeCreateRelease, options),
+	})
 	if err != nil {
 		return err
 	}
 
 	if options.Response != nil {
-		// TODO AutomaticallyDeployedEnvironments. Discuss with Team
-		_, err = fmt.Fprintf(w, "Successfully created release %s with version %s\n", output.Dimf("(%s)", options.Response.ReleaseID), options.Response.ReleaseVersion)
-		if err != nil {
-			return err
+		// the API response doesn't tell us what channel it selected, so we need to go look that up to tell the end user
+		// TODO unit test for the error cases
+		newlyCreatedRelease, lookupErr := octopus.Releases.GetByID(options.Response.ReleaseID)
+		if lookupErr != nil { // ignorable error
+			cmd.Printf("Successfully created release version %s %s\n",
+				options.Response.ReleaseVersion,
+				output.Dimf("(%s)", options.Response.ReleaseID))
+
+			cmd.PrintErrf("Warning: cannot fetch release details: %v\n", lookupErr)
+		} else {
+			releaseChan, lookupErr := octopus.Channels.GetByID(newlyCreatedRelease.ChannelID)
+			if lookupErr != nil { // ignorable error
+				cmd.Printf("Successfully created release version %s %s using channel %s\n",
+					options.Response.ReleaseVersion,
+					output.Dimf("(%s)", options.Response.ReleaseID),
+					output.Dimf("(%s)", releaseChan.ID))
+
+				cmd.PrintErrf("Warning: cannot fetch release channel details: %v\n", lookupErr)
+			} else {
+				cmd.Printf("Successfully created release version %s %s using channel %s %s\n",
+					options.Response.ReleaseVersion,
+					output.Dimf("(%s)", options.Response.ReleaseID),
+					releaseChan.Name,
+					output.Dimf("(%s)", releaseChan.ID))
+			}
 		}
+
+		// TODO AutomaticallyDeployedEnvironments. Discuss with Team
 	}
 
 	return nil
@@ -134,6 +191,11 @@ func AskQuestions(octopus *octopusApiClient.Client, asker question.Asker, option
 		_, _ = fmt.Printf("Project %s\n", output.Cyan(selectedProject.Name))
 	}
 	options.ProjectName = selectedProject.Name
+
+	if selectedProject.PersistenceSettings.GetType() == "VersionControlled" && options.GitReference != "" || options.GitCommit != "" {
+		// it's a config-as-code project, we need to ask for Git Ref or Commit
+
+	}
 
 	var selectedChannel *channels.Channel
 	if options.ChannelName == "" {
@@ -163,19 +225,6 @@ func AskQuestions(octopus *octopusApiClient.Client, asker question.Asker, option
 	} else {
 		_, _ = fmt.Printf("Version %s\n", output.Cyan(options.Version))
 	}
-
-	// TODO release notes
-
-	// TODO package overrides
-	//
-	//_, err = selectPackageOverrides(octopus, asker, selectedProject, selectedChannel, "")
-	//if err != nil {
-	//	return err
-	//}
-	//
-	//fmt.Printf("version: %s\n", version)
-
-	// fmt.Printf("%s The space, \"%s\" %s was created successfully.\n", output.Green("✔"), createdSpace.Name, output.Dimf("(%s)", createdSpace.ID))
 	return nil
 }
 
