@@ -1,10 +1,8 @@
 package create_test
 
 import (
-	"bytes"
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/OctopusDeploy/cli/pkg/cmd/release/create"
-	cmdCreate "github.com/OctopusDeploy/cli/pkg/cmd/release/create"
 	"github.com/OctopusDeploy/cli/pkg/executor"
 	"github.com/OctopusDeploy/cli/test/fixtures"
 	"github.com/OctopusDeploy/cli/test/testutil"
@@ -14,6 +12,7 @@ import (
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/releases"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/resources"
+	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"net/url"
 	"testing"
@@ -24,7 +23,7 @@ var serverUrl, _ = url.Parse("http://server")
 const placeholderApiKey = "API-XXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
 
 func TestReleaseCreate_AskQuestions(t *testing.T) {
-	root := testutil.NewRootResource()
+	rootResource := testutil.NewRootResource()
 
 	const spaceID = "Spaces-1"
 	const fireProjectID = "Projects-22"
@@ -48,7 +47,7 @@ func TestReleaseCreate_AskQuestions(t *testing.T) {
 			return create.AskQuestions(octopus, qa.AsAsker(), options)
 		})
 
-		api.ExpectRequest(t, "GET", "/api").RespondWith(root)
+		api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
 
 		api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/all").RespondWith([]*projects.Project{fireProject})
 
@@ -101,7 +100,7 @@ func TestReleaseCreate_AskQuestions(t *testing.T) {
 			return create.AskQuestions(octopus, qa.AsAsker(), options)
 		})
 
-		api.ExpectRequest(t, "GET", "/api").RespondWith(root)
+		api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
 
 		api.ExpectRequest(t, "GET", "/api/Spaces-1/projects?clonedFromProjectId=&partialName=fire+project").
 			RespondWith(resources.Resources[*projects.Project]{
@@ -145,7 +144,7 @@ func TestReleaseCreate_AskQuestions(t *testing.T) {
 			return create.AskQuestions(octopus, qa.AsAsker(), options)
 		})
 
-		api.ExpectRequest(t, "GET", "/api").RespondWith(root)
+		api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
 
 		api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/all").RespondWith([]*projects.Project{fireProject})
 
@@ -184,10 +183,11 @@ func TestReleaseCreate_AskQuestions(t *testing.T) {
 }
 
 // These tests ensure that given the right input, we call the server's API appropriately
-func TestReleaseCreate_Functional(t *testing.T) {
+// they all run in automation mode where survey is disabled; they'd error if they tried to ask questions
+func TestReleaseCreate_AutomationMode(t *testing.T) {
 	fakeRepoUrl, _ := url.Parse("https://gitserver/repo")
 
-	root := testutil.NewRootResource()
+	rootResource := testutil.NewRootResource()
 
 	const cacProjectID = "Projects-92"
 
@@ -205,28 +205,38 @@ func TestReleaseCreate_Functional(t *testing.T) {
 
 	api := testutil.NewMockHttpServer()
 
-	t.Run("release creation minimal inputs", func(t *testing.T) {
-		fac := testutil.NewMockFactoryWithSpace(api, space1)
-		
-		// TODO should we build the root command and let it do the rest, or should we jump in here?
-		cmd := cmdCreate.NewCmdCreate(fac)
-		_ = cmd.Flags().Set(cmdCreate.FlagProject, cacProject.Name)
+	t.Run("release creation requires a project name", func(t *testing.T) {
+		root, stdOut, stdErr := fixtures.NewCobraRootCommand(testutil.NewMockFactoryWithSpace(api, space1))
 
-		var stdOut bytes.Buffer
-		cmd.SetOut(&stdOut)
-
-		var stdErr bytes.Buffer
-		cmd.SetErr(&stdErr)
-
-		errReceiver := testutil.GoBegin(func() error {
-			return cmd.RunE(cmd, []string{})
+		cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
+			root.SetArgs([]string{"release", "create"})
+			return root.ExecuteC()
 		})
 
-		api.ExpectRequest(t, "GET", "/api").RespondWith(root)
+		api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
+
+		_, err := testutil.ReceivePair(cmdReceiver)
+		assert.EqualError(t, err, "project must be specified")
+
+		assert.Equal(t, "", stdOut.String())
+		// At first glance it may appear a bit weird that stdErr doesn't contain the error message here.
+		// This is fine though, the main program entrypoint prints any errors that bubble up to it.
+		assert.Equal(t, "", stdErr.String())
+	})
+
+	t.Run("release creation specifying project only (bare minimum)", func(t *testing.T) {
+		root, stdOut, stdErr := fixtures.NewCobraRootCommand(testutil.NewMockFactoryWithSpace(api, space1))
+
+		cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
+			root.SetArgs([]string{"release", "create", "--project", cacProject.Name})
+			return root.ExecuteC()
+		})
+
+		api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
 
 		req := api.ExpectRequest(t, "POST", "/api/Spaces-1/releases/create/v1")
 
-		// check that it sent us the right request body
+		// check that it sent the server the right request body
 		requestBody, err := testutil.ReadJson[releases.CreateReleaseV1](req.Request.Body)
 		assert.Nil(t, err)
 
@@ -240,9 +250,8 @@ func TestReleaseCreate_Functional(t *testing.T) {
 			ReleaseVersion: "1.2.3",
 		})
 
-		// after it creates the release it's going to go back to the server and lookup the release by it's ID
+		// after it creates the release it's going to go back to the server and lookup the release by its ID
 		// so it can tell the user what channel got selected
-
 		releaseInfo := releases.NewRelease("Channels-32", cacProject.ID, "1.2.3")
 		api.ExpectRequest(t, "GET", "/api/Spaces-1/releases/Releases-999").RespondWith(releaseInfo)
 
@@ -250,56 +259,171 @@ func TestReleaseCreate_Functional(t *testing.T) {
 		channelInfo := fixtures.NewChannel(space1.ID, "Channels-32", "Alpha channel", cacProject.ID)
 		api.ExpectRequest(t, "GET", "/api/Spaces-1/channels/Channels-32").RespondWith(channelInfo)
 
-		err = <-errReceiver
+		_, err = testutil.ReceivePair(cmdReceiver)
 		assert.Nil(t, err)
 
 		assert.Equal(t, "Successfully created release version 1.2.3 (Releases-999) using channel Alpha channel (Channels-32)\n", stdOut.String())
 		assert.Equal(t, "", stdErr.String())
 	})
 
-	t.Run("release creation specifies gitcommit and gitref", func(t *testing.T) {
-		taskOptions := &executor.TaskOptionsCreateRelease{
-			ProjectName:  cacProject.Name,
-			GitReference: "/refs/heads/main",
-			GitCommit:    "cfdd4bdf6f66569f141dc41189f0f975d4aa1110",
-		}
+	t.Run("release creation specifying gitcommit and gitref", func(t *testing.T) {
+		root, stdOut, stdErr := fixtures.NewCobraRootCommand(testutil.NewMockFactoryWithSpace(api, space1))
 
-		errReceiver := testutil.GoBegin(func() error {
-			octopus, _ := octopusApiClient.NewClient(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "")
-			return executor.ProcessTasks(octopus, space1, []*executor.Task{
-				executor.NewTask(executor.TaskTypeCreateRelease, taskOptions),
-			})
+		cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
+			root.SetArgs([]string{"release", "create", "--project", cacProject.Name, "--git-ref", "/refs/heads/main", "--git-commit", "6ef5e8c83cdcd4933bbeaeb458dc99902ad831ca"})
+			return root.ExecuteC()
 		})
 
-		api.ExpectRequest(t, "GET", "/api").RespondWith(root)
+		api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
 
 		req := api.ExpectRequest(t, "POST", "/api/Spaces-1/releases/create/v1")
 
-		reader, err := req.Request.GetBody()
-		assert.Nil(t, err)
-
-		receivedReq, err := testutil.ReadJson[releases.CreateReleaseV1](reader)
+		// check that it sent the server the right request body
+		requestBody, err := testutil.ReadJson[releases.CreateReleaseV1](req.Request.Body)
 		assert.Nil(t, err)
 
 		assert.Equal(t, releases.CreateReleaseV1{
 			SpaceIDOrName:   "Spaces-1",
 			ProjectIDOrName: cacProject.Name,
+			GitCommit:       "6ef5e8c83cdcd4933bbeaeb458dc99902ad831ca",
 			GitRef:          "/refs/heads/main",
-			GitCommit:       "cfdd4bdf6f66569f141dc41189f0f975d4aa1110",
-		}, receivedReq)
+		}, requestBody)
 
 		req.RespondWith(&releases.CreateReleaseResponseV1{
 			ReleaseID:      "Releases-999", // new release
-			ReleaseVersion: "Blah",
+			ReleaseVersion: "1.2.3",
 		})
 
-		err = <-errReceiver
+		releaseInfo := releases.NewRelease("Channels-32", cacProject.ID, "1.2.3")
+		api.ExpectRequest(t, "GET", "/api/Spaces-1/releases/Releases-999").RespondWith(releaseInfo)
+
+		channelInfo := fixtures.NewChannel(space1.ID, "Channels-32", "Alpha channel", cacProject.ID)
+		api.ExpectRequest(t, "GET", "/api/Spaces-1/channels/Channels-32").RespondWith(channelInfo)
+
+		_, err = testutil.ReceivePair(cmdReceiver)
 		assert.Nil(t, err)
 
-		assert.Equal(t, &releases.CreateReleaseResponseV1{
-			ReleaseID:                         "Releases-999",
-			ReleaseVersion:                    "Blah",
-			AutomaticallyDeployedEnvironments: "",
-		}, taskOptions.Response)
+		assert.Equal(t, "Successfully created release version 1.2.3 (Releases-999) using channel Alpha channel (Channels-32)\n", stdOut.String())
+		assert.Equal(t, "", stdErr.String())
+	})
+
+	t.Run("release creation with all the flags", func(t *testing.T) {
+		root, stdOut, stdErr := fixtures.NewCobraRootCommand(testutil.NewMockFactoryWithSpace(api, space1))
+
+		cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
+			root.SetArgs([]string{"release", "create",
+				"--project", cacProject.Name,
+				"--package-version", "5.6.7-beta",
+				"--git-ref", "/refs/heads/main",
+				"--git-commit", "6ef5e8c83cdcd4933bbeaeb458dc99902ad831ca",
+				"--version", "1.0.2",
+				"--channel", "BetaChannel",
+				"--release-notes", "Here are some **release notes**.",
+			})
+			return root.ExecuteC()
+		})
+
+		api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
+
+		req := api.ExpectRequest(t, "POST", "/api/Spaces-1/releases/create/v1")
+
+		// check that it sent the server the right request body
+		requestBody, err := testutil.ReadJson[releases.CreateReleaseV1](req.Request.Body)
+		assert.Nil(t, err)
+
+		assert.Equal(t, releases.CreateReleaseV1{
+			SpaceIDOrName:         "Spaces-1",
+			ProjectIDOrName:       cacProject.Name,
+			PackageVersion:        "5.6.7-beta",
+			GitCommit:             "6ef5e8c83cdcd4933bbeaeb458dc99902ad831ca",
+			GitRef:                "/refs/heads/main",
+			ReleaseVersion:        "1.0.2",
+			ChannelIDOrName:       "BetaChannel",
+			ReleaseNotes:          "Here are some **release notes**.",
+			IgnoreIfAlreadyExists: false,
+			IgnoreChannelRules:    false,
+			PackagePrerelease:     "",
+		}, requestBody)
+
+		// this isn't realistic, we asked for version 1.0.2 and channel Beta, but it proves that
+		// if the server changes its mind and uses a different channel, the CLI will show that.
+		req.RespondWith(&releases.CreateReleaseResponseV1{
+			ReleaseID:      "Releases-999", // new release
+			ReleaseVersion: "1.0.5",
+		})
+
+		// If we GET on the endpoint and it shows us a different ReleaseVersion than the CreateReleaseResponseV1
+		// does, CreateReleaseResponseV1 wins
+		releaseInfo := releases.NewRelease("Channels-32", cacProject.ID, "1.2.3")
+		api.ExpectRequest(t, "GET", "/api/Spaces-1/releases/Releases-999").RespondWith(releaseInfo)
+
+		channelInfo := fixtures.NewChannel(space1.ID, "Channels-32", "Alpha channel", cacProject.ID)
+		api.ExpectRequest(t, "GET", "/api/Spaces-1/channels/Channels-32").RespondWith(channelInfo)
+
+		_, err = testutil.ReceivePair(cmdReceiver)
+		assert.Nil(t, err)
+
+		assert.Equal(t, "Successfully created release version 1.0.5 (Releases-999) using channel Alpha channel (Channels-32)\n", stdOut.String())
+		assert.Equal(t, "", stdErr.String())
+	})
+
+	t.Run("release creation with all the flags (short flags where available)", func(t *testing.T) {
+		root, stdOut, stdErr := fixtures.NewCobraRootCommand(testutil.NewMockFactoryWithSpace(api, space1))
+
+		cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
+			root.SetArgs([]string{"release", "create",
+				"-p", cacProject.Name,
+				"--package-version", "5.6.7-beta",
+				"-r", "/refs/heads/main",
+				"--git-commit", "6ef5e8c83cdcd4933bbeaeb458dc99902ad831ca",
+				"-v", "1.0.2",
+				"-c", "BetaChannel",
+				"-n", "Here are some **release notes**.",
+			})
+			return root.ExecuteC()
+		})
+
+		api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
+
+		req := api.ExpectRequest(t, "POST", "/api/Spaces-1/releases/create/v1")
+
+		// check that it sent the server the right request body
+		requestBody, err := testutil.ReadJson[releases.CreateReleaseV1](req.Request.Body)
+		assert.Nil(t, err)
+
+		assert.Equal(t, releases.CreateReleaseV1{
+			SpaceIDOrName:         "Spaces-1",
+			ProjectIDOrName:       cacProject.Name,
+			PackageVersion:        "5.6.7-beta",
+			GitCommit:             "6ef5e8c83cdcd4933bbeaeb458dc99902ad831ca",
+			GitRef:                "/refs/heads/main",
+			ReleaseVersion:        "1.0.2",
+			ChannelIDOrName:       "BetaChannel",
+			ReleaseNotes:          "Here are some **release notes**.",
+			IgnoreIfAlreadyExists: false,
+			IgnoreChannelRules:    false,
+			PackagePrerelease:     "",
+		}, requestBody)
+
+		// this isn't realistic, we asked for version 1.0.2 and channel Beta, but it proves that
+		// if the server changes its mind and uses a different channel, the CLI will show that.
+		req.RespondWith(&releases.CreateReleaseResponseV1{
+			ReleaseID:      "Releases-999", // new release
+			ReleaseVersion: "1.0.5",
+		})
+
+		// If we GET on the endpoint and it shows us a different ReleaseVersion than the CreateReleaseResponseV1
+		// does, CreateReleaseResponseV1 wins
+		releaseInfo := releases.NewRelease("Channels-32", cacProject.ID, "1.2.3")
+		api.ExpectRequest(t, "GET", "/api/Spaces-1/releases/Releases-999").RespondWith(releaseInfo)
+
+		channelInfo := fixtures.NewChannel(space1.ID, "Channels-32", "Alpha channel", cacProject.ID)
+		api.ExpectRequest(t, "GET", "/api/Spaces-1/channels/Channels-32").RespondWith(channelInfo)
+
+		_, err = testutil.ReceivePair(cmdReceiver)
+		assert.Nil(t, err)
+
+		assert.Equal(t, "Successfully created release version 1.0.5 (Releases-999) using channel Alpha channel (Channels-32)\n", stdOut.String())
+		assert.Equal(t, "", stdErr.String())
 	})
 }

@@ -6,11 +6,8 @@ import (
 	"time"
 
 	"github.com/AlecAivazis/survey/v2"
-	"github.com/OctopusDeploy/cli/pkg/constants"
-	"github.com/OctopusDeploy/cli/pkg/question"
-	"github.com/spf13/cobra"
-
 	"github.com/OctopusDeploy/cli/pkg/factory"
+	"github.com/OctopusDeploy/cli/pkg/question"
 	"github.com/OctopusDeploy/cli/pkg/usage"
 	"github.com/briandowns/spinner"
 
@@ -43,25 +40,10 @@ func main() {
 
 	f := factory.New(clientFactory, askProvider, s)
 
-	cmd := root.NewCmdRoot(f)
-	// commands are expected to print their own errors to avoid double-ups
-	cmd.SilenceUsage = true
-	cmd.SilenceErrors = true
+	cmd := root.NewCmdRoot(f, clientFactory, askProvider)
 	// if we don't do this then cmd.Print will get sent to stderr
 	cmd.SetOut(os.Stdout)
-
-	// if we attempt to check the flags before Execute is called, cobra hasn't parsed anything yet,
-	// so we'll get bad values. PersistentPreRun is a convenient callback for setting up our
-	// environment after parsing but before execution.
-	cmd.PersistentPreRun = func(_ *cobra.Command, args []string) {
-		if noPrompt, err := cmd.PersistentFlags().GetBool(constants.FlagNoPrompt); err == nil && noPrompt {
-			askProvider.DisableInteractive()
-		}
-
-		if spaceNameOrId, err := cmd.PersistentFlags().GetString(constants.FlagSpace); err == nil && spaceNameOrId != "" {
-			clientFactory.SetSpaceNameOrId(spaceNameOrId)
-		}
-	}
+	cmd.SetErr(os.Stderr)
 
 	if err := cmd.Execute(); err != nil {
 		cmd.PrintErr(err)
