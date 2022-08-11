@@ -88,14 +88,14 @@ func requireArguments(items map[string]any) error {
 func NewClientFactory(httpClient *http.Client, host string, apiKey string, spaceNameOrID string, ask question.AskProvider) (ClientFactory, error) {
 	// httpClient is allowed to be nil; it is passed through to the go-octopusdeploy library which falls back to a default httpClient
 	if host == "" {
-		return nil, errors.New("required argument host was empty")
+		return nil, cliErrors.NewArgumentNullOrEmptyError("host")
 	}
 	if apiKey == "" {
-		return nil, errors.New("required argument apiKey was empty")
+		return nil, cliErrors.NewArgumentNullOrEmptyError("apiKey")
 	}
 	// space is allowed to be blank, we will prompt for a space in interactive mode, or error if not
 	if ask == nil {
-		return nil, errors.New("required argument ask was empty")
+		return nil, cliErrors.NewArgumentNullOrEmptyError("ask")
 	}
 
 	hostUrl, err := url.Parse(host)
