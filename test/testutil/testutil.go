@@ -76,3 +76,20 @@ func ReadJson[T any](body io.ReadCloser) (T, error) {
 
 	return unmarshalled, nil
 }
+
+// it's super common to New both the mock server and asker at the same time
+func NewMockServerAndAsker() (*MockHttpServer, *AskMocker) {
+	server := NewMockHttpServer()
+	qa := NewAskMocker()
+	return server, qa
+}
+
+// it's super common to Close both the mock server and asker at the same time
+func Close(server *MockHttpServer, qa *AskMocker) {
+	if server != nil {
+		server.Close()
+	}
+	if qa != nil {
+		qa.Close()
+	}
+}

@@ -38,14 +38,12 @@ func TestReleaseCreate_AskQuestions(t *testing.T) {
 	fireProject := fixtures.NewProject(spaceID, fireProjectID, "Fire Project", "Lifecycles-1", "ProjectGroups-1", depProcess.ID)
 
 	t.Run("standard process asking for everything (no package versions), no CaC", func(t *testing.T) {
-		api := testutil.NewMockHttpServer()
-		qa := testutil.NewAskMocker()
+		api, qa := testutil.NewMockServerAndAsker()
 
 		options := &executor.TaskOptionsCreateRelease{}
 
 		errReceiver := testutil.GoBegin(func() error {
-			defer api.Close()
-			defer qa.Close()
+			defer testutil.Close(api, qa)
 			// NewClient makes network calls so we have to run it in the goroutine
 			octopus, _ := octopusApiClient.NewClient(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "")
 			return create.AskQuestions(octopus, qa.AsAsker(), spinner, options)
@@ -89,8 +87,7 @@ func TestReleaseCreate_AskQuestions(t *testing.T) {
 	})
 
 	t.Run("asking for nothing in interactive mode (testing case insensitivity)", func(t *testing.T) {
-		api := testutil.NewMockHttpServer()
-		qa := testutil.NewAskMocker()
+		api, qa := testutil.NewMockServerAndAsker()
 
 		options := &executor.TaskOptionsCreateRelease{
 			ProjectName: "fire project",
@@ -99,8 +96,7 @@ func TestReleaseCreate_AskQuestions(t *testing.T) {
 		}
 
 		errReceiver := testutil.GoBegin(func() error {
-			defer api.Close()
-			defer qa.Close()
+			defer testutil.Close(api, qa)
 			octopus, _ := octopusApiClient.NewClient(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "")
 			return create.AskQuestions(octopus, qa.AsAsker(), spinner, options)
 		})
@@ -130,8 +126,7 @@ func TestReleaseCreate_AskQuestions(t *testing.T) {
 
 	// TODO a variant of this where the put in a specific git commit on the commandline which overrides the deployment process
 	t.Run("standard process asking for everything (no package versions) in CaC project; specific git commit not set", func(t *testing.T) {
-		api := testutil.NewMockHttpServer()
-		qa := testutil.NewAskMocker()
+		api, qa := testutil.NewMockServerAndAsker()
 
 		cacProjectID := "Projects-87"
 		cacProject := fixtures.NewVersionControlledProject(spaceID, cacProjectID, "CaC Project", "Lifecycles-1", "ProjectGroups-1", depProcess.ID)
@@ -139,8 +134,7 @@ func TestReleaseCreate_AskQuestions(t *testing.T) {
 		options := &executor.TaskOptionsCreateRelease{}
 
 		errReceiver := testutil.GoBegin(func() error {
-			defer qa.Close()
-			defer api.Close()
+			defer testutil.Close(api, qa)
 			// NewClient makes network calls so we have to run it in the goroutine
 			octopus, _ := octopusApiClient.NewClient(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "")
 			return create.AskQuestions(octopus, qa.AsAsker(), spinner, options)
