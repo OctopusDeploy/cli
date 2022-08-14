@@ -44,6 +44,8 @@ func TestReleaseCreate_AskQuestions(t *testing.T) {
 		options := &executor.TaskOptionsCreateRelease{}
 
 		errReceiver := testutil.GoBegin(func() error {
+			defer api.Close()
+			defer qa.Close()
 			// NewClient makes network calls so we have to run it in the goroutine
 			octopus, _ := octopusApiClient.NewClient(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "")
 			return create.AskQuestions(octopus, qa.AsAsker(), spinner, options)
@@ -97,7 +99,8 @@ func TestReleaseCreate_AskQuestions(t *testing.T) {
 		}
 
 		errReceiver := testutil.GoBegin(func() error {
-			// NewClient makes network calls so we have to run it in the goroutine
+			defer api.Close()
+			defer qa.Close()
 			octopus, _ := octopusApiClient.NewClient(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "")
 			return create.AskQuestions(octopus, qa.AsAsker(), spinner, options)
 		})
@@ -136,6 +139,8 @@ func TestReleaseCreate_AskQuestions(t *testing.T) {
 		options := &executor.TaskOptionsCreateRelease{}
 
 		errReceiver := testutil.GoBegin(func() error {
+			defer qa.Close()
+			defer api.Close()
 			// NewClient makes network calls so we have to run it in the goroutine
 			octopus, _ := octopusApiClient.NewClient(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "")
 			return create.AskQuestions(octopus, qa.AsAsker(), spinner, options)
@@ -167,13 +172,15 @@ func TestReleaseCreate_AskQuestions(t *testing.T) {
 
 		qa.ExpectQuestion(t, &survey.Select{
 			Message: "Select the Git Reference to use",
-			Options: []string{"refs/heads/main", "refs/heads/develop", "refs/tags/v2", "refs/tags/v1"},
+			Options: []string{"main (Branch)", "develop (Branch)", "v2 (Tag)", "v1 (Tag)"},
 		}).AnswerWith("refs/heads/develop")
 
 		// can't specify a git commit hash in interactive mode
 
 		// Once the CLI has picked up the git ref it then loads the deployment process which will be based on the git ref link
-		api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+cacProjectID+"/refs%2Fheads%2Fdevelop/deploymentprocesses").RespondWith(depProcess)
+		// NOTE: we are only using the git short name here, not the full name due to the golang url parsing bug which
+		// incorrectly turns %2f into a literal / in the URL
+		api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+cacProjectID+"/develop/deploymentprocesses").RespondWith(depProcess)
 
 		// and then the deployment process template
 		// api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+cacProjectID+"/refs%2Fheads%2Fdevelop/deploymentprocesses").RespondWith(depProcess)
@@ -229,12 +236,12 @@ func TestReleaseCreate_AutomationMode(t *testing.T) {
 		fakeRepoUrl,
 	)
 
-	api := testutil.NewMockHttpServer()
-
 	t.Run("release creation requires a project name", func(t *testing.T) {
+		api := testutil.NewMockHttpServer()
 		root, stdOut, stdErr := fixtures.NewCobraRootCommand(testutil.NewMockFactoryWithSpace(api, space1))
 
 		cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
+			defer api.Close()
 			root.SetArgs([]string{"release", "create"})
 			return root.ExecuteC()
 		})
@@ -251,9 +258,11 @@ func TestReleaseCreate_AutomationMode(t *testing.T) {
 	})
 
 	t.Run("release creation specifying project only (bare minimum)", func(t *testing.T) {
+		api := testutil.NewMockHttpServer()
 		root, stdOut, stdErr := fixtures.NewCobraRootCommand(testutil.NewMockFactoryWithSpace(api, space1))
 
 		cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
+			defer api.Close()
 			root.SetArgs([]string{"release", "create", "--project", cacProject.Name})
 			return root.ExecuteC()
 		})
@@ -293,9 +302,11 @@ func TestReleaseCreate_AutomationMode(t *testing.T) {
 	})
 
 	t.Run("release creation specifying gitcommit and gitref", func(t *testing.T) {
+		api := testutil.NewMockHttpServer()
 		root, stdOut, stdErr := fixtures.NewCobraRootCommand(testutil.NewMockFactoryWithSpace(api, space1))
 
 		cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
+			defer api.Close()
 			root.SetArgs([]string{"release", "create", "--project", cacProject.Name, "--git-ref", "refs/heads/main", "--git-commit", "6ef5e8c83cdcd4933bbeaeb458dc99902ad831ca"})
 			return root.ExecuteC()
 		})
@@ -334,9 +345,11 @@ func TestReleaseCreate_AutomationMode(t *testing.T) {
 	})
 
 	t.Run("release creation with all the flags", func(t *testing.T) {
+		api := testutil.NewMockHttpServer()
 		root, stdOut, stdErr := fixtures.NewCobraRootCommand(testutil.NewMockFactoryWithSpace(api, space1))
 
 		cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
+			defer api.Close()
 			root.SetArgs([]string{"release", "create",
 				"--project", cacProject.Name,
 				"--package-version", "5.6.7-beta",
@@ -394,9 +407,11 @@ func TestReleaseCreate_AutomationMode(t *testing.T) {
 	})
 
 	t.Run("release creation with all the flags (short flags where available)", func(t *testing.T) {
+		api := testutil.NewMockHttpServer()
 		root, stdOut, stdErr := fixtures.NewCobraRootCommand(testutil.NewMockFactoryWithSpace(api, space1))
 
 		cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
+			defer api.Close()
 			root.SetArgs([]string{"release", "create",
 				"-p", cacProject.Name,
 				"--package-version", "5.6.7-beta",

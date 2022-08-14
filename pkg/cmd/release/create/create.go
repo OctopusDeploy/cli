@@ -504,13 +504,7 @@ func selectProject(octopus *octopusApiClient.Client, ask question.Asker, spinner
 	}
 
 	return question.SelectMap(ask, "Select the project in which the release will be created", existingProjects, func(p *projects.Project) string {
-		for _, v := range existingProjects {
-			if p.Name == v.Name {
-				return v.Name
-			}
-		}
-
-		return ""
+		return p.Name
 	})
 }
 
@@ -531,9 +525,8 @@ func selectGitReference(octopus *octopusApiClient.Client, ask question.Asker, sp
 
 	allRefs := append(branches, tags...)
 
-	// TODO talk within the team about what wording to use here. It'd be nice to guide users as to why they need a git ref
+	// TODO talk within the team about what question wording to use here. It'd be nice to guide users as to why they need a git ref
 	return question.SelectMap(ask, "Select the Git Reference to use", allRefs, func(g *projects.GitReference) string {
-		// TODO it'd be nice to format like this: main (branch) where branch is dimmed
-		return g.CanonicalName
+		return fmt.Sprintf("%s %s", g.Name, output.Dimf("(%s)", g.Type.Description()))
 	})
 }
