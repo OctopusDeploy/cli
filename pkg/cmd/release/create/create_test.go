@@ -24,7 +24,7 @@ const placeholderApiKey = "API-XXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
 
 var spinner = &testutil.FakeSpinner{}
 
-func TestReleaseCreate_AskQuestions(t *testing.T) {
+func TestReleaseCreate_AskQuestions_RegularProject(t *testing.T) {
 	rootResource := testutil.NewRootResource()
 
 	const spaceID = "Spaces-1"
@@ -33,11 +33,11 @@ func TestReleaseCreate_AskQuestions(t *testing.T) {
 	depProcess := fixtures.NewDeploymentProcessForProject(spaceID, fireProjectID)
 
 	defaultChannel := channels.NewChannel("Fire Project Default Channel", fireProjectID)
-	altChannel := channels.NewChannel("Fire Project Alt Channel", fireProjectID)
+	altChannel := fixtures.NewChannel(spaceID, "Channels-97", "Fire Project Alt Channel", fireProjectID)
 
 	fireProject := fixtures.NewProject(spaceID, fireProjectID, "Fire Project", "Lifecycles-1", "ProjectGroups-1", depProcess.ID)
 
-	t.Run("standard process asking for everything (no package versions), no CaC", func(t *testing.T) {
+	t.Run("standard process asking for everything (no package versions)", func(t *testing.T) {
 		api, qa := testutil.NewMockServerAndAsker()
 
 		options := &executor.TaskOptionsCreateRelease{}
@@ -69,7 +69,7 @@ func TestReleaseCreate_AskQuestions(t *testing.T) {
 			Options: []string{defaultChannel.Name, altChannel.Name},
 		}).AnswerWith("Fire Project Alt Channel")
 
-		api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+fireProjectID+"/deploymentprocesses/template").
+		api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+fireProjectID+"/deploymentprocesses/template?channel=Channels-97").
 			RespondWith(&deployments.DeploymentProcessTemplate{NextVersionIncrement: "27.9.3"})
 
 		qa.ExpectQuestion(t, &survey.Input{
@@ -123,13 +123,28 @@ func TestReleaseCreate_AskQuestions(t *testing.T) {
 		assert.Equal(t, "Fire Project Default Channel", options.ChannelName)
 		assert.Equal(t, "9.8.4-prerelease", options.Version)
 	})
+}
+
+func TestReleaseCreate_AskQuestions_VersionControlledProject(t *testing.T) {
+	rootResource := testutil.NewRootResource()
+
+	const spaceID = "Spaces-1"
+
+	projectID := "Projects-87"
+	depProcess := fixtures.NewDeploymentProcessForVersionControlledProject(spaceID, projectID, "develop")
+	depSettings := fixtures.NewDeploymentSettingsForProject(spaceID, projectID, &projects.VersioningStrategy{
+		Template: "#{Octopus.Version.LastMajor}.#{Octopus.Version.LastMinor}.#{Octopus.Version.NextPatch}", // bog standard
+	})
+	depTemplate := &deployments.DeploymentProcessTemplate{NextVersionIncrement: "27.9.3"}
+
+	project := fixtures.NewVersionControlledProject(spaceID, projectID, "CaC Project", "Lifecycles-1", "ProjectGroups-1", depProcess.ID)
+
+	defaultChannel := fixtures.NewChannel(spaceID, "Channels-34", "CaC Project Default Channel", projectID)
+	altChannel := fixtures.NewChannel(spaceID, "Channels-97", "CaC Project Alt Channel", projectID)
 
 	// TODO a variant of this where the put in a specific git commit on the commandline which overrides the deployment process
-	t.Run("standard process asking for everything (no package versions) in CaC project; specific git commit not set", func(t *testing.T) {
+	t.Run("standard process asking for everything (no package versions); specific git commit not set", func(t *testing.T) {
 		api, qa := testutil.NewMockServerAndAsker()
-
-		cacProjectID := "Projects-87"
-		cacProject := fixtures.NewVersionControlledProject(spaceID, cacProjectID, "CaC Project", "Lifecycles-1", "ProjectGroups-1", depProcess.ID)
 
 		options := &executor.TaskOptionsCreateRelease{}
 
@@ -142,22 +157,22 @@ func TestReleaseCreate_AskQuestions(t *testing.T) {
 
 		api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
 
-		api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/all").RespondWith([]*projects.Project{cacProject})
+		api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/all").RespondWith([]*projects.Project{project})
 
 		qa.ExpectQuestion(t, &survey.Select{
 			Message: "Select the project in which the release will be created",
-			Options: []string{cacProject.Name},
-		}).AnswerWith(cacProject.Name)
+			Options: []string{project.Name},
+		}).AnswerWith(project.Name)
 
 		// CLI will load all the branches and tags
-		api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+cacProjectID+"/git/branches").RespondWith(resources.Resources[*projects.GitReference]{
+		api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+projectID+"/git/branches").RespondWith(resources.Resources[*projects.GitReference]{
 			PagedResults: resources.PagedResults{ItemType: "GitBranch"},
 			Items: []*projects.GitReference{
 				projects.NewGitBranchReference("main", "refs/heads/main"),
 				projects.NewGitBranchReference("develop", "refs/heads/develop"),
 			}})
 
-		api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+cacProjectID+"/git/tags").RespondWith(resources.Resources[*projects.GitReference]{
+		api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+projectID+"/git/tags").RespondWith(resources.Resources[*projects.GitReference]{
 			PagedResults: resources.PagedResults{ItemType: "GitTag"},
 			Items: []*projects.GitReference{
 				projects.NewGitTagReference("v2", "refs/tags/v2"),
@@ -167,44 +182,47 @@ func TestReleaseCreate_AskQuestions(t *testing.T) {
 		qa.ExpectQuestion(t, &survey.Select{
 			Message: "Select the Git Reference to use",
 			Options: []string{"main (Branch)", "develop (Branch)", "v2 (Tag)", "v1 (Tag)"},
-		}).AnswerWith("refs/heads/develop")
+		}).AnswerWith("develop (Branch)")
 
 		// can't specify a git commit hash in interactive mode
 
 		// Once the CLI has picked up the git ref it then loads the deployment process which will be based on the git ref link
 		// NOTE: we are only using the git short name here, not the full name due to the golang url parsing bug which
 		// incorrectly turns %2f into a literal / in the URL
-		api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+cacProjectID+"/develop/deploymentprocesses").RespondWith(depProcess)
+		api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+projectID+"/develop/deploymentprocesses").RespondWith(depProcess)
 
 		// and then the deployment process template
 		// api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+cacProjectID+"/refs%2Fheads%2Fdevelop/deploymentprocesses").RespondWith(depProcess)
 
 		// next phase; channel selection
 
-		api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+cacProjectID+"/channels").RespondWith(resources.Resources[*channels.Channel]{
+		api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+projectID+"/channels").RespondWith(resources.Resources[*channels.Channel]{
 			Items: []*channels.Channel{defaultChannel, altChannel},
 		})
 		qa.ExpectQuestion(t, &survey.Select{
 			Message: "Select the channel in which the release will be created",
 			Options: []string{defaultChannel.Name, altChannel.Name},
-		}).AnswerWith("Fire Project Alt Channel")
+		}).AnswerWith(altChannel.Name)
 
-		//api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+fireProjectID+"/deploymentprocesses/template").
-		//	RespondWith(&deployments.DeploymentProcessTemplate{NextVersionIncrement: "27.9.3"})
+		// our project inline versioning strategy was nil, so the code needs to load the deployment settings to find out
+		api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+projectID+"/develop/deploymentsettings").RespondWith(depSettings)
+
+		// because we're using template versioning, now we need to load the deployment process template for our channel to see the NextVersionIncrement
+		api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+projectID+"/develop/deploymentprocesses/template?channel="+altChannel.ID).RespondWith(depTemplate)
 
 		qa.ExpectQuestion(t, &survey.Input{
 			Message: "Release Version",
-			Default: "27.9.3",
+			Default: "27.9.3", // from the dep template
 		}).AnswerWith("27.9.999")
 
 		err := <-errReceiver
 		assert.Nil(t, err)
 
 		// check that the question-asking process has filled out the things we told it to
-		assert.Equal(t, cacProject.Name, options.ProjectName)
-		assert.Equal(t, "Fire Project Alt Channel", options.ChannelName)
+		assert.Equal(t, project.Name, options.ProjectName)
+		assert.Equal(t, "CaC Project Alt Channel", options.ChannelName)
 		assert.Equal(t, "27.9.999", options.Version)
-		assert.Equal(t, "refs/heads/develop", options.GitReference)
+		assert.Equal(t, "develop", options.GitReference) // not fully qualified but I guess we could hold that
 		assert.Equal(t, "", options.GitCommit)
 	})
 }

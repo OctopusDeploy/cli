@@ -1,7 +1,7 @@
 package question
 
 import (
-	"errors"
+	"fmt"
 	"github.com/AlecAivazis/survey/v2"
 )
 
@@ -34,7 +34,7 @@ func SelectMap[T any](ask Asker, message string, items []T, getKey func(item T) 
 	}
 	selectedValue, ok := optionMap[selectedKey]
 	if !ok { // without this explict check SelectMap can return nil, nil which people don't expect
-		return *new(T), errors.New("SelectMap did not get valid answer")
+		return *new(T), fmt.Errorf("SelectMap did not get valid answer (selectedKey=%s)", selectedKey)
 	}
 	return selectedValue, nil
 }

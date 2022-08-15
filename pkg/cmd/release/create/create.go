@@ -213,13 +213,12 @@ func AskQuestions(octopus *octopusApiClient.Client, asker question.Asker, spinne
 		// we leave GitCommit alone in interactive mode; we don't prompt, but if it was specified on the
 		// commandline we just pass it through untouched.
 
-		//var gitRef *projects.GitReference
 		if options.GitReference == "" { // we need a git ref; ask for one
 			gitRef, err := selectGitReference(octopus, asker, spinner, selectedProject)
 			if err != nil {
 				return err
 			}
-			options.GitReference = gitRef.CanonicalName
+			options.GitReference = gitRef.Name // Hold the short name, not the canonical name due to golang url parsing bug replacing %2f with /
 		} else {
 			// we need to go lookup the git reference
 			_, _ = fmt.Printf("Git Reference %s\n", output.Cyan(options.GitReference))

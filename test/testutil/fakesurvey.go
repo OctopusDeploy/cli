@@ -70,6 +70,9 @@ func (m *AskMocker) GetPendingMessageCount() int {
 }
 
 func (m *AskMocker) ReceiveQuestion() (survey.Prompt, bool) {
+	if m.Closed {
+		return nil, false
+	}
 	atomic.AddInt32(&m.pendingMsgCount, 1)
 	request := <-m.Question
 	atomic.AddInt32(&m.pendingMsgCount, -1)

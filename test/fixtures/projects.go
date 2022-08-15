@@ -20,10 +20,31 @@ func NewSpace(spaceID string, name string) *spaces.Space {
 
 func NewDeploymentProcessForProject(spaceID string, projectID string) *deployments.DeploymentProcess {
 	result := deployments.NewDeploymentProcess(projectID)
+	result.SpaceID = spaceID
 	result.ID = "deploymentprocess-" + projectID
 	result.Links = map[string]string{
-		"Template": fmt.Sprintf("/api/%s/projects/%s/deploymentprocesses/template", spaceID, projectID),
+		"Template": fmt.Sprintf("/api/%s/projects/%s/deploymentprocesses/template{?channel,releaseId}", spaceID, projectID),
 	}
+	return result
+}
+
+func NewDeploymentProcessForVersionControlledProject(spaceID string, projectID string, gitRef string) *deployments.DeploymentProcess {
+	result := deployments.NewDeploymentProcess(projectID)
+	result.SpaceID = spaceID
+	result.ID = "deploymentprocess-" + projectID
+	result.Links = map[string]string{
+		"Template": fmt.Sprintf("/api/%s/projects/%s/%s/deploymentprocesses/template{?channel,releaseId}", spaceID, projectID, gitRef),
+	}
+	return result
+}
+
+func NewDeploymentSettingsForProject(spaceID string, projectID string, versioningStrategy *projects.VersioningStrategy) *deployments.DeploymentSettings {
+	result := deployments.NewDeploymentSettings()
+	result.SpaceID = spaceID
+	result.ProjectID = projectID
+	result.ID = "deploymentsettings-" + projectID
+	result.VersioningStrategy = versioningStrategy
+	// DeploymentSettings just has links to self and project, which aren't particularly useful here
 	return result
 }
 
