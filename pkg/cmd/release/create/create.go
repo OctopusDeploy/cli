@@ -11,7 +11,11 @@ import (
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/channels"
 	octopusApiClient "github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/feeds"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/packages"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/releases"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/resources"
+	"regexp"
 	"strings"
 
 	"github.com/MakeNowJust/heredoc/v2"
@@ -292,8 +296,108 @@ func AskQuestions(octopus *octopusApiClient.Client, asker question.Asker, spinne
 		}
 
 		defaultNextVersion := ""
-		if versioningStrategy.DonorPackageStepID != nil {
-			// TODO go lookup the package based on the step ID, then select it's version for the release version
+		if versioningStrategy.DonorPackageStepID != nil || versioningStrategy.DonorPackage != nil {
+			// we need the deployment process template in order to get the steps, so we can lookup the stepID
+			spinner.Start()
+			dpt, err := octopus.DeploymentProcesses.GetTemplate(deploymentProcess, selectedChannel.ID, "")
+			// don't stop the spinner, we may have more networking
+			if err != nil {
+				spinner.Stop()
+				return err
+			}
+
+			targetDeploymentAction := versioningStrategy.DonorPackage.DeploymentAction
+			targetPackageReference := versioningStrategy.DonorPackage.PackageReference
+
+			foundTemplatePackage := releases.ReleaseTemplatePackage{}
+			for _, pkg := range dpt.Packages {
+				if pkg.ActionName == targetDeploymentAction && pkg.PackageReferenceName == targetPackageReference {
+					foundTemplatePackage = pkg
+					break
+				}
+			}
+
+			if foundTemplatePackage.ActionName == "" {
+				// should this just be a warning rather than a hard fail? we could still just ask the user if they'd
+				// like to type in a version or leave it blank? On the other hand, it shouldn't fail anyway :shrug:
+				spinner.Stop()
+				return fmt.Errorf("can't find donor package in deployment process template; cannot determine version")
+			}
+
+			// TODO extend the API client to support feeds/{id} so we don't need to query/loop
+			foundFeeds, err := octopus.Feeds.Get(feeds.FeedsQuery{IDs: []string{foundTemplatePackage.FeedID}, Take: 1})
+			if err == nil && foundFeeds.Items != nil && len(foundFeeds.Items) == 0 {
+				err = errors.New("could not load feeds")
+			}
+			if err != nil {
+				spinner.Stop()
+				return err
+			}
+			feed := foundFeeds.Items[0]
+			// TODO: Ask shannon or henrik:
+			// NOTE: the server gives us links for "SearchPackageVersionsTemplate" as well as "VersionsTemplate"
+			// these both point to the same thing. Which one are we supposed to use?
+			// The quickest path seems to be to hit VersionsTemplate, but the Go API client doesn't support that
+			pkgDesc := &packages.PackageDescription{Resource: resources.Resource{Links: map[string]string{}}}
+			pkgDesc.Links["SearchPackageVersionsTemplate"] = feed.GetLinks()["SearchPackageVersionsTemplate"]
+			// note this doesn't fetch all the pages, we need to potentially implement paging???
+			pkgVersions, err := octopus.Feeds.SearchPackageVersions(pkgDesc, feeds.SearchPackageVersionsQuery{PackageID: foundTemplatePackage.PackageID})
+			if err == nil && (pkgVersions.Items != nil && len(pkgVersions.Items) == 0) {
+				err = errors.New("could not find any versions for package")
+			}
+			if err != nil {
+				spinner.Stop()
+				return err
+			}
+
+			tagFilters := make([]*regexp.Regexp, 0, len(selectedChannel.Rules))
+			// TODO version range filters; we need to parse either Nuget or Maven syntax, which is super hard. Is this the right way to go about it?
+			for _, rule := range selectedChannel.Rules {
+				for _, ap := range rule.ActionPackages {
+					if ap.PackageReference == targetPackageReference && ap.DeploymentAction == targetDeploymentAction {
+						// this rule applies to our step/packageref combo, reject the package version if not satisfied
+						if rule.Tag != "" {
+							re, err := regexp.Compile(rule.Tag)
+							if err == nil {
+								tagFilters = append(tagFilters, re)
+							} // TODO else log some sort of warning that we can't evaluate the regex the server gave us?
+						} // if the rule doesn't have a Tag then it matches everything
+					}
+				}
+			}
+
+			// pick the first package that satisfies the filters
+		outer:
+			for _, pkgVersion := range pkgVersions.Items {
+				components := strings.SplitN(pkgVersion.Version, "-", 2)
+				if len(components) == 0 {
+					spinner.Stop()
+					return fmt.Errorf("can't parse package version %s", pkgVersion.Version)
+				}
+				// TODO what if the package version isn't semver?
+				//versionComponent, err := semver.Make(components[0])
+				if err != nil {
+					spinner.Stop()
+					return fmt.Errorf("can't parse package version %s (invalid semver)", pkgVersion.Version)
+				}
+				tagComponent := ""
+				if len(components) == 2 {
+					tagComponent = components[1]
+				}
+
+				// TODO apply the version range filter
+
+				// apply the tag filter
+				for _, tagFilter := range tagFilters {
+					if !tagFilter.MatchString(tagComponent) {
+						continue outer // this package tag has been rejected
+					}
+				}
+				// we applied all the rule filters and we didn't reject it; must be the right one
+				defaultNextVersion = pkgVersion.Version
+				break
+			}
+			spinner.Stop()
 		} else if versioningStrategy.Template != "" {
 			spinner.Start()
 			dpt, err := octopus.DeploymentProcesses.GetTemplate(deploymentProcess, selectedChannel.ID, "")
