@@ -1,6 +1,7 @@
 package testutil
 
 import (
+	"errors"
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/AlecAivazis/survey/v2/core"
 	"github.com/stretchr/testify/assert"
@@ -24,10 +25,16 @@ type AskMocker struct {
 	// and go panics and kills the process, so we find out about it, but this is a bit
 	// less confusing to troubleshoot
 	pendingMsgCount int32
+
+	Closed bool
 }
 
 func (m *AskMocker) AsAsker() func(p survey.Prompt, response interface{}, opts ...survey.AskOpt) error {
 	return func(p survey.Prompt, response any, _ ...survey.AskOpt) error {
+		if m.Closed {
+			return errors.New("AskMocker can't prompt; channel closed")
+		}
+
 		// we're the client here, so we send a question down the question channel
 		atomic.AddInt32(&m.pendingMsgCount, 1)
 		m.Question <- p
@@ -52,18 +59,31 @@ func NewAskMocker() *AskMocker {
 	}
 }
 
+func (m *AskMocker) Close() {
+	m.Closed = true
+	close(m.Question)
+	close(m.Answer)
+}
+
 func (m *AskMocker) GetPendingMessageCount() int {
 	return int(m.pendingMsgCount)
 }
 
-func (m *AskMocker) ReceiveQuestion() survey.Prompt {
+func (m *AskMocker) ReceiveQuestion() (survey.Prompt, bool) {
+	if m.Closed {
+		return nil, false
+	}
 	atomic.AddInt32(&m.pendingMsgCount, 1)
 	request := <-m.Question
 	atomic.AddInt32(&m.pendingMsgCount, -1)
-	return request
+	return request, !m.Closed // reading from closed channels works fine and just returns the default
 }
 
 func (m *AskMocker) SendAnswer(answer any, err error) {
+	if m.Closed {
+		return
+	}
+
 	atomic.AddInt32(&m.pendingMsgCount, 1)
 	m.Answer <- answerOrError{answer: answer, error: err}
 	atomic.AddInt32(&m.pendingMsgCount, -1)
@@ -72,7 +92,10 @@ func (m *AskMocker) SendAnswer(answer any, err error) {
 // higher level niceties
 
 func (m *AskMocker) ExpectQuestion(t *testing.T, question survey.Prompt) *QuestionWrapper {
-	q := m.ReceiveQuestion()
+	q, ok := m.ReceiveQuestion()
+	if !ok {
+		return &QuestionWrapper{Asker: m}
+	}
 	assert.Equal(t, question, q)
 	return &QuestionWrapper{Question: q, Asker: m}
 }

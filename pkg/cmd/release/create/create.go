@@ -1,15 +1,21 @@
 package create
 
 import (
+	"errors"
 	"fmt"
 	"github.com/AlecAivazis/survey/v2"
+	cliErrors "github.com/OctopusDeploy/cli/pkg/errors"
 	"github.com/OctopusDeploy/cli/pkg/executor"
 	"github.com/OctopusDeploy/cli/pkg/output"
 	"github.com/OctopusDeploy/cli/pkg/question"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/channels"
 	octopusApiClient "github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/feeds"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/packages"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/releases"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/resources"
+	"regexp"
 	"strings"
 
 	"github.com/MakeNowJust/heredoc/v2"
@@ -123,7 +129,7 @@ func createRun(cmd *cobra.Command, f factory.Factory) error {
 	}
 
 	if f.IsPromptEnabled() {
-		err = AskQuestions(octopus, f.Ask, options)
+		err = AskQuestions(octopus, f.Ask, f.Spinner(), options)
 		if err != nil {
 			return err
 		}
@@ -171,7 +177,18 @@ func createRun(cmd *cobra.Command, f factory.Factory) error {
 	return nil
 }
 
-func AskQuestions(octopus *octopusApiClient.Client, asker question.Asker, options *executor.TaskOptionsCreateRelease) error {
+func AskQuestions(octopus *octopusApiClient.Client, asker question.Asker, spinner factory.Spinner, options *executor.TaskOptionsCreateRelease) error {
+	if octopus == nil {
+		return errors.New("api client is required")
+	}
+	if asker == nil {
+		return errors.New("asker is required")
+	}
+	if options == nil {
+		return errors.New("options is required")
+	}
+	// Note: we don't get here at all if no-prompt is enabled, so we know we are free to ask questions
+
 	// Note on output: survey prints things; if the option is specified already from the command line,
 	// we should emulate that so there is always a line where you can see what the item was when specified on the command line,
 	// however if we support a "quiet mode" then we shouldn't emit those
@@ -179,12 +196,12 @@ func AskQuestions(octopus *octopusApiClient.Client, asker question.Asker, option
 	var err error
 	var selectedProject *projects.Project
 	if options.ProjectName == "" {
-		selectedProject, err = selectProject(octopus, asker)
+		selectedProject, err = selectProject(octopus, asker, spinner)
 		if err != nil {
 			return err
 		}
 	} else { // project name is already provided, fetch the object because it's needed for further questions
-		selectedProject, err = findProject(octopus, options.ProjectName)
+		selectedProject, err = findProject(octopus, spinner, options.ProjectName)
 		if err != nil {
 			return err
 		}
@@ -192,32 +209,206 @@ func AskQuestions(octopus *octopusApiClient.Client, asker question.Asker, option
 	}
 	options.ProjectName = selectedProject.Name
 
-	if selectedProject.PersistenceSettings.GetType() == "VersionControlled" && options.GitReference != "" || options.GitCommit != "" {
-		// it's a config-as-code project, we need to ask for Git Ref or Commit
+	// we always need the deployment process, so we can prompt for package version overrides (or know that there aren't any packages, so it doesn't matter)
 
+	var gitReferenceKey string
+	if selectedProject.PersistenceSettings.GetType() == "VersionControlled" {
+		// if there is no git reference specified, ask the server for the list and prompt.
+		// we leave GitCommit alone in interactive mode; we don't prompt, but if it was specified on the
+		// commandline we just pass it through untouched.
+
+		if options.GitReference == "" { // we need a git ref; ask for one
+			gitRef, err := selectGitReference(octopus, asker, spinner, selectedProject)
+			if err != nil {
+				return err
+			}
+			options.GitReference = gitRef.Name // Hold the short name, not the canonical name due to golang url parsing bug replacing %2f with /
+		} else {
+			// we need to go lookup the git reference
+			_, _ = fmt.Printf("Git Reference %s\n", output.Cyan(options.GitReference))
+		}
+
+		// we could go and query the server and validate if the commit exists, is this worthwhile?
+		if options.GitCommit != "" {
+			_, _ = fmt.Printf("Git Commit %s\n", output.Cyan(options.GitCommit))
+		}
+
+		if options.GitCommit != "" { // prefer a specific git commit if one was specified
+			gitReferenceKey = options.GitCommit
+		} else {
+			gitReferenceKey = options.GitReference
+		}
+
+	} else {
+		// normal projects just have one deployment process, load that instead
+		gitReferenceKey = ""
+	}
+
+	// we've figured out how to load the dep process; go load it
+	spinner.Start()
+	deploymentProcess, err := octopus.DeploymentProcesses.Get(selectedProject, gitReferenceKey)
+	spinner.Stop()
+	if err != nil {
+		return err
 	}
 
 	var selectedChannel *channels.Channel
 	if options.ChannelName == "" {
-		selectedChannel, err = selectChannel(octopus, asker, selectedProject)
+		selectedChannel, err = selectChannel(octopus, asker, spinner, selectedProject)
 		if err != nil {
 			return err
 		}
 	} else {
-		selectedChannel, err = findChannel(octopus, selectedProject, options.ChannelName)
+		selectedChannel, err = findChannel(octopus, spinner, selectedProject, options.ChannelName)
 		if err != nil {
 			return err
 		}
 		_, _ = fmt.Printf("Channel %s\n", output.Cyan(selectedChannel.Name))
 	}
 	options.ChannelName = selectedChannel.Name
-
 	if err != nil {
 		return err
 	}
 
+	// TODO package version prompting goes here BEFORE specification of the release version
+
 	if options.Version == "" {
-		version, err := askVersion(octopus, asker, selectedProject, selectedChannel)
+		// After loading the deployment process and channel, the logic forks here:
+		// If the project's VersioningStrategy has a Template then we need to look in the deploymentprocesstemplate for the next release version
+		// If the project's VersioningStrategy has a DonorPackageStepId then we need to follow the package trail to determine the release version
+		// - but we must allow the user to override package versions first.
+		// If the project's VersioningStrategy is null, it means this is a Config-as-code project and we need to
+		// additionally load the deployment settings because the API doesn't inline the strategy in the main project resource for some reason
+		var versioningStrategy *projects.VersioningStrategy
+		if selectedProject.VersioningStrategy != nil {
+			versioningStrategy = selectedProject.VersioningStrategy
+		} else {
+			spinner.Start()
+			deploymentSettings, err := octopus.Deployments.GetDeploymentSettings(selectedProject, gitReferenceKey)
+			spinner.Stop()
+			if err != nil {
+				return err
+			}
+			versioningStrategy = deploymentSettings.VersioningStrategy
+		}
+		if versioningStrategy == nil { // not sure if this should ever happen, but best to be defensive
+			return cliErrors.NewInvalidResponseError(fmt.Sprintf("cannot determine versioning strategy for project %s", selectedProject.Name))
+		}
+
+		defaultNextVersion := ""
+		if versioningStrategy.DonorPackageStepID != nil || versioningStrategy.DonorPackage != nil {
+			// we need the deployment process template in order to get the steps, so we can lookup the stepID
+			spinner.Start()
+			dpt, err := octopus.DeploymentProcesses.GetTemplate(deploymentProcess, selectedChannel.ID, "")
+			// don't stop the spinner, we may have more networking
+			if err != nil {
+				spinner.Stop()
+				return err
+			}
+
+			targetDeploymentAction := versioningStrategy.DonorPackage.DeploymentAction
+			targetPackageReference := versioningStrategy.DonorPackage.PackageReference
+
+			foundTemplatePackage := releases.ReleaseTemplatePackage{}
+			for _, pkg := range dpt.Packages {
+				if pkg.ActionName == targetDeploymentAction && pkg.PackageReferenceName == targetPackageReference {
+					foundTemplatePackage = pkg
+					break
+				}
+			}
+
+			if foundTemplatePackage.ActionName == "" {
+				// should this just be a warning rather than a hard fail? we could still just ask the user if they'd
+				// like to type in a version or leave it blank? On the other hand, it shouldn't fail anyway :shrug:
+				spinner.Stop()
+				return fmt.Errorf("can't find donor package in deployment process template; cannot determine version")
+			}
+
+			// TODO extend the API client to support feeds/{id} so we don't need to query/loop
+			foundFeeds, err := octopus.Feeds.Get(feeds.FeedsQuery{IDs: []string{foundTemplatePackage.FeedID}, Take: 1})
+			if err == nil && foundFeeds.Items != nil && len(foundFeeds.Items) == 0 {
+				err = errors.New("could not load feeds")
+			}
+			if err != nil {
+				spinner.Stop()
+				return err
+			}
+			feed := foundFeeds.Items[0]
+			// TODO: Ask shannon or henrik:
+			// NOTE: the server gives us links for "SearchPackageVersionsTemplate" as well as "VersionsTemplate"
+			// these both point to the same thing. Which one are we supposed to use?
+			// The quickest path seems to be to hit VersionsTemplate, but the Go API client doesn't support that
+			pkgDesc := &packages.PackageDescription{Resource: resources.Resource{Links: map[string]string{}}}
+			pkgDesc.Links["SearchPackageVersionsTemplate"] = feed.GetLinks()["SearchPackageVersionsTemplate"]
+			// note this doesn't fetch all the pages, we need to potentially implement paging???
+			pkgVersions, err := octopus.Feeds.SearchPackageVersions(pkgDesc, feeds.SearchPackageVersionsQuery{PackageID: foundTemplatePackage.PackageID})
+			if err == nil && (pkgVersions.Items != nil && len(pkgVersions.Items) == 0) {
+				err = errors.New("could not find any versions for package")
+			}
+			if err != nil {
+				spinner.Stop()
+				return err
+			}
+
+			tagFilters := make([]*regexp.Regexp, 0, len(selectedChannel.Rules))
+			// TODO version range filters; we need to parse either Nuget or Maven syntax, which is super hard. Is this the right way to go about it?
+			for _, rule := range selectedChannel.Rules {
+				for _, ap := range rule.ActionPackages {
+					if ap.PackageReference == targetPackageReference && ap.DeploymentAction == targetDeploymentAction {
+						// this rule applies to our step/packageref combo, reject the package version if not satisfied
+						if rule.Tag != "" {
+							re, err := regexp.Compile(rule.Tag)
+							if err == nil {
+								tagFilters = append(tagFilters, re)
+							} // TODO else log some sort of warning that we can't evaluate the regex the server gave us?
+						} // if the rule doesn't have a Tag then it matches everything
+					}
+				}
+			}
+
+			// pick the first package that satisfies the filters
+		outer:
+			for _, pkgVersion := range pkgVersions.Items {
+				components := strings.SplitN(pkgVersion.Version, "-", 2)
+				if len(components) == 0 {
+					spinner.Stop()
+					return fmt.Errorf("can't parse package version %s", pkgVersion.Version)
+				}
+				// TODO what if the package version isn't semver?
+				//versionComponent, err := semver.Make(components[0])
+				if err != nil {
+					spinner.Stop()
+					return fmt.Errorf("can't parse package version %s (invalid semver)", pkgVersion.Version)
+				}
+				tagComponent := ""
+				if len(components) == 2 {
+					tagComponent = components[1]
+				}
+
+				// TODO apply the version range filter
+
+				// apply the tag filter
+				for _, tagFilter := range tagFilters {
+					if !tagFilter.MatchString(tagComponent) {
+						continue outer // this package tag has been rejected
+					}
+				}
+				// we applied all the rule filters and we didn't reject it; must be the right one
+				defaultNextVersion = pkgVersion.Version
+				break
+			}
+			spinner.Stop()
+		} else if versioningStrategy.Template != "" {
+			spinner.Start()
+			dpt, err := octopus.DeploymentProcesses.GetTemplate(deploymentProcess, selectedChannel.ID, "")
+			spinner.Stop()
+			if err != nil {
+				return err
+			}
+			defaultNextVersion = dpt.NextVersionIncrement
+		}
+
+		version, err := askVersion(asker, defaultNextVersion)
 		if err != nil {
 			return err
 		}
@@ -228,21 +419,11 @@ func AskQuestions(octopus *octopusApiClient.Client, asker question.Asker, option
 	return nil
 }
 
-func askVersion(octopus *octopusApiClient.Client, ask question.Asker, project *projects.Project, channel *channels.Channel) (string, error) {
-	deploymentProcess, err := octopus.DeploymentProcesses.Get(project, "")
-	if err != nil {
-		return "", err
-	}
-
-	template, err := octopus.DeploymentProcesses.GetTemplate(deploymentProcess, channel.ID, "")
-	if err != nil {
-		return "", err
-	}
-
+func askVersion(ask question.Asker, defaultVersion string) (string, error) {
 	var version string
 	if err := ask(&survey.Input{
-		Default: template.NextVersionIncrement,
-		Message: "Version",
+		Default: defaultVersion,
+		Message: "Release Version",
 	}, &version); err != nil {
 		return "", err
 	}
@@ -250,8 +431,10 @@ func askVersion(octopus *octopusApiClient.Client, ask question.Asker, project *p
 	return version, nil
 }
 
-func selectChannel(octopus *octopusApiClient.Client, ask question.Asker, project *projects.Project) (*channels.Channel, error) {
+func selectChannel(octopus *octopusApiClient.Client, ask question.Asker, spinner factory.Spinner, project *projects.Project) (*channels.Channel, error) {
+	spinner.Start()
 	existingChannels, err := octopus.Projects.GetChannels(project)
+	spinner.Stop()
 	if err != nil {
 		return nil, err
 	}
@@ -269,8 +452,10 @@ func selectChannel(octopus *octopusApiClient.Client, ask question.Asker, project
 	})
 }
 
-func findChannel(octopus *octopusApiClient.Client, project *projects.Project, channelName string) (*channels.Channel, error) {
+func findChannel(octopus *octopusApiClient.Client, spinner factory.Spinner, project *projects.Project, channelName string) (*channels.Channel, error) {
+	spinner.Start()
 	foundChannels, err := octopus.Projects.GetChannels(project) // TODO server-side filtering support in future
+	spinner.Stop()
 	if err != nil {
 		return nil, err
 	}
@@ -279,28 +464,32 @@ func findChannel(octopus *octopusApiClient.Client, project *projects.Project, ch
 			return c, nil
 		}
 	}
-	// TODO should we prompt here instead?
 	return nil, fmt.Errorf("no channel found with name of %s", channelName)
 }
 
-func findProject(octopus *octopusApiClient.Client, projectName string) (*projects.Project, error) {
+func findProject(octopus *octopusApiClient.Client, spinner factory.Spinner, projectName string) (*projects.Project, error) {
 	// projectsQuery has "Name" but it's just an alias in the server for PartialName; we need to filter client side
+	spinner.Start()
 	projectsPage, err := octopus.Projects.Get(projects.ProjectsQuery{PartialName: projectName})
 	if err != nil {
+		spinner.Stop()
 		return nil, err
 	}
 	for projectsPage != nil && len(projectsPage.Items) > 0 {
 		for _, c := range projectsPage.Items { // server doesn't support channel search by exact name so we must emulate it
 			if strings.EqualFold(c.Name, projectName) {
+				spinner.Stop()
 				return c, nil
 			}
 		}
 		projectsPage, err = projectsPage.GetNextPage(octopus.Projects.GetClient())
 		if err != nil {
+			spinner.Stop()
 			return nil, err
 		} // if there are no more pages, then GetNextPage will return nil, which breaks us out of the loop
 	}
 
+	spinner.Stop()
 	return nil, fmt.Errorf("no project found with name of %s", projectName)
 }
 
@@ -409,20 +598,38 @@ func selectPackageOverrides(octopus *octopusApiClient.Client, ask question.Asker
 	return "", nil
 }
 
-func selectProject(octopus *octopusApiClient.Client, ask question.Asker) (*projects.Project, error) {
-
+func selectProject(octopus *octopusApiClient.Client, ask question.Asker, spinner factory.Spinner) (*projects.Project, error) {
+	spinner.Start()
 	existingProjects, err := octopus.Projects.GetAll()
+	spinner.Stop()
 	if err != nil {
 		return nil, err
 	}
 
 	return question.SelectMap(ask, "Select the project in which the release will be created", existingProjects, func(p *projects.Project) string {
-		for _, v := range existingProjects {
-			if p.Name == v.Name {
-				return v.Name
-			}
-		}
+		return p.Name
+	})
+}
 
-		return ""
+func selectGitReference(octopus *octopusApiClient.Client, ask question.Asker, spinner factory.Spinner, project *projects.Project) (*projects.GitReference, error) {
+	spinner.Start()
+	branches, err := octopus.Projects.GetGitBranches(project)
+	if err != nil {
+		spinner.Stop()
+		return nil, err
+	}
+
+	tags, err := octopus.Projects.GetGitTags(project)
+	spinner.Stop()
+
+	if err != nil {
+		return nil, err
+	}
+
+	allRefs := append(branches, tags...)
+
+	// TODO talk within the team about what question wording to use here. It'd be nice to guide users as to why they need a git ref
+	return question.SelectMap(ask, "Select the Git Reference to use", allRefs, func(g *projects.GitReference) string {
+		return fmt.Sprintf("%s %s", g.Name, output.Dimf("(%s)", g.Type.Description()))
 	})
 }

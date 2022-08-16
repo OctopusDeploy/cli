@@ -1,6 +1,9 @@
 package question
 
-import "github.com/AlecAivazis/survey/v2"
+import (
+	"fmt"
+	"github.com/AlecAivazis/survey/v2"
+)
 
 func MultiSelectMap[T any](ask Asker, message string, items []T, getKey func(item T) string) ([]T, error) {
 	optionMap, options := makeItemMapAndOptions(items, getKey)
@@ -11,10 +14,11 @@ func MultiSelectMap[T any](ask Asker, message string, items []T, getKey func(ite
 	}, &selectedKeys); err != nil {
 		return nil, err
 	}
-	selected := []T{}
+	selected := make([]T, 0)
 	for _, keyName := range selectedKeys {
 		selected = append(selected, optionMap[keyName])
 	}
+	// it's valid to have zero selected options in a multi-select
 	return selected, nil
 }
 
@@ -28,7 +32,10 @@ func SelectMap[T any](ask Asker, message string, items []T, getKey func(item T) 
 	}, &selectedKey); err != nil {
 		return selectedValue, err
 	}
-	selectedValue = optionMap[selectedKey]
+	selectedValue, ok := optionMap[selectedKey]
+	if !ok { // without this explict check SelectMap can return nil, nil which people don't expect
+		return *new(T), fmt.Errorf("SelectMap did not get valid answer (selectedKey=%s)", selectedKey)
+	}
 	return selectedValue, nil
 }
 

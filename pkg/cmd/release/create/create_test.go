@@ -22,7 +22,9 @@ var serverUrl, _ = url.Parse("http://server")
 
 const placeholderApiKey = "API-XXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
 
-func TestReleaseCreate_AskQuestions(t *testing.T) {
+var spinner = &testutil.FakeSpinner{}
+
+func TestReleaseCreate_AskQuestions_RegularProject(t *testing.T) {
 	rootResource := testutil.NewRootResource()
 
 	const spaceID = "Spaces-1"
@@ -31,20 +33,20 @@ func TestReleaseCreate_AskQuestions(t *testing.T) {
 	depProcess := fixtures.NewDeploymentProcessForProject(spaceID, fireProjectID)
 
 	defaultChannel := channels.NewChannel("Fire Project Default Channel", fireProjectID)
-	altChannel := channels.NewChannel("Fire Project Alt Channel", fireProjectID)
+	altChannel := fixtures.NewChannel(spaceID, "Channels-97", "Fire Project Alt Channel", fireProjectID)
 
 	fireProject := fixtures.NewProject(spaceID, fireProjectID, "Fire Project", "Lifecycles-1", "ProjectGroups-1", depProcess.ID)
 
-	t.Run("standard process asking for everything (no package versions) or CaC", func(t *testing.T) {
-		api := testutil.NewMockHttpServer()
-		qa := testutil.NewAskMocker()
+	t.Run("standard process asking for everything (no package versions)", func(t *testing.T) {
+		api, qa := testutil.NewMockServerAndAsker()
 
 		options := &executor.TaskOptionsCreateRelease{}
 
 		errReceiver := testutil.GoBegin(func() error {
+			defer testutil.Close(api, qa)
 			// NewClient makes network calls so we have to run it in the goroutine
 			octopus, _ := octopusApiClient.NewClient(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "")
-			return create.AskQuestions(octopus, qa.AsAsker(), options)
+			return create.AskQuestions(octopus, qa.AsAsker(), spinner, options)
 		})
 
 		api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
@@ -56,6 +58,8 @@ func TestReleaseCreate_AskQuestions(t *testing.T) {
 			Options: []string{"Fire Project"},
 		}).AnswerWith("Fire Project")
 
+		api.ExpectRequest(t, "GET", "/api/Spaces-1/deploymentprocesses/deploymentprocess-"+fireProjectID).RespondWith(depProcess)
+
 		api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+fireProjectID+"/channels").RespondWith(resources.Resources[*channels.Channel]{
 			Items: []*channels.Channel{defaultChannel, altChannel},
 		})
@@ -65,13 +69,11 @@ func TestReleaseCreate_AskQuestions(t *testing.T) {
 			Options: []string{defaultChannel.Name, altChannel.Name},
 		}).AnswerWith("Fire Project Alt Channel")
 
-		api.ExpectRequest(t, "GET", "/api/Spaces-1/deploymentprocesses/deploymentprocess-"+fireProjectID).RespondWith(depProcess)
-
-		api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+fireProjectID+"/deploymentprocesses/template").
+		api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+fireProjectID+"/deploymentprocesses/template?channel=Channels-97").
 			RespondWith(&deployments.DeploymentProcessTemplate{NextVersionIncrement: "27.9.3"})
 
 		qa.ExpectQuestion(t, &survey.Input{
-			Message: "Version",
+			Message: "Release Version",
 			Default: "27.9.3",
 		}).AnswerWith("27.9.999")
 
@@ -85,8 +87,7 @@ func TestReleaseCreate_AskQuestions(t *testing.T) {
 	})
 
 	t.Run("asking for nothing in interactive mode (testing case insensitivity)", func(t *testing.T) {
-		api := testutil.NewMockHttpServer()
-		qa := testutil.NewAskMocker()
+		api, qa := testutil.NewMockServerAndAsker()
 
 		options := &executor.TaskOptionsCreateRelease{
 			ProjectName: "fire project",
@@ -95,9 +96,9 @@ func TestReleaseCreate_AskQuestions(t *testing.T) {
 		}
 
 		errReceiver := testutil.GoBegin(func() error {
-			// NewClient makes network calls so we have to run it in the goroutine
+			defer testutil.Close(api, qa)
 			octopus, _ := octopusApiClient.NewClient(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "")
-			return create.AskQuestions(octopus, qa.AsAsker(), options)
+			return create.AskQuestions(octopus, qa.AsAsker(), spinner, options)
 		})
 
 		api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
@@ -106,6 +107,8 @@ func TestReleaseCreate_AskQuestions(t *testing.T) {
 			RespondWith(resources.Resources[*projects.Project]{
 				Items: []*projects.Project{fireProject},
 			})
+
+		api.ExpectRequest(t, "GET", "/api/Spaces-1/deploymentprocesses/deploymentprocess-"+fireProjectID).RespondWith(depProcess)
 
 		api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+fireProjectID+"/channels").
 			RespondWith(resources.Resources[*channels.Channel]{
@@ -120,65 +123,242 @@ func TestReleaseCreate_AskQuestions(t *testing.T) {
 		assert.Equal(t, "Fire Project Default Channel", options.ChannelName)
 		assert.Equal(t, "9.8.4-prerelease", options.Version)
 	})
+}
 
-	t.Run("standard process asking for everything (no package versions) in CaC project", func(t *testing.T) {
-		api := testutil.NewMockHttpServer()
-		qa := testutil.NewAskMocker()
+func TestReleaseCreate_AskQuestions_VersionControlledProject(t *testing.T) {
+	rootResource := testutil.NewRootResource()
 
-		cacProjectID := "Projects-87"
-		repoUrl, _ := url.Parse("http://server/repo.git")
+	const spaceID = "Spaces-1"
 
-		cacProject := fixtures.NewProject(spaceID, cacProjectID, "CaC Project", "Lifecycles-1", "ProjectGroups-1", depProcess.ID)
-		cacProject.PersistenceSettings = projects.NewGitPersistenceSettings(
-			".octopus",
-			projects.NewAnonymousGitCredential(),
-			"main",
-			repoUrl,
-		)
+	projectID := "Projects-87"
+	depProcessDevelopBranch := fixtures.NewDeploymentProcessForVersionControlledProject(spaceID, projectID, "develop")
+
+	depSettings := fixtures.NewDeploymentSettingsForProject(spaceID, projectID, &projects.VersioningStrategy{
+		Template: "#{Octopus.Version.LastMajor}.#{Octopus.Version.LastMinor}.#{Octopus.Version.NextPatch}", // bog standard
+	})
+	depTemplate := &deployments.DeploymentProcessTemplate{NextVersionIncrement: "27.9.3"}
+
+	project := fixtures.NewVersionControlledProject(spaceID, projectID, "CaC Project", "Lifecycles-1", "ProjectGroups-1", depProcessDevelopBranch.ID)
+
+	defaultChannel := fixtures.NewChannel(spaceID, "Channels-34", "CaC Project Default Channel", projectID)
+	altChannel := fixtures.NewChannel(spaceID, "Channels-97", "CaC Project Alt Channel", projectID)
+
+	t.Run("standard process asking for everything (no package versions); specific git commit not set", func(t *testing.T) {
+		api, qa := testutil.NewMockServerAndAsker()
 
 		options := &executor.TaskOptionsCreateRelease{}
 
 		errReceiver := testutil.GoBegin(func() error {
-			// NewClient makes network calls so we have to run it in the goroutine
+			defer testutil.Close(api, qa)
 			octopus, _ := octopusApiClient.NewClient(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "")
-			return create.AskQuestions(octopus, qa.AsAsker(), options)
+			return create.AskQuestions(octopus, qa.AsAsker(), spinner, options)
 		})
 
 		api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
 
-		api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/all").RespondWith([]*projects.Project{fireProject})
+		api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/all").RespondWith([]*projects.Project{project})
 
 		qa.ExpectQuestion(t, &survey.Select{
 			Message: "Select the project in which the release will be created",
-			Options: []string{"Fire Project"},
-		}).AnswerWith("Fire Project")
+			Options: []string{project.Name},
+		}).AnswerWith(project.Name)
 
-		api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+fireProjectID+"/channels").RespondWith(resources.Resources[*channels.Channel]{
+		// CLI will load all the branches and tags
+		api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+projectID+"/git/branches").RespondWith(resources.Resources[*projects.GitReference]{
+			PagedResults: resources.PagedResults{ItemType: "GitBranch"},
+			Items: []*projects.GitReference{
+				projects.NewGitBranchReference("main", "refs/heads/main"),
+				projects.NewGitBranchReference("develop", "refs/heads/develop"),
+			}})
+
+		api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+projectID+"/git/tags").RespondWith(resources.Resources[*projects.GitReference]{
+			PagedResults: resources.PagedResults{ItemType: "GitTag"},
+			Items: []*projects.GitReference{
+				projects.NewGitTagReference("v2", "refs/tags/v2"),
+				projects.NewGitTagReference("v1", "refs/tags/v1"),
+			}})
+
+		qa.ExpectQuestion(t, &survey.Select{
+			Message: "Select the Git Reference to use",
+			Options: []string{"main (Branch)", "develop (Branch)", "v2 (Tag)", "v1 (Tag)"},
+		}).AnswerWith("develop (Branch)")
+
+		// can't specify a git commit hash in interactive mode
+
+		// Once the CLI has picked up the git ref it then loads the deployment process which will be based on the git ref link
+		// NOTE: we are only using the git short name here, not the full name due to the golang url parsing bug which
+		// incorrectly turns %2f into a literal / in the URL
+		api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+projectID+"/develop/deploymentprocesses").RespondWith(depProcessDevelopBranch)
+
+		// next phase; channel selection
+
+		api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+projectID+"/channels").RespondWith(resources.Resources[*channels.Channel]{
 			Items: []*channels.Channel{defaultChannel, altChannel},
 		})
-
 		qa.ExpectQuestion(t, &survey.Select{
 			Message: "Select the channel in which the release will be created",
 			Options: []string{defaultChannel.Name, altChannel.Name},
-		}).AnswerWith("Fire Project Alt Channel")
+		}).AnswerWith(altChannel.Name)
 
-		api.ExpectRequest(t, "GET", "/api/Spaces-1/deploymentprocesses/deploymentprocess-"+fireProjectID).RespondWith(depProcess)
+		// our project inline versioning strategy was nil, so the code needs to load the deployment settings to find out
+		api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+projectID+"/develop/deploymentsettings").RespondWith(depSettings)
 
-		api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+fireProjectID+"/deploymentprocesses/template").
-			RespondWith(&deployments.DeploymentProcessTemplate{NextVersionIncrement: "27.9.3"})
+		// because we're using template versioning, now we need to load the deployment process template for our channel to see the NextVersionIncrement
+		api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+projectID+"/develop/deploymentprocesses/template?channel="+altChannel.ID).RespondWith(depTemplate)
 
 		qa.ExpectQuestion(t, &survey.Input{
-			Message: "Version",
-			Default: "27.9.3",
+			Message: "Release Version",
+			Default: "27.9.3", // from the dep template
 		}).AnswerWith("27.9.999")
 
 		err := <-errReceiver
 		assert.Nil(t, err)
 
 		// check that the question-asking process has filled out the things we told it to
-		assert.Equal(t, "Fire Project", options.ProjectName)
-		assert.Equal(t, "Fire Project Alt Channel", options.ChannelName)
+		assert.Equal(t, project.Name, options.ProjectName)
+		assert.Equal(t, "CaC Project Alt Channel", options.ChannelName)
 		assert.Equal(t, "27.9.999", options.Version)
+		assert.Equal(t, "develop", options.GitReference) // not fully qualified but I guess we could hold that
+		assert.Equal(t, "", options.GitCommit)
+	})
+
+	t.Run("standard process asking for everything (no package versions); specific git commit set which is passed to the server", func(t *testing.T) {
+		api, qa := testutil.NewMockServerAndAsker()
+
+		options := &executor.TaskOptionsCreateRelease{}
+		options.GitCommit = "45c508a"
+
+		errReceiver := testutil.GoBegin(func() error {
+			defer testutil.Close(api, qa)
+			octopus, _ := octopusApiClient.NewClient(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "")
+			return create.AskQuestions(octopus, qa.AsAsker(), spinner, options)
+		})
+
+		api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
+
+		api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/all").RespondWith([]*projects.Project{project})
+
+		qa.ExpectQuestion(t, &survey.Select{
+			Message: "Select the project in which the release will be created",
+			Options: []string{project.Name},
+		}).AnswerWith(project.Name)
+
+		// CLI will load all the branches and tags
+		api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+projectID+"/git/branches").RespondWith(resources.Resources[*projects.GitReference]{
+			PagedResults: resources.PagedResults{ItemType: "GitBranch"},
+			Items: []*projects.GitReference{
+				projects.NewGitBranchReference("main", "refs/heads/main"),
+				projects.NewGitBranchReference("develop", "refs/heads/develop"),
+			}})
+
+		api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+projectID+"/git/tags").RespondWith(resources.Resources[*projects.GitReference]{
+			PagedResults: resources.PagedResults{ItemType: "GitTag"},
+			Items: []*projects.GitReference{
+				projects.NewGitTagReference("v2", "refs/tags/v2"),
+				projects.NewGitTagReference("v1", "refs/tags/v1"),
+			}})
+
+		// NOTE we still ask for git ref even though commit is specified, this is so the server
+		// can give us nice audit logs capturing the INTENT of the release (a commit may exist in more than one branch)
+		qa.ExpectQuestion(t, &survey.Select{
+			Message: "Select the Git Reference to use",
+			Options: []string{"main (Branch)", "develop (Branch)", "v2 (Tag)", "v1 (Tag)"},
+		}).AnswerWith("v2 (Tag)")
+
+		// Deployment Processes/Templates under CaC always contain the same ID (deploymentprocess-Projects-423) but
+		// the URL can change to be git-commit specific, e.g. api/Spaces-1/projects/Projects-423/cfdd4bd/deploymentprocesses or api/Spaces-1/projects/Projects-423/main/deploymentprocesses
+		// this means we don't have to change our project.DeploymentProcessID when we're fiddling with this.
+		depProcessSpecificCommit := fixtures.NewDeploymentProcessForVersionControlledProject(spaceID, projectID, "45c508a")
+
+		// it uses the git commit hash regardless of which branch we picked
+		api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+projectID+"/45c508a/deploymentprocesses").RespondWith(depProcessSpecificCommit)
+
+		// next phase; channel selection
+
+		api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+projectID+"/channels").RespondWith(resources.Resources[*channels.Channel]{
+			Items: []*channels.Channel{defaultChannel, altChannel},
+		})
+		qa.ExpectQuestion(t, &survey.Select{
+			Message: "Select the channel in which the release will be created",
+			Options: []string{defaultChannel.Name, altChannel.Name},
+		}).AnswerWith(altChannel.Name)
+
+		// our project inline versioning strategy was nil, so the code needs to load the deployment settings to find out
+		api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+projectID+"/45c508a/deploymentsettings").RespondWith(depSettings)
+
+		// because we're using template versioning, now we need to load the deployment process template for our channel to see the NextVersionIncrement
+		api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+projectID+"/45c508a/deploymentprocesses/template?channel="+altChannel.ID).RespondWith(depTemplate)
+
+		qa.ExpectQuestion(t, &survey.Input{
+			Message: "Release Version",
+			Default: "27.9.3", // from the dep template
+		}).AnswerWith("27.9.654")
+
+		err := <-errReceiver
+		assert.Nil(t, err)
+
+		// check that the question-asking process has filled out the things we told it to
+		assert.Equal(t, project.Name, options.ProjectName)
+		assert.Equal(t, "CaC Project Alt Channel", options.ChannelName)
+		assert.Equal(t, "27.9.654", options.Version)
+		assert.Equal(t, "v2", options.GitReference) // not fully qualified but I guess we could hold that
+		assert.Equal(t, "45c508a", options.GitCommit)
+	})
+
+	t.Run("standard process asking for everything (no package versions); doesn't ask for git ref if already specified", func(t *testing.T) {
+		api, qa := testutil.NewMockServerAndAsker()
+
+		options := &executor.TaskOptionsCreateRelease{}
+		options.GitReference = "develop"
+
+		errReceiver := testutil.GoBegin(func() error {
+			defer testutil.Close(api, qa)
+			octopus, _ := octopusApiClient.NewClient(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "")
+			return create.AskQuestions(octopus, qa.AsAsker(), spinner, options)
+		})
+
+		api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
+
+		api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/all").RespondWith([]*projects.Project{project})
+
+		qa.ExpectQuestion(t, &survey.Select{
+			Message: "Select the project in which the release will be created",
+			Options: []string{project.Name},
+		}).AnswerWith(project.Name)
+
+		// it uses the git commit hash regardless of which branch we picked
+		api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+projectID+"/develop/deploymentprocesses").RespondWith(depProcessDevelopBranch)
+
+		// next phase; channel selection
+
+		api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+projectID+"/channels").RespondWith(resources.Resources[*channels.Channel]{
+			Items: []*channels.Channel{defaultChannel, altChannel},
+		})
+		qa.ExpectQuestion(t, &survey.Select{
+			Message: "Select the channel in which the release will be created",
+			Options: []string{defaultChannel.Name, altChannel.Name},
+		}).AnswerWith(altChannel.Name)
+
+		// our project inline versioning strategy was nil, so the code needs to load the deployment settings to find out
+		api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+projectID+"/develop/deploymentsettings").RespondWith(depSettings)
+
+		// because we're using template versioning, now we need to load the deployment process template for our channel to see the NextVersionIncrement
+		api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+projectID+"/develop/deploymentprocesses/template?channel="+altChannel.ID).RespondWith(depTemplate)
+
+		qa.ExpectQuestion(t, &survey.Input{
+			Message: "Release Version",
+			Default: "27.9.3", // from the dep template
+		}).AnswerWith("27.9.654")
+
+		err := <-errReceiver
+		assert.Nil(t, err)
+
+		// check that the question-asking process has filled out the things we told it to
+		assert.Equal(t, project.Name, options.ProjectName)
+		assert.Equal(t, "CaC Project Alt Channel", options.ChannelName)
+		assert.Equal(t, "27.9.654", options.Version)
+		assert.Equal(t, "develop", options.GitReference)
+		assert.Equal(t, "", options.GitCommit)
 	})
 }
 
@@ -203,12 +383,12 @@ func TestReleaseCreate_AutomationMode(t *testing.T) {
 		fakeRepoUrl,
 	)
 
-	api := testutil.NewMockHttpServer()
-
 	t.Run("release creation requires a project name", func(t *testing.T) {
+		api := testutil.NewMockHttpServer()
 		root, stdOut, stdErr := fixtures.NewCobraRootCommand(testutil.NewMockFactoryWithSpace(api, space1))
 
 		cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
+			defer api.Close()
 			root.SetArgs([]string{"release", "create"})
 			return root.ExecuteC()
 		})
@@ -225,9 +405,11 @@ func TestReleaseCreate_AutomationMode(t *testing.T) {
 	})
 
 	t.Run("release creation specifying project only (bare minimum)", func(t *testing.T) {
+		api := testutil.NewMockHttpServer()
 		root, stdOut, stdErr := fixtures.NewCobraRootCommand(testutil.NewMockFactoryWithSpace(api, space1))
 
 		cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
+			defer api.Close()
 			root.SetArgs([]string{"release", "create", "--project", cacProject.Name})
 			return root.ExecuteC()
 		})
@@ -267,10 +449,12 @@ func TestReleaseCreate_AutomationMode(t *testing.T) {
 	})
 
 	t.Run("release creation specifying gitcommit and gitref", func(t *testing.T) {
+		api := testutil.NewMockHttpServer()
 		root, stdOut, stdErr := fixtures.NewCobraRootCommand(testutil.NewMockFactoryWithSpace(api, space1))
 
 		cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
-			root.SetArgs([]string{"release", "create", "--project", cacProject.Name, "--git-ref", "/refs/heads/main", "--git-commit", "6ef5e8c83cdcd4933bbeaeb458dc99902ad831ca"})
+			defer api.Close()
+			root.SetArgs([]string{"release", "create", "--project", cacProject.Name, "--git-ref", "refs/heads/main", "--git-commit", "6ef5e8c83cdcd4933bbeaeb458dc99902ad831ca"})
 			return root.ExecuteC()
 		})
 
@@ -286,7 +470,7 @@ func TestReleaseCreate_AutomationMode(t *testing.T) {
 			SpaceIDOrName:   "Spaces-1",
 			ProjectIDOrName: cacProject.Name,
 			GitCommit:       "6ef5e8c83cdcd4933bbeaeb458dc99902ad831ca",
-			GitRef:          "/refs/heads/main",
+			GitRef:          "refs/heads/main",
 		}, requestBody)
 
 		req.RespondWith(&releases.CreateReleaseResponseV1{
@@ -308,13 +492,15 @@ func TestReleaseCreate_AutomationMode(t *testing.T) {
 	})
 
 	t.Run("release creation with all the flags", func(t *testing.T) {
+		api := testutil.NewMockHttpServer()
 		root, stdOut, stdErr := fixtures.NewCobraRootCommand(testutil.NewMockFactoryWithSpace(api, space1))
 
 		cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
+			defer api.Close()
 			root.SetArgs([]string{"release", "create",
 				"--project", cacProject.Name,
 				"--package-version", "5.6.7-beta",
-				"--git-ref", "/refs/heads/main",
+				"--git-ref", "refs/heads/main",
 				"--git-commit", "6ef5e8c83cdcd4933bbeaeb458dc99902ad831ca",
 				"--version", "1.0.2",
 				"--channel", "BetaChannel",
@@ -336,7 +522,7 @@ func TestReleaseCreate_AutomationMode(t *testing.T) {
 			ProjectIDOrName:       cacProject.Name,
 			PackageVersion:        "5.6.7-beta",
 			GitCommit:             "6ef5e8c83cdcd4933bbeaeb458dc99902ad831ca",
-			GitRef:                "/refs/heads/main",
+			GitRef:                "refs/heads/main",
 			ReleaseVersion:        "1.0.2",
 			ChannelIDOrName:       "BetaChannel",
 			ReleaseNotes:          "Here are some **release notes**.",
@@ -368,13 +554,15 @@ func TestReleaseCreate_AutomationMode(t *testing.T) {
 	})
 
 	t.Run("release creation with all the flags (short flags where available)", func(t *testing.T) {
+		api := testutil.NewMockHttpServer()
 		root, stdOut, stdErr := fixtures.NewCobraRootCommand(testutil.NewMockFactoryWithSpace(api, space1))
 
 		cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
+			defer api.Close()
 			root.SetArgs([]string{"release", "create",
 				"-p", cacProject.Name,
 				"--package-version", "5.6.7-beta",
-				"-r", "/refs/heads/main",
+				"-r", "refs/heads/main",
 				"--git-commit", "6ef5e8c83cdcd4933bbeaeb458dc99902ad831ca",
 				"-v", "1.0.2",
 				"-c", "BetaChannel",
@@ -396,7 +584,7 @@ func TestReleaseCreate_AutomationMode(t *testing.T) {
 			ProjectIDOrName:       cacProject.Name,
 			PackageVersion:        "5.6.7-beta",
 			GitCommit:             "6ef5e8c83cdcd4933bbeaeb458dc99902ad831ca",
-			GitRef:                "/refs/heads/main",
+			GitRef:                "refs/heads/main",
 			ReleaseVersion:        "1.0.2",
 			ChannelIDOrName:       "BetaChannel",
 			ReleaseNotes:          "Here are some **release notes**.",

@@ -55,6 +55,8 @@ type MockHttpServer struct {
 	// and go panics and kills the process, so we find out about it, but this is a bit
 	// less confusing to troubleshoot
 	pendingMsgCount int32
+
+	Closed bool
 }
 
 // conforms to RoundTripper so we can use it for httpClient.Transport
@@ -79,18 +81,28 @@ func NewMockHttpServer() *MockHttpServer {
 	}
 }
 
+func (m *MockHttpServer) Close() {
+	m.Closed = true
+	close(m.Request)
+	close(m.Response)
+}
+
 func (m *MockHttpServer) GetPendingMessageCount() int {
 	return int(m.pendingMsgCount)
 }
 
-func (m *MockHttpServer) ReceiveRequest() *http.Request {
+func (m *MockHttpServer) ReceiveRequest() (*http.Request, bool) {
 	atomic.AddInt32(&m.pendingMsgCount, 1)
 	request := <-m.Request
 	atomic.AddInt32(&m.pendingMsgCount, -1)
-	return request
+	return request, !m.Closed // reading from closed channels works fine and just returns the default
 }
 
 func (m *MockHttpServer) Respond(response *http.Response, err error) {
+	if m.Closed {
+		return // can't respond after closure
+	}
+
 	atomic.AddInt32(&m.pendingMsgCount, 1)
 	m.Response <- responseOrError{response: response, error: err}
 	atomic.AddInt32(&m.pendingMsgCount, -1)
@@ -99,7 +111,12 @@ func (m *MockHttpServer) Respond(response *http.Response, err error) {
 // now we build some higher level methods on top of ReceiveRequest
 
 func (m *MockHttpServer) ExpectRequest(t *testing.T, method string, pathAndQuery string) *RequestWrapper {
-	r := m.ReceiveRequest()
+	r, ok := m.ReceiveRequest()
+	if !ok { // this means the channel was closed
+		// don't fatal, there'll be some other assertion failure too and we want to let that have a chance to print
+		t.Errorf("ExpectRequest %s %s failed; channel closed", method, pathAndQuery)
+		return &RequestWrapper{nil, m}
+	}
 
 	rPathAndQuery := r.URL.Path
 	if r.URL.RawQuery != "" {
