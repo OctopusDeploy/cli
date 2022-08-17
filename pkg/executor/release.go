@@ -14,17 +14,15 @@ type TaskResultCreateRelease struct {
 // the command processor is responsible for accepting related entity names from the end user
 // and looking them up for their ID's; we should only deal with strong references at this level
 type TaskOptionsCreateRelease struct {
-	ProjectName           string // Required
-	PackageVersion        string // Optional
-	GitCommit             string // Optional
-	GitReference          string // Optional
-	Version               string // optional
-	ChannelName           string // optional
-	ReleaseNotes          string // optional
-	IgnoreIfAlreadyExists bool   // optional
-
-	// TODO array of package version overrides
-
+	ProjectName             string   // Required
+	DefaultPackageVersion   string   // Optional
+	GitCommit               string   // Optional
+	GitReference            string   // Required for version controlled projects
+	Version                 string   // optional
+	ChannelName             string   // optional
+	ReleaseNotes            string   // optional
+	IgnoreIfAlreadyExists   bool     // optional
+	PackageVersionOverrides []string // optional
 	// if the task succeeds, the resulting output will be stored here
 	Response *releases.CreateReleaseResponseV1
 }
@@ -59,8 +57,8 @@ func releaseCreate(octopus *client.Client, space *spaces.Space, input any) error
 	//PackagePrerelease     string   `json:"packagePrerelease,omitempty"`
 	createReleaseParams := releases.NewCreateReleaseV1(space.ID, params.ProjectName)
 
-	if params.PackageVersion != "" {
-		createReleaseParams.PackageVersion = params.PackageVersion
+	if params.DefaultPackageVersion != "" {
+		createReleaseParams.PackageVersion = params.DefaultPackageVersion
 	}
 
 	if params.GitCommit != "" {

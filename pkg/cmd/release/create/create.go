@@ -10,6 +10,7 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/question"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/channels"
 	octopusApiClient "github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/deployments"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/feeds"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/packages"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
@@ -98,7 +99,7 @@ func createRun(cmd *cobra.Command, f factory.Factory) error {
 	}
 	// ignore errors when fetching flags
 	if value, _ := cmd.Flags().GetString(FlagPackageVersion); value != "" {
-		options.PackageVersion = value
+		options.DefaultPackageVersion = value
 	}
 	if value, _ := cmd.Flags().GetString(FlagChannel); value != "" {
 		options.ChannelName = value
@@ -175,6 +176,101 @@ func createRun(cmd *cobra.Command, f factory.Factory) error {
 	}
 
 	return nil
+}
+
+type stepPackageVersion struct {
+	PackageID string
+	StepName  string // do we also need step ID?
+	Version   string
+	FeedID    string
+}
+
+// buildPackageVersionBaseline loads the deployment process template from the server, and for each step+package therein,
+// finds the latest available version satisfying the channel version rules. Result is the list of step+package+versions
+// to use as a baseline. The package version override process takes this as an input and layers on top of it
+func buildPackageVersionBaseline(octopus *octopusApiClient.Client, deploymentProcessTemplate *deployments.DeploymentProcessTemplate, channel *channels.Channel) ([]*stepPackageVersion, error) {
+	result := make([]*stepPackageVersion, 0, len(deploymentProcessTemplate.Packages))
+
+	// step 1: pass over all the packages in the deployment process, group them
+	// by their feed, then subgroup by packageId
+
+	// reduce type-confusion with string aliases
+	type FeedID string
+	type PackageID string
+
+	// map(key: FeedID, value: map(key: packageId, value: list of references using the package so we can trace back to steps))
+	feedsToQuery := make(map[FeedID]map[PackageID][]releases.ReleaseTemplatePackage)
+	for _, pkg := range deploymentProcessTemplate.Packages {
+		pkgFeedID := FeedID(pkg.FeedID)
+		pkgID := PackageID(pkg.PackageID)
+
+		if feedPackages, seenFeedBefore := feedsToQuery[pkgFeedID]; !seenFeedBefore {
+			feedsToQuery[pkgFeedID] = map[PackageID][]releases.ReleaseTemplatePackage{pkgID: {pkg}}
+		} else {
+			if packageSteps, seenPackageBefore := feedPackages[pkgID]; !seenPackageBefore {
+				feedPackages[pkgID] = []releases.ReleaseTemplatePackage{pkg}
+			} else {
+				// seen both the feed and package, but not against this particular step
+				feedPackages[pkgID] = append(packageSteps, pkg)
+			}
+		}
+	}
+
+	// step 2: load the feed resources, so we can get SearchPackageVersionsTemplate
+	feedIds := make([]string, 0, len(feedsToQuery))
+	for k := range feedsToQuery {
+		feedIds = append(feedIds, string(k))
+	}
+	foundFeeds, err := octopus.Feeds.Get(feeds.FeedsQuery{IDs: feedIds, Take: len(feedIds)})
+	if err != nil {
+		return nil, err
+	}
+
+	// step 3: for each feed, ask the server to select the best package version for it, applying the channel rules
+	for _, feed := range foundFeeds.Items {
+		packageRefsInFeed, ok := feedsToQuery[FeedID(feed.GetID())]
+		if !ok {
+			return nil, errors.New("internal consistency error; feed ID not found in feedsToQuery") // should never happen
+		}
+
+		for packageID, packageRefs := range packageRefsInFeed {
+			for _, packageRef := range packageRefs {
+				query := feeds.SearchPackageVersionsQuery{
+					PackageID: string(packageID),
+					Take:      1, // TODO do we need IncludePrerelease here for this to work?
+				}
+				// look in the channel rules for a version filter for this step+package
+			rulesLoop:
+				for _, rule := range channel.Rules {
+					for _, ap := range rule.ActionPackages {
+						if ap.PackageReference == packageRef.PackageReferenceName && ap.DeploymentAction == packageRef.ActionName {
+							// this rule applies to our step/packageref combo
+							query.PreReleaseTag = rule.Tag
+							query.VersionRange = rule.VersionRange
+							// the octopus server won't let the same package be targeted by more than one rule, so
+							// once we've found the first matching rule for our step+package, we can stop looping
+							break rulesLoop
+						}
+					}
+				}
+				// TODO cache can jump in here based on struct equality for query
+				versions, err := octopus.Feeds.SearchFeedPackageVersions(feed, query)
+				if err != nil {
+					return nil, err
+				}
+
+				if len(versions.Items) == 1 {
+					result = append(result, &stepPackageVersion{
+						PackageID: packageRef.PackageID,
+						StepName:  packageRef.StepName,
+						FeedID:    packageRef.FeedID,
+						Version:   versions.Items[0].Version,
+					})
+				} // else no suitable package versions. what do we do with this??
+			}
+		}
+	}
+	return result, nil
 }
 
 func AskQuestions(octopus *octopusApiClient.Client, asker question.Asker, spinner factory.Spinner, options *executor.TaskOptionsCreateRelease) error {
@@ -270,6 +366,24 @@ func AskQuestions(octopus *octopusApiClient.Client, asker question.Asker, spinne
 		return err
 	}
 
+	// immediately load the deployment process template
+	// we need the deployment process template in order to get the steps, so we can lookup the stepID
+	spinner.Start()
+	deploymentProcessTemplate, err := octopus.DeploymentProcesses.GetTemplate(deploymentProcess, selectedChannel.ID, "")
+	// don't stop the spinner, we may have more networking
+	if err != nil {
+		spinner.Stop()
+		return err
+	}
+
+	_, err = buildPackageVersionBaseline(octopus, deploymentProcessTemplate, selectedChannel)
+	if err != nil {
+		spinner.Stop()
+		return err
+	}
+
+	//packageVersionTable := buildPackageVersionTable(options.DefaultPackageVersion, options.PackageVersionOverrides)
+
 	// TODO package version prompting goes here BEFORE specification of the release version
 
 	if options.Version == "" {
@@ -297,20 +411,12 @@ func AskQuestions(octopus *octopusApiClient.Client, asker question.Asker, spinne
 
 		defaultNextVersion := ""
 		if versioningStrategy.DonorPackageStepID != nil || versioningStrategy.DonorPackage != nil {
-			// we need the deployment process template in order to get the steps, so we can lookup the stepID
-			spinner.Start()
-			dpt, err := octopus.DeploymentProcesses.GetTemplate(deploymentProcess, selectedChannel.ID, "")
-			// don't stop the spinner, we may have more networking
-			if err != nil {
-				spinner.Stop()
-				return err
-			}
 
 			targetDeploymentAction := versioningStrategy.DonorPackage.DeploymentAction
 			targetPackageReference := versioningStrategy.DonorPackage.PackageReference
 
 			foundTemplatePackage := releases.ReleaseTemplatePackage{}
-			for _, pkg := range dpt.Packages {
+			for _, pkg := range deploymentProcessTemplate.Packages {
 				if pkg.ActionName == targetDeploymentAction && pkg.PackageReferenceName == targetPackageReference {
 					foundTemplatePackage = pkg
 					break
@@ -321,7 +427,7 @@ func AskQuestions(octopus *octopusApiClient.Client, asker question.Asker, spinne
 				// should this just be a warning rather than a hard fail? we could still just ask the user if they'd
 				// like to type in a version or leave it blank? On the other hand, it shouldn't fail anyway :shrug:
 				spinner.Stop()
-				return fmt.Errorf("can't find donor package in deployment process template; cannot determine version")
+				return fmt.Errorf("internal error: can't find donor package in deployment process template - version controlled configuration file in an invalid state")
 			}
 
 			// TODO extend the API client to support feeds/{id} so we don't need to query/loop
@@ -454,7 +560,7 @@ func selectChannel(octopus *octopusApiClient.Client, ask question.Asker, spinner
 
 func findChannel(octopus *octopusApiClient.Client, spinner factory.Spinner, project *projects.Project, channelName string) (*channels.Channel, error) {
 	spinner.Start()
-	foundChannels, err := octopus.Projects.GetChannels(project) // TODO server-side filtering support in future
+	foundChannels, err := octopus.Projects.GetChannels(project) // TODO change this to channel partial name search on server; will require go client update
 	spinner.Stop()
 	if err != nil {
 		return nil, err
