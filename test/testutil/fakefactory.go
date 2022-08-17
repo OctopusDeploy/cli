@@ -64,6 +64,9 @@ func (f *MockFactory) GetSpacedClient() (*octopusApiClient.Client, error) {
 func (f *MockFactory) GetCurrentSpace() *spaces.Space {
 	return f.CurrentSpace
 }
+func (f *MockFactory) GetCurrentHost() string {
+	return serverUrl
+}
 func (f *MockFactory) Spinner() factory.Spinner {
 	return f.RawSpinner
 }

@@ -27,6 +27,7 @@ type CreateOptions struct {
 	Octopus *client.Client
 	Ask     question.Asker
 	Spinner factory.Spinner
+	Space   string
 
 	Name         string
 	Description  string
@@ -51,7 +52,7 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 		Example: fmt.Sprintf(heredoc.Doc(`
 			$ %s account gcp create"
 		`), constants.ExecutableName),
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(cmd *cobra.Command, _ []string) error {
 			client, err := f.GetSpacedClient()
 			if err != nil {
 				return err

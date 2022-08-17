@@ -24,6 +24,7 @@ type Factory interface {
 	GetSystemClient() (*client.Client, error)
 	GetSpacedClient() (*client.Client, error)
 	GetCurrentSpace() *spaces.Space
+	GetCurrentHost() string
 	Spinner() Spinner
 	IsPromptEnabled() bool
 	Ask(p survey.Prompt, response interface{}, opts ...survey.AskOpt) error
@@ -56,6 +57,10 @@ func (f *factory) GetSpacedClient() (*client.Client, error) {
 
 func (f *factory) GetCurrentSpace() *spaces.Space {
 	return f.client.GetActiveSpace()
+}
+
+func (f *factory) GetCurrentHost() string {
+	return f.client.GetHostUrl()
 }
 
 func (f *factory) IsPromptEnabled() bool {

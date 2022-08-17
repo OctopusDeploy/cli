@@ -14,6 +14,7 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/question"
 	"github.com/OctopusDeploy/cli/pkg/question/selectors"
 	"github.com/OctopusDeploy/cli/pkg/surveyext"
+	"github.com/OctopusDeploy/cli/pkg/util/flag"
 	"github.com/OctopusDeploy/cli/pkg/validation"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/accounts"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
@@ -21,23 +22,35 @@ import (
 	"github.com/spf13/cobra"
 )
 
+type CreateFlags struct {
+	Name         *flag.Flag[string]
+	Description  *flag.Flag[string]
+	AccessKey    *flag.Flag[string]
+	SecretKey    *flag.Flag[string]
+	Environments *flag.Flag[[]string]
+}
+
 type CreateOptions struct {
-	Writer  io.Writer
-	Octopus *client.Client
-	Ask     question.Asker
-	Spinner factory.Spinner
-
-	Name         string
-	Description  string
-	AccessKey    string
-	SecretKey    string
-	Environments []string
-
+	*CreateFlags
+	Writer   io.Writer
+	Octopus  *client.Client
+	Ask      question.Asker
+	Spinner  factory.Spinner
+	Space    string
+	Host     string
 	NoPrompt bool
+	CmdPath  string
 }
 
 func NewCmdCreate(f factory.Factory) *cobra.Command {
 	opts := &CreateOptions{
+		CreateFlags: &CreateFlags{
+			Name:         flag.New[string]("name", false),
+			Description:  flag.New[string]("description", false),
+			AccessKey:    flag.New[string]("access-key", false),
+			SecretKey:    flag.New[string]("secret-key", true),
+			Environments: flag.New[[]string]("environment", false),
+		},
 		Ask:     f.Ask,
 		Spinner: f.Spinner(),
 	}
@@ -50,27 +63,29 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 		Example: fmt.Sprintf(heredoc.Doc(`
 			$ %s account aws create"
 		`), constants.ExecutableName),
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(cmd *cobra.Command, _ []string) error {
 			client, err := f.GetSpacedClient()
 			if err != nil {
 				return err
 			}
+			opts.CmdPath = cmd.CommandPath()
 			opts.Space = f.GetCurrentSpace().GetID()
+			opts.Host = f.GetCurrentHost()
 			opts.Octopus = client
 			opts.Writer = cmd.OutOrStdout()
 			if descriptionFilePath != "" {
-				if err := validation.IsExistingFile(descriptionFilePath); err != nil {
+				if err = validation.IsExistingFile(descriptionFilePath); err != nil {
 					return err
 				}
 				data, err := os.ReadFile(descriptionFilePath)
 				if err != nil {
 					return err
 				}
-				opts.Description = string(data)
+				opts.Description.Value = string(data)
 			}
 			opts.NoPrompt = !f.IsPromptEnabled()
-			if opts.Environments != nil {
-				opts.Environments, err = helper.ResolveEnvironmentNames(opts.Environments, opts.Octopus, opts.Spinner)
+			if opts.Environments.Value != nil {
+				opts.Environments.Value, err = helper.ResolveEnvironmentNames(opts.Environments.Value, opts.Octopus, opts.Spinner)
 				if err != nil {
 					return err
 				}
@@ -78,12 +93,11 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 			return CreateRun(opts)
 		},
 	}
-
-	cmd.Flags().StringVarP(&opts.Name, "name", "n", "", "A short, memorable, unique name for this account.")
-	cmd.Flags().StringVarP(&opts.Description, "description", "d", "", "A summary explaining the use of the account to other users.")
-	cmd.Flags().StringVar(&opts.AccessKey, "access-key", "", "The AWS access key to use when authenticating against Amazon Web Services.")
-	cmd.Flags().StringVar(&opts.SecretKey, "secret-key", "", "The AWS secret key to use when authenticating against Amazon Web Services.")
-	cmd.Flags().StringArrayVarP(&opts.Environments, "environments", "e", nil, "The environments that are allowed to use this account")
+	cmd.Flags().StringVarP(&opts.Name.Value, opts.Name.Name, "n", "", "A short, memorable, unique name for this account.")
+	cmd.Flags().StringVarP(&opts.Description.Value, opts.Description.Name, "d", "", "A summary explaining the use of the account to other users.")
+	cmd.Flags().StringVar(&opts.AccessKey.Value, opts.AccessKey.Name, "", "The AWS access key to use when authenticating against Amazon Web Services.")
+	cmd.Flags().StringVar(&opts.SecretKey.Value, opts.SecretKey.Name, "", "The AWS secret key to use when authenticating against Amazon Web Services.")
+	cmd.Flags().StringArrayVarP(&opts.Environments.Value, opts.Environments.Name, "e", nil, "The environments that are allowed to use this account")
 	cmd.Flags().StringVarP(&descriptionFilePath, "description-file", "D", "", "Read the description from `file`")
 
 	return cmd
@@ -95,12 +109,12 @@ func CreateRun(opts *CreateOptions) error {
 			return err
 		}
 	}
-	awsAccount, err := accounts.NewAmazonWebServicesAccount(opts.Name, opts.AccessKey, core.NewSensitiveValue(opts.SecretKey))
+	awsAccount, err := accounts.NewAmazonWebServicesAccount(opts.Name.Value, opts.AccessKey.Value, core.NewSensitiveValue(opts.SecretKey.Value))
 	if err != nil {
 		return err
 	}
-	awsAccount.Description = opts.Description
-	awsAccount.EnvironmentIDs = opts.Environments
+	awsAccount.Description = opts.Description.Value
+	awsAccount.EnvironmentIDs = opts.Environments.Value
 
 	opts.Spinner.Start()
 	createdAccount, err := opts.Octopus.Accounts.Add(awsAccount)
@@ -114,19 +128,22 @@ func CreateRun(opts *CreateOptions) error {
 	if err != nil {
 		return err
 	}
-	if host, ok := os.LookupEnv("OCTOPUS_HOST"); ok {
-		link := output.Bluef("%s/app#/%s/infrastructure/accounts/%s", host, opts.Space, createdAccount.GetID())
-		fmt.Fprintf(opts.Writer, "\nView this account on Octopus Deploy: %s\n", link)
+	link := output.Bluef("%s/app#/%s/infrastructure/accounts/%s", opts.Host, opts.Space, createdAccount.GetID())
+	fmt.Fprintf(opts.Writer, "\nView this account on Octopus Deploy: %s\n", link)
+	if !opts.NoPrompt {
+		autoCmd := flag.GenerateAutomationCmd(opts.CmdPath, opts.Name, opts.AccessKey, opts.SecretKey, opts.Description, opts.Environments)
+		fmt.Fprintf(opts.Writer, "\nAutomation Command: %s\n", autoCmd)
 	}
+
 	return nil
 }
 
 func promptMissing(opts *CreateOptions) error {
-	if opts.Name == "" {
+	if opts.Name.Value == "" {
 		if err := opts.Ask(&survey.Input{
 			Message: "Name",
 			Help:    "A short, memorable, unique name for this account.",
-		}, &opts.Name, survey.WithValidator(survey.ComposeValidators(
+		}, &opts.Name.Value, survey.WithValidator(survey.ComposeValidators(
 			survey.MaxLength(200),
 			survey.MinLength(1),
 			survey.Required,
@@ -135,7 +152,7 @@ func promptMissing(opts *CreateOptions) error {
 		}
 	}
 
-	if opts.Description == "" {
+	if opts.Description.Value == "" {
 		if err := opts.Ask(&surveyext.OctoEditor{
 			Editor: &survey.Editor{
 				Message:  "Description",
@@ -143,27 +160,27 @@ func promptMissing(opts *CreateOptions) error {
 				FileName: "*.md",
 			},
 			Optional: true,
-		}, &opts.Description); err != nil {
+		}, &opts.Description.Value); err != nil {
 			return err
 		}
 	}
 
-	if opts.AccessKey == "" {
+	if opts.AccessKey.Value == "" {
 		if err := opts.Ask(&survey.Input{
 			Message: "Access Key",
 			Help:    "The AWS access key to use when authenticating against Amazon Web Services.",
-		}, &opts.AccessKey, survey.WithValidator(survey.ComposeValidators(
+		}, &opts.AccessKey.Value, survey.WithValidator(survey.ComposeValidators(
 			survey.Required,
 		))); err != nil {
 			return err
 		}
 	}
 
-	if opts.SecretKey == "" {
+	if opts.SecretKey.Value == "" {
 		if err := opts.Ask(&survey.Password{
 			Message: "Secret Key",
 			Help:    "The AWS secret key to use when authenticating against Amazon Web Services.",
-		}, &opts.SecretKey, survey.WithValidator(survey.ComposeValidators(
+		}, &opts.SecretKey.Value, survey.WithValidator(survey.ComposeValidators(
 			survey.Required,
 		))); err != nil {
 			return err
@@ -177,7 +194,7 @@ func promptMissing(opts *CreateOptions) error {
 		if err != nil {
 			return err
 		}
-		opts.Environments = environmentIDs
+		opts.Environments.Value = environmentIDs
 	}
 	return nil
 }
