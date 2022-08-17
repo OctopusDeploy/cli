@@ -283,6 +283,150 @@ func BuildPackageVersionBaseline(octopus *octopusApiClient.Client, deploymentPro
 	return result, nil
 }
 
+type PackageVersionOverride struct {
+	StepName  string // optional, but one or both of StepName or PackageID must be supplied
+	PackageID string // optional, but one or both of StepName or PackageID must be supplied
+	Version   string // required
+}
+
+// splitPackageOverrideString splits the input string into components based on delimiter characters.
+// we want to pick up empty entries here; so "::5" nad ":pterm:5" should both return THREE components, rather than one or two
+// and we want to allow for multiple different delimeters.
+// neither the builtin golang strings.Split or strings.FieldsFunc support this. Logic borrowed from strings.FieldsFunc with heavy modifications
+func splitPackageOverrideString(s string) []string {
+	// pass 1: collect spans; golang strings.FieldsFunc says it's much more efficient this way
+	type span struct {
+		start int
+		end   int
+	}
+	spans := make([]span, 0, 3)
+
+	// Find the field start and end indices.
+	start := 0 // we always start the first span at the beginning of the string
+	for idx, ch := range s {
+		if ch == ':' || ch == '/' || ch == '=' {
+			if start >= 0 { // we found a delimiter and we are already in a span; end the span and start a new one
+				spans = append(spans, span{start, idx})
+				start = idx + 1
+			} else { // we found a delimiter and we are not in a span; start a new span
+				if start < 0 {
+					start = idx
+				}
+			}
+		}
+	}
+
+	// Last field might end at EOF.
+	if start >= 0 {
+		spans = append(spans, span{start, len(s)})
+	}
+
+	// pass 2: create strings from recorded field indices.
+	a := make([]string, len(spans))
+	for i, span := range spans {
+		a[i] = s[span.start:span.end]
+	}
+	return a
+}
+
+// ParsePackageOverride parses a package version override string into a structure.
+// Logic should align with PackageVersionResolver in the Octopus Server and .NET CLI
+func ParsePackageOverride(packageOverride string) (*PackageVersionOverride, error) {
+	if packageOverride == "" {
+		return nil, errors.New("empty package version specification")
+	}
+
+	components := splitPackageOverrideString(packageOverride)
+	stepName, packageID, version := "", "", ""
+
+	switch len(components) {
+	case 1:
+		// the server doesn't support this, but we do interactively
+		version = strings.TrimSpace(components[0])
+	case 2:
+		// the server supports {PackageID_or_StepName}:{Version} so we can override all the packages for a given step to the same version,
+		// but that seems like an extremely niche case; do we need to support it?
+		packageID, version = strings.TrimSpace(components[0]), strings.TrimSpace(components[1])
+	case 3:
+		stepName, packageID, version = strings.TrimSpace(components[0]), strings.TrimSpace(components[1]), strings.TrimSpace(components[2])
+	default:
+		return nil, fmt.Errorf("package version specification %s does not use expected format", packageOverride)
+	}
+
+	// must always specify a version; must specify either packageID, stepName or both
+	if version == "" {
+		return nil, fmt.Errorf("package version specification %s does not use expected format", packageOverride)
+	}
+
+	// compensate for wildcards
+	if stepName == "*" {
+		stepName = ""
+	}
+	if packageID == "*" {
+		packageID = ""
+	}
+
+	return &PackageVersionOverride{
+		StepName:  stepName,
+		PackageID: packageID,
+		Version:   version,
+	}, nil
+}
+
+func ApplyPackageOverrides(packages []*StepPackageVersion, overrides []*PackageVersionOverride) []*StepPackageVersion {
+	for _, o := range overrides {
+		packages = applyPackageOverride(packages, o)
+	}
+	return packages
+}
+
+func applyPackageOverride(packages []*StepPackageVersion, override *PackageVersionOverride) []*StepPackageVersion {
+	if override.Version == "" {
+		return packages // not specifying a version is technically an error, but we'll just no-op it for safety; should have been filtered out by ParsePackageOverride before we get here
+	}
+
+	var matcher func(pkg *StepPackageVersion) bool = nil
+
+	switch {
+	case override.PackageID == "" && override.StepName == "": // match everything
+		matcher = func(pkg *StepPackageVersion) bool {
+			return true
+		}
+	case override.PackageID != "" && override.StepName == "": // match on package ID only
+		matcher = func(pkg *StepPackageVersion) bool {
+			return pkg.PackageID == override.PackageID
+		}
+	case override.PackageID == "" && override.StepName != "": // match on step only
+		matcher = func(pkg *StepPackageVersion) bool {
+			return pkg.StepName == override.StepName
+		}
+	case override.PackageID != "" && override.StepName != "": // match on both
+		matcher = func(pkg *StepPackageVersion) bool {
+			return pkg.PackageID == override.PackageID && pkg.StepName == override.StepName
+		}
+	}
+
+	if matcher == nil {
+		return packages // we can't possibly match against anything; no-op. Should have been filtered out by ParsePackageOverride
+	}
+
+	result := make([]*StepPackageVersion, len(packages))
+	for i, p := range packages {
+		if matcher(p) {
+			result[i] = &StepPackageVersion{
+				PackageID:            p.PackageID,
+				StepName:             p.StepName,
+				PackageReferenceName: p.PackageReferenceName,
+				ActionName:           p.ActionName,
+				Version:              override.Version, // Important bit
+			}
+		} else {
+			result[i] = p
+		}
+	}
+	return result
+}
+
 // Note this always uses the Table Printer, it pays no respect to outputformat=json, because it's only part of the interactive flow
 func printPackageVersions(ioWriter io.Writer, packages []*StepPackageVersion) error {
 	if len(packages) == 0 { // nothing to print
