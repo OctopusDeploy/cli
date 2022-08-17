@@ -236,7 +236,7 @@ func BuildPackageVersionBaseline(octopus *octopusApiClient.Client, deploymentPro
 		for _, packageRef := range packageRefsInFeed {
 			query := feeds.SearchPackageVersionsQuery{
 				PackageID: packageRef.PackageID,
-				Take:      1, // TODO do we need IncludePrerelease here for this to work?
+				Take:      1,
 			}
 			// look in the channel rules for a version filter for this step+package
 		rulesLoop:
@@ -281,6 +281,49 @@ func BuildPackageVersionBaseline(octopus *octopusApiClient.Client, deploymentPro
 		}
 	}
 	return result, nil
+}
+
+// Note this always uses the Table Printer, it pays no respect to outputformat=json, because it's only part of the interactive flow
+func printPackageVersions(ioWriter io.Writer, packages []*StepPackageVersion) error {
+	if len(packages) == 0 { // nothing to print
+		return nil
+	}
+
+	// step 1: consolidate multiple rows
+	consolidated := make([]*StepPackageVersion, 0, len(packages))
+	for _, pkg := range packages {
+
+		// find existing entry and update it if possible
+		updatedExisting := false
+		for _, entry := range consolidated {
+			if entry.PackageID == pkg.PackageID && entry.Version == pkg.Version {
+				entry.StepName = fmt.Sprintf("%s, %s", entry.StepName, pkg.StepName)
+				updatedExisting = true
+				break
+			}
+		}
+		if !updatedExisting {
+			consolidated = append(consolidated, &StepPackageVersion{
+				PackageID: pkg.PackageID,
+				Version:   pkg.Version,
+				StepName:  pkg.StepName,
+			})
+		}
+	}
+
+	// step 2: print them
+	t := output.NewTable(ioWriter)
+	t.AddRow(output.Dim("PACKAGE"), output.Dim("VERSION"), output.Dim("STEPS"))
+
+	for _, pkg := range consolidated {
+		t.AddRow(
+			pkg.PackageID,
+			pkg.Version,
+			pkg.StepName,
+		)
+	}
+
+	return t.Print()
 }
 
 func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker question.Asker, spinner factory.Spinner, options *executor.TaskOptionsCreateRelease) error {
@@ -387,14 +430,16 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 	}
 
 	packageVersionBaseline, err := BuildPackageVersionBaseline(octopus, deploymentProcessTemplate, selectedChannel)
+	spinner.Stop()
+
 	if err != nil {
-		spinner.Stop()
 		return err
 	}
 
-	//packageVersionTable := buildPackageVersionTable(options.DefaultPackageVersion, options.PackageVersionOverrides)
-
-	// TODO package version prompting goes here BEFORE specification of the release version
+	err = printPackageVersions(stdout, packageVersionBaseline)
+	if err != nil {
+		return err
+	}
 
 	if options.Version == "" {
 		// After loading the deployment process and channel, the logic forks here:

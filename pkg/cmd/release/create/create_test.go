@@ -3,6 +3,7 @@ package create_test
 import (
 	"bytes"
 	"github.com/AlecAivazis/survey/v2"
+	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/cmd/release/create"
 	cmdRoot "github.com/OctopusDeploy/cli/pkg/cmd/root"
 	"github.com/OctopusDeploy/cli/pkg/executor"
@@ -204,10 +205,15 @@ func TestReleaseCreate_AskQuestions_RegularProject(t *testing.T) {
 			assert.Equal(t, "Fire Project", options.ProjectName)
 			assert.Equal(t, "Fire Project Default Channel", options.ChannelName)
 			assert.Equal(t, "30.0", options.Version)
-			assert.Equal(t, "Project Fire Project\nChannel Fire Project Default Channel\n", stdout.String())
+			assert.Equal(t, heredoc.Doc(`
+				Project Fire Project
+				Channel Fire Project Default Channel
+				PACKAGE  VERSION  STEPS
+				pterm    0.12.51  Install
+				`), stdout.String())
 		}},
 
-		{"asking for release version based on donor package; packages exist", func(t *testing.T, api *testutil.MockHttpServer, qa *testutil.AskMocker, stdout *bytes.Buffer) {
+		{"asking for release version based on donor package; packages exist (prints summarised table)", func(t *testing.T, api *testutil.MockHttpServer, qa *testutil.AskMocker, stdout *bytes.Buffer) {
 			options := &executor.TaskOptionsCreateRelease{
 				ProjectName: "fire project",
 				ChannelName: "fire project default channel",
@@ -259,6 +265,13 @@ func TestReleaseCreate_AskQuestions_RegularProject(t *testing.T) {
 							PackageReferenceName: "nuget-on-verify",
 							StepName:             "Verify",
 						},
+						{
+							ActionName:           "Verify",
+							FeedID:               "feeds-builtin",
+							PackageID:            "pterm",
+							PackageReferenceName: "pterm-on-verify",
+							StepName:             "Verify",
+						},
 					},
 					NextVersionIncrement: "27.9.33",
 				})
@@ -292,7 +305,15 @@ func TestReleaseCreate_AskQuestions_RegularProject(t *testing.T) {
 			assert.Equal(t, "Fire Project", options.ProjectName)
 			assert.Equal(t, "Fire Project Default Channel", options.ChannelName)
 			assert.Equal(t, "6.4", options.Version)
-			assert.Equal(t, "Project Fire Project\nChannel Fire Project Default Channel\n", stdout.String())
+
+			// Note how the table has pterm with steps "Install, Verify" rather than a row for each one
+			assert.Equal(t, heredoc.Doc(`
+				Project Fire Project
+				Channel Fire Project Default Channel
+				PACKAGE            VERSION  STEPS
+				pterm              0.12.51  Install, Verify
+				NuGet.CommandLine  6.2.1    Verify
+				`), stdout.String())
 		}},
 	}
 
