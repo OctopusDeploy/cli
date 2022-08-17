@@ -510,13 +510,8 @@ func AskQuestions(octopus *octopusApiClient.Client, asker question.Asker, spinne
 			}
 			spinner.Stop()
 		} else if versioningStrategy.Template != "" {
-			spinner.Start()
-			dpt, err := octopus.DeploymentProcesses.GetTemplate(deploymentProcess, selectedChannel.ID, "")
-			spinner.Stop()
-			if err != nil {
-				return err
-			}
-			defaultNextVersion = dpt.NextVersionIncrement
+			// we already loaded the deployment process template when we were looking for packages
+			defaultNextVersion = deploymentProcessTemplate.NextVersionIncrement
 		}
 
 		version, err := askVersion(asker, defaultNextVersion)

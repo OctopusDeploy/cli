@@ -36,7 +36,7 @@ func TestReleaseCreate_AskQuestions_RegularProject(t *testing.T) {
 
 	depProcess := fixtures.NewDeploymentProcessForProject(spaceID, fireProjectID)
 
-	defaultChannel := channels.NewChannel("Fire Project Default Channel", fireProjectID)
+	defaultChannel := fixtures.NewChannel(spaceID, "Channels-1", "Fire Project Default Channel", fireProjectID)
 	altChannel := fixtures.NewChannel(spaceID, "Channels-97", "Fire Project Alt Channel", fireProjectID)
 
 	fireProject := fixtures.NewProject(spaceID, fireProjectID, "Fire Project", "Lifecycles-1", "ProjectGroups-1", depProcess.ID)
@@ -118,6 +118,10 @@ func TestReleaseCreate_AskQuestions_RegularProject(t *testing.T) {
 			RespondWith(resources.Resources[*channels.Channel]{
 				Items: []*channels.Channel{defaultChannel},
 			})
+
+		// always loads the deployment process template to check for packages
+		api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+fireProjectID+"/deploymentprocesses/template?channel=Channels-1").
+			RespondWith(&deployments.DeploymentProcessTemplate{NextVersionIncrement: "27.9.3"})
 
 		err := <-errReceiver
 		assert.Nil(t, err)
@@ -202,11 +206,11 @@ func TestReleaseCreate_AskQuestions_VersionControlledProject(t *testing.T) {
 			Options: []string{defaultChannel.Name, altChannel.Name},
 		}).AnswerWith(altChannel.Name)
 
+		// always loads dep process template
+		api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+projectID+"/develop/deploymentprocesses/template?channel="+altChannel.ID).RespondWith(depTemplate)
+
 		// our project inline versioning strategy was nil, so the code needs to load the deployment settings to find out
 		api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+projectID+"/develop/deploymentsettings").RespondWith(depSettings)
-
-		// because we're using template versioning, now we need to load the deployment process template for our channel to see the NextVersionIncrement
-		api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+projectID+"/develop/deploymentprocesses/template?channel="+altChannel.ID).RespondWith(depTemplate)
 
 		qa.ExpectQuestion(t, &survey.Input{
 			Message: "Release Version",
@@ -285,11 +289,11 @@ func TestReleaseCreate_AskQuestions_VersionControlledProject(t *testing.T) {
 			Options: []string{defaultChannel.Name, altChannel.Name},
 		}).AnswerWith(altChannel.Name)
 
+		// always loads dep process template
+		api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+projectID+"/45c508a/deploymentprocesses/template?channel="+altChannel.ID).RespondWith(depTemplate)
+
 		// our project inline versioning strategy was nil, so the code needs to load the deployment settings to find out
 		api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+projectID+"/45c508a/deploymentsettings").RespondWith(depSettings)
-
-		// because we're using template versioning, now we need to load the deployment process template for our channel to see the NextVersionIncrement
-		api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+projectID+"/45c508a/deploymentprocesses/template?channel="+altChannel.ID).RespondWith(depTemplate)
 
 		qa.ExpectQuestion(t, &survey.Input{
 			Message: "Release Version",
@@ -341,11 +345,11 @@ func TestReleaseCreate_AskQuestions_VersionControlledProject(t *testing.T) {
 			Options: []string{defaultChannel.Name, altChannel.Name},
 		}).AnswerWith(altChannel.Name)
 
+		// always loads dep process template
+		api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+projectID+"/develop/deploymentprocesses/template?channel="+altChannel.ID).RespondWith(depTemplate)
+
 		// our project inline versioning strategy was nil, so the code needs to load the deployment settings to find out
 		api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+projectID+"/develop/deploymentsettings").RespondWith(depSettings)
-
-		// because we're using template versioning, now we need to load the deployment process template for our channel to see the NextVersionIncrement
-		api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+projectID+"/develop/deploymentprocesses/template?channel="+altChannel.ID).RespondWith(depTemplate)
 
 		qa.ExpectQuestion(t, &survey.Input{
 			Message: "Release Version",
