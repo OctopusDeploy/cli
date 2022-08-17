@@ -684,7 +684,7 @@ func TestReleaseCreate_BuildPackageVersionBaseline(t *testing.T) {
 		// now it will search for the package versions
 		api.ExpectRequest(t, "GET", "/api/Spaces-1/feeds/feeds-builtin/packages/versions?packageId=pterm&take=1").RespondWith(&resources.Resources[*packages.PackageVersion]{
 			Items: []*packages.PackageVersion{
-				{PackageID: "pterm", Version: "0.12.51-pre-700"},
+				{PackageID: "pterm", Version: "0.12.51"},
 			},
 		})
 
@@ -694,7 +694,7 @@ func TestReleaseCreate_BuildPackageVersionBaseline(t *testing.T) {
 			{
 				PackageID: "pterm",
 				StepName:  "Install",
-				Version:   "0.12.51-pre-700",
+				Version:   "0.12.51",
 				FeedID:    "feeds-builtin",
 			},
 		}, packageVersions)
@@ -763,7 +763,7 @@ func TestReleaseCreate_BuildPackageVersionBaseline(t *testing.T) {
 		// now it will search for the package versions
 		api.ExpectRequest(t, "GET", "/api/Spaces-1/feeds/feeds-builtin/packages/versions?packageId=pterm&take=1").RespondWith(&resources.Resources[*packages.PackageVersion]{
 			Items: []*packages.PackageVersion{
-				{PackageID: "pterm", Version: "0.12.51-pre-700"},
+				{PackageID: "pterm", Version: "0.12.51"},
 			},
 		})
 		// even though two steps use pterm, they're the same so we don't need to ask the server twice
@@ -780,13 +780,13 @@ func TestReleaseCreate_BuildPackageVersionBaseline(t *testing.T) {
 			{
 				PackageID: "pterm",
 				StepName:  "Install",
-				Version:   "0.12.51-pre-700",
+				Version:   "0.12.51",
 				FeedID:    builtinFeedID,
 			},
 			{
 				PackageID: "pterm",
 				StepName:  "Verify",
-				Version:   "0.12.51-pre-700",
+				Version:   "0.12.51",
 				FeedID:    builtinFeedID,
 			},
 			{
@@ -799,6 +799,133 @@ func TestReleaseCreate_BuildPackageVersionBaseline(t *testing.T) {
 				PackageID: "NuGet.CommandLine",
 				StepName:  "Cleanup",
 				Version:   "6.1.2",
+				FeedID:    externalFeedID,
+			},
+		}, packageVersions)
+	})
+
+	t.Run("builds list for multiple package/steps with some overlapping packages where channel rules call for differing versions", func(t *testing.T) {
+		api := testutil.NewMockHttpServer()
+		processTemplate := &deployments.DeploymentProcessTemplate{
+			Packages: []releases.ReleaseTemplatePackage{
+				{
+					ActionName:           "Install",
+					FeedID:               builtinFeedID,
+					PackageID:            "pterm",
+					PackageReferenceName: "pterm-on-install",
+					StepName:             "Install",
+				},
+				{
+					ActionName:           "Install",
+					FeedID:               externalFeedID,
+					PackageID:            "NuGet.CommandLine",
+					PackageReferenceName: "nuget-on-install",
+					StepName:             "Install",
+				},
+				{
+					ActionName:           "Verify",
+					FeedID:               builtinFeedID,
+					PackageID:            "pterm",
+					PackageReferenceName: "pterm-on-verify",
+					StepName:             "Verify",
+				},
+				{
+					ActionName:           "Cleanup",
+					FeedID:               externalFeedID,
+					PackageID:            "NuGet.CommandLine", // channel rule is going to say that this one should have a different version
+					PackageReferenceName: "nuget-on-cleanup",
+					StepName:             "Cleanup",
+				},
+			},
+			Resource: resources.Resource{},
+		}
+
+		channel := fixtures.NewChannel(spaceID, "Channels-1", "Default", "Projects-1")
+		channel.Rules = []channels.ChannelRule{
+			{
+				Tag:          "^pre$",
+				VersionRange: "[5.0,6.0)",
+				ActionPackages: []packages.DeploymentActionPackage{
+					{DeploymentAction: "Install", PackageReference: "pterm-on-NOSUCHSTEP"}, // this should be ignored as PackageReference doesn't match
+					{DeploymentAction: "Cleanup", PackageReference: "nuget-on-cleanup"},    // this should match
+				},
+			},
+
+			{
+				Tag:          "^$",
+				VersionRange: "[9.9]",
+				ActionPackages: []packages.DeploymentActionPackage{
+					{DeploymentAction: "InstallXYZ", PackageReference: "pterm-on-install"}, // this should be ignored as DeploymentAction doesn't match
+				},
+			},
+		}
+
+		receiver := testutil.GoBegin2(func() ([]*create.StepPackageVersion, error) {
+			defer api.Close()
+			octopus, _ := octopusApiClient.NewClient(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "")
+			return create.BuildPackageVersionBaseline(octopus, processTemplate, channel)
+		})
+
+		api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
+
+		// it needs to load the feeds to find the links
+		api.ExpectRequest(t, "GET", "/api/Spaces-1/feeds?ids=Feeds-1001&ids=feeds-builtin&take=2").RespondWith(&feeds.Feeds{Items: []feeds.IFeed{
+			&feeds.FeedResource{Name: "Builtin", FeedType: feeds.FeedTypeBuiltIn, Resource: resources.Resource{
+				ID: builtinFeedID,
+				Links: map[string]string{
+					constants.LinkSearchPackageVersionsTemplate: "/api/Spaces-1/feeds/feeds-builtin/packages/versions{?packageId,take,skip,includePreRelease,versionRange,preReleaseTag,filter,includeReleaseNotes}",
+				}}},
+			&feeds.FeedResource{Name: "External Nuget", FeedType: feeds.FeedTypeNuGet, Resource: resources.Resource{
+				ID: externalFeedID,
+				Links: map[string]string{
+					constants.LinkSearchPackageVersionsTemplate: "/api/Spaces-1/feeds/Feeds-1001/packages/versions{?packageId,take,skip,includePreRelease,versionRange,preReleaseTag,filter,includeReleaseNotes}",
+				}}},
+		}})
+
+		// now it will search for the package versions
+		api.ExpectRequest(t, "GET", "/api/Spaces-1/feeds/feeds-builtin/packages/versions?packageId=pterm&take=1").RespondWith(&resources.Resources[*packages.PackageVersion]{
+			Items: []*packages.PackageVersion{
+				{PackageID: "pterm", Version: "0.12.51"},
+			},
+		})
+		// even though two steps use pterm, they're the same so we don't need to ask the server twice
+		api.ExpectRequest(t, "GET", "/api/Spaces-1/feeds/Feeds-1001/packages/versions?packageId=NuGet.CommandLine&take=1").RespondWith(&resources.Resources[*packages.PackageVersion]{
+			Items: []*packages.PackageVersion{
+				{PackageID: "NuGet.CommandLine", Version: "6.1.2"},
+			},
+		})
+		// second request asks for different filters due to channel rules
+		api.ExpectRequest(t, "GET", "/api/Spaces-1/feeds/Feeds-1001/packages/versions?packageId=NuGet.CommandLine&preReleaseTag=%5Epre%24&take=1&versionRange=%5B5.0%2C6.0%29").RespondWith(&resources.Resources[*packages.PackageVersion]{
+			Items: []*packages.PackageVersion{
+				{PackageID: "NuGet.CommandLine", Version: "5.4.1-prerelease"},
+			},
+		})
+
+		packageVersions, err := testutil.ReceivePair(receiver)
+		assert.Nil(t, err)
+		assert.Equal(t, []*create.StepPackageVersion{
+			{
+				PackageID: "pterm",
+				StepName:  "Install",
+				Version:   "0.12.51",
+				FeedID:    builtinFeedID,
+			},
+			{
+				PackageID: "pterm",
+				StepName:  "Verify",
+				Version:   "0.12.51",
+				FeedID:    builtinFeedID,
+			},
+			{
+				PackageID: "NuGet.CommandLine",
+				StepName:  "Install",
+				Version:   "6.1.2",
+				FeedID:    externalFeedID,
+			},
+			{
+				PackageID: "NuGet.CommandLine",
+				StepName:  "Cleanup",
+				Version:   "5.4.1-prerelease",
 				FeedID:    externalFeedID,
 			},
 		}, packageVersions)
