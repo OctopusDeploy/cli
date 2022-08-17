@@ -12,11 +12,9 @@ import (
 	octopusApiClient "github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/deployments"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/feeds"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/packages"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/releases"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/resources"
-	"regexp"
+	"io"
 	"sort"
 	"strings"
 
@@ -131,7 +129,7 @@ func createRun(cmd *cobra.Command, f factory.Factory) error {
 	}
 
 	if f.IsPromptEnabled() {
-		err = AskQuestions(octopus, f.Ask, f.Spinner(), options)
+		err = AskQuestions(octopus, cmd.OutOrStdout(), f.Ask, f.Spinner(), options)
 		if err != nil {
 			return err
 		}
@@ -180,10 +178,15 @@ func createRun(cmd *cobra.Command, f factory.Factory) error {
 }
 
 type StepPackageVersion struct {
+	// these 3 fields are the main ones for showing the user
 	PackageID string
 	StepName  string // do we also need step ID?
 	Version   string
-	FeedID    string
+	//FeedID    string
+
+	// used to locate the deployment process VersioningStrategy Donor Package
+	PackageReferenceName string
+	ActionName           string
 }
 
 // buildPackageVersionBaseline loads the deployment process template from the server, and for each step+package therein,
@@ -213,7 +216,7 @@ func BuildPackageVersionBaseline(octopus *octopusApiClient.Client, deploymentPro
 	// step 2: load the feed resources, so we can get SearchPackageVersionsTemplate
 	feedIds := make([]string, 0, len(feedsToQuery))
 	for k := range feedsToQuery {
-		feedIds = append(feedIds, string(k))
+		feedIds = append(feedIds, k)
 	}
 	sort.Strings(feedIds) // we need to sort them otherwise the order is indeterminate. Server doesn't care but our unit tests fail
 	foundFeeds, err := octopus.Feeds.Get(feeds.FeedsQuery{IDs: feedIds, Take: len(feedIds)})
@@ -252,10 +255,11 @@ func BuildPackageVersionBaseline(octopus *octopusApiClient.Client, deploymentPro
 
 			if cachedVersion, ok := cache[query]; ok {
 				result = append(result, &StepPackageVersion{
-					PackageID: packageRef.PackageID,
-					StepName:  packageRef.StepName,
-					FeedID:    packageRef.FeedID,
-					Version:   cachedVersion,
+					PackageID:            packageRef.PackageID,
+					StepName:             packageRef.StepName,
+					PackageReferenceName: packageRef.PackageReferenceName,
+					ActionName:           packageRef.ActionName,
+					Version:              cachedVersion,
 				})
 			} else { // uncached; ask the server
 				versions, err := octopus.Feeds.SearchFeedPackageVersions(feed, query)
@@ -266,10 +270,11 @@ func BuildPackageVersionBaseline(octopus *octopusApiClient.Client, deploymentPro
 				if len(versions.Items) == 1 {
 					cache[query] = versions.Items[0].Version
 					result = append(result, &StepPackageVersion{
-						PackageID: packageRef.PackageID,
-						StepName:  packageRef.StepName,
-						FeedID:    packageRef.FeedID,
-						Version:   versions.Items[0].Version,
+						PackageID:            packageRef.PackageID,
+						StepName:             packageRef.StepName,
+						PackageReferenceName: packageRef.PackageReferenceName,
+						ActionName:           packageRef.ActionName,
+						Version:              versions.Items[0].Version,
 					})
 				} // else no suitable package versions. what do we do with this? What about caching?
 			}
@@ -278,7 +283,7 @@ func BuildPackageVersionBaseline(octopus *octopusApiClient.Client, deploymentPro
 	return result, nil
 }
 
-func AskQuestions(octopus *octopusApiClient.Client, asker question.Asker, spinner factory.Spinner, options *executor.TaskOptionsCreateRelease) error {
+func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker question.Asker, spinner factory.Spinner, options *executor.TaskOptionsCreateRelease) error {
 	if octopus == nil {
 		return errors.New("api client is required")
 	}
@@ -306,7 +311,7 @@ func AskQuestions(octopus *octopusApiClient.Client, asker question.Asker, spinne
 		if err != nil {
 			return err
 		}
-		_, _ = fmt.Printf("Project %s\n", output.Cyan(selectedProject.Name))
+		_, _ = fmt.Fprintf(stdout, "Project %s\n", output.Cyan(selectedProject.Name))
 	}
 	options.ProjectName = selectedProject.Name
 
@@ -326,12 +331,12 @@ func AskQuestions(octopus *octopusApiClient.Client, asker question.Asker, spinne
 			options.GitReference = gitRef.Name // Hold the short name, not the canonical name due to golang url parsing bug replacing %2f with /
 		} else {
 			// we need to go lookup the git reference
-			_, _ = fmt.Printf("Git Reference %s\n", output.Cyan(options.GitReference))
+			_, _ = fmt.Fprintf(stdout, "Git Reference %s\n", output.Cyan(options.GitReference))
 		}
 
 		// we could go and query the server and validate if the commit exists, is this worthwhile?
 		if options.GitCommit != "" {
-			_, _ = fmt.Printf("Git Commit %s\n", output.Cyan(options.GitCommit))
+			_, _ = fmt.Fprintf(stdout, "Git Commit %s\n", output.Cyan(options.GitCommit))
 		}
 
 		if options.GitCommit != "" { // prefer a specific git commit if one was specified
@@ -364,7 +369,7 @@ func AskQuestions(octopus *octopusApiClient.Client, asker question.Asker, spinne
 		if err != nil {
 			return err
 		}
-		_, _ = fmt.Printf("Channel %s\n", output.Cyan(selectedChannel.Name))
+		_, _ = fmt.Fprintf(stdout, "Channel %s\n", output.Cyan(selectedChannel.Name))
 	}
 	options.ChannelName = selectedChannel.Name
 	if err != nil {
@@ -381,7 +386,7 @@ func AskQuestions(octopus *octopusApiClient.Client, asker question.Asker, spinne
 		return err
 	}
 
-	_, err = BuildPackageVersionBaseline(octopus, deploymentProcessTemplate, selectedChannel)
+	packageVersionBaseline, err := BuildPackageVersionBaseline(octopus, deploymentProcessTemplate, selectedChannel)
 	if err != nil {
 		spinner.Stop()
 		return err
@@ -416,98 +421,22 @@ func AskQuestions(octopus *octopusApiClient.Client, asker question.Asker, spinne
 
 		defaultNextVersion := ""
 		if versioningStrategy.DonorPackageStepID != nil || versioningStrategy.DonorPackage != nil {
-
-			targetDeploymentAction := versioningStrategy.DonorPackage.DeploymentAction
-			targetPackageReference := versioningStrategy.DonorPackage.PackageReference
-
-			foundTemplatePackage := releases.ReleaseTemplatePackage{}
-			for _, pkg := range deploymentProcessTemplate.Packages {
-				if pkg.ActionName == targetDeploymentAction && pkg.PackageReferenceName == targetPackageReference {
-					foundTemplatePackage = pkg
+			// we've already done the package version work so we can just ask the donor package which version it has selected
+			var donorPackage *StepPackageVersion
+			for _, pkg := range packageVersionBaseline {
+				if pkg.PackageReferenceName == versioningStrategy.DonorPackage.PackageReference && pkg.ActionName == versioningStrategy.DonorPackage.DeploymentAction {
+					donorPackage = pkg
 					break
 				}
 			}
-
-			if foundTemplatePackage.ActionName == "" {
+			if donorPackage == nil {
 				// should this just be a warning rather than a hard fail? we could still just ask the user if they'd
 				// like to type in a version or leave it blank? On the other hand, it shouldn't fail anyway :shrug:
 				spinner.Stop()
 				return fmt.Errorf("internal error: can't find donor package in deployment process template - version controlled configuration file in an invalid state")
 			}
 
-			// TODO extend the API client to support feeds/{id} so we don't need to query/loop
-			foundFeeds, err := octopus.Feeds.Get(feeds.FeedsQuery{IDs: []string{foundTemplatePackage.FeedID}, Take: 1})
-			if err == nil && foundFeeds.Items != nil && len(foundFeeds.Items) == 0 {
-				err = errors.New("could not load feeds")
-			}
-			if err != nil {
-				spinner.Stop()
-				return err
-			}
-			feed := foundFeeds.Items[0]
-			// TODO: Ask shannon or henrik:
-			// NOTE: the server gives us links for "SearchPackageVersionsTemplate" as well as "VersionsTemplate"
-			// these both point to the same thing. Which one are we supposed to use?
-			// The quickest path seems to be to hit VersionsTemplate, but the Go API client doesn't support that
-			pkgDesc := &packages.PackageDescription{Resource: resources.Resource{Links: map[string]string{}}}
-			pkgDesc.Links["SearchPackageVersionsTemplate"] = feed.GetLinks()["SearchPackageVersionsTemplate"]
-			// note this doesn't fetch all the pages, we need to potentially implement paging???
-			pkgVersions, err := octopus.Feeds.SearchPackageVersions(pkgDesc, feeds.SearchPackageVersionsQuery{PackageID: foundTemplatePackage.PackageID})
-			if err == nil && (pkgVersions.Items != nil && len(pkgVersions.Items) == 0) {
-				err = errors.New("could not find any versions for package")
-			}
-			if err != nil {
-				spinner.Stop()
-				return err
-			}
-
-			tagFilters := make([]*regexp.Regexp, 0, len(selectedChannel.Rules))
-			// TODO version range filters; we need to parse either Nuget or Maven syntax, which is super hard. Is this the right way to go about it?
-			for _, rule := range selectedChannel.Rules {
-				for _, ap := range rule.ActionPackages {
-					if ap.PackageReference == targetPackageReference && ap.DeploymentAction == targetDeploymentAction {
-						// this rule applies to our step/packageref combo, reject the package version if not satisfied
-						if rule.Tag != "" {
-							re, err := regexp.Compile(rule.Tag)
-							if err == nil {
-								tagFilters = append(tagFilters, re)
-							} // TODO else log some sort of warning that we can't evaluate the regex the server gave us?
-						} // if the rule doesn't have a Tag then it matches everything
-					}
-				}
-			}
-
-			// pick the first package that satisfies the filters
-		outer:
-			for _, pkgVersion := range pkgVersions.Items {
-				components := strings.SplitN(pkgVersion.Version, "-", 2)
-				if len(components) == 0 {
-					spinner.Stop()
-					return fmt.Errorf("can't parse package version %s", pkgVersion.Version)
-				}
-				// TODO what if the package version isn't semver?
-				//versionComponent, err := semver.Make(components[0])
-				if err != nil {
-					spinner.Stop()
-					return fmt.Errorf("can't parse package version %s (invalid semver)", pkgVersion.Version)
-				}
-				tagComponent := ""
-				if len(components) == 2 {
-					tagComponent = components[1]
-				}
-
-				// TODO apply the version range filter
-
-				// apply the tag filter
-				for _, tagFilter := range tagFilters {
-					if !tagFilter.MatchString(tagComponent) {
-						continue outer // this package tag has been rejected
-					}
-				}
-				// we applied all the rule filters and we didn't reject it; must be the right one
-				defaultNextVersion = pkgVersion.Version
-				break
-			}
+			defaultNextVersion = donorPackage.Version
 			spinner.Stop()
 		} else if versioningStrategy.Template != "" {
 			// we already loaded the deployment process template when we were looking for packages
@@ -520,7 +449,7 @@ func AskQuestions(octopus *octopusApiClient.Client, asker question.Asker, spinne
 		}
 		options.Version = version
 	} else {
-		_, _ = fmt.Printf("Version %s\n", output.Cyan(options.Version))
+		_, _ = fmt.Fprintf(stdout, "Version %s\n", output.Cyan(options.Version))
 	}
 	return nil
 }
