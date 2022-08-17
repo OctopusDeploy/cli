@@ -8,7 +8,10 @@ import (
 	"github.com/OctopusDeploy/cli/test/testutil"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/channels"
 	octopusApiClient "github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/constants"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/deployments"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/feeds"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/packages"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/releases"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/resources"
@@ -24,8 +27,9 @@ const placeholderApiKey = "API-XXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
 
 var spinner = &testutil.FakeSpinner{}
 
+var rootResource = testutil.NewRootResource()
+
 func TestReleaseCreate_AskQuestions_RegularProject(t *testing.T) {
-	rootResource := testutil.NewRootResource()
 
 	const spaceID = "Spaces-1"
 	const fireProjectID = "Projects-22"
@@ -126,8 +130,6 @@ func TestReleaseCreate_AskQuestions_RegularProject(t *testing.T) {
 }
 
 func TestReleaseCreate_AskQuestions_VersionControlledProject(t *testing.T) {
-	rootResource := testutil.NewRootResource()
-
 	const spaceID = "Spaces-1"
 
 	projectID := "Projects-87"
@@ -366,8 +368,6 @@ func TestReleaseCreate_AskQuestions_VersionControlledProject(t *testing.T) {
 // they all run in automation mode where survey is disabled; they'd error if they tried to ask questions
 func TestReleaseCreate_AutomationMode(t *testing.T) {
 	fakeRepoUrl, _ := url.Parse("https://gitserver/repo")
-
-	rootResource := testutil.NewRootResource()
 
 	const cacProjectID = "Projects-92"
 
@@ -614,4 +614,194 @@ func TestReleaseCreate_AutomationMode(t *testing.T) {
 		assert.Equal(t, "Successfully created release version 1.0.5 (Releases-999) using channel Alpha channel (Channels-32)\n", stdOut.String())
 		assert.Equal(t, "", stdErr.String())
 	})
+}
+
+// this is technically internal to AskQuestions, but the complexity is high enough it's better to extract it out and
+// test it individually
+func TestReleaseCreate_BuildPackageVersionBaseline(t *testing.T) {
+
+	spaceID := "Spaces-1"
+	builtinFeedID := "feeds-builtin"
+	externalFeedID := "Feeds-1001"
+
+	t.Run("builds empty list for no packages", func(t *testing.T) {
+		api := testutil.NewMockHttpServer()
+		processTemplate := &deployments.DeploymentProcessTemplate{
+			Packages: nil,
+			Resource: resources.Resource{},
+		}
+
+		channel := fixtures.NewChannel(spaceID, "Channels-1", "Default", "Projects-1")
+
+		receiver := testutil.GoBegin2(func() ([]*create.StepPackageVersion, error) {
+			defer api.Close()
+			octopus, _ := octopusApiClient.NewClient(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "")
+			return create.BuildPackageVersionBaseline(octopus, processTemplate, channel)
+		})
+
+		// octopusApiClient.NewClient fetches the root resource but otherwise BuildPackageVersionBaseline does nothing
+		api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
+
+		packageVersions, err := testutil.ReceivePair(receiver)
+		assert.Nil(t, err)
+		assert.Equal(t, []*create.StepPackageVersion{}, packageVersions)
+	})
+
+	t.Run("builds list for single package/step", func(t *testing.T) {
+		api := testutil.NewMockHttpServer()
+		processTemplate := &deployments.DeploymentProcessTemplate{
+			Packages: []releases.ReleaseTemplatePackage{
+				{
+					ActionName:           "Install",
+					FeedID:               builtinFeedID,
+					PackageID:            "pterm",
+					PackageReferenceName: "pterm-on-install",
+					StepName:             "Install",
+				},
+			},
+			Resource: resources.Resource{},
+		}
+
+		channel := fixtures.NewChannel(spaceID, "Channels-1", "Default", "Projects-1")
+
+		receiver := testutil.GoBegin2(func() ([]*create.StepPackageVersion, error) {
+			defer api.Close()
+			octopus, _ := octopusApiClient.NewClient(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "")
+			return create.BuildPackageVersionBaseline(octopus, processTemplate, channel)
+		})
+
+		api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
+
+		// it needs to load the feeds to find the links
+		api.ExpectRequest(t, "GET", "/api/Spaces-1/feeds?ids=feeds-builtin&take=1").RespondWith(&feeds.Feeds{Items: []feeds.IFeed{
+			&feeds.FeedResource{Name: "Builtin", FeedType: feeds.FeedTypeBuiltIn, Resource: resources.Resource{
+				ID: builtinFeedID,
+				Links: map[string]string{
+					constants.LinkSearchPackageVersionsTemplate: "/api/Spaces-1/feeds/feeds-builtin/packages/versions{?packageId,take,skip,includePreRelease,versionRange,preReleaseTag,filter,includeReleaseNotes}",
+				}}},
+		}})
+
+		// now it will search for the package versions
+		api.ExpectRequest(t, "GET", "/api/Spaces-1/feeds/feeds-builtin/packages/versions?packageId=pterm&take=1").RespondWith(&resources.Resources[*packages.PackageVersion]{
+			Items: []*packages.PackageVersion{
+				{PackageID: "pterm", Version: "0.12.51-pre-700"},
+			},
+		})
+
+		packageVersions, err := testutil.ReceivePair(receiver)
+		assert.Nil(t, err)
+		assert.Equal(t, []*create.StepPackageVersion{
+			{
+				PackageID: "pterm",
+				StepName:  "Install",
+				Version:   "0.12.51-pre-700",
+				FeedID:    "feeds-builtin",
+			},
+		}, packageVersions)
+	})
+
+	t.Run("builds list for multiple package/steps with some overlapping packages; no duplicate requests sent to server", func(t *testing.T) {
+		api := testutil.NewMockHttpServer()
+		processTemplate := &deployments.DeploymentProcessTemplate{
+			Packages: []releases.ReleaseTemplatePackage{
+				{
+					ActionName:           "Install",
+					FeedID:               builtinFeedID,
+					PackageID:            "pterm",
+					PackageReferenceName: "pterm-on-install",
+					StepName:             "Install",
+				},
+				{
+					ActionName:           "Install",
+					FeedID:               externalFeedID,
+					PackageID:            "NuGet.CommandLine",
+					PackageReferenceName: "nuget-on-install",
+					StepName:             "Install",
+				},
+				{
+					ActionName:           "Verify",
+					FeedID:               builtinFeedID,
+					PackageID:            "pterm",
+					PackageReferenceName: "pterm-on-verify",
+					StepName:             "Verify",
+				},
+				{
+					ActionName:           "Cleanup",
+					FeedID:               externalFeedID,
+					PackageID:            "NuGet.CommandLine",
+					PackageReferenceName: "nuget-on-cleanup",
+					StepName:             "Cleanup",
+				},
+			},
+			Resource: resources.Resource{},
+		}
+
+		channel := fixtures.NewChannel(spaceID, "Channels-1", "Default", "Projects-1")
+
+		receiver := testutil.GoBegin2(func() ([]*create.StepPackageVersion, error) {
+			defer api.Close()
+			octopus, _ := octopusApiClient.NewClient(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "")
+			return create.BuildPackageVersionBaseline(octopus, processTemplate, channel)
+		})
+
+		api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
+
+		// it needs to load the feeds to find the links
+		api.ExpectRequest(t, "GET", "/api/Spaces-1/feeds?ids=Feeds-1001&ids=feeds-builtin&take=2").RespondWith(&feeds.Feeds{Items: []feeds.IFeed{
+			&feeds.FeedResource{Name: "Builtin", FeedType: feeds.FeedTypeBuiltIn, Resource: resources.Resource{
+				ID: builtinFeedID,
+				Links: map[string]string{
+					constants.LinkSearchPackageVersionsTemplate: "/api/Spaces-1/feeds/feeds-builtin/packages/versions{?packageId,take,skip,includePreRelease,versionRange,preReleaseTag,filter,includeReleaseNotes}",
+				}}},
+			&feeds.FeedResource{Name: "External Nuget", FeedType: feeds.FeedTypeNuGet, Resource: resources.Resource{
+				ID: externalFeedID,
+				Links: map[string]string{
+					constants.LinkSearchPackageVersionsTemplate: "/api/Spaces-1/feeds/Feeds-1001/packages/versions{?packageId,take,skip,includePreRelease,versionRange,preReleaseTag,filter,includeReleaseNotes}",
+				}}},
+		}})
+
+		// now it will search for the package versions
+		api.ExpectRequest(t, "GET", "/api/Spaces-1/feeds/feeds-builtin/packages/versions?packageId=pterm&take=1").RespondWith(&resources.Resources[*packages.PackageVersion]{
+			Items: []*packages.PackageVersion{
+				{PackageID: "pterm", Version: "0.12.51-pre-700"},
+			},
+		})
+		// even though two steps use pterm, they're the same so we don't need to ask the server twice
+		api.ExpectRequest(t, "GET", "/api/Spaces-1/feeds/Feeds-1001/packages/versions?packageId=NuGet.CommandLine&take=1").RespondWith(&resources.Resources[*packages.PackageVersion]{
+			Items: []*packages.PackageVersion{
+				{PackageID: "NuGet.CommandLine", Version: "6.1.2"},
+			},
+		})
+		// even though two steps use nuget, they're the same so we don't need to ask the server twice
+
+		packageVersions, err := testutil.ReceivePair(receiver)
+		assert.Nil(t, err)
+		assert.Equal(t, []*create.StepPackageVersion{
+			{
+				PackageID: "pterm",
+				StepName:  "Install",
+				Version:   "0.12.51-pre-700",
+				FeedID:    builtinFeedID,
+			},
+			{
+				PackageID: "pterm",
+				StepName:  "Verify",
+				Version:   "0.12.51-pre-700",
+				FeedID:    builtinFeedID,
+			},
+			{
+				PackageID: "NuGet.CommandLine",
+				StepName:  "Install",
+				Version:   "6.1.2",
+				FeedID:    externalFeedID,
+			},
+			{
+				PackageID: "NuGet.CommandLine",
+				StepName:  "Cleanup",
+				Version:   "6.1.2",
+				FeedID:    externalFeedID,
+			},
+		}, packageVersions)
+	})
+
 }

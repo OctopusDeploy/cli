@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	octopusApiClient "github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/constants"
 	"github.com/stretchr/testify/assert"
 	"io/ioutil"
 	"net/http"
@@ -154,14 +155,15 @@ func (r *RequestWrapper) RespondWith(responseObject any) {
 
 func NewRootResource() *octopusApiClient.RootResource {
 	root := octopusApiClient.NewRootResource()
-	root.Links["Spaces"] = "/api/spaces{/id}{?skip,ids,take,partialName}"
+	root.Links[constants.LinkSpaces] = "/api/spaces{/id}{?skip,ids,take,partialName}"
 
 	// Note: all this stuff typically doesn't appear at the root resource level
 	// has assigned a default space. We don't like default spaces, so the unit tests
 	// should probably not mimic that structure; clean it up one day
-	root.Links["Projects"] = "/api/Spaces-1/projects{/id}{?name,skip,ids,clone,take,partialName,clonedFromProjectId}"
-	root.Links["Channels"] = "/api/Spaces-1/channels{/id}{?skip,take,ids,partialName}"
-	root.Links["DeploymentProcesses"] = "/api/Spaces-1/deploymentprocesses{/id}{?skip,take,ids}"
-	root.Links["Releases"] = "/api/Spaces-1/releases{/id}{?skip,ignoreChannelRules,take,ids}"
+	root.Links[constants.LinkProjects] = "/api/Spaces-1/projects{/id}{?name,skip,ids,clone,take,partialName,clonedFromProjectId}"
+	root.Links[constants.LinkChannels] = "/api/Spaces-1/channels{/id}{?skip,take,ids,partialName}"
+	root.Links[constants.LinkDeploymentProcesses] = "/api/Spaces-1/deploymentprocesses{/id}{?skip,take,ids}"
+	root.Links[constants.LinkReleases] = "/api/Spaces-1/releases{/id}{?skip,ignoreChannelRules,take,ids}"
+	root.Links[constants.LinkFeeds] = "/api/Spaces-1/feeds{/id}{?skip,take,ids,partialName,feedType,name}"
 	return root
 }

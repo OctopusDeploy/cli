@@ -17,6 +17,7 @@ import (
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/releases"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/resources"
 	"regexp"
+	"sort"
 	"strings"
 
 	"github.com/MakeNowJust/heredoc/v2"
@@ -178,7 +179,7 @@ func createRun(cmd *cobra.Command, f factory.Factory) error {
 	return nil
 }
 
-type stepPackageVersion struct {
+type StepPackageVersion struct {
 	PackageID string
 	StepName  string // do we also need step ID?
 	Version   string
@@ -188,32 +189,25 @@ type stepPackageVersion struct {
 // buildPackageVersionBaseline loads the deployment process template from the server, and for each step+package therein,
 // finds the latest available version satisfying the channel version rules. Result is the list of step+package+versions
 // to use as a baseline. The package version override process takes this as an input and layers on top of it
-func buildPackageVersionBaseline(octopus *octopusApiClient.Client, deploymentProcessTemplate *deployments.DeploymentProcessTemplate, channel *channels.Channel) ([]*stepPackageVersion, error) {
-	result := make([]*stepPackageVersion, 0, len(deploymentProcessTemplate.Packages))
+func BuildPackageVersionBaseline(octopus *octopusApiClient.Client, deploymentProcessTemplate *deployments.DeploymentProcessTemplate, channel *channels.Channel) ([]*StepPackageVersion, error) {
+	result := make([]*StepPackageVersion, 0, len(deploymentProcessTemplate.Packages))
 
 	// step 1: pass over all the packages in the deployment process, group them
 	// by their feed, then subgroup by packageId
 
-	// reduce type-confusion with string aliases
-	type FeedID string
-	type PackageID string
-
-	// map(key: FeedID, value: map(key: packageId, value: list of references using the package so we can trace back to steps))
-	feedsToQuery := make(map[FeedID]map[PackageID][]releases.ReleaseTemplatePackage)
+	// map(key: FeedID, value: list of references using the package so we can trace back to steps)
+	feedsToQuery := make(map[string][]releases.ReleaseTemplatePackage)
 	for _, pkg := range deploymentProcessTemplate.Packages {
-		pkgFeedID := FeedID(pkg.FeedID)
-		pkgID := PackageID(pkg.PackageID)
-
-		if feedPackages, seenFeedBefore := feedsToQuery[pkgFeedID]; !seenFeedBefore {
-			feedsToQuery[pkgFeedID] = map[PackageID][]releases.ReleaseTemplatePackage{pkgID: {pkg}}
+		if feedPackages, seenFeedBefore := feedsToQuery[pkg.FeedID]; !seenFeedBefore {
+			feedsToQuery[pkg.FeedID] = []releases.ReleaseTemplatePackage{pkg}
 		} else {
-			if packageSteps, seenPackageBefore := feedPackages[pkgID]; !seenPackageBefore {
-				feedPackages[pkgID] = []releases.ReleaseTemplatePackage{pkg}
-			} else {
-				// seen both the feed and package, but not against this particular step
-				feedPackages[pkgID] = append(packageSteps, pkg)
-			}
+			// seen both the feed and package, but not against this particular step
+			feedsToQuery[pkg.FeedID] = append(feedPackages, pkg)
 		}
+	}
+
+	if len(feedsToQuery) == 0 {
+		return make([]*StepPackageVersion, 0), nil
 	}
 
 	// step 2: load the feed resources, so we can get SearchPackageVersionsTemplate
@@ -221,6 +215,7 @@ func buildPackageVersionBaseline(octopus *octopusApiClient.Client, deploymentPro
 	for k := range feedsToQuery {
 		feedIds = append(feedIds, string(k))
 	}
+	sort.Strings(feedIds) // we need to sort them otherwise the order is indeterminate. Server doesn't care but our unit tests fail
 	foundFeeds, err := octopus.Feeds.Get(feeds.FeedsQuery{IDs: feedIds, Take: len(feedIds)})
 	if err != nil {
 		return nil, err
@@ -228,45 +223,55 @@ func buildPackageVersionBaseline(octopus *octopusApiClient.Client, deploymentPro
 
 	// step 3: for each feed, ask the server to select the best package version for it, applying the channel rules
 	for _, feed := range foundFeeds.Items {
-		packageRefsInFeed, ok := feedsToQuery[FeedID(feed.GetID())]
+		packageRefsInFeed, ok := feedsToQuery[feed.GetID()]
 		if !ok {
 			return nil, errors.New("internal consistency error; feed ID not found in feedsToQuery") // should never happen
 		}
 
-		for packageID, packageRefs := range packageRefsInFeed {
-			for _, packageRef := range packageRefs {
-				query := feeds.SearchPackageVersionsQuery{
-					PackageID: string(packageID),
-					Take:      1, // TODO do we need IncludePrerelease here for this to work?
-				}
-				// look in the channel rules for a version filter for this step+package
-			rulesLoop:
-				for _, rule := range channel.Rules {
-					for _, ap := range rule.ActionPackages {
-						if ap.PackageReference == packageRef.PackageReferenceName && ap.DeploymentAction == packageRef.ActionName {
-							// this rule applies to our step/packageref combo
-							query.PreReleaseTag = rule.Tag
-							query.VersionRange = rule.VersionRange
-							// the octopus server won't let the same package be targeted by more than one rule, so
-							// once we've found the first matching rule for our step+package, we can stop looping
-							break rulesLoop
-						}
+		cache := make(map[feeds.SearchPackageVersionsQuery]string) // cache value is the package version
+
+		for _, packageRef := range packageRefsInFeed {
+			query := feeds.SearchPackageVersionsQuery{
+				PackageID: packageRef.PackageID,
+				Take:      1, // TODO do we need IncludePrerelease here for this to work?
+			}
+			// look in the channel rules for a version filter for this step+package
+		rulesLoop:
+			for _, rule := range channel.Rules {
+				for _, ap := range rule.ActionPackages {
+					if ap.PackageReference == packageRef.PackageReferenceName && ap.DeploymentAction == packageRef.ActionName {
+						// this rule applies to our step/packageref combo
+						query.PreReleaseTag = rule.Tag
+						query.VersionRange = rule.VersionRange
+						// the octopus server won't let the same package be targeted by more than one rule, so
+						// once we've found the first matching rule for our step+package, we can stop looping
+						break rulesLoop
 					}
 				}
-				// TODO cache can jump in here based on struct equality for query
+			}
+
+			if cachedVersion, ok := cache[query]; ok {
+				result = append(result, &StepPackageVersion{
+					PackageID: packageRef.PackageID,
+					StepName:  packageRef.StepName,
+					FeedID:    packageRef.FeedID,
+					Version:   cachedVersion,
+				})
+			} else { // uncached; ask the server
 				versions, err := octopus.Feeds.SearchFeedPackageVersions(feed, query)
 				if err != nil {
 					return nil, err
 				}
 
 				if len(versions.Items) == 1 {
-					result = append(result, &stepPackageVersion{
+					cache[query] = versions.Items[0].Version
+					result = append(result, &StepPackageVersion{
 						PackageID: packageRef.PackageID,
 						StepName:  packageRef.StepName,
 						FeedID:    packageRef.FeedID,
 						Version:   versions.Items[0].Version,
 					})
-				} // else no suitable package versions. what do we do with this??
+				} // else no suitable package versions. what do we do with this? What about caching?
 			}
 		}
 	}
@@ -376,7 +381,7 @@ func AskQuestions(octopus *octopusApiClient.Client, asker question.Asker, spinne
 		return err
 	}
 
-	_, err = buildPackageVersionBaseline(octopus, deploymentProcessTemplate, selectedChannel)
+	_, err = BuildPackageVersionBaseline(octopus, deploymentProcessTemplate, selectedChannel)
 	if err != nil {
 		spinner.Stop()
 		return err
