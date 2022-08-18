@@ -1137,24 +1137,26 @@ func TestReleaseCreate_BuildPackageVersionBaseline(t *testing.T) {
 func TestReleaseCreate_ParsePackageOverride(t *testing.T) {
 	tests := []struct {
 		input     string
-		expect    *create.PackageVersionOverride
+		expect    *create.AmbiguousPackageVersionOverride
 		expectErr error
 	}{
-		{input: "5", expect: &create.PackageVersionOverride{ActionName: "", PackageID: "", Version: "5"}},
-		{input: ":5", expect: &create.PackageVersionOverride{ActionName: "", PackageID: "", Version: "5"}},
-		{input: "::5", expect: &create.PackageVersionOverride{ActionName: "", PackageID: "", Version: "5"}},
-		{input: "*:5", expect: &create.PackageVersionOverride{ActionName: "", PackageID: "", Version: "5"}},
-		{input: "*:*:5", expect: &create.PackageVersionOverride{ActionName: "", PackageID: "", Version: "5"}},
-		{input: ":*:5", expect: &create.PackageVersionOverride{ActionName: "", PackageID: "", Version: "5"}},
-		{input: "Install:NuGet:0.1", expect: &create.PackageVersionOverride{ActionName: "Install", PackageID: "NuGet", Version: "0.1"}},
-		{input: "Push Package:pterm:9.7-pre-xyz", expect: &create.PackageVersionOverride{ActionName: "Push Package", PackageID: "pterm", Version: "9.7-pre-xyz"}},
-		{input: "pterm:55", expect: &create.PackageVersionOverride{ActionName: "", PackageID: "pterm", Version: "55"}},
-		{input: ":pterm:55", expect: &create.PackageVersionOverride{ActionName: "", PackageID: "pterm", Version: "55"}},
-		{input: "Push Package::55", expect: &create.PackageVersionOverride{ActionName: "Push Package", PackageID: "", Version: "55"}},
-		{input: "Push Package:*:55", expect: &create.PackageVersionOverride{ActionName: "Push Package", PackageID: "", Version: "55"}},
+		{input: "5", expect: &create.AmbiguousPackageVersionOverride{ActionNameOrPackageID: "", Version: "5"}},
+		{input: ":5", expect: &create.AmbiguousPackageVersionOverride{ActionNameOrPackageID: "", Version: "5"}},
+		{input: "::5", expect: &create.AmbiguousPackageVersionOverride{ActionNameOrPackageID: "", Version: "5"}},
+		{input: "*:5", expect: &create.AmbiguousPackageVersionOverride{ActionNameOrPackageID: "", Version: "5"}},
+		{input: "*:*:5", expect: &create.AmbiguousPackageVersionOverride{ActionNameOrPackageID: "", Version: "5"}},
+		{input: ":*:5", expect: &create.AmbiguousPackageVersionOverride{ActionNameOrPackageID: "", Version: "5"}},
+		{input: "NuGet:NuGet:0.1", expect: &create.AmbiguousPackageVersionOverride{PackageReferenceName: "NuGet", ActionNameOrPackageID: "NuGet", Version: "0.1"}},
+		{input: "nuget-on-install:NuGet:0.1", expect: &create.AmbiguousPackageVersionOverride{PackageReferenceName: "nuget-on-install", ActionNameOrPackageID: "NuGet", Version: "0.1"}},
+		{input: "nuget-on-install:Install:0.1", expect: &create.AmbiguousPackageVersionOverride{PackageReferenceName: "nuget-on-install", ActionNameOrPackageID: "Install", Version: "0.1"}},
+		{input: "pterm:9.7-pre-xyz", expect: &create.AmbiguousPackageVersionOverride{ActionNameOrPackageID: "pterm", Version: "9.7-pre-xyz"}},
+		{input: "pterm:55", expect: &create.AmbiguousPackageVersionOverride{ActionNameOrPackageID: "pterm", Version: "55"}},
+		{input: ":pterm:55", expect: &create.AmbiguousPackageVersionOverride{ActionNameOrPackageID: "pterm", Version: "55"}},
+		{input: "Push Package::55", expect: &create.AmbiguousPackageVersionOverride{PackageReferenceName: "Push Package", ActionNameOrPackageID: "", Version: "55"}},
+		{input: "Push Package:*:55", expect: &create.AmbiguousPackageVersionOverride{PackageReferenceName: "Push Package", ActionNameOrPackageID: "", Version: "55"}},
 
-		{input: "Push Package/pterm=9.7-pre-xyz", expect: &create.PackageVersionOverride{ActionName: "Push Package", PackageID: "pterm", Version: "9.7-pre-xyz"}},
-		{input: "Push Package=pterm/9.7-pre-xyz", expect: &create.PackageVersionOverride{ActionName: "Push Package", PackageID: "pterm", Version: "9.7-pre-xyz"}},
+		{input: "Push Package/pterm=9.7-pre-xyz", expect: &create.AmbiguousPackageVersionOverride{PackageReferenceName: "Push Package", ActionNameOrPackageID: "pterm", Version: "9.7-pre-xyz"}},
+		{input: "Push Package=pterm/9.7-pre-xyz", expect: &create.AmbiguousPackageVersionOverride{PackageReferenceName: "Push Package", ActionNameOrPackageID: "pterm", Version: "9.7-pre-xyz"}},
 
 		{input: "", expectErr: errors.New("empty package version specification")},
 		{input: "Install:pterm:nuget:5", expectErr: errors.New("package version specification Install:pterm:nuget:5 does not use expected format")},
@@ -1167,6 +1169,116 @@ func TestReleaseCreate_ParsePackageOverride(t *testing.T) {
 			assert.Equal(t, test.expect, result)
 		})
 	}
+}
+
+func TestReleaseCreate_ResolvePackageOverride(t *testing.T) {
+
+	t.Run("match on package ID", func(t *testing.T) { // this is probably the most common thing people will do
+		nugetPackage := &create.AmbiguousPackageVersionOverride{ActionNameOrPackageID: "NuGet", Version: "5.0"}
+
+		steps := []*create.StepPackageVersion{ // baseline
+			{PackageID: "NuGet", ActionName: "Install", Version: "0.1", PackageReferenceName: "NuGet"},
+		}
+
+		r, err := create.ResolvePackageOverride(nugetPackage, steps)
+		assert.Nil(t, err)
+		assert.Equal(t, &create.PackageVersionOverride{PackageID: "NuGet", ActionName: "Install", Version: "5.0", PackageReferenceName: "NuGet"}, r)
+	})
+
+	t.Run("match on step name", func(t *testing.T) { // this is probably the most common thing people will do
+		nugetPackage := &create.AmbiguousPackageVersionOverride{ActionNameOrPackageID: "Install", Version: "5.0"}
+
+		steps := []*create.StepPackageVersion{ // baseline
+			{PackageID: "NuGet", ActionName: "Install", Version: "0.1", PackageReferenceName: "NuGet"},
+		}
+
+		r, err := create.ResolvePackageOverride(nugetPackage, steps)
+		assert.Nil(t, err)
+		assert.Equal(t, &create.PackageVersionOverride{PackageID: "NuGet", ActionName: "Install", Version: "5.0", PackageReferenceName: "NuGet"}, r)
+	})
+
+	t.Run("match on packageRef", func(t *testing.T) {
+		nugetPackage := &create.AmbiguousPackageVersionOverride{PackageReferenceName: "NuGet-B", Version: "5.0"}
+
+		steps := []*create.StepPackageVersion{ // baseline
+			{PackageID: "NuGet", ActionName: "Install", Version: "0.1", PackageReferenceName: "NuGet-A"},
+			{PackageID: "NuGet", ActionName: "Verify", Version: "0.1", PackageReferenceName: "NuGet-B"},
+		}
+
+		r, err := create.ResolvePackageOverride(nugetPackage, steps)
+		assert.Nil(t, err)
+		assert.Equal(t, &create.PackageVersionOverride{PackageID: "NuGet", ActionName: "Verify", Version: "5.0", PackageReferenceName: "NuGet-B"}, r)
+	})
+
+	t.Run("match on action+packageRef before packageID", func(t *testing.T) { // this is probably the most common thing people will do
+		nugetPackage := &create.AmbiguousPackageVersionOverride{ActionNameOrPackageID: "Verify", PackageReferenceName: "NuGet", Version: "5.0"}
+
+		steps := []*create.StepPackageVersion{ // baseline
+			{PackageID: "NuGet", ActionName: "Install", Version: "0.1", PackageReferenceName: "NuGet"},
+			{PackageID: "NuGet", ActionName: "Verify", Version: "0.1", PackageReferenceName: "NuGet"},
+		}
+
+		r, err := create.ResolvePackageOverride(nugetPackage, steps)
+		assert.Nil(t, err)
+		assert.Equal(t, &create.PackageVersionOverride{PackageID: "NuGet", ActionName: "Verify", Version: "5.0", PackageReferenceName: "NuGet"}, r)
+	})
+
+	t.Run("match on packageID+packageRef picks the first one where they are the same", func(t *testing.T) {
+		nugetPackage := &create.AmbiguousPackageVersionOverride{ActionNameOrPackageID: "NuGet", PackageReferenceName: "NuGet", Version: "5.0"}
+
+		steps := []*create.StepPackageVersion{ // baseline
+			{PackageID: "NuGet", ActionName: "Install", Version: "0.1", PackageReferenceName: "NuGet"},
+			{PackageID: "NuGet", ActionName: "Verify", Version: "0.1", PackageReferenceName: "NuGet"},
+		}
+
+		r, err := create.ResolvePackageOverride(nugetPackage, steps)
+		assert.Nil(t, err)
+		assert.Equal(t, &create.PackageVersionOverride{PackageID: "NuGet", ActionName: "Install", Version: "5.0", PackageReferenceName: "NuGet"}, r)
+	})
+
+	t.Run("match on packageID+packageRef picks the correct one where they are different", func(t *testing.T) {
+		nugetPackage := &create.AmbiguousPackageVersionOverride{ActionNameOrPackageID: "NuGet", PackageReferenceName: "NuGet-B", Version: "5.0"}
+
+		steps := []*create.StepPackageVersion{ // baseline
+			{PackageID: "NuGet", ActionName: "Install", Version: "0.1", PackageReferenceName: "NuGet-A"},
+			{PackageID: "NuGet", ActionName: "Verify", Version: "0.1", PackageReferenceName: "NuGet-B"},
+		}
+
+		r, err := create.ResolvePackageOverride(nugetPackage, steps)
+		assert.Nil(t, err)
+		assert.Equal(t, &create.PackageVersionOverride{PackageID: "NuGet", ActionName: "Verify", Version: "5.0", PackageReferenceName: "NuGet-B"}, r)
+	})
+
+	t.Run("match on packageRef wins over match on ActionName", func(t *testing.T) {
+		// we shouldn't get in this situation, but just in case we do :shrug:
+		nugetPackage := &create.AmbiguousPackageVersionOverride{PackageReferenceName: "NuGet-B", ActionNameOrPackageID: "Cheese", Version: "5.0"}
+
+		steps := []*create.StepPackageVersion{ // baseline
+			{PackageID: "NuGet", ActionName: "Install", Version: "0.1", PackageReferenceName: "NuGet-A"},
+			{PackageID: "NuGet", ActionName: "Verify", Version: "0.1", PackageReferenceName: "NuGet-B"},
+			{PackageID: "OtherPackage", ActionName: "Cheese", Version: "0.1", PackageReferenceName: "Cheese"},
+		}
+
+		r, err := create.ResolvePackageOverride(nugetPackage, steps)
+		assert.Nil(t, err)
+		assert.Equal(t, &create.PackageVersionOverride{PackageID: "NuGet", ActionName: "Verify", Version: "5.0", PackageReferenceName: "NuGet-B"}, r)
+	})
+
+	t.Run("match on packageRef wins over match on PackageID", func(t *testing.T) {
+		// we shouldn't get in this situation, but just in case we do :shrug:
+		nugetPackage := &create.AmbiguousPackageVersionOverride{PackageReferenceName: "NuGet-B", ActionNameOrPackageID: "Cheese", Version: "5.0"}
+
+		steps := []*create.StepPackageVersion{ // baseline
+			{PackageID: "NuGet", ActionName: "Install", Version: "0.1", PackageReferenceName: "NuGet-A"},
+			{PackageID: "NuGet", ActionName: "Verify", Version: "0.1", PackageReferenceName: "NuGet-B"},
+			{PackageID: "Cheese", ActionName: "OtherAction", Version: "0.1", PackageReferenceName: "OtherAction"},
+		}
+
+		r, err := create.ResolvePackageOverride(nugetPackage, steps)
+		assert.Nil(t, err)
+		assert.Equal(t, &create.PackageVersionOverride{PackageID: "NuGet", ActionName: "Verify", Version: "5.0", PackageReferenceName: "NuGet-B"}, r)
+	})
+
 }
 
 func TestReleaseCreate_ApplyPackageOverride(t *testing.T) {

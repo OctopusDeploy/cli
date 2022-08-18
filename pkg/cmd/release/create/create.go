@@ -280,9 +280,10 @@ func BuildPackageVersionBaseline(octopus *octopusApiClient.Client, deploymentPro
 }
 
 type PackageVersionOverride struct {
-	ActionName string // optional, but one or both of ActionName or PackageID must be supplied
-	PackageID  string // optional, but one or both of ActionName or PackageID must be supplied
-	Version    string // required
+	ActionName           string // optional, but one or both of ActionName or PackageID must be supplied
+	PackageID            string // optional, but one or both of ActionName or PackageID must be supplied
+	PackageReferenceName string // optional; use for advanced situations where the same package is referenced multiple times by a single step
+	Version              string // required
 }
 
 // splitPackageOverrideString splits the input string into components based on delimiter characters.
@@ -325,26 +326,35 @@ func splitPackageOverrideString(s string) []string {
 	return a
 }
 
+// AmbiguousPackageVersionOverride tells us that we want to set the version of some package to `Version`
+// but it's not clear whether ActionNameOrPackageID refers to an ActionName or PackageID at this point
+type AmbiguousPackageVersionOverride struct {
+	ActionNameOrPackageID string
+	PackageReferenceName  string
+	Version               string
+}
+
 // ParsePackageOverride parses a package version override string into a structure.
 // Logic should align with PackageVersionResolver in the Octopus Server and .NET CLI
-func ParsePackageOverride(packageOverride string) (*PackageVersionOverride, error) {
+// In cases where things are ambiguous, we look in steps for matching values to see if something is a PackageID or a StepName
+func ParsePackageOverride(packageOverride string) (*AmbiguousPackageVersionOverride, error) {
 	if packageOverride == "" {
 		return nil, errors.New("empty package version specification")
 	}
 
 	components := splitPackageOverrideString(packageOverride)
-	stepName, packageID, version := "", "", ""
+	packageReferenceName, stepNameOrPackageID, version := "", "", ""
 
 	switch len(components) {
 	case 1:
-		// the server doesn't support this, but we do interactively
+		// the server doesn't support this, but we do interactively; override the version for all packages
 		version = strings.TrimSpace(components[0])
 	case 2:
-		// the server supports {PackageID_or_StepName}:{Version} so we can override all the packages for a given step to the same version,
-		// but that seems like an extremely niche case; do we need to support it?
-		packageID, version = strings.TrimSpace(components[0]), strings.TrimSpace(components[1])
+		// if there are two components it is (StepName|PackageID):Version
+		stepNameOrPackageID, version = strings.TrimSpace(components[0]), strings.TrimSpace(components[1])
 	case 3:
-		stepName, packageID, version = strings.TrimSpace(components[0]), strings.TrimSpace(components[1]), strings.TrimSpace(components[2])
+		// if there are three components it is PackageReferenceName:(StepName|PackageID):Version
+		packageReferenceName, stepNameOrPackageID, version = strings.TrimSpace(components[0]), strings.TrimSpace(components[1]), strings.TrimSpace(components[2])
 	default:
 		return nil, fmt.Errorf("package version specification %s does not use expected format", packageOverride)
 	}
@@ -355,18 +365,70 @@ func ParsePackageOverride(packageOverride string) (*PackageVersionOverride, erro
 	}
 
 	// compensate for wildcards
-	if stepName == "*" {
-		stepName = ""
+	if packageReferenceName == "*" {
+		packageReferenceName = ""
 	}
-	if packageID == "*" {
-		packageID = ""
+	if stepNameOrPackageID == "*" {
+		stepNameOrPackageID = ""
 	}
 
-	return &PackageVersionOverride{
-		ActionName: stepName,
-		PackageID:  packageID,
-		Version:    version,
+	return &AmbiguousPackageVersionOverride{
+		ActionNameOrPackageID: stepNameOrPackageID,
+		PackageReferenceName:  packageReferenceName,
+		Version:               version,
 	}, nil
+}
+
+func ResolvePackageOverride(override *AmbiguousPackageVersionOverride, steps []*StepPackageVersion) (*PackageVersionOverride, error) {
+	actionNameOrPackageID := override.ActionNameOrPackageID
+
+	// it could be either a stepname or a package ID; match against the list of packages to try and guess.
+	// logic matching the server:
+	//  - exact match on stepName + refName
+	//  - then exact match on packageId + refName
+	//  - then match on * + refName
+	//  - then match on stepName + *
+	//  - then match on packageID + *
+	type match struct {
+		priority int
+		pkg      *StepPackageVersion
+	}
+
+	matches := make([]match, 0, 2) // common case is likely to be 2; if we have a packageID then we may match both exactly and partially on the ID depending on referenceName
+	for _, p := range steps {
+		if p.ActionName != "" && p.ActionName == actionNameOrPackageID {
+			if p.PackageReferenceName == override.PackageReferenceName {
+				matches = append(matches, match{priority: 100, pkg: p})
+			} else {
+				matches = append(matches, match{priority: 50, pkg: p})
+			}
+		} else if p.PackageID != "" && p.PackageID == actionNameOrPackageID {
+			if p.PackageReferenceName == override.PackageReferenceName {
+				matches = append(matches, match{priority: 90, pkg: p})
+			} else {
+				matches = append(matches, match{priority: 40, pkg: p})
+			}
+		} else if p.PackageReferenceName != "" && p.PackageReferenceName == override.PackageReferenceName {
+			matches = append(matches, match{priority: 80, pkg: p})
+		}
+	}
+
+	if len(matches) == 0 {
+		return nil, fmt.Errorf("could not resolve find step name or package ID matching %s", actionNameOrPackageID)
+	}
+	sort.SliceStable(matches, func(i, j int) bool { // want a stable sort so if there's more than one possible match we pick the first one
+		return matches[i].priority > matches[j].priority
+	})
+
+	p := matches[0].pkg
+
+	return &PackageVersionOverride{
+		ActionName:           p.ActionName,
+		PackageID:            p.PackageID,
+		PackageReferenceName: p.PackageReferenceName,
+		Version:              override.Version,
+	}, nil
+
 }
 
 func ApplyPackageOverrides(packages []*StepPackageVersion, overrides []*PackageVersionOverride) []*StepPackageVersion {
@@ -659,15 +721,7 @@ func selectChannel(octopus *octopusApiClient.Client, ask question.Asker, spinner
 	}
 
 	return question.SelectMap(ask, "Select the channel in which the release will be created", existingChannels, func(p *channels.Channel) string {
-		// TODO is there any possible scenario where p.Channel might not be included in existingChannel?
-		// we should be able to collapse this to a simple "return p.Name"
-		for _, v := range existingChannels {
-			if p.Name == v.Name {
-				return v.Name
-			}
-		}
-
-		return ""
+		return p.Name
 	})
 }
 
@@ -712,111 +766,6 @@ func findProject(octopus *octopusApiClient.Client, spinner factory.Spinner, proj
 	return nil, fmt.Errorf("no project found with name of %s", projectName)
 }
 
-func selectPackageOverrides(octopus *octopusApiClient.Client, ask question.Asker, project *projects.Project, channel *channels.Channel, releaseID string) (string, error) {
-	deploymentProcess, err := octopus.DeploymentProcesses.Get(project, "")
-	if err != nil {
-		return "", err
-	}
-
-	template, err := octopus.DeploymentProcesses.GetTemplate(deploymentProcess, channel.ID, releaseID)
-	if err != nil {
-		return "", err
-	}
-
-	feedsToQuery := make([]string, len(template.Packages))
-	for _, v := range template.Packages {
-		feedsToQuery = append(feedsToQuery, v.FeedID)
-	}
-
-	existingFeeds, err := octopus.Feeds.Get(feeds.FeedsQuery{IDs: feedsToQuery})
-	if err != nil {
-		return "", err
-	}
-
-	packageVersions := []PackageVersions{}
-
-	stepPackages := []string{}
-	stepPackages = append(stepPackages, output.Greenf("Done"))
-	packageVersion := NewPackageVersions()
-
-	for _, v := range template.Packages {
-		for _, existingFeed := range existingFeeds.Items {
-			if v.FeedID == existingFeed.GetID() {
-				packageDescriptions, err := octopus.Feeds.SearchPackages(existingFeed, feeds.SearchPackagesQuery{
-					Term: v.PackageID,
-				})
-				if err != nil {
-					return "", err
-				}
-
-				packageVersion.Description = v.ActionName
-				packageVersion.PackageID = v.PackageID
-				packageVersion.Last = v.VersionSelectedLastRelease
-
-				// TODO: iterate collection of package descriptions
-				packageVersions, err := octopus.Feeds.SearchPackageVersions(packageDescriptions.Items[0], feeds.SearchPackageVersionsQuery{
-					FeedID:    v.FeedID,
-					PackageID: v.PackageID,
-				})
-				if err != nil {
-					return "", err
-				}
-
-				for _, v := range packageVersions.Items {
-					packageVersion.Versions = append(packageVersion.Versions, v.Version)
-				}
-
-				// TODO: iterate collection of package descriptions
-				packageVersion.Latest = packageDescriptions.Items[0].LatestVersion
-			}
-		}
-		// get other versions
-		packageListing := fmt.Sprintf("%s (%s) - %s", packageVersion.PackageID, packageVersion.Description, packageVersion.Latest)
-		stepPackages = append(stepPackages, packageListing)
-		packageVersions = append(packageVersions, packageVersion)
-	}
-	stepPackages = append(stepPackages, "NuGet.CommandLine (Push Octopus.DotNet.Cli to NuGet style feed) - 1.2.3")
-	stepPackages = append(stepPackages, "Octopus.DotNet.Cli (Push Octopus.DotNet.Cli to NuGet style feed) - 1.2.3")
-	stepPackages = append(stepPackages, "Quux (do something) - 3.2.2")
-	stepPackages = append(stepPackages, "Bar (do something) - 1.0.0")
-	stepPackages = append(stepPackages, "Bar (do something) - 1.2.3")
-	stepPackages = append(stepPackages, "Bar (do something)")
-	stepPackages = append(stepPackages, "Bar (do something)")
-	stepPackages = append(stepPackages, "Bar (do something)")
-
-	packageVersion.Versions = append(packageVersion.Versions, "4.4.1 (Latest)")
-	packageVersion.Versions = append(packageVersion.Versions, "3.4.1 (Last)")
-	packageVersion.Versions = append(packageVersion.Versions, "3.4.0")
-	packageVersion.Versions = append(packageVersion.Versions, "3.3.0")
-	packageVersion.Versions = append(packageVersion.Versions, "3.2.0")
-	packageVersion.Versions = append(packageVersion.Versions, "1.0.0")
-
-	for {
-		var selectedStepName string
-		if err := ask(&survey.Select{
-			Help:    "asdadsd",
-			Message: "Select a step package to update its version to be used in the release",
-			Options: stepPackages,
-		}, &selectedStepName); err != nil {
-			return "", err
-		}
-
-		if selectedStepName == output.Greenf("Done") {
-			break
-		}
-
-		var selectedVersion string
-		if err := ask(&survey.Select{
-			Message: "Select a version of the package to be used",
-			Options: packageVersion.Versions,
-		}, &selectedVersion); err != nil {
-			return "", err
-		}
-	}
-
-	return "", nil
-}
-
 func selectProject(octopus *octopusApiClient.Client, ask question.Asker, spinner factory.Spinner) (*projects.Project, error) {
 	spinner.Start()
 	existingProjects, err := octopus.Projects.GetAll()
@@ -847,7 +796,6 @@ func selectGitReference(octopus *octopusApiClient.Client, ask question.Asker, sp
 
 	allRefs := append(branches, tags...)
 
-	// TODO talk within the team about what question wording to use here. It'd be nice to guide users as to why they need a git ref
 	return question.SelectMap(ask, "Select the Git Reference to use", allRefs, func(g *projects.GitReference) string {
 		return fmt.Sprintf("%s %s", g.Name, output.Dimf("(%s)", g.Type.Description()))
 	})
