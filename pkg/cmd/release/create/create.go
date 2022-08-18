@@ -632,15 +632,44 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 
 	packageVersionBaseline, err := BuildPackageVersionBaseline(octopus, deploymentProcessTemplate, selectedChannel)
 	spinner.Stop()
-
 	if err != nil {
 		return err
 	}
-
-	err = printPackageVersions(stdout, packageVersionBaseline)
-	if err != nil {
-		return err
-	}
+	_ = printPackageVersions(stdout, packageVersionBaseline)
+	//
+	//outer:
+	//	for {
+	//		err = printPackageVersions(stdout, packageVersionBaseline)
+	//		if err != nil {
+	//			return err
+	//		}
+	//
+	//		for {
+	//			var pkgOverrideString string
+	//			if err := asker(&survey.Input{
+	//				Message: "Enter package override string, or 'y' to accept package versions",
+	//			}, &pkgOverrideString); err != nil {
+	//				return err // TODO probably handle this and loop again
+	//			}
+	//			if pkgOverrideString == "y" {
+	//				break outer
+	//			}
+	//
+	//			// TODO these should be survey validators, then we won't need two loops
+	//			ambOverride, err := ParsePackageOverride(pkgOverrideString)
+	//			if err != nil {
+	//				_, _ = fmt.Fprintf(stdout, "%s\n", err.Error())
+	//				continue
+	//			}
+	//			_, err = ResolvePackageOverride(ambOverride, packageVersionBaseline)
+	//			if err != nil {
+	//				_, _ = fmt.Fprintf(stdout, "%s\n", err.Error())
+	//				continue
+	//			}
+	//
+	//			break // print the table and prompt again
+	//		}
+	//	}
 
 	if options.Version == "" {
 		// After loading the deployment process and channel, the logic forks here:
