@@ -532,9 +532,22 @@ func applyPackageOverride(packages []*StepPackageVersion, override *PackageVersi
 		matcher = func(pkg *StepPackageVersion) bool {
 			return pkg.ActionName == override.ActionName
 		}
-	case override.PackageID != "" && override.ActionName != "": // match on both
+	case override.PackageID != "" && override.ActionName != "": // match on both; shouldn't be possible but let's ensure it works anyway
 		matcher = func(pkg *StepPackageVersion) bool {
 			return pkg.PackageID == override.PackageID && pkg.ActionName == override.ActionName
+		}
+	}
+
+	if override.PackageReferenceName != "" { // must also match package reference name
+		if matcher == nil {
+			matcher = func(pkg *StepPackageVersion) bool {
+				return pkg.PackageReferenceName == override.PackageReferenceName
+			}
+		} else {
+			prevMatcher := matcher
+			matcher = func(pkg *StepPackageVersion) bool {
+				return pkg.PackageReferenceName == override.PackageReferenceName && prevMatcher(pkg)
+			}
 		}
 	}
 

@@ -1394,4 +1394,45 @@ func TestReleaseCreate_ApplyPackageOverride(t *testing.T) {
 			{PackageID: "NuGet.CommandLine", ActionName: "Push", Version: "0.1", PackageReferenceName: "nuget-on-push"},
 		}, result)
 	})
+
+	t.Run("apply single override targeting only package-ref", func(t *testing.T) {
+		packageSpec := []*create.StepPackageVersion{
+			{PackageID: "pterm", ActionName: "Install", PackageReferenceName: "pterm-on-install", Version: "0.12"},
+			{PackageID: "pterm", ActionName: "Push", PackageReferenceName: "pterm", Version: "0.12"},
+			{PackageID: "pterm", ActionName: "Verify", PackageReferenceName: "pterm", Version: "0.12"},
+			{PackageID: "NuGet.CommandLine", ActionName: "Install", PackageReferenceName: "NuGet.CommandLine", Version: "5.4"},
+		}
+
+		result := create.ApplyPackageOverrides(packageSpec, []*create.PackageVersionOverride{
+			{PackageReferenceName: "pterm", Version: "2000"},
+		})
+
+		assert.Equal(t, []*create.StepPackageVersion{
+			{PackageID: "pterm", ActionName: "Install", PackageReferenceName: "pterm-on-install", Version: "0.12"},
+			{PackageID: "pterm", ActionName: "Push", PackageReferenceName: "pterm", Version: "2000"},
+			{PackageID: "pterm", ActionName: "Verify", PackageReferenceName: "pterm", Version: "2000"},
+			{PackageID: "NuGet.CommandLine", ActionName: "Install", PackageReferenceName: "NuGet.CommandLine", Version: "5.4"},
+		}, result)
+	})
+
+	t.Run("target both of package-ref:action where package referencename matches another package too", func(t *testing.T) {
+		// real bug observed with manual testing
+		packageSpec := []*create.StepPackageVersion{
+			{PackageID: "pterm", ActionName: "Install", PackageReferenceName: "pterm-on-install", Version: "0.12"},
+			{PackageID: "pterm", ActionName: "Push", PackageReferenceName: "pterm", Version: "0.12"},
+			{PackageID: "pterm", ActionName: "Verify", PackageReferenceName: "pterm", Version: "0.12"},
+			{PackageID: "NuGet.CommandLine", ActionName: "Install", PackageReferenceName: "NuGet.CommandLine", Version: "5.4"},
+		}
+
+		result := create.ApplyPackageOverrides(packageSpec, []*create.PackageVersionOverride{
+			{PackageReferenceName: "pterm-on-install", ActionName: "Install", Version: "20000"},
+		})
+
+		assert.Equal(t, []*create.StepPackageVersion{
+			{PackageID: "pterm", ActionName: "Install", PackageReferenceName: "pterm-on-install", Version: "20000"}, // only this one should be overridden
+			{PackageID: "pterm", ActionName: "Push", PackageReferenceName: "pterm", Version: "0.12"},
+			{PackageID: "pterm", ActionName: "Verify", PackageReferenceName: "pterm", Version: "0.12"},
+			{PackageID: "NuGet.CommandLine", ActionName: "Install", PackageReferenceName: "NuGet.CommandLine", Version: "5.4"},
+		}, result)
+	})
 }
