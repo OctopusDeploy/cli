@@ -687,6 +687,53 @@ func TestReleaseCreate_AutomationMode(t *testing.T) {
 			assert.Equal(t, "", stdErr.String())
 		}},
 
+		{"release creation specifying package default version + overrides", func(t *testing.T, api *testutil.MockHttpServer, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
+			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
+				defer api.Close()
+				rootCmd.SetArgs([]string{"release", "create", "--project", cacProject.Name, "--package-version", "1.2", "--package-override", "NuGet.CommandLine:6.12", "--package-override", "pterm:0.12.5", "--package-override", "pterm-on-deploy:pterm:0.12.7"})
+				return rootCmd.ExecuteC()
+			})
+
+			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
+
+			req := api.ExpectRequest(t, "POST", "/api/Spaces-1/releases/create/v1")
+
+			// check that it sent the server the right request body
+			requestBody, err := testutil.ReadJson[releases.CreateReleaseV1](req.Request.Body)
+			assert.Nil(t, err)
+
+			assert.Equal(t, releases.CreateReleaseV1{
+				SpaceIDOrName:   "Spaces-1",
+				ProjectIDOrName: cacProject.Name,
+				PackageVersion:  "1.2",
+				Packages: []string{
+					"NuGet.CommandLine:6.12",
+					"pterm:0.12.5",
+					"pterm-on-deploy:pterm:0.12.7",
+				},
+			}, requestBody)
+
+			req.RespondWith(&releases.CreateReleaseResponseV1{
+				ReleaseID:      "Releases-999", // new release
+				ReleaseVersion: "1.2.3",
+			})
+
+			// after it creates the release it's going to go back to the server and lookup the release by its ID
+			// so it can tell the user what channel got selected
+			releaseInfo := releases.NewRelease("Channels-32", cacProject.ID, "1.2.3")
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/releases/Releases-999").RespondWith(releaseInfo)
+
+			// and now it wants to lookup the channel name too
+			channelInfo := fixtures.NewChannel(space1.ID, "Channels-32", "Alpha channel", cacProject.ID)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/channels/Channels-32").RespondWith(channelInfo)
+
+			_, err = testutil.ReceivePair(cmdReceiver)
+			assert.Nil(t, err)
+
+			assert.Equal(t, "Successfully created release version 1.2.3 (Releases-999) using channel Alpha channel (Channels-32)\n", stdOut.String())
+			assert.Equal(t, "", stdErr.String())
+		}},
+
 		{"release creation with all the flags", func(t *testing.T, api *testutil.MockHttpServer, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
 			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
 				defer api.Close()
