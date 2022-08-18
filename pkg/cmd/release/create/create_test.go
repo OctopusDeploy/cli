@@ -895,10 +895,9 @@ func TestReleaseCreate_BuildPackageVersionBaseline(t *testing.T) {
 		assert.Equal(t, []*create.StepPackageVersion{
 			{
 				PackageID:            "pterm",
-				StepName:             "Install",
+				ActionName:           "Install",
 				Version:              "0.12.51",
 				PackageReferenceName: "pterm-on-install",
-				ActionName:           "Install",
 			},
 		}, packageVersions)
 	})
@@ -982,31 +981,27 @@ func TestReleaseCreate_BuildPackageVersionBaseline(t *testing.T) {
 		assert.Equal(t, []*create.StepPackageVersion{
 			{
 				PackageID:            "pterm",
-				StepName:             "Install",
+				ActionName:           "Install",
 				Version:              "0.12.51",
 				PackageReferenceName: "pterm-on-install",
-				ActionName:           "Install",
 			},
 			{
 				PackageID:            "pterm",
-				StepName:             "Verify",
+				ActionName:           "Verify",
 				Version:              "0.12.51",
 				PackageReferenceName: "pterm-on-verify",
-				ActionName:           "Verify",
 			},
 			{
 				PackageID:            "NuGet.CommandLine",
-				StepName:             "Install",
+				ActionName:           "Install",
 				Version:              "6.1.2",
 				PackageReferenceName: "nuget-on-install",
-				ActionName:           "Install",
 			},
 			{
 				PackageID:            "NuGet.CommandLine",
-				StepName:             "Cleanup",
+				ActionName:           "Cleanup",
 				Version:              "6.1.2",
 				PackageReferenceName: "nuget-on-cleanup",
-				ActionName:           "Cleanup",
 			},
 		}, packageVersions)
 	})
@@ -1113,31 +1108,27 @@ func TestReleaseCreate_BuildPackageVersionBaseline(t *testing.T) {
 		assert.Equal(t, []*create.StepPackageVersion{
 			{
 				PackageID:            "pterm",
-				StepName:             "Install",
+				ActionName:           "Install",
 				Version:              "0.12.51",
 				PackageReferenceName: "pterm-on-install",
-				ActionName:           "Install",
 			},
 			{
 				PackageID:            "pterm",
-				StepName:             "Verify",
+				ActionName:           "Verify",
 				Version:              "0.12.51",
 				PackageReferenceName: "pterm-on-verify",
-				ActionName:           "Verify",
 			},
 			{
 				PackageID:            "NuGet.CommandLine",
-				StepName:             "Install",
+				ActionName:           "Install",
 				Version:              "6.1.2",
 				PackageReferenceName: "nuget-on-install",
-				ActionName:           "Install",
 			},
 			{
 				PackageID:            "NuGet.CommandLine",
-				StepName:             "Cleanup",
+				ActionName:           "Cleanup",
 				Version:              "5.4.1-prerelease",
 				PackageReferenceName: "nuget-on-cleanup",
-				ActionName:           "Cleanup",
 			},
 		}, packageVersions)
 	})
@@ -1149,21 +1140,21 @@ func TestReleaseCreate_ParsePackageOverride(t *testing.T) {
 		expect    *create.PackageVersionOverride
 		expectErr error
 	}{
-		{input: "5", expect: &create.PackageVersionOverride{StepName: "", PackageID: "", Version: "5"}},
-		{input: ":5", expect: &create.PackageVersionOverride{StepName: "", PackageID: "", Version: "5"}},
-		{input: "::5", expect: &create.PackageVersionOverride{StepName: "", PackageID: "", Version: "5"}},
-		{input: "*:5", expect: &create.PackageVersionOverride{StepName: "", PackageID: "", Version: "5"}},
-		{input: "*:*:5", expect: &create.PackageVersionOverride{StepName: "", PackageID: "", Version: "5"}},
-		{input: ":*:5", expect: &create.PackageVersionOverride{StepName: "", PackageID: "", Version: "5"}},
-		{input: "Install:NuGet:0.1", expect: &create.PackageVersionOverride{StepName: "Install", PackageID: "NuGet", Version: "0.1"}},
-		{input: "Push Package:pterm:9.7-pre-xyz", expect: &create.PackageVersionOverride{StepName: "Push Package", PackageID: "pterm", Version: "9.7-pre-xyz"}},
-		{input: "pterm:55", expect: &create.PackageVersionOverride{StepName: "", PackageID: "pterm", Version: "55"}},
-		{input: ":pterm:55", expect: &create.PackageVersionOverride{StepName: "", PackageID: "pterm", Version: "55"}},
-		{input: "Push Package::55", expect: &create.PackageVersionOverride{StepName: "Push Package", PackageID: "", Version: "55"}},
-		{input: "Push Package:*:55", expect: &create.PackageVersionOverride{StepName: "Push Package", PackageID: "", Version: "55"}},
+		{input: "5", expect: &create.PackageVersionOverride{ActionName: "", PackageID: "", Version: "5"}},
+		{input: ":5", expect: &create.PackageVersionOverride{ActionName: "", PackageID: "", Version: "5"}},
+		{input: "::5", expect: &create.PackageVersionOverride{ActionName: "", PackageID: "", Version: "5"}},
+		{input: "*:5", expect: &create.PackageVersionOverride{ActionName: "", PackageID: "", Version: "5"}},
+		{input: "*:*:5", expect: &create.PackageVersionOverride{ActionName: "", PackageID: "", Version: "5"}},
+		{input: ":*:5", expect: &create.PackageVersionOverride{ActionName: "", PackageID: "", Version: "5"}},
+		{input: "Install:NuGet:0.1", expect: &create.PackageVersionOverride{ActionName: "Install", PackageID: "NuGet", Version: "0.1"}},
+		{input: "Push Package:pterm:9.7-pre-xyz", expect: &create.PackageVersionOverride{ActionName: "Push Package", PackageID: "pterm", Version: "9.7-pre-xyz"}},
+		{input: "pterm:55", expect: &create.PackageVersionOverride{ActionName: "", PackageID: "pterm", Version: "55"}},
+		{input: ":pterm:55", expect: &create.PackageVersionOverride{ActionName: "", PackageID: "pterm", Version: "55"}},
+		{input: "Push Package::55", expect: &create.PackageVersionOverride{ActionName: "Push Package", PackageID: "", Version: "55"}},
+		{input: "Push Package:*:55", expect: &create.PackageVersionOverride{ActionName: "Push Package", PackageID: "", Version: "55"}},
 
-		{input: "Push Package/pterm=9.7-pre-xyz", expect: &create.PackageVersionOverride{StepName: "Push Package", PackageID: "pterm", Version: "9.7-pre-xyz"}},
-		{input: "Push Package=pterm/9.7-pre-xyz", expect: &create.PackageVersionOverride{StepName: "Push Package", PackageID: "pterm", Version: "9.7-pre-xyz"}},
+		{input: "Push Package/pterm=9.7-pre-xyz", expect: &create.PackageVersionOverride{ActionName: "Push Package", PackageID: "pterm", Version: "9.7-pre-xyz"}},
+		{input: "Push Package=pterm/9.7-pre-xyz", expect: &create.PackageVersionOverride{ActionName: "Push Package", PackageID: "pterm", Version: "9.7-pre-xyz"}},
 
 		{input: "", expectErr: errors.New("empty package version specification")},
 		{input: "Install:pterm:nuget:5", expectErr: errors.New("package version specification Install:pterm:nuget:5 does not use expected format")},
@@ -1180,10 +1171,10 @@ func TestReleaseCreate_ParsePackageOverride(t *testing.T) {
 
 func TestReleaseCreate_ApplyPackageOverride(t *testing.T) {
 	standardPackageSpec := []*create.StepPackageVersion{
-		{PackageID: "pterm", StepName: "Install", Version: "0.12", PackageReferenceName: "pterm-on-install", ActionName: "Install"},
-		{PackageID: "pterm", StepName: "Push", Version: "0.12", PackageReferenceName: "pterm-on-push", ActionName: "Push"},
-		{PackageID: "NuGet.CommandLine", StepName: "Install", Version: "5.4", PackageReferenceName: "nuget-on-install", ActionName: "Push"},
-		{PackageID: "NuGet.CommandLine", StepName: "Push", Version: "5.4", PackageReferenceName: "nuget-on-push", ActionName: "Push"},
+		{PackageID: "pterm", ActionName: "Install", Version: "0.12", PackageReferenceName: "pterm-on-install"},
+		{PackageID: "pterm", ActionName: "Push", Version: "0.12", PackageReferenceName: "pterm-on-push"},
+		{PackageID: "NuGet.CommandLine", ActionName: "Install", Version: "5.4", PackageReferenceName: "nuget-on-install"},
+		{PackageID: "NuGet.CommandLine", ActionName: "Push", Version: "5.4", PackageReferenceName: "nuget-on-push"},
 	}
 
 	t.Run("apply wildcard override", func(t *testing.T) {
@@ -1192,10 +1183,10 @@ func TestReleaseCreate_ApplyPackageOverride(t *testing.T) {
 		})
 
 		assert.Equal(t, []*create.StepPackageVersion{
-			{PackageID: "pterm", StepName: "Install", Version: "99", PackageReferenceName: "pterm-on-install", ActionName: "Install"},
-			{PackageID: "pterm", StepName: "Push", Version: "99", PackageReferenceName: "pterm-on-push", ActionName: "Push"},
-			{PackageID: "NuGet.CommandLine", StepName: "Install", Version: "99", PackageReferenceName: "nuget-on-install", ActionName: "Push"},
-			{PackageID: "NuGet.CommandLine", StepName: "Push", Version: "99", PackageReferenceName: "nuget-on-push", ActionName: "Push"},
+			{PackageID: "pterm", ActionName: "Install", Version: "99", PackageReferenceName: "pterm-on-install"},
+			{PackageID: "pterm", ActionName: "Push", Version: "99", PackageReferenceName: "pterm-on-push"},
+			{PackageID: "NuGet.CommandLine", ActionName: "Install", Version: "99", PackageReferenceName: "nuget-on-install"},
+			{PackageID: "NuGet.CommandLine", ActionName: "Push", Version: "99", PackageReferenceName: "nuget-on-push"},
 		}, result)
 	})
 
@@ -1205,36 +1196,36 @@ func TestReleaseCreate_ApplyPackageOverride(t *testing.T) {
 		})
 
 		assert.Equal(t, []*create.StepPackageVersion{
-			{PackageID: "pterm", StepName: "Install", Version: "99", PackageReferenceName: "pterm-on-install", ActionName: "Install"},
-			{PackageID: "pterm", StepName: "Push", Version: "99", PackageReferenceName: "pterm-on-push", ActionName: "Push"},
-			{PackageID: "NuGet.CommandLine", StepName: "Install", Version: "5.4", PackageReferenceName: "nuget-on-install", ActionName: "Push"},
-			{PackageID: "NuGet.CommandLine", StepName: "Push", Version: "5.4", PackageReferenceName: "nuget-on-push", ActionName: "Push"},
+			{PackageID: "pterm", ActionName: "Install", Version: "99", PackageReferenceName: "pterm-on-install"},
+			{PackageID: "pterm", ActionName: "Push", Version: "99", PackageReferenceName: "pterm-on-push"},
+			{PackageID: "NuGet.CommandLine", ActionName: "Install", Version: "5.4", PackageReferenceName: "nuget-on-install"},
+			{PackageID: "NuGet.CommandLine", ActionName: "Push", Version: "5.4", PackageReferenceName: "nuget-on-push"},
 		}, result)
 	})
 
 	t.Run("apply one override based on step name", func(t *testing.T) {
 		result := create.ApplyPackageOverrides(standardPackageSpec, []*create.PackageVersionOverride{
-			{StepName: "Install", Version: "99"},
+			{ActionName: "Install", Version: "99"},
 		})
 
 		assert.Equal(t, []*create.StepPackageVersion{
-			{PackageID: "pterm", StepName: "Install", Version: "99", PackageReferenceName: "pterm-on-install", ActionName: "Install"},
-			{PackageID: "pterm", StepName: "Push", Version: "0.12", PackageReferenceName: "pterm-on-push", ActionName: "Push"},
-			{PackageID: "NuGet.CommandLine", StepName: "Install", Version: "99", PackageReferenceName: "nuget-on-install", ActionName: "Push"},
-			{PackageID: "NuGet.CommandLine", StepName: "Push", Version: "5.4", PackageReferenceName: "nuget-on-push", ActionName: "Push"},
+			{PackageID: "pterm", ActionName: "Install", Version: "99", PackageReferenceName: "pterm-on-install"},
+			{PackageID: "pterm", ActionName: "Push", Version: "0.12", PackageReferenceName: "pterm-on-push"},
+			{PackageID: "NuGet.CommandLine", ActionName: "Install", Version: "99", PackageReferenceName: "nuget-on-install"},
+			{PackageID: "NuGet.CommandLine", ActionName: "Push", Version: "5.4", PackageReferenceName: "nuget-on-push"},
 		}, result)
 	})
 
 	t.Run("apply one override based on both package and step name", func(t *testing.T) {
 		result := create.ApplyPackageOverrides(standardPackageSpec, []*create.PackageVersionOverride{
-			{PackageID: "pterm", StepName: "Install", Version: "99"},
+			{PackageID: "pterm", ActionName: "Install", Version: "99"},
 		})
 
 		assert.Equal(t, []*create.StepPackageVersion{
-			{PackageID: "pterm", StepName: "Install", Version: "99", PackageReferenceName: "pterm-on-install", ActionName: "Install"},
-			{PackageID: "pterm", StepName: "Push", Version: "0.12", PackageReferenceName: "pterm-on-push", ActionName: "Push"},
-			{PackageID: "NuGet.CommandLine", StepName: "Install", Version: "5.4", PackageReferenceName: "nuget-on-install", ActionName: "Push"},
-			{PackageID: "NuGet.CommandLine", StepName: "Push", Version: "5.4", PackageReferenceName: "nuget-on-push", ActionName: "Push"},
+			{PackageID: "pterm", ActionName: "Install", Version: "99", PackageReferenceName: "pterm-on-install"},
+			{PackageID: "pterm", ActionName: "Push", Version: "0.12", PackageReferenceName: "pterm-on-push"},
+			{PackageID: "NuGet.CommandLine", ActionName: "Install", Version: "5.4", PackageReferenceName: "nuget-on-install"},
+			{PackageID: "NuGet.CommandLine", ActionName: "Push", Version: "5.4", PackageReferenceName: "nuget-on-push"},
 		}, result)
 	})
 
@@ -1242,29 +1233,29 @@ func TestReleaseCreate_ApplyPackageOverride(t *testing.T) {
 		result := create.ApplyPackageOverrides(standardPackageSpec, []*create.PackageVersionOverride{
 			{Version: "0.1"},
 			{PackageID: "pterm", Version: "2"},
-			{PackageID: "NuGet.CommandLine", StepName: "Push", Version: "6"},
+			{PackageID: "NuGet.CommandLine", ActionName: "Push", Version: "6"},
 		})
 
 		assert.Equal(t, []*create.StepPackageVersion{
-			{PackageID: "pterm", StepName: "Install", Version: "2", PackageReferenceName: "pterm-on-install", ActionName: "Install"},
-			{PackageID: "pterm", StepName: "Push", Version: "2", PackageReferenceName: "pterm-on-push", ActionName: "Push"},
-			{PackageID: "NuGet.CommandLine", StepName: "Install", Version: "0.1", PackageReferenceName: "nuget-on-install", ActionName: "Push"},
-			{PackageID: "NuGet.CommandLine", StepName: "Push", Version: "6", PackageReferenceName: "nuget-on-push", ActionName: "Push"},
+			{PackageID: "pterm", ActionName: "Install", Version: "2", PackageReferenceName: "pterm-on-install"},
+			{PackageID: "pterm", ActionName: "Push", Version: "2", PackageReferenceName: "pterm-on-push"},
+			{PackageID: "NuGet.CommandLine", ActionName: "Install", Version: "0.1", PackageReferenceName: "nuget-on-install"},
+			{PackageID: "NuGet.CommandLine", ActionName: "Push", Version: "6", PackageReferenceName: "nuget-on-push"},
 		}, result)
 	})
 
 	t.Run("apply multiple overrides; order matters", func(t *testing.T) {
 		result := create.ApplyPackageOverrides(standardPackageSpec, []*create.PackageVersionOverride{
 			{PackageID: "pterm", Version: "2"},
-			{PackageID: "NuGet.CommandLine", StepName: "Push", Version: "6"},
+			{PackageID: "NuGet.CommandLine", ActionName: "Push", Version: "6"},
 			{Version: "0.1"}, // overwrites everything
 		})
 
 		assert.Equal(t, []*create.StepPackageVersion{
-			{PackageID: "pterm", StepName: "Install", Version: "0.1", PackageReferenceName: "pterm-on-install", ActionName: "Install"},
-			{PackageID: "pterm", StepName: "Push", Version: "0.1", PackageReferenceName: "pterm-on-push", ActionName: "Push"},
-			{PackageID: "NuGet.CommandLine", StepName: "Install", Version: "0.1", PackageReferenceName: "nuget-on-install", ActionName: "Push"},
-			{PackageID: "NuGet.CommandLine", StepName: "Push", Version: "0.1", PackageReferenceName: "nuget-on-push", ActionName: "Push"},
+			{PackageID: "pterm", ActionName: "Install", Version: "0.1", PackageReferenceName: "pterm-on-install"},
+			{PackageID: "pterm", ActionName: "Push", Version: "0.1", PackageReferenceName: "pterm-on-push"},
+			{PackageID: "NuGet.CommandLine", ActionName: "Install", Version: "0.1", PackageReferenceName: "nuget-on-install"},
+			{PackageID: "NuGet.CommandLine", ActionName: "Push", Version: "0.1", PackageReferenceName: "nuget-on-push"},
 		}, result)
 	})
 }

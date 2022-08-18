@@ -4,8 +4,8 @@ github.com/MakeNowJust/heredoc/v2 v2.0.1 h1:rlCHh70XXXv7toz95ajQWOWQnN4WNLt0TdpZ
 github.com/MakeNowJust/heredoc/v2 v2.0.1/go.mod h1:6/2Abh5s+hc3g9nbWLe9ObDIOhaRrqsyY9MWy+4JdRM=
 github.com/Netflix/go-expect v0.0.0-20220104043353-73e0943537d2 h1:+vx7roKuyA63nhn5WAunQHLTznkw5W8b1Xc0dNjp83s=
 github.com/Netflix/go-expect v0.0.0-20220104043353-73e0943537d2/go.mod h1:HBCaDeC1lPdgDeDbhX8XFpy1jqjK0IBG8W5K+xYqA0w=
-github.com/OctopusDeploy/go-octopusdeploy/v2 v2.3.2 h1:w9ghyfq2bDfJvcS6HILPA4xch2Vui4RH9aPPre6oe3Y=
-github.com/OctopusDeploy/go-octopusdeploy/v2 v2.3.2/go.mod h1:Fa2zv2io46wAvWaaCKIbrNG1FW3qj7KtBpXj19dWKiE=
+github.com/OctopusDeploy/go-octopusdeploy/v2 v2.3.3 h1:8TUtdkQqH0dNrdkETCAGk6mK8WuH8GHs/BMU3L1tsPE=
+github.com/OctopusDeploy/go-octopusdeploy/v2 v2.3.3/go.mod h1:Fa2zv2io46wAvWaaCKIbrNG1FW3qj7KtBpXj19dWKiE=
 github.com/briandowns/spinner v1.19.0 h1:s8aq38H+Qju89yhp89b4iIiMzMm8YN3p6vGpwyh/a8E=
 github.com/briandowns/spinner v1.19.0/go.mod h1:mQak9GHqbspjC/5iUx3qMlIho8xBS/ppAL/hX5SmPJU=
 github.com/cpuguy83/go-md2man/v2 v2.0.2/go.mod h1:tgQtvFlXSQOSOSIRvRPT7W67SCa46tRHOmNcaadrF8o=

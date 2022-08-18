@@ -2,10 +2,12 @@ module github.com/OctopusDeploy/cli
 
 go 1.18
 
+//replace github.com/OctopusDeploy/go-octopusdeploy/v2 => ../go-octopusdeploy
+
 require (
 	github.com/AlecAivazis/survey/v2 v2.3.5
 	github.com/MakeNowJust/heredoc/v2 v2.0.1
-	github.com/OctopusDeploy/go-octopusdeploy/v2 v2.3.2
+	github.com/OctopusDeploy/go-octopusdeploy/v2 v2.3.3
 	github.com/briandowns/spinner v1.19.0
 	github.com/google/uuid v1.3.0
 	github.com/hashicorp/go-multierror v1.1.1

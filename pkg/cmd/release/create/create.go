@@ -179,14 +179,12 @@ func createRun(cmd *cobra.Command, f factory.Factory) error {
 
 type StepPackageVersion struct {
 	// these 3 fields are the main ones for showing the user
-	PackageID string
-	StepName  string // do we also need step ID?
-	Version   string
-	//FeedID    string
+	PackageID  string
+	ActionName string // "StepName is an obsolete alias for ActionName, they always contain the same value"
+	Version    string
 
 	// used to locate the deployment process VersioningStrategy Donor Package
 	PackageReferenceName string
-	ActionName           string
 }
 
 // buildPackageVersionBaseline loads the deployment process template from the server, and for each step+package therein,
@@ -256,9 +254,8 @@ func BuildPackageVersionBaseline(octopus *octopusApiClient.Client, deploymentPro
 			if cachedVersion, ok := cache[query]; ok {
 				result = append(result, &StepPackageVersion{
 					PackageID:            packageRef.PackageID,
-					StepName:             packageRef.StepName,
-					PackageReferenceName: packageRef.PackageReferenceName,
 					ActionName:           packageRef.ActionName,
+					PackageReferenceName: packageRef.PackageReferenceName,
 					Version:              cachedVersion,
 				})
 			} else { // uncached; ask the server
@@ -271,9 +268,8 @@ func BuildPackageVersionBaseline(octopus *octopusApiClient.Client, deploymentPro
 					cache[query] = versions.Items[0].Version
 					result = append(result, &StepPackageVersion{
 						PackageID:            packageRef.PackageID,
-						StepName:             packageRef.StepName,
-						PackageReferenceName: packageRef.PackageReferenceName,
 						ActionName:           packageRef.ActionName,
+						PackageReferenceName: packageRef.PackageReferenceName,
 						Version:              versions.Items[0].Version,
 					})
 				} // else no suitable package versions. what do we do with this? What about caching?
@@ -284,9 +280,9 @@ func BuildPackageVersionBaseline(octopus *octopusApiClient.Client, deploymentPro
 }
 
 type PackageVersionOverride struct {
-	StepName  string // optional, but one or both of StepName or PackageID must be supplied
-	PackageID string // optional, but one or both of StepName or PackageID must be supplied
-	Version   string // required
+	ActionName string // optional, but one or both of ActionName or PackageID must be supplied
+	PackageID  string // optional, but one or both of ActionName or PackageID must be supplied
+	Version    string // required
 }
 
 // splitPackageOverrideString splits the input string into components based on delimiter characters.
@@ -367,9 +363,9 @@ func ParsePackageOverride(packageOverride string) (*PackageVersionOverride, erro
 	}
 
 	return &PackageVersionOverride{
-		StepName:  stepName,
-		PackageID: packageID,
-		Version:   version,
+		ActionName: stepName,
+		PackageID:  packageID,
+		Version:    version,
 	}, nil
 }
 
@@ -388,21 +384,21 @@ func applyPackageOverride(packages []*StepPackageVersion, override *PackageVersi
 	var matcher func(pkg *StepPackageVersion) bool = nil
 
 	switch {
-	case override.PackageID == "" && override.StepName == "": // match everything
+	case override.PackageID == "" && override.ActionName == "": // match everything
 		matcher = func(pkg *StepPackageVersion) bool {
 			return true
 		}
-	case override.PackageID != "" && override.StepName == "": // match on package ID only
+	case override.PackageID != "" && override.ActionName == "": // match on package ID only
 		matcher = func(pkg *StepPackageVersion) bool {
 			return pkg.PackageID == override.PackageID
 		}
-	case override.PackageID == "" && override.StepName != "": // match on step only
+	case override.PackageID == "" && override.ActionName != "": // match on step only
 		matcher = func(pkg *StepPackageVersion) bool {
-			return pkg.StepName == override.StepName
+			return pkg.ActionName == override.ActionName
 		}
-	case override.PackageID != "" && override.StepName != "": // match on both
+	case override.PackageID != "" && override.ActionName != "": // match on both
 		matcher = func(pkg *StepPackageVersion) bool {
-			return pkg.PackageID == override.PackageID && pkg.StepName == override.StepName
+			return pkg.PackageID == override.PackageID && pkg.ActionName == override.ActionName
 		}
 	}
 
@@ -415,9 +411,8 @@ func applyPackageOverride(packages []*StepPackageVersion, override *PackageVersi
 		if matcher(p) {
 			result[i] = &StepPackageVersion{
 				PackageID:            p.PackageID,
-				StepName:             p.StepName,
-				PackageReferenceName: p.PackageReferenceName,
 				ActionName:           p.ActionName,
+				PackageReferenceName: p.PackageReferenceName,
 				Version:              override.Version, // Important bit
 			}
 		} else {
@@ -441,16 +436,16 @@ func printPackageVersions(ioWriter io.Writer, packages []*StepPackageVersion) er
 		updatedExisting := false
 		for _, entry := range consolidated {
 			if entry.PackageID == pkg.PackageID && entry.Version == pkg.Version {
-				entry.StepName = fmt.Sprintf("%s, %s", entry.StepName, pkg.StepName)
+				entry.ActionName = fmt.Sprintf("%s, %s", entry.ActionName, pkg.ActionName)
 				updatedExisting = true
 				break
 			}
 		}
 		if !updatedExisting {
 			consolidated = append(consolidated, &StepPackageVersion{
-				PackageID: pkg.PackageID,
-				Version:   pkg.Version,
-				StepName:  pkg.StepName,
+				PackageID:  pkg.PackageID,
+				Version:    pkg.Version,
+				ActionName: pkg.ActionName,
 			})
 		}
 	}
@@ -463,7 +458,7 @@ func printPackageVersions(ioWriter io.Writer, packages []*StepPackageVersion) er
 		t.AddRow(
 			pkg.PackageID,
 			pkg.Version,
-			pkg.StepName,
+			pkg.ActionName,
 		)
 	}
 
