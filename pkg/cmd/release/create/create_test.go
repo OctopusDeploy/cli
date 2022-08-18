@@ -34,7 +34,6 @@ var spinner = &testutil.FakeSpinner{}
 var rootResource = testutil.NewRootResource()
 
 func TestReleaseCreate_AskQuestions_RegularProject(t *testing.T) {
-
 	const spaceID = "Spaces-1"
 	const fireProjectID = "Projects-22"
 
@@ -1164,7 +1163,7 @@ func TestReleaseCreate_ParsePackageOverride(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.input, func(t *testing.T) {
-			result, err := create.ParsePackageOverride(test.input)
+			result, err := create.ParsePackageOverrideString(test.input)
 			assert.Equal(t, test.expectErr, err)
 			assert.Equal(t, test.expect, result)
 		})
@@ -1182,7 +1181,7 @@ func TestReleaseCreate_ResolvePackageOverride(t *testing.T) {
 
 		r, err := create.ResolvePackageOverride(nugetPackage, steps)
 		assert.Nil(t, err)
-		assert.Equal(t, &create.PackageVersionOverride{PackageID: "NuGet", ActionName: "Install", Version: "5.0", PackageReferenceName: "NuGet"}, r)
+		assert.Equal(t, &create.PackageVersionOverride{PackageID: "NuGet", ActionName: "", Version: "5.0", PackageReferenceName: ""}, r)
 	})
 
 	t.Run("match on step name", func(t *testing.T) { // this is probably the most common thing people will do
@@ -1194,7 +1193,7 @@ func TestReleaseCreate_ResolvePackageOverride(t *testing.T) {
 
 		r, err := create.ResolvePackageOverride(nugetPackage, steps)
 		assert.Nil(t, err)
-		assert.Equal(t, &create.PackageVersionOverride{PackageID: "NuGet", ActionName: "Install", Version: "5.0", PackageReferenceName: "NuGet"}, r)
+		assert.Equal(t, &create.PackageVersionOverride{PackageID: "", ActionName: "Install", Version: "5.0", PackageReferenceName: ""}, r)
 	})
 
 	t.Run("match on packageRef", func(t *testing.T) {
@@ -1207,7 +1206,7 @@ func TestReleaseCreate_ResolvePackageOverride(t *testing.T) {
 
 		r, err := create.ResolvePackageOverride(nugetPackage, steps)
 		assert.Nil(t, err)
-		assert.Equal(t, &create.PackageVersionOverride{PackageID: "NuGet", ActionName: "Verify", Version: "5.0", PackageReferenceName: "NuGet-B"}, r)
+		assert.Equal(t, &create.PackageVersionOverride{PackageID: "", ActionName: "", Version: "5.0", PackageReferenceName: "NuGet-B"}, r)
 	})
 
 	t.Run("match on action+packageRef before packageID", func(t *testing.T) { // this is probably the most common thing people will do
@@ -1220,7 +1219,7 @@ func TestReleaseCreate_ResolvePackageOverride(t *testing.T) {
 
 		r, err := create.ResolvePackageOverride(nugetPackage, steps)
 		assert.Nil(t, err)
-		assert.Equal(t, &create.PackageVersionOverride{PackageID: "NuGet", ActionName: "Verify", Version: "5.0", PackageReferenceName: "NuGet"}, r)
+		assert.Equal(t, &create.PackageVersionOverride{PackageID: "", ActionName: "Verify", Version: "5.0", PackageReferenceName: "NuGet"}, r)
 	})
 
 	t.Run("match on packageID+packageRef picks the first one where they are the same", func(t *testing.T) {
@@ -1233,7 +1232,7 @@ func TestReleaseCreate_ResolvePackageOverride(t *testing.T) {
 
 		r, err := create.ResolvePackageOverride(nugetPackage, steps)
 		assert.Nil(t, err)
-		assert.Equal(t, &create.PackageVersionOverride{PackageID: "NuGet", ActionName: "Install", Version: "5.0", PackageReferenceName: "NuGet"}, r)
+		assert.Equal(t, &create.PackageVersionOverride{PackageID: "NuGet", ActionName: "", Version: "5.0", PackageReferenceName: "NuGet"}, r)
 	})
 
 	t.Run("match on packageID+packageRef picks the correct one where they are different", func(t *testing.T) {
@@ -1246,7 +1245,7 @@ func TestReleaseCreate_ResolvePackageOverride(t *testing.T) {
 
 		r, err := create.ResolvePackageOverride(nugetPackage, steps)
 		assert.Nil(t, err)
-		assert.Equal(t, &create.PackageVersionOverride{PackageID: "NuGet", ActionName: "Verify", Version: "5.0", PackageReferenceName: "NuGet-B"}, r)
+		assert.Equal(t, &create.PackageVersionOverride{PackageID: "NuGet", ActionName: "", Version: "5.0", PackageReferenceName: "NuGet-B"}, r)
 	})
 
 	t.Run("match on packageRef wins over match on ActionName", func(t *testing.T) {
@@ -1261,7 +1260,7 @@ func TestReleaseCreate_ResolvePackageOverride(t *testing.T) {
 
 		r, err := create.ResolvePackageOverride(nugetPackage, steps)
 		assert.Nil(t, err)
-		assert.Equal(t, &create.PackageVersionOverride{PackageID: "NuGet", ActionName: "Verify", Version: "5.0", PackageReferenceName: "NuGet-B"}, r)
+		assert.Equal(t, &create.PackageVersionOverride{PackageID: "", ActionName: "", Version: "5.0", PackageReferenceName: "NuGet-B"}, r)
 	})
 
 	t.Run("match on packageRef wins over match on PackageID", func(t *testing.T) {
@@ -1276,7 +1275,7 @@ func TestReleaseCreate_ResolvePackageOverride(t *testing.T) {
 
 		r, err := create.ResolvePackageOverride(nugetPackage, steps)
 		assert.Nil(t, err)
-		assert.Equal(t, &create.PackageVersionOverride{PackageID: "NuGet", ActionName: "Verify", Version: "5.0", PackageReferenceName: "NuGet-B"}, r)
+		assert.Equal(t, &create.PackageVersionOverride{PackageID: "", ActionName: "", Version: "5.0", PackageReferenceName: "NuGet-B"}, r)
 	})
 
 }

@@ -100,6 +100,11 @@ func createRun(cmd *cobra.Command, f factory.Factory) error {
 	if value, _ := cmd.Flags().GetString(FlagPackageVersion); value != "" {
 		options.DefaultPackageVersion = value
 	}
+
+	if value, _ := cmd.Flags().GetStringSlice(FlagPackageVersionOverride); value != nil {
+		options.PackageVersionOverrides = value
+	}
+
 	if value, _ := cmd.Flags().GetString(FlagChannel); value != "" {
 		options.ChannelName = value
 	}
@@ -122,6 +127,9 @@ func createRun(cmd *cobra.Command, f factory.Factory) error {
 	if value, _ := cmd.Flags().GetBool(FlagIgnoreExisting); value {
 		options.IgnoreIfAlreadyExists = value
 	}
+	if value, _ := cmd.Flags().GetBool(FlagIgnoreChannelRules); value {
+		options.IgnoreChannelRules = value
+	}
 
 	octopus, err := f.GetSpacedClient()
 	if err != nil {
@@ -133,6 +141,8 @@ func createRun(cmd *cobra.Command, f factory.Factory) error {
 		if err != nil {
 			return err
 		}
+
+		cmd.Printf("invocation: release create %s\n", ToCmdFlags(options))
 	}
 
 	// the executor will raise errors if any required options are missing
@@ -171,10 +181,52 @@ func createRun(cmd *cobra.Command, f factory.Factory) error {
 			}
 		}
 
-		// TODO AutomaticallyDeployedEnvironments. Discuss with Team
+		// response also returns AutomaticallyDeployedEnvironments, which was a failed feature; we should ignore it.
 	}
 
 	return nil
+}
+
+func quoteStringIfRequired(str string) string {
+	for _, c := range str {
+		if c == ' ' || c == '\t' { // TODO golang probably has a proper 'IsWhitespace'; look for that
+			return fmt.Sprintf("\"%s\"", str)
+		}
+	}
+	return str
+}
+
+// ToCmdFlags generates the command line switches that you'd need to type in to make this work in automation mode.
+// TODO sync this with whatever dom has done; this is a big one-off hack
+func ToCmdFlags(t *executor.TaskOptionsCreateRelease) string {
+	components := make([]string, 0, 20)
+
+	appendComponent := func(flag string, value string) {
+		if value != "" {
+			components = append(components, flag)
+			components = append(components, quoteStringIfRequired(value))
+		}
+	}
+
+	appendComponent("-p", t.ProjectName)
+	appendComponent("--"+FlagGitCommit, t.GitCommit)
+	appendComponent("-r", t.GitReference)
+	appendComponent("-c", t.ChannelName)
+	appendComponent("--"+FlagReleaseNotes, t.ReleaseNotes)
+	if t.IgnoreIfAlreadyExists {
+		components = append(components, "--"+FlagIgnoreExisting)
+	}
+	if t.IgnoreChannelRules {
+		components = append(components, "--"+FlagIgnoreChannelRules)
+	}
+	for _, ov := range t.PackageVersionOverrides {
+		components = append(components, "-o")
+		components = append(components, quoteStringIfRequired(ov))
+	}
+
+	// version always goes at the end so if people copy/paste the commandline it's easy to tweak
+	appendComponent("-v", t.Version)
+	return strings.Join(components, " ")
 }
 
 type StepPackageVersion struct {
@@ -272,7 +324,7 @@ func BuildPackageVersionBaseline(octopus *octopusApiClient.Client, deploymentPro
 						PackageReferenceName: packageRef.PackageReferenceName,
 						Version:              versions.Items[0].Version,
 					})
-				} // else no suitable package versions. what do we do with this? What about caching?
+				} // else no suitable package versions. what do we do with this? hard fail?
 			}
 		}
 	}
@@ -284,6 +336,27 @@ type PackageVersionOverride struct {
 	PackageID            string // optional, but one or both of ActionName or PackageID must be supplied
 	PackageReferenceName string // optional; use for advanced situations where the same package is referenced multiple times by a single step
 	Version              string // required
+}
+
+// ToPackageOverrideString converts the struct back into a string which the server can parse e.g. StepName:Version.
+// This is the inverse of ParsePackageOverrideString
+func (p *PackageVersionOverride) ToPackageOverrideString() string {
+	components := make([]string, 0, 3)
+	if p.PackageReferenceName != "" {
+		components = append(components, p.PackageReferenceName)
+	}
+	if p.PackageID != "" {
+		components = append(components, p.PackageID)
+	} else if p.ActionName != "" { // can't have both PackageID and ActionName; PackageID wins
+		components = append(components, p.ActionName)
+	}
+
+	if len(components) == 1 { // the server can't deal with just a number by itself; if we want to override everything we must pass *:Version
+		components = append(components, "*")
+	}
+	components = append(components, p.Version)
+
+	return strings.Join(components, ":")
 }
 
 // splitPackageOverrideString splits the input string into components based on delimiter characters.
@@ -334,10 +407,10 @@ type AmbiguousPackageVersionOverride struct {
 	Version               string
 }
 
-// ParsePackageOverride parses a package version override string into a structure.
+// ParsePackageOverrideString parses a package version override string into a structure.
 // Logic should align with PackageVersionResolver in the Octopus Server and .NET CLI
 // In cases where things are ambiguous, we look in steps for matching values to see if something is a PackageID or a StepName
-func ParsePackageOverride(packageOverride string) (*AmbiguousPackageVersionOverride, error) {
+func ParsePackageOverrideString(packageOverride string) (*AmbiguousPackageVersionOverride, error) {
 	if packageOverride == "" {
 		return nil, errors.New("empty package version specification")
 	}
@@ -390,26 +463,28 @@ func ResolvePackageOverride(override *AmbiguousPackageVersionOverride, steps []*
 	//  - then match on stepName + *
 	//  - then match on packageID + *
 	type match struct {
-		priority int
-		pkg      *StepPackageVersion
+		priority             int
+		actionName           string // if set we matched on actionName, else we didn't
+		packageID            string // if set we matched on packageID, else we didn't
+		packageReferenceName string // if set we matched on packageReferenceName, else we didn't
 	}
 
 	matches := make([]match, 0, 2) // common case is likely to be 2; if we have a packageID then we may match both exactly and partially on the ID depending on referenceName
 	for _, p := range steps {
 		if p.ActionName != "" && p.ActionName == actionNameOrPackageID {
 			if p.PackageReferenceName == override.PackageReferenceName {
-				matches = append(matches, match{priority: 100, pkg: p})
+				matches = append(matches, match{priority: 100, actionName: p.ActionName, packageReferenceName: p.PackageReferenceName})
 			} else {
-				matches = append(matches, match{priority: 50, pkg: p})
+				matches = append(matches, match{priority: 50, actionName: p.ActionName})
 			}
 		} else if p.PackageID != "" && p.PackageID == actionNameOrPackageID {
 			if p.PackageReferenceName == override.PackageReferenceName {
-				matches = append(matches, match{priority: 90, pkg: p})
+				matches = append(matches, match{priority: 90, packageID: p.PackageID, packageReferenceName: p.PackageReferenceName})
 			} else {
-				matches = append(matches, match{priority: 40, pkg: p})
+				matches = append(matches, match{priority: 40, packageID: p.PackageID})
 			}
 		} else if p.PackageReferenceName != "" && p.PackageReferenceName == override.PackageReferenceName {
-			matches = append(matches, match{priority: 80, pkg: p})
+			matches = append(matches, match{priority: 80, packageReferenceName: p.PackageReferenceName})
 		}
 	}
 
@@ -420,15 +495,12 @@ func ResolvePackageOverride(override *AmbiguousPackageVersionOverride, steps []*
 		return matches[i].priority > matches[j].priority
 	})
 
-	p := matches[0].pkg
-
 	return &PackageVersionOverride{
-		ActionName:           p.ActionName,
-		PackageID:            p.PackageID,
-		PackageReferenceName: p.PackageReferenceName,
+		ActionName:           matches[0].actionName,
+		PackageID:            matches[0].packageID,
+		PackageReferenceName: matches[0].packageReferenceName,
 		Version:              override.Version,
 	}, nil
-
 }
 
 func ApplyPackageOverrides(packages []*StepPackageVersion, overrides []*PackageVersionOverride) []*StepPackageVersion {
@@ -440,7 +512,7 @@ func ApplyPackageOverrides(packages []*StepPackageVersion, overrides []*PackageV
 
 func applyPackageOverride(packages []*StepPackageVersion, override *PackageVersionOverride) []*StepPackageVersion {
 	if override.Version == "" {
-		return packages // not specifying a version is technically an error, but we'll just no-op it for safety; should have been filtered out by ParsePackageOverride before we get here
+		return packages // not specifying a version is technically an error, but we'll just no-op it for safety; should have been filtered out by ParsePackageOverrideString before we get here
 	}
 
 	var matcher func(pkg *StepPackageVersion) bool = nil
@@ -465,7 +537,7 @@ func applyPackageOverride(packages []*StepPackageVersion, override *PackageVersi
 	}
 
 	if matcher == nil {
-		return packages // we can't possibly match against anything; no-op. Should have been filtered out by ParsePackageOverride
+		return packages // we can't possibly match against anything; no-op. Should have been filtered out by ParsePackageOverrideString
 	}
 
 	result := make([]*StepPackageVersion, len(packages))
@@ -494,11 +566,19 @@ func printPackageVersions(ioWriter io.Writer, packages []*StepPackageVersion) er
 	consolidated := make([]*StepPackageVersion, 0, len(packages))
 	for _, pkg := range packages {
 
+		// the common case is that packageReferenceName will be equal to PackageID.
+		// however, in advanced cases it may not be, so we need to do extra work to show the packageReferenceName too.
+		// we suffix it onto the step name, following the web UI
+		qualifiedPkgActionName := pkg.ActionName
+		if pkg.PackageID != pkg.PackageReferenceName {
+			qualifiedPkgActionName = fmt.Sprintf("%s/%s", qualifiedPkgActionName, pkg.PackageReferenceName)
+		}
+
 		// find existing entry and update it if possible
 		updatedExisting := false
 		for _, entry := range consolidated {
 			if entry.PackageID == pkg.PackageID && entry.Version == pkg.Version {
-				entry.ActionName = fmt.Sprintf("%s, %s", entry.ActionName, pkg.ActionName)
+				entry.ActionName = fmt.Sprintf("%s, %s", entry.ActionName, qualifiedPkgActionName)
 				updatedExisting = true
 				break
 			}
@@ -507,7 +587,7 @@ func printPackageVersions(ioWriter io.Writer, packages []*StepPackageVersion) er
 			consolidated = append(consolidated, &StepPackageVersion{
 				PackageID:  pkg.PackageID,
 				Version:    pkg.Version,
-				ActionName: pkg.ActionName,
+				ActionName: qualifiedPkgActionName,
 			})
 		}
 	}
@@ -631,45 +711,82 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 	}
 
 	packageVersionBaseline, err := BuildPackageVersionBaseline(octopus, deploymentProcessTemplate, selectedChannel)
+	packageVersionOverrides := make([]*PackageVersionOverride, 0)
+
+	// pickup any partial package specifications that may have arrived on the commandline
+	for _, s := range options.PackageVersionOverrides {
+		ambOverride, err := ParsePackageOverrideString(s)
+		if err != nil {
+			continue // silently ignore anything that wasn't parseable (TODO should we emit a warning?)
+		}
+		resolvedOverride, err := ResolvePackageOverride(ambOverride, packageVersionBaseline)
+		if err != nil {
+			continue // silently ignore anything that wasn't parseable (TODO should we emit a warning?)
+		}
+		packageVersionOverrides = append(packageVersionOverrides, resolvedOverride)
+	}
+
+	overriddenPackageVersions := ApplyPackageOverrides(packageVersionBaseline, packageVersionOverrides)
+
 	spinner.Stop()
 	if err != nil {
 		return err
 	}
-	_ = printPackageVersions(stdout, packageVersionBaseline)
-	//
-	//outer:
-	//	for {
-	//		err = printPackageVersions(stdout, packageVersionBaseline)
-	//		if err != nil {
-	//			return err
-	//		}
-	//
-	//		for {
-	//			var pkgOverrideString string
-	//			if err := asker(&survey.Input{
-	//				Message: "Enter package override string, or 'y' to accept package versions",
-	//			}, &pkgOverrideString); err != nil {
-	//				return err // TODO probably handle this and loop again
-	//			}
-	//			if pkgOverrideString == "y" {
-	//				break outer
-	//			}
-	//
-	//			// TODO these should be survey validators, then we won't need two loops
-	//			ambOverride, err := ParsePackageOverride(pkgOverrideString)
-	//			if err != nil {
-	//				_, _ = fmt.Fprintf(stdout, "%s\n", err.Error())
-	//				continue
-	//			}
-	//			_, err = ResolvePackageOverride(ambOverride, packageVersionBaseline)
-	//			if err != nil {
-	//				_, _ = fmt.Fprintf(stdout, "%s\n", err.Error())
-	//				continue
-	//			}
-	//
-	//			break // print the table and prompt again
-	//		}
-	//	}
+
+	for {
+		err = printPackageVersions(stdout, overriddenPackageVersions)
+		if err != nil {
+			return err
+		}
+
+		var resolvedOverride *PackageVersionOverride = nil
+		var answer = ""
+
+		err := asker(&survey.Input{
+			Message: "Enter package override string, or 'y' to accept package versions",
+		}, &answer, survey.WithValidator(func(ans interface{}) error {
+			str, ok := ans.(string)
+			if !ok {
+				return errors.New("internal error; answer was not a string")
+			}
+
+			if str == "y" || str == "" { // valid response for continuing the loop; don't attempt to parse this
+				return nil
+			}
+
+			ambOverride, err := ParsePackageOverrideString(str)
+			if err != nil {
+				return err
+			}
+			resolvedOverride, err = ResolvePackageOverride(ambOverride, packageVersionBaseline)
+			if err != nil {
+				return err
+			}
+
+			return nil // good!
+		}))
+
+		if err != nil {
+			return err // TODO probably handle this and loop again
+		}
+		if answer == "y" { // YES these are the packages they want
+			break
+		}
+
+		if resolvedOverride != nil {
+			packageVersionOverrides = append(packageVersionOverrides, resolvedOverride)
+			// always reset to the baseline and apply everything in order, there's less room for logic errors
+			overriddenPackageVersions = ApplyPackageOverrides(packageVersionBaseline, packageVersionOverrides)
+		}
+		// else the user most likely typed an empty string, loop around
+	}
+
+	if len(packageVersionOverrides) > 0 {
+		options.PackageVersionOverrides = make([]string, 0, len(packageVersionOverrides))
+		for _, ov := range packageVersionOverrides {
+			options.PackageVersionOverrides = append(options.PackageVersionOverrides, ov.ToPackageOverrideString())
+		}
+	}
 
 	if options.Version == "" {
 		// After loading the deployment process and channel, the logic forks here:
@@ -698,7 +815,7 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 		if versioningStrategy.DonorPackageStepID != nil || versioningStrategy.DonorPackage != nil {
 			// we've already done the package version work so we can just ask the donor package which version it has selected
 			var donorPackage *StepPackageVersion
-			for _, pkg := range packageVersionBaseline {
+			for _, pkg := range overriddenPackageVersions {
 				if pkg.PackageReferenceName == versioningStrategy.DonorPackage.PackageReference && pkg.ActionName == versioningStrategy.DonorPackage.DeploymentAction {
 					donorPackage = pkg
 					break

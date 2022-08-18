@@ -22,6 +22,7 @@ type TaskOptionsCreateRelease struct {
 	ChannelName             string   // optional
 	ReleaseNotes            string   // optional
 	IgnoreIfAlreadyExists   bool     // optional
+	IgnoreChannelRules      bool     // optional
 	PackageVersionOverrides []string // optional
 	// if the task succeeds, the resulting output will be stored here
 	Response *releases.CreateReleaseResponseV1
@@ -61,6 +62,10 @@ func releaseCreate(octopus *client.Client, space *spaces.Space, input any) error
 		createReleaseParams.PackageVersion = params.DefaultPackageVersion
 	}
 
+	if len(params.PackageVersionOverrides) > 0 {
+		createReleaseParams.Packages = params.PackageVersionOverrides
+	}
+
 	if params.GitCommit != "" {
 		createReleaseParams.GitCommit = params.GitCommit
 	}
@@ -75,17 +80,15 @@ func releaseCreate(octopus *client.Client, space *spaces.Space, input any) error
 		createReleaseParams.ChannelIDOrName = params.ChannelName
 	}
 
-	// TODO Packages here
-
 	if params.ReleaseNotes != "" {
 		createReleaseParams.ReleaseNotes = params.ReleaseNotes
 	}
 
-	// TODO IgnoreIfAlreadyExists
+	createReleaseParams.IgnoreIfAlreadyExists = params.IgnoreIfAlreadyExists
+	createReleaseParams.IgnoreChannelRules = params.IgnoreChannelRules
 
-	// TODO IgnoreChannelRules
-
-	// TODO PackagePrerelease
+	// TODO what is PackagePrerelease and do we need it?
+	// createReleaseParams.PackagePrerelease = params.PackagePrerelease
 
 	createReleaseResponse, err := octopus.Releases.CreateV1(createReleaseParams)
 	if err != nil {
