@@ -1133,7 +1133,33 @@ func TestReleaseCreate_BuildPackageVersionBaseline(t *testing.T) {
 	})
 }
 
-func TestReleaseCreate_ParsePackageOverride(t *testing.T) {
+func TestReleaseCreate_ToPackageOverrideString(t *testing.T) {
+	tests := []struct {
+		name   string
+		input  *create.PackageVersionOverride
+		expect string
+	}{
+		{name: "ver-only", input: &create.PackageVersionOverride{Version: "0.12"}, expect: "*:0.12"},
+		{name: "action-ver", input: &create.PackageVersionOverride{ActionName: "Install", Version: "0.12"}, expect: "Install:0.12"},
+		{name: "action-ver-2", input: &create.PackageVersionOverride{ActionName: "Verify", Version: "6.1.2-beta"}, expect: "Verify:6.1.2-beta"},
+		{name: "pkg-ver", input: &create.PackageVersionOverride{PackageID: "pterm", Version: "0.12"}, expect: "pterm:0.12"},
+		{name: "pkg-ver-2", input: &create.PackageVersionOverride{PackageID: "NuGet.CommandLine", Version: "6.1.2-beta"}, expect: "NuGet.CommandLine:6.1.2-beta"},
+		{name: "pkg-action-ver", input: &create.PackageVersionOverride{PackageID: "pterm", ActionName: "Install", Version: "0.12"}, expect: "pterm:0.12"}, // this isn't valid, but if it did happen it should pick packageID
+		{name: "ref-pkg-ver", input: &create.PackageVersionOverride{PackageReferenceName: "pterm-on-install", PackageID: "pterm", Version: "6.1.2"}, expect: "pterm-on-install:pterm:6.1.2"},
+		{name: "ref-action-ver", input: &create.PackageVersionOverride{PackageReferenceName: "pterm-on-install", ActionName: "Install", Version: "6.1.2"}, expect: "pterm-on-install:Install:6.1.2"},
+		{name: "ref-ver", input: &create.PackageVersionOverride{PackageReferenceName: "pterm-on-install", Version: "6.1.2"}, expect: "pterm-on-install:*:6.1.2"},
+		{name: "ref-pkg-action-ver", input: &create.PackageVersionOverride{PackageReferenceName: "pterm", PackageID: "pterm", ActionName: "Install", Version: "1.2.3"}, expect: "pterm:pterm:1.2.3"},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			result := test.input.ToPackageOverrideString()
+			assert.Equal(t, test.expect, result)
+		})
+	}
+}
+
+func TestReleaseCreate_ParsePackageOverrideString(t *testing.T) {
 	tests := []struct {
 		input     string
 		expect    *create.AmbiguousPackageVersionOverride
@@ -1171,7 +1197,6 @@ func TestReleaseCreate_ParsePackageOverride(t *testing.T) {
 }
 
 func TestReleaseCreate_ResolvePackageOverride(t *testing.T) {
-
 	t.Run("match on package ID", func(t *testing.T) { // this is probably the most common thing people will do
 		nugetPackage := &create.AmbiguousPackageVersionOverride{ActionNameOrPackageID: "NuGet", Version: "5.0"}
 

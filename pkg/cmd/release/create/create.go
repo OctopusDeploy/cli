@@ -349,9 +349,11 @@ func (p *PackageVersionOverride) ToPackageOverrideString() string {
 		components = append(components, p.PackageID)
 	} else if p.ActionName != "" { // can't have both PackageID and ActionName; PackageID wins
 		components = append(components, p.ActionName)
+	} else if len(components) == 1 { // if we have an explicit packagereference but no packageId or action, we need to express it with ref:*:version
+		components = append(components, "*")
 	}
 
-	if len(components) == 1 { // the server can't deal with just a number by itself; if we want to override everything we must pass *:Version
+	if len(components) == 0 { // the server can't deal with just a number by itself; if we want to override everything we must pass *:Version
 		components = append(components, "*")
 	}
 	components = append(components, p.Version)
