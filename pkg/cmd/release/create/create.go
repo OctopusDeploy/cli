@@ -573,10 +573,6 @@ func applyPackageOverride(packages []*StepPackageVersion, override *PackageVersi
 
 // Note this always uses the Table Printer, it pays no respect to outputformat=json, because it's only part of the interactive flow
 func printPackageVersions(ioWriter io.Writer, packages []*StepPackageVersion) error {
-	if len(packages) == 0 { // nothing to print
-		return nil
-	}
-
 	// step 1: consolidate multiple rows
 	consolidated := make([]*StepPackageVersion, 0, len(packages))
 	for _, pkg := range packages {
@@ -726,81 +722,87 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 	}
 
 	packageVersionBaseline, err := BuildPackageVersionBaseline(octopus, deploymentProcessTemplate, selectedChannel)
-	packageVersionOverrides := make([]*PackageVersionOverride, 0)
+	var overriddenPackageVersions []*StepPackageVersion
 
-	// pickup any partial package specifications that may have arrived on the commandline
-	for _, s := range options.PackageVersionOverrides {
-		ambOverride, err := ParsePackageOverrideString(s)
-		if err != nil {
-			continue // silently ignore anything that wasn't parseable (TODO should we emit a warning?)
+	if len(packageVersionBaseline) > 0 { // if we have packages, run the package flow
+		packageVersionOverrides := make([]*PackageVersionOverride, 0)
+
+		// pickup any partial package specifications that may have arrived on the commandline
+		for _, s := range options.PackageVersionOverrides {
+			ambOverride, err := ParsePackageOverrideString(s)
+			if err != nil {
+				continue // silently ignore anything that wasn't parseable (TODO should we emit a warning?)
+			}
+			resolvedOverride, err := ResolvePackageOverride(ambOverride, packageVersionBaseline)
+			if err != nil {
+				continue // silently ignore anything that wasn't parseable (TODO should we emit a warning?)
+			}
+			packageVersionOverrides = append(packageVersionOverrides, resolvedOverride)
 		}
-		resolvedOverride, err := ResolvePackageOverride(ambOverride, packageVersionBaseline)
-		if err != nil {
-			continue // silently ignore anything that wasn't parseable (TODO should we emit a warning?)
-		}
-		packageVersionOverrides = append(packageVersionOverrides, resolvedOverride)
-	}
 
-	overriddenPackageVersions := ApplyPackageOverrides(packageVersionBaseline, packageVersionOverrides)
+		overriddenPackageVersions = ApplyPackageOverrides(packageVersionBaseline, packageVersionOverrides)
 
-	spinner.Stop()
-	if err != nil {
-		return err
-	}
-
-	for {
-		err = printPackageVersions(stdout, overriddenPackageVersions)
+		spinner.Stop()
 		if err != nil {
 			return err
 		}
 
-		var resolvedOverride *PackageVersionOverride = nil
-		var answer = ""
-
-		err := asker(&survey.Input{
-			Message: "Enter package override string, or 'y' to accept package versions",
-		}, &answer, survey.WithValidator(func(ans interface{}) error {
-			str, ok := ans.(string)
-			if !ok {
-				return errors.New("internal error; answer was not a string")
-			}
-
-			if str == "y" || str == "" { // valid response for continuing the loop; don't attempt to parse this
-				return nil
-			}
-
-			ambOverride, err := ParsePackageOverrideString(str)
-			if err != nil {
-				return err
-			}
-			resolvedOverride, err = ResolvePackageOverride(ambOverride, packageVersionBaseline)
+		for {
+			err = printPackageVersions(stdout, overriddenPackageVersions)
 			if err != nil {
 				return err
 			}
 
-			return nil // good!
-		}))
+			var resolvedOverride *PackageVersionOverride = nil
+			var answer = ""
 
-		if err != nil {
-			return err // TODO probably handle this and loop again
-		}
-		if answer == "y" { // YES these are the packages they want
-			break
+			err := asker(&survey.Input{
+				Message: "Enter package override string, or 'y' to accept package versions",
+			}, &answer, survey.WithValidator(func(ans interface{}) error {
+				str, ok := ans.(string)
+				if !ok {
+					return errors.New("internal error; answer was not a string")
+				}
+
+				if str == "y" || str == "" { // valid response for continuing the loop; don't attempt to parse this
+					return nil
+				}
+
+				ambOverride, err := ParsePackageOverrideString(str)
+				if err != nil {
+					return err
+				}
+				resolvedOverride, err = ResolvePackageOverride(ambOverride, packageVersionBaseline)
+				if err != nil {
+					return err
+				}
+
+				return nil // good!
+			}))
+
+			if err != nil {
+				return err // TODO probably handle this and loop again
+			}
+			if answer == "y" { // YES these are the packages they want
+				break
+			}
+
+			if resolvedOverride != nil {
+				packageVersionOverrides = append(packageVersionOverrides, resolvedOverride)
+				// always reset to the baseline and apply everything in order, there's less room for logic errors
+				overriddenPackageVersions = ApplyPackageOverrides(packageVersionBaseline, packageVersionOverrides)
+			}
+			// else the user most likely typed an empty string, loop around
 		}
 
-		if resolvedOverride != nil {
-			packageVersionOverrides = append(packageVersionOverrides, resolvedOverride)
-			// always reset to the baseline and apply everything in order, there's less room for logic errors
-			overriddenPackageVersions = ApplyPackageOverrides(packageVersionBaseline, packageVersionOverrides)
+		if len(packageVersionOverrides) > 0 {
+			options.PackageVersionOverrides = make([]string, 0, len(packageVersionOverrides))
+			for _, ov := range packageVersionOverrides {
+				options.PackageVersionOverrides = append(options.PackageVersionOverrides, ov.ToPackageOverrideString())
+			}
 		}
-		// else the user most likely typed an empty string, loop around
-	}
-
-	if len(packageVersionOverrides) > 0 {
-		options.PackageVersionOverrides = make([]string, 0, len(packageVersionOverrides))
-		for _, ov := range packageVersionOverrides {
-			options.PackageVersionOverrides = append(options.PackageVersionOverrides, ov.ToPackageOverrideString())
-		}
+	} else {
+		overriddenPackageVersions = packageVersionBaseline // there aren't any, but satisfy the code below anyway
 	}
 
 	if options.Version == "" {

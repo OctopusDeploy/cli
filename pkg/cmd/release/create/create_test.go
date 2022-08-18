@@ -82,6 +82,8 @@ func TestReleaseCreate_AskQuestions_RegularProject(t *testing.T) {
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+fireProjectID+"/deploymentprocesses/template?channel=Channels-97").
 				RespondWith(&deployments.DeploymentProcessTemplate{NextVersionIncrement: "27.9.3"})
 
+			// here is where the package version prompt goes; except we have no packages so it skips it
+
 			qa.ExpectQuestion(t, &survey.Input{
 				Message: "Release Version",
 				Default: "27.9.3",
@@ -191,7 +193,10 @@ func TestReleaseCreate_AskQuestions_RegularProject(t *testing.T) {
 				Items: []*packages.PackageVersion{{PackageID: "pterm", Version: "0.12.51"}},
 			})
 
-			// but those don't affect the version so off we go
+			qa.ExpectQuestion(t, &survey.Input{
+				Message: "Enter package override string, or 'y' to accept package versions",
+				Default: "",
+			}).AnswerWith("y") // just accept all the packages; package loop is tested elsewhere
 
 			qa.ExpectQuestion(t, &survey.Input{
 				Message: "Release Version",
@@ -209,7 +214,7 @@ func TestReleaseCreate_AskQuestions_RegularProject(t *testing.T) {
 				Project Fire Project
 				Channel Fire Project Default Channel
 				PACKAGE  VERSION  STEPS
-				pterm    0.12.51  Install
+				pterm    0.12.51  Install/pterm-on-install
 				`), stdout.String())
 		}},
 
@@ -294,6 +299,11 @@ func TestReleaseCreate_AskQuestions_RegularProject(t *testing.T) {
 			})
 
 			qa.ExpectQuestion(t, &survey.Input{
+				Message: "Enter package override string, or 'y' to accept package versions",
+				Default: "",
+			}).AnswerWith("y") // just accept all the packages; package loop is tested elsewhere
+
+			qa.ExpectQuestion(t, &survey.Input{
 				Message: "Release Version",
 				Default: "6.2.1", // observing this value is the whole point of this test
 			}).AnswerWith("6.4")
@@ -311,8 +321,8 @@ func TestReleaseCreate_AskQuestions_RegularProject(t *testing.T) {
 				Project Fire Project
 				Channel Fire Project Default Channel
 				PACKAGE            VERSION  STEPS
-				pterm              0.12.51  Install, Verify
-				NuGet.CommandLine  6.2.1    Verify
+				pterm              0.12.51  Install/pterm-on-install, Verify/pterm-on-verify
+				NuGet.CommandLine  6.2.1    Verify/nuget-on-verify
 				`), stdout.String())
 		}},
 	}
