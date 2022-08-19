@@ -1,8 +1,6 @@
 module github.com/OctopusDeploy/cli
 
-go 1.18
-
-//replace github.com/OctopusDeploy/go-octopusdeploy/v2 => ../go-octopusdeploy
+go 1.19
 
 require (
 	github.com/AlecAivazis/survey/v2 v2.3.5
