@@ -35,24 +35,8 @@ const (
 	FlagIgnoreExisting         = "ignore-existing"
 	FlagIgnoreChannelRules     = "ignore-channel-rules"
 	FlagPackagePrerelease      = "prerelease-packages"
-	FlagPackageVersionOverride = "package-override" // package-version-override? This one should allow multiple occurrences
+	FlagPackageVersionOverride = "package"
 )
-
-type PackageVersions struct {
-	Description string
-	Last        string
-	Latest      string
-	PackageID   string
-	Versions    []string
-}
-
-func NewPackageVersions() PackageVersions {
-	return PackageVersions{
-		Latest:   "Unknown",
-		Last:     "Unknown",
-		Versions: []string{},
-	}
-}
 
 func NewCmdCreate(f factory.Factory) *cobra.Command {
 	cmd := &cobra.Command{
@@ -79,7 +63,7 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 	cmd.Flags().BoolP(FlagIgnoreChannelRules, "", false, "Force creation of a release where channel rules would otherwise prevent it.")
 	cmd.Flags().BoolP(FlagPackagePrerelease, "", false, "Allow selection of prerelease packages.") // TODO does this make sense? The server is going to follow channel rules anyway isn't it?
 	// stringSlice also allows comma-separated things
-	cmd.Flags().StringSliceP(FlagPackageVersionOverride, "o", []string{}, "Version Override for a specific package.\nFormat as {step}:{package}:{version}\nYou may specify this multiple times")
+	cmd.Flags().StringSliceP(FlagPackageVersionOverride, "", []string{}, "Version Override for a specific package.\nFormat as {step}:{package}:{version}\nYou may specify this multiple times")
 
 	// we want the help text to display in the above order, rather than alphabetical
 	cmd.Flags().SortFlags = false
@@ -220,7 +204,7 @@ func ToCmdFlags(t *executor.TaskOptionsCreateRelease) string {
 		components = append(components, "--"+FlagIgnoreChannelRules)
 	}
 	for _, ov := range t.PackageVersionOverrides {
-		components = append(components, "-o")
+		components = append(components, "--package")
 		components = append(components, quoteStringIfRequired(ov))
 	}
 
@@ -274,7 +258,7 @@ func BuildPackageVersionBaseline(octopus *octopusApiClient.Client, deploymentPro
 		return nil, err
 	}
 
-	// step 3: for each feed, ask the server to select the best package version for it, applying the channel rules
+	// step 3: for each package within a feed, ask the server to select the best package version for it, applying the channel rules
 	for _, feed := range foundFeeds.Items {
 		packageRefsInFeed, ok := feedsToQuery[feed.GetID()]
 		if !ok {
@@ -316,7 +300,20 @@ func BuildPackageVersionBaseline(octopus *octopusApiClient.Client, deploymentPro
 					return nil, err
 				}
 
-				if len(versions.Items) == 1 {
+				switch len(versions.Items) {
+				case 0:
+					// TODO add some unit tests for this
+					channelRulesHelp := ""
+					if query.PreReleaseTag != "" {
+						channelRulesHelp = fmt.Sprintf("%s. pre-release tag matching %s. ", channelRulesHelp, query.PreReleaseTag)
+					}
+					if query.VersionRange != "" {
+						channelRulesHelp = fmt.Sprintf("%s. version range matching %s. ", channelRulesHelp, query.VersionRange)
+					}
+					return nil, fmt.Errorf("no package version found for %s. %s please check that the package exists in your package feed", packageRef.PackageID, channelRulesHelp)
+					// if channel rules are in-play tweak the message to say "on package matching rules xyz
+
+				case 1:
 					cache[query] = versions.Items[0].Version
 					result = append(result, &StepPackageVersion{
 						PackageID:            packageRef.PackageID,
@@ -324,7 +321,10 @@ func BuildPackageVersionBaseline(octopus *octopusApiClient.Client, deploymentPro
 						PackageReferenceName: packageRef.PackageReferenceName,
 						Version:              versions.Items[0].Version,
 					})
-				} // else no suitable package versions. what do we do with this? hard fail?
+
+				default:
+					return nil, errors.New("internal error; more than one package returned when only 1 specified")
+				}
 			}
 		}
 	}
@@ -757,7 +757,7 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 			var answer = ""
 
 			err := asker(&survey.Input{
-				Message: "Enter package override string, or 'y' to accept package versions",
+				Message: "Enter package override string, or 'y' to accept package versions", // TODO nicer string when we do a usability pass.
 			}, &answer, survey.WithValidator(func(ans interface{}) error {
 				str, ok := ans.(string)
 				if !ok {
