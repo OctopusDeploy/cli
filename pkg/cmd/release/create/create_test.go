@@ -700,7 +700,7 @@ func TestReleaseCreate_AutomationMode(t *testing.T) {
 		{"release creation specifying package default version + overrides", func(t *testing.T, api *testutil.MockHttpServer, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
 			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
 				defer api.Close()
-				rootCmd.SetArgs([]string{"release", "create", "--project", cacProject.Name, "--package-version", "1.2", "--package-override", "NuGet.CommandLine:6.12", "--package-override", "pterm:0.12.5", "--package-override", "pterm-on-deploy:pterm:0.12.7"})
+				rootCmd.SetArgs([]string{"release", "create", "--project", cacProject.Name, "--package-version", "1.2", "--package", "NuGet.CommandLine:6.12", "--package", "pterm:0.12.5", "--package", "pterm-on-deploy:pterm:0.12.7"})
 				return rootCmd.ExecuteC()
 			})
 

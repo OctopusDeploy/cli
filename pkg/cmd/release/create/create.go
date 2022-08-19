@@ -17,6 +17,7 @@ import (
 	"io"
 	"sort"
 	"strings"
+	"unicode"
 
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/constants"
@@ -173,7 +174,7 @@ func createRun(cmd *cobra.Command, f factory.Factory) error {
 
 func quoteStringIfRequired(str string) string {
 	for _, c := range str {
-		if c == ' ' || c == '\t' { // TODO golang probably has a proper 'IsWhitespace'; look for that
+		if unicode.IsSpace(c) {
 			return fmt.Sprintf("\"%s\"", str)
 		}
 	}
