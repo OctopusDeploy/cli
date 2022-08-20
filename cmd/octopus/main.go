@@ -3,13 +3,11 @@ package main
 import (
 	"fmt"
 	"os"
-	"time"
 
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/OctopusDeploy/cli/pkg/question"
 	"github.com/OctopusDeploy/cli/pkg/usage"
-	"github.com/briandowns/spinner"
 
 	"github.com/joho/godotenv"
 
@@ -36,9 +34,7 @@ func main() {
 		os.Exit(3)
 	}
 
-	s := spinner.New(spinner.CharSets[11], 100*time.Millisecond, spinner.WithColor("cyan"))
-
-	f := factory.New(clientFactory, askProvider, s)
+	f := factory.New(clientFactory, askProvider)
 
 	cmd := root.NewCmdRoot(f, clientFactory, askProvider)
 	// if we don't do this then cmd.Print will get sent to stderr

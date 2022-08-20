@@ -2,25 +2,19 @@ package testutil
 
 import (
 	"errors"
+	"net/url"
+
 	"github.com/AlecAivazis/survey/v2"
-	"github.com/OctopusDeploy/cli/pkg/factory"
 	octopusApiClient "github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/spaces"
-	"net/url"
 )
-
-type FakeSpinner struct{}
-
-func (f *FakeSpinner) Start() {}
-func (f *FakeSpinner) Stop()  {}
 
 func NewMockFactory(api *MockHttpServer) *MockFactory {
 	if api == nil {
 		panic("api MockHttpServer can't be nil")
 	}
 	return &MockFactory{
-		api:        api,
-		RawSpinner: &FakeSpinner{},
+		api: api,
 	}
 }
 
@@ -34,7 +28,6 @@ type MockFactory struct {
 	api           *MockHttpServer          // must not be nil
 	ApiClient     *octopusApiClient.Client // nil; lazily created like with the real factory
 	CurrentSpace  *spaces.Space
-	RawSpinner    factory.Spinner
 	PromptEnabled bool
 	Asker         func(p survey.Prompt, response interface{}, opts ...survey.AskOpt) error
 }
@@ -64,9 +57,7 @@ func (f *MockFactory) GetSpacedClient() (*octopusApiClient.Client, error) {
 func (f *MockFactory) GetCurrentSpace() *spaces.Space {
 	return f.CurrentSpace
 }
-func (f *MockFactory) Spinner() factory.Spinner {
-	return f.RawSpinner
-}
+
 func (f *MockFactory) IsPromptEnabled() bool {
 	return f.PromptEnabled
 }

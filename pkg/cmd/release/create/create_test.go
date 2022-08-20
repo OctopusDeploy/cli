@@ -3,6 +3,9 @@ package create_test
 import (
 	"bytes"
 	"errors"
+	"net/url"
+	"testing"
+
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/cmd/release/create"
@@ -21,15 +24,11 @@ import (
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/resources"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
-	"net/url"
-	"testing"
 )
 
 var serverUrl, _ = url.Parse("http://server")
 
 const placeholderApiKey = "API-XXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
-
-var spinner = &testutil.FakeSpinner{}
 
 var rootResource = testutil.NewRootResource()
 
@@ -56,7 +55,7 @@ func TestReleaseCreate_AskQuestions_RegularProject(t *testing.T) {
 				defer testutil.Close(api, qa)
 				// NewClient makes network calls so we have to run it in the goroutine
 				octopus, _ := octopusApiClient.NewClient(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "")
-				return create.AskQuestions(octopus, stdout, qa.AsAsker(), spinner, options)
+				return create.AskQuestions(octopus, stdout, qa.AsAsker(), options)
 			})
 
 			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
@@ -108,7 +107,7 @@ func TestReleaseCreate_AskQuestions_RegularProject(t *testing.T) {
 			errReceiver := testutil.GoBegin(func() error {
 				defer testutil.Close(api, qa)
 				octopus, _ := octopusApiClient.NewClient(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "")
-				return create.AskQuestions(octopus, stdout, qa.AsAsker(), spinner, options)
+				return create.AskQuestions(octopus, stdout, qa.AsAsker(), options)
 			})
 
 			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
@@ -147,7 +146,7 @@ func TestReleaseCreate_AskQuestions_RegularProject(t *testing.T) {
 			errReceiver := testutil.GoBegin(func() error {
 				defer testutil.Close(api, qa)
 				octopus, _ := octopusApiClient.NewClient(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "")
-				return create.AskQuestions(octopus, stdout, qa.AsAsker(), spinner, options)
+				return create.AskQuestions(octopus, stdout, qa.AsAsker(), options)
 			})
 
 			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
@@ -227,7 +226,7 @@ func TestReleaseCreate_AskQuestions_RegularProject(t *testing.T) {
 			errReceiver := testutil.GoBegin(func() error {
 				defer testutil.Close(api, qa)
 				octopus, _ := octopusApiClient.NewClient(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "")
-				return create.AskQuestions(octopus, stdout, qa.AsAsker(), spinner, options)
+				return create.AskQuestions(octopus, stdout, qa.AsAsker(), options)
 			})
 
 			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
@@ -362,7 +361,7 @@ func TestReleaseCreate_AskQuestions_VersionControlledProject(t *testing.T) {
 			errReceiver := testutil.GoBegin(func() error {
 				defer testutil.Close(api, qa)
 				octopus, _ := octopusApiClient.NewClient(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "")
-				return create.AskQuestions(octopus, stdout, qa.AsAsker(), spinner, options)
+				return create.AskQuestions(octopus, stdout, qa.AsAsker(), options)
 			})
 
 			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
@@ -440,7 +439,7 @@ func TestReleaseCreate_AskQuestions_VersionControlledProject(t *testing.T) {
 			errReceiver := testutil.GoBegin(func() error {
 				defer testutil.Close(api, qa)
 				octopus, _ := octopusApiClient.NewClient(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "")
-				return create.AskQuestions(octopus, stdout, qa.AsAsker(), spinner, options)
+				return create.AskQuestions(octopus, stdout, qa.AsAsker(), options)
 			})
 
 			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
@@ -520,7 +519,7 @@ func TestReleaseCreate_AskQuestions_VersionControlledProject(t *testing.T) {
 			errReceiver := testutil.GoBegin(func() error {
 				defer testutil.Close(api, qa)
 				octopus, _ := octopusApiClient.NewClient(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "")
-				return create.AskQuestions(octopus, stdout, qa.AsAsker(), spinner, options)
+				return create.AskQuestions(octopus, stdout, qa.AsAsker(), options)
 			})
 
 			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)

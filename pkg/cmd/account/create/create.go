@@ -63,7 +63,6 @@ func createRun(f factory.Factory, w io.Writer) error {
 		opts := &awsCreate.CreateOptions{
 			Writer:  w,
 			Octopus: client,
-			Spinner: f.Spinner(),
 			Ask:     f.Ask,
 		}
 		if err := awsCreate.CreateRun(opts); err != nil {
@@ -73,7 +72,6 @@ func createRun(f factory.Factory, w io.Writer) error {
 		opts := &azureCreate.CreateOptions{
 			Writer:  w,
 			Octopus: client,
-			Spinner: f.Spinner(),
 			Ask:     f.Ask,
 		}
 		if err := azureCreate.CreateRun(opts); err != nil {
@@ -83,7 +81,6 @@ func createRun(f factory.Factory, w io.Writer) error {
 		opts := &gcpCreate.CreateOptions{
 			Writer:  w,
 			Octopus: client,
-			Spinner: f.Spinner(),
 			Ask:     f.Ask,
 		}
 		if err := gcpCreate.CreateRun(opts); err != nil {
@@ -93,7 +90,6 @@ func createRun(f factory.Factory, w io.Writer) error {
 		opts := &sshCreate.CreateOptions{
 			Writer:  w,
 			Octopus: client,
-			Spinner: f.Spinner(),
 			Ask:     f.Ask,
 		}
 		if err := sshCreate.CreateRun(opts); err != nil {
@@ -103,7 +99,6 @@ func createRun(f factory.Factory, w io.Writer) error {
 		opts := &tokenCreate.CreateOptions{
 			Writer:  w,
 			Octopus: client,
-			Spinner: f.Spinner(),
 			Ask:     f.Ask,
 		}
 		if err := tokenCreate.CreateRun(opts); err != nil {
@@ -113,7 +108,6 @@ func createRun(f factory.Factory, w io.Writer) error {
 		opts := &usernameCreate.CreateOptions{
 			Writer:  w,
 			Octopus: client,
-			Spinner: f.Spinner(),
 			Ask:     f.Ask,
 		}
 		if err := usernameCreate.CreateRun(opts); err != nil {

@@ -128,7 +128,11 @@ func NewClientFactoryFromEnvironment(ask question.AskProvider) (ClientFactory, e
 		return nil, errs
 	}
 
-	return NewClientFactory(nil, host, apiKey, spaceNameOrID, ask)
+	httpClient := &http.Client{
+		Transport: NewSpinnerRoundTripper(),
+	}
+
+	return NewClientFactory(httpClient, host, apiKey, spaceNameOrID, ask)
 }
 
 func ValidateMandatoryEnvironment(host string, apiKey string) error {

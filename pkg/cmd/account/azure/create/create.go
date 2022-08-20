@@ -27,7 +27,6 @@ type CreateOptions struct {
 	Writer  io.Writer
 	Octopus *client.Client
 	Ask     question.Asker
-	Spinner factory.Spinner
 
 	Name                   string
 	Description            string
@@ -64,8 +63,7 @@ var azureResourceManagementBaseUri = map[string]string{
 
 func NewCmdCreate(f factory.Factory) *cobra.Command {
 	opts := &CreateOptions{
-		Ask:     f.Ask,
-		Spinner: f.Spinner(),
+		Ask: f.Ask,
 	}
 	descriptionFilePath := ""
 
@@ -130,7 +128,7 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 				}
 			}
 			if opts.Environments != nil {
-				opts.Environments, err = helper.ResolveEnvironmentNames(opts.Environments, opts.Octopus, opts.Spinner)
+				opts.Environments, err = helper.ResolveEnvironmentNames(opts.Environments, opts.Octopus)
 				if err != nil {
 					return err
 				}
@@ -190,13 +188,10 @@ func CreateRun(opts *CreateOptions) error {
 		return err
 	}
 
-	opts.Spinner.Start()
 	_, err = fmt.Fprintf(opts.Writer, "Successfully created Azure Account %s %s.\n", createdAccount.GetName(), output.Dimf("(%s)", createdAccount.GetID()))
 	if err != nil {
-		opts.Spinner.Stop()
 		return err
 	}
-	opts.Spinner.Stop()
 	return nil
 }
 
@@ -320,7 +315,7 @@ func promptMissing(opts *CreateOptions) error {
 	}
 
 	if opts.Environments == nil {
-		environmentIDs, err := selectors.EnvironmentsMultiSelect(opts.Ask, opts.Octopus, opts.Spinner,
+		environmentIDs, err := selectors.EnvironmentsMultiSelect(opts.Ask, opts.Octopus,
 			"Choose the environments that are allowed to use this account.\n"+
 				output.Dim("If nothing is selected, the account can be used for deployments to any environment."))
 		if err != nil {

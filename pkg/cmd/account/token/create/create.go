@@ -25,7 +25,6 @@ type CreateOptions struct {
 	Writer  io.Writer
 	Octopus *client.Client
 	Ask     question.Asker
-	Spinner factory.Spinner
 
 	Name         string
 	Description  string
@@ -37,8 +36,7 @@ type CreateOptions struct {
 
 func NewCmdCreate(f factory.Factory) *cobra.Command {
 	opts := &CreateOptions{
-		Ask:     f.Ask,
-		Spinner: f.Spinner(),
+		Ask: f.Ask,
 	}
 	descriptionFilePath := ""
 
@@ -68,7 +66,7 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 			}
 			opts.NoPrompt = !f.IsPromptEnabled()
 			if opts.Environments != nil {
-				opts.Environments, err = helper.ResolveEnvironmentNames(opts.Environments, opts.Octopus, opts.Spinner)
+				opts.Environments, err = helper.ResolveEnvironmentNames(opts.Environments, opts.Octopus)
 				if err != nil {
 					return err
 				}
@@ -102,13 +100,10 @@ func CreateRun(opts *CreateOptions) error {
 	tokenAccount.Description = opts.Description
 	tokenAccount.EnvironmentIDs = opts.Environments
 
-	opts.Spinner.Start()
 	createdAccount, err := opts.Octopus.Accounts.Add(tokenAccount)
 	if err != nil {
-		opts.Spinner.Stop()
 		return err
 	}
-	opts.Spinner.Stop()
 
 	_, err = fmt.Fprintf(opts.Writer, "Successfully created Token Account %s %s.\n", createdAccount.GetName(), output.Dimf("(%s)", createdAccount.GetID()))
 	if err != nil {
@@ -156,7 +151,7 @@ func promptMissing(opts *CreateOptions) error {
 	}
 
 	if opts.Environments == nil {
-		environmentIDs, err := selectors.EnvironmentsMultiSelect(opts.Ask, opts.Octopus, opts.Spinner,
+		environmentIDs, err := selectors.EnvironmentsMultiSelect(opts.Ask, opts.Octopus,
 			"Choose the environments that are allowed to use this account.\n"+
 				output.Dim("If nothing is selected, the account can be used for deployments to any environment."))
 		if err != nil {
