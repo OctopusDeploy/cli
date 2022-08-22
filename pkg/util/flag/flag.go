@@ -64,7 +64,7 @@ func New[T any](name string, secure bool) *Flag[T] {
 // GenerateAutomationCmd generates the command that can be used to achive
 // the same results with the CLI in automation mode.
 func GenerateAutomationCmd(cmdPath string, flags ...Generatable) string {
-	autoCmd := fmt.Sprintf("%s --no-prompt", cmdPath)
+	autoCmd := cmdPath
 	for _, flag := range flags {
 		switch value := flag.GetValue().(type) {
 		case string:
@@ -92,5 +92,6 @@ func GenerateAutomationCmd(cmdPath string, flags ...Generatable) string {
 			panic(err)
 		}
 	}
+	autoCmd += " --no-prompt"
 	return autoCmd
 }

@@ -15,6 +15,7 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/question"
 	"github.com/OctopusDeploy/cli/pkg/question/selectors"
 	"github.com/OctopusDeploy/cli/pkg/surveyext"
+	"github.com/OctopusDeploy/cli/pkg/util/flag"
 	"github.com/OctopusDeploy/cli/pkg/validation"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/accounts"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
@@ -22,28 +23,44 @@ import (
 	"github.com/spf13/cobra"
 )
 
+type CreateFlags struct {
+	Name         *flag.Flag[string]
+	Description  *flag.Flag[string]
+	KeyFilePath  *flag.Flag[string]
+	Environments *flag.Flag[[]string]
+}
+
 type CreateOptions struct {
+	*CreateFlags
 	Writer  io.Writer
 	Octopus *client.Client
 	Ask     question.Asker
 	Spinner factory.Spinner
 	Space   string
+	Host    string
+	CmdPath string
 
-	Name         string
-	Description  string
-	KeyFileData  []byte
-	Environments []string
+	KeyFileData []byte
 
 	NoPrompt bool
 }
 
+func NewCreateFlags() *CreateFlags {
+	return &CreateFlags{
+		Name:         flag.New[string]("name", false),
+		Description:  flag.New[string]("description", false),
+		KeyFilePath:  flag.New[string]("key-file", false),
+		Environments: flag.New[[]string]("environment", false),
+	}
+}
+
 func NewCmdCreate(f factory.Factory) *cobra.Command {
 	opts := &CreateOptions{
-		Ask:     f.Ask,
-		Spinner: f.Spinner(),
+		Ask:         f.Ask,
+		Spinner:     f.Spinner(),
+		CreateFlags: NewCreateFlags(),
 	}
 	descriptionFilePath := ""
-	keyFilePath := ""
 
 	cmd := &cobra.Command{
 		Use:   "create",
@@ -57,8 +74,10 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			opts.Space = f.GetCurrentSpace().GetID()
+			opts.CmdPath = cmd.CommandPath()
 			opts.Octopus = client
+			opts.Space = f.GetCurrentSpace().GetID()
+			opts.Host = f.GetCurrentHost()
 			opts.Writer = cmd.OutOrStdout()
 			if descriptionFilePath != "" {
 				if err := validation.IsExistingFile(descriptionFilePath); err != nil {
@@ -68,21 +87,21 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 				if err != nil {
 					return err
 				}
-				opts.Description = string(data)
+				opts.Description.Value = string(data)
 			}
-			if keyFilePath != "" {
-				if err := validation.IsExistingFile(keyFilePath); err != nil {
+			if opts.KeyFilePath.Value != "" {
+				if err := validation.IsExistingFile(opts.KeyFilePath.Value); err != nil {
 					return err
 				}
-				data, err := os.ReadFile(keyFilePath)
+				data, err := os.ReadFile(opts.KeyFilePath.Value)
 				if err != nil {
 					return err
 				}
 				opts.KeyFileData = data
 			}
 			opts.NoPrompt = !f.IsPromptEnabled()
-			if opts.Environments != nil {
-				opts.Environments, err = helper.ResolveEnvironmentNames(opts.Environments, opts.Octopus, opts.Spinner)
+			if opts.Environments.Value != nil {
+				opts.Environments.Value, err = helper.ResolveEnvironmentNames(opts.Environments.Value, opts.Octopus, opts.Spinner)
 				if err != nil {
 					return err
 				}
@@ -91,10 +110,10 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringVarP(&opts.Name, "name", "n", "", "A short, memorable, unique name for this account.")
-	cmd.Flags().StringVarP(&opts.Description, "description", "d", "", "A summary explaining the use of the account to other users.")
-	cmd.Flags().StringVarP(&keyFilePath, "key-file", "K", "", "The json key file to use when authenticating against Google Cloud.")
-	cmd.Flags().StringArrayVarP(&opts.Environments, "environments", "e", nil, "The environments that are allowed to use this account")
+	cmd.Flags().StringVarP(&opts.Name.Value, opts.Name.Name, "n", "", "A short, memorable, unique name for this account.")
+	cmd.Flags().StringVarP(&opts.Description.Value, opts.Description.Name, "d", "", "A summary explaining the use of the account to other users.")
+	cmd.Flags().StringVarP(&opts.KeyFilePath.Value, opts.KeyFilePath.Name, "K", "", "The json key file to use when authenticating against Google Cloud.")
+	cmd.Flags().StringArrayVarP(&opts.Environments.Value, opts.Environments.Name, "e", nil, "The environments that are allowed to use this account")
 	cmd.Flags().StringVarP(&descriptionFilePath, "description-file", "D", "", "Read the description from `file`")
 
 	return cmd
@@ -107,14 +126,14 @@ func CreateRun(opts *CreateOptions) error {
 		}
 	}
 	gcpAccount, err := accounts.NewGoogleCloudPlatformAccount(
-		opts.Name,
+		opts.Name.Value,
 		core.NewSensitiveValue(b64.StdEncoding.EncodeToString(opts.KeyFileData)),
 	)
 	if err != nil {
 		return err
 	}
-	gcpAccount.Description = opts.Description
-	gcpAccount.EnvironmentIDs = opts.Environments
+	gcpAccount.Description = opts.Description.Value
+	gcpAccount.EnvironmentIDs = opts.Environments.Value
 
 	opts.Spinner.Start()
 	createdAccount, err := opts.Octopus.Accounts.Add(gcpAccount)
@@ -127,19 +146,21 @@ func CreateRun(opts *CreateOptions) error {
 	if err != nil {
 		return err
 	}
-	if host, ok := os.LookupEnv("OCTOPUS_HOST"); ok {
-		link := output.Bluef("%s/app#/%s/infrastructure/accounts/%s", host, opts.Space, createdAccount.GetID())
-		fmt.Fprintf(opts.Writer, "\nView this account on Octopus Deploy: %s\n", link)
+	link := output.Bluef("%s/app#/%s/infrastructure/accounts/%s", opts.Host, opts.Space, createdAccount.GetID())
+	fmt.Fprintf(opts.Writer, "\nView this account on Octopus Deploy: %s\n", link)
+	if !opts.NoPrompt {
+		autoCmd := flag.GenerateAutomationCmd(opts.CmdPath, opts.Name, opts.KeyFilePath, opts.Description, opts.Environments)
+		fmt.Fprintf(opts.Writer, "\nAutomation Command: %s\n", autoCmd)
 	}
 	return nil
 }
 
 func promptMissing(opts *CreateOptions) error {
-	if opts.Name == "" {
+	if opts.Name.Value == "" {
 		if err := opts.Ask(&survey.Input{
 			Message: "Name",
 			Help:    "A short, memorable, unique name for this account.",
-		}, &opts.Name, survey.WithValidator(survey.ComposeValidators(
+		}, &opts.Name.Value, survey.WithValidator(survey.ComposeValidators(
 			survey.MaxLength(200),
 			survey.MinLength(1),
 			survey.Required,
@@ -148,7 +169,7 @@ func promptMissing(opts *CreateOptions) error {
 		}
 	}
 
-	if opts.Description == "" {
+	if opts.Description.Value == "" {
 		if err := opts.Ask(&surveyext.OctoEditor{
 			Editor: &survey.Editor{
 				Message:  "Description",
@@ -156,37 +177,36 @@ func promptMissing(opts *CreateOptions) error {
 				FileName: "*.md",
 			},
 			Optional: true,
-		}, &opts.Description); err != nil {
+		}, &opts.Description.Value); err != nil {
 			return err
 		}
 	}
 
 	if len(opts.KeyFileData) == 0 {
-		keyFilePath := ""
 		if err := opts.Ask(&survey.Input{
 			Message: "Key File Path",
 			Help:    "Path to the json key file to use when authenticating against Google Cloud.",
-		}, &keyFilePath, survey.WithValidator(survey.ComposeValidators(
+		}, &opts.KeyFilePath.Value, survey.WithValidator(survey.ComposeValidators(
 			survey.Required,
 			validation.IsExistingFile,
 		))); err != nil {
 			return err
 		}
-		data, err := os.ReadFile(keyFilePath)
+		data, err := os.ReadFile(opts.KeyFilePath.Value)
 		if err != nil {
 			return err
 		}
 		opts.KeyFileData = data
 	}
 
-	if opts.Environments == nil {
+	if opts.Environments.Value == nil {
 		environmentIDs, err := selectors.EnvironmentsMultiSelect(opts.Ask, opts.Octopus, opts.Spinner,
 			"Choose the environments that are allowed to use this account.\n"+
 				output.Dim("If nothing is selected, the account can be used for deployments to any environment."))
 		if err != nil {
 			return err
 		}
-		opts.Environments = environmentIDs
+		opts.Environments.Value = environmentIDs
 	}
 	return nil
 }

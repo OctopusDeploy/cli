@@ -42,17 +42,21 @@ type CreateOptions struct {
 	CmdPath  string
 }
 
+func NewCreateFlags() *CreateFlags {
+	return &CreateFlags{
+		Name:         flag.New[string]("name", false),
+		Description:  flag.New[string]("description", false),
+		AccessKey:    flag.New[string]("access-key", false),
+		SecretKey:    flag.New[string]("secret-key", true),
+		Environments: flag.New[[]string]("environment", false),
+	}
+}
+
 func NewCmdCreate(f factory.Factory) *cobra.Command {
 	opts := &CreateOptions{
-		CreateFlags: &CreateFlags{
-			Name:         flag.New[string]("name", false),
-			Description:  flag.New[string]("description", false),
-			AccessKey:    flag.New[string]("access-key", false),
-			SecretKey:    flag.New[string]("secret-key", true),
-			Environments: flag.New[[]string]("environment", false),
-		},
-		Ask:     f.Ask,
-		Spinner: f.Spinner(),
+		CreateFlags: NewCreateFlags(),
+		Ask:         f.Ask,
+		Spinner:     f.Spinner(),
 	}
 	descriptionFilePath := ""
 
@@ -69,9 +73,9 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 				return err
 			}
 			opts.CmdPath = cmd.CommandPath()
-			opts.Space = f.GetCurrentSpace().GetID()
-			opts.Host = f.GetCurrentHost()
 			opts.Octopus = client
+			opts.Host = f.GetCurrentHost()
+			opts.Space = f.GetCurrentSpace().GetID()
 			opts.Writer = cmd.OutOrStdout()
 			if descriptionFilePath != "" {
 				if err = validation.IsExistingFile(descriptionFilePath); err != nil {
@@ -187,7 +191,7 @@ func promptMissing(opts *CreateOptions) error {
 		}
 	}
 
-	if opts.Environments == nil {
+	if opts.Environments.Value == nil {
 		environmentIDs, err := selectors.EnvironmentsMultiSelect(opts.Ask, opts.Octopus, opts.Spinner,
 			"Choose the environments that are allowed to use this account.\n"+
 				output.Dim("If nothing is selected, the account can be used for deployments to any environment."))
