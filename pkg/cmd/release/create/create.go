@@ -855,7 +855,9 @@ func AskPackageOverrideLoop(
 				return errors.New("internal error; answer was not a string")
 			}
 
-			if str == "y" || str == "" { // valid response for continuing the loop; don't attempt to parse this
+			switch str {
+			// valid response for continuing the loop; don't attempt to validate these
+			case "y", "u", "":
 				return nil
 			}
 
@@ -875,6 +877,15 @@ func AskPackageOverrideLoop(
 		if err != nil {
 			return nil, nil, err
 		}
+		if answer == "u" { // undo!
+			if len(packageVersionOverrides) > 0 {
+				packageVersionOverrides = packageVersionOverrides[:len(packageVersionOverrides)-1]
+				// always reset to the baseline and apply everything in order, there's less room for logic errors
+				overriddenPackageVersions = ApplyPackageOverrides(packageVersionBaseline, packageVersionOverrides)
+			}
+			continue // print table and go again
+		}
+
 		if answer == "y" { // YES these are the packages they want
 			break
 		}
