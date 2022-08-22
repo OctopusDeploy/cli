@@ -63,7 +63,7 @@ func TestReleaseCreate_AskQuestions_RegularProject(t *testing.T) {
 
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/all").RespondWith([]*projects.Project{fireProject})
 
-			qa.ExpectQuestion(t, &survey.Select{
+			_ = qa.ExpectQuestion(t, &survey.Select{
 				Message: "Select the project in which the release will be created",
 				Options: []string{"Fire Project"},
 			}).AnswerWith("Fire Project")
@@ -74,7 +74,7 @@ func TestReleaseCreate_AskQuestions_RegularProject(t *testing.T) {
 				Items: []*channels.Channel{defaultChannel, altChannel},
 			})
 
-			qa.ExpectQuestion(t, &survey.Select{
+			_ = qa.ExpectQuestion(t, &survey.Select{
 				Message: "Select the channel in which the release will be created",
 				Options: []string{defaultChannel.Name, altChannel.Name},
 			}).AnswerWith("Fire Project Alt Channel")
@@ -84,7 +84,7 @@ func TestReleaseCreate_AskQuestions_RegularProject(t *testing.T) {
 
 			// here is where the package version prompt goes; except we have no packages so it skips it
 
-			qa.ExpectQuestion(t, &survey.Input{
+			_ = qa.ExpectQuestion(t, &survey.Input{
 				Message: "Release Version",
 				Default: "27.9.3",
 			}).AnswerWith("27.9.999")
@@ -193,12 +193,12 @@ func TestReleaseCreate_AskQuestions_RegularProject(t *testing.T) {
 				Items: []*packages.PackageVersion{{PackageID: "pterm", Version: "0.12.51"}},
 			})
 
-			qa.ExpectQuestion(t, &survey.Input{
+			_ = qa.ExpectQuestion(t, &survey.Input{
 				Message: "Enter package override string, or 'y' to accept package versions",
 				Default: "",
 			}).AnswerWith("y") // just accept all the packages; package loop is tested elsewhere
 
-			qa.ExpectQuestion(t, &survey.Input{
+			_ = qa.ExpectQuestion(t, &survey.Input{
 				Message: "Release Version",
 				Default: "27.9.33",
 			}).AnswerWith("30.0")
@@ -298,12 +298,12 @@ func TestReleaseCreate_AskQuestions_RegularProject(t *testing.T) {
 				Items: []*packages.PackageVersion{{PackageID: "NuGet.CommandLine", Version: "6.2.1"}}, // the proper package
 			})
 
-			qa.ExpectQuestion(t, &survey.Input{
+			_ = qa.ExpectQuestion(t, &survey.Input{
 				Message: "Enter package override string, or 'y' to accept package versions",
 				Default: "",
 			}).AnswerWith("y") // just accept all the packages; package loop is tested elsewhere
 
-			qa.ExpectQuestion(t, &survey.Input{
+			_ = qa.ExpectQuestion(t, &survey.Input{
 				Message: "Release Version",
 				Default: "6.2.1", // observing this value is the whole point of this test
 			}).AnswerWith("6.4")
@@ -369,7 +369,7 @@ func TestReleaseCreate_AskQuestions_VersionControlledProject(t *testing.T) {
 
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/all").RespondWith([]*projects.Project{project})
 
-			qa.ExpectQuestion(t, &survey.Select{
+			_ = qa.ExpectQuestion(t, &survey.Select{
 				Message: "Select the project in which the release will be created",
 				Options: []string{project.Name},
 			}).AnswerWith(project.Name)
@@ -389,7 +389,7 @@ func TestReleaseCreate_AskQuestions_VersionControlledProject(t *testing.T) {
 					projects.NewGitTagReference("v1", "refs/tags/v1"),
 				}})
 
-			qa.ExpectQuestion(t, &survey.Select{
+			_ = qa.ExpectQuestion(t, &survey.Select{
 				Message: "Select the Git Reference to use",
 				Options: []string{"main (Branch)", "develop (Branch)", "v2 (Tag)", "v1 (Tag)"},
 			}).AnswerWith("develop (Branch)")
@@ -406,7 +406,7 @@ func TestReleaseCreate_AskQuestions_VersionControlledProject(t *testing.T) {
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+projectID+"/channels").RespondWith(resources.Resources[*channels.Channel]{
 				Items: []*channels.Channel{defaultChannel, altChannel},
 			})
-			qa.ExpectQuestion(t, &survey.Select{
+			_ = qa.ExpectQuestion(t, &survey.Select{
 				Message: "Select the channel in which the release will be created",
 				Options: []string{defaultChannel.Name, altChannel.Name},
 			}).AnswerWith(altChannel.Name)
@@ -417,7 +417,7 @@ func TestReleaseCreate_AskQuestions_VersionControlledProject(t *testing.T) {
 			// our project inline versioning strategy was nil, so the code needs to load the deployment settings to find out
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+projectID+"/develop/deploymentsettings").RespondWith(depSettings)
 
-			qa.ExpectQuestion(t, &survey.Input{
+			_ = qa.ExpectQuestion(t, &survey.Input{
 				Message: "Release Version",
 				Default: "27.9.3", // from the dep template
 			}).AnswerWith("27.9.999")
@@ -447,7 +447,7 @@ func TestReleaseCreate_AskQuestions_VersionControlledProject(t *testing.T) {
 
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/all").RespondWith([]*projects.Project{project})
 
-			qa.ExpectQuestion(t, &survey.Select{
+			_ = qa.ExpectQuestion(t, &survey.Select{
 				Message: "Select the project in which the release will be created",
 				Options: []string{project.Name},
 			}).AnswerWith(project.Name)
@@ -469,7 +469,7 @@ func TestReleaseCreate_AskQuestions_VersionControlledProject(t *testing.T) {
 
 			// NOTE we still ask for git ref even though commit is specified, this is so the server
 			// can give us nice audit logs capturing the INTENT of the release (a commit may exist in more than one branch)
-			qa.ExpectQuestion(t, &survey.Select{
+			_ = qa.ExpectQuestion(t, &survey.Select{
 				Message: "Select the Git Reference to use",
 				Options: []string{"main (Branch)", "develop (Branch)", "v2 (Tag)", "v1 (Tag)"},
 			}).AnswerWith("v2 (Tag)")
@@ -487,7 +487,7 @@ func TestReleaseCreate_AskQuestions_VersionControlledProject(t *testing.T) {
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+projectID+"/channels").RespondWith(resources.Resources[*channels.Channel]{
 				Items: []*channels.Channel{defaultChannel, altChannel},
 			})
-			qa.ExpectQuestion(t, &survey.Select{
+			_ = qa.ExpectQuestion(t, &survey.Select{
 				Message: "Select the channel in which the release will be created",
 				Options: []string{defaultChannel.Name, altChannel.Name},
 			}).AnswerWith(altChannel.Name)
@@ -498,7 +498,7 @@ func TestReleaseCreate_AskQuestions_VersionControlledProject(t *testing.T) {
 			// our project inline versioning strategy was nil, so the code needs to load the deployment settings to find out
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+projectID+"/45c508a/deploymentsettings").RespondWith(depSettings)
 
-			qa.ExpectQuestion(t, &survey.Input{
+			_ = qa.ExpectQuestion(t, &survey.Input{
 				Message: "Release Version",
 				Default: "27.9.3", // from the dep template
 			}).AnswerWith("27.9.654")
@@ -527,7 +527,7 @@ func TestReleaseCreate_AskQuestions_VersionControlledProject(t *testing.T) {
 
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/all").RespondWith([]*projects.Project{project})
 
-			qa.ExpectQuestion(t, &survey.Select{
+			_ = qa.ExpectQuestion(t, &survey.Select{
 				Message: "Select the project in which the release will be created",
 				Options: []string{project.Name},
 			}).AnswerWith(project.Name)
@@ -540,7 +540,7 @@ func TestReleaseCreate_AskQuestions_VersionControlledProject(t *testing.T) {
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+projectID+"/channels").RespondWith(resources.Resources[*channels.Channel]{
 				Items: []*channels.Channel{defaultChannel, altChannel},
 			})
-			qa.ExpectQuestion(t, &survey.Select{
+			_ = qa.ExpectQuestion(t, &survey.Select{
 				Message: "Select the channel in which the release will be created",
 				Options: []string{defaultChannel.Name, altChannel.Name},
 			}).AnswerWith(altChannel.Name)
@@ -551,7 +551,7 @@ func TestReleaseCreate_AskQuestions_VersionControlledProject(t *testing.T) {
 			// our project inline versioning strategy was nil, so the code needs to load the deployment settings to find out
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+projectID+"/develop/deploymentsettings").RespondWith(depSettings)
 
-			qa.ExpectQuestion(t, &survey.Input{
+			_ = qa.ExpectQuestion(t, &survey.Input{
 				Message: "Release Version",
 				Default: "27.9.3", // from the dep template
 			}).AnswerWith("27.9.654")
@@ -572,6 +572,193 @@ func TestReleaseCreate_AskQuestions_VersionControlledProject(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			api, qa := testutil.NewMockServerAndAsker()
 			test.run(t, api, qa, &bytes.Buffer{})
+		})
+	}
+}
+
+func TestReleaseCreate_AskQuestions_AskPackageOverrideLoop(t *testing.T) {
+	enterOverrideQuestion := "Enter package override string, or 'y' to accept package versions"
+
+	baseline := []*create.StepPackageVersion{
+		{ActionName: "Install", PackageID: "pterm", PackageReferenceName: "pterm", Version: "0.12"},
+		{ActionName: "Install", PackageID: "NuGet.CommandLine", PackageReferenceName: "NuGet.CommandLine", Version: "6.1.2"},
+		{ActionName: "Verify", PackageID: "pterm", PackageReferenceName: "pterm", Version: "0.12"},
+	}
+
+	tests := []struct {
+		name string
+		run  func(t *testing.T, qa *testutil.AskMocker, stdout *bytes.Buffer)
+	}{
+		{"no-op test", func(t *testing.T, qa *testutil.AskMocker, stdout *bytes.Buffer) {
+			receiver := testutil.GoBegin3(func() ([]*create.StepPackageVersion, []*create.PackageVersionOverride, error) {
+				return create.AskPackageOverrideLoop(baseline, make([]string, 0), qa.AsAsker(), stdout)
+			})
+
+			_ = qa.ExpectQuestion(t, &survey.Input{Message: enterOverrideQuestion}).AnswerWith("y")
+
+			versions, overrides, err := testutil.ReceiveTriple(receiver)
+			assert.Nil(t, err)
+			assert.Equal(t, baseline, versions)
+			assert.Equal(t, make([]*create.PackageVersionOverride, 0), overrides)
+		}},
+
+		{"override package based on package ID", func(t *testing.T, qa *testutil.AskMocker, stdout *bytes.Buffer) {
+			receiver := testutil.GoBegin3(func() ([]*create.StepPackageVersion, []*create.PackageVersionOverride, error) {
+				return create.AskPackageOverrideLoop(baseline, make([]string, 0), qa.AsAsker(), stdout)
+			})
+
+			_ = qa.ExpectQuestion(t, &survey.Input{Message: enterOverrideQuestion}).AnswerWith("pterm:2.5")
+
+			_ = qa.ExpectQuestion(t, &survey.Input{Message: enterOverrideQuestion}).AnswerWith("y")
+
+			versions, overrides, err := testutil.ReceiveTriple(receiver)
+			assert.Nil(t, err)
+			assert.Equal(t, []*create.StepPackageVersion{
+				{ActionName: "Install", PackageID: "pterm", PackageReferenceName: "pterm", Version: "2.5"},
+				{ActionName: "Install", PackageID: "NuGet.CommandLine", PackageReferenceName: "NuGet.CommandLine", Version: "6.1.2"},
+				{ActionName: "Verify", PackageID: "pterm", PackageReferenceName: "pterm", Version: "2.5"},
+			}, versions)
+			assert.Equal(t, []*create.PackageVersionOverride{
+				{PackageID: "pterm", Version: "2.5"},
+			}, overrides)
+		}},
+
+		{"override package based on step name", func(t *testing.T, qa *testutil.AskMocker, stdout *bytes.Buffer) {
+			receiver := testutil.GoBegin3(func() ([]*create.StepPackageVersion, []*create.PackageVersionOverride, error) {
+				return create.AskPackageOverrideLoop(baseline, make([]string, 0), qa.AsAsker(), stdout)
+			})
+
+			_ = qa.ExpectQuestion(t, &survey.Input{Message: enterOverrideQuestion}).AnswerWith("Install:2.5")
+
+			_ = qa.ExpectQuestion(t, &survey.Input{Message: enterOverrideQuestion}).AnswerWith("y")
+
+			versions, overrides, err := testutil.ReceiveTriple(receiver)
+			assert.Nil(t, err)
+			assert.Equal(t, []*create.StepPackageVersion{
+				{ActionName: "Install", PackageID: "pterm", PackageReferenceName: "pterm", Version: "2.5"},
+				{ActionName: "Install", PackageID: "NuGet.CommandLine", PackageReferenceName: "NuGet.CommandLine", Version: "2.5"},
+				{ActionName: "Verify", PackageID: "pterm", PackageReferenceName: "pterm", Version: "0.12"},
+			}, versions)
+			assert.Equal(t, []*create.PackageVersionOverride{
+				{ActionName: "Install", Version: "2.5"},
+			}, overrides)
+		}},
+
+		{"override package based on package reference", func(t *testing.T, qa *testutil.AskMocker, stdout *bytes.Buffer) {
+			receiver := testutil.GoBegin3(func() ([]*create.StepPackageVersion, []*create.PackageVersionOverride, error) {
+				return create.AskPackageOverrideLoop(baseline, make([]string, 0), qa.AsAsker(), stdout)
+			})
+
+			_ = qa.ExpectQuestion(t, &survey.Input{Message: enterOverrideQuestion}).AnswerWith("pterm:Install:2.5")
+
+			_ = qa.ExpectQuestion(t, &survey.Input{Message: enterOverrideQuestion}).AnswerWith("y")
+
+			versions, overrides, err := testutil.ReceiveTriple(receiver)
+			assert.Nil(t, err)
+			assert.Equal(t, []*create.StepPackageVersion{
+				{ActionName: "Install", PackageID: "pterm", PackageReferenceName: "pterm", Version: "2.5"},
+				{ActionName: "Install", PackageID: "NuGet.CommandLine", PackageReferenceName: "NuGet.CommandLine", Version: "6.1.2"},
+				{ActionName: "Verify", PackageID: "pterm", PackageReferenceName: "pterm", Version: "0.12"},
+			}, versions)
+			assert.Equal(t, []*create.PackageVersionOverride{
+				{PackageReferenceName: "pterm", ActionName: "Install", Version: "2.5"},
+			}, overrides)
+		}},
+
+		{"blank answer retries the question", func(t *testing.T, qa *testutil.AskMocker, stdout *bytes.Buffer) {
+			receiver := testutil.GoBegin3(func() ([]*create.StepPackageVersion, []*create.PackageVersionOverride, error) {
+				return create.AskPackageOverrideLoop(baseline, make([]string, 0), qa.AsAsker(), stdout)
+			})
+
+			validationErr := qa.ExpectQuestion(t, &survey.Input{Message: enterOverrideQuestion}).AnswerWith("")
+			assert.Nil(t, validationErr)
+
+			validationErr = qa.ExpectQuestion(t, &survey.Input{Message: enterOverrideQuestion}).AnswerWith("")
+			assert.Nil(t, validationErr)
+
+			validationErr = qa.ExpectQuestion(t, &survey.Input{Message: enterOverrideQuestion}).AnswerWith("y")
+			assert.Nil(t, validationErr)
+
+			versions, overrides, err := testutil.ReceiveTriple(receiver)
+			assert.Nil(t, err)
+			assert.Equal(t, baseline, versions)
+			assert.Equal(t, make([]*create.PackageVersionOverride, 0), overrides)
+		}},
+
+		{"can't specify garbage; question loop retries", func(t *testing.T, qa *testutil.AskMocker, stdout *bytes.Buffer) {
+			receiver := testutil.GoBegin3(func() ([]*create.StepPackageVersion, []*create.PackageVersionOverride, error) {
+				return create.AskPackageOverrideLoop(baseline, make([]string, 0), qa.AsAsker(), stdout)
+			})
+
+			q := qa.ExpectQuestion(t, &survey.Input{Message: enterOverrideQuestion})
+
+			validationErr := q.AnswerWith("z:z:z:z") // too many components
+			assert.EqualError(t, validationErr, "package version specification z:z:z:z does not use expected format")
+
+			validationErr = q.AnswerWith("2.5") // ok answer properly this time, set everything to 2.5
+			assert.Nil(t, validationErr)
+
+			// it'll ask again; y to confirm
+			_ = qa.ExpectQuestion(t, &survey.Input{Message: enterOverrideQuestion}).AnswerWith("y") // confirm packages
+
+			versions, overrides, err := testutil.ReceiveTriple(receiver)
+			assert.Nil(t, err)
+			assert.Equal(t, []*create.StepPackageVersion{
+				{ActionName: "Install", PackageID: "pterm", PackageReferenceName: "pterm", Version: "2.5"},
+				{ActionName: "Install", PackageID: "NuGet.CommandLine", PackageReferenceName: "NuGet.CommandLine", Version: "2.5"},
+				{ActionName: "Verify", PackageID: "pterm", PackageReferenceName: "pterm", Version: "2.5"},
+			}, versions)
+			assert.Equal(t, []*create.PackageVersionOverride{
+				{Version: "2.5"},
+			}, overrides)
+		}},
+
+		{"can't specify packages or steps that aren't there due to validator; question loop retries", func(t *testing.T, qa *testutil.AskMocker, stdout *bytes.Buffer) {
+			receiver := testutil.GoBegin3(func() ([]*create.StepPackageVersion, []*create.PackageVersionOverride, error) {
+				return create.AskPackageOverrideLoop(baseline, make([]string, 0), qa.AsAsker(), stdout)
+			})
+
+			q := qa.ExpectQuestion(t, &survey.Input{Message: enterOverrideQuestion})
+
+			validationErr := q.AnswerWith("banana:2.5")
+			assert.EqualError(t, validationErr, "could not resolve step name or package matching banana")
+
+			validationErr = q.AnswerWith("2.5") // ok answer properly this time, set everything to 2.5
+			assert.Nil(t, validationErr)
+
+			// it'll ask again; y to confirm
+			_ = qa.ExpectQuestion(t, &survey.Input{Message: enterOverrideQuestion}).AnswerWith("y") // confirm packages
+
+			versions, overrides, err := testutil.ReceiveTriple(receiver)
+			assert.Nil(t, err)
+			assert.Equal(t, []*create.StepPackageVersion{
+				{ActionName: "Install", PackageID: "pterm", PackageReferenceName: "pterm", Version: "2.5"},
+				{ActionName: "Install", PackageID: "NuGet.CommandLine", PackageReferenceName: "NuGet.CommandLine", Version: "2.5"},
+				{ActionName: "Verify", PackageID: "pterm", PackageReferenceName: "pterm", Version: "2.5"},
+			}, versions)
+			assert.Equal(t, []*create.PackageVersionOverride{
+				{Version: "2.5"},
+			}, overrides)
+		}},
+
+		{"question loop doesn't retry if it gets a hard error", func(t *testing.T, qa *testutil.AskMocker, stdout *bytes.Buffer) {
+			receiver := testutil.GoBegin3(func() ([]*create.StepPackageVersion, []*create.PackageVersionOverride, error) {
+				return create.AskPackageOverrideLoop(baseline, make([]string, 0), qa.AsAsker(), stdout)
+			})
+
+			qa.ExpectQuestion(t, &survey.Input{Message: enterOverrideQuestion}).AnswerWithError(errors.New("hard fail"))
+
+			versions, overrides, err := testutil.ReceiveTriple(receiver)
+			assert.Equal(t, errors.New("hard fail"), err)
+			assert.Nil(t, versions)
+			assert.Nil(t, overrides)
+		}},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			qa := testutil.NewAskMocker()
+			test.run(t, qa, &bytes.Buffer{})
 		})
 	}
 }
@@ -750,11 +937,15 @@ func TestReleaseCreate_AutomationMode(t *testing.T) {
 				rootCmd.SetArgs([]string{"release", "create",
 					"--project", cacProject.Name,
 					"--package-version", "5.6.7-beta",
+					"--package", "pterm:2.5",
+					"--package", "NuGet.CommandLine:5.4.1",
 					"--git-ref", "refs/heads/main",
 					"--git-commit", "6ef5e8c83cdcd4933bbeaeb458dc99902ad831ca",
 					"--version", "1.0.2",
 					"--channel", "BetaChannel",
 					"--release-notes", "Here are some **release notes**.",
+					"--ignore-channel-rules",
+					"--ignore-existing",
 				})
 				return rootCmd.ExecuteC()
 			})
@@ -776,9 +967,10 @@ func TestReleaseCreate_AutomationMode(t *testing.T) {
 				ReleaseVersion:        "1.0.2",
 				ChannelIDOrName:       "BetaChannel",
 				ReleaseNotes:          "Here are some **release notes**.",
-				IgnoreIfAlreadyExists: false,
-				IgnoreChannelRules:    false,
+				IgnoreIfAlreadyExists: true,
+				IgnoreChannelRules:    true,
 				PackagePrerelease:     "",
+				Packages:              []string{"pterm:2.5", "NuGet.CommandLine:5.4.1"},
 			}, requestBody)
 
 			// this isn't realistic, we asked for version 1.0.2 and channel Beta, but it proves that
@@ -1254,6 +1446,7 @@ func TestReleaseCreate_ParsePackageOverrideString(t *testing.T) {
 }
 
 func TestReleaseCreate_ResolvePackageOverride(t *testing.T) {
+	// this is the packageId:5.0 syntax
 	t.Run("match on package ID", func(t *testing.T) { // this is probably the most common thing people will do
 		nugetPackage := &create.AmbiguousPackageVersionOverride{ActionNameOrPackageID: "NuGet", Version: "5.0"}
 
@@ -1266,6 +1459,7 @@ func TestReleaseCreate_ResolvePackageOverride(t *testing.T) {
 		assert.Equal(t, &create.PackageVersionOverride{PackageID: "NuGet", ActionName: "", Version: "5.0", PackageReferenceName: ""}, r)
 	})
 
+	// this is the stepName:5.0 syntax
 	t.Run("match on step name", func(t *testing.T) { // this is probably the most common thing people will do
 		nugetPackage := &create.AmbiguousPackageVersionOverride{ActionNameOrPackageID: "Install", Version: "5.0"}
 
@@ -1278,6 +1472,7 @@ func TestReleaseCreate_ResolvePackageOverride(t *testing.T) {
 		assert.Equal(t, &create.PackageVersionOverride{PackageID: "", ActionName: "Install", Version: "5.0", PackageReferenceName: ""}, r)
 	})
 
+	// this is the packageRef:*:5.0 syntax
 	t.Run("match on packageRef", func(t *testing.T) {
 		nugetPackage := &create.AmbiguousPackageVersionOverride{PackageReferenceName: "NuGet-B", Version: "5.0"}
 
@@ -1289,6 +1484,29 @@ func TestReleaseCreate_ResolvePackageOverride(t *testing.T) {
 		r, err := create.ResolvePackageOverride(nugetPackage, steps)
 		assert.Nil(t, err)
 		assert.Equal(t, &create.PackageVersionOverride{PackageID: "", ActionName: "", Version: "5.0", PackageReferenceName: "NuGet-B"}, r)
+	})
+
+	// this is the *:5.0 or :5.0 or just 5.0 syntax
+	t.Run("match on just version", func(t *testing.T) { // this is probably the most common thing people will do
+		nugetPackage := &create.AmbiguousPackageVersionOverride{Version: "5.0"}
+
+		steps := []*create.StepPackageVersion{ // baseline
+			{PackageID: "NuGet", ActionName: "Install", Version: "0.1", PackageReferenceName: "NuGet"},
+		}
+
+		r, err := create.ResolvePackageOverride(nugetPackage, steps)
+		assert.Nil(t, err)
+		assert.Equal(t, &create.PackageVersionOverride{PackageID: "", ActionName: "", Version: "5.0", PackageReferenceName: ""}, r)
+	})
+
+	t.Run("match on just version doesn't even need any packages to look at", func(t *testing.T) { // this is probably the most common thing people will do
+		nugetPackage := &create.AmbiguousPackageVersionOverride{Version: "5.0"}
+
+		steps := make([]*create.StepPackageVersion, 0) // baseline
+
+		r, err := create.ResolvePackageOverride(nugetPackage, steps)
+		assert.Nil(t, err)
+		assert.Equal(t, &create.PackageVersionOverride{PackageID: "", ActionName: "", Version: "5.0", PackageReferenceName: ""}, r)
 	})
 
 	t.Run("match on action+packageRef before packageID", func(t *testing.T) { // this is probably the most common thing people will do
@@ -1359,7 +1577,6 @@ func TestReleaseCreate_ResolvePackageOverride(t *testing.T) {
 		assert.Nil(t, err)
 		assert.Equal(t, &create.PackageVersionOverride{PackageID: "", ActionName: "", Version: "5.0", PackageReferenceName: "NuGet-B"}, r)
 	})
-
 }
 
 func TestReleaseCreate_ApplyPackageOverride(t *testing.T) {

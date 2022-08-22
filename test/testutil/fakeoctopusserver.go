@@ -40,6 +40,26 @@ func ReceivePair[T1 any, T2 any](receiver chan Pair[T1, T2]) (T1, T2) {
 	return pair.Item1, pair.Item2
 }
 
+type Triple[T1 any, T2 any, T3 any] struct {
+	Item1 T1
+	Item2 T2
+	Item3 T3
+}
+
+func GoBegin3[TResult1 any, TResult2 any, TResult3 any](action func() (TResult1, TResult2, TResult3)) chan Triple[TResult1, TResult2, TResult3] {
+	c := make(chan Triple[TResult1, TResult2, TResult3])
+	go func() {
+		r1, r2, r3 := action()
+		c <- Triple[TResult1, TResult2, TResult3]{Item1: r1, Item2: r2, Item3: r3}
+	}()
+	return c
+}
+
+func ReceiveTriple[T1 any, T2 any, T3 any](receiver chan Triple[T1, T2, T3]) (T1, T2, T3) {
+	pair := <-receiver
+	return pair.Item1, pair.Item2, pair.Item3
+}
+
 type responseOrError struct {
 	response *http.Response
 	error    error

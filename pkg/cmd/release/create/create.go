@@ -26,17 +26,17 @@ import (
 )
 
 const (
-	FlagProject                = "project"
-	FlagPackageVersion         = "package-version" // would default-package-version? be a better name?
-	FlagReleaseNotes           = "release-notes"   // should we also add release-notes-file?
-	FlagChannel                = "channel"
-	FlagVersion                = "version"
-	FlagGitRef                 = "git-ref"
-	FlagGitCommit              = "git-commit"
-	FlagIgnoreExisting         = "ignore-existing"
-	FlagIgnoreChannelRules     = "ignore-channel-rules"
-	FlagPackagePrerelease      = "prerelease-packages"
-	FlagPackageVersionOverride = "package"
+	FlagProject            = "project"
+	FlagPackageVersion     = "package-version"
+	FlagReleaseNotes       = "release-notes" // should we also add release-notes-file?
+	FlagChannel            = "channel"
+	FlagVersion            = "version"
+	FlagGitRef             = "git-ref"
+	FlagGitCommit          = "git-commit"
+	FlagIgnoreExisting     = "ignore-existing"
+	FlagIgnoreChannelRules = "ignore-channel-rules"
+	FlagPackagePrerelease  = "package-prerelease"
+	FlagPackageVersionSpec = "package"
 )
 
 func NewCmdCreate(f factory.Factory) *cobra.Command {
@@ -62,9 +62,9 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 	cmd.Flags().StringP(FlagVersion, "v", "", "Version Override")
 	cmd.Flags().BoolP(FlagIgnoreExisting, "x", false, "If a release with the same version exists, do nothing rather than failing.")
 	cmd.Flags().BoolP(FlagIgnoreChannelRules, "", false, "Force creation of a release where channel rules would otherwise prevent it.")
-	cmd.Flags().BoolP(FlagPackagePrerelease, "", false, "Allow selection of prerelease packages.") // TODO does this make sense? The server is going to follow channel rules anyway isn't it?
+	// cmd.Flags().BoolP(FlagPackagePrerelease, "", false, "Allow selection of prerelease packages.") // TODO does this make sense? The server is going to follow channel rules anyway isn't it?
 	// stringSlice also allows comma-separated things
-	cmd.Flags().StringSliceP(FlagPackageVersionOverride, "", []string{}, "Version Override for a specific package.\nFormat as {step}:{package}:{version}\nYou may specify this multiple times")
+	cmd.Flags().StringSliceP(FlagPackageVersionSpec, "", []string{}, "Version specification a specific packages.\nFormat as {package}:{version}, {step}:{version} or {package-ref-name}:{packageOrStep}:{version}\nYou may specify this multiple times")
 
 	// we want the help text to display in the above order, rather than alphabetical
 	cmd.Flags().SortFlags = false
@@ -78,15 +78,16 @@ func createRun(cmd *cobra.Command, f factory.Factory) error {
 		return err
 	}
 
+	// ignore errors when fetching flags
 	options := &executor.TaskOptionsCreateRelease{
 		ProjectName: project,
 	}
-	// ignore errors when fetching flags
+
 	if value, _ := cmd.Flags().GetString(FlagPackageVersion); value != "" {
 		options.DefaultPackageVersion = value
 	}
 
-	if value, _ := cmd.Flags().GetStringSlice(FlagPackageVersionOverride); value != nil {
+	if value, _ := cmd.Flags().GetStringSlice(FlagPackageVersionSpec); value != nil {
 		options.PackageVersionOverrides = value
 	}
 
@@ -456,6 +457,16 @@ func ParsePackageOverrideString(packageOverride string) (*AmbiguousPackageVersio
 }
 
 func ResolvePackageOverride(override *AmbiguousPackageVersionOverride, steps []*StepPackageVersion) (*PackageVersionOverride, error) {
+	// shortcut for wildcard matches; these match everything so we don't need to do any work
+	if override.PackageReferenceName == "" && override.ActionNameOrPackageID == "" {
+		return &PackageVersionOverride{
+			ActionName:           "",
+			PackageID:            "",
+			PackageReferenceName: "",
+			Version:              override.Version,
+		}, nil
+	}
+
 	actionNameOrPackageID := override.ActionNameOrPackageID
 
 	// it could be either a stepname or a package ID; match against the list of packages to try and guess.
@@ -492,7 +503,7 @@ func ResolvePackageOverride(override *AmbiguousPackageVersionOverride, steps []*
 	}
 
 	if len(matches) == 0 {
-		return nil, fmt.Errorf("could not resolve find step name or package ID matching %s", actionNameOrPackageID)
+		return nil, fmt.Errorf("could not resolve step name or package matching %s", actionNameOrPackageID)
 	}
 	sort.SliceStable(matches, func(i, j int) bool { // want a stable sort so if there's more than one possible match we pick the first one
 		return matches[i].priority > matches[j].priority
@@ -832,9 +843,10 @@ func AskPackageOverrideLoop(
 			return nil, nil, err
 		}
 
+		// side-channel return values from the validator
 		var resolvedOverride *PackageVersionOverride = nil
-		var answer = ""
 
+		var answer = ""
 		err = asker(&survey.Input{
 			Message: "Enter package override string, or 'y' to accept package versions", // TODO nicer string when we do a usability pass.
 		}, &answer, survey.WithValidator(func(ans interface{}) error {
@@ -859,8 +871,9 @@ func AskPackageOverrideLoop(
 			return nil // good!
 		}))
 
+		// if validators return an error, survey retries itself; the errors don't end up at this level.
 		if err != nil {
-			return nil, nil, err // TODO probably handle this and loop again
+			return nil, nil, err
 		}
 		if answer == "y" { // YES these are the packages they want
 			break

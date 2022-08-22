@@ -5,7 +5,6 @@ import (
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/AlecAivazis/survey/v2/core"
 	"github.com/stretchr/testify/assert"
-	"sync/atomic"
 	"testing"
 )
 
@@ -14,36 +13,47 @@ type answerOrError struct {
 	error  error
 }
 
+type questionWithOptions struct {
+	question survey.Prompt
+	options  *survey.AskOptions // may be nil, many things have no options
+}
+
 type AskMocker struct {
 	// when the client asks a question, we receive it here
-	Question chan survey.Prompt
+	Question chan questionWithOptions
 	// when we want to answer the question, we send the response here
 	Answer chan answerOrError
 
-	// so test code can detect unanswered requests or responses at the end.
-	// Not strictly neccessary as unanswered req/resp results in a channel deadlock
-	// and go panics and kills the process, so we find out about it, but this is a bit
-	// less confusing to troubleshoot
-	pendingMsgCount int32
-
 	Closed bool
+
+	// when we run validators against a question, if there is an error it will be
+	// sent down this channel. If you aren't hooked up to receive the validation error, the test will deadlock
+	LastValidationError chan error
 }
 
 func (m *AskMocker) AsAsker() func(p survey.Prompt, response interface{}, opts ...survey.AskOpt) error {
-	return func(p survey.Prompt, response any, _ ...survey.AskOpt) error {
+	return func(p survey.Prompt, response any, opts ...survey.AskOpt) error {
 		if m.Closed {
 			return errors.New("AskMocker can't prompt; channel closed")
 		}
 
 		// we're the client here, so we send a question down the question channel
-		atomic.AddInt32(&m.pendingMsgCount, 1)
-		m.Question <- p
-		atomic.AddInt32(&m.pendingMsgCount, -1)
+		var askOptions survey.AskOptions
+		if len(opts) > 0 {
+			err := opts[0](&askOptions)
+			if err != nil {
+				// error getting options, this shouldn't happen
+				return err
+			}
+		}
 
-		// then we wait for a response via the answer channel
-		atomic.AddInt32(&m.pendingMsgCount, 1)
+		m.Question <- questionWithOptions{question: p, options: &askOptions}
+
+		// then we wait for a response via the answer channel.
+		// NOTE validations should have already been run on the send side, so we should only receive things
+		// that have passed any survey validators. We mostly do this because the concurrent nature of this
+		// makes it much easier to have the "AnswerWith" do the validation than the more correct place (here.
 		x := <-m.Answer
-		atomic.AddInt32(&m.pendingMsgCount, -1)
 
 		if x.answer != nil {
 			_ = core.WriteAnswer(response, "", x.answer)
@@ -54,9 +64,14 @@ func (m *AskMocker) AsAsker() func(p survey.Prompt, response interface{}, opts .
 
 func NewAskMocker() *AskMocker {
 	return &AskMocker{
-		Question: make(chan survey.Prompt),
-		Answer:   make(chan answerOrError),
+		Question:            make(chan questionWithOptions),
+		Answer:              make(chan answerOrError),
+		LastValidationError: make(chan error),
 	}
+}
+
+func (m *AskMocker) GetLastValidationError() error {
+	return <-m.LastValidationError
 }
 
 func (m *AskMocker) Close() {
@@ -65,51 +80,77 @@ func (m *AskMocker) Close() {
 	close(m.Answer)
 }
 
-func (m *AskMocker) GetPendingMessageCount() int {
-	return int(m.pendingMsgCount)
-}
-
-func (m *AskMocker) ReceiveQuestion() (survey.Prompt, bool) {
+func (m *AskMocker) receiveQuestion() (survey.Prompt, *survey.AskOptions, bool) {
 	if m.Closed {
-		return nil, false
+		return nil, nil, false
 	}
-	atomic.AddInt32(&m.pendingMsgCount, 1)
 	request := <-m.Question
-	atomic.AddInt32(&m.pendingMsgCount, -1)
-	return request, !m.Closed // reading from closed channels works fine and just returns the default
+	return request.question, request.options, !m.Closed // reading from closed channels works fine and just returns the default
 }
 
-func (m *AskMocker) SendAnswer(answer any, err error) {
+// sendAnswer blindly sends an answer down the answer channel, regardless of whether
+// a question has been asked or not. You should use ExpectQuestion.AnswerWith instead of this
+func (m *AskMocker) sendAnswer(answer any, err error) {
 	if m.Closed {
 		return
 	}
 
-	atomic.AddInt32(&m.pendingMsgCount, 1)
 	m.Answer <- answerOrError{answer: answer, error: err}
-	atomic.AddInt32(&m.pendingMsgCount, -1)
 }
 
-// higher level niceties
-
-func (m *AskMocker) ExpectQuestion(t *testing.T, question survey.Prompt) *QuestionWrapper {
-	q, ok := m.ReceiveQuestion()
+// ReceiveQuestion gets the next question and options from the channel and returns them in a wrapper struct.
+// If the channel is closed, will still return a valid wrapper, but the wrapped contents will be nil
+func (m *AskMocker) ReceiveQuestion() *QuestionWrapper {
+	prompt, askOptions, ok := m.receiveQuestion()
 	if !ok {
 		return &QuestionWrapper{Asker: m}
 	}
-	assert.Equal(t, question, q)
-	return &QuestionWrapper{Question: q, Asker: m}
+	return &QuestionWrapper{Question: prompt, Options: askOptions, Asker: m}
+}
+
+// ExpectQuestion calls ReceiveQuestion and asserts that the received survey prompt matches `question`
+func (m *AskMocker) ExpectQuestion(t *testing.T, question survey.Prompt) *QuestionWrapper {
+	q := m.ReceiveQuestion()
+	assert.Equal(t, question, q.Question)
+	return q
 }
 
 type QuestionWrapper struct {
 	// in case you need it
 	Question survey.Prompt
+	Options  *survey.AskOptions
 	Asker    *AskMocker
 }
 
-func (q *QuestionWrapper) AnswerWith(answer any) {
-	q.Asker.SendAnswer(answer, nil)
+// AnswerWith runs any validators associated with the question. If they all pass, it sends the answer
+// down the channel. If any fail, the validation error is returned from here, and the answer is NOT sent.
+// This mimics the behaviour of real survey, which will keep asking you in a loop until the validators pass.
+//
+// If you want to test validators specifically, then do this:
+//
+//	q := mockSurvey.ExpectQuestion(t, &survey.Prompt{ Message: "Please input a number between 1 and 10" })
+//	err := q.AnswerWith("9999")
+//	assert.EqualError(t, err, "Number was not within range 1 to 10")
+//	err := q.AnswerWith("-1")
+//	assert.EqualError(t, err, "Number was not within range 1 to 10")
+//	err := q.AnswerWith("5")
+//	assert.EqualError(t, err, nil)
+//	test sequence should proceed now
+func (q *QuestionWrapper) AnswerWith(answer any) error {
+	// run validators, otherwise we won't be able to test them
+	if q.Options != nil && len(q.Options.Validators) > 0 {
+		for _, validator := range q.Options.Validators {
+			validationErr := validator(answer)
+			if validationErr != nil {
+				return validationErr
+			}
+		}
+	}
+
+	q.Asker.sendAnswer(answer, nil)
+	return nil
 }
 
 func (q *QuestionWrapper) AnswerWithError(err error) {
-	q.Asker.SendAnswer(nil, err)
+	q.Asker.sendAnswer(nil, err)
 }
