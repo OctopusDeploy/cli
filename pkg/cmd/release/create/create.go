@@ -141,7 +141,6 @@ func createRun(cmd *cobra.Command, f factory.Factory) error {
 
 	if options.Response != nil {
 		// the API response doesn't tell us what channel it selected, so we need to go look that up to tell the end user
-		// TODO unit test for the error cases
 		newlyCreatedRelease, lookupErr := octopus.Releases.GetByID(options.Response.ReleaseID)
 		if lookupErr != nil { // ignorable error
 			cmd.Printf("Successfully created release version %s %s\n",
@@ -183,7 +182,7 @@ func quoteStringIfRequired(str string) string {
 }
 
 // ToCmdFlags generates the command line switches that you'd need to type in to make this work in automation mode.
-// TODO sync this with whatever dom has done; this is a big one-off hack
+// TODO sync this with dom's declarative model when that lands
 func ToCmdFlags(t *executor.TaskOptionsCreateRelease) string {
 	components := make([]string, 0, 20)
 
@@ -304,16 +303,15 @@ func BuildPackageVersionBaseline(octopus *octopusApiClient.Client, deploymentPro
 
 				switch len(versions.Items) {
 				case 0:
-					// TODO add some unit tests for this
+					// if channel rules have altered our query, tell the user about that
 					channelRulesHelp := ""
 					if query.PreReleaseTag != "" {
-						channelRulesHelp = fmt.Sprintf("%s. pre-release tag matching %s. ", channelRulesHelp, query.PreReleaseTag)
+						channelRulesHelp = fmt.Sprintf("%s, pre-release tag matching %s", channelRulesHelp, query.PreReleaseTag)
 					}
 					if query.VersionRange != "" {
-						channelRulesHelp = fmt.Sprintf("%s. version range matching %s. ", channelRulesHelp, query.VersionRange)
+						channelRulesHelp = fmt.Sprintf("%s, version range matching %s", channelRulesHelp, query.VersionRange)
 					}
-					return nil, fmt.Errorf("no package version found for %s. %s please check that the package exists in your package feed", packageRef.PackageID, channelRulesHelp)
-					// if channel rules are in-play tweak the message to say "on package matching rules xyz
+					return nil, fmt.Errorf("no package version found for %s%s. please check that the package exists in your package feed", packageRef.PackageID, channelRulesHelp)
 
 				case 1:
 					cache[query] = versions.Items[0].Version
@@ -826,11 +824,11 @@ func AskPackageOverrideLoop(
 	for _, s := range initialPackageOverrideFlags {
 		ambOverride, err := ParsePackageOverrideString(s)
 		if err != nil {
-			continue // silently ignore anything that wasn't parseable (TODO should we emit a warning?)
+			continue // silently ignore anything that wasn't parseable (should we emit a warning?)
 		}
 		resolvedOverride, err := ResolvePackageOverride(ambOverride, packageVersionBaseline)
 		if err != nil {
-			continue // silently ignore anything that wasn't parseable (TODO should we emit a warning?)
+			continue // silently ignore anything that wasn't parseable (should we emit a warning?)
 		}
 		packageVersionOverrides = append(packageVersionOverrides, resolvedOverride)
 	}

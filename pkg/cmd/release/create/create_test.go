@@ -589,6 +589,7 @@ func TestReleaseCreate_AskQuestions_AskPackageOverrideLoop(t *testing.T) {
 		name string
 		run  func(t *testing.T, qa *testutil.AskMocker, stdout *bytes.Buffer)
 	}{
+		// this is the happy path where the CLI presents the list of server-selected packages and they just go 'yep'
 		{"no-op test", func(t *testing.T, qa *testutil.AskMocker, stdout *bytes.Buffer) {
 			receiver := testutil.GoBegin3(func() ([]*create.StepPackageVersion, []*create.PackageVersionOverride, error) {
 				return create.AskPackageOverrideLoop(baseline, make([]string, 0), qa.AsAsker(), stdout)
@@ -662,6 +663,28 @@ func TestReleaseCreate_AskQuestions_AskPackageOverrideLoop(t *testing.T) {
 			}, versions)
 			assert.Equal(t, []*create.PackageVersionOverride{
 				{PackageReferenceName: "pterm", ActionName: "Install", Version: "2.5"},
+			}, overrides)
+		}},
+
+		{"entering the loop with --package picked up from the command line", func(t *testing.T, qa *testutil.AskMocker, stdout *bytes.Buffer) {
+			cmdlinePackages := []string{"pterm:Install:2.5", "NuGet.CommandLine:7.1"}
+
+			receiver := testutil.GoBegin3(func() ([]*create.StepPackageVersion, []*create.PackageVersionOverride, error) {
+				return create.AskPackageOverrideLoop(baseline, cmdlinePackages, qa.AsAsker(), stdout)
+			})
+
+			_ = qa.ExpectQuestion(t, &survey.Input{Message: enterOverrideQuestion}).AnswerWith("y")
+
+			versions, overrides, err := testutil.ReceiveTriple(receiver)
+			assert.Nil(t, err)
+			assert.Equal(t, []*create.StepPackageVersion{
+				{ActionName: "Install", PackageID: "pterm", PackageReferenceName: "pterm", Version: "2.5"},
+				{ActionName: "Install", PackageID: "NuGet.CommandLine", PackageReferenceName: "NuGet.CommandLine", Version: "7.1"},
+				{ActionName: "Verify", PackageID: "pterm", PackageReferenceName: "pterm", Version: "0.12"},
+			}, versions)
+			assert.Equal(t, []*create.PackageVersionOverride{
+				{PackageReferenceName: "pterm", ActionName: "Install", Version: "2.5"},
+				{PackageID: "NuGet.CommandLine", Version: "7.1"},
 			}, overrides)
 		}},
 
@@ -1408,6 +1431,94 @@ func TestReleaseCreate_BuildPackageVersionBaseline(t *testing.T) {
 			},
 		}, packageVersions)
 	})
+
+	t.Run("fails if the server returns zero available packages", func(t *testing.T) {
+		api := testutil.NewMockHttpServer()
+		processTemplate := &deployments.DeploymentProcessTemplate{
+			Packages: []releases.ReleaseTemplatePackage{
+				{ActionName: "Install", FeedID: builtinFeedID, PackageID: "pterm", PackageReferenceName: "pterm-on-install", StepName: "Install"},
+				{ActionName: "Install", FeedID: builtinFeedID, PackageID: "NuGet.CommandLine", PackageReferenceName: "nuget-on-install", StepName: "Install"},
+			},
+			Resource: resources.Resource{},
+		}
+
+		channel := fixtures.NewChannel(spaceID, "Channels-1", "Default", "Projects-1")
+
+		receiver := testutil.GoBegin2(func() ([]*create.StepPackageVersion, error) {
+			defer api.Close()
+			octopus, _ := octopusApiClient.NewClient(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "")
+			return create.BuildPackageVersionBaseline(octopus, processTemplate, channel)
+		})
+
+		api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
+
+		// it needs to load the feeds to find the links
+		api.ExpectRequest(t, "GET", "/api/Spaces-1/feeds?ids=feeds-builtin&take=1").RespondWith(&feeds.Feeds{Items: []feeds.IFeed{
+			&feeds.FeedResource{Name: "Builtin", FeedType: feeds.FeedTypeBuiltIn, Resource: resources.Resource{
+				ID: builtinFeedID,
+				Links: map[string]string{
+					constants.LinkSearchPackageVersionsTemplate: "/api/Spaces-1/feeds/feeds-builtin/packages/versions{?packageId,take,skip,includePreRelease,versionRange,preReleaseTag,filter,includeReleaseNotes}",
+				}}},
+		}})
+
+		// now it will search for the package versions
+		api.ExpectRequest(t, "GET", "/api/Spaces-1/feeds/feeds-builtin/packages/versions?packageId=pterm&take=1").RespondWith(&resources.Resources[*packages.PackageVersion]{
+			Items: []*packages.PackageVersion{}, // empty!
+		})
+
+		packageVersions, err := testutil.ReceivePair(receiver)
+		assert.EqualError(t, err, "no package version found for pterm. please check that the package exists in your package feed")
+		assert.Nil(t, packageVersions)
+	})
+
+	t.Run("fails if the server returns zero available packages matching channel rules", func(t *testing.T) {
+		api := testutil.NewMockHttpServer()
+		processTemplate := &deployments.DeploymentProcessTemplate{
+			Packages: []releases.ReleaseTemplatePackage{
+				{ActionName: "Install", FeedID: builtinFeedID, PackageID: "pterm", PackageReferenceName: "pterm-on-install", StepName: "Install"},
+				{ActionName: "Install", FeedID: builtinFeedID, PackageID: "NuGet.CommandLine", PackageReferenceName: "nuget-on-install", StepName: "Install"},
+			},
+			Resource: resources.Resource{},
+		}
+
+		channel := fixtures.NewChannel(spaceID, "Channels-1", "Default", "Projects-1")
+		channel.Rules = []channels.ChannelRule{
+			{
+				Tag:          "^pre$",
+				VersionRange: "[5.0,6.0)",
+				ActionPackages: []packages.DeploymentActionPackage{
+					{DeploymentAction: "Install", PackageReference: "pterm-on-install"},
+				},
+			},
+		}
+
+		receiver := testutil.GoBegin2(func() ([]*create.StepPackageVersion, error) {
+			defer api.Close()
+			octopus, _ := octopusApiClient.NewClient(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "")
+			return create.BuildPackageVersionBaseline(octopus, processTemplate, channel)
+		})
+
+		api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
+
+		// it needs to load the feeds to find the links
+		api.ExpectRequest(t, "GET", "/api/Spaces-1/feeds?ids=feeds-builtin&take=1").RespondWith(&feeds.Feeds{Items: []feeds.IFeed{
+			&feeds.FeedResource{Name: "Builtin", FeedType: feeds.FeedTypeBuiltIn, Resource: resources.Resource{
+				ID: builtinFeedID,
+				Links: map[string]string{
+					constants.LinkSearchPackageVersionsTemplate: "/api/Spaces-1/feeds/feeds-builtin/packages/versions{?packageId,take,skip,includePreRelease,versionRange,preReleaseTag,filter,includeReleaseNotes}",
+				}}},
+		}})
+
+		// now it will search for the package versions
+		api.ExpectRequest(t, "GET", "/api/Spaces-1/feeds/feeds-builtin/packages/versions?packageId=pterm&preReleaseTag=%5Epre%24&take=1&versionRange=%5B5.0%2C6.0%29").RespondWith(&resources.Resources[*packages.PackageVersion]{
+			Items: []*packages.PackageVersion{}, // empty!
+		})
+
+		packageVersions, err := testutil.ReceivePair(receiver)
+		assert.EqualError(t, err, "no package version found for pterm, pre-release tag matching ^pre$, version range matching [5.0,6.0). please check that the package exists in your package feed")
+		assert.Nil(t, packageVersions)
+	})
+
 }
 
 func TestReleaseCreate_ToPackageOverrideString(t *testing.T) {
