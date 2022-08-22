@@ -61,60 +61,84 @@ func createRun(f factory.Factory, w io.Writer) error {
 	switch accountType {
 	case "AWS Account":
 		opts := &awsCreate.CreateOptions{
-			Writer:  w,
-			Octopus: client,
-			Spinner: f.Spinner(),
-			Ask:     f.Ask,
+			Writer:      w,
+			Octopus:     client,
+			Spinner:     f.Spinner(),
+			Ask:         f.Ask,
+			Space:       f.GetCurrentSpace().GetID(),
+			CreateFlags: awsCreate.NewCreateFlags(),
+			CmdPath:     "octopus account aws create",
+			Host:        f.GetCurrentHost(),
 		}
 		if err := awsCreate.CreateRun(opts); err != nil {
 			return err
 		}
 	case "Azure Account":
 		opts := &azureCreate.CreateOptions{
-			Writer:  w,
-			Octopus: client,
-			Spinner: f.Spinner(),
-			Ask:     f.Ask,
+			Writer:      w,
+			Octopus:     client,
+			Spinner:     f.Spinner(),
+			Ask:         f.Ask,
+			Space:       f.GetCurrentSpace().GetID(),
+			CreateFlags: azureCreate.NewCreateFlags(),
+			CmdPath:     "octopus account azure create",
+			Host:        f.GetCurrentHost(),
 		}
 		if err := azureCreate.CreateRun(opts); err != nil {
 			return err
 		}
 	case "Google Cloud Account":
 		opts := &gcpCreate.CreateOptions{
-			Writer:  w,
-			Octopus: client,
-			Spinner: f.Spinner(),
-			Ask:     f.Ask,
+			Writer:      w,
+			Octopus:     client,
+			Spinner:     f.Spinner(),
+			Ask:         f.Ask,
+			Space:       f.GetCurrentSpace().GetID(),
+			CreateFlags: gcpCreate.NewCreateFlags(),
+			CmdPath:     "octopus account gcp create",
+			Host:        f.GetCurrentHost(),
 		}
 		if err := gcpCreate.CreateRun(opts); err != nil {
 			return err
 		}
 	case "SSH Key Pair":
 		opts := &sshCreate.CreateOptions{
-			Writer:  w,
-			Octopus: client,
-			Spinner: f.Spinner(),
-			Ask:     f.Ask,
+			Writer:      w,
+			Octopus:     client,
+			Spinner:     f.Spinner(),
+			Ask:         f.Ask,
+			Space:       f.GetCurrentSpace().GetID(),
+			CreateFlags: sshCreate.NewCreateFlags(),
+			CmdPath:     "octopus account ssh create",
+			Host:        f.GetCurrentHost(),
 		}
 		if err := sshCreate.CreateRun(opts); err != nil {
 			return err
 		}
 	case "Token":
 		opts := &tokenCreate.CreateOptions{
-			Writer:  w,
-			Octopus: client,
-			Spinner: f.Spinner(),
-			Ask:     f.Ask,
+			Writer:      w,
+			Octopus:     client,
+			Spinner:     f.Spinner(),
+			Ask:         f.Ask,
+			Space:       f.GetCurrentSpace().GetID(),
+			CreateFlags: tokenCreate.NewCreateFlags(),
+			CmdPath:     "octopus account token create",
+			Host:        f.GetCurrentHost(),
 		}
 		if err := tokenCreate.CreateRun(opts); err != nil {
 			return err
 		}
 	case "Username/Password":
 		opts := &usernameCreate.CreateOptions{
-			Writer:  w,
-			Octopus: client,
-			Spinner: f.Spinner(),
-			Ask:     f.Ask,
+			Writer:      w,
+			Octopus:     client,
+			Spinner:     f.Spinner(),
+			Ask:         f.Ask,
+			Space:       f.GetCurrentSpace().GetID(),
+			CreateFlags: usernameCreate.NewCreateFlags(),
+			CmdPath:     "octopus account username create",
+			Host:        f.GetCurrentHost(),
 		}
 		if err := usernameCreate.CreateRun(opts); err != nil {
 			return err

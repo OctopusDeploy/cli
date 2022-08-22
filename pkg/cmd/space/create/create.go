@@ -34,7 +34,7 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 	return cmd
 }
 
-func createRun(f factory.Factory, w io.Writer) error {
+func createRun(f factory.Factory, _ io.Writer) error {
 	systemClient, err := f.GetSystemClient()
 	if err != nil {
 		return err
