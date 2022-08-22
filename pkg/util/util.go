@@ -2,6 +2,7 @@ package util
 
 import (
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 )
 
 // SliceContains returns true if it finds an item in the slice that is equal to the target
@@ -40,6 +41,19 @@ func GetFlagString(cmd *cobra.Command, flagNames ...string) (string, error) {
 	return "", nil
 }
 
+func GetFlagBool(cmd *cobra.Command, flagNames ...string) (bool, error) {
+	for _, flagName := range flagNames {
+		result, err := cmd.Flags().GetBool(flagName)
+		if err != nil {
+			return false, err
+		}
+		if result { // NOTE: totally broken if we had a flag with default value of true
+			return result, nil
+		}
+	}
+	return false, nil
+}
+
 // ExtractValuesMatchingKeys returns a collection of values which matched a specified set of keys, in the exact order of keys.
 // Given a collection of items, and a collection of keys to match within that collection
 // This makes no sense, hopefully an example helps:
@@ -69,6 +83,28 @@ func ExtractValuesMatchingKeys[T any](collection []T, keys []string, idSelector 
 		}
 	}
 	return results
+}
+
+func AddFlagAliasesString(flags *pflag.FlagSet, originalFlag string, aliases ...string) {
+	f := flags.Lookup(originalFlag)
+	if f == nil {
+		panic("bug! AddFlagAliasesString couldn't find original flag in collection")
+	}
+	for _, alias := range aliases {
+		flags.String(alias, f.DefValue, "")
+		_ = flags.MarkHidden(alias)
+	}
+}
+
+func AddFlagAliasesBool(flags *pflag.FlagSet, originalFlag string, aliases ...string) {
+	f := flags.Lookup(originalFlag)
+	if f == nil {
+		panic("bug! AddFlagAliasesBool couldn't find original flag in collection")
+	}
+	for _, alias := range aliases {
+		flags.Bool(alias, false, "") // this would be broken if we had any bools with default value of true, but we don't
+		_ = flags.MarkHidden(alias)
+	}
 }
 
 type MapCollectionCacheContainer struct {

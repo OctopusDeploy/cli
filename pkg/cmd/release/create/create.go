@@ -8,6 +8,7 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/executor"
 	"github.com/OctopusDeploy/cli/pkg/output"
 	"github.com/OctopusDeploy/cli/pkg/question"
+	"github.com/OctopusDeploy/cli/pkg/util"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/channels"
 	octopusApiClient "github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/deployments"
@@ -20,54 +21,88 @@ import (
 	"unicode"
 
 	"github.com/MakeNowJust/heredoc/v2"
-	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/spf13/cobra"
 )
 
 const (
-	FlagProject                = "project"
-	FlagPackageVersion         = "package-version" // would default-package-version? be a better name?
-	FlagReleaseNotes           = "release-notes"   // should we also add release-notes-file?
-	FlagChannel                = "channel"
-	FlagVersion                = "version"
-	FlagGitRef                 = "git-ref"
-	FlagGitCommit              = "git-commit"
-	FlagIgnoreExisting         = "ignore-existing"
-	FlagIgnoreChannelRules     = "ignore-channel-rules"
-	FlagPackagePrerelease      = "prerelease-packages"
-	FlagPackageVersionOverride = "package"
+	FlagProject            = "project"
+	FlagChannel            = "channel"
+	FlagPackageVersionSpec = "package"
+
+	FlagVersion                  = "version"
+	FlagAliasReleaseNumberLegacy = "releaseNumber" // alias for FlagVersion
+
+	FlagPackageVersion                   = "package-version"
+	FlagAliasDefaultPackageVersion       = "default-package-version" // alias for FlagPackageVersion
+	FlagAliasPackageVersionLegacy        = "packageVersion"          // alias for FlagPackageVersion
+	FlagAliasDefaultPackageVersionLegacy = "defaultPackageVersion"   // alias for FlagPackageVersion
+
+	FlagReleaseNotes            = "release-notes"
+	FlagAliasReleaseNotesLegacy = "releaseNotes"
+
+	FlagReleaseNotesFile       = "release-notes-file"
+	FlagReleaseNotesFileLegacy = "releaseNotesFile"
+	FlagReleaseNoteFileLegacy  = "releaseNoteFile"
+
+	FlagGitRef            = "git-ref"
+	FlagAliasGitRefLegacy = "gitRef"
+	FlagAliasGitRefRef    = "ref" // alias for FlagGitRef
+
+	FlagGitCommit            = "git-commit"
+	FlagAliasGitCommitLegacy = "gitCommit"
+
+	FlagIgnoreExisting            = "ignore-existing"
+	FlagAliasIgnoreExistingLegacy = "ignoreExisting"
+
+	FlagIgnoreChannelRules            = "ignore-channel-rules"
+	FlagAliasIgnoreChannelRulesLegacy = "ignoreChannelRules"
+
+	FlagPackagePrerelease            = "package-prerelease"
+	FlagAliasPackagePrereleaseLegacy = "packagePrerelease"
 )
 
 func NewCmdCreate(f factory.Factory) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "create",
-		Short: "Creates a release in an instance of Octopus Deploy",
-		Long:  "Creates a release in an instance of Octopus Deploy.",
-		Example: fmt.Sprintf(heredoc.Doc(`
-			$ %s release create --project MyProject --channel Beta -v "1.2.3"
+		Short: "Creates a release in Octopus Deploy",
+		Long:  "Creates a release in Octopus Deploy.",
+		Example: heredoc.Doc(`
+			$ octopus release create --project MyProject --channel Beta --version 1.2.3
+			$ octopus release create -p MyProject -c Beta -v 1.2.3
 
-			$ %s release create -p MyProject -c default -o "installstep:utils:1.2.3" -o "installstep:helpers:5.6.7"
-		`), constants.ExecutableName, constants.ExecutableName),
+			$ octopus release create -p MyProject -c default --package "utils:1.2.3" --package "utils:InstallOnly:5.6.7"
+			$ octopus release create -p MyProject -c Beta --no-prompt
+		`),
 		RunE: func(cmd *cobra.Command, args []string) error { return createRun(cmd, f) },
 	}
 
 	// project is required in automation mode, other options are not. Nothing is required in interactive mode because we prompt for everything
-	cmd.Flags().StringP(FlagProject, "p", "", "Name or ID of the project to create the release in")
-	cmd.Flags().StringP(FlagChannel, "c", "", "Name or ID of the channel to use")
-	cmd.Flags().StringP(FlagGitRef, "r", "", "Git Reference e.g. refs/heads/main. Only relevant for config-as-code projects")
-	cmd.Flags().StringP(FlagGitCommit, "", "", "Git Commit Hash; Specify this in addition to Git Reference if you want to reference a commit other than the latest for that branch/tag.")
-	cmd.Flags().StringP(FlagPackageVersion, "", "", "Default version to use for all Packages")
-	cmd.Flags().StringP(FlagReleaseNotes, "n", "", "Release notes to attach")
-	cmd.Flags().StringP(FlagVersion, "v", "", "Version Override")
-	cmd.Flags().BoolP(FlagIgnoreExisting, "x", false, "If a release with the same version exists, do nothing rather than failing.")
-	cmd.Flags().BoolP(FlagIgnoreChannelRules, "", false, "Force creation of a release where channel rules would otherwise prevent it.")
-	cmd.Flags().BoolP(FlagPackagePrerelease, "", false, "Allow selection of prerelease packages.") // TODO does this make sense? The server is going to follow channel rules anyway isn't it?
-	// stringSlice also allows comma-separated things
-	cmd.Flags().StringSliceP(FlagPackageVersionOverride, "", []string{}, "Version Override for a specific package.\nFormat as {step}:{package}:{version}\nYou may specify this multiple times")
+	flags := cmd.Flags()
+	flags.StringP(FlagProject, "p", "", "Name or ID of the project to create the release in")
+	flags.StringP(FlagChannel, "c", "", "Name or ID of the channel to use")
+	flags.StringP(FlagGitRef, "r", "", "Git Reference e.g. refs/heads/main. Only relevant for config-as-code projects")
+	flags.StringP(FlagGitCommit, "", "", "Git Commit Hash; Specify this in addition to Git Reference if you want to reference a commit other than the latest for that branch/tag.")
+	flags.StringP(FlagPackageVersion, "", "", "Default version to use for all Packages")
+	flags.StringP(FlagReleaseNotes, "n", "", "Release notes to attach")
+	flags.StringP(FlagVersion, "v", "", "Override the Release Version")
+	flags.StringP(FlagPackagePrerelease, "", "", "Apply prerelease package tag to all pacakges.")
+	flags.BoolP(FlagIgnoreExisting, "x", false, "If a release with the same version exists, do nothing instead of failing.")
+	flags.BoolP(FlagIgnoreChannelRules, "", false, "Allow creation of a release where channel rules would otherwise prevent it.")
+	flags.StringSliceP(FlagPackageVersionSpec, "", []string{}, "Version specification a specific packages.\nFormat as {package}:{version}, {step}:{version} or {package-ref-name}:{packageOrStep}:{version}\nYou may specify this multiple times")
 
 	// we want the help text to display in the above order, rather than alphabetical
-	cmd.Flags().SortFlags = false
+	flags.SortFlags = false
+
+	// flags aliases for compat with old .NET CLI
+	util.AddFlagAliasesString(flags, FlagGitRef, FlagAliasGitRefRef, FlagAliasGitRefLegacy)
+	util.AddFlagAliasesString(flags, FlagGitCommit, FlagAliasGitCommitLegacy)
+	util.AddFlagAliasesString(flags, FlagPackageVersion, FlagAliasDefaultPackageVersion, FlagAliasPackageVersionLegacy, FlagAliasDefaultPackageVersionLegacy)
+	util.AddFlagAliasesString(flags, FlagReleaseNotes, FlagAliasReleaseNotesLegacy)
+	util.AddFlagAliasesString(flags, FlagVersion, FlagAliasReleaseNumberLegacy)
+	util.AddFlagAliasesString(flags, FlagPackagePrerelease, FlagAliasPackagePrereleaseLegacy)
+	util.AddFlagAliasesBool(flags, FlagIgnoreExisting, FlagAliasIgnoreExistingLegacy)
+	util.AddFlagAliasesBool(flags, FlagIgnoreChannelRules, FlagAliasIgnoreChannelRulesLegacy)
 
 	return cmd
 }
@@ -78,15 +113,16 @@ func createRun(cmd *cobra.Command, f factory.Factory) error {
 		return err
 	}
 
+	// ignore errors when fetching flags
 	options := &executor.TaskOptionsCreateRelease{
 		ProjectName: project,
 	}
-	// ignore errors when fetching flags
-	if value, _ := cmd.Flags().GetString(FlagPackageVersion); value != "" {
+
+	if value, _ := util.GetFlagString(cmd, FlagPackageVersion, FlagAliasDefaultPackageVersion, FlagAliasPackageVersionLegacy, FlagAliasDefaultPackageVersionLegacy); value != "" {
 		options.DefaultPackageVersion = value
 	}
 
-	if value, _ := cmd.Flags().GetStringSlice(FlagPackageVersionOverride); value != nil {
+	if value, _ := cmd.Flags().GetStringSlice(FlagPackageVersionSpec); value != nil {
 		options.PackageVersionOverrides = value
 	}
 
@@ -94,25 +130,30 @@ func createRun(cmd *cobra.Command, f factory.Factory) error {
 		options.ChannelName = value
 	}
 
-	if value, _ := cmd.Flags().GetString(FlagGitRef); value != "" {
+	if value, _ := util.GetFlagString(cmd, FlagGitRef, FlagAliasGitRefRef, FlagAliasGitRefLegacy); value != "" {
 		options.GitReference = value
 	}
-	if value, _ := cmd.Flags().GetString(FlagGitCommit); value != "" {
+	if value, _ := util.GetFlagString(cmd, FlagGitCommit, FlagAliasGitCommitLegacy); value != "" {
 		options.GitCommit = value
 	}
 
-	if value, _ := cmd.Flags().GetString(FlagVersion); value != "" {
+	if value, _ := util.GetFlagString(cmd, FlagVersion, FlagAliasReleaseNumberLegacy); value != "" {
 		options.Version = value
 	}
 
-	if value, _ := cmd.Flags().GetString(FlagReleaseNotes); value != "" {
+	if value, _ := util.GetFlagString(cmd, FlagPackagePrerelease, FlagAliasPackagePrereleaseLegacy); value != "" {
+		options.PackagePrerelease = value
+	}
+
+	if value, _ := util.GetFlagString(cmd, FlagReleaseNotes, FlagAliasReleaseNotesLegacy); value != "" {
 		options.ReleaseNotes = value
 	}
 
-	if value, _ := cmd.Flags().GetBool(FlagIgnoreExisting); value {
+	if value, _ := util.GetFlagBool(cmd, FlagIgnoreExisting, FlagAliasIgnoreExistingLegacy); value {
 		options.IgnoreIfAlreadyExists = value
 	}
-	if value, _ := cmd.Flags().GetBool(FlagIgnoreChannelRules); value {
+
+	if value, _ := util.GetFlagBool(cmd, FlagIgnoreChannelRules, FlagAliasIgnoreChannelRulesLegacy); value {
 		options.IgnoreChannelRules = value
 	}
 
@@ -140,7 +181,6 @@ func createRun(cmd *cobra.Command, f factory.Factory) error {
 
 	if options.Response != nil {
 		// the API response doesn't tell us what channel it selected, so we need to go look that up to tell the end user
-		// TODO unit test for the error cases
 		newlyCreatedRelease, lookupErr := octopus.Releases.GetByID(options.Response.ReleaseID)
 		if lookupErr != nil { // ignorable error
 			cmd.Printf("Successfully created release version %s %s\n",
@@ -182,7 +222,7 @@ func quoteStringIfRequired(str string) string {
 }
 
 // ToCmdFlags generates the command line switches that you'd need to type in to make this work in automation mode.
-// TODO sync this with whatever dom has done; this is a big one-off hack
+// TODO sync this with dom's declarative model when that lands
 func ToCmdFlags(t *executor.TaskOptionsCreateRelease) string {
 	components := make([]string, 0, 20)
 
@@ -224,7 +264,7 @@ type StepPackageVersion struct {
 	PackageReferenceName string
 }
 
-// buildPackageVersionBaseline loads the deployment process template from the server, and for each step+package therein,
+// BuildPackageVersionBaseline loads the deployment process template from the server, and for each step+package therein,
 // finds the latest available version satisfying the channel version rules. Result is the list of step+package+versions
 // to use as a baseline. The package version override process takes this as an input and layers on top of it
 func BuildPackageVersionBaseline(octopus *octopusApiClient.Client, deploymentProcessTemplate *deployments.DeploymentProcessTemplate, channel *channels.Channel) ([]*StepPackageVersion, error) {
@@ -303,16 +343,15 @@ func BuildPackageVersionBaseline(octopus *octopusApiClient.Client, deploymentPro
 
 				switch len(versions.Items) {
 				case 0:
-					// TODO add some unit tests for this
+					// if channel rules have altered our query, tell the user about that
 					channelRulesHelp := ""
 					if query.PreReleaseTag != "" {
-						channelRulesHelp = fmt.Sprintf("%s. pre-release tag matching %s. ", channelRulesHelp, query.PreReleaseTag)
+						channelRulesHelp = fmt.Sprintf("%s, pre-release tag matching %s", channelRulesHelp, query.PreReleaseTag)
 					}
 					if query.VersionRange != "" {
-						channelRulesHelp = fmt.Sprintf("%s. version range matching %s. ", channelRulesHelp, query.VersionRange)
+						channelRulesHelp = fmt.Sprintf("%s, version range matching %s", channelRulesHelp, query.VersionRange)
 					}
-					return nil, fmt.Errorf("no package version found for %s. %s please check that the package exists in your package feed", packageRef.PackageID, channelRulesHelp)
-					// if channel rules are in-play tweak the message to say "on package matching rules xyz
+					return nil, fmt.Errorf("no package version found for %s%s. please check that the package exists in your package feed", packageRef.PackageID, channelRulesHelp)
 
 				case 1:
 					cache[query] = versions.Items[0].Version
@@ -456,6 +495,16 @@ func ParsePackageOverrideString(packageOverride string) (*AmbiguousPackageVersio
 }
 
 func ResolvePackageOverride(override *AmbiguousPackageVersionOverride, steps []*StepPackageVersion) (*PackageVersionOverride, error) {
+	// shortcut for wildcard matches; these match everything so we don't need to do any work
+	if override.PackageReferenceName == "" && override.ActionNameOrPackageID == "" {
+		return &PackageVersionOverride{
+			ActionName:           "",
+			PackageID:            "",
+			PackageReferenceName: "",
+			Version:              override.Version,
+		}, nil
+	}
+
 	actionNameOrPackageID := override.ActionNameOrPackageID
 
 	// it could be either a stepname or a package ID; match against the list of packages to try and guess.
@@ -492,7 +541,7 @@ func ResolvePackageOverride(override *AmbiguousPackageVersionOverride, steps []*
 	}
 
 	if len(matches) == 0 {
-		return nil, fmt.Errorf("could not resolve find step name or package ID matching %s", actionNameOrPackageID)
+		return nil, fmt.Errorf("could not resolve step name or package matching %s", actionNameOrPackageID)
 	}
 	sort.SliceStable(matches, func(i, j int) bool { // want a stable sort so if there's more than one possible match we pick the first one
 		return matches[i].priority > matches[j].priority
@@ -716,85 +765,31 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 	// we need the deployment process template in order to get the steps, so we can lookup the stepID
 	spinner.Start()
 	deploymentProcessTemplate, err := octopus.DeploymentProcesses.GetTemplate(deploymentProcess, selectedChannel.ID, "")
-	// don't stop the spinner, we may have more networking
+	// don't stop the spinner, BuildPackageVersionBaseline does more networking
 	if err != nil {
 		spinner.Stop()
 		return err
 	}
 
 	packageVersionBaseline, err := BuildPackageVersionBaseline(octopus, deploymentProcessTemplate, selectedChannel)
+	spinner.Stop()
+	if err != nil {
+		return err
+	}
+
 	var overriddenPackageVersions []*StepPackageVersion
-
 	if len(packageVersionBaseline) > 0 { // if we have packages, run the package flow
-		packageVersionOverrides := make([]*PackageVersionOverride, 0)
+		opv, packageVersionOverrides, err := AskPackageOverrideLoop(
+			packageVersionBaseline,
+			options.DefaultPackageVersion,
+			options.PackageVersionOverrides,
+			asker,
+			stdout)
 
-		// pickup any partial package specifications that may have arrived on the commandline
-		for _, s := range options.PackageVersionOverrides {
-			ambOverride, err := ParsePackageOverrideString(s)
-			if err != nil {
-				continue // silently ignore anything that wasn't parseable (TODO should we emit a warning?)
-			}
-			resolvedOverride, err := ResolvePackageOverride(ambOverride, packageVersionBaseline)
-			if err != nil {
-				continue // silently ignore anything that wasn't parseable (TODO should we emit a warning?)
-			}
-			packageVersionOverrides = append(packageVersionOverrides, resolvedOverride)
-		}
-
-		overriddenPackageVersions = ApplyPackageOverrides(packageVersionBaseline, packageVersionOverrides)
-
-		spinner.Stop()
 		if err != nil {
 			return err
 		}
-
-		for {
-			err = printPackageVersions(stdout, overriddenPackageVersions)
-			if err != nil {
-				return err
-			}
-
-			var resolvedOverride *PackageVersionOverride = nil
-			var answer = ""
-
-			err := asker(&survey.Input{
-				Message: "Enter package override string, or 'y' to accept package versions", // TODO nicer string when we do a usability pass.
-			}, &answer, survey.WithValidator(func(ans interface{}) error {
-				str, ok := ans.(string)
-				if !ok {
-					return errors.New("internal error; answer was not a string")
-				}
-
-				if str == "y" || str == "" { // valid response for continuing the loop; don't attempt to parse this
-					return nil
-				}
-
-				ambOverride, err := ParsePackageOverrideString(str)
-				if err != nil {
-					return err
-				}
-				resolvedOverride, err = ResolvePackageOverride(ambOverride, packageVersionBaseline)
-				if err != nil {
-					return err
-				}
-
-				return nil // good!
-			}))
-
-			if err != nil {
-				return err // TODO probably handle this and loop again
-			}
-			if answer == "y" { // YES these are the packages they want
-				break
-			}
-
-			if resolvedOverride != nil {
-				packageVersionOverrides = append(packageVersionOverrides, resolvedOverride)
-				// always reset to the baseline and apply everything in order, there's less room for logic errors
-				overriddenPackageVersions = ApplyPackageOverrides(packageVersionBaseline, packageVersionOverrides)
-			}
-			// else the user most likely typed an empty string, loop around
-		}
+		overriddenPackageVersions = opv
 
 		if len(packageVersionOverrides) > 0 {
 			options.PackageVersionOverrides = make([]string, 0, len(packageVersionOverrides))
@@ -862,6 +857,97 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 		_, _ = fmt.Fprintf(stdout, "Version %s\n", output.Cyan(options.Version))
 	}
 	return nil
+}
+
+func AskPackageOverrideLoop(
+	packageVersionBaseline []*StepPackageVersion,
+	defaultPackageVersion string, // the --package-version command line flag
+	initialPackageOverrideFlags []string, // the --package command line flag (multiple occurrences)
+	asker question.Asker,
+	stdout io.Writer) ([]*StepPackageVersion, []*PackageVersionOverride, error) {
+	packageVersionOverrides := make([]*PackageVersionOverride, 0)
+
+	// pickup any partial package specifications that may have arrived on the commandline
+	if defaultPackageVersion != "" {
+		// blind apply to everything
+		packageVersionOverrides = append(packageVersionOverrides, &PackageVersionOverride{Version: defaultPackageVersion})
+	}
+
+	for _, s := range initialPackageOverrideFlags {
+		ambOverride, err := ParsePackageOverrideString(s)
+		if err != nil {
+			continue // silently ignore anything that wasn't parseable (should we emit a warning?)
+		}
+		resolvedOverride, err := ResolvePackageOverride(ambOverride, packageVersionBaseline)
+		if err != nil {
+			continue // silently ignore anything that wasn't parseable (should we emit a warning?)
+		}
+		packageVersionOverrides = append(packageVersionOverrides, resolvedOverride)
+	}
+
+	overriddenPackageVersions := ApplyPackageOverrides(packageVersionBaseline, packageVersionOverrides)
+
+	for {
+		err := printPackageVersions(stdout, overriddenPackageVersions)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		// side-channel return values from the validator
+		var resolvedOverride *PackageVersionOverride = nil
+
+		var answer = ""
+		err = asker(&survey.Input{
+			Message: "Enter package override string, or 'y' to accept package versions", // TODO nicer string when we do a usability pass.
+		}, &answer, survey.WithValidator(func(ans interface{}) error {
+			str, ok := ans.(string)
+			if !ok {
+				return errors.New("internal error; answer was not a string")
+			}
+
+			switch str {
+			// valid response for continuing the loop; don't attempt to validate these
+			case "y", "u", "":
+				return nil
+			}
+
+			ambOverride, err := ParsePackageOverrideString(str)
+			if err != nil {
+				return err
+			}
+			resolvedOverride, err = ResolvePackageOverride(ambOverride, packageVersionBaseline)
+			if err != nil {
+				return err
+			}
+
+			return nil // good!
+		}))
+
+		// if validators return an error, survey retries itself; the errors don't end up at this level.
+		if err != nil {
+			return nil, nil, err
+		}
+		if answer == "u" { // undo!
+			if len(packageVersionOverrides) > 0 {
+				packageVersionOverrides = packageVersionOverrides[:len(packageVersionOverrides)-1]
+				// always reset to the baseline and apply everything in order, there's less room for logic errors
+				overriddenPackageVersions = ApplyPackageOverrides(packageVersionBaseline, packageVersionOverrides)
+			}
+			continue // print table and go again
+		}
+
+		if answer == "y" { // YES these are the packages they want
+			break
+		}
+
+		if resolvedOverride != nil {
+			packageVersionOverrides = append(packageVersionOverrides, resolvedOverride)
+			// always reset to the baseline and apply everything in order, there's less room for logic errors
+			overriddenPackageVersions = ApplyPackageOverrides(packageVersionBaseline, packageVersionOverrides)
+		}
+		// else the user most likely typed an empty string, loop around
+	}
+	return overriddenPackageVersions, packageVersionOverrides, nil
 }
 
 func askVersion(ask question.Asker, defaultVersion string) (string, error) {
