@@ -98,6 +98,7 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 	util.AddFlagAliasesString(flags, FlagGitRef, FlagAliasGitRefRef, FlagAliasGitRefLegacy)
 	util.AddFlagAliasesString(flags, FlagGitCommit, FlagAliasGitCommitLegacy)
 	util.AddFlagAliasesString(flags, FlagPackageVersion, FlagAliasDefaultPackageVersion, FlagAliasPackageVersionLegacy, FlagAliasDefaultPackageVersionLegacy)
+	util.AddFlagAliasesString(flags, FlagReleaseNotes, FlagAliasReleaseNotesLegacy)
 	util.AddFlagAliasesString(flags, FlagVersion, FlagAliasReleaseNumberLegacy)
 	util.AddFlagAliasesString(flags, FlagPackagePrerelease, FlagAliasPackagePrereleaseLegacy)
 	util.AddFlagAliasesBool(flags, FlagIgnoreExisting, FlagAliasIgnoreExistingLegacy)

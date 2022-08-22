@@ -1042,6 +1042,7 @@ func TestReleaseCreate_AutomationMode(t *testing.T) {
 					"--release-notes", "Here are some **release notes**.",
 					"--ignore-channel-rules",
 					"--ignore-existing",
+					"--package-prerelease", "beta",
 				})
 				return rootCmd.ExecuteC()
 			})
@@ -1065,7 +1066,72 @@ func TestReleaseCreate_AutomationMode(t *testing.T) {
 				ReleaseNotes:          "Here are some **release notes**.",
 				IgnoreIfAlreadyExists: true,
 				IgnoreChannelRules:    true,
-				PackagePrerelease:     "",
+				PackagePrerelease:     "beta",
+				Packages:              []string{"pterm:2.5", "NuGet.CommandLine:5.4.1"},
+			}, requestBody)
+
+			// this isn't realistic, we asked for version 1.0.2 and channel Beta, but it proves that
+			// if the server changes its mind and uses a different channel, the CLI will show that.
+			req.RespondWith(&releases.CreateReleaseResponseV1{
+				ReleaseID:      "Releases-999", // new release
+				ReleaseVersion: "1.0.5",
+			})
+
+			// If we GET on the endpoint and it shows us a different ReleaseVersion than the CreateReleaseResponseV1
+			// does, CreateReleaseResponseV1 wins
+			releaseInfo := releases.NewRelease("Channels-32", cacProject.ID, "1.2.3")
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/releases/Releases-999").RespondWith(releaseInfo)
+
+			channelInfo := fixtures.NewChannel(space1.ID, "Channels-32", "Alpha channel", cacProject.ID)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/channels/Channels-32").RespondWith(channelInfo)
+
+			_, err = testutil.ReceivePair(cmdReceiver)
+			assert.Nil(t, err)
+
+			assert.Equal(t, "Successfully created release version 1.0.5 (Releases-999) using channel Alpha channel (Channels-32)\n", stdOut.String())
+			assert.Equal(t, "", stdErr.String())
+		}},
+
+		{"release creation with all the flags (legacy aliases)", func(t *testing.T, api *testutil.MockHttpServer, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
+			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
+				defer api.Close()
+				rootCmd.SetArgs([]string{"release", "create",
+					"--project=" + cacProject.Name,
+					"--packageVersion=5.6.7-beta",
+					"--package=pterm:2.5",
+					"--package=NuGet.CommandLine:5.4.1",
+					"--gitRef=refs/heads/main",
+					"--gitCommit=6ef5e8c83cdcd4933bbeaeb458dc99902ad831ca",
+					"--releaseNumber=1.0.2",
+					"--channel=BetaChannel",
+					"--releaseNotes=Here are some **release notes**.",
+					"--ignoreChannelRules",
+					"--ignoreExisting",
+					"--packagePrerelease=beta",
+				})
+				return rootCmd.ExecuteC()
+			})
+
+			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
+
+			req := api.ExpectRequest(t, "POST", "/api/Spaces-1/releases/create/v1")
+
+			// check that it sent the server the right request body
+			requestBody, err := testutil.ReadJson[releases.CreateReleaseV1](req.Request.Body)
+			assert.Nil(t, err)
+
+			assert.Equal(t, releases.CreateReleaseV1{
+				SpaceIDOrName:         "Spaces-1",
+				ProjectIDOrName:       cacProject.Name,
+				PackageVersion:        "5.6.7-beta",
+				GitCommit:             "6ef5e8c83cdcd4933bbeaeb458dc99902ad831ca",
+				GitRef:                "refs/heads/main",
+				ReleaseVersion:        "1.0.2",
+				ChannelIDOrName:       "BetaChannel",
+				ReleaseNotes:          "Here are some **release notes**.",
+				IgnoreIfAlreadyExists: true,
+				IgnoreChannelRules:    true,
+				PackagePrerelease:     "beta",
 				Packages:              []string{"pterm:2.5", "NuGet.CommandLine:5.4.1"},
 			}, requestBody)
 
