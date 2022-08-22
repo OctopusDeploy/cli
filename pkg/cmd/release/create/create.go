@@ -86,10 +86,9 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 	flags.StringP(FlagPackageVersion, "", "", "Default version to use for all Packages")
 	flags.StringP(FlagReleaseNotes, "n", "", "Release notes to attach")
 	flags.StringP(FlagVersion, "v", "", "Override the Release Version")
+	flags.StringP(FlagPackagePrerelease, "", "", "Apply prerelease package tag to all pacakges.")
 	flags.BoolP(FlagIgnoreExisting, "x", false, "If a release with the same version exists, do nothing instead of failing.")
 	flags.BoolP(FlagIgnoreChannelRules, "", false, "Allow creation of a release where channel rules would otherwise prevent it.")
-	// cmd.Flags().BoolP(FlagPackagePrerelease, "", false, "Allow selection of prerelease packages.") // TODO does this make sense? The server is going to follow channel rules anyway isn't it?
-	// stringSlice also allows comma-separated things
 	flags.StringSliceP(FlagPackageVersionSpec, "", []string{}, "Version specification a specific packages.\nFormat as {package}:{version}, {step}:{version} or {package-ref-name}:{packageOrStep}:{version}\nYou may specify this multiple times")
 
 	// we want the help text to display in the above order, rather than alphabetical
@@ -100,6 +99,7 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 	util.AddFlagAliasesString(flags, FlagGitCommit, FlagAliasGitCommitLegacy)
 	util.AddFlagAliasesString(flags, FlagPackageVersion, FlagAliasDefaultPackageVersion, FlagAliasPackageVersionLegacy, FlagAliasDefaultPackageVersionLegacy)
 	util.AddFlagAliasesString(flags, FlagVersion, FlagAliasReleaseNumberLegacy)
+	util.AddFlagAliasesString(flags, FlagPackagePrerelease, FlagAliasPackagePrereleaseLegacy)
 	util.AddFlagAliasesBool(flags, FlagIgnoreExisting, FlagAliasIgnoreExistingLegacy)
 	util.AddFlagAliasesBool(flags, FlagIgnoreChannelRules, FlagAliasIgnoreChannelRulesLegacy)
 
@@ -140,6 +140,10 @@ func createRun(cmd *cobra.Command, f factory.Factory) error {
 		options.Version = value
 	}
 
+	if value, _ := util.GetFlagString(cmd, FlagPackagePrerelease, FlagAliasPackagePrereleaseLegacy); value != "" {
+		options.PackagePrerelease = value
+	}
+
 	if value, _ := util.GetFlagString(cmd, FlagReleaseNotes, FlagAliasReleaseNotesLegacy); value != "" {
 		options.ReleaseNotes = value
 	}
@@ -147,6 +151,7 @@ func createRun(cmd *cobra.Command, f factory.Factory) error {
 	if value, _ := util.GetFlagBool(cmd, FlagIgnoreExisting, FlagAliasIgnoreExistingLegacy); value {
 		options.IgnoreIfAlreadyExists = value
 	}
+
 	if value, _ := util.GetFlagBool(cmd, FlagIgnoreChannelRules, FlagAliasIgnoreChannelRulesLegacy); value {
 		options.IgnoreChannelRules = value
 	}
