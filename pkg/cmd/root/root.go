@@ -9,6 +9,7 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/OctopusDeploy/cli/pkg/question"
+	"github.com/OctopusDeploy/cli/pkg/util"
 	"github.com/spf13/cobra"
 )
 
@@ -41,8 +42,7 @@ func NewCmdRoot(f factory.Factory, clientFactory apiclient.ClientFactory, askPro
 	// flags. The pflag documentation says you can use SetNormalizeFunc to translate/alias flag
 	// names, however this doesn't actually work; It normalizes both the old and new flag
 	// names to the same thing at configuration time, then panics due to duplicate flag declarations.
-	cmdPFlags.StringP(constants.FlagOutputFormatLegacy, "", "", "Output Format")
-	_ = cmdPFlags.MarkHidden(constants.FlagOutputFormatLegacy)
+	util.AddFlagAliasesString(cmdPFlags, constants.FlagOutputFormat, constants.FlagOutputFormatLegacy)
 
 	// we want to allow outputFormat as well as output-format, but don't advertise it.
 	// must add this AFTER setting the normalize func or it strips out the flag

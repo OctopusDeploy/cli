@@ -592,7 +592,7 @@ func TestReleaseCreate_AskQuestions_AskPackageOverrideLoop(t *testing.T) {
 		// this is the happy path where the CLI presents the list of server-selected packages and they just go 'yep'
 		{"no-op test", func(t *testing.T, qa *testutil.AskMocker, stdout *bytes.Buffer) {
 			receiver := testutil.GoBegin3(func() ([]*create.StepPackageVersion, []*create.PackageVersionOverride, error) {
-				return create.AskPackageOverrideLoop(baseline, make([]string, 0), qa.AsAsker(), stdout)
+				return create.AskPackageOverrideLoop(baseline, "", make([]string, 0), qa.AsAsker(), stdout)
 			})
 
 			_ = qa.ExpectQuestion(t, &survey.Input{Message: enterOverrideQuestion}).AnswerWith("y")
@@ -605,7 +605,7 @@ func TestReleaseCreate_AskQuestions_AskPackageOverrideLoop(t *testing.T) {
 
 		{"override package based on package ID", func(t *testing.T, qa *testutil.AskMocker, stdout *bytes.Buffer) {
 			receiver := testutil.GoBegin3(func() ([]*create.StepPackageVersion, []*create.PackageVersionOverride, error) {
-				return create.AskPackageOverrideLoop(baseline, make([]string, 0), qa.AsAsker(), stdout)
+				return create.AskPackageOverrideLoop(baseline, "", make([]string, 0), qa.AsAsker(), stdout)
 			})
 
 			_ = qa.ExpectQuestion(t, &survey.Input{Message: enterOverrideQuestion}).AnswerWith("pterm:2.5")
@@ -626,7 +626,7 @@ func TestReleaseCreate_AskQuestions_AskPackageOverrideLoop(t *testing.T) {
 
 		{"override package based on step name", func(t *testing.T, qa *testutil.AskMocker, stdout *bytes.Buffer) {
 			receiver := testutil.GoBegin3(func() ([]*create.StepPackageVersion, []*create.PackageVersionOverride, error) {
-				return create.AskPackageOverrideLoop(baseline, make([]string, 0), qa.AsAsker(), stdout)
+				return create.AskPackageOverrideLoop(baseline, "", make([]string, 0), qa.AsAsker(), stdout)
 			})
 
 			_ = qa.ExpectQuestion(t, &survey.Input{Message: enterOverrideQuestion}).AnswerWith("Install:2.5")
@@ -647,7 +647,7 @@ func TestReleaseCreate_AskQuestions_AskPackageOverrideLoop(t *testing.T) {
 
 		{"override package based on package reference", func(t *testing.T, qa *testutil.AskMocker, stdout *bytes.Buffer) {
 			receiver := testutil.GoBegin3(func() ([]*create.StepPackageVersion, []*create.PackageVersionOverride, error) {
-				return create.AskPackageOverrideLoop(baseline, make([]string, 0), qa.AsAsker(), stdout)
+				return create.AskPackageOverrideLoop(baseline, "", make([]string, 0), qa.AsAsker(), stdout)
 			})
 
 			_ = qa.ExpectQuestion(t, &survey.Input{Message: enterOverrideQuestion}).AnswerWith("pterm:Install:2.5")
@@ -666,11 +666,32 @@ func TestReleaseCreate_AskQuestions_AskPackageOverrideLoop(t *testing.T) {
 			}, overrides)
 		}},
 
+		{"entering the loop with --package-version picked up from the command line", func(t *testing.T, qa *testutil.AskMocker, stdout *bytes.Buffer) {
+			defaultPackageVersion := "2.5"
+
+			receiver := testutil.GoBegin3(func() ([]*create.StepPackageVersion, []*create.PackageVersionOverride, error) {
+				return create.AskPackageOverrideLoop(baseline, defaultPackageVersion, make([]string, 0), qa.AsAsker(), stdout)
+			})
+
+			_ = qa.ExpectQuestion(t, &survey.Input{Message: enterOverrideQuestion}).AnswerWith("y")
+
+			versions, overrides, err := testutil.ReceiveTriple(receiver)
+			assert.Nil(t, err)
+			assert.Equal(t, []*create.StepPackageVersion{
+				{ActionName: "Install", PackageID: "pterm", PackageReferenceName: "pterm", Version: "2.5"},
+				{ActionName: "Install", PackageID: "NuGet.CommandLine", PackageReferenceName: "NuGet.CommandLine", Version: "2.5"},
+				{ActionName: "Verify", PackageID: "pterm", PackageReferenceName: "pterm", Version: "2.5"},
+			}, versions)
+			assert.Equal(t, []*create.PackageVersionOverride{
+				{Version: "2.5"}, // TODO the "regenerate command line flags" code is going to re-interpret this as "--package *:2.5" rather than the input which was "--package-version 2.5". Does that matter?
+			}, overrides)
+		}},
+
 		{"entering the loop with --package picked up from the command line", func(t *testing.T, qa *testutil.AskMocker, stdout *bytes.Buffer) {
 			cmdlinePackages := []string{"pterm:Install:2.5", "NuGet.CommandLine:7.1"}
 
 			receiver := testutil.GoBegin3(func() ([]*create.StepPackageVersion, []*create.PackageVersionOverride, error) {
-				return create.AskPackageOverrideLoop(baseline, cmdlinePackages, qa.AsAsker(), stdout)
+				return create.AskPackageOverrideLoop(baseline, "", cmdlinePackages, qa.AsAsker(), stdout)
 			})
 
 			_ = qa.ExpectQuestion(t, &survey.Input{Message: enterOverrideQuestion}).AnswerWith("y")
@@ -688,9 +709,33 @@ func TestReleaseCreate_AskQuestions_AskPackageOverrideLoop(t *testing.T) {
 			}, overrides)
 		}},
 
+		{"entering the loop with --package-version and --package(s) picked up from the command line", func(t *testing.T, qa *testutil.AskMocker, stdout *bytes.Buffer) {
+			defaultPackageVersion := "9.9"
+			cmdlinePackages := []string{"pterm:Install:2.5", "NuGet.CommandLine:7.1"}
+
+			receiver := testutil.GoBegin3(func() ([]*create.StepPackageVersion, []*create.PackageVersionOverride, error) {
+				return create.AskPackageOverrideLoop(baseline, defaultPackageVersion, cmdlinePackages, qa.AsAsker(), stdout)
+			})
+
+			_ = qa.ExpectQuestion(t, &survey.Input{Message: enterOverrideQuestion}).AnswerWith("y")
+
+			versions, overrides, err := testutil.ReceiveTriple(receiver)
+			assert.Nil(t, err)
+			assert.Equal(t, []*create.StepPackageVersion{
+				{ActionName: "Install", PackageID: "pterm", PackageReferenceName: "pterm", Version: "2.5"},
+				{ActionName: "Install", PackageID: "NuGet.CommandLine", PackageReferenceName: "NuGet.CommandLine", Version: "7.1"},
+				{ActionName: "Verify", PackageID: "pterm", PackageReferenceName: "pterm", Version: "9.9"},
+			}, versions)
+			assert.Equal(t, []*create.PackageVersionOverride{
+				{Version: "9.9"}, // TODO the "regenerate command line flags" code is going to re-interpret this as "--package *:9.9" rather than the input which was "--package-version 9.9". Does that matter?
+				{PackageReferenceName: "pterm", ActionName: "Install", Version: "2.5"},
+				{PackageID: "NuGet.CommandLine", Version: "7.1"},
+			}, overrides)
+		}},
+
 		{"blank answer retries the question", func(t *testing.T, qa *testutil.AskMocker, stdout *bytes.Buffer) {
 			receiver := testutil.GoBegin3(func() ([]*create.StepPackageVersion, []*create.PackageVersionOverride, error) {
-				return create.AskPackageOverrideLoop(baseline, make([]string, 0), qa.AsAsker(), stdout)
+				return create.AskPackageOverrideLoop(baseline, "", make([]string, 0), qa.AsAsker(), stdout)
 			})
 
 			validationErr := qa.ExpectQuestion(t, &survey.Input{Message: enterOverrideQuestion}).AnswerWith("")
@@ -710,7 +755,7 @@ func TestReleaseCreate_AskQuestions_AskPackageOverrideLoop(t *testing.T) {
 
 		{"can't specify garbage; question loop retries", func(t *testing.T, qa *testutil.AskMocker, stdout *bytes.Buffer) {
 			receiver := testutil.GoBegin3(func() ([]*create.StepPackageVersion, []*create.PackageVersionOverride, error) {
-				return create.AskPackageOverrideLoop(baseline, make([]string, 0), qa.AsAsker(), stdout)
+				return create.AskPackageOverrideLoop(baseline, "", make([]string, 0), qa.AsAsker(), stdout)
 			})
 
 			q := qa.ExpectQuestion(t, &survey.Input{Message: enterOverrideQuestion})
@@ -738,7 +783,7 @@ func TestReleaseCreate_AskQuestions_AskPackageOverrideLoop(t *testing.T) {
 
 		{"can't specify packages or steps that aren't there due to validator; question loop retries", func(t *testing.T, qa *testutil.AskMocker, stdout *bytes.Buffer) {
 			receiver := testutil.GoBegin3(func() ([]*create.StepPackageVersion, []*create.PackageVersionOverride, error) {
-				return create.AskPackageOverrideLoop(baseline, make([]string, 0), qa.AsAsker(), stdout)
+				return create.AskPackageOverrideLoop(baseline, "", make([]string, 0), qa.AsAsker(), stdout)
 			})
 
 			q := qa.ExpectQuestion(t, &survey.Input{Message: enterOverrideQuestion})
@@ -766,7 +811,7 @@ func TestReleaseCreate_AskQuestions_AskPackageOverrideLoop(t *testing.T) {
 
 		{"question loop doesn't retry if it gets a hard error", func(t *testing.T, qa *testutil.AskMocker, stdout *bytes.Buffer) {
 			receiver := testutil.GoBegin3(func() ([]*create.StepPackageVersion, []*create.PackageVersionOverride, error) {
-				return create.AskPackageOverrideLoop(baseline, make([]string, 0), qa.AsAsker(), stdout)
+				return create.AskPackageOverrideLoop(baseline, "", make([]string, 0), qa.AsAsker(), stdout)
 			})
 
 			qa.ExpectQuestion(t, &survey.Input{Message: enterOverrideQuestion}).AnswerWithError(errors.New("hard fail"))
@@ -779,7 +824,7 @@ func TestReleaseCreate_AskQuestions_AskPackageOverrideLoop(t *testing.T) {
 
 		{"multiple overrides with undo", func(t *testing.T, qa *testutil.AskMocker, stdout *bytes.Buffer) {
 			receiver := testutil.GoBegin3(func() ([]*create.StepPackageVersion, []*create.PackageVersionOverride, error) {
-				return create.AskPackageOverrideLoop(baseline, make([]string, 0), qa.AsAsker(), stdout)
+				return create.AskPackageOverrideLoop(baseline, "", make([]string, 0), qa.AsAsker(), stdout)
 			})
 
 			_ = qa.ExpectQuestion(t, &survey.Input{Message: enterOverrideQuestion}).AnswerWith("NuGet.CommandLine:7.1")
