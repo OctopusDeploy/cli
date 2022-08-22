@@ -716,85 +716,25 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 	// we need the deployment process template in order to get the steps, so we can lookup the stepID
 	spinner.Start()
 	deploymentProcessTemplate, err := octopus.DeploymentProcesses.GetTemplate(deploymentProcess, selectedChannel.ID, "")
-	// don't stop the spinner, we may have more networking
+	// don't stop the spinner, BuildPackageVersionBaseline does more networking
 	if err != nil {
 		spinner.Stop()
 		return err
 	}
 
 	packageVersionBaseline, err := BuildPackageVersionBaseline(octopus, deploymentProcessTemplate, selectedChannel)
+	spinner.Stop()
+	if err != nil {
+		return err
+	}
+
 	var overriddenPackageVersions []*StepPackageVersion
-
 	if len(packageVersionBaseline) > 0 { // if we have packages, run the package flow
-		packageVersionOverrides := make([]*PackageVersionOverride, 0)
-
-		// pickup any partial package specifications that may have arrived on the commandline
-		for _, s := range options.PackageVersionOverrides {
-			ambOverride, err := ParsePackageOverrideString(s)
-			if err != nil {
-				continue // silently ignore anything that wasn't parseable (TODO should we emit a warning?)
-			}
-			resolvedOverride, err := ResolvePackageOverride(ambOverride, packageVersionBaseline)
-			if err != nil {
-				continue // silently ignore anything that wasn't parseable (TODO should we emit a warning?)
-			}
-			packageVersionOverrides = append(packageVersionOverrides, resolvedOverride)
-		}
-
-		overriddenPackageVersions = ApplyPackageOverrides(packageVersionBaseline, packageVersionOverrides)
-
-		spinner.Stop()
+		opv, packageVersionOverrides, err := AskPackageOverrideLoop(packageVersionBaseline, options.PackageVersionOverrides, asker, stdout)
 		if err != nil {
 			return err
 		}
-
-		for {
-			err = printPackageVersions(stdout, overriddenPackageVersions)
-			if err != nil {
-				return err
-			}
-
-			var resolvedOverride *PackageVersionOverride = nil
-			var answer = ""
-
-			err := asker(&survey.Input{
-				Message: "Enter package override string, or 'y' to accept package versions", // TODO nicer string when we do a usability pass.
-			}, &answer, survey.WithValidator(func(ans interface{}) error {
-				str, ok := ans.(string)
-				if !ok {
-					return errors.New("internal error; answer was not a string")
-				}
-
-				if str == "y" || str == "" { // valid response for continuing the loop; don't attempt to parse this
-					return nil
-				}
-
-				ambOverride, err := ParsePackageOverrideString(str)
-				if err != nil {
-					return err
-				}
-				resolvedOverride, err = ResolvePackageOverride(ambOverride, packageVersionBaseline)
-				if err != nil {
-					return err
-				}
-
-				return nil // good!
-			}))
-
-			if err != nil {
-				return err // TODO probably handle this and loop again
-			}
-			if answer == "y" { // YES these are the packages they want
-				break
-			}
-
-			if resolvedOverride != nil {
-				packageVersionOverrides = append(packageVersionOverrides, resolvedOverride)
-				// always reset to the baseline and apply everything in order, there's less room for logic errors
-				overriddenPackageVersions = ApplyPackageOverrides(packageVersionBaseline, packageVersionOverrides)
-			}
-			// else the user most likely typed an empty string, loop around
-		}
+		overriddenPackageVersions = opv
 
 		if len(packageVersionOverrides) > 0 {
 			options.PackageVersionOverrides = make([]string, 0, len(packageVersionOverrides))
@@ -862,6 +802,78 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 		_, _ = fmt.Fprintf(stdout, "Version %s\n", output.Cyan(options.Version))
 	}
 	return nil
+}
+
+func AskPackageOverrideLoop(
+	packageVersionBaseline []*StepPackageVersion,
+	initialPackageOverrideFlags []string,
+	asker question.Asker,
+	stdout io.Writer) ([]*StepPackageVersion, []*PackageVersionOverride, error) {
+	packageVersionOverrides := make([]*PackageVersionOverride, 0)
+
+	// pickup any partial package specifications that may have arrived on the commandline
+	for _, s := range initialPackageOverrideFlags {
+		ambOverride, err := ParsePackageOverrideString(s)
+		if err != nil {
+			continue // silently ignore anything that wasn't parseable (TODO should we emit a warning?)
+		}
+		resolvedOverride, err := ResolvePackageOverride(ambOverride, packageVersionBaseline)
+		if err != nil {
+			continue // silently ignore anything that wasn't parseable (TODO should we emit a warning?)
+		}
+		packageVersionOverrides = append(packageVersionOverrides, resolvedOverride)
+	}
+
+	overriddenPackageVersions := ApplyPackageOverrides(packageVersionBaseline, packageVersionOverrides)
+
+	for {
+		err := printPackageVersions(stdout, overriddenPackageVersions)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		var resolvedOverride *PackageVersionOverride = nil
+		var answer = ""
+
+		err = asker(&survey.Input{
+			Message: "Enter package override string, or 'y' to accept package versions", // TODO nicer string when we do a usability pass.
+		}, &answer, survey.WithValidator(func(ans interface{}) error {
+			str, ok := ans.(string)
+			if !ok {
+				return errors.New("internal error; answer was not a string")
+			}
+
+			if str == "y" || str == "" { // valid response for continuing the loop; don't attempt to parse this
+				return nil
+			}
+
+			ambOverride, err := ParsePackageOverrideString(str)
+			if err != nil {
+				return err
+			}
+			resolvedOverride, err = ResolvePackageOverride(ambOverride, packageVersionBaseline)
+			if err != nil {
+				return err
+			}
+
+			return nil // good!
+		}))
+
+		if err != nil {
+			return nil, nil, err // TODO probably handle this and loop again
+		}
+		if answer == "y" { // YES these are the packages they want
+			break
+		}
+
+		if resolvedOverride != nil {
+			packageVersionOverrides = append(packageVersionOverrides, resolvedOverride)
+			// always reset to the baseline and apply everything in order, there's less room for logic errors
+			overriddenPackageVersions = ApplyPackageOverrides(packageVersionBaseline, packageVersionOverrides)
+		}
+		// else the user most likely typed an empty string, loop around
+	}
+	return overriddenPackageVersions, packageVersionOverrides, nil
 }
 
 func askVersion(ask question.Asker, defaultVersion string) (string, error) {
