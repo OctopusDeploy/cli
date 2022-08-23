@@ -183,7 +183,31 @@ func createRun(cmd *cobra.Command, f factory.Factory, flags *CreateFlags) error 
 			return err
 		}
 
-		cmd.Printf("invocation: release create %s\n", ToCmdFlags(options))
+		// the Q&A process will have modified options;backfill into flags for generation of the automation cmd
+		resolvedFlags := NewCreateFlags()
+		// deliberately don't include resolvedFlags.PackageVersion in the automation command; it gets converted into PackageVersionSpec
+		resolvedFlags.Project.Value = options.ProjectName
+		resolvedFlags.PackageVersionSpec.Value = options.PackageVersionOverrides
+		resolvedFlags.Channel.Value = options.ChannelName
+		resolvedFlags.GitRef.Value = options.GitReference
+		resolvedFlags.GitCommit.Value = options.GitCommit
+		resolvedFlags.Version.Value = options.Version
+		resolvedFlags.ReleaseNotes.Value = options.ReleaseNotes
+		resolvedFlags.IgnoreExisting.Value = options.IgnoreIfAlreadyExists
+		resolvedFlags.IgnoreChannelRules.Value = options.IgnoreChannelRules
+
+		autoCmd := flag.GenerateAutomationCmd("octopus release create",
+			resolvedFlags.Project,
+			resolvedFlags.GitCommit,
+			resolvedFlags.GitRef,
+			resolvedFlags.Channel,
+			resolvedFlags.ReleaseNotes,
+			resolvedFlags.IgnoreExisting,
+			resolvedFlags.IgnoreChannelRules,
+			resolvedFlags.PackageVersionSpec,
+			resolvedFlags.Version,
+		)
+		cmd.Printf("\nAutomation Command: %s\n", autoCmd)
 	}
 
 	// the executor will raise errors if any required options are missing
@@ -234,39 +258,6 @@ func quoteStringIfRequired(str string) string {
 		}
 	}
 	return str
-}
-
-// ToCmdFlags generates the command line switches that you'd need to type in to make this work in automation mode.
-// TODO sync this with dom's declarative model when that lands
-func ToCmdFlags(t *executor.TaskOptionsCreateRelease) string {
-	components := make([]string, 0, 20)
-
-	appendComponent := func(flag string, value string) {
-		if value != "" {
-			components = append(components, flag)
-			components = append(components, quoteStringIfRequired(value))
-		}
-	}
-
-	appendComponent("-p", t.ProjectName)
-	appendComponent("--"+FlagGitCommit, t.GitCommit)
-	appendComponent("-r", t.GitReference)
-	appendComponent("-c", t.ChannelName)
-	appendComponent("--"+FlagReleaseNotes, t.ReleaseNotes)
-	if t.IgnoreIfAlreadyExists {
-		components = append(components, "--"+FlagIgnoreExisting)
-	}
-	if t.IgnoreChannelRules {
-		components = append(components, "--"+FlagIgnoreChannelRules)
-	}
-	for _, ov := range t.PackageVersionOverrides {
-		components = append(components, "--package")
-		components = append(components, quoteStringIfRequired(ov))
-	}
-
-	// version always goes at the end so if people copy/paste the commandline it's easy to tweak
-	appendComponent("-v", t.Version)
-	return strings.Join(components, " ")
 }
 
 type StepPackageVersion struct {
