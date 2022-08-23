@@ -1179,7 +1179,6 @@ func TestReleaseCreate_AutomationMode(t *testing.T) {
 					"--release-notes", "Here are some **release notes**.",
 					"--ignore-channel-rules",
 					"--ignore-existing",
-					"--package-prerelease", "beta",
 				})
 				return rootCmd.ExecuteC()
 			})
@@ -1203,7 +1202,7 @@ func TestReleaseCreate_AutomationMode(t *testing.T) {
 				ReleaseNotes:          "Here are some **release notes**.",
 				IgnoreIfAlreadyExists: true,
 				IgnoreChannelRules:    true,
-				PackagePrerelease:     "beta",
+				PackagePrerelease:     "", // not supported in the new CLI
 				Packages:              []string{"pterm:2.5", "NuGet.CommandLine:5.4.1"},
 			}, requestBody)
 
@@ -1244,7 +1243,6 @@ func TestReleaseCreate_AutomationMode(t *testing.T) {
 					"--releaseNotes=Here are some **release notes**.",
 					"--ignoreChannelRules",
 					"--ignoreExisting",
-					"--packagePrerelease=beta",
 				})
 				return rootCmd.ExecuteC()
 			})
@@ -1268,7 +1266,7 @@ func TestReleaseCreate_AutomationMode(t *testing.T) {
 				ReleaseNotes:          "Here are some **release notes**.",
 				IgnoreIfAlreadyExists: true,
 				IgnoreChannelRules:    true,
-				PackagePrerelease:     "beta",
+				PackagePrerelease:     "", // not supported in the new CLI
 				Packages:              []string{"pterm:2.5", "NuGet.CommandLine:5.4.1"},
 			}, requestBody)
 

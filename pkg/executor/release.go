@@ -21,7 +21,6 @@ type TaskOptionsCreateRelease struct {
 	Version                 string   // optional
 	ChannelName             string   // optional
 	ReleaseNotes            string   // optional
-	PackagePrerelease       string   //optional
 	IgnoreIfAlreadyExists   bool     // optional
 	IgnoreChannelRules      bool     // optional
 	PackageVersionOverrides []string // optional
@@ -56,11 +55,9 @@ func releaseCreate(octopus *client.Client, space *spaces.Space, input any) error
 	//ReleaseNotes          string   `json:"releaseNotes,omitempty"`
 	//IgnoreIfAlreadyExists bool     `json:"ignoreIfAlreadyExists,omitempty"`
 	//IgnoreChannelRules    bool     `json:"ignoreChannelRules,omitempty"`
-	//PackagePrerelease     string   `json:"packagePrerelease,omitempty"`
 	createReleaseParams := releases.NewCreateReleaseV1(space.ID, params.ProjectName)
 
 	createReleaseParams.PackageVersion = params.DefaultPackageVersion
-	createReleaseParams.PackagePrerelease = params.PackagePrerelease
 
 	if len(params.PackageVersionOverrides) > 0 {
 		createReleaseParams.Packages = params.PackageVersionOverrides
