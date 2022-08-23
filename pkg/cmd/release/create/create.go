@@ -258,7 +258,7 @@ type StepPackageVersion struct {
 	// these 3 fields are the main ones for showing the user
 	PackageID  string
 	ActionName string // "StepName is an obsolete alias for ActionName, they always contain the same value"
-	Version    string
+	Version    string // note this may be an empty string, indicating that no version could be found for this package yet
 
 	// used to locate the deployment process VersioningStrategy Donor Package
 	PackageReferenceName string
@@ -276,6 +276,19 @@ func BuildPackageVersionBaseline(octopus *octopusApiClient.Client, deploymentPro
 	// map(key: FeedID, value: list of references using the package so we can trace back to steps)
 	feedsToQuery := make(map[string][]releases.ReleaseTemplatePackage)
 	for _, pkg := range deploymentProcessTemplate.Packages {
+
+		// If a package is not considered resolvable by the server, don't attempt to query it's feed or lookup
+		// any potential versions for it; we can't succeed in that because variable templates won't get expanded
+		// until deployment time
+		if !pkg.IsResolvable {
+			result = append(result, &StepPackageVersion{
+				PackageID:            pkg.PackageID,
+				ActionName:           pkg.ActionName,
+				PackageReferenceName: pkg.PackageReferenceName,
+				Version:              "",
+			})
+			continue
+		}
 		if feedPackages, seenFeedBefore := feedsToQuery[pkg.FeedID]; !seenFeedBefore {
 			feedsToQuery[pkg.FeedID] = []releases.ReleaseTemplatePackage{pkg}
 		} else {
@@ -342,16 +355,14 @@ func BuildPackageVersionBaseline(octopus *octopusApiClient.Client, deploymentPro
 				}
 
 				switch len(versions.Items) {
-				case 0:
-					// if channel rules have altered our query, tell the user about that
-					channelRulesHelp := ""
-					if query.PreReleaseTag != "" {
-						channelRulesHelp = fmt.Sprintf("%s, pre-release tag matching %s", channelRulesHelp, query.PreReleaseTag)
-					}
-					if query.VersionRange != "" {
-						channelRulesHelp = fmt.Sprintf("%s, version range matching %s", channelRulesHelp, query.VersionRange)
-					}
-					return nil, fmt.Errorf("no package version found for %s%s. please check that the package exists in your package feed", packageRef.PackageID, channelRulesHelp)
+				case 0: // no package found; cache the response
+					cache[query] = ""
+					result = append(result, &StepPackageVersion{
+						PackageID:            packageRef.PackageID,
+						ActionName:           packageRef.ActionName,
+						PackageReferenceName: packageRef.PackageReferenceName,
+						Version:              "",
+					})
 
 				case 1:
 					cache[query] = versions.Items[0].Version
@@ -382,15 +393,20 @@ type PackageVersionOverride struct {
 // This is the inverse of ParsePackageOverrideString
 func (p *PackageVersionOverride) ToPackageOverrideString() string {
 	components := make([]string, 0, 3)
-	if p.PackageReferenceName != "" {
-		components = append(components, p.PackageReferenceName)
-	}
+
+	// stepNameOrPackageID always comes first if we have it
 	if p.PackageID != "" {
 		components = append(components, p.PackageID)
 	} else if p.ActionName != "" { // can't have both PackageID and ActionName; PackageID wins
 		components = append(components, p.ActionName)
-	} else if len(components) == 1 { // if we have an explicit packagereference but no packageId or action, we need to express it with ref:*:version
-		components = append(components, "*")
+	}
+
+	// followed by package reference name if we have it
+	if p.PackageReferenceName != "" {
+		if len(components) == 0 { // if we have an explicit packagereference but no packageId or action, we need to express it with *:ref:version
+			components = append(components, "*")
+		}
+		components = append(components, p.PackageReferenceName)
 	}
 
 	if len(components) == 0 { // the server can't deal with just a number by itself; if we want to override everything we must pass *:Version
@@ -468,8 +484,8 @@ func ParsePackageOverrideString(packageOverride string) (*AmbiguousPackageVersio
 		// if there are two components it is (StepName|PackageID):Version
 		stepNameOrPackageID, version = strings.TrimSpace(components[0]), strings.TrimSpace(components[1])
 	case 3:
-		// if there are three components it is PackageReferenceName:(StepName|PackageID):Version
-		packageReferenceName, stepNameOrPackageID, version = strings.TrimSpace(components[0]), strings.TrimSpace(components[1]), strings.TrimSpace(components[2])
+		// if there are three components it is (StepName|PackageID):PackageReferenceName:Version
+		stepNameOrPackageID, packageReferenceName, version = strings.TrimSpace(components[0]), strings.TrimSpace(components[1]), strings.TrimSpace(components[2])
 	default:
 		return nil, fmt.Errorf("package version specification %s does not use expected format", packageOverride)
 	}
@@ -658,9 +674,13 @@ func printPackageVersions(ioWriter io.Writer, packages []*StepPackageVersion) er
 	t.AddRow(output.Dim("PACKAGE"), output.Dim("VERSION"), output.Dim("STEPS"))
 
 	for _, pkg := range consolidated {
+		version := pkg.Version
+		if version == "" {
+			version = output.Red("ERROR") // can't determine version for this package
+		}
 		t.AddRow(
 			pkg.PackageID,
-			pkg.Version,
+			version,
 			pkg.ActionName,
 		)
 	}
@@ -887,15 +907,42 @@ func AskPackageOverrideLoop(
 
 	overriddenPackageVersions := ApplyPackageOverrides(packageVersionBaseline, packageVersionOverrides)
 
+outer_loop:
 	for {
 		err := printPackageVersions(stdout, overriddenPackageVersions)
 		if err != nil {
 			return nil, nil, err
 		}
 
-		// side-channel return values from the validator
-		var resolvedOverride *PackageVersionOverride = nil
+		// While there are any unresolved package versions, force those
+		for _, pkgVersionEntry := range overriddenPackageVersions {
+			if strings.TrimSpace(pkgVersionEntry.Version) == "" {
 
+				var answer = ""
+				for strings.TrimSpace(answer) == "" { // if they enter a blank line just ask again repeatedly
+					err = asker(&survey.Input{
+						Message: output.Yellowf("Cannot find version for package %s. You must enter a version:", pkgVersionEntry.PackageID),
+					}, &answer) // no validator needed here
+
+					// if validators return an error, survey retries itself; the errors don't end up at this level.
+					if err != nil {
+						return nil, nil, err
+					}
+				}
+
+				override := &PackageVersionOverride{Version: answer, ActionName: pkgVersionEntry.ActionName, PackageReferenceName: pkgVersionEntry.PackageReferenceName}
+				if override != nil {
+					packageVersionOverrides = append(packageVersionOverrides, override)
+					overriddenPackageVersions = ApplyPackageOverrides(packageVersionBaseline, packageVersionOverrides)
+				}
+				continue outer_loop
+			}
+		}
+
+		// After all packages have versions attached, we can let people freely tweak things until they're happy
+
+		// side-channel return value from the validator
+		var resolvedOverride *PackageVersionOverride = nil
 		var answer = ""
 		err = asker(&survey.Input{
 			Message: "Enter package override string, or 'y' to accept package versions", // TODO nicer string when we do a usability pass.
