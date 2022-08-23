@@ -245,7 +245,14 @@ func createRun(cmd *cobra.Command, f factory.Factory, flags *CreateFlags) error 
 			}
 		}
 
+		if !f.IsPromptEnabled() {
+			link := output.Bluef("%s/app#/%s/releases/%s", f.GetCurrentHost(), f.GetCurrentSpace().ID, options.Response.ReleaseID)
+			cmd.Printf("\nView this release on Octopus Deploy: %s\n", link)
+		}
+
 		// response also returns AutomaticallyDeployedEnvironments, which was a failed feature; we should ignore it.
+	} else {
+		cmd.Printf("Error: did not receive valid response from server, cannot output release details")
 	}
 
 	return nil
@@ -930,7 +937,6 @@ outer_loop:
 						Message: output.Yellowf("Cannot find version for package %s. You must enter a version:", pkgVersionEntry.PackageID),
 					}, &answer) // no validator needed here
 
-					// if validators return an error, survey retries itself; the errors don't end up at this level.
 					if err != nil {
 						return nil, nil, err
 					}
