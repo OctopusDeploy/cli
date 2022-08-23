@@ -9,6 +9,7 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/output"
 	"github.com/OctopusDeploy/cli/pkg/question"
 	"github.com/OctopusDeploy/cli/pkg/util"
+	"github.com/OctopusDeploy/cli/pkg/util/flag"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/channels"
 	octopusApiClient "github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/deployments"
@@ -67,7 +68,37 @@ const (
 	//FlagAliasPackagePrereleaseLegacy = "packagePrerelease"
 )
 
+type CreateFlags struct {
+	Project            *flag.Flag[string]
+	Channel            *flag.Flag[string]
+	GitRef             *flag.Flag[string]
+	GitCommit          *flag.Flag[string]
+	PackageVersion     *flag.Flag[string]
+	ReleaseNotes       *flag.Flag[string]
+	Version            *flag.Flag[string]
+	IgnoreExisting     *flag.Flag[bool]
+	IgnoreChannelRules *flag.Flag[bool]
+	PackageVersionSpec *flag.Flag[[]string]
+}
+
+func NewCreateFlags() *CreateFlags {
+	return &CreateFlags{
+		Project:            flag.New[string](FlagProject, false),
+		Channel:            flag.New[string](FlagChannel, false),
+		GitRef:             flag.New[string](FlagGitRef, false),
+		GitCommit:          flag.New[string](FlagGitCommit, false),
+		PackageVersion:     flag.New[string](FlagPackageVersion, false),
+		ReleaseNotes:       flag.New[string](FlagReleaseNotes, false),
+		Version:            flag.New[string](FlagVersion, false),
+		IgnoreExisting:     flag.New[bool](FlagIgnoreExisting, false),
+		IgnoreChannelRules: flag.New[bool](FlagIgnoreChannelRules, false),
+		PackageVersionSpec: flag.New[[]string](FlagPackageVersionSpec, false),
+	}
+}
+
 func NewCmdCreate(f factory.Factory) *cobra.Command {
+	createFlags := NewCreateFlags()
+
 	cmd := &cobra.Command{
 		Use:   "create",
 		Short: "Creates a release in Octopus Deploy",
@@ -79,82 +110,67 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 			$ octopus release create -p MyProject -c default --package "utils:1.2.3" --package "utils:InstallOnly:5.6.7"
 			$ octopus release create -p MyProject -c Beta --no-prompt
 		`),
-		RunE: func(cmd *cobra.Command, args []string) error { return createRun(cmd, f) },
+		RunE: func(cmd *cobra.Command, args []string) error { return createRun(cmd, f, createFlags) },
 	}
 
 	// project is required in automation mode, other options are not. Nothing is required in interactive mode because we prompt for everything
 	flags := cmd.Flags()
-	flags.StringP(FlagProject, "p", "", "Name or ID of the project to create the release in")
-	flags.StringP(FlagChannel, "c", "", "Name or ID of the channel to use")
-	flags.StringP(FlagGitRef, "r", "", "Git Reference e.g. refs/heads/main. Only relevant for config-as-code projects")
-	flags.StringP(FlagGitCommit, "", "", "Git Commit Hash; Specify this in addition to Git Reference if you want to reference a commit other than the latest for that branch/tag.")
-	flags.StringP(FlagPackageVersion, "", "", "Default version to use for all Packages")
-	flags.StringP(FlagReleaseNotes, "n", "", "Release notes to attach")
-	flags.StringP(FlagVersion, "v", "", "Override the Release Version")
-	flags.BoolP(FlagIgnoreExisting, "x", false, "If a release with the same version exists, do nothing instead of failing.")
-	flags.BoolP(FlagIgnoreChannelRules, "", false, "Allow creation of a release where channel rules would otherwise prevent it.")
-	flags.StringSliceP(FlagPackageVersionSpec, "", []string{}, "Version specification a specific packages.\nFormat as {package}:{version}, {step}:{version} or {package-ref-name}:{packageOrStep}:{version}\nYou may specify this multiple times")
+	flags.StringVarP(&createFlags.Project.Value, createFlags.Project.Name, "p", "", "Name or ID of the project to create the release in")
+	flags.StringVarP(&createFlags.Channel.Value, createFlags.Channel.Name, "c", "", "Name or ID of the channel to use")
+	flags.StringVarP(&createFlags.GitRef.Value, createFlags.GitRef.Name, "r", "", "Git Reference e.g. refs/heads/main. Only relevant for config-as-code projects")
+	flags.StringVarP(&createFlags.GitCommit.Value, createFlags.GitCommit.Name, "", "", "Git Commit Hash; Specify this in addition to Git Reference if you want to reference a commit other than the latest for that branch/tag.")
+	flags.StringVarP(&createFlags.PackageVersion.Value, createFlags.PackageVersion.Name, "", "", "Default version to use for all Packages")
+	flags.StringVarP(&createFlags.ReleaseNotes.Value, createFlags.ReleaseNotes.Name, "n", "", "Release notes to attach")
+	flags.StringVarP(&createFlags.Version.Value, createFlags.Version.Name, "v", "", "Override the Release Version")
+	flags.BoolVarP(&createFlags.IgnoreExisting.Value, createFlags.IgnoreExisting.Name, "x", false, "If a release with the same version exists, do nothing instead of failing.")
+	flags.BoolVarP(&createFlags.IgnoreChannelRules.Value, createFlags.IgnoreChannelRules.Name, "", false, "Allow creation of a release where channel rules would otherwise prevent it.")
+	flags.StringSliceVarP(&createFlags.PackageVersionSpec.Value, createFlags.PackageVersionSpec.Name, "", []string{}, "Version specification a specific packages.\nFormat as {package}:{version}, {step}:{version} or {package-ref-name}:{packageOrStep}:{version}\nYou may specify this multiple times")
 
 	// we want the help text to display in the above order, rather than alphabetical
 	flags.SortFlags = false
 
 	// flags aliases for compat with old .NET CLI
-	util.AddFlagAliasesString(flags, FlagGitRef, FlagAliasGitRefRef, FlagAliasGitRefLegacy)
-	util.AddFlagAliasesString(flags, FlagGitCommit, FlagAliasGitCommitLegacy)
-	util.AddFlagAliasesString(flags, FlagPackageVersion, FlagAliasDefaultPackageVersion, FlagAliasPackageVersionLegacy, FlagAliasDefaultPackageVersionLegacy)
-	util.AddFlagAliasesString(flags, FlagReleaseNotes, FlagAliasReleaseNotesLegacy)
-	util.AddFlagAliasesString(flags, FlagVersion, FlagAliasReleaseNumberLegacy)
-	util.AddFlagAliasesBool(flags, FlagIgnoreExisting, FlagAliasIgnoreExistingLegacy)
-	util.AddFlagAliasesBool(flags, FlagIgnoreChannelRules, FlagAliasIgnoreChannelRulesLegacy)
+	flagAliases := make(map[string][]string, 10)
+	util.AddFlagAliasesString(flags, FlagGitRef, flagAliases, FlagAliasGitRefRef, FlagAliasGitRefLegacy)
+	util.AddFlagAliasesString(flags, FlagGitCommit, flagAliases, FlagAliasGitCommitLegacy)
+	util.AddFlagAliasesString(flags, FlagPackageVersion, flagAliases, FlagAliasDefaultPackageVersion, FlagAliasPackageVersionLegacy, FlagAliasDefaultPackageVersionLegacy)
+	util.AddFlagAliasesString(flags, FlagReleaseNotes, flagAliases, FlagAliasReleaseNotesLegacy)
+	util.AddFlagAliasesString(flags, FlagVersion, flagAliases, FlagAliasReleaseNumberLegacy)
+	util.AddFlagAliasesBool(flags, FlagIgnoreExisting, flagAliases, FlagAliasIgnoreExistingLegacy)
+	util.AddFlagAliasesBool(flags, FlagIgnoreChannelRules, flagAliases, FlagAliasIgnoreChannelRulesLegacy)
+
+	cmd.PreRunE = func(cmd *cobra.Command, args []string) error {
+		// map alias values
+		for k, v := range flagAliases {
+			for _, aliasName := range v {
+				f := cmd.Flags().Lookup(aliasName)
+				r := f.Value.String() // boolean flags get stringified here but it's fast enough and a one-shot so meh
+				if r != f.DefValue {
+					_ = cmd.Flags().Lookup(k).Value.Set(r)
+				}
+			}
+		}
+		return nil
+	}
 
 	return cmd
 }
 
-func createRun(cmd *cobra.Command, f factory.Factory) error {
-	project, err := cmd.Flags().GetString(FlagProject)
-	if err != nil {
-		return err
-	}
-
+func createRun(cmd *cobra.Command, f factory.Factory, flags *CreateFlags) error {
 	// ignore errors when fetching flags
 	options := &executor.TaskOptionsCreateRelease{
-		ProjectName: project,
+		ProjectName: flags.Project.Value,
 	}
 
-	if value, _ := util.GetFlagString(cmd, FlagPackageVersion, FlagAliasDefaultPackageVersion, FlagAliasPackageVersionLegacy, FlagAliasDefaultPackageVersionLegacy); value != "" {
-		options.DefaultPackageVersion = value
-	}
-
-	if value, _ := cmd.Flags().GetStringSlice(FlagPackageVersionSpec); value != nil {
-		options.PackageVersionOverrides = value
-	}
-
-	if value, _ := cmd.Flags().GetString(FlagChannel); value != "" {
-		options.ChannelName = value
-	}
-
-	if value, _ := util.GetFlagString(cmd, FlagGitRef, FlagAliasGitRefRef, FlagAliasGitRefLegacy); value != "" {
-		options.GitReference = value
-	}
-	if value, _ := util.GetFlagString(cmd, FlagGitCommit, FlagAliasGitCommitLegacy); value != "" {
-		options.GitCommit = value
-	}
-
-	if value, _ := util.GetFlagString(cmd, FlagVersion, FlagAliasReleaseNumberLegacy); value != "" {
-		options.Version = value
-	}
-
-	if value, _ := util.GetFlagString(cmd, FlagReleaseNotes, FlagAliasReleaseNotesLegacy); value != "" {
-		options.ReleaseNotes = value
-	}
-
-	if value, _ := util.GetFlagBool(cmd, FlagIgnoreExisting, FlagAliasIgnoreExistingLegacy); value {
-		options.IgnoreIfAlreadyExists = value
-	}
-
-	if value, _ := util.GetFlagBool(cmd, FlagIgnoreChannelRules, FlagAliasIgnoreChannelRulesLegacy); value {
-		options.IgnoreChannelRules = value
-	}
+	options.DefaultPackageVersion = flags.PackageVersion.Value
+	options.PackageVersionOverrides = flags.PackageVersionSpec.Value
+	options.ChannelName = flags.Channel.Value
+	options.GitReference = flags.GitRef.Value
+	options.GitCommit = flags.GitCommit.Value
+	options.Version = flags.Version.Value
+	options.ReleaseNotes = flags.ReleaseNotes.Value
+	options.IgnoreIfAlreadyExists = flags.IgnoreExisting.Value
+	options.IgnoreChannelRules = flags.IgnoreChannelRules.Value
 
 	octopus, err := f.GetSpacedClient()
 	if err != nil {

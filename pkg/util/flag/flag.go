@@ -2,12 +2,7 @@ package flag
 
 import (
 	"fmt"
-	"io"
 	"strings"
-
-	"github.com/OctopusDeploy/cli/pkg/factory"
-	"github.com/OctopusDeploy/cli/pkg/question"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
 )
 
 type Flag[T any] struct {
@@ -16,25 +11,26 @@ type Flag[T any] struct {
 	Secure bool
 }
 
-type CreateFlags struct {
-	Name         *Flag[string]
-	Description  *Flag[string]
-	AccessKey    *Flag[string]
-	SecretKey    *Flag[string]
-	Environments *Flag[[]string]
-}
-
-type CreateOptions struct {
-	CreateFlags
-	Writer   io.Writer
-	Octopus  *client.Client
-	Ask      question.Asker
-	Spinner  factory.Spinner
-	Space    string
-	Host     string
-	NoPrompt bool
-	CmdPath  string
-}
+//
+//type CreateFlags struct {
+//	Name         *Flag[string]
+//	Description  *Flag[string]
+//	AccessKey    *Flag[string]
+//	SecretKey    *Flag[string]
+//	Environments *Flag[[]string]
+//}
+//
+//type CreateOptions struct {
+//	CreateFlags
+//	Writer   io.Writer
+//	Octopus  *client.Client
+//	Ask      question.Asker
+//	Spinner  factory.Spinner
+//	Space    string
+//	Host     string
+//	NoPrompt bool
+//	CmdPath  string
+//}
 
 type Generatable interface {
 	GetName() string
