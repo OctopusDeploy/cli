@@ -104,7 +104,7 @@ func NewCmdList(client factory.Factory) *cobra.Command {
 				Table: output.TableDefinition[ReleaseViewModel]{
 					Header: []string{"VERSION", "PROJECT", "CHANNEL"},
 					Row: func(item ReleaseViewModel) []string {
-						return []string{output.Bold(item.Version), item.Project, item.Channel}
+						return []string{item.Version, item.Project, item.Channel}
 					}},
 				Basic: func(item ReleaseViewModel) string {
 					return item.Version

@@ -58,7 +58,7 @@ func NewCmdList(f factory.Factory) *cobra.Command {
 				Table: output.TableDefinition[accounts.IAccount]{
 					Header: []string{"NAME", "TYPE"},
 					Row: func(item accounts.IAccount) []string {
-						return []string{output.Bold(item.GetName()), accountTypeMap[item.GetAccountType()]}
+						return []string{item.GetName(), accountTypeMap[item.GetAccountType()]}
 					}},
 				Basic: func(item accounts.IAccount) string {
 					return item.GetName()

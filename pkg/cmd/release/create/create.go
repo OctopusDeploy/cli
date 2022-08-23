@@ -245,7 +245,7 @@ func createRun(cmd *cobra.Command, f factory.Factory, flags *CreateFlags) error 
 			}
 		}
 
-		if !f.IsPromptEnabled() {
+		if f.IsPromptEnabled() {
 			link := output.Bluef("%s/app#/%s/releases/%s", f.GetCurrentHost(), f.GetCurrentSpace().ID, options.Response.ReleaseID)
 			cmd.Printf("\nView this release on Octopus Deploy: %s\n", link)
 		}
@@ -661,14 +661,22 @@ func printPackageVersions(ioWriter io.Writer, packages []*StepPackageVersion) er
 		// we suffix it onto the step name, following the web UI
 		qualifiedPkgActionName := pkg.ActionName
 		if pkg.PackageID != pkg.PackageReferenceName {
+			//qualifiedPkgActionName = fmt.Sprintf("%s%s", qualifiedPkgActionName, output.Yellowf("/%s", pkg.PackageReferenceName))
 			qualifiedPkgActionName = fmt.Sprintf("%s/%s", qualifiedPkgActionName, pkg.PackageReferenceName)
+		} else {
+			qualifiedPkgActionName = fmt.Sprintf("%s%s", qualifiedPkgActionName, output.Dimf("/%s", pkg.PackageReferenceName))
 		}
 
-		// find existing entry and update it if possible
+		// find existing entry and insert row below it
 		updatedExisting := false
-		for _, entry := range consolidated {
+		for index, entry := range consolidated {
 			if entry.PackageID == pkg.PackageID && entry.Version == pkg.Version {
-				entry.ActionName = fmt.Sprintf("%s, %s", entry.ActionName, qualifiedPkgActionName)
+				consolidated = append(consolidated[:index+2], consolidated[index+1:]...)
+				consolidated[index+1] = &StepPackageVersion{
+					PackageID:  output.Dim(pkg.PackageID),
+					Version:    output.Dim(pkg.Version),
+					ActionName: qualifiedPkgActionName,
+				}
 				updatedExisting = true
 				break
 			}
@@ -684,12 +692,21 @@ func printPackageVersions(ioWriter io.Writer, packages []*StepPackageVersion) er
 
 	// step 2: print them
 	t := output.NewTable(ioWriter)
-	t.AddRow(output.Dim("PACKAGE"), output.Dim("VERSION"), output.Dim("STEPS"))
+	t.AddRow(
+		output.Bold("PACKAGE"),
+		output.Bold("VERSION"),
+		output.Bold("STEP NAME/PACKAGE REFERENCE"),
+	)
+	//t.AddRow(
+	//	"-------",
+	//	"-------",
+	//	"---------------------------",
+	//)
 
 	for _, pkg := range consolidated {
 		version := pkg.Version
 		if version == "" {
-			version = output.Red("ERROR") // can't determine version for this package
+			version = output.Yellow("unknown") // can't determine version for this package
 		}
 		t.AddRow(
 			pkg.PackageID,
@@ -934,7 +951,7 @@ outer_loop:
 				var answer = ""
 				for strings.TrimSpace(answer) == "" { // if they enter a blank line just ask again repeatedly
 					err = asker(&survey.Input{
-						Message: output.Yellowf("Cannot find version for package %s. You must enter a version:", pkgVersionEntry.PackageID),
+						Message: output.Yellowf("Unable to find a version for \"%s\". Specify a version:", pkgVersionEntry.PackageID),
 					}, &answer) // no validator needed here
 
 					if err != nil {
@@ -957,7 +974,7 @@ outer_loop:
 		var resolvedOverride *PackageVersionOverride = nil
 		var answer = ""
 		err = asker(&survey.Input{
-			Message: "Enter package override string, or 'y' to accept package versions", // TODO nicer string when we do a usability pass.
+			Message: "Package override string (y to accept, u to undo, ? for help):",
 		}, &answer, survey.WithValidator(func(ans interface{}) error {
 			str, ok := ans.(string)
 			if !ok {

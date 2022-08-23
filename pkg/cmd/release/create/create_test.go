@@ -28,6 +28,7 @@ import (
 var serverUrl, _ = url.Parse("http://server")
 
 const placeholderApiKey = "API-XXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+const packageOverrideQuestion = "Package override string (y to accept, u to undo, ? for help):"
 
 var spinner = &testutil.FakeSpinner{}
 
@@ -194,7 +195,7 @@ func TestReleaseCreate_AskQuestions_RegularProject(t *testing.T) {
 			})
 
 			_ = qa.ExpectQuestion(t, &survey.Input{
-				Message: "Enter package override string, or 'y' to accept package versions",
+				Message: packageOverrideQuestion,
 				Default: "",
 			}).AnswerWith("y") // just accept all the packages; package loop is tested elsewhere
 
@@ -213,7 +214,7 @@ func TestReleaseCreate_AskQuestions_RegularProject(t *testing.T) {
 			assert.Equal(t, heredoc.Doc(`
 				Project Fire Project
 				Channel Fire Project Default Channel
-				PACKAGE  VERSION  STEPS
+				PACKAGE  VERSION  STEP NAME/PACKAGE REFERENCE
 				pterm    0.12.51  Install/pterm-on-install
 				`), stdout.String())
 		}},
@@ -299,7 +300,7 @@ func TestReleaseCreate_AskQuestions_RegularProject(t *testing.T) {
 			})
 
 			_ = qa.ExpectQuestion(t, &survey.Input{
-				Message: "Enter package override string, or 'y' to accept package versions",
+				Message: packageOverrideQuestion,
 				Default: "",
 			}).AnswerWith("y") // just accept all the packages; package loop is tested elsewhere
 
@@ -320,8 +321,9 @@ func TestReleaseCreate_AskQuestions_RegularProject(t *testing.T) {
 			assert.Equal(t, heredoc.Doc(`
 				Project Fire Project
 				Channel Fire Project Default Channel
-				PACKAGE            VERSION  STEPS
-				pterm              0.12.51  Install/pterm-on-install, Verify/pterm-on-verify
+				PACKAGE            VERSION  STEP NAME/PACKAGE REFERENCE
+				pterm              0.12.51  Install/pterm-on-install
+				pterm              0.12.51  Verify/pterm-on-verify
 				NuGet.CommandLine  6.2.1    Verify/nuget-on-verify
 				`), stdout.String())
 		}},
@@ -577,7 +579,6 @@ func TestReleaseCreate_AskQuestions_VersionControlledProject(t *testing.T) {
 }
 
 func TestReleaseCreate_AskQuestions_AskPackageOverrideLoop(t *testing.T) {
-	enterOverrideQuestion := "Enter package override string, or 'y' to accept package versions"
 
 	baseline := []*create.StepPackageVersion{
 		{ActionName: "Install", PackageID: "pterm", PackageReferenceName: "pterm", Version: "0.12"},
@@ -595,7 +596,7 @@ func TestReleaseCreate_AskQuestions_AskPackageOverrideLoop(t *testing.T) {
 				return create.AskPackageOverrideLoop(baseline, "", make([]string, 0), qa.AsAsker(), stdout)
 			})
 
-			_ = qa.ExpectQuestion(t, &survey.Input{Message: enterOverrideQuestion}).AnswerWith("y")
+			_ = qa.ExpectQuestion(t, &survey.Input{Message: packageOverrideQuestion}).AnswerWith("y")
 
 			versions, overrides, err := testutil.ReceiveTriple(receiver)
 			assert.Nil(t, err)
@@ -608,9 +609,9 @@ func TestReleaseCreate_AskQuestions_AskPackageOverrideLoop(t *testing.T) {
 				return create.AskPackageOverrideLoop(baseline, "", make([]string, 0), qa.AsAsker(), stdout)
 			})
 
-			_ = qa.ExpectQuestion(t, &survey.Input{Message: enterOverrideQuestion}).AnswerWith("pterm:2.5")
+			_ = qa.ExpectQuestion(t, &survey.Input{Message: packageOverrideQuestion}).AnswerWith("pterm:2.5")
 
-			_ = qa.ExpectQuestion(t, &survey.Input{Message: enterOverrideQuestion}).AnswerWith("y")
+			_ = qa.ExpectQuestion(t, &survey.Input{Message: packageOverrideQuestion}).AnswerWith("y")
 
 			versions, overrides, err := testutil.ReceiveTriple(receiver)
 			assert.Nil(t, err)
@@ -629,9 +630,9 @@ func TestReleaseCreate_AskQuestions_AskPackageOverrideLoop(t *testing.T) {
 				return create.AskPackageOverrideLoop(baseline, "", make([]string, 0), qa.AsAsker(), stdout)
 			})
 
-			_ = qa.ExpectQuestion(t, &survey.Input{Message: enterOverrideQuestion}).AnswerWith("Install:2.5")
+			_ = qa.ExpectQuestion(t, &survey.Input{Message: packageOverrideQuestion}).AnswerWith("Install:2.5")
 
-			_ = qa.ExpectQuestion(t, &survey.Input{Message: enterOverrideQuestion}).AnswerWith("y")
+			_ = qa.ExpectQuestion(t, &survey.Input{Message: packageOverrideQuestion}).AnswerWith("y")
 
 			versions, overrides, err := testutil.ReceiveTriple(receiver)
 			assert.Nil(t, err)
@@ -650,9 +651,9 @@ func TestReleaseCreate_AskQuestions_AskPackageOverrideLoop(t *testing.T) {
 				return create.AskPackageOverrideLoop(baseline, "", make([]string, 0), qa.AsAsker(), stdout)
 			})
 
-			_ = qa.ExpectQuestion(t, &survey.Input{Message: enterOverrideQuestion}).AnswerWith("Install:pterm:2.5")
+			_ = qa.ExpectQuestion(t, &survey.Input{Message: packageOverrideQuestion}).AnswerWith("Install:pterm:2.5")
 
-			_ = qa.ExpectQuestion(t, &survey.Input{Message: enterOverrideQuestion}).AnswerWith("y")
+			_ = qa.ExpectQuestion(t, &survey.Input{Message: packageOverrideQuestion}).AnswerWith("y")
 
 			versions, overrides, err := testutil.ReceiveTriple(receiver)
 			assert.Nil(t, err)
@@ -673,7 +674,7 @@ func TestReleaseCreate_AskQuestions_AskPackageOverrideLoop(t *testing.T) {
 				return create.AskPackageOverrideLoop(baseline, defaultPackageVersion, make([]string, 0), qa.AsAsker(), stdout)
 			})
 
-			_ = qa.ExpectQuestion(t, &survey.Input{Message: enterOverrideQuestion}).AnswerWith("y")
+			_ = qa.ExpectQuestion(t, &survey.Input{Message: packageOverrideQuestion}).AnswerWith("y")
 
 			versions, overrides, err := testutil.ReceiveTriple(receiver)
 			assert.Nil(t, err)
@@ -694,7 +695,7 @@ func TestReleaseCreate_AskQuestions_AskPackageOverrideLoop(t *testing.T) {
 				return create.AskPackageOverrideLoop(baseline, "", cmdlinePackages, qa.AsAsker(), stdout)
 			})
 
-			_ = qa.ExpectQuestion(t, &survey.Input{Message: enterOverrideQuestion}).AnswerWith("y")
+			_ = qa.ExpectQuestion(t, &survey.Input{Message: packageOverrideQuestion}).AnswerWith("y")
 
 			versions, overrides, err := testutil.ReceiveTriple(receiver)
 			assert.Nil(t, err)
@@ -717,7 +718,7 @@ func TestReleaseCreate_AskQuestions_AskPackageOverrideLoop(t *testing.T) {
 				return create.AskPackageOverrideLoop(baseline, defaultPackageVersion, cmdlinePackages, qa.AsAsker(), stdout)
 			})
 
-			_ = qa.ExpectQuestion(t, &survey.Input{Message: enterOverrideQuestion}).AnswerWith("y")
+			_ = qa.ExpectQuestion(t, &survey.Input{Message: packageOverrideQuestion}).AnswerWith("y")
 
 			versions, overrides, err := testutil.ReceiveTriple(receiver)
 			assert.Nil(t, err)
@@ -738,13 +739,13 @@ func TestReleaseCreate_AskQuestions_AskPackageOverrideLoop(t *testing.T) {
 				return create.AskPackageOverrideLoop(baseline, "", make([]string, 0), qa.AsAsker(), stdout)
 			})
 
-			validationErr := qa.ExpectQuestion(t, &survey.Input{Message: enterOverrideQuestion}).AnswerWith("")
+			validationErr := qa.ExpectQuestion(t, &survey.Input{Message: packageOverrideQuestion}).AnswerWith("")
 			assert.Nil(t, validationErr)
 
-			validationErr = qa.ExpectQuestion(t, &survey.Input{Message: enterOverrideQuestion}).AnswerWith("")
+			validationErr = qa.ExpectQuestion(t, &survey.Input{Message: packageOverrideQuestion}).AnswerWith("")
 			assert.Nil(t, validationErr)
 
-			validationErr = qa.ExpectQuestion(t, &survey.Input{Message: enterOverrideQuestion}).AnswerWith("y")
+			validationErr = qa.ExpectQuestion(t, &survey.Input{Message: packageOverrideQuestion}).AnswerWith("y")
 			assert.Nil(t, validationErr)
 
 			versions, overrides, err := testutil.ReceiveTriple(receiver)
@@ -758,7 +759,7 @@ func TestReleaseCreate_AskQuestions_AskPackageOverrideLoop(t *testing.T) {
 				return create.AskPackageOverrideLoop(baseline, "", make([]string, 0), qa.AsAsker(), stdout)
 			})
 
-			q := qa.ExpectQuestion(t, &survey.Input{Message: enterOverrideQuestion})
+			q := qa.ExpectQuestion(t, &survey.Input{Message: packageOverrideQuestion})
 
 			validationErr := q.AnswerWith("z:z:z:z") // too many components
 			assert.EqualError(t, validationErr, "package version specification z:z:z:z does not use expected format")
@@ -767,7 +768,7 @@ func TestReleaseCreate_AskQuestions_AskPackageOverrideLoop(t *testing.T) {
 			assert.Nil(t, validationErr)
 
 			// it'll ask again; y to confirm
-			_ = qa.ExpectQuestion(t, &survey.Input{Message: enterOverrideQuestion}).AnswerWith("y") // confirm packages
+			_ = qa.ExpectQuestion(t, &survey.Input{Message: packageOverrideQuestion}).AnswerWith("y") // confirm packages
 
 			versions, overrides, err := testutil.ReceiveTriple(receiver)
 			assert.Nil(t, err)
@@ -786,7 +787,7 @@ func TestReleaseCreate_AskQuestions_AskPackageOverrideLoop(t *testing.T) {
 				return create.AskPackageOverrideLoop(baseline, "", make([]string, 0), qa.AsAsker(), stdout)
 			})
 
-			q := qa.ExpectQuestion(t, &survey.Input{Message: enterOverrideQuestion})
+			q := qa.ExpectQuestion(t, &survey.Input{Message: packageOverrideQuestion})
 
 			validationErr := q.AnswerWith("banana:2.5")
 			assert.EqualError(t, validationErr, "could not resolve step name or package matching banana")
@@ -795,7 +796,7 @@ func TestReleaseCreate_AskQuestions_AskPackageOverrideLoop(t *testing.T) {
 			assert.Nil(t, validationErr)
 
 			// it'll ask again; y to confirm
-			_ = qa.ExpectQuestion(t, &survey.Input{Message: enterOverrideQuestion}).AnswerWith("y") // confirm packages
+			_ = qa.ExpectQuestion(t, &survey.Input{Message: packageOverrideQuestion}).AnswerWith("y") // confirm packages
 
 			versions, overrides, err := testutil.ReceiveTriple(receiver)
 			assert.Nil(t, err)
@@ -814,7 +815,7 @@ func TestReleaseCreate_AskQuestions_AskPackageOverrideLoop(t *testing.T) {
 				return create.AskPackageOverrideLoop(baseline, "", make([]string, 0), qa.AsAsker(), stdout)
 			})
 
-			qa.ExpectQuestion(t, &survey.Input{Message: enterOverrideQuestion}).AnswerWithError(errors.New("hard fail"))
+			qa.ExpectQuestion(t, &survey.Input{Message: packageOverrideQuestion}).AnswerWithError(errors.New("hard fail"))
 
 			versions, overrides, err := testutil.ReceiveTriple(receiver)
 			assert.Equal(t, errors.New("hard fail"), err)
@@ -827,15 +828,15 @@ func TestReleaseCreate_AskQuestions_AskPackageOverrideLoop(t *testing.T) {
 				return create.AskPackageOverrideLoop(baseline, "", make([]string, 0), qa.AsAsker(), stdout)
 			})
 
-			_ = qa.ExpectQuestion(t, &survey.Input{Message: enterOverrideQuestion}).AnswerWith("NuGet.CommandLine:7.1")
+			_ = qa.ExpectQuestion(t, &survey.Input{Message: packageOverrideQuestion}).AnswerWith("NuGet.CommandLine:7.1")
 
-			_ = qa.ExpectQuestion(t, &survey.Input{Message: enterOverrideQuestion}).AnswerWith("pterm:35")
+			_ = qa.ExpectQuestion(t, &survey.Input{Message: packageOverrideQuestion}).AnswerWith("pterm:35")
 
-			_ = qa.ExpectQuestion(t, &survey.Input{Message: enterOverrideQuestion}).AnswerWith("u") // undo pterm:35
+			_ = qa.ExpectQuestion(t, &survey.Input{Message: packageOverrideQuestion}).AnswerWith("u") // undo pterm:35
 
-			_ = qa.ExpectQuestion(t, &survey.Input{Message: enterOverrideQuestion}).AnswerWith("Install:pterm:2.5")
+			_ = qa.ExpectQuestion(t, &survey.Input{Message: packageOverrideQuestion}).AnswerWith("Install:pterm:2.5")
 
-			_ = qa.ExpectQuestion(t, &survey.Input{Message: enterOverrideQuestion}).AnswerWith("y")
+			_ = qa.ExpectQuestion(t, &survey.Input{Message: packageOverrideQuestion}).AnswerWith("y")
 
 			versions, overrides, err := testutil.ReceiveTriple(receiver)
 			assert.Nil(t, err)
@@ -862,37 +863,37 @@ func TestReleaseCreate_AskQuestions_AskPackageOverrideLoop(t *testing.T) {
 				return create.AskPackageOverrideLoop(baselineSomeUnresolved, "", make([]string, 0), qa.AsAsker(), stdout)
 			})
 
-			q := qa.ExpectQuestion(t, &survey.Input{Message: "Cannot find version for package pterm. You must enter a version:"})
+			q := qa.ExpectQuestion(t, &survey.Input{Message: "Unable to find a version for \"pterm\". Specify a version:"})
 			assert.Equal(t, heredoc.Doc(`
-				PACKAGE            VERSION  STEPS
-				pterm              ERROR    Install
-				NuGet.CommandLine  ERROR    Install
-				pterm              0.12     Verify
+				PACKAGE            VERSION  STEP NAME/PACKAGE REFERENCE
+				pterm              unknown  Install/pterm
+				NuGet.CommandLine  unknown  Install/NuGet.CommandLine
+				pterm              0.12     Verify/pterm
 			`), stdout.String())
 			stdout.Reset()
 			_ = q.AnswerWith("75")
 
-			q = qa.ExpectQuestion(t, &survey.Input{Message: "Cannot find version for package NuGet.CommandLine. You must enter a version:"})
+			q = qa.ExpectQuestion(t, &survey.Input{Message: "Unable to find a version for \"NuGet.CommandLine\". Specify a version:"})
 			assert.Equal(t, heredoc.Doc(`
-				PACKAGE            VERSION  STEPS
-				pterm              75       Install
-				NuGet.CommandLine  ERROR    Install
-				pterm              0.12     Verify
+				PACKAGE            VERSION  STEP NAME/PACKAGE REFERENCE
+				pterm              75       Install/pterm
+				NuGet.CommandLine  unknown  Install/NuGet.CommandLine
+				pterm              0.12     Verify/pterm
 			`), stdout.String())
 			stdout.Reset()
 			_ = q.AnswerWith("") // deliberate blank line to trigger re-prompt
 
-			q = qa.ExpectQuestion(t, &survey.Input{Message: "Cannot find version for package NuGet.CommandLine. You must enter a version:"})
+			q = qa.ExpectQuestion(t, &survey.Input{Message: "Unable to find a version for \"NuGet.CommandLine\". Specify a version:"})
 			assert.Equal(t, "", stdout.String()) // re-prompt on blank answer doesn't re-print the table because nothing changed
 			stdout.Reset()
 			_ = q.AnswerWith("1.0.0")
 
-			q = qa.ExpectQuestion(t, &survey.Input{Message: enterOverrideQuestion})
+			q = qa.ExpectQuestion(t, &survey.Input{Message: packageOverrideQuestion})
 			assert.Equal(t, heredoc.Doc(`
-				PACKAGE            VERSION  STEPS
-				pterm              75       Install
-				NuGet.CommandLine  1.0.0    Install
-				pterm              0.12     Verify
+				PACKAGE            VERSION  STEP NAME/PACKAGE REFERENCE
+				pterm              75       Install/pterm
+				NuGet.CommandLine  1.0.0    Install/NuGet.CommandLine
+				pterm              0.12     Verify/pterm
 			`), stdout.String())
 			stdout.Reset()
 			_ = q.AnswerWith("y")
@@ -921,11 +922,12 @@ func TestReleaseCreate_AskQuestions_AskPackageOverrideLoop(t *testing.T) {
 				return create.AskPackageOverrideLoop(baselineSomeUnresolved, "12.7.5", make([]string, 0), qa.AsAsker(), stdout)
 			})
 
-			q := qa.ExpectQuestion(t, &survey.Input{Message: enterOverrideQuestion})
+			q := qa.ExpectQuestion(t, &survey.Input{Message: packageOverrideQuestion})
 			assert.Equal(t, heredoc.Doc(`
-				PACKAGE            VERSION  STEPS
-				pterm              12.7.5   Install, Verify
-				NuGet.CommandLine  12.7.5   Install
+				PACKAGE            VERSION  STEP NAME/PACKAGE REFERENCE
+				pterm              12.7.5   Install/pterm
+				pterm              12.7.5   Verify/pterm
+				NuGet.CommandLine  12.7.5   Install/NuGet.CommandLine
 			`), stdout.String())
 			stdout.Reset()
 			_ = q.AnswerWith("y")
@@ -954,22 +956,22 @@ func TestReleaseCreate_AskQuestions_AskPackageOverrideLoop(t *testing.T) {
 				return create.AskPackageOverrideLoop(baselineSomeUnresolved, "", []string{"Install:pterm:12.9.2"}, qa.AsAsker(), stdout)
 			})
 
-			q := qa.ExpectQuestion(t, &survey.Input{Message: "Cannot find version for package NuGet.CommandLine. You must enter a version:"})
+			q := qa.ExpectQuestion(t, &survey.Input{Message: "Unable to find a version for \"NuGet.CommandLine\". Specify a version:"})
 			assert.Equal(t, heredoc.Doc(`
-				PACKAGE            VERSION  STEPS
-				pterm              12.9.2   Install
-				NuGet.CommandLine  ERROR    Install
-				pterm              0.12     Verify
+				PACKAGE            VERSION  STEP NAME/PACKAGE REFERENCE
+				pterm              12.9.2   Install/pterm
+				NuGet.CommandLine  unknown  Install/NuGet.CommandLine
+				pterm              0.12     Verify/pterm
 			`), stdout.String())
 			stdout.Reset()
 			_ = q.AnswerWith("75")
 
-			q = qa.ExpectQuestion(t, &survey.Input{Message: enterOverrideQuestion})
+			q = qa.ExpectQuestion(t, &survey.Input{Message: packageOverrideQuestion})
 			assert.Equal(t, heredoc.Doc(`
-				PACKAGE            VERSION  STEPS
-				pterm              12.9.2   Install
-				NuGet.CommandLine  75       Install
-				pterm              0.12     Verify
+				PACKAGE            VERSION  STEP NAME/PACKAGE REFERENCE
+				pterm              12.9.2   Install/pterm
+				NuGet.CommandLine  75       Install/NuGet.CommandLine
+				pterm              0.12     Verify/pterm
 			`), stdout.String())
 			stdout.Reset()
 			_ = q.AnswerWith("y")
