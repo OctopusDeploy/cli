@@ -7,6 +7,7 @@ import (
 	cmdDelete "github.com/OctopusDeploy/cli/pkg/cmd/environment/delete"
 	cmdList "github.com/OctopusDeploy/cli/pkg/cmd/environment/list"
 	"github.com/OctopusDeploy/cli/pkg/constants"
+	"github.com/OctopusDeploy/cli/pkg/constants/annotations"
 	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/spf13/cobra"
 )
@@ -21,6 +22,9 @@ func NewCmdEnvironment(f factory.Factory) *cobra.Command {
 			$ %s environment list
 			$ %s env ls
 		`), constants.ExecutableName, constants.ExecutableName),
+		Annotations: map[string]string{
+			annotations.IsInfrastructure: "true",
+		},
 	}
 
 	cmd.AddCommand(cmdList.NewCmdList(f))

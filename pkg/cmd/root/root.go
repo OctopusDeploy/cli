@@ -17,7 +17,7 @@ import (
 // which the Factory wrapper deliberately doesn't allow us to do
 func NewCmdRoot(f factory.Factory, clientFactory apiclient.ClientFactory, askProvider question.AskProvider) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "octopus",
+		Use:   "octopus <command>",
 		Short: "Octopus Deploy CLI",
 		Long:  `Work seamlessly with Octopus Deploy from the command line.`,
 	}
@@ -29,6 +29,7 @@ func NewCmdRoot(f factory.Factory, clientFactory apiclient.ClientFactory, askPro
 	cmdPFlags := cmd.PersistentFlags()
 
 	cmdPFlags.BoolP(constants.FlagHelp, "h", false, "Show help for command")
+	cmd.SetHelpFunc(rootHelpFunc)
 	cmdPFlags.StringP(constants.FlagSpace, "s", "", "Set Space")
 
 	// remember if you read FlagOutputFormat you also need to check FlagOutputFormatLegacy
