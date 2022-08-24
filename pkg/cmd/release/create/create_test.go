@@ -761,10 +761,19 @@ func TestReleaseCreate_AskQuestions_AskPackageOverrideLoop(t *testing.T) {
 
 			q := qa.ExpectQuestion(t, &survey.Input{Message: packageOverrideQuestion})
 
-			validationErr := q.AnswerWith("z:z:z:z") // too many components
-			assert.EqualError(t, validationErr, "package version specification z:z:z:z does not use expected format")
+			validationErr := q.AnswerWith("fish") // not enough components
+			assert.EqualError(t, validationErr, "package version specification \"fish\" does not use expected format")
 
-			validationErr = q.AnswerWith("2.5") // ok answer properly this time, set everything to 2.5
+			validationErr = q.AnswerWith("z:z:z:z") // too many components
+			assert.EqualError(t, validationErr, "package version specification \"z:z:z:z\" does not use expected format")
+
+			validationErr = q.AnswerWith("2.5") // can't just have a version with no :
+			assert.EqualError(t, validationErr, "package version specification \"2.5\" does not use expected format")
+
+			validationErr = q.AnswerWith("*:x2.5") // not valid semver(ish)
+			assert.EqualError(t, validationErr, "version component \"x2.5\" is not a valid version")
+
+			validationErr = q.AnswerWith("*:2.5") // answer properly this time
 			assert.Nil(t, validationErr)
 
 			// it'll ask again; y to confirm
@@ -792,7 +801,7 @@ func TestReleaseCreate_AskQuestions_AskPackageOverrideLoop(t *testing.T) {
 			validationErr := q.AnswerWith("banana:2.5")
 			assert.EqualError(t, validationErr, "could not resolve step name or package matching banana")
 
-			validationErr = q.AnswerWith("2.5") // ok answer properly this time, set everything to 2.5
+			validationErr = q.AnswerWith(":2.5") // ok answer properly this time, set everything to 2.5
 			assert.Nil(t, validationErr)
 
 			// it'll ask again; y to confirm
@@ -881,11 +890,6 @@ func TestReleaseCreate_AskQuestions_AskPackageOverrideLoop(t *testing.T) {
 				pterm              0.12     Verify/pterm
 			`), stdout.String())
 			stdout.Reset()
-			_ = q.AnswerWith("") // deliberate blank line to trigger re-prompt
-
-			q = qa.ExpectQuestion(t, &survey.Input{Message: "Unable to find a version for \"NuGet.CommandLine\". Specify a version:"})
-			assert.Equal(t, "", stdout.String()) // re-prompt on blank answer doesn't re-print the table because nothing changed
-			stdout.Reset()
 			_ = q.AnswerWith("1.0.0")
 
 			q = qa.ExpectQuestion(t, &survey.Input{Message: packageOverrideQuestion})
@@ -908,6 +912,48 @@ func TestReleaseCreate_AskQuestions_AskPackageOverrideLoop(t *testing.T) {
 			assert.Equal(t, []*create.PackageVersionOverride{
 				{PackageReferenceName: "pterm", ActionName: "Install", Version: "75"}, // fully qualify packagereference+actionname to be sure
 				{PackageReferenceName: "NuGet.CommandLine", ActionName: "Install", Version: "1.0.0"},
+			}, overrides)
+		}},
+
+		{"if we enter the loop with any unresolved packages, forced version selection doesn't accept bad input", func(t *testing.T, qa *testutil.AskMocker, stdout *bytes.Buffer) {
+			baselineSomeUnresolved := []*create.StepPackageVersion{
+				{ActionName: "Install", PackageID: "pterm", PackageReferenceName: "pterm", Version: ""}, // unresolved
+				{ActionName: "Verify", PackageID: "pterm", PackageReferenceName: "pterm", Version: "0.12"},
+			}
+
+			receiver := testutil.GoBegin3(func() ([]*create.StepPackageVersion, []*create.PackageVersionOverride, error) {
+				return create.AskPackageOverrideLoop(baselineSomeUnresolved, "", make([]string, 0), qa.AsAsker(), stdout)
+			})
+
+			q := qa.ExpectQuestion(t, &survey.Input{Message: "Unable to find a version for \"pterm\". Specify a version:"})
+			assert.Equal(t, heredoc.Doc(`
+				PACKAGE  VERSION  STEP NAME/PACKAGE REFERENCE
+				pterm    unknown  Install/pterm
+				pterm    0.12     Verify/pterm
+			`), stdout.String())
+			stdout.Reset()
+			validationErr := q.AnswerWith("z75")
+			assert.EqualError(t, validationErr, "\"z75\" is not a valid version")
+
+			validationErr = q.AnswerWith("")
+			assert.EqualError(t, validationErr, "\"\" is not a valid version")
+
+			validationErr = q.AnswerWith("dog")
+			assert.EqualError(t, validationErr, "\"dog\" is not a valid version")
+
+			validationErr = q.AnswerWith("25.0")
+			assert.Nil(t, validationErr)
+
+			_ = qa.ExpectQuestion(t, &survey.Input{Message: packageOverrideQuestion}).AnswerWith("y")
+
+			versions, overrides, err := testutil.ReceiveTriple(receiver)
+			assert.Nil(t, err)
+			assert.Equal(t, []*create.StepPackageVersion{
+				{ActionName: "Install", PackageID: "pterm", PackageReferenceName: "pterm", Version: "25.0"},
+				{ActionName: "Verify", PackageID: "pterm", PackageReferenceName: "pterm", Version: "0.12"},
+			}, versions)
+			assert.Equal(t, []*create.PackageVersionOverride{
+				{PackageReferenceName: "pterm", ActionName: "Install", Version: "25.0"}, // fully qualify packagereference+actionname to be sure
 			}, overrides)
 		}},
 
@@ -1832,7 +1878,6 @@ func TestReleaseCreate_ParsePackageOverrideString(t *testing.T) {
 		expect    *create.AmbiguousPackageVersionOverride
 		expectErr error
 	}{
-		{input: "5", expect: &create.AmbiguousPackageVersionOverride{ActionNameOrPackageID: "", Version: "5"}},
 		{input: ":5", expect: &create.AmbiguousPackageVersionOverride{ActionNameOrPackageID: "", Version: "5"}},
 		{input: "::5", expect: &create.AmbiguousPackageVersionOverride{ActionNameOrPackageID: "", Version: "5"}},
 		{input: "*:5", expect: &create.AmbiguousPackageVersionOverride{ActionNameOrPackageID: "", Version: "5"}},
@@ -1851,7 +1896,15 @@ func TestReleaseCreate_ParsePackageOverrideString(t *testing.T) {
 		{input: "pterm=Push Package/9.7-pre-xyz", expect: &create.AmbiguousPackageVersionOverride{PackageReferenceName: "Push Package", ActionNameOrPackageID: "pterm", Version: "9.7-pre-xyz"}},
 
 		{input: "", expectErr: errors.New("empty package version specification")},
-		{input: "Install:pterm:nuget:5", expectErr: errors.New("package version specification Install:pterm:nuget:5 does not use expected format")},
+
+		// bare identifiers aren't valid
+		{input: "5", expectErr: errors.New("package version specification \"5\" does not use expected format")},
+		{input: "fish", expectErr: errors.New("package version specification \"fish\" does not use expected format")},
+		{input: "Install:pterm:nuget:5", expectErr: errors.New("package version specification \"Install:pterm:nuget:5\" does not use expected format")},
+
+		// versions must be version-ish
+		{input: ":x5", expectErr: errors.New("version component \"x5\" is not a valid version")},
+		{input: "NuGet:NuGet:dog", expectErr: errors.New("version component \"dog\" is not a valid version")},
 	}
 
 	for _, test := range tests {

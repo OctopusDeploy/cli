@@ -17,6 +17,7 @@ import (
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/releases"
 	"io"
+	"regexp"
 	"sort"
 	"strings"
 	"unicode"
@@ -478,6 +479,15 @@ type AmbiguousPackageVersionOverride struct {
 	Version               string
 }
 
+// taken from here https://github.com/OctopusDeploy/Versioning/blob/main/source/Octopus.Versioning/Octopus/OctopusVersionParser.cs#L29
+// but simplified, and removed the support for optional whitespace around version numbers (OctopusVersion would allow "1 . 2 . 3" whereas we won't
+// otherwise this is very lenient
+var validVersionRegex, _ = regexp.Compile("(?i)" + `^\s*(v|V)?\d+(\.\d+)?(\.\d+)?(\.\d+)?[.\-_\\]?([a-z0-9]*?)([.\-_\\]([a-z0-9.\-_\\]*?)?)?(\+([a-z0-9_\-.\\+]*?))?$`)
+
+func isValidVersion(version string) bool {
+	return validVersionRegex.MatchString(version)
+}
+
 // ParsePackageOverrideString parses a package version override string into a structure.
 // Logic should align with PackageVersionResolver in the Octopus Server and .NET CLI
 // In cases where things are ambiguous, we look in steps for matching values to see if something is a PackageID or a StepName
@@ -490,9 +500,6 @@ func ParsePackageOverrideString(packageOverride string) (*AmbiguousPackageVersio
 	packageReferenceName, stepNameOrPackageID, version := "", "", ""
 
 	switch len(components) {
-	case 1:
-		// the server doesn't support this, but we do interactively; override the version for all packages
-		version = strings.TrimSpace(components[0])
 	case 2:
 		// if there are two components it is (StepName|PackageID):Version
 		stepNameOrPackageID, version = strings.TrimSpace(components[0]), strings.TrimSpace(components[1])
@@ -500,12 +507,15 @@ func ParsePackageOverrideString(packageOverride string) (*AmbiguousPackageVersio
 		// if there are three components it is (StepName|PackageID):PackageReferenceName:Version
 		stepNameOrPackageID, packageReferenceName, version = strings.TrimSpace(components[0]), strings.TrimSpace(components[1]), strings.TrimSpace(components[2])
 	default:
-		return nil, fmt.Errorf("package version specification %s does not use expected format", packageOverride)
+		return nil, fmt.Errorf("package version specification \"%s\" does not use expected format", packageOverride)
 	}
 
 	// must always specify a version; must specify either packageID, stepName or both
 	if version == "" {
-		return nil, fmt.Errorf("package version specification %s does not use expected format", packageOverride)
+		return nil, fmt.Errorf("package version specification \"%s\" does not use expected format", packageOverride)
+	}
+	if !isValidVersion(version) {
+		return nil, fmt.Errorf("version component \"%s\" is not a valid version", version)
 	}
 
 	// compensate for wildcards
@@ -952,7 +962,16 @@ outer_loop:
 				for strings.TrimSpace(answer) == "" { // if they enter a blank line just ask again repeatedly
 					err = asker(&survey.Input{
 						Message: output.Yellowf("Unable to find a version for \"%s\". Specify a version:", pkgVersionEntry.PackageID),
-					}, &answer) // no validator needed here
+					}, &answer, survey.WithValidator(func(ans interface{}) error {
+						str, ok := ans.(string)
+						if !ok {
+							return errors.New("internal error; answer was not a string")
+						}
+						if !isValidVersion(str) {
+							return fmt.Errorf("\"%s\" is not a valid version", str)
+						}
+						return nil
+					}))
 
 					if err != nil {
 						return nil, nil, err
