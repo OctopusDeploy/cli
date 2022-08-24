@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/OctopusDeploy/cli/pkg/constants"
-	"github.com/OctopusDeploy/cli/pkg/util"
 	"strings"
 
 	"github.com/OctopusDeploy/cli/pkg/usage"
@@ -48,7 +47,7 @@ type Mappers[T any] struct {
 }
 
 func PrintArray[T any](items []T, cmd *cobra.Command, mappers Mappers[T]) error {
-	outputFormat, _ := util.GetFlagString(cmd, constants.FlagOutputFormat, constants.FlagOutputFormatLegacy)
+	outputFormat, _ := cmd.Flags().GetString(constants.FlagOutputFormat)
 
 	switch strings.ToLower(outputFormat) {
 	case "json":
@@ -83,7 +82,7 @@ func PrintArray[T any](items []T, cmd *cobra.Command, mappers Mappers[T]) error 
 		t := NewTable(ioWriter)
 		if tableMapper.Header != nil {
 			for k, v := range tableMapper.Header {
-				tableMapper.Header[k] = Dim(v)
+				tableMapper.Header[k] = Bold(v)
 			}
 			t.AddRow(tableMapper.Header...)
 		}
