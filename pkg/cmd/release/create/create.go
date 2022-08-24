@@ -18,6 +18,7 @@ import (
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/releases"
 	"io"
+	"os"
 	"regexp"
 	"sort"
 	"strings"
@@ -44,9 +45,9 @@ const (
 	FlagReleaseNotes            = "release-notes"
 	FlagAliasReleaseNotesLegacy = "releaseNotes"
 
-	FlagReleaseNotesFile       = "release-notes-file"
-	FlagReleaseNotesFileLegacy = "releaseNotesFile"
-	FlagReleaseNoteFileLegacy  = "releaseNoteFile"
+	FlagReleaseNotesFile            = "release-notes-file"
+	FlagAliasReleaseNotesFileLegacy = "releaseNotesFile"
+	FlagAliasReleaseNoteFileLegacy  = "releaseNoteFile"
 
 	FlagGitRef            = "git-ref"
 	FlagAliasGitRefLegacy = "gitRef"
@@ -77,6 +78,7 @@ type CreateFlags struct {
 	GitCommit          *flag.Flag[string]
 	PackageVersion     *flag.Flag[string]
 	ReleaseNotes       *flag.Flag[string]
+	ReleaseNotesFile   *flag.Flag[string]
 	Version            *flag.Flag[string]
 	IgnoreExisting     *flag.Flag[bool]
 	IgnoreChannelRules *flag.Flag[bool]
@@ -91,6 +93,7 @@ func NewCreateFlags() *CreateFlags {
 		GitCommit:          flag.New[string](FlagGitCommit, false),
 		PackageVersion:     flag.New[string](FlagPackageVersion, false),
 		ReleaseNotes:       flag.New[string](FlagReleaseNotes, false),
+		ReleaseNotesFile:   flag.New[string](FlagReleaseNotesFile, false),
 		Version:            flag.New[string](FlagVersion, false),
 		IgnoreExisting:     flag.New[bool](FlagIgnoreExisting, false),
 		IgnoreChannelRules: flag.New[bool](FlagIgnoreChannelRules, false),
@@ -123,6 +126,7 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 	flags.StringVarP(&createFlags.GitCommit.Value, createFlags.GitCommit.Name, "", "", "Git Commit Hash; Specify this in addition to Git Reference if you want to reference a commit other than the latest for that branch/tag.")
 	flags.StringVarP(&createFlags.PackageVersion.Value, createFlags.PackageVersion.Name, "", "", "Default version to use for all Packages")
 	flags.StringVarP(&createFlags.ReleaseNotes.Value, createFlags.ReleaseNotes.Name, "n", "", "Release notes to attach")
+	flags.StringVarP(&createFlags.ReleaseNotesFile.Value, createFlags.ReleaseNotesFile.Name, "", "", "Release notes to attach (from file)")
 	flags.StringVarP(&createFlags.Version.Value, createFlags.Version.Name, "v", "", "Override the Release Version")
 	flags.BoolVarP(&createFlags.IgnoreExisting.Value, createFlags.IgnoreExisting.Name, "x", false, "If a release with the same version exists, do nothing instead of failing.")
 	flags.BoolVarP(&createFlags.IgnoreChannelRules.Value, createFlags.IgnoreChannelRules.Name, "", false, "Allow creation of a release where channel rules would otherwise prevent it.")
@@ -137,6 +141,7 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 	util.AddFlagAliasesString(flags, FlagGitCommit, flagAliases, FlagAliasGitCommitLegacy)
 	util.AddFlagAliasesString(flags, FlagPackageVersion, flagAliases, FlagAliasDefaultPackageVersion, FlagAliasPackageVersionLegacy, FlagAliasDefaultPackageVersionLegacy)
 	util.AddFlagAliasesString(flags, FlagReleaseNotes, flagAliases, FlagAliasReleaseNotesLegacy)
+	util.AddFlagAliasesString(flags, FlagReleaseNotesFile, flagAliases, FlagAliasReleaseNotesFileLegacy, FlagAliasReleaseNoteFileLegacy)
 	util.AddFlagAliasesString(flags, FlagVersion, flagAliases, FlagAliasReleaseNumberLegacy)
 	util.AddFlagAliasesBool(flags, FlagIgnoreExisting, flagAliases, FlagAliasIgnoreExistingLegacy)
 	util.AddFlagAliasesBool(flags, FlagIgnoreChannelRules, flagAliases, FlagAliasIgnoreChannelRulesLegacy)
@@ -159,6 +164,10 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 }
 
 func createRun(cmd *cobra.Command, f factory.Factory, flags *CreateFlags) error {
+	if flags.ReleaseNotes.Value != "" && flags.ReleaseNotesFile.Value != "" {
+		return errors.New("cannot specify both --release-notes and --release-notes-file at the same time")
+	}
+
 	// ignore errors when fetching flags
 	options := &executor.TaskOptionsCreateRelease{
 		ProjectName: flags.Project.Value,
@@ -173,6 +182,14 @@ func createRun(cmd *cobra.Command, f factory.Factory, flags *CreateFlags) error 
 	options.ReleaseNotes = flags.ReleaseNotes.Value
 	options.IgnoreIfAlreadyExists = flags.IgnoreExisting.Value
 	options.IgnoreChannelRules = flags.IgnoreChannelRules.Value
+
+	if flags.ReleaseNotesFile.Value != "" {
+		fileContents, err := os.ReadFile(flags.ReleaseNotesFile.Value)
+		if err != nil {
+			return err
+		}
+		options.ReleaseNotes = string(fileContents)
+	}
 
 	octopus, err := f.GetSpacedClient()
 	if err != nil {

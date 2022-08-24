@@ -22,7 +22,9 @@ import (
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/resources"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"net/url"
+	"os"
 	"testing"
 )
 
@@ -439,6 +441,15 @@ func TestReleaseCreate_AskQuestions_VersionControlledProject(t *testing.T) {
 				Default: "27.9.3", // from the dep template
 			}).AnswerWith("27.9.999")
 
+			_ = qa.ExpectQuestion(t, &surveyext.OctoEditor{
+				Editor: &survey.Editor{
+					Message:  "Release Notes",
+					Help:     "You may optionally add notes to the release using Markdown.",
+					FileName: "*.md",
+				},
+				Optional: true,
+			}).AnswerWith("## some release notes")
+
 			err := <-errReceiver
 			assert.Nil(t, err)
 
@@ -448,10 +459,13 @@ func TestReleaseCreate_AskQuestions_VersionControlledProject(t *testing.T) {
 			assert.Equal(t, "27.9.999", options.Version)
 			assert.Equal(t, "develop", options.GitReference) // not fully qualified but I guess we could hold that
 			assert.Equal(t, "", options.GitCommit)
+			assert.Equal(t, "## some release notes", options.ReleaseNotes)
 		}},
 
 		{"standard process asking for everything; no packages, release version from template, specific git commit set which is passed to the server", func(t *testing.T, api *testutil.MockHttpServer, qa *testutil.AskMocker, stdout *bytes.Buffer) {
-			options := &executor.TaskOptionsCreateRelease{}
+			options := &executor.TaskOptionsCreateRelease{
+				ReleaseNotes: "already tested release notes",
+			}
 			options.GitCommit = "45c508a"
 
 			errReceiver := testutil.GoBegin(func() error {
@@ -532,7 +546,10 @@ func TestReleaseCreate_AskQuestions_VersionControlledProject(t *testing.T) {
 		}},
 
 		{"standard process asking for everything; no packages, release version from template, doesn't ask for git ref if already specified", func(t *testing.T, api *testutil.MockHttpServer, qa *testutil.AskMocker, stdout *bytes.Buffer) {
-			options := &executor.TaskOptionsCreateRelease{GitReference: "develop"}
+			options := &executor.TaskOptionsCreateRelease{
+				GitReference: "develop",
+				ReleaseNotes: "already tested release notes",
+			}
 
 			errReceiver := testutil.GoBegin(func() error {
 				defer testutil.Close(api, qa)
@@ -1227,6 +1244,17 @@ func TestReleaseCreate_AutomationMode(t *testing.T) {
 			assert.Equal(t, "", stdErr.String())
 		}},
 
+		{"can't specify release-notes and release-notes-file at the same time", func(t *testing.T, api *testutil.MockHttpServer, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
+			// doesn't even do any API stuff, we get kicked out immediately
+			rootCmd.SetArgs([]string{"release", "create",
+				"--project", cacProject.Name,
+				"--release-notes", "Here are some **release notes**.",
+				"--release-notes-file", "foo.md",
+			})
+			_, err := rootCmd.ExecuteC()
+			assert.EqualError(t, err, "cannot specify both --release-notes and --release-notes-file at the same time")
+		}},
+
 		{"release creation with all the flags", func(t *testing.T, api *testutil.MockHttpServer, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
 			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
 				defer api.Close()
@@ -1390,6 +1418,62 @@ func TestReleaseCreate_AutomationMode(t *testing.T) {
 				IgnoreIfAlreadyExists: false,
 				IgnoreChannelRules:    false,
 				PackagePrerelease:     "",
+			}, requestBody)
+
+			// this isn't realistic, we asked for version 1.0.2 and channel Beta, but it proves that
+			// if the server changes its mind and uses a different channel, the CLI will show that.
+			req.RespondWith(&releases.CreateReleaseResponseV1{
+				ReleaseID:      "Releases-999", // new release
+				ReleaseVersion: "1.0.5",
+			})
+
+			// If we GET on the endpoint and it shows us a different ReleaseVersion than the CreateReleaseResponseV1
+			// does, CreateReleaseResponseV1 wins
+			releaseInfo := releases.NewRelease("Channels-32", cacProject.ID, "1.2.3")
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/releases/Releases-999").RespondWith(releaseInfo)
+
+			channelInfo := fixtures.NewChannel(space1.ID, "Channels-32", "Alpha channel", cacProject.ID)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/channels/Channels-32").RespondWith(channelInfo)
+
+			_, err = testutil.ReceivePair(cmdReceiver)
+			assert.Nil(t, err)
+
+			assert.Equal(t, "Successfully created release version 1.0.5 (Releases-999) using channel Alpha channel (Channels-32)\n", stdOut.String())
+			assert.Equal(t, "", stdErr.String())
+		}},
+
+		{"release-notes-file pickup", func(t *testing.T, api *testutil.MockHttpServer, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
+			file, err := os.CreateTemp("", "*.md")
+			require.Nil(t, err)
+			require.NotNil(t, file)
+			_, err = file.WriteString("release notes **in a file**")
+			require.Nil(t, err)
+			err = file.Close()
+			require.Nil(t, err)
+
+			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
+				defer api.Close()
+				rootCmd.SetArgs([]string{"release", "create",
+					"--project", cacProject.Name,
+					"--channel", "BetaChannel",
+					"--release-notes-file", file.Name(),
+				})
+				return rootCmd.ExecuteC()
+			})
+
+			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
+
+			req := api.ExpectRequest(t, "POST", "/api/Spaces-1/releases/create/v1")
+
+			// check that it sent the server the right request body
+			requestBody, err := testutil.ReadJson[releases.CreateReleaseV1](req.Request.Body)
+			assert.Nil(t, err)
+
+			assert.Equal(t, releases.CreateReleaseV1{
+				SpaceIDOrName:   "Spaces-1",
+				ProjectIDOrName: cacProject.Name,
+				ChannelIDOrName: "BetaChannel",
+				ReleaseNotes:    "release notes **in a file**",
 			}, requestBody)
 
 			// this isn't realistic, we asked for version 1.0.2 and channel Beta, but it proves that
