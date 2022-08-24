@@ -88,8 +88,6 @@ func listRun(cmd *cobra.Command, f factory.Factory, flags *ListFlags) error {
 	type ReleaseViewModel struct {
 		Channel   string
 		ChannelID string `json:",omitempty"`
-		Project   string
-		ProjectID string `json:",omitempty"`
 		Version   string
 	}
 

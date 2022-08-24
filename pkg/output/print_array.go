@@ -61,7 +61,7 @@ func PrintArray[T any](items []T, cmd *cobra.Command, mappers Mappers[T]) error 
 		}
 
 		data, _ := json.MarshalIndent(outputJson, "", "  ")
-		fmt.Println(string(data))
+		cmd.Println(string(data))
 
 	case "basic", "text":
 		textMapper := mappers.Basic
@@ -69,7 +69,7 @@ func PrintArray[T any](items []T, cmd *cobra.Command, mappers Mappers[T]) error 
 			return errors.New("command does not support output in plain text")
 		}
 		for _, e := range items {
-			fmt.Println(textMapper(e))
+			cmd.Println(textMapper(e))
 		}
 
 	case "table", "": // table is the default of unspecified
@@ -78,8 +78,7 @@ func PrintArray[T any](items []T, cmd *cobra.Command, mappers Mappers[T]) error 
 			return errors.New("command does not support output in table format")
 		}
 
-		ioWriter := cmd.OutOrStdout()
-		t := NewTable(ioWriter)
+		t := NewTable(cmd.OutOrStdout())
 		if tableMapper.Header != nil {
 			for k, v := range tableMapper.Header {
 				tableMapper.Header[k] = Bold(v)

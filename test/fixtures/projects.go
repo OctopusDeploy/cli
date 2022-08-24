@@ -72,6 +72,10 @@ func NewVersionControlledProject(spaceID string, projectID string, projectName s
 	result.VersioningStrategy = nil // CaC projects seem to always report nil here via the API
 	result.PersistenceSettings = projects.NewGitPersistenceSettings(".octopus", projects.NewAnonymousGitCredential(), "main", repoUrl)
 
+	// CaC projects have different values in these links
+	result.Links["DeploymentProcess"] = fmt.Sprintf("/api/%s/projects/%s/{gitRef}/deploymentprocesses", spaceID, projectID) // note gitRef is a template param in the middle of the url path
+	result.Links["DeploymentSettings"] = fmt.Sprintf("/api/%s/projects/%s/{gitRef}/deploymentsettings", spaceID, projectID) // note gitRef is a template param in the middle of the url path
+
 	// CaC projects have extra links
 	result.Links["Tags"] = fmt.Sprintf("/api/%s/projects/%s/git/tags{/name}{?skip,take,searchByName,refresh}", spaceID, projectID)
 	result.Links["Branches"] = fmt.Sprintf("/api/%s/projects/%s/git/branches{/name}{?skip,take,searchByName,refresh}", spaceID, projectID)

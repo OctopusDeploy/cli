@@ -4,6 +4,7 @@ import (
 	"errors"
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/OctopusDeploy/cli/pkg/factory"
+	"github.com/OctopusDeploy/cli/pkg/question"
 	octopusApiClient "github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/spaces"
 	"net/url"
@@ -25,18 +26,22 @@ func NewMockFactory(api *MockHttpServer) *MockFactory {
 }
 
 func NewMockFactoryWithSpace(api *MockHttpServer, space *spaces.Space) *MockFactory {
+	return NewMockFactoryWithSpaceAndPrompt(api, space, nil)
+}
+
+func NewMockFactoryWithSpaceAndPrompt(api *MockHttpServer, space *spaces.Space, askProvider question.AskProvider) *MockFactory {
 	result := NewMockFactory(api)
 	result.CurrentSpace = space
+	result.AskProvider = askProvider
 	return result
 }
 
 type MockFactory struct {
-	api           *MockHttpServer          // must not be nil
-	ApiClient     *octopusApiClient.Client // nil; lazily created like with the real factory
-	CurrentSpace  *spaces.Space
-	RawSpinner    factory.Spinner
-	PromptEnabled bool
-	Asker         func(p survey.Prompt, response interface{}, opts ...survey.AskOpt) error
+	api          *MockHttpServer          // must not be nil
+	ApiClient    *octopusApiClient.Client // nil; lazily created like with the real factory
+	CurrentSpace *spaces.Space
+	RawSpinner   factory.Spinner
+	AskProvider  question.AskProvider
 }
 
 // refactor this later if there's ever a need for unit tests to vary the server url or API key (why would there be?)
@@ -71,8 +76,14 @@ func (f *MockFactory) Spinner() factory.Spinner {
 	return f.RawSpinner
 }
 func (f *MockFactory) IsPromptEnabled() bool {
-	return f.PromptEnabled
+	if f.AskProvider == nil {
+		return false
+	}
+	return f.AskProvider.IsInteractive()
 }
 func (f *MockFactory) Ask(p survey.Prompt, response interface{}, opts ...survey.AskOpt) error {
-	return f.Asker(p, response, opts...)
+	if f.AskProvider == nil {
+		return errors.New("method Ask called on fake factory when provider was nil")
+	}
+	return f.AskProvider.Ask(p, response, opts...)
 }
