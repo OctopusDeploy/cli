@@ -4,8 +4,10 @@ import (
 	"errors"
 	"fmt"
 	"github.com/AlecAivazis/survey/v2"
+	"github.com/MakeNowJust/heredoc/v2"
 	cliErrors "github.com/OctopusDeploy/cli/pkg/errors"
 	"github.com/OctopusDeploy/cli/pkg/executor"
+	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/OctopusDeploy/cli/pkg/output"
 	"github.com/OctopusDeploy/cli/pkg/question"
 	"github.com/OctopusDeploy/cli/pkg/surveyext"
@@ -17,16 +19,12 @@ import (
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/feeds"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/releases"
+	"github.com/spf13/cobra"
 	"io"
 	"os"
 	"regexp"
 	"sort"
 	"strings"
-	"unicode"
-
-	"github.com/MakeNowJust/heredoc/v2"
-	"github.com/OctopusDeploy/cli/pkg/factory"
-	"github.com/spf13/cobra"
 )
 
 const (
@@ -275,15 +273,6 @@ func createRun(cmd *cobra.Command, f factory.Factory, flags *CreateFlags) error 
 	}
 
 	return nil
-}
-
-func quoteStringIfRequired(str string) string {
-	for _, c := range str {
-		if unicode.IsSpace(c) {
-			return fmt.Sprintf("\"%s\"", str)
-		}
-	}
-	return str
 }
 
 type StepPackageVersion struct {
@@ -748,13 +737,13 @@ func printPackageVersions(ioWriter io.Writer, packages []*StepPackageVersion) er
 
 func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker question.Asker, spinner factory.Spinner, options *executor.TaskOptionsCreateRelease) error {
 	if octopus == nil {
-		return errors.New("api client is required")
+		return cliErrors.NewArgumentNullOrEmptyError("octopus")
 	}
 	if asker == nil {
-		return errors.New("asker is required")
+		return cliErrors.NewArgumentNullOrEmptyError("asker")
 	}
 	if options == nil {
-		return errors.New("options is required")
+		return cliErrors.NewArgumentNullOrEmptyError("options")
 	}
 	// Note: we don't get here at all if no-prompt is enabled, so we know we are free to ask questions
 
@@ -765,12 +754,12 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 	var err error
 	var selectedProject *projects.Project
 	if options.ProjectName == "" {
-		selectedProject, err = selectProject(octopus, asker, spinner)
+		selectedProject, err = util.SelectProject("Select the project in which the release will be created", octopus, asker, spinner)
 		if err != nil {
 			return err
 		}
 	} else { // project name is already provided, fetch the object because it's needed for further questions
-		selectedProject, err = findProject(octopus, spinner, options.ProjectName)
+		selectedProject, err = util.FindProject(octopus, spinner, options.ProjectName)
 		if err != nil {
 			return err
 		}
@@ -1114,45 +1103,6 @@ func findChannel(octopus *octopusApiClient.Client, spinner factory.Spinner, proj
 		}
 	}
 	return nil, fmt.Errorf("no channel found with name of %s", channelName)
-}
-
-func findProject(octopus *octopusApiClient.Client, spinner factory.Spinner, projectName string) (*projects.Project, error) {
-	// projectsQuery has "Name" but it's just an alias in the server for PartialName; we need to filter client side
-	spinner.Start()
-	projectsPage, err := octopus.Projects.Get(projects.ProjectsQuery{PartialName: projectName})
-	if err != nil {
-		spinner.Stop()
-		return nil, err
-	}
-	for projectsPage != nil && len(projectsPage.Items) > 0 {
-		for _, c := range projectsPage.Items { // server doesn't support channel search by exact name so we must emulate it
-			if strings.EqualFold(c.Name, projectName) {
-				spinner.Stop()
-				return c, nil
-			}
-		}
-		projectsPage, err = projectsPage.GetNextPage(octopus.Projects.GetClient())
-		if err != nil {
-			spinner.Stop()
-			return nil, err
-		} // if there are no more pages, then GetNextPage will return nil, which breaks us out of the loop
-	}
-
-	spinner.Stop()
-	return nil, fmt.Errorf("no project found with name of %s", projectName)
-}
-
-func selectProject(octopus *octopusApiClient.Client, ask question.Asker, spinner factory.Spinner) (*projects.Project, error) {
-	spinner.Start()
-	existingProjects, err := octopus.Projects.GetAll()
-	spinner.Stop()
-	if err != nil {
-		return nil, err
-	}
-
-	return question.SelectMap(ask, "Select the project in which the release will be created", existingProjects, func(p *projects.Project) string {
-		return p.Name
-	})
 }
 
 func selectGitReference(octopus *octopusApiClient.Client, ask question.Asker, spinner factory.Spinner, project *projects.Project) (*projects.GitReference, error) {

@@ -74,3 +74,8 @@ func (f *factory) Ask(p survey.Prompt, response interface{}, opts ...survey.AskO
 func (f *factory) Spinner() Spinner {
 	return f.spinner
 }
+
+type NoSpinner struct{}
+
+func (f *NoSpinner) Start() {}
+func (f *NoSpinner) Stop()  {}
