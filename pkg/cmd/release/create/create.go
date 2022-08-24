@@ -8,6 +8,7 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/executor"
 	"github.com/OctopusDeploy/cli/pkg/output"
 	"github.com/OctopusDeploy/cli/pkg/question"
+	"github.com/OctopusDeploy/cli/pkg/surveyext"
 	"github.com/OctopusDeploy/cli/pkg/util"
 	"github.com/OctopusDeploy/cli/pkg/util/flag"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/channels"
@@ -915,6 +916,19 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 		options.Version = version
 	} else {
 		_, _ = fmt.Fprintf(stdout, "Version %s\n", output.Cyan(options.Version))
+	}
+
+	if options.ReleaseNotes == "" {
+		if err := asker(&surveyext.OctoEditor{
+			Editor: &survey.Editor{
+				Message:  "Release Notes",
+				Help:     "You may optionally add notes to the release using Markdown.",
+				FileName: "*.md",
+			},
+			Optional: true,
+		}, &options.ReleaseNotes); err != nil {
+			return err
+		}
 	}
 	return nil
 }

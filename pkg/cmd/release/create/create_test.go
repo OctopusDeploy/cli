@@ -8,6 +8,7 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/cmd/release/create"
 	cmdRoot "github.com/OctopusDeploy/cli/pkg/cmd/root"
 	"github.com/OctopusDeploy/cli/pkg/executor"
+	"github.com/OctopusDeploy/cli/pkg/surveyext"
 	"github.com/OctopusDeploy/cli/test/fixtures"
 	"github.com/OctopusDeploy/cli/test/testutil"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/channels"
@@ -50,7 +51,7 @@ func TestReleaseCreate_AskQuestions_RegularProject(t *testing.T) {
 		name string
 		run  func(t *testing.T, api *testutil.MockHttpServer, qa *testutil.AskMocker, stdout *bytes.Buffer)
 	}{
-		{"standard process asking for everything; no packages, release version from template", func(t *testing.T, api *testutil.MockHttpServer, qa *testutil.AskMocker, stdout *bytes.Buffer) {
+		{"standard process asking for everything including release notes; no packages, release version from template", func(t *testing.T, api *testutil.MockHttpServer, qa *testutil.AskMocker, stdout *bytes.Buffer) {
 			options := &executor.TaskOptionsCreateRelease{}
 
 			errReceiver := testutil.GoBegin(func() error {
@@ -90,6 +91,15 @@ func TestReleaseCreate_AskQuestions_RegularProject(t *testing.T) {
 				Default: "27.9.3",
 			}).AnswerWith("27.9.999")
 
+			_ = qa.ExpectQuestion(t, &surveyext.OctoEditor{
+				Editor: &survey.Editor{
+					Message:  "Release Notes",
+					Help:     "You may optionally add notes to the release using Markdown.",
+					FileName: "*.md",
+				},
+				Optional: true,
+			}).AnswerWith("## some release notes")
+
 			err := <-errReceiver
 			assert.Nil(t, err)
 
@@ -97,13 +107,15 @@ func TestReleaseCreate_AskQuestions_RegularProject(t *testing.T) {
 			assert.Equal(t, "Fire Project", options.ProjectName)
 			assert.Equal(t, "Fire Project Alt Channel", options.ChannelName)
 			assert.Equal(t, "27.9.999", options.Version)
+			assert.Equal(t, "## some release notes", options.ReleaseNotes)
 		}},
 
 		{"asking for nothing in interactive mode; no packages, release version specified", func(t *testing.T, api *testutil.MockHttpServer, qa *testutil.AskMocker, stdout *bytes.Buffer) {
 			options := &executor.TaskOptionsCreateRelease{
-				ProjectName: "fire project",
-				ChannelName: "fire project default channel",
-				Version:     "9.8.4-prerelease",
+				ProjectName:  "fire project",
+				ChannelName:  "fire project default channel",
+				Version:      "9.8.4-prerelease",
+				ReleaseNotes: "already have release notes",
 			}
 
 			errReceiver := testutil.GoBegin(func() error {
@@ -137,12 +149,14 @@ func TestReleaseCreate_AskQuestions_RegularProject(t *testing.T) {
 			assert.Equal(t, "Fire Project", options.ProjectName)
 			assert.Equal(t, "Fire Project Default Channel", options.ChannelName)
 			assert.Equal(t, "9.8.4-prerelease", options.Version)
+			assert.Equal(t, "already have release notes", options.ReleaseNotes)
 		}},
 
 		{"asking for release version based on template; packages exist", func(t *testing.T, api *testutil.MockHttpServer, qa *testutil.AskMocker, stdout *bytes.Buffer) {
 			options := &executor.TaskOptionsCreateRelease{
-				ProjectName: "fire project",
-				ChannelName: "fire project default channel",
+				ProjectName:  "fire project",
+				ChannelName:  "fire project default channel",
+				ReleaseNotes: "-",
 			}
 
 			errReceiver := testutil.GoBegin(func() error {
@@ -221,8 +235,9 @@ func TestReleaseCreate_AskQuestions_RegularProject(t *testing.T) {
 
 		{"asking for release version based on donor package; packages exist (prints summarised table)", func(t *testing.T, api *testutil.MockHttpServer, qa *testutil.AskMocker, stdout *bytes.Buffer) {
 			options := &executor.TaskOptionsCreateRelease{
-				ProjectName: "fire project",
-				ChannelName: "fire project default channel",
+				ProjectName:  "fire project",
+				ChannelName:  "fire project default channel",
+				ReleaseNotes: "-",
 			}
 
 			errReceiver := testutil.GoBegin(func() error {
