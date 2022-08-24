@@ -13,27 +13,82 @@ jobs:
   goreleaser:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v3
-        with:
-          fetch-depth: 0
-      - name: Fetch all tags
-        run: git fetch --force --tags
-      - name: Set up Go
-        uses: actions/setup-go@v3
-        with:
+    - name: Checkout
+      uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+    - name: Fetch all tags
+      run: git fetch --force --tags
+    - name: Set up Go
+      uses: actions/setup-go@v3
+      with:
           go-version: 1.19
-      - uses: crazy-max/ghaction-import-gpg@v5
-        id: import_gpg
-        with:
-          gpg_private_key: ${{ secrets.OCTOPUS_GPG_PRIVATE_KEY }}
-          passphrase: ${{ secrets.OCTOPUS_GPG_PASSPHRASE }}
-      - name: Run GoReleaser
-        uses: goreleaser/goreleaser-action@v3
-        with:
-          version: latest
-          args: release --rm-dist
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GPG_FINGERPRINT: ${{ steps.import_gpg.outputs.fingerprint }}
-          GPG_PASSWORD: ${{ secrets.OCTOPUS_GPG_PASSPHRASE }}
+    - uses: crazy-max/ghaction-import-gpg@v5
+      id: import_gpg
+      with:
+        gpg_private_key: ${{ secrets.OCTOPUS_GPG_PRIVATE_KEY }}
+        passphrase: ${{ secrets.OCTOPUS_GPG_PASSPHRASE }}
+    - name: Run GoReleaser
+      uses: goreleaser/goreleaser-action@v3
+      with:
+        version: latest
+        args: release --rm-dist
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GPG_FINGERPRINT: ${{ steps.import_gpg.outputs.fingerprint }}
+        GPG_PASSWORD: ${{ secrets.OCTOPUS_GPG_PASSPHRASE }}
+
+  msi:
+    needs: goreleaser
+    runs-on: windows-latest
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v3
+
+    - name: Download octopus.exe
+      id: download_exe
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
+      run: |
+        gh release download "${GITHUB_REF#refs/tags/}" --pattern '*Windows_x86_64.zip'
+        printf "::set-output name=zip::%s\n" *.zip
+        unzip -o *.zip && rm -v *.zip
+
+    - name: Prepare PATH
+      id: setupmsbuild
+      uses: microsoft/setup-msbuild@v1.0.3
+
+    - name: Build MSI
+      id: buildmsi
+      shell: bash
+      env:
+        ZIP_FILE: ${{ steps.download_exe.outputs.zip }}
+        MSBUILD_PATH: ${{ steps.setupmsbuild.outputs.msbuildPath }}
+      run: |
+        name="$(basename "$ZIP_FILE" ".zip")"
+        version="$(echo -e ${GITHUB_REF#refs/tags/v} | sed s/-.*$//)"
+        "${MSBUILD_PATH}\MSBuild.exe" ./build/windows/octopus.wixproj -p:SourceDir="$PWD" -p:OutputPath="$PWD" -p:OutputName="$name" -p:ProductVersion="$version"
+
+  sign-msi:
+    needs: msi
+    runs-on: windows-latest
+    steps:
+    - name: Install AzureSignTool
+      run: dotnet tool install --global AzureSignTool
+
+    - name: Sign package
+      env:
+        MSI_FILE: ${{ steps.buildmsi.outputs.msi }}
+      run: |
+        & AzureSignTool sign -kvu "${{ secrets.AZURE_KEYVAULT_URL }}" -kvi "${{ secrets.AZURE_KEYVAULT_CLIENT_ID }}" -kvs "${{ secrets.AZURE_KEYVAULT_CLIENT_SECRET }}" `
+          -kvc ${{ secrets.AZURE_KEYVAULT_CERTIFICATE_NAME }} -kvt ${{ secrets.AZURE_KEYVAULT_TENANT_ID }} -tr http://timestamp.digicert.com -v $env:MSI_FILE
+
+    - name: Upload MSI
+      shell: bash
+      env:
+        MSI_FILE: ${{ steps.buildmsi.outputs.msi }}
+        GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
+      run: |
+        tag_name="${GITHUB_REF#refs/tags/}"
+        gh release upload "$tag_name" "$MSI_FILE"

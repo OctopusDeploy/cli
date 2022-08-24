@@ -1,5 +1,10 @@
 project_name: octopus
 
+release:
+  prerelease: auto
+  draft: true # we publish during the Octopus deployment
+  name_template: "Octopus CLI {{.Version}}"
+
 before:
   hooks:
     - go mod tidy
@@ -16,7 +21,7 @@ builds:
       - arm64
     id: "octopus"
     main: ./cmd/octopus
-    binary: "{{ .ProjectName }}_v{{ .Version }}"
+    binary: "{{ .ProjectName }}"
 
 archives:
   - replacements:
@@ -29,7 +34,7 @@ archives:
         format: zip
     name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
 checksum:
-  name_template: '{{ .ProjectName }}_{{ .Version }}_SHA256SUMS'
+  name_template: "{{ .ProjectName }}_{{ .Version }}_SHA256SUMS"
   algorithm: sha256
 signs:
   - artifacts: all
@@ -42,6 +47,6 @@ signs:
         "--detach-sign",
         "${artifact}",
       ]
-    stdin: '{{ .Env.GPG_PASSWORD }}'
+    stdin: "{{ .Env.GPG_PASSWORD }}"
 changelog:
   skip: true

@@ -1,0 +1,441 @@
+
+step "push-cli-to-chocolatey" {
+    name = "Push cli to Chocolatey"
+
+    action {
+        action_type = "Octopus.Script"
+        environments = ["Production"]
+        properties = {
+            Octopus.Action.Script.ScriptBody = <<-EOT
+                $nugetPackagePath = $OctopusParameters["Octopus.Action.Package[NuGet.CommandLine].ExtractedPath"]
+                $nugetExe = Join-Path -Path $nugetPackagePath -ChildPath "Tools\nuget.exe"
+                $packagePath = $OctopusParameters["Octopus.Action.Package[cli].PackageFilePath"]
+
+                $maxAttempts = 5
+                $currentAttempt = 1
+
+                while ($currentAttempt -le $maxAttempts)
+                {
+                    write-host "Pushing package ($packagePath) to Chocolatey (attempt $currentAttempt)"
+                    . $nugetExe push "$($packagePath)" -source $ChocolateyFeedUrl -apikey $ChocolateyFeedApiKey -NonInteractive -Verbosity detailed
+                    if ($LastExitCode -eq 0) {
+                        exit 0
+                    } else {
+                        write-host "Failed to push package - nuget returned $LastExitCode"
+                        $currentAttempt = $currentAttempt + 1
+                    }
+                }
+                exit 1
+            EOT
+            Octopus.Action.Script.ScriptSource = "Inline"
+            Octopus.Action.Script.Syntax = "PowerShell"
+        }
+        worker_pool = "hosted-windows-2019"
+
+        packages "cli" {
+            acquisition_location = "Server"
+            feed = "octopus-server-built-in"
+            package_id = "OctopusCli"
+            properties = {
+                Extract = "False"
+            }
+        }
+
+        packages "NuGet.CommandLine" {
+            acquisition_location = "Server"
+            feed = "nuget"
+            package_id = "NuGet.CommandLine"
+            properties = {
+                Extract = "True"
+            }
+        }
+    }
+}
+
+step "push-changes-to-homebrew-repo" {
+    name = "Push Changes To Homebrew Repo"
+
+    action {
+        action_type = "Octopus.Script"
+        environments = ["components-external"]
+        properties = {
+            Octopus.Action.Script.ScriptBody = <<-EOT
+                packageVersion="$(get_octopusvariable 'Octopus.Action.Package[OctopusTools.Zips].PackageVersion')"
+                extractedPath="$(get_octopusvariable 'Octopus.Action.Package[OctopusTools.Zips].ExtractedPath')"
+                username="$(get_octopusvariable 'HomeBrewGitUsername')"
+                email="$(get_octopusvariable 'HomeBrewGitUserEmail')"
+                personalAccessToken="$(get_octopusvariable 'HomeBrewKey')"
+
+                repoName='homebrew-taps'
+                fileName='octopuscli.rb'
+                branchName="releases/$packageVersion"
+                repoUrl="https://$username:$personalAccessToken@github.com/OctopusDeploy/$repoName.git"
+
+                git clone $repoUrl
+
+                cd "$repoName"
+
+                # Update version property
+                sed -i "s/\(^.*version \"\).*\(\".*$\)/\1$packageVersion\2/g" $fileName
+
+                # Update download URL
+                sed -i "s/\(^.*url.*octopus-tools\/\).*\(\/.*Tools\.\).*\(\.osx.*$\)/\1$packageVersion\2$packageVersion\3/g" $fileName
+
+                newSha=$(sha256sum "$extractedPath/OctopusTools.$packageVersion.osx-x64.tar.gz" | awk '{ print $1 }')
+                # Update sha256 property
+                sed -i "s/\(^.*sha256 \"\).*\(\".*$\)/\1$newSha\2/g" $fileName
+
+                git config user.email $email
+                git config user.name $username
+
+                git checkout -b $branchName
+                git add $fileName
+
+                git diff-index --quiet HEAD || (git commit -m "Update for release $packageVersion" \
+                    && git push --repo $repoUrl --set-upstream origin $branchName \
+                )
+
+            EOT
+            Octopus.Action.Script.ScriptSource = "Inline"
+            Octopus.Action.Script.Syntax = "Bash"
+            OctopusUseBundledTooling = "False"
+        }
+        worker_pool = "hosted-ubuntu"
+
+        container {
+            feed = "docker-hub"
+            image = "octopusdeploy/worker-tools:3.3.2-ubuntu.18.04"
+        }
+
+        packages "OctopusTools.Zips" {
+            acquisition_location = "Server"
+            feed = "octopus-server-built-in"
+            package_id = "OctopusTools.Zips"
+            properties = {
+                Extract = "True"
+                Purpose = ""
+                SelectionMode = "immediate"
+            }
+        }
+    }
+}
+
+step "publish-homebrew" {
+    name = "Publish Homebrew"
+    start_trigger = "StartWithPrevious"
+
+    action {
+        environments = ["components-external"]
+        is_disabled = true
+        properties = {
+            Octopus.Action.Template.Id = "ActionTemplates-882"
+            Octopus.Action.Template.Version = "19"
+            PackageToUpload = "{\"PackageId\":\"OctopusTools.Zips\",\"FeedId\":\"octopus-server-built-in\"}"
+            PubHomebrew-Email = "support@octopus.com"
+            PubHomebrew-FileName = "octopuscli.rb"
+            PubHomebrew-PersonalAccessToken = "#{HomeBrewKey}"
+            PubHomebrew-RepoName = "homebrew-taps"
+            PubHomebrew-Username = "#{HomeBrewGitUsername}"
+        }
+        worker_pool = "hosted-windows-2019"
+
+        packages "PackageToUpload" {
+            acquisition_location = "Server"
+            feed = "octopus-server-built-in"
+            package_id = "OctopusTools.Zips"
+            properties = {
+                Extract = "True"
+                PackageParameterName = "PackageToUpload"
+                SelectionMode = "deferred"
+            }
+        }
+    }
+}
+
+step "publish-to-apt-repo" {
+    name = "Publish to APT repo"
+    start_trigger = "StartWithPrevious"
+
+    action {
+        action_type = "Octopus.Script"
+        environments = ["components-external"]
+        properties = {
+            Octopus.Action.Script.ScriptBody = <<-EOT
+                cd OctopusTools.Packages.linux-x64 || exit
+
+                # Deploy APT repo
+                docker run --rm --volume $(pwd):/working \
+                  --env PUBLISH_LINUX_EXTERNAL="$(get_octopusvariable "Publish.Linux.External")" \
+                  --env PUBLISH_ARTIFACTORY_USERNAME="$(get_octopusvariable "Publish.Artifactory.Username")" \
+                  --env PUBLISH_ARTIFACTORY_PASSWORD="$(get_octopusvariable "Publish.Artifactory.Password")" \
+                  --env AWS_ACCESS_KEY_ID="$(get_octopusvariable "LinuxPackagePublisherAwsAccount.AccessKey")" \
+                  --env AWS_SECRET_ACCESS_KEY="$(get_octopusvariable "LinuxPackagePublisherAwsAccount.SecretKey")" \
+                  octopusdeploy/publish-linux bash -c 'cd /working && bash publish-apt.sh' 2>&1 || exit
+
+            EOT
+            Octopus.Action.Script.ScriptSource = "Inline"
+            Octopus.Action.Script.Syntax = "Bash"
+        }
+        worker_pool = "hosted-ubuntu"
+
+        packages "OctopusTools.Packages.linux-x64" {
+            acquisition_location = "Server"
+            feed = "octopus-server-built-in"
+            package_id = "OctopusTools.Packages.linux-x64"
+            properties = {
+                Extract = "True"
+                SelectionMode = "immediate"
+            }
+        }
+    }
+}
+
+step "publish-to-rpm-repo" {
+    name = "Publish to RPM repo"
+    start_trigger = "StartWithPrevious"
+
+    action {
+        action_type = "Octopus.Script"
+        environments = ["components-external"]
+        properties = {
+            Octopus.Action.Script.ScriptBody = <<-EOT
+                cd OctopusTools.Packages.linux-x64 || exit
+
+                # Deploy RPM repo
+                docker run --rm --volume $(pwd):/working \
+                  --env PUBLISH_LINUX_EXTERNAL="$(get_octopusvariable "Publish.Linux.External")" \
+                  --env PUBLISH_ARTIFACTORY_USERNAME="$(get_octopusvariable "Publish.Artifactory.Username")" \
+                  --env PUBLISH_ARTIFACTORY_PASSWORD="$(get_octopusvariable "Publish.Artifactory.Password")" \
+                  --env AWS_ACCESS_KEY_ID="$(get_octopusvariable "LinuxPackagePublisherAwsAccount.AccessKey")" \
+                  --env AWS_SECRET_ACCESS_KEY="$(get_octopusvariable "LinuxPackagePublisherAwsAccount.SecretKey")" \
+                  octopusdeploy/publish-linux bash -c 'cd /working && bash publish-rpm.sh' 2>&1 || exit
+
+            EOT
+            Octopus.Action.Script.ScriptSource = "Inline"
+            Octopus.Action.Script.Syntax = "Bash"
+        }
+        worker_pool = "hosted-ubuntu"
+
+        packages "OctopusTools.Packages.linux-x64" {
+            acquisition_location = "Server"
+            feed = "octopus-server-built-in"
+            package_id = "OctopusTools.Packages.linux-x64"
+            properties = {
+                Extract = "True"
+                SelectionMode = "immediate"
+            }
+        }
+    }
+}
+
+step "push-docker-images-to-prod" {
+    name = "Push Docker Images to Prod"
+
+    action {
+        action_type = "Octopus.Script"
+        environments = ["components-external"]
+        properties = {
+            Octopus.Action.Script.ScriptBody = <<-EOT
+
+                $version=$OctopusParameters["Octopus.Action.Package[Octo.Docker.Image].PackageVersion"]
+                $DockerHubUsername=$OctopusParameters["DockerUsername"]
+                $DockerHubPassword=$OctopusParameters["DockerPassword"]
+
+                $script:dockerHashes = @{}
+
+                # we tried to configure a credential helper, oh how we tried.
+                # but if we did, it make "docker manifest push" fail with an authentication error
+                # it appears that docker manifest push doesn't respect the credstore
+                function Suppress-DockerLoginWarning {
+                    [CmdletBinding()]
+                    param(
+                        [Parameter(ValueFromPipeline)]
+                        [pscustomobject]$message
+                    )
+                    process {
+                        if (("$message" -eq "WARNING! Your password will be stored unencrypted in /home/ubuntu/.docker/config.json.") -or
+                            ("$message" -eq "Configure a credential helper to remove this warning. See") -or
+                            ("$message" -eq "https://docs.docker.com/engine/reference/commandline/login/#credentials-store") -or
+                            ("$message" -eq "System.Management.Automation.RemoteException")) {
+                            return
+                        }
+                        else {
+                            $message
+                        }
+                    }
+                }
+
+                function Run() {
+                    & docker load -i $OctopusParameters["Octopus.Action.Package[Octo.Docker.Image].PackageFilePath"] 2>&1
+
+                	#redirecting stderr appears to throw a script terminating error - https://github.com/PowerShell/PowerShell/issues/4002
+                    $oldErrorActionPreference = $ErrorActionPreference
+                    $ErrorActionPreference = 'silentlycontinue'
+                    (echo $DockerHubPassword | & "docker" login -u $DockerHubUsername --password-stdin 2>&1)  | Suppress-DockerLoginWarning
+                    $ErrorActionPreference = $oldErrorActionPreference
+
+                    & docker image tag octopusdeploy/octo-prerelease:latest-alpine octopusdeploy/octo:latest-alpine 2>&1
+                    & docker push octopusdeploy/octo:latest-alpine 2>&1
+
+                    & docker image tag octopusdeploy/octo-prerelease:$version-alpine octopusdeploy/octo:$version-alpine 2>&1
+                	& docker push octopusdeploy/octo:$version-alpine 2>&1
+
+                    CreateManifest $version
+                    CreateManifest "latest"
+
+                    docker logout
+                }
+
+                function EnableExperimentalDockerCliFeatures {
+                    $currentConfig = "{}" | ConvertFrom-Json
+                    if (Test-Path "~/.docker/config.json") {
+                      $currentConfig = (Get-Content "~/.docker/config.json" | ConvertFrom-Json)
+                    }
+
+                    if (-not ([bool]($currentConfig.PSobject.Properties.name -match "experimental"))) {
+                      $currentConfig | Add-Member -Name "experimental" -value "enabled" -MemberType NoteProperty
+                    } else {
+                      $currentConfig.experimental = "enabled"
+                    }
+                    Set-Content -Path "~/.docker/config.json" -Value ($currentConfig | ConvertTo-Json)
+                }
+
+                function CreateManifest($tag) {
+                	$release = "octopusdeploy/octo"
+
+                    echo "Creating Manifest $($release):$($tag)"
+                    $args = @('manifest', 'create', '--amend', "$($release):$($tag)", "$($release):$($version)-alpine")
+
+                    EnableExperimentalDockerCliFeatures
+
+                    echo "running docker $args"
+                    & docker $args 2>&1
+
+                    echo "Created Manifest $($release):$($tag)"
+
+                    echo "Pushing Manifest $($release):$($tag)"
+                    docker manifest push --purge "$($release):$($tag)"
+                    echo "Pushed Manifest $($release):$($tag)"
+                    echo "-----------------------"
+                }
+
+                Run
+
+            EOT
+            Octopus.Action.Script.ScriptSource = "Inline"
+            Octopus.Action.Script.Syntax = "PowerShell"
+        }
+        worker_pool = "hosted-ubuntu"
+
+        packages "Octo.Docker.Image" {
+            acquisition_location = "Server"
+            feed = "octopus-server-built-in"
+            package_id = "Octo.Docker.Image"
+            properties = {
+                Extract = "False"
+                Purpose = ""
+                SelectionMode = "immediate"
+            }
+        }
+    }
+}
+
+step "create-release-in-slipway" {
+    name = "Create release in Slipway"
+    start_trigger = "StartWithPrevious"
+
+    action {
+        action_type = "Octopus.Script"
+        environments = ["components-external"]
+        properties = {
+            Octopus.Action.Script.ScriptBody = <<-EOT
+                $slipwayToken = $OctopusParameters["SlipwayToken"]
+                $baseUrl = $OctopusParameters["SlipwayUrl"]
+                $version = $OctopusParameters["Octopus.Release.Number"]
+                $releaseNotes = $OctopusParameters["Octopus.Deployment.ChangesMarkdown"]
+
+                $headers = @{ "Authorization" = "Bearer $slipwayToken" }
+
+                function ReleaseToWeb([string]$productName, $versionToRelease, [string]$releaseNotes)
+                {
+                    write-host "Publishing '$productName' '$versionToRelease' to Slipway at $baseUrl"
+
+                    $isPreRelease = $versionToRelease -like "*-*"
+                    $release = @{
+                        "Version" = $versionToRelease;
+                        "Product" = $productName;
+                        "Released" = [System.DateTime]::Now.ToString("yyyy-MM-dd");
+                        "IsPrerelease" = $isPreRelease;
+                        "IsPublic" = $true;
+                        "ReleaseNotes" = $releaseNotes;
+                        "ReleaseNotesMethod" = "Milestones";
+                    }
+
+                    write-verbose "POSTing the following JSON to $baseUrl/api/releases/create"
+                    ($release | ConvertTo-Json) | write-verbose
+
+                    try {
+                        Invoke-RestMethod -Uri "$baseUrl/api/releases/create" `
+                                          -Body ($release | ConvertTo-Json) `
+                                          -Method Post `
+                                          -ContentType "application/json" `
+                                          -Headers $headers
+                    }
+                    catch {
+                        throw "An error occurred while publishing '$productName' release '$versionToRelease' to Slipway: $_"
+                    }
+
+                    $releaseUrl = "https://octopusdeploy.com/downloads/$productName/$($release.VersionNumber)"
+                    write-highlight "'$productName' '$versionToRelease' was published to '$releaseUrl'"
+                }
+
+                ReleaseToWeb "OctopusCli" $version $releaseNotes
+
+
+            EOT
+            Octopus.Action.Script.ScriptSource = "Inline"
+            Octopus.Action.Script.Syntax = "PowerShell"
+        }
+        worker_pool = "hosted-windows-2019"
+
+        packages "OctopusTools" {
+            acquisition_location = "NotAcquired"
+            feed = "octopus-server-built-in"
+            package_id = "OctopusTools"
+            properties = {
+                Extract = "True"
+            }
+        }
+    }
+}
+
+step "invalidate-cloudfront-cache" {
+    name = "Invalidate CloudFront Cache"
+
+    action {
+        properties = {
+            icfc_awsaccount = "OctopusToolsAwsAccount"
+            icfc_distributionid = "E1ZC8NX4KJYKDL"
+            icfc_invalidationpaths = "/octopus-tools/latest.json"
+            Octopus.Action.Template.Id = "ActionTemplates-962"
+            Octopus.Action.Template.Version = "1"
+        }
+        worker_pool = "hosted-windows-2019"
+    }
+}
+
+step "invalidate-cloudflare-cache-of-the-octopustools-manifest" {
+    name = "Invalidate CloudFlare cache of the OctopusTools Manifest"
+
+    action {
+        properties = {
+            icfc_email = "devops@octopus.com"
+            icfc_hostname = "download.octopusdeploy.com"
+            icfc_token = "#{CloudFlareKey}"
+            icfc_zone = "ec51e468948315337a746fab4e064456"
+            Octopus.Action.Template.Id = "ActionTemplates-963"
+            Octopus.Action.Template.Version = "6"
+        }
+        worker_pool = "hosted-windows-2019"
+    }
+}
