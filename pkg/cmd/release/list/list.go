@@ -60,16 +60,17 @@ func listRun(cmd *cobra.Command, f factory.Factory, flags *ListFlags) error {
 	if err != nil {
 		return err
 	}
+	spinner := f.Spinner()
 
 	var selectedProject *projects.Project
 	if f.IsPromptEnabled() { // this would be AskQuestions if it were bigger
 		if projectNameOrID == "" {
-			selectedProject, err = util.SelectProject("Select the project to list releases for", octopus, f.Ask, f.Spinner())
+			selectedProject, err = util.SelectProject("Select the project to list releases for", octopus, f.Ask, spinner)
 			if err != nil {
 				return err
 			}
 		} else { // project name is already provided, fetch the object because it's needed for further questions
-			selectedProject, err = util.FindProject(octopus, f.Spinner(), projectNameOrID)
+			selectedProject, err = util.FindProject(octopus, spinner, projectNameOrID)
 			if err != nil {
 				return err
 			}
@@ -91,13 +92,15 @@ func listRun(cmd *cobra.Command, f factory.Factory, flags *ListFlags) error {
 		Version   string
 	}
 
-	caches := util.MapCollectionCacheContainer{}
+	spinner.Start()
 
 	foundReleases, err := octopus.Projects.GetReleases(selectedProject) // does paging internally
 	if err != nil {
+		spinner.Stop()
 		return err
 	}
 
+	caches := util.MapCollectionCacheContainer{}
 	allReleases, err := util.MapCollectionWithLookups(
 		&caches,
 		foundReleases,
@@ -125,7 +128,7 @@ func listRun(cmd *cobra.Command, f factory.Factory, flags *ListFlags) error {
 			), nil
 		},
 	)
-
+	spinner.Stop()
 	if err != nil {
 		return err
 	}
