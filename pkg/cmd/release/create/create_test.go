@@ -235,7 +235,7 @@ func TestReleaseCreate_AskQuestions_RegularProject(t *testing.T) {
 				`), stdout.String())
 		}},
 
-		{"asking for release version based on donor package; packages exist (prints summarised table)", func(t *testing.T, api *testutil.MockHttpServer, qa *testutil.AskMocker, stdout *bytes.Buffer) {
+		{"asking for release version based on donor package; package exists and dictates the release version - add metadata", func(t *testing.T, api *testutil.MockHttpServer, qa *testutil.AskMocker, stdout *bytes.Buffer) {
 			options := &executor.TaskOptionsCreateRelease{
 				ProjectName:  "fire project",
 				ChannelName:  "fire project default channel",
@@ -316,25 +316,10 @@ func TestReleaseCreate_AskQuestions_RegularProject(t *testing.T) {
 				Items: []*packages.PackageVersion{{PackageID: "NuGet.CommandLine", Version: "6.2.1"}}, // the proper package
 			})
 
-			_ = qa.ExpectQuestion(t, &survey.Input{
+			q := qa.ExpectQuestion(t, &survey.Input{
 				Message: packageOverrideQuestion,
 				Default: "",
-			}).AnswerWith("y") // just accept all the packages; package loop is tested elsewhere
-
-			_ = qa.ExpectQuestion(t, &survey.Input{
-				Message: "Release Version",
-				Default: "6.2.1", // observing this value is the whole point of this test
-			}).AnswerWith("6.4")
-
-			err := <-errReceiver
-			assert.Nil(t, err)
-
-			// check that the question-asking process has filled out the things we told it to
-			assert.Equal(t, "Fire Project", options.ProjectName)
-			assert.Equal(t, "Fire Project Default Channel", options.ChannelName)
-			assert.Equal(t, "6.4", options.Version)
-
-			// Note how the table has pterm with steps "Install, Verify" rather than a row for each one
+			})
 			assert.Equal(t, heredoc.Doc(`
 				Project Fire Project
 				Channel Fire Project Default Channel
@@ -343,6 +328,102 @@ func TestReleaseCreate_AskQuestions_RegularProject(t *testing.T) {
 				pterm              0.12.51  Verify/pterm-on-verify
 				NuGet.CommandLine  6.2.1    Verify/nuget-on-verify
 				`), stdout.String())
+			_ = q.AnswerWith("y") // just accept all the packages; package loop is tested elsewhere
+
+			_ = qa.ExpectQuestion(t, &survey.Input{
+				Message: "Using release version 6.2.1 from package NuGet.CommandLine. Add +metadata? (blank for none)",
+				Default: "", // observing this value is the whole point of this test
+			}).AnswerWith("bonanza")
+
+			err := <-errReceiver
+			assert.Nil(t, err)
+
+			// check that the question-asking process has filled out the things we told it to
+			assert.Equal(t, "Fire Project", options.ProjectName)
+			assert.Equal(t, "Fire Project Default Channel", options.ChannelName)
+			assert.Equal(t, "6.2.1+bonanza", options.Version)
+		}},
+
+		{"asking for release version based on donor package; package exists and dictates the release version - don't add metadata", func(t *testing.T, api *testutil.MockHttpServer, qa *testutil.AskMocker, stdout *bytes.Buffer) {
+			options := &executor.TaskOptionsCreateRelease{
+				ProjectName:  "fire project",
+				ChannelName:  "fire project default channel",
+				ReleaseNotes: "-",
+			}
+
+			errReceiver := testutil.GoBegin(func() error {
+				defer testutil.Close(api, qa)
+				octopus, _ := octopusApiClient.NewClient(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "")
+				return create.AskQuestions(octopus, stdout, qa.AsAsker(), spinner, options)
+			})
+
+			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
+
+			var fireProject2 = *fireProject // clone the struct value
+			fireProject2.VersioningStrategy = &projects.VersioningStrategy{
+				DonorPackage: &packages.DeploymentActionPackage{
+					DeploymentAction: "Verify",
+					PackageReference: "nuget-on-verify",
+				},
+			}
+
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects?clonedFromProjectId=&partialName=fire+project").
+				RespondWith(resources.Resources[*projects.Project]{
+					Items: []*projects.Project{&fireProject2},
+				})
+
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/deploymentprocesses/deploymentprocess-"+fireProjectID).RespondWith(depProcess)
+
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+fireProjectID+"/channels").
+				RespondWith(resources.Resources[*channels.Channel]{
+					Items: []*channels.Channel{defaultChannel},
+				})
+
+			// always loads the deployment process template to check for packages
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+fireProjectID+"/deploymentprocesses/template?channel=Channels-1").
+				RespondWith(&deployments.DeploymentProcessTemplate{
+					Packages: []releases.ReleaseTemplatePackage{
+						{
+							ActionName:           "Verify",
+							FeedID:               "feeds-builtin",
+							PackageID:            "NuGet.CommandLine",
+							PackageReferenceName: "nuget-on-verify",
+							IsResolvable:         true,
+						},
+					},
+				})
+
+			// we have some packages so it'll go looking for the feed
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/feeds?ids=feeds-builtin&take=1").RespondWith(&feeds.Feeds{Items: []feeds.IFeed{
+				&feeds.FeedResource{Name: "Builtin", FeedType: feeds.FeedTypeBuiltIn, Resource: resources.Resource{
+					ID: "feeds-builtin",
+					Links: map[string]string{
+						constants.LinkSearchPackageVersionsTemplate: "/api/Spaces-1/feeds/feeds-builtin/packages/versions{?packageId,take,skip,includePreRelease,versionRange,preReleaseTag,filter,includeReleaseNotes}",
+					}}},
+			}})
+
+			// then it will look for versions
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/feeds/feeds-builtin/packages/versions?packageId=NuGet.CommandLine&take=1").RespondWith(&resources.Resources[*packages.PackageVersion]{
+				Items: []*packages.PackageVersion{{PackageID: "NuGet.CommandLine", Version: "6.2.1"}}, // the proper package
+			})
+
+			_ = qa.ExpectQuestion(t, &survey.Input{
+				Message: packageOverrideQuestion,
+				Default: "",
+			}).AnswerWith("y") // just accept all the packages; package loop is tested elsewhere
+
+			_ = qa.ExpectQuestion(t, &survey.Input{
+				Message: "Using release version 6.2.1 from package NuGet.CommandLine. Add +metadata? (blank for none)",
+				Default: "",
+			}).AnswerWith("")
+
+			err := <-errReceiver
+			assert.Nil(t, err)
+
+			// check that the question-asking process has filled out the things we told it to
+			assert.Equal(t, "Fire Project", options.ProjectName)
+			assert.Equal(t, "Fire Project Default Channel", options.ChannelName)
+			assert.Equal(t, "6.2.1", options.Version)
 		}},
 	}
 

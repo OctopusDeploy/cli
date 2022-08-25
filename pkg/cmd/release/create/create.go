@@ -312,7 +312,6 @@ func createRun(cmd *cobra.Command, f factory.Factory, flags *CreateFlags) error 
 					cmd.Printf("Successfully created release version %s\n", releaseVersion)
 				}
 			}
-
 		}
 
 		// the API response doesn't tell us what channel it selected, so we need to go look that up to tell the end user
@@ -960,7 +959,6 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 			return cliErrors.NewInvalidResponseError(fmt.Sprintf("cannot determine versioning strategy for project %s", selectedProject.Name))
 		}
 
-		defaultNextVersion := ""
 		if versioningStrategy.DonorPackageStepID != nil || versioningStrategy.DonorPackage != nil {
 			// we've already done the package version work so we can just ask the donor package which version it has selected
 			var donorPackage *StepPackageVersion
@@ -977,31 +975,31 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 				return fmt.Errorf("internal error: can't find donor package in deployment process template - version controlled configuration file in an invalid state")
 			}
 
-			defaultNextVersion = donorPackage.Version
+			versionMetadata, err := askVersionMetadata(asker, donorPackage.PackageID, donorPackage.Version)
+			if err != nil {
+				return err
+			}
+			if versionMetadata == "" {
+				options.Version = donorPackage.Version
+			} else {
+				options.Version = fmt.Sprintf("%s+%s", donorPackage.Version, versionMetadata)
+			}
 			spinner.Stop()
 		} else if versioningStrategy.Template != "" {
 			// we already loaded the deployment process template when we were looking for packages
-			defaultNextVersion = deploymentProcessTemplate.NextVersionIncrement
+			options.Version, err = askVersion(asker, deploymentProcessTemplate.NextVersionIncrement)
+			if err != nil {
+				return err
+			}
 		}
 
-		version, err := askVersion(asker, defaultNextVersion)
-		if err != nil {
-			return err
-		}
-		options.Version = version
 	} else {
 		_, _ = fmt.Fprintf(stdout, "Version %s\n", output.Cyan(options.Version))
 	}
 
 	if options.ReleaseNotes == "" {
-		if err := asker(&surveyext.OctoEditor{
-			Editor: &survey.Editor{
-				Message:  "Release Notes",
-				Help:     "You may optionally add notes to the release using Markdown.",
-				FileName: "*.md",
-			},
-			Optional: true,
-		}, &options.ReleaseNotes); err != nil {
+		options.ReleaseNotes, err = askReleaseNotes(asker)
+		if err != nil {
 			return err
 		}
 	}
@@ -1140,15 +1138,40 @@ outer_loop:
 }
 
 func askVersion(ask question.Asker, defaultVersion string) (string, error) {
-	var version string
+	var result string
 	if err := ask(&survey.Input{
 		Default: defaultVersion,
 		Message: "Release Version",
-	}, &version); err != nil {
+	}, &result); err != nil {
 		return "", err
 	}
+	return result, nil
+}
 
-	return version, nil
+func askVersionMetadata(ask question.Asker, packageId string, packageVersion string) (string, error) {
+	var result string
+	if err := ask(&survey.Input{
+		Default: "",
+		Message: fmt.Sprintf("Using release version %s from package %s. Add +metadata? (blank for none)", packageVersion, packageId),
+	}, &result); err != nil {
+		return "", err
+	}
+	return result, nil
+}
+
+func askReleaseNotes(ask question.Asker) (string, error) {
+	var result string
+	if err := ask(&surveyext.OctoEditor{
+		Editor: &survey.Editor{
+			Message:  "Release Notes",
+			Help:     "You may optionally add notes to the release using Markdown.",
+			FileName: "*.md",
+		},
+		Optional: true,
+	}, &result); err != nil {
+		return "", err
+	}
+	return result, nil
 }
 
 func selectChannel(octopus *octopusApiClient.Client, ask question.Asker, spinner factory.Spinner, project *projects.Project) (*channels.Channel, error) {
