@@ -24,6 +24,18 @@ func SliceTransform[T any, TResult any](slice []T, transform func(item T) TResul
 	return results
 }
 
+// SliceFilter takes an input collection and returns elements where `predicate` returns true
+// Known as 'filter' in most other languages or 'Select' in C# Linq.
+func SliceFilter[T any](slice []T, predicate func(item T) bool) []T {
+	var results []T = nil
+	for _, item := range slice {
+		if predicate(item) {
+			results = append(results, item)
+		}
+	}
+	return results
+}
+
 // ExtractValuesMatchingKeys returns a collection of values which matched a specified set of keys, in the exact order of keys.
 // Given a collection of items, and a collection of keys to match within that collection
 // This makes no sense, hopefully an example helps:

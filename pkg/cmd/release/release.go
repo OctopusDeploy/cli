@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	cmdCreate "github.com/OctopusDeploy/cli/pkg/cmd/release/create"
+	cmdDelete "github.com/OctopusDeploy/cli/pkg/cmd/release/delete"
 	cmdList "github.com/OctopusDeploy/cli/pkg/cmd/release/list"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/constants/annotations"
@@ -24,5 +25,6 @@ func NewCmdRelease(f factory.Factory) *cobra.Command {
 
 	cmd.AddCommand(cmdCreate.NewCmdCreate(f))
 	cmd.AddCommand(cmdList.NewCmdList(f))
+	cmd.AddCommand(cmdDelete.NewCmdDelete(f))
 	return cmd
 }

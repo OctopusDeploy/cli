@@ -74,3 +74,12 @@ func (f *factory) Ask(p survey.Prompt, response interface{}, opts ...survey.AskO
 func (f *factory) Spinner() Spinner {
 	return f.spinner
 }
+
+// NoSpinner is a static singleton "does nothing" stand-in for spinner if you want to
+// call an API that expects a spinner while you're in automation mode.
+var NoSpinner Spinner = &noSpinner{}
+
+type noSpinner struct{}
+
+func (f *noSpinner) Start() {}
+func (f *noSpinner) Stop()  {}
