@@ -317,6 +317,8 @@ func createRun(cmd *cobra.Command, f factory.Factory, flags *CreateFlags) error 
 	}
 
 	return nil
+}
+
 type StepPackageVersion struct {
 	// these 3 fields are the main ones for showing the user
 	PackageID  string
@@ -983,7 +985,7 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 
 func AskPackageOverrideLoop(
 	packageVersionBaseline []*StepPackageVersion,
-	defaultPackageVersion string, // the --package-version command line flag
+	defaultPackageVersion string,         // the --package-version command line flag
 	initialPackageOverrideFlags []string, // the --package command line flag (multiple occurrences)
 	asker question.Asker,
 	stdout io.Writer) ([]*StepPackageVersion, []*PackageVersionOverride, error) {
