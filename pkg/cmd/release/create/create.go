@@ -317,8 +317,6 @@ func createRun(cmd *cobra.Command, f factory.Factory, flags *CreateFlags) error 
 	}
 
 	return nil
-}
-
 type StepPackageVersion struct {
 	// these 3 fields are the main ones for showing the user
 	PackageID  string
