@@ -4,7 +4,7 @@ step "push-cli-to-chocolatey" {
 
     action {
         action_type = "Octopus.Script"
-        environments = ["Production"]
+        environments = ["production"]
         properties = {
             Octopus.Action.Script.ScriptBody = <<-EOT
                 $nugetPackagePath = $OctopusParameters["Octopus.Action.Package[NuGet.CommandLine].ExtractedPath"]
@@ -57,7 +57,7 @@ step "push-changes-to-homebrew-repo" {
 
     action {
         action_type = "Octopus.Script"
-        environments = ["components-external"]
+        environments = ["production"]
         properties = {
             Octopus.Action.Script.ScriptBody = <<-EOT
                 packageVersion="$(get_octopusvariable 'Octopus.Action.Package[cli].PackageVersion')"
@@ -126,7 +126,7 @@ step "publish-to-apt-repo" {
 
     action {
         action_type = "Octopus.Script"
-        environments = ["components-external"]
+        environments = ["production"]
         properties = {
             Octopus.Action.Script.ScriptBody = <<-EOT
                 cd OctopusCli.linux-x64 || exit
@@ -164,7 +164,7 @@ step "publish-to-rpm-repo" {
 
     action {
         action_type = "Octopus.Script"
-        environments = ["components-external"]
+        environments = ["production"]
         properties = {
             Octopus.Action.Script.ScriptBody = <<-EOT
                 cd OctopusCli.linux-x64 || exit
