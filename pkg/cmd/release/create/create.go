@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/MakeNowJust/heredoc/v2"
+	"github.com/OctopusDeploy/cli/pkg/constants"
 	cliErrors "github.com/OctopusDeploy/cli/pkg/errors"
 	"github.com/OctopusDeploy/cli/pkg/executor"
 	"github.com/OctopusDeploy/cli/pkg/factory"
@@ -303,7 +304,9 @@ func createRun(cmd *cobra.Command, f factory.Factory, flags *CreateFlags) error 
 			}
 		}
 
-		if f.IsPromptEnabled() {
+		// output web URL all the time, so long as output format is not JSON or basic
+		outputFormat, err := cmd.Flags().GetString(constants.FlagOutputFormat)
+		if err == nil && !constants.IsProgrammaticOutputFormat(outputFormat) {
 			link := output.Bluef("%s/app#/%s/releases/%s", f.GetCurrentHost(), f.GetCurrentSpace().ID, options.Response.ReleaseID)
 			cmd.Printf("\nView this release on Octopus Deploy: %s\n", link)
 		}

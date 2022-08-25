@@ -1180,7 +1180,11 @@ func TestReleaseCreate_AutomationMode(t *testing.T) {
 			_, err = testutil.ReceivePair(cmdReceiver)
 			assert.Nil(t, err)
 
-			assert.Equal(t, "Successfully created release version 1.2.3 (Releases-999) using channel Alpha channel (Channels-32)\n", stdOut.String())
+			assert.Equal(t, heredoc.Doc(`
+				Successfully created release version 1.2.3 (Releases-999) using channel Alpha channel (Channels-32)
+				
+				View this release on Octopus Deploy: http://server/app#/Spaces-1/releases/Releases-999
+				`), stdOut.String())
 			assert.Equal(t, "", stdErr.String())
 		}},
 
@@ -1220,7 +1224,11 @@ func TestReleaseCreate_AutomationMode(t *testing.T) {
 			_, err = testutil.ReceivePair(cmdReceiver)
 			assert.Nil(t, err)
 
-			assert.Equal(t, "Successfully created release version 1.2.3 (Releases-999) using channel Alpha channel (Channels-32)\n", stdOut.String())
+			assert.Equal(t, heredoc.Doc(`
+				Successfully created release version 1.2.3 (Releases-999) using channel Alpha channel (Channels-32)
+				
+				View this release on Octopus Deploy: http://server/app#/Spaces-1/releases/Releases-999
+				`), stdOut.String())
 			assert.Equal(t, "", stdErr.String())
 		}},
 
@@ -1267,7 +1275,11 @@ func TestReleaseCreate_AutomationMode(t *testing.T) {
 			_, err = testutil.ReceivePair(cmdReceiver)
 			assert.Nil(t, err)
 
-			assert.Equal(t, "Successfully created release version 1.2.3 (Releases-999) using channel Alpha channel (Channels-32)\n", stdOut.String())
+			assert.Equal(t, heredoc.Doc(`
+				Successfully created release version 1.2.3 (Releases-999) using channel Alpha channel (Channels-32)
+				
+				View this release on Octopus Deploy: http://server/app#/Spaces-1/releases/Releases-999
+				`), stdOut.String())
 			assert.Equal(t, "", stdErr.String())
 		}},
 
@@ -1342,7 +1354,12 @@ func TestReleaseCreate_AutomationMode(t *testing.T) {
 			_, err = testutil.ReceivePair(cmdReceiver)
 			assert.Nil(t, err)
 
-			assert.Equal(t, "Successfully created release version 1.0.5 (Releases-999) using channel Alpha channel (Channels-32)\n", stdOut.String())
+			assert.Equal(t, heredoc.Doc(`
+				Successfully created release version 1.0.5 (Releases-999) using channel Alpha channel (Channels-32)
+				
+				View this release on Octopus Deploy: http://server/app#/Spaces-1/releases/Releases-999
+				`), stdOut.String())
+
 			assert.Equal(t, "", stdErr.String())
 		}},
 
@@ -1406,7 +1423,11 @@ func TestReleaseCreate_AutomationMode(t *testing.T) {
 			_, err = testutil.ReceivePair(cmdReceiver)
 			assert.Nil(t, err)
 
-			assert.Equal(t, "Successfully created release version 1.0.5 (Releases-999) using channel Alpha channel (Channels-32)\n", stdOut.String())
+			assert.Equal(t, heredoc.Doc(`
+				Successfully created release version 1.0.5 (Releases-999) using channel Alpha channel (Channels-32)
+				
+				View this release on Octopus Deploy: http://server/app#/Spaces-1/releases/Releases-999
+				`), stdOut.String())
 			assert.Equal(t, "", stdErr.String())
 		}},
 
@@ -1465,7 +1486,11 @@ func TestReleaseCreate_AutomationMode(t *testing.T) {
 			_, err = testutil.ReceivePair(cmdReceiver)
 			assert.Nil(t, err)
 
-			assert.Equal(t, "Successfully created release version 1.0.5 (Releases-999) using channel Alpha channel (Channels-32)\n", stdOut.String())
+			assert.Equal(t, heredoc.Doc(`
+				Successfully created release version 1.0.5 (Releases-999) using channel Alpha channel (Channels-32)
+				
+				View this release on Octopus Deploy: http://server/app#/Spaces-1/releases/Releases-999
+				`), stdOut.String())
 			assert.Equal(t, "", stdErr.String())
 		}},
 
@@ -1521,7 +1546,12 @@ func TestReleaseCreate_AutomationMode(t *testing.T) {
 			_, err = testutil.ReceivePair(cmdReceiver)
 			assert.Nil(t, err)
 
-			assert.Equal(t, "Successfully created release version 1.0.5 (Releases-999) using channel Alpha channel (Channels-32)\n", stdOut.String())
+			assert.Equal(t, heredoc.Doc(`
+				Successfully created release version 1.0.5 (Releases-999) using channel Alpha channel (Channels-32)
+				
+				View this release on Octopus Deploy: http://server/app#/Spaces-1/releases/Releases-999
+				`), stdOut.String())
+
 			assert.Equal(t, "", stdErr.String())
 		}},
 	}
