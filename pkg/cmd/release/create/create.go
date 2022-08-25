@@ -848,7 +848,7 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 			if err != nil {
 				return err
 			}
-			options.GitReference = gitRef.Name // Hold the short name, not the canonical name due to golang url parsing bug replacing %2f with /
+			options.GitReference = gitRef.CanonicalName // e.g /refs/heads/main
 		} else {
 			// we need to go lookup the git reference
 			_, _ = fmt.Fprintf(stdout, "Git Reference %s\n", output.Cyan(options.GitReference))

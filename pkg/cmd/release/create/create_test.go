@@ -439,7 +439,7 @@ func TestReleaseCreate_AskQuestions_VersionControlledProject(t *testing.T) {
 	const spaceID = "Spaces-1"
 
 	projectID := "Projects-87"
-	depProcessDevelopBranch := fixtures.NewDeploymentProcessForVersionControlledProject(spaceID, projectID, "develop")
+	depProcessDevelopBranch := fixtures.NewDeploymentProcessForVersionControlledProject(spaceID, projectID, "refs%2Fheads%2Fdevelop")
 
 	depSettings := fixtures.NewDeploymentSettingsForProject(spaceID, projectID, &projects.VersioningStrategy{
 		Template: "#{Octopus.Version.LastMajor}.#{Octopus.Version.LastMinor}.#{Octopus.Version.NextPatch}", // bog standard
@@ -496,10 +496,7 @@ func TestReleaseCreate_AskQuestions_VersionControlledProject(t *testing.T) {
 
 			// can't specify a git commit hash in interactive mode
 
-			// Once the CLI has picked up the git ref it then loads the deployment process which will be based on the git ref link
-			// NOTE: we are only using the git short name here, not the full name due to the golang url parsing bug which
-			// incorrectly turns %2f into a literal / in the URL
-			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+projectID+"/develop/deploymentprocesses").RespondWith(depProcessDevelopBranch)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+projectID+"/refs%2Fheads%2Fdevelop/deploymentprocesses").RespondWith(depProcessDevelopBranch)
 
 			// next phase; channel selection
 
@@ -512,10 +509,10 @@ func TestReleaseCreate_AskQuestions_VersionControlledProject(t *testing.T) {
 			}).AnswerWith(altChannel.Name)
 
 			// always loads dep process template
-			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+projectID+"/develop/deploymentprocesses/template?channel="+altChannel.ID).RespondWith(depTemplate)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+projectID+"/refs%2Fheads%2Fdevelop/deploymentprocesses/template?channel="+altChannel.ID).RespondWith(depTemplate)
 
 			// our project inline versioning strategy was nil, so the code needs to load the deployment settings to find out
-			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+projectID+"/develop/deploymentsettings").RespondWith(depSettings)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+projectID+"/refs%2Fheads%2Fdevelop/deploymentsettings").RespondWith(depSettings)
 
 			_ = qa.ExpectQuestion(t, &survey.Input{
 				Message: "Release Version",
@@ -538,7 +535,7 @@ func TestReleaseCreate_AskQuestions_VersionControlledProject(t *testing.T) {
 			assert.Equal(t, project.Name, options.ProjectName)
 			assert.Equal(t, "CaC Project Alt Channel", options.ChannelName)
 			assert.Equal(t, "27.9.999", options.Version)
-			assert.Equal(t, "develop", options.GitReference) // not fully qualified but I guess we could hold that
+			assert.Equal(t, "refs/heads/develop", options.GitReference) // not fully qualified but I guess we could hold that
 			assert.Equal(t, "", options.GitCommit)
 			assert.Equal(t, "## some release notes", options.ReleaseNotes)
 		}},
@@ -622,13 +619,13 @@ func TestReleaseCreate_AskQuestions_VersionControlledProject(t *testing.T) {
 			assert.Equal(t, project.Name, options.ProjectName)
 			assert.Equal(t, "CaC Project Alt Channel", options.ChannelName)
 			assert.Equal(t, "27.9.654", options.Version)
-			assert.Equal(t, "v2", options.GitReference) // not fully qualified but I guess we could hold that
+			assert.Equal(t, "refs/tags/v2", options.GitReference) // not fully qualified but I guess we could hold that
 			assert.Equal(t, "45c508a", options.GitCommit)
 		}},
 
 		{"standard process asking for everything; no packages, release version from template, doesn't ask for git ref if already specified", func(t *testing.T, api *testutil.MockHttpServer, qa *testutil.AskMocker, stdout *bytes.Buffer) {
 			options := &executor.TaskOptionsCreateRelease{
-				GitReference: "develop",
+				GitReference: "develop", // specifying a short name here not a fully qualified refs/heads/develop
 				ReleaseNotes: "already tested release notes",
 			}
 
@@ -661,7 +658,7 @@ func TestReleaseCreate_AskQuestions_VersionControlledProject(t *testing.T) {
 			}).AnswerWith(altChannel.Name)
 
 			// always loads dep process template
-			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+projectID+"/develop/deploymentprocesses/template?channel="+altChannel.ID).RespondWith(depTemplate)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+projectID+"/refs%2Fheads%2Fdevelop/deploymentprocesses/template?channel="+altChannel.ID).RespondWith(depTemplate)
 
 			// our project inline versioning strategy was nil, so the code needs to load the deployment settings to find out
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+projectID+"/develop/deploymentsettings").RespondWith(depSettings)
