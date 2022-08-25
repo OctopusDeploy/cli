@@ -10,7 +10,7 @@ connectivity_policy {
 versioning_strategy {
 
     donor_package {
-        package = "PackageToUpload"
-        step = "upload-octopustools-to-s3-public-with-hashes"
+        package = "cli"
+        step = "push-cli-to-chocolatey"
     }
 }
