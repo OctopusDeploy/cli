@@ -892,6 +892,33 @@ func TestReleaseCreate_AskQuestions_AskPackageOverrideLoop(t *testing.T) {
 			}, overrides)
 		}},
 
+		{"multiple overrides with reset", func(t *testing.T, qa *testutil.AskMocker, stdout *bytes.Buffer) {
+			receiver := testutil.GoBegin3(func() ([]*create.StepPackageVersion, []*create.PackageVersionOverride, error) {
+				return create.AskPackageOverrideLoop(baseline, "", make([]string, 0), qa.AsAsker(), stdout)
+			})
+
+			_ = qa.ExpectQuestion(t, &survey.Input{Message: packageOverrideQuestion}).AnswerWith("NuGet.CommandLine:7.1")
+
+			_ = qa.ExpectQuestion(t, &survey.Input{Message: packageOverrideQuestion}).AnswerWith("pterm:35")
+
+			_ = qa.ExpectQuestion(t, &survey.Input{Message: packageOverrideQuestion}).AnswerWith("r") // undo pterm:35 and NuGet:CommandLine:7.1
+
+			_ = qa.ExpectQuestion(t, &survey.Input{Message: packageOverrideQuestion}).AnswerWith("Install:pterm:2.5")
+
+			_ = qa.ExpectQuestion(t, &survey.Input{Message: packageOverrideQuestion}).AnswerWith("y")
+
+			versions, overrides, err := testutil.ReceiveTriple(receiver)
+			assert.Nil(t, err)
+			assert.Equal(t, []*create.StepPackageVersion{
+				{ActionName: "Install", PackageID: "pterm", PackageReferenceName: "pterm", Version: "2.5"},
+				{ActionName: "Install", PackageID: "NuGet.CommandLine", PackageReferenceName: "NuGet.CommandLine", Version: "6.1.2"},
+				{ActionName: "Verify", PackageID: "pterm", PackageReferenceName: "pterm", Version: "0.12"}, // this would have been hit by pterm:35 but we undid it
+			}, versions)
+			assert.Equal(t, []*create.PackageVersionOverride{
+				{PackageReferenceName: "pterm", ActionName: "Install", Version: "2.5"},
+			}, overrides)
+		}},
+
 		// this is the happy path where the CLI presents the list of server-selected packages and they just go 'yep'
 		{"if we enter the loop with any unresolved packages, force version selection for them before entering the main loop", func(t *testing.T, qa *testutil.AskMocker, stdout *bytes.Buffer) {
 			baselineSomeUnresolved := []*create.StepPackageVersion{

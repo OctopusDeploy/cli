@@ -69,6 +69,47 @@ const (
 	//FlagAliasPackagePrereleaseLegacy = "packagePrerelease"
 )
 
+var packageOverrideLoopHelpText = heredoc.Doc(`
+bold(PACKAGE SELECTION)
+ This screen presents the list of packages used by your project, and the steps
+ which reference them. 
+ If an item is dimmed (gray text) this indicates that the attribute is duplicated.
+ For example if you reference the same package in two steps, the second will be dimmed. 
+
+bold(COMMANDS)
+ Any any point, you can enter one of the following:
+ - green(?) to access this help screen
+ - green(y) to accept the list of packages and proceed with creating the release
+ - green(u) to undo the last edit you made to package versions
+ - green(r) to reset all package version edits
+ - A package override string.
+
+bold(PACKAGE OVERRIDE STRINGS)
+ Package override strings must have 2 or 3 components, separated by a :
+ The last component must always be a version number.
+ 
+ When specifying 2 components, the first component is either a Package ID or a Step Name.
+ You can also specify a * which will match all packages
+ Examples:
+   bold(octopustools:9.1)   dim(# sets package 'octopustools' in all steps to v 9.1)
+   bold(Push Package:3.0)   dim(# sets all packages in the 'Push Package' step to v 3.0)
+   bold(*:5.1)              dim(# sets all packages in all steps to v 5.1)
+
+ The 3-component syntax is for advanced use cases where you reference the same package twice
+ in a single step, and need to distinguish between the two.
+ The syntax is bold(packageIDorStepName:packageReferenceName:version)
+ Please refer to the octopus server documentation for more information regarding package reference names. 
+
+dim(---------------------------------------------------------------------)
+`) // note this expects to have prettifyHelp run over it
+
+func prettifyHelp(str string) string {
+	str = regexp.MustCompile("bold\\((.*?)\\)").ReplaceAllString(str, output.Bold("$1"))
+	str = regexp.MustCompile("green\\((.*?)\\)").ReplaceAllString(str, output.Green("$1"))
+	str = regexp.MustCompile("dim\\((.*?)\\)").ReplaceAllString(str, output.Dim("$1"))
+	return str
+}
+
 type CreateFlags struct {
 	Project            *flag.Flag[string]
 	Channel            *flag.Flag[string]
@@ -1022,7 +1063,7 @@ outer_loop:
 
 			switch str {
 			// valid response for continuing the loop; don't attempt to validate these
-			case "y", "u", "":
+			case "y", "u", "r", "?", "":
 				return nil
 			}
 
@@ -1042,20 +1083,25 @@ outer_loop:
 		if err != nil {
 			return nil, nil, err
 		}
-		if answer == "u" { // undo!
+
+		if answer == "y" { // YES these are the packages they want
+			break
+		} else if answer == "?" { // help text
+			_, _ = fmt.Fprintf(stdout, prettifyHelp(packageOverrideLoopHelpText))
+		} else if answer == "u" { // undo!
 			if len(packageVersionOverrides) > 0 {
 				packageVersionOverrides = packageVersionOverrides[:len(packageVersionOverrides)-1]
 				// always reset to the baseline and apply everything in order, there's less room for logic errors
 				overriddenPackageVersions = ApplyPackageOverrides(packageVersionBaseline, packageVersionOverrides)
 			}
 			continue // print table and go again
-		}
-
-		if answer == "y" { // YES these are the packages they want
-			break
-		}
-
-		if resolvedOverride != nil {
+		} else if answer == "r" { // reset! All the way back to the calculated versions, discarding even the stuff that came in from the cmdline
+			if len(packageVersionOverrides) > 0 {
+				packageVersionOverrides = make([]*PackageVersionOverride, 0)
+				overriddenPackageVersions = ApplyPackageOverrides(packageVersionBaseline, packageVersionOverrides)
+			}
+			continue // print table and go again
+		} else if resolvedOverride != nil {
 			packageVersionOverrides = append(packageVersionOverrides, resolvedOverride)
 			// always reset to the baseline and apply everything in order, there's less room for logic errors
 			overriddenPackageVersions = ApplyPackageOverrides(packageVersionBaseline, packageVersionOverrides)
