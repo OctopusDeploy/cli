@@ -75,7 +75,11 @@ func (f *factory) Spinner() Spinner {
 	return f.spinner
 }
 
-type NoSpinner struct{}
+// NoSpinner is a static singleton "does nothing" stand-in for spinner if you want to
+// call an API that expects a spinner while you're in automation mode.
+var NoSpinner Spinner = &noSpinner{}
 
-func (f *NoSpinner) Start() {}
-func (f *NoSpinner) Stop()  {}
+type noSpinner struct{}
+
+func (f *noSpinner) Start() {}
+func (f *noSpinner) Stop()  {}

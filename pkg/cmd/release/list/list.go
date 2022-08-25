@@ -80,7 +80,7 @@ func listRun(cmd *cobra.Command, f factory.Factory, flags *ListFlags) error {
 		if projectNameOrID == "" {
 			return errors.New("project must be specified")
 		}
-		selectedProject, err = util.FindProject(octopus, &factory.NoSpinner{}, projectNameOrID) // this is a bit not nice
+		selectedProject, err = util.FindProject(octopus, factory.NoSpinner, projectNameOrID)
 		if err != nil {
 			return err
 		}
