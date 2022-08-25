@@ -116,7 +116,7 @@ func deleteRun(cmd *cobra.Command, f factory.Factory, flags *Flags, args []strin
 		}
 
 		// prompt for confirmation
-		cmd.Printf("You are about to delete the following releases from project %s:\n", selectedProject.Name)
+		cmd.Printf("You are about to delete the following releases:\n")
 		for _, r := range releasesToDelete {
 			cmd.Printf("%s\n", r.Version)
 		}
@@ -156,6 +156,7 @@ func deleteRun(cmd *cobra.Command, f factory.Factory, flags *Flags, args []strin
 		return nil
 	}
 
+	spinner.Start()
 	var releaseDeleteErrors = &multierror.Error{}
 	for _, r := range releasesToDelete {
 		err = octopus.Releases.DeleteByID(r.ID)
@@ -165,9 +166,11 @@ func deleteRun(cmd *cobra.Command, f factory.Factory, flags *Flags, args []strin
 			releaseDeleteErrors = multierror.Append(releaseDeleteErrors, wrappedErr)
 		}
 	}
+	spinner.Stop()
 
 	failedCount := releaseDeleteErrors.Len()
 	actuallyDeletedCount := len(releasesToDelete) - failedCount
+
 	if failedCount == 0 { // all good
 		cmd.Printf("Successfully deleted %d releases\n", actuallyDeletedCount)
 	} else if actuallyDeletedCount == 0 { // all bad

@@ -156,21 +156,35 @@ type RequestWrapper struct {
 }
 
 func (r *RequestWrapper) RespondWith(responseObject any) {
-	if responseObject == nil {
-		panic("TODO: implement responses with no body")
-	}
+	r.RespondWithStatus(http.StatusOK, "200 OK", responseObject)
+}
 
-	body, _ := json.Marshal(responseObject)
+func (r *RequestWrapper) RespondWithStatus(statusCode int, statusString string, responseObject any) {
+	var body []byte
+	if responseObject != nil {
+		b, err := json.Marshal(responseObject)
+		if err != nil {
+			panic(err) // you shouldn't feed unserializable stuff into RespondWithStatus
+		}
+		body = b
+	} else {
+		body = make([]byte, 0)
+	}
 
 	// Regarding response errors:
 	// Note that we would use an error here for a low level thing like a network error.
 	// An HTTP error like a 404 or 500 would be considered a valid response with an
 	// appropriate status code
 	r.Server.Respond(&http.Response{
-		StatusCode:    http.StatusOK,
+		StatusCode:    statusCode,
+		Status:        statusString,
 		Body:          ioutil.NopCloser(bytes.NewReader(body)),
 		ContentLength: int64(len(body)),
 	}, nil)
+}
+
+func (r *RequestWrapper) RespondWithError(err error) {
+	r.Server.Respond(nil, err)
 }
 
 func NewRootResource() *octopusApiClient.RootResource {

@@ -14,16 +14,8 @@ import (
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/resources"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
-	"net/url"
 	"testing"
 )
-
-var serverUrl, _ = url.Parse("http://server")
-
-const placeholderApiKey = "API-XXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
-const packageOverrideQuestion = "Package override string (y to accept, u to undo, ? for help):"
-
-var spinner = &testutil.FakeSpinner{}
 
 var rootResource = testutil.NewRootResource()
 

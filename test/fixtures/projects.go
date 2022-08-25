@@ -5,6 +5,7 @@ import (
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/channels"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/deployments"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/releases"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/spaces"
 	"net/url"
 )
@@ -86,6 +87,13 @@ func NewVersionControlledProject(spaceID string, projectID string, projectName s
 func NewChannel(spaceID string, channelID string, channelName string, projectID string) *channels.Channel {
 	result := channels.NewChannel(channelName, projectID)
 	result.ID = channelID
+	result.SpaceID = spaceID
+	return result
+}
+
+func NewRelease(spaceID string, releaseID string, releaseVersion string, projectID string, channelID string) *releases.Release {
+	result := releases.NewRelease(channelID, projectID, releaseVersion)
+	result.ID = releaseID
 	result.SpaceID = spaceID
 	return result
 }
