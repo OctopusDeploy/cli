@@ -70,19 +70,57 @@ jobs:
         version="$(echo -e ${GITHUB_REF#refs/tags/v} | sed s/-.*$//)"
         "${MSBUILD_PATH}\MSBuild.exe" ./build/windows/octopus.wixproj -p:SourceDir="$PWD" -p:OutputPath="$PWD" -p:OutputName="$name" -p:ProductVersion="$version"
 
-  sign-msi:
-    needs: msi
-    runs-on: windows-latest
-    steps:
     - name: Install AzureSignTool
       run: dotnet tool install --global AzureSignTool
 
     - name: Sign package
       env:
         MSI_FILE: ${{ steps.buildmsi.outputs.msi }}
+      shell: powershell
       run: |
-        & AzureSignTool sign -kvu "${{ secrets.AZURE_KEYVAULT_URL }}" -kvi "${{ secrets.AZURE_KEYVAULT_CLIENT_ID }}" -kvs "${{ secrets.AZURE_KEYVAULT_CLIENT_SECRET }}" `
-          -kvc ${{ secrets.AZURE_KEYVAULT_CERTIFICATE_NAME }} -kvt ${{ secrets.AZURE_KEYVAULT_TENANT_ID }} -tr http://timestamp.digicert.com -v $env:MSI_FILE
+        $timestampurl = (
+            "http://timestamp.comodoca.com/rfc3161",
+            "http://timestamp.globalsign.com/tsa/r6advanced1", #https://support.globalsign.com/code-signing/code-signing-windows-7-8-and-10,
+            "http://timestamp.digicert.com", #https://knowledge.digicert.com/solution/SO912.html
+            "http://timestamp.apple.com/ts01", #https://gist.github.com/Manouchehri/fd754e402d98430243455713efada710
+            "http://tsa.starfieldtech.com",
+            "http://www.startssl.com/timestamp",
+            "http://timestamp.verisign.com/scripts/timstamp.dll",
+            "http://timestamp.globalsign.com/scripts/timestamp.dll",
+            "https://rfc3161timestamp.globalsign.com/advanced"
+        )
+
+        $ex = null
+        $signSuccessful = $false
+
+        foreach ($url in $timestampurl) {
+          Write-Host "Signing and timestamping with server $url"
+          try {
+            & AzureSignTool sign `
+              -kvu "${{ secrets.AZURE_KEYVAULT_URL }}" `
+              -kvt ${{ secrets.AZURE_KEYVAULT_TENANT_ID }} `
+              -kvi "${{ secrets.AZURE_KEYVAULT_CLIENT_ID }}" `
+              -kvs "${{ secrets.AZURE_KEYVAULT_CLIENT_SECRET }}" `
+              -kvc ${{ secrets.AZURE_KEYVAULT_CERTIFICATE_NAME }} `
+              -d "Octopus CLI" `
+              -du "https://octopus.com" `
+              -tr $url `
+              -v `
+              $env:MSI_FILE
+
+            $signSuccessful = $true
+          }
+          catch {
+            $ex = $_
+          }
+
+          if ($signSuccessful) { break }
+        }
+
+        if (-not $signSuccessful) {
+          Write-Error $ex
+          exit 1
+        }
 
     - name: Upload MSI
       shell: bash
