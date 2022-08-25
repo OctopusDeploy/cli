@@ -7,6 +7,7 @@ import (
 	cmdDelete "github.com/OctopusDeploy/cli/pkg/cmd/release/delete"
 	cmdList "github.com/OctopusDeploy/cli/pkg/cmd/release/list"
 	"github.com/OctopusDeploy/cli/pkg/constants"
+	"github.com/OctopusDeploy/cli/pkg/constants/annotations"
 	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/spf13/cobra"
 )
@@ -17,6 +18,9 @@ func NewCmdRelease(f factory.Factory) *cobra.Command {
 		Short:   "Manage releases",
 		Long:    `Work with Octopus Deploy releases.`,
 		Example: fmt.Sprintf("$ %s release list", constants.ExecutableName),
+		Annotations: map[string]string{
+			annotations.IsCore: "true",
+		},
 	}
 
 	cmd.AddCommand(cmdCreate.NewCmdCreate(f))

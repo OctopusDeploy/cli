@@ -9,6 +9,7 @@ import (
 	cmdList "github.com/OctopusDeploy/cli/pkg/cmd/space/list"
 	cmdView "github.com/OctopusDeploy/cli/pkg/cmd/space/view"
 	"github.com/OctopusDeploy/cli/pkg/constants"
+	"github.com/OctopusDeploy/cli/pkg/constants/annotations"
 	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/spf13/cobra"
 )
@@ -22,6 +23,9 @@ func NewCmdSpace(f factory.Factory) *cobra.Command {
 			$ %s space list
 			$ %s space view
 		`), constants.ExecutableName, constants.ExecutableName),
+		Annotations: map[string]string{
+			annotations.IsConfiguration: "true",
+		},
 	}
 
 	cmd.AddCommand(cmdCreate.NewCmdCreate(f))
