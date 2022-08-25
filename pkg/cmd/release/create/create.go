@@ -1034,7 +1034,7 @@ func AskPackageOverrideLoop(
 
 	overriddenPackageVersions := ApplyPackageOverrides(packageVersionBaseline, packageVersionOverrides)
 
-outer_loop:
+outerLoop:
 	for {
 		err := printPackageVersions(stdout, overriddenPackageVersions)
 		if err != nil {
@@ -1070,7 +1070,7 @@ outer_loop:
 					packageVersionOverrides = append(packageVersionOverrides, override)
 					overriddenPackageVersions = ApplyPackageOverrides(packageVersionBaseline, packageVersionOverrides)
 				}
-				continue outer_loop
+				continue outerLoop
 			}
 		}
 
@@ -1110,29 +1110,30 @@ outer_loop:
 			return nil, nil, err
 		}
 
-		if answer == "y" { // YES these are the packages they want
-			break
-		} else if answer == "?" { // help text
+		switch answer {
+		case "y": // YES these are the packages they want
+			break outerLoop
+		case "?": // help text
 			_, _ = fmt.Fprintf(stdout, prettifyHelp(packageOverrideLoopHelpText))
-		} else if answer == "u" { // undo!
+		case "u": // undo!
 			if len(packageVersionOverrides) > 0 {
 				packageVersionOverrides = packageVersionOverrides[:len(packageVersionOverrides)-1]
 				// always reset to the baseline and apply everything in order, there's less room for logic errors
 				overriddenPackageVersions = ApplyPackageOverrides(packageVersionBaseline, packageVersionOverrides)
 			}
-			continue // print table and go again
-		} else if answer == "r" { // reset! All the way back to the calculated versions, discarding even the stuff that came in from the cmdline
+		case "r": // reset! All the way back to the calculated versions, discarding even the stuff that came in from the cmdline
 			if len(packageVersionOverrides) > 0 {
 				packageVersionOverrides = make([]*PackageVersionOverride, 0)
 				overriddenPackageVersions = ApplyPackageOverrides(packageVersionBaseline, packageVersionOverrides)
 			}
-			continue // print table and go again
-		} else if resolvedOverride != nil {
-			packageVersionOverrides = append(packageVersionOverrides, resolvedOverride)
-			// always reset to the baseline and apply everything in order, there's less room for logic errors
-			overriddenPackageVersions = ApplyPackageOverrides(packageVersionBaseline, packageVersionOverrides)
+		default:
+			if resolvedOverride != nil {
+				packageVersionOverrides = append(packageVersionOverrides, resolvedOverride)
+				// always reset to the baseline and apply everything in order, there's less room for logic errors
+				overriddenPackageVersions = ApplyPackageOverrides(packageVersionBaseline, packageVersionOverrides)
+			}
 		}
-		// else the user most likely typed an empty string, loop around
+		// loop around and let them put in more input
 	}
 	return overriddenPackageVersions, packageVersionOverrides, nil
 }
@@ -1152,7 +1153,7 @@ func askVersionMetadata(ask question.Asker, packageId string, packageVersion str
 	var result string
 	if err := ask(&survey.Input{
 		Default: "",
-		Message: fmt.Sprintf("Using release version %s from package %s. Add +metadata? (blank for none)", packageVersion, packageId),
+		Message: fmt.Sprintf("Using release version %s from package %s. Add +metadata? (blank for none):", packageVersion, packageId),
 	}, &result); err != nil {
 		return "", err
 	}

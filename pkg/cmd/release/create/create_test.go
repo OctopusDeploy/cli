@@ -331,7 +331,7 @@ func TestReleaseCreate_AskQuestions_RegularProject(t *testing.T) {
 			_ = q.AnswerWith("y") // just accept all the packages; package loop is tested elsewhere
 
 			_ = qa.ExpectQuestion(t, &survey.Input{
-				Message: "Using release version 6.2.1 from package NuGet.CommandLine. Add +metadata? (blank for none)",
+				Message: "Using release version 6.2.1 from package NuGet.CommandLine. Add +metadata? (blank for none):",
 				Default: "", // observing this value is the whole point of this test
 			}).AnswerWith("bonanza")
 
@@ -413,7 +413,7 @@ func TestReleaseCreate_AskQuestions_RegularProject(t *testing.T) {
 			}).AnswerWith("y") // just accept all the packages; package loop is tested elsewhere
 
 			_ = qa.ExpectQuestion(t, &survey.Input{
-				Message: "Using release version 6.2.1 from package NuGet.CommandLine. Add +metadata? (blank for none)",
+				Message: "Using release version 6.2.1 from package NuGet.CommandLine. Add +metadata? (blank for none):",
 				Default: "",
 			}).AnswerWith("")
 
