@@ -1143,6 +1143,7 @@ func TestReleaseCreate_AutomationMode(t *testing.T) {
 			// This is fine though, the main program entrypoint prints any errors that bubble up to it.
 			assert.Equal(t, "", stdErr.String())
 		}},
+
 		{"release creation specifying project only (bare minimum)", func(t *testing.T, api *testutil.MockHttpServer, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
 			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
 				defer api.Close()
@@ -1181,10 +1182,115 @@ func TestReleaseCreate_AutomationMode(t *testing.T) {
 			assert.Nil(t, err)
 
 			assert.Equal(t, heredoc.Doc(`
-				Successfully created release version 1.2.3 (Releases-999) using channel Alpha channel (Channels-32)
+				Successfully created release version 1.2.3 using channel Alpha channel
 				
 				View this release on Octopus Deploy: http://server/app#/Spaces-1/releases/Releases-999
 				`), stdOut.String())
+			assert.Equal(t, "", stdErr.String())
+		}},
+
+		{"release creation specifying project only (bare minimum)", func(t *testing.T, api *testutil.MockHttpServer, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
+			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
+				defer api.Close()
+				rootCmd.SetArgs([]string{"release", "create", "--project", cacProject.Name})
+				return rootCmd.ExecuteC()
+			})
+
+			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
+
+			req := api.ExpectRequest(t, "POST", "/api/Spaces-1/releases/create/v1")
+
+			// check that it sent the server the right request body
+			requestBody, err := testutil.ReadJson[releases.CreateReleaseV1](req.Request.Body)
+			assert.Nil(t, err)
+
+			assert.Equal(t, releases.CreateReleaseV1{
+				SpaceIDOrName:   "Spaces-1",
+				ProjectIDOrName: cacProject.Name,
+			}, requestBody)
+
+			req.RespondWith(&releases.CreateReleaseResponseV1{
+				ReleaseID:      "Releases-999", // new release
+				ReleaseVersion: "1.2.3",
+			})
+
+			// after it creates the release it's going to go back to the server and lookup the release by its ID
+			// so it can tell the user what channel got selected
+			releaseInfo := releases.NewRelease("Channels-32", cacProject.ID, "1.2.3")
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/releases/Releases-999").RespondWith(releaseInfo)
+
+			// and now it wants to lookup the channel name too
+			channelInfo := fixtures.NewChannel(space1.ID, "Channels-32", "Alpha channel", cacProject.ID)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/channels/Channels-32").RespondWith(channelInfo)
+
+			_, err = testutil.ReceivePair(cmdReceiver)
+			assert.Nil(t, err)
+
+			assert.Equal(t, heredoc.Doc(`
+				Successfully created release version 1.2.3 using channel Alpha channel
+				
+				View this release on Octopus Deploy: http://server/app#/Spaces-1/releases/Releases-999
+				`), stdOut.String())
+			assert.Equal(t, "", stdErr.String())
+		}},
+
+		{"release creation outputformat basic", func(t *testing.T, api *testutil.MockHttpServer, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
+			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
+				defer api.Close()
+				rootCmd.SetArgs([]string{"release", "create", "--project", cacProject.Name, "--output-format", "basic"})
+				return rootCmd.ExecuteC()
+			})
+
+			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
+
+			// don't need to validate the json received by the server, we've done that already
+			api.ExpectRequest(t, "POST", "/api/Spaces-1/releases/create/v1").RespondWith(&releases.CreateReleaseResponseV1{
+				ReleaseID:      "Releases-999",
+				ReleaseVersion: "1.2.3",
+			})
+
+			// after it creates the release it's going to go back to the server and lookup the release by its ID
+			// so it can tell the user what channel got selected
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/releases/Releases-999").RespondWith(releases.NewRelease("Channels-32", cacProject.ID, "1.2.3"))
+
+			// and now it wants to lookup the channel name too
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/channels/Channels-32").
+				RespondWith(fixtures.NewChannel(space1.ID, "Channels-32", "Alpha channel", cacProject.ID))
+
+			_, err := testutil.ReceivePair(cmdReceiver)
+			assert.Nil(t, err)
+
+			assert.Equal(t, "1.2.3\n", stdOut.String())
+			assert.Equal(t, "", stdErr.String())
+		}},
+
+		{"release creation outputformat json", func(t *testing.T, api *testutil.MockHttpServer, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
+			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
+				defer api.Close()
+				rootCmd.SetArgs([]string{"release", "create", "--project", cacProject.Name, "--output-format", "json"})
+				return rootCmd.ExecuteC()
+			})
+
+			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
+
+			// don't need to validate the json received by the server, we've done that already
+			api.ExpectRequest(t, "POST", "/api/Spaces-1/releases/create/v1").RespondWith(&releases.CreateReleaseResponseV1{
+				ReleaseID:      "Releases-999",
+				ReleaseVersion: "1.2.3",
+			})
+
+			// after it creates the release it's going to go back to the server and lookup the release by its ID
+			// so it can tell the user what channel got selected
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/releases/Releases-999").RespondWith(releases.NewRelease("Channels-32", cacProject.ID, "1.2.3"))
+
+			// and now it wants to lookup the channel name too
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/channels/Channels-32").
+				RespondWith(fixtures.NewChannel(space1.ID, "Channels-32", "Alpha channel", cacProject.ID))
+
+			_, err := testutil.ReceivePair(cmdReceiver)
+			assert.Nil(t, err)
+
+			assert.Equal(t, "{\"Channel\":\"Alpha channel\",\"ChannelID\":\"Channels-32\",\"Version\":\"1.2.3\"}\n", stdOut.String())
 			assert.Equal(t, "", stdErr.String())
 		}},
 
@@ -1225,7 +1331,7 @@ func TestReleaseCreate_AutomationMode(t *testing.T) {
 			assert.Nil(t, err)
 
 			assert.Equal(t, heredoc.Doc(`
-				Successfully created release version 1.2.3 (Releases-999) using channel Alpha channel (Channels-32)
+				Successfully created release version 1.2.3 using channel Alpha channel
 				
 				View this release on Octopus Deploy: http://server/app#/Spaces-1/releases/Releases-999
 				`), stdOut.String())
@@ -1276,7 +1382,7 @@ func TestReleaseCreate_AutomationMode(t *testing.T) {
 			assert.Nil(t, err)
 
 			assert.Equal(t, heredoc.Doc(`
-				Successfully created release version 1.2.3 (Releases-999) using channel Alpha channel (Channels-32)
+				Successfully created release version 1.2.3 using channel Alpha channel
 				
 				View this release on Octopus Deploy: http://server/app#/Spaces-1/releases/Releases-999
 				`), stdOut.String())
@@ -1355,7 +1461,7 @@ func TestReleaseCreate_AutomationMode(t *testing.T) {
 			assert.Nil(t, err)
 
 			assert.Equal(t, heredoc.Doc(`
-				Successfully created release version 1.0.5 (Releases-999) using channel Alpha channel (Channels-32)
+				Successfully created release version 1.0.5 using channel Alpha channel
 				
 				View this release on Octopus Deploy: http://server/app#/Spaces-1/releases/Releases-999
 				`), stdOut.String())
@@ -1424,7 +1530,7 @@ func TestReleaseCreate_AutomationMode(t *testing.T) {
 			assert.Nil(t, err)
 
 			assert.Equal(t, heredoc.Doc(`
-				Successfully created release version 1.0.5 (Releases-999) using channel Alpha channel (Channels-32)
+				Successfully created release version 1.0.5 using channel Alpha channel
 				
 				View this release on Octopus Deploy: http://server/app#/Spaces-1/releases/Releases-999
 				`), stdOut.String())
@@ -1487,7 +1593,7 @@ func TestReleaseCreate_AutomationMode(t *testing.T) {
 			assert.Nil(t, err)
 
 			assert.Equal(t, heredoc.Doc(`
-				Successfully created release version 1.0.5 (Releases-999) using channel Alpha channel (Channels-32)
+				Successfully created release version 1.0.5 using channel Alpha channel
 				
 				View this release on Octopus Deploy: http://server/app#/Spaces-1/releases/Releases-999
 				`), stdOut.String())
@@ -1547,7 +1653,7 @@ func TestReleaseCreate_AutomationMode(t *testing.T) {
 			assert.Nil(t, err)
 
 			assert.Equal(t, heredoc.Doc(`
-				Successfully created release version 1.0.5 (Releases-999) using channel Alpha channel (Channels-32)
+				Successfully created release version 1.0.5 using channel Alpha channel
 				
 				View this release on Octopus Deploy: http://server/app#/Spaces-1/releases/Releases-999
 				`), stdOut.String())

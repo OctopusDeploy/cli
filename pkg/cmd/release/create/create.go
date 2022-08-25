@@ -1,10 +1,12 @@
 package create
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/MakeNowJust/heredoc/v2"
+	"github.com/OctopusDeploy/cli/pkg/cmd/release/list"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	cliErrors "github.com/OctopusDeploy/cli/pkg/errors"
 	"github.com/OctopusDeploy/cli/pkg/executor"
@@ -204,6 +206,11 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 }
 
 func createRun(cmd *cobra.Command, f factory.Factory, flags *CreateFlags) error {
+	outputFormat, err := cmd.Flags().GetString(constants.FlagOutputFormat)
+	if err != nil { // should never happen, but fallback if it does
+		outputFormat = constants.OutputFormatTable
+	}
+
 	if flags.ReleaseNotes.Value != "" && flags.ReleaseNotesFile.Value != "" {
 		return errors.New("cannot specify both --release-notes and --release-notes-file at the same time")
 	}
@@ -242,31 +249,33 @@ func createRun(cmd *cobra.Command, f factory.Factory, flags *CreateFlags) error 
 			return err
 		}
 
-		// the Q&A process will have modified options;backfill into flags for generation of the automation cmd
-		resolvedFlags := NewCreateFlags()
-		// deliberately don't include resolvedFlags.PackageVersion in the automation command; it gets converted into PackageVersionSpec
-		resolvedFlags.Project.Value = options.ProjectName
-		resolvedFlags.PackageVersionSpec.Value = options.PackageVersionOverrides
-		resolvedFlags.Channel.Value = options.ChannelName
-		resolvedFlags.GitRef.Value = options.GitReference
-		resolvedFlags.GitCommit.Value = options.GitCommit
-		resolvedFlags.Version.Value = options.Version
-		resolvedFlags.ReleaseNotes.Value = options.ReleaseNotes
-		resolvedFlags.IgnoreExisting.Value = options.IgnoreIfAlreadyExists
-		resolvedFlags.IgnoreChannelRules.Value = options.IgnoreChannelRules
+		if !constants.IsProgrammaticOutputFormat(outputFormat) {
+			// the Q&A process will have modified options;backfill into flags for generation of the automation cmd
+			resolvedFlags := NewCreateFlags()
+			// deliberately don't include resolvedFlags.PackageVersion in the automation command; it gets converted into PackageVersionSpec
+			resolvedFlags.Project.Value = options.ProjectName
+			resolvedFlags.PackageVersionSpec.Value = options.PackageVersionOverrides
+			resolvedFlags.Channel.Value = options.ChannelName
+			resolvedFlags.GitRef.Value = options.GitReference
+			resolvedFlags.GitCommit.Value = options.GitCommit
+			resolvedFlags.Version.Value = options.Version
+			resolvedFlags.ReleaseNotes.Value = options.ReleaseNotes
+			resolvedFlags.IgnoreExisting.Value = options.IgnoreIfAlreadyExists
+			resolvedFlags.IgnoreChannelRules.Value = options.IgnoreChannelRules
 
-		autoCmd := flag.GenerateAutomationCmd("octopus release create",
-			resolvedFlags.Project,
-			resolvedFlags.GitCommit,
-			resolvedFlags.GitRef,
-			resolvedFlags.Channel,
-			resolvedFlags.ReleaseNotes,
-			resolvedFlags.IgnoreExisting,
-			resolvedFlags.IgnoreChannelRules,
-			resolvedFlags.PackageVersionSpec,
-			resolvedFlags.Version,
-		)
-		cmd.Printf("\nAutomation Command: %s\n", autoCmd)
+			autoCmd := flag.GenerateAutomationCmd(constants.ExecutableName+" release create",
+				resolvedFlags.Project,
+				resolvedFlags.GitCommit,
+				resolvedFlags.GitRef,
+				resolvedFlags.Channel,
+				resolvedFlags.ReleaseNotes,
+				resolvedFlags.IgnoreExisting,
+				resolvedFlags.IgnoreChannelRules,
+				resolvedFlags.PackageVersionSpec,
+				resolvedFlags.Version,
+			)
+			cmd.Printf("\nAutomation Command: %s\n", autoCmd)
+		}
 	}
 
 	// the executor will raise errors if any required options are missing
@@ -278,34 +287,50 @@ func createRun(cmd *cobra.Command, f factory.Factory, flags *CreateFlags) error 
 	}
 
 	if options.Response != nil {
+		printReleaseVersion := func(releaseVersion string, channel *channels.Channel) {
+			switch outputFormat {
+			case constants.OutputFormatBasic:
+				cmd.Printf("%s\n", releaseVersion)
+			case constants.OutputFormatJson:
+				v := &list.ReleaseViewModel{Version: releaseVersion}
+				if channel != nil {
+					v.Channel = channel.Name
+					v.ChannelID = channel.ID
+				}
+
+				data, err := json.Marshal(v)
+				if err != nil { // shouldn't happen but fallback in case
+					cmd.PrintErrln(err)
+				} else {
+					_, _ = cmd.OutOrStdout().Write(data)
+					cmd.Println()
+				}
+			default: // table
+				if channel != nil {
+					cmd.Printf("Successfully created release version %s using channel %s\n", releaseVersion, channel.Name)
+				} else {
+					cmd.Printf("Successfully created release version %s\n", releaseVersion)
+				}
+			}
+
+		}
+
 		// the API response doesn't tell us what channel it selected, so we need to go look that up to tell the end user
 		newlyCreatedRelease, lookupErr := octopus.Releases.GetByID(options.Response.ReleaseID)
-		if lookupErr != nil { // ignorable error
-			cmd.Printf("Successfully created release version %s %s\n",
-				options.Response.ReleaseVersion,
-				output.Dimf("(%s)", options.Response.ReleaseID))
-
+		if lookupErr != nil {
 			cmd.PrintErrf("Warning: cannot fetch release details: %v\n", lookupErr)
+			printReleaseVersion(options.Response.ReleaseVersion, nil)
 		} else {
 			releaseChan, lookupErr := octopus.Channels.GetByID(newlyCreatedRelease.ChannelID)
-			if lookupErr != nil { // ignorable error
-				cmd.Printf("Successfully created release version %s %s using channel %s\n",
-					options.Response.ReleaseVersion,
-					output.Dimf("(%s)", options.Response.ReleaseID),
-					output.Dimf("(%s)", releaseChan.ID))
-
+			if lookupErr != nil {
 				cmd.PrintErrf("Warning: cannot fetch release channel details: %v\n", lookupErr)
+				printReleaseVersion(options.Response.ReleaseVersion, nil)
 			} else {
-				cmd.Printf("Successfully created release version %s %s using channel %s %s\n",
-					options.Response.ReleaseVersion,
-					output.Dimf("(%s)", options.Response.ReleaseID),
-					releaseChan.Name,
-					output.Dimf("(%s)", releaseChan.ID))
+				printReleaseVersion(options.Response.ReleaseVersion, releaseChan)
 			}
 		}
 
 		// output web URL all the time, so long as output format is not JSON or basic
-		outputFormat, err := cmd.Flags().GetString(constants.FlagOutputFormat)
 		if err == nil && !constants.IsProgrammaticOutputFormat(outputFormat) {
 			link := output.Bluef("%s/app#/%s/releases/%s", f.GetCurrentHost(), f.GetCurrentSpace().ID, options.Response.ReleaseID)
 			cmd.Printf("\nView this release on Octopus Deploy: %s\n", link)
@@ -985,7 +1010,7 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 
 func AskPackageOverrideLoop(
 	packageVersionBaseline []*StepPackageVersion,
-	defaultPackageVersion string,         // the --package-version command line flag
+	defaultPackageVersion string, // the --package-version command line flag
 	initialPackageOverrideFlags []string, // the --package command line flag (multiple occurrences)
 	asker question.Asker,
 	stdout io.Writer) ([]*StepPackageVersion, []*PackageVersionOverride, error) {
