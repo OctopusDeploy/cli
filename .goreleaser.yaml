@@ -33,9 +33,22 @@ archives:
       - goos: windows
         format: zip
     name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+
+nfpms:
+  - id: linux-distributions
+    replacements:
+      darwin: Darwin
+      linux: Linux
+      windows: Windows
+      amd64: x86_64
+    formats:
+      rpm
+      deb
+
 checksum:
   name_template: "{{ .ProjectName }}_{{ .Version }}_SHA256SUMS"
   algorithm: sha256
+
 signs:
   - artifacts: all
     args:
@@ -48,5 +61,6 @@ signs:
         "${artifact}",
       ]
     stdin: "{{ .Env.GPG_PASSWORD }}"
+
 changelog:
   skip: true
