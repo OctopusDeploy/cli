@@ -35,15 +35,14 @@ archives:
     name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
 
 nfpms:
-  - id: linux-distributions
-    replacements:
-      darwin: Darwin
-      linux: Linux
-      windows: Windows
-      amd64: x86_64
+  - license: Apache 2.0
+    maintainer: Octopus Deploy
+    homepage: https://github.com/OctopusDeploy/cli
+    bindir: /usr/bin
+    description: Octopus Deploy's official command line tool.
     formats:
-      rpm
-      deb
+      - rpm
+      - deb
 
 checksum:
   name_template: "{{ .ProjectName }}_{{ .Version }}_SHA256SUMS"
