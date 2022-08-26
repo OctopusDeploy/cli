@@ -110,7 +110,7 @@ step "push-changes-to-homebrew-repo" {
         packages "cli" {
             acquisition_location = "Server"
             feed = "octopus-server-built-in"
-            package_id = "OctopusCli"
+            package_id = "OctopusCli.osx"
             properties = {
                 Extract = "True"
                 Purpose = ""
@@ -129,7 +129,7 @@ step "publish-to-apt-repo" {
         environments = ["production"]
         properties = {
             Octopus.Action.Script.ScriptBody = <<-EOT
-                cd OctopusCli.linux-x64 || exit
+                cd cli || exit
 
                 # Deploy APT repo
                 docker run --rm --volume $(pwd):/working \
@@ -146,10 +146,10 @@ step "publish-to-apt-repo" {
         }
         worker_pool = "hosted-ubuntu"
 
-        packages "OctopusCli.linux-x64" {
+        packages "cli" {
             acquisition_location = "Server"
             feed = "octopus-server-built-in"
-            package_id = "OctopusCli.linux-x64"
+            package_id = "OctopusCli.linux"
             properties = {
                 Extract = "True"
                 SelectionMode = "immediate"
@@ -167,7 +167,7 @@ step "publish-to-rpm-repo" {
         environments = ["production"]
         properties = {
             Octopus.Action.Script.ScriptBody = <<-EOT
-                cd OctopusCli.linux-x64 || exit
+                cd cli || exit
 
                 # Deploy RPM repo
                 docker run --rm --volume $(pwd):/working \
@@ -184,10 +184,10 @@ step "publish-to-rpm-repo" {
         }
         worker_pool = "hosted-ubuntu"
 
-        packages "OctopusCli.linux-x64" {
+        packages "cli" {
             acquisition_location = "Server"
             feed = "octopus-server-built-in"
-            package_id = "OctopusCli.linux-x64"
+            package_id = "OctopusCli.linux"
             properties = {
                 Extract = "True"
                 SelectionMode = "immediate"
