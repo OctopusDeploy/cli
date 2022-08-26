@@ -1,5 +1,27 @@
 # Changelog
 
+## [0.2.0](https://github.com/OctopusDeploy/cli/compare/v0.1.0...v0.2.0) (2022-08-26)
+
+
+### Features
+
+* `release create`
+* `release list`
+* `release delete`
+* `account <type> list commands` ([#41](https://github.com/OctopusDeploy/cli/issues/41)) ([5354118](https://github.com/OctopusDeploy/cli/commit/5354118066be9c31c83cd617f3ea50ff31f8b7ec))
+* `account create` ([#47](https://github.com/OctopusDeploy/cli/issues/47)) ([11d67d1](https://github.com/OctopusDeploy/cli/commit/11d67d101217a2935a54bdb6534899c293d2a7a5))
+* allow selection of space on command line ([0d42bc0](https://github.com/OctopusDeploy/cli/commit/0d42bc037572be9ce69cc135aa1dd51576666b36))
+* CLI now prompts to select a space in interactive mode, or auto-selects if there is only one visible space. ([1f57272](https://github.com/OctopusDeploy/cli/commit/1f572720e5f797c45efe256cee919a2a37acf698))
+* compatibility with legacy flags from the .NET CLI ([c439c2e](https://github.com/OctopusDeploy/cli/commit/c439c2e954f44b04b3975622d918d2bf3b6054bf))
+* updated MultiSelectMap to return via generics ([d7d23d0](https://github.com/OctopusDeploy/cli/commit/d7d23d0b1cc4cc2d78a490a901c2e47d3fdf85f5))
+
+### Bug Fixes
+
+* --no-prompt and the CI environment check wasn't respected if the CLI wanted to prompt for the space name ([c75cf69](https://github.com/OctopusDeploy/cli/commit/c75cf69898504bcd074cda4a4bb153b096cbcff2))
+* Activity spinner was showing over the top of the space selection prompt in interactive mode ([0d42bc0](https://github.com/OctopusDeploy/cli/commit/0d42bc037572be9ce69cc135aa1dd51576666b36))
+* detection of terminal width when outputting tables ([10e1a9b](https://github.com/OctopusDeploy/cli/commit/10e1a9beec011249806e8506a3d44646f5fb8809))
+* flag alias for --output-format and --outputFormat didn't work ([0d42bc0](https://github.com/OctopusDeploy/cli/commit/0d42bc037572be9ce69cc135aa1dd51576666b36))
+
 ## [0.1.0](https://github.com/OctopusDeploy/cli/compare/v0.0.3...v0.1.0) (2022-07-24)
 
 
