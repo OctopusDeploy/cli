@@ -2,6 +2,7 @@ package integration_test
 
 import (
 	"fmt"
+	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/test/integration"
 	"github.com/OctopusDeploy/cli/test/testutil"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/channels"
@@ -12,7 +13,9 @@ import (
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/releases"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"os/exec"
+	"strings"
 	"testing"
 )
 
@@ -175,7 +178,7 @@ func TestReleaseCreateBasics(t *testing.T) {
 	})
 }
 
-func TestReleaseList(t *testing.T) {
+func TestReleaseListAndDelete(t *testing.T) {
 	runId := uuid.New()
 	apiClient, err := integration.GetApiClient(space1ID)
 	testutil.RequireSuccess(t, err)
@@ -210,10 +213,83 @@ func TestReleaseList(t *testing.T) {
 	}
 
 	// create some releases so we can list them
-	releases.NewCreateReleaseV1()
-	apiClient.Releases.CreateV1()
+	createReleaseCmd := releases.NewCreateReleaseV1(space1ID, fx.Project.ID)
+	for i := 0; i < 5; i++ {
+		createReleaseCmd.ReleaseVersion = fmt.Sprintf("%d.0", i+1)
+		_, err := apiClient.Releases.CreateV1(createReleaseCmd)
+		assert.Nil(t, err)
+	}
+	t.Cleanup(func() { deleteAllReleasesInProject(t, apiClient, project) })
 
-	t.Run("create a release specifying project,channel,version", func(t *testing.T) {
+	t.Run("list releases - basic", func(t *testing.T) {
+		stdOut, stdErr, err := integration.RunCli(space1ID, "release", "list", "--project", project.Name, "--output-format", "basic")
+		if !testutil.AssertSuccess(t, err, stdOut, stdErr) {
+			return
+		}
 
+		assert.Equal(t, "5.0\n4.0\n3.0\n2.0\n1.0\n", stdOut)
+		assert.Equal(t, "", stdErr)
+	})
+
+	t.Run("list releases - json", func(t *testing.T) {
+		stdOut, stdErr, err := integration.RunCli(space1ID, "release", "list", "--project", project.Name, "--output-format", "json")
+		if !testutil.AssertSuccess(t, err, stdOut, stdErr) {
+			return
+		}
+
+		type x struct {
+			Channel string
+			Version string
+		}
+
+		parsed, err := testutil.ParseJsonStrict[[]x](strings.NewReader(stdOut))
+		assert.Nil(t, err)
+		assert.Equal(t, []x{
+			{Channel: "Default", Version: "5.0"},
+			{Channel: "Default", Version: "4.0"},
+			{Channel: "Default", Version: "3.0"},
+			{Channel: "Default", Version: "2.0"},
+			{Channel: "Default", Version: "1.0"},
+		}, parsed)
+		assert.Equal(t, "", stdErr)
+	})
+
+	t.Run("list releases - default", func(t *testing.T) {
+		stdOut, stdErr, err := integration.RunCli(space1ID, "release", "list", "--project", project.Name)
+		if !testutil.AssertSuccess(t, err, stdOut, stdErr) {
+			return
+		}
+		assert.Equal(t, heredoc.Doc(`
+			VERSION  CHANNEL
+			5.0      Default
+			4.0      Default
+			3.0      Default
+			2.0      Default
+			1.0      Default
+			`), stdOut)
+		assert.Equal(t, "", stdErr)
+	})
+
+	t.Run("delete release", func(t *testing.T) {
+		createReleaseCmd.ReleaseVersion = "DeleteMe5.0"
+		createResponse, err := apiClient.Releases.CreateV1(createReleaseCmd)
+		require.Nil(t, err)
+
+		// sanity check create worked so we can prove that deleting works
+		resp, err := apiClient.Releases.GetByID(createResponse.ReleaseID)
+		require.Nil(t, err)
+		assert.Equal(t, "DeleteMe5.0", resp.Version)
+
+		stdOut, stdErr, err := integration.RunCli(space1ID, "release", "delete", "--project", project.Name, "--version", "DeleteMe5.0")
+		if !testutil.AssertSuccess(t, err, stdOut, stdErr) {
+			return
+		}
+
+		assert.Regexp(t, "Success", stdOut)
+		assert.Equal(t, "", stdErr)
+
+		resp, err = apiClient.Releases.GetByID(createResponse.ReleaseID)
+		assert.Nil(t, resp)
+		assert.Equal(t, &core.APIError{ErrorMessage: fmt.Sprintf("The resource '%s' was not found.", createResponse.ReleaseID), StatusCode: 404}, err)
 	})
 }
