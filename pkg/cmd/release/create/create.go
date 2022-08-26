@@ -295,9 +295,7 @@ func createRun(cmd *cobra.Command, f factory.Factory, flags *CreateFlags) error 
 				v := &list.ReleaseViewModel{Version: releaseVersion}
 				if channel != nil {
 					v.Channel = channel.Name
-					v.ChannelID = channel.ID
 				}
-
 				data, err := json.Marshal(v)
 				if err != nil { // shouldn't happen but fallback in case
 					cmd.PrintErrln(err)
@@ -1153,7 +1151,7 @@ func askVersionMetadata(ask question.Asker, packageId string, packageVersion str
 	var result string
 	if err := ask(&survey.Input{
 		Default: "",
-		Message: fmt.Sprintf("Using release version %s from package %s. Add +metadata? (blank for none):", packageVersion, packageId),
+		Message: fmt.Sprintf("Release version %s (from included package %s). Add metadata? (optional):", packageVersion, packageId),
 	}, &result); err != nil {
 		return "", err
 	}

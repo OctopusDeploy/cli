@@ -331,7 +331,7 @@ func TestReleaseCreate_AskQuestions_RegularProject(t *testing.T) {
 			_ = q.AnswerWith("y") // just accept all the packages; package loop is tested elsewhere
 
 			_ = qa.ExpectQuestion(t, &survey.Input{
-				Message: "Using release version 6.2.1 from package NuGet.CommandLine. Add +metadata? (blank for none):",
+				Message: "Release version 6.2.1 (from included package NuGet.CommandLine). Add metadata? (optional):",
 				Default: "", // observing this value is the whole point of this test
 			}).AnswerWith("bonanza")
 
@@ -413,7 +413,7 @@ func TestReleaseCreate_AskQuestions_RegularProject(t *testing.T) {
 			}).AnswerWith("y") // just accept all the packages; package loop is tested elsewhere
 
 			_ = qa.ExpectQuestion(t, &survey.Input{
-				Message: "Using release version 6.2.1 from package NuGet.CommandLine. Add +metadata? (blank for none):",
+				Message: "Release version 6.2.1 (from included package NuGet.CommandLine). Add metadata? (optional):",
 				Default: "",
 			}).AnswerWith("")
 
@@ -1368,7 +1368,7 @@ func TestReleaseCreate_AutomationMode(t *testing.T) {
 			_, err := testutil.ReceivePair(cmdReceiver)
 			assert.Nil(t, err)
 
-			assert.Equal(t, "{\"Channel\":\"Alpha channel\",\"ChannelID\":\"Channels-32\",\"Version\":\"1.2.3\"}\n", stdOut.String())
+			assert.Equal(t, "{\"Channel\":\"Alpha channel\",\"Version\":\"1.2.3\"}\n", stdOut.String())
 			assert.Equal(t, "", stdErr.String())
 		}},
 

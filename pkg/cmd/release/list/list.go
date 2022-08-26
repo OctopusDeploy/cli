@@ -28,9 +28,8 @@ func NewListFlags() *ListFlags {
 }
 
 type ReleaseViewModel struct {
-	Channel   string
-	ChannelID string `json:",omitempty"`
-	Version   string
+	Channel string
+	Version string
 }
 
 func NewCmdList(f factory.Factory) *cobra.Command {
@@ -109,9 +108,8 @@ func listRun(cmd *cobra.Command, f factory.Factory, flags *ListFlags) error {
 		},
 		func(item *releases.Release, lookup []string) ReleaseViewModel { // result producer
 			return ReleaseViewModel{
-				ChannelID: item.ChannelID,
-				Channel:   lookup[0],
-				Version:   item.Version}
+				Channel: lookup[0],
+				Version: item.Version}
 		},
 		// lookup for channel names
 		func(keys []string) ([]string, error) {
