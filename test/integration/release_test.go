@@ -9,35 +9,12 @@ import (
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/core"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/deployments"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/releases"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"os/exec"
 	"testing"
 )
-
-// things to test (interactive mode):
-// NOTE the question flow does the matching here:
-//   case-insensitive match on channel name
-//   no partial match on channel name
-//   case-insensitive match on project name
-//   no partial match on project name
-
-// things to test (automation mode):
-// NOTE the question flow does not run here, should it?
-//   case-insensitive match on channel name
-//   no partial match on channel name
-//   case-insensitive match on project name
-//   no partial match on project name
-
-// DESIGN QUESTION:
-// In automation mode, if a user specifies "foo project" and the actual thing is "Foo PROJECT", should the
-// command do a pass over the options first, and replace things with their correctly-cased versions before
-// feeding into the executor, or should the executor do that?
-//
-// The nicest thing would be if the executor could just be a blind pass-through into the server, however
-// because the octopus server doesn't support things like
-// matching a project based on exact name, we have to do at least SOME client side filtering first.
-// The executions API may be an exception to this rule, but in general, it holds.
 
 const space1ID = "Spaces-1"
 
@@ -195,5 +172,48 @@ func TestReleaseCreateBasics(t *testing.T) {
 
 		assert.Equal(t, "\n", stdOut)
 		assert.Equal(t, "project must be specified", stdErr)
+	})
+}
+
+func TestReleaseList(t *testing.T) {
+	runId := uuid.New()
+	apiClient, err := integration.GetApiClient(space1ID)
+	testutil.RequireSuccess(t, err)
+
+	fx, err := integration.CreateCommonProject(t, apiClient, runId)
+	testutil.RequireSuccess(t, err)
+
+	project := fx.Project // alias for convenience
+
+	dep, err := apiClient.DeploymentProcesses.Get(fx.Project, "")
+	if !testutil.AssertSuccess(t, err) {
+		return
+	}
+	dep.Steps = []*deployments.DeploymentStep{
+		{
+			Name:       fmt.Sprintf("step1-%s", runId),
+			Properties: map[string]core.PropertyValue{"Octopus.Action.TargetRoles": core.NewPropertyValue("deploy", false)},
+			Actions: []*deployments.DeploymentAction{
+				{
+					ActionType: "Octopus.Script",
+					Name:       "Run a script",
+					Properties: map[string]core.PropertyValue{
+						"Octopus.Action.Script.ScriptBody": core.NewPropertyValue("echo 'hello'", false),
+					},
+				},
+			},
+		},
+	}
+	dep, err = apiClient.DeploymentProcesses.Update(dep)
+	if !testutil.AssertSuccess(t, err) {
+		return
+	}
+
+	// create some releases so we can list them
+	releases.NewCreateReleaseV1()
+	apiClient.Releases.CreateV1()
+
+	t.Run("create a release specifying project,channel,version", func(t *testing.T) {
+
 	})
 }
