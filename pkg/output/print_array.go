@@ -50,7 +50,7 @@ func PrintArray[T any](items []T, cmd *cobra.Command, mappers Mappers[T]) error 
 	outputFormat, _ := cmd.Flags().GetString(constants.FlagOutputFormat)
 
 	switch strings.ToLower(outputFormat) {
-	case "json":
+	case constants.OutputFormatJson:
 		jsonMapper := mappers.Json
 		if jsonMapper == nil {
 			return errors.New("command does not support output in JSON format")
@@ -63,7 +63,7 @@ func PrintArray[T any](items []T, cmd *cobra.Command, mappers Mappers[T]) error 
 		data, _ := json.MarshalIndent(outputJson, "", "  ")
 		cmd.Println(string(data))
 
-	case "basic", "text":
+	case constants.OutputFormatBasic:
 		textMapper := mappers.Basic
 		if textMapper == nil {
 			return errors.New("command does not support output in plain text")
@@ -72,7 +72,7 @@ func PrintArray[T any](items []T, cmd *cobra.Command, mappers Mappers[T]) error 
 			cmd.Println(textMapper(e))
 		}
 
-	case "table", "": // table is the default of unspecified
+	case constants.OutputFormatTable, "": // table is the default of unspecified
 		tableMapper := mappers.Table
 		if tableMapper.Row == nil {
 			return errors.New("command does not support output in table format")

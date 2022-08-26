@@ -1,10 +1,13 @@
 package create
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/MakeNowJust/heredoc/v2"
+	"github.com/OctopusDeploy/cli/pkg/cmd/release/list"
+	"github.com/OctopusDeploy/cli/pkg/constants"
 	cliErrors "github.com/OctopusDeploy/cli/pkg/errors"
 	"github.com/OctopusDeploy/cli/pkg/executor"
 	"github.com/OctopusDeploy/cli/pkg/factory"
@@ -68,6 +71,47 @@ const (
 	//FlagPackagePrerelease            = "package-prerelease"
 	//FlagAliasPackagePrereleaseLegacy = "packagePrerelease"
 )
+
+var packageOverrideLoopHelpText = heredoc.Doc(`
+bold(PACKAGE SELECTION)
+ This screen presents the list of packages used by your project, and the steps
+ which reference them. 
+ If an item is dimmed (gray text) this indicates that the attribute is duplicated.
+ For example if you reference the same package in two steps, the second will be dimmed. 
+
+bold(COMMANDS)
+ Any any point, you can enter one of the following:
+ - green(?) to access this help screen
+ - green(y) to accept the list of packages and proceed with creating the release
+ - green(u) to undo the last edit you made to package versions
+ - green(r) to reset all package version edits
+ - A package override string.
+
+bold(PACKAGE OVERRIDE STRINGS)
+ Package override strings must have 2 or 3 components, separated by a :
+ The last component must always be a version number.
+ 
+ When specifying 2 components, the first component is either a Package ID or a Step Name.
+ You can also specify a * which will match all packages
+ Examples:
+   bold(octopustools:9.1)   dim(# sets package 'octopustools' in all steps to v 9.1)
+   bold(Push Package:3.0)   dim(# sets all packages in the 'Push Package' step to v 3.0)
+   bold(*:5.1)              dim(# sets all packages in all steps to v 5.1)
+
+ The 3-component syntax is for advanced use cases where you reference the same package twice
+ in a single step, and need to distinguish between the two.
+ The syntax is bold(packageIDorStepName:packageReferenceName:version)
+ Please refer to the octopus server documentation for more information regarding package reference names. 
+
+dim(---------------------------------------------------------------------)
+`) // note this expects to have prettifyHelp run over it
+
+func prettifyHelp(str string) string {
+	str = regexp.MustCompile("bold\\((.*?)\\)").ReplaceAllString(str, output.Bold("$1"))
+	str = regexp.MustCompile("green\\((.*?)\\)").ReplaceAllString(str, output.Green("$1"))
+	str = regexp.MustCompile("dim\\((.*?)\\)").ReplaceAllString(str, output.Dim("$1"))
+	return str
+}
 
 type CreateFlags struct {
 	Project            *flag.Flag[string]
@@ -162,6 +206,11 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 }
 
 func createRun(cmd *cobra.Command, f factory.Factory, flags *CreateFlags) error {
+	outputFormat, err := cmd.Flags().GetString(constants.FlagOutputFormat)
+	if err != nil { // should never happen, but fallback if it does
+		outputFormat = constants.OutputFormatTable
+	}
+
 	if flags.ReleaseNotes.Value != "" && flags.ReleaseNotesFile.Value != "" {
 		return errors.New("cannot specify both --release-notes and --release-notes-file at the same time")
 	}
@@ -200,31 +249,33 @@ func createRun(cmd *cobra.Command, f factory.Factory, flags *CreateFlags) error 
 			return err
 		}
 
-		// the Q&A process will have modified options;backfill into flags for generation of the automation cmd
-		resolvedFlags := NewCreateFlags()
-		// deliberately don't include resolvedFlags.PackageVersion in the automation command; it gets converted into PackageVersionSpec
-		resolvedFlags.Project.Value = options.ProjectName
-		resolvedFlags.PackageVersionSpec.Value = options.PackageVersionOverrides
-		resolvedFlags.Channel.Value = options.ChannelName
-		resolvedFlags.GitRef.Value = options.GitReference
-		resolvedFlags.GitCommit.Value = options.GitCommit
-		resolvedFlags.Version.Value = options.Version
-		resolvedFlags.ReleaseNotes.Value = options.ReleaseNotes
-		resolvedFlags.IgnoreExisting.Value = options.IgnoreIfAlreadyExists
-		resolvedFlags.IgnoreChannelRules.Value = options.IgnoreChannelRules
+		if !constants.IsProgrammaticOutputFormat(outputFormat) {
+			// the Q&A process will have modified options;backfill into flags for generation of the automation cmd
+			resolvedFlags := NewCreateFlags()
+			// deliberately don't include resolvedFlags.PackageVersion in the automation command; it gets converted into PackageVersionSpec
+			resolvedFlags.Project.Value = options.ProjectName
+			resolvedFlags.PackageVersionSpec.Value = options.PackageVersionOverrides
+			resolvedFlags.Channel.Value = options.ChannelName
+			resolvedFlags.GitRef.Value = options.GitReference
+			resolvedFlags.GitCommit.Value = options.GitCommit
+			resolvedFlags.Version.Value = options.Version
+			resolvedFlags.ReleaseNotes.Value = options.ReleaseNotes
+			resolvedFlags.IgnoreExisting.Value = options.IgnoreIfAlreadyExists
+			resolvedFlags.IgnoreChannelRules.Value = options.IgnoreChannelRules
 
-		autoCmd := flag.GenerateAutomationCmd("octopus release create",
-			resolvedFlags.Project,
-			resolvedFlags.GitCommit,
-			resolvedFlags.GitRef,
-			resolvedFlags.Channel,
-			resolvedFlags.ReleaseNotes,
-			resolvedFlags.IgnoreExisting,
-			resolvedFlags.IgnoreChannelRules,
-			resolvedFlags.PackageVersionSpec,
-			resolvedFlags.Version,
-		)
-		cmd.Printf("\nAutomation Command: %s\n", autoCmd)
+			autoCmd := flag.GenerateAutomationCmd(constants.ExecutableName+" release create",
+				resolvedFlags.Project,
+				resolvedFlags.GitCommit,
+				resolvedFlags.GitRef,
+				resolvedFlags.Channel,
+				resolvedFlags.ReleaseNotes,
+				resolvedFlags.IgnoreExisting,
+				resolvedFlags.IgnoreChannelRules,
+				resolvedFlags.PackageVersionSpec,
+				resolvedFlags.Version,
+			)
+			cmd.Printf("\nAutomation Command: %s\n", autoCmd)
+		}
 	}
 
 	// the executor will raise errors if any required options are missing
@@ -236,33 +287,48 @@ func createRun(cmd *cobra.Command, f factory.Factory, flags *CreateFlags) error 
 	}
 
 	if options.Response != nil {
-		// the API response doesn't tell us what channel it selected, so we need to go look that up to tell the end user
-		newlyCreatedRelease, lookupErr := octopus.Releases.GetByID(options.Response.ReleaseID)
-		if lookupErr != nil { // ignorable error
-			cmd.Printf("Successfully created release version %s %s\n",
-				options.Response.ReleaseVersion,
-				output.Dimf("(%s)", options.Response.ReleaseID))
-
-			cmd.PrintErrf("Warning: cannot fetch release details: %v\n", lookupErr)
-		} else {
-			releaseChan, lookupErr := octopus.Channels.GetByID(newlyCreatedRelease.ChannelID)
-			if lookupErr != nil { // ignorable error
-				cmd.Printf("Successfully created release version %s %s using channel %s\n",
-					options.Response.ReleaseVersion,
-					output.Dimf("(%s)", options.Response.ReleaseID),
-					output.Dimf("(%s)", releaseChan.ID))
-
-				cmd.PrintErrf("Warning: cannot fetch release channel details: %v\n", lookupErr)
-			} else {
-				cmd.Printf("Successfully created release version %s %s using channel %s %s\n",
-					options.Response.ReleaseVersion,
-					output.Dimf("(%s)", options.Response.ReleaseID),
-					releaseChan.Name,
-					output.Dimf("(%s)", releaseChan.ID))
+		printReleaseVersion := func(releaseVersion string, channel *channels.Channel) {
+			switch outputFormat {
+			case constants.OutputFormatBasic:
+				cmd.Printf("%s\n", releaseVersion)
+			case constants.OutputFormatJson:
+				v := &list.ReleaseViewModel{Version: releaseVersion}
+				if channel != nil {
+					v.Channel = channel.Name
+				}
+				data, err := json.Marshal(v)
+				if err != nil { // shouldn't happen but fallback in case
+					cmd.PrintErrln(err)
+				} else {
+					_, _ = cmd.OutOrStdout().Write(data)
+					cmd.Println()
+				}
+			default: // table
+				if channel != nil {
+					cmd.Printf("Successfully created release version %s using channel %s\n", releaseVersion, channel.Name)
+				} else {
+					cmd.Printf("Successfully created release version %s\n", releaseVersion)
+				}
 			}
 		}
 
-		if f.IsPromptEnabled() {
+		// the API response doesn't tell us what channel it selected, so we need to go look that up to tell the end user
+		newlyCreatedRelease, lookupErr := octopus.Releases.GetByID(options.Response.ReleaseID)
+		if lookupErr != nil {
+			cmd.PrintErrf("Warning: cannot fetch release details: %v\n", lookupErr)
+			printReleaseVersion(options.Response.ReleaseVersion, nil)
+		} else {
+			releaseChan, lookupErr := octopus.Channels.GetByID(newlyCreatedRelease.ChannelID)
+			if lookupErr != nil {
+				cmd.PrintErrf("Warning: cannot fetch release channel details: %v\n", lookupErr)
+				printReleaseVersion(options.Response.ReleaseVersion, nil)
+			} else {
+				printReleaseVersion(options.Response.ReleaseVersion, releaseChan)
+			}
+		}
+
+		// output web URL all the time, so long as output format is not JSON or basic
+		if err == nil && !constants.IsProgrammaticOutputFormat(outputFormat) {
 			link := output.Bluef("%s/app#/%s/releases/%s", f.GetCurrentHost(), f.GetCurrentSpace().ID, options.Response.ReleaseID)
 			cmd.Printf("\nView this release on Octopus Deploy: %s\n", link)
 		}
@@ -780,7 +846,7 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 			if err != nil {
 				return err
 			}
-			options.GitReference = gitRef.Name // Hold the short name, not the canonical name due to golang url parsing bug replacing %2f with /
+			options.GitReference = gitRef.CanonicalName // e.g /refs/heads/main
 		} else {
 			// we need to go lookup the git reference
 			_, _ = fmt.Fprintf(stdout, "Git Reference %s\n", output.Cyan(options.GitReference))
@@ -891,7 +957,6 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 			return cliErrors.NewInvalidResponseError(fmt.Sprintf("cannot determine versioning strategy for project %s", selectedProject.Name))
 		}
 
-		defaultNextVersion := ""
 		if versioningStrategy.DonorPackageStepID != nil || versioningStrategy.DonorPackage != nil {
 			// we've already done the package version work so we can just ask the donor package which version it has selected
 			var donorPackage *StepPackageVersion
@@ -908,31 +973,31 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 				return fmt.Errorf("internal error: can't find donor package in deployment process template - version controlled configuration file in an invalid state")
 			}
 
-			defaultNextVersion = donorPackage.Version
+			versionMetadata, err := askVersionMetadata(asker, donorPackage.PackageID, donorPackage.Version)
+			if err != nil {
+				return err
+			}
+			if versionMetadata == "" {
+				options.Version = donorPackage.Version
+			} else {
+				options.Version = fmt.Sprintf("%s+%s", donorPackage.Version, versionMetadata)
+			}
 			spinner.Stop()
 		} else if versioningStrategy.Template != "" {
 			// we already loaded the deployment process template when we were looking for packages
-			defaultNextVersion = deploymentProcessTemplate.NextVersionIncrement
+			options.Version, err = askVersion(asker, deploymentProcessTemplate.NextVersionIncrement)
+			if err != nil {
+				return err
+			}
 		}
 
-		version, err := askVersion(asker, defaultNextVersion)
-		if err != nil {
-			return err
-		}
-		options.Version = version
 	} else {
 		_, _ = fmt.Fprintf(stdout, "Version %s\n", output.Cyan(options.Version))
 	}
 
 	if options.ReleaseNotes == "" {
-		if err := asker(&surveyext.OctoEditor{
-			Editor: &survey.Editor{
-				Message:  "Release Notes",
-				Help:     "You may optionally add notes to the release using Markdown.",
-				FileName: "*.md",
-			},
-			Optional: true,
-		}, &options.ReleaseNotes); err != nil {
+		options.ReleaseNotes, err = askReleaseNotes(asker)
+		if err != nil {
 			return err
 		}
 	}
@@ -967,7 +1032,7 @@ func AskPackageOverrideLoop(
 
 	overriddenPackageVersions := ApplyPackageOverrides(packageVersionBaseline, packageVersionOverrides)
 
-outer_loop:
+outerLoop:
 	for {
 		err := printPackageVersions(stdout, overriddenPackageVersions)
 		if err != nil {
@@ -1003,7 +1068,7 @@ outer_loop:
 					packageVersionOverrides = append(packageVersionOverrides, override)
 					overriddenPackageVersions = ApplyPackageOverrides(packageVersionBaseline, packageVersionOverrides)
 				}
-				continue outer_loop
+				continue outerLoop
 			}
 		}
 
@@ -1022,7 +1087,7 @@ outer_loop:
 
 			switch str {
 			// valid response for continuing the loop; don't attempt to validate these
-			case "y", "u", "":
+			case "y", "u", "r", "?", "":
 				return nil
 			}
 
@@ -1042,39 +1107,70 @@ outer_loop:
 		if err != nil {
 			return nil, nil, err
 		}
-		if answer == "u" { // undo!
+
+		switch answer {
+		case "y": // YES these are the packages they want
+			break outerLoop
+		case "?": // help text
+			_, _ = fmt.Fprintf(stdout, prettifyHelp(packageOverrideLoopHelpText))
+		case "u": // undo!
 			if len(packageVersionOverrides) > 0 {
 				packageVersionOverrides = packageVersionOverrides[:len(packageVersionOverrides)-1]
 				// always reset to the baseline and apply everything in order, there's less room for logic errors
 				overriddenPackageVersions = ApplyPackageOverrides(packageVersionBaseline, packageVersionOverrides)
 			}
-			continue // print table and go again
+		case "r": // reset! All the way back to the calculated versions, discarding even the stuff that came in from the cmdline
+			if len(packageVersionOverrides) > 0 {
+				packageVersionOverrides = make([]*PackageVersionOverride, 0)
+				overriddenPackageVersions = ApplyPackageOverrides(packageVersionBaseline, packageVersionOverrides)
+			}
+		default:
+			if resolvedOverride != nil {
+				packageVersionOverrides = append(packageVersionOverrides, resolvedOverride)
+				// always reset to the baseline and apply everything in order, there's less room for logic errors
+				overriddenPackageVersions = ApplyPackageOverrides(packageVersionBaseline, packageVersionOverrides)
+			}
 		}
-
-		if answer == "y" { // YES these are the packages they want
-			break
-		}
-
-		if resolvedOverride != nil {
-			packageVersionOverrides = append(packageVersionOverrides, resolvedOverride)
-			// always reset to the baseline and apply everything in order, there's less room for logic errors
-			overriddenPackageVersions = ApplyPackageOverrides(packageVersionBaseline, packageVersionOverrides)
-		}
-		// else the user most likely typed an empty string, loop around
+		// loop around and let them put in more input
 	}
 	return overriddenPackageVersions, packageVersionOverrides, nil
 }
 
 func askVersion(ask question.Asker, defaultVersion string) (string, error) {
-	var version string
+	var result string
 	if err := ask(&survey.Input{
 		Default: defaultVersion,
 		Message: "Release Version",
-	}, &version); err != nil {
+	}, &result); err != nil {
 		return "", err
 	}
+	return result, nil
+}
 
-	return version, nil
+func askVersionMetadata(ask question.Asker, packageId string, packageVersion string) (string, error) {
+	var result string
+	if err := ask(&survey.Input{
+		Default: "",
+		Message: fmt.Sprintf("Release version %s (from included package %s). Add metadata? (optional):", packageVersion, packageId),
+	}, &result); err != nil {
+		return "", err
+	}
+	return result, nil
+}
+
+func askReleaseNotes(ask question.Asker) (string, error) {
+	var result string
+	if err := ask(&surveyext.OctoEditor{
+		Editor: &survey.Editor{
+			Message:  "Release Notes",
+			Help:     "You may optionally add notes to the release using Markdown.",
+			FileName: "*.md",
+		},
+		Optional: true,
+	}, &result); err != nil {
+		return "", err
+	}
+	return result, nil
 }
 
 func selectChannel(octopus *octopusApiClient.Client, ask question.Asker, spinner factory.Spinner, project *projects.Project) (*channels.Channel, error) {

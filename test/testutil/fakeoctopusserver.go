@@ -140,6 +140,9 @@ func (m *MockHttpServer) ExpectRequest(t *testing.T, method string, pathAndQuery
 	}
 
 	rPathAndQuery := r.URL.Path
+	if r.URL.RawPath != "" { // RawPath may not be set, but if it is it should be used in preference to Path
+		rPathAndQuery = r.URL.RawPath
+	}
 	if r.URL.RawQuery != "" {
 		rPathAndQuery = fmt.Sprintf("%s?%s", rPathAndQuery, r.URL.RawQuery)
 	}

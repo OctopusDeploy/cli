@@ -235,7 +235,7 @@ func TestReleaseCreate_AskQuestions_RegularProject(t *testing.T) {
 				`), stdout.String())
 		}},
 
-		{"asking for release version based on donor package; packages exist (prints summarised table)", func(t *testing.T, api *testutil.MockHttpServer, qa *testutil.AskMocker, stdout *bytes.Buffer) {
+		{"asking for release version based on donor package; package exists and dictates the release version - add metadata", func(t *testing.T, api *testutil.MockHttpServer, qa *testutil.AskMocker, stdout *bytes.Buffer) {
 			options := &executor.TaskOptionsCreateRelease{
 				ProjectName:  "fire project",
 				ChannelName:  "fire project default channel",
@@ -316,25 +316,10 @@ func TestReleaseCreate_AskQuestions_RegularProject(t *testing.T) {
 				Items: []*packages.PackageVersion{{PackageID: "NuGet.CommandLine", Version: "6.2.1"}}, // the proper package
 			})
 
-			_ = qa.ExpectQuestion(t, &survey.Input{
+			q := qa.ExpectQuestion(t, &survey.Input{
 				Message: packageOverrideQuestion,
 				Default: "",
-			}).AnswerWith("y") // just accept all the packages; package loop is tested elsewhere
-
-			_ = qa.ExpectQuestion(t, &survey.Input{
-				Message: "Release Version",
-				Default: "6.2.1", // observing this value is the whole point of this test
-			}).AnswerWith("6.4")
-
-			err := <-errReceiver
-			assert.Nil(t, err)
-
-			// check that the question-asking process has filled out the things we told it to
-			assert.Equal(t, "Fire Project", options.ProjectName)
-			assert.Equal(t, "Fire Project Default Channel", options.ChannelName)
-			assert.Equal(t, "6.4", options.Version)
-
-			// Note how the table has pterm with steps "Install, Verify" rather than a row for each one
+			})
 			assert.Equal(t, heredoc.Doc(`
 				Project Fire Project
 				Channel Fire Project Default Channel
@@ -343,6 +328,102 @@ func TestReleaseCreate_AskQuestions_RegularProject(t *testing.T) {
 				pterm              0.12.51  Verify/pterm-on-verify
 				NuGet.CommandLine  6.2.1    Verify/nuget-on-verify
 				`), stdout.String())
+			_ = q.AnswerWith("y") // just accept all the packages; package loop is tested elsewhere
+
+			_ = qa.ExpectQuestion(t, &survey.Input{
+				Message: "Release version 6.2.1 (from included package NuGet.CommandLine). Add metadata? (optional):",
+				Default: "", // observing this value is the whole point of this test
+			}).AnswerWith("bonanza")
+
+			err := <-errReceiver
+			assert.Nil(t, err)
+
+			// check that the question-asking process has filled out the things we told it to
+			assert.Equal(t, "Fire Project", options.ProjectName)
+			assert.Equal(t, "Fire Project Default Channel", options.ChannelName)
+			assert.Equal(t, "6.2.1+bonanza", options.Version)
+		}},
+
+		{"asking for release version based on donor package; package exists and dictates the release version - don't add metadata", func(t *testing.T, api *testutil.MockHttpServer, qa *testutil.AskMocker, stdout *bytes.Buffer) {
+			options := &executor.TaskOptionsCreateRelease{
+				ProjectName:  "fire project",
+				ChannelName:  "fire project default channel",
+				ReleaseNotes: "-",
+			}
+
+			errReceiver := testutil.GoBegin(func() error {
+				defer testutil.Close(api, qa)
+				octopus, _ := octopusApiClient.NewClient(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "")
+				return create.AskQuestions(octopus, stdout, qa.AsAsker(), spinner, options)
+			})
+
+			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
+
+			var fireProject2 = *fireProject // clone the struct value
+			fireProject2.VersioningStrategy = &projects.VersioningStrategy{
+				DonorPackage: &packages.DeploymentActionPackage{
+					DeploymentAction: "Verify",
+					PackageReference: "nuget-on-verify",
+				},
+			}
+
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects?clonedFromProjectId=&partialName=fire+project").
+				RespondWith(resources.Resources[*projects.Project]{
+					Items: []*projects.Project{&fireProject2},
+				})
+
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/deploymentprocesses/deploymentprocess-"+fireProjectID).RespondWith(depProcess)
+
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+fireProjectID+"/channels").
+				RespondWith(resources.Resources[*channels.Channel]{
+					Items: []*channels.Channel{defaultChannel},
+				})
+
+			// always loads the deployment process template to check for packages
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+fireProjectID+"/deploymentprocesses/template?channel=Channels-1").
+				RespondWith(&deployments.DeploymentProcessTemplate{
+					Packages: []releases.ReleaseTemplatePackage{
+						{
+							ActionName:           "Verify",
+							FeedID:               "feeds-builtin",
+							PackageID:            "NuGet.CommandLine",
+							PackageReferenceName: "nuget-on-verify",
+							IsResolvable:         true,
+						},
+					},
+				})
+
+			// we have some packages so it'll go looking for the feed
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/feeds?ids=feeds-builtin&take=1").RespondWith(&feeds.Feeds{Items: []feeds.IFeed{
+				&feeds.FeedResource{Name: "Builtin", FeedType: feeds.FeedTypeBuiltIn, Resource: resources.Resource{
+					ID: "feeds-builtin",
+					Links: map[string]string{
+						constants.LinkSearchPackageVersionsTemplate: "/api/Spaces-1/feeds/feeds-builtin/packages/versions{?packageId,take,skip,includePreRelease,versionRange,preReleaseTag,filter,includeReleaseNotes}",
+					}}},
+			}})
+
+			// then it will look for versions
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/feeds/feeds-builtin/packages/versions?packageId=NuGet.CommandLine&take=1").RespondWith(&resources.Resources[*packages.PackageVersion]{
+				Items: []*packages.PackageVersion{{PackageID: "NuGet.CommandLine", Version: "6.2.1"}}, // the proper package
+			})
+
+			_ = qa.ExpectQuestion(t, &survey.Input{
+				Message: packageOverrideQuestion,
+				Default: "",
+			}).AnswerWith("y") // just accept all the packages; package loop is tested elsewhere
+
+			_ = qa.ExpectQuestion(t, &survey.Input{
+				Message: "Release version 6.2.1 (from included package NuGet.CommandLine). Add metadata? (optional):",
+				Default: "",
+			}).AnswerWith("")
+
+			err := <-errReceiver
+			assert.Nil(t, err)
+
+			// check that the question-asking process has filled out the things we told it to
+			assert.Equal(t, "Fire Project", options.ProjectName)
+			assert.Equal(t, "Fire Project Default Channel", options.ChannelName)
+			assert.Equal(t, "6.2.1", options.Version)
 		}},
 	}
 
@@ -358,7 +439,7 @@ func TestReleaseCreate_AskQuestions_VersionControlledProject(t *testing.T) {
 	const spaceID = "Spaces-1"
 
 	projectID := "Projects-87"
-	depProcessDevelopBranch := fixtures.NewDeploymentProcessForVersionControlledProject(spaceID, projectID, "develop")
+	depProcessDevelopBranch := fixtures.NewDeploymentProcessForVersionControlledProject(spaceID, projectID, "refs%2Fheads%2Fdevelop")
 
 	depSettings := fixtures.NewDeploymentSettingsForProject(spaceID, projectID, &projects.VersioningStrategy{
 		Template: "#{Octopus.Version.LastMajor}.#{Octopus.Version.LastMinor}.#{Octopus.Version.NextPatch}", // bog standard
@@ -415,10 +496,7 @@ func TestReleaseCreate_AskQuestions_VersionControlledProject(t *testing.T) {
 
 			// can't specify a git commit hash in interactive mode
 
-			// Once the CLI has picked up the git ref it then loads the deployment process which will be based on the git ref link
-			// NOTE: we are only using the git short name here, not the full name due to the golang url parsing bug which
-			// incorrectly turns %2f into a literal / in the URL
-			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+projectID+"/develop/deploymentprocesses").RespondWith(depProcessDevelopBranch)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+projectID+"/refs%2Fheads%2Fdevelop/deploymentprocesses").RespondWith(depProcessDevelopBranch)
 
 			// next phase; channel selection
 
@@ -431,10 +509,10 @@ func TestReleaseCreate_AskQuestions_VersionControlledProject(t *testing.T) {
 			}).AnswerWith(altChannel.Name)
 
 			// always loads dep process template
-			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+projectID+"/develop/deploymentprocesses/template?channel="+altChannel.ID).RespondWith(depTemplate)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+projectID+"/refs%2Fheads%2Fdevelop/deploymentprocesses/template?channel="+altChannel.ID).RespondWith(depTemplate)
 
 			// our project inline versioning strategy was nil, so the code needs to load the deployment settings to find out
-			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+projectID+"/develop/deploymentsettings").RespondWith(depSettings)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+projectID+"/refs%2Fheads%2Fdevelop/deploymentsettings").RespondWith(depSettings)
 
 			_ = qa.ExpectQuestion(t, &survey.Input{
 				Message: "Release Version",
@@ -457,7 +535,7 @@ func TestReleaseCreate_AskQuestions_VersionControlledProject(t *testing.T) {
 			assert.Equal(t, project.Name, options.ProjectName)
 			assert.Equal(t, "CaC Project Alt Channel", options.ChannelName)
 			assert.Equal(t, "27.9.999", options.Version)
-			assert.Equal(t, "develop", options.GitReference) // not fully qualified but I guess we could hold that
+			assert.Equal(t, "refs/heads/develop", options.GitReference) // not fully qualified but I guess we could hold that
 			assert.Equal(t, "", options.GitCommit)
 			assert.Equal(t, "## some release notes", options.ReleaseNotes)
 		}},
@@ -541,13 +619,13 @@ func TestReleaseCreate_AskQuestions_VersionControlledProject(t *testing.T) {
 			assert.Equal(t, project.Name, options.ProjectName)
 			assert.Equal(t, "CaC Project Alt Channel", options.ChannelName)
 			assert.Equal(t, "27.9.654", options.Version)
-			assert.Equal(t, "v2", options.GitReference) // not fully qualified but I guess we could hold that
+			assert.Equal(t, "refs/tags/v2", options.GitReference) // not fully qualified but I guess we could hold that
 			assert.Equal(t, "45c508a", options.GitCommit)
 		}},
 
 		{"standard process asking for everything; no packages, release version from template, doesn't ask for git ref if already specified", func(t *testing.T, api *testutil.MockHttpServer, qa *testutil.AskMocker, stdout *bytes.Buffer) {
 			options := &executor.TaskOptionsCreateRelease{
-				GitReference: "develop",
+				GitReference: "develop", // specifying a short name here not a fully qualified refs/heads/develop
 				ReleaseNotes: "already tested release notes",
 			}
 
@@ -580,7 +658,7 @@ func TestReleaseCreate_AskQuestions_VersionControlledProject(t *testing.T) {
 			}).AnswerWith(altChannel.Name)
 
 			// always loads dep process template
-			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+projectID+"/develop/deploymentprocesses/template?channel="+altChannel.ID).RespondWith(depTemplate)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+projectID+"/refs%2Fheads%2Fdevelop/deploymentprocesses/template?channel="+altChannel.ID).RespondWith(depTemplate)
 
 			// our project inline versioning strategy was nil, so the code needs to load the deployment settings to find out
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+projectID+"/develop/deploymentsettings").RespondWith(depSettings)
@@ -892,6 +970,33 @@ func TestReleaseCreate_AskQuestions_AskPackageOverrideLoop(t *testing.T) {
 			}, overrides)
 		}},
 
+		{"multiple overrides with reset", func(t *testing.T, qa *testutil.AskMocker, stdout *bytes.Buffer) {
+			receiver := testutil.GoBegin3(func() ([]*create.StepPackageVersion, []*create.PackageVersionOverride, error) {
+				return create.AskPackageOverrideLoop(baseline, "", make([]string, 0), qa.AsAsker(), stdout)
+			})
+
+			_ = qa.ExpectQuestion(t, &survey.Input{Message: packageOverrideQuestion}).AnswerWith("NuGet.CommandLine:7.1")
+
+			_ = qa.ExpectQuestion(t, &survey.Input{Message: packageOverrideQuestion}).AnswerWith("pterm:35")
+
+			_ = qa.ExpectQuestion(t, &survey.Input{Message: packageOverrideQuestion}).AnswerWith("r") // undo pterm:35 and NuGet:CommandLine:7.1
+
+			_ = qa.ExpectQuestion(t, &survey.Input{Message: packageOverrideQuestion}).AnswerWith("Install:pterm:2.5")
+
+			_ = qa.ExpectQuestion(t, &survey.Input{Message: packageOverrideQuestion}).AnswerWith("y")
+
+			versions, overrides, err := testutil.ReceiveTriple(receiver)
+			assert.Nil(t, err)
+			assert.Equal(t, []*create.StepPackageVersion{
+				{ActionName: "Install", PackageID: "pterm", PackageReferenceName: "pterm", Version: "2.5"},
+				{ActionName: "Install", PackageID: "NuGet.CommandLine", PackageReferenceName: "NuGet.CommandLine", Version: "6.1.2"},
+				{ActionName: "Verify", PackageID: "pterm", PackageReferenceName: "pterm", Version: "0.12"}, // this would have been hit by pterm:35 but we undid it
+			}, versions)
+			assert.Equal(t, []*create.PackageVersionOverride{
+				{PackageReferenceName: "pterm", ActionName: "Install", Version: "2.5"},
+			}, overrides)
+		}},
+
 		// this is the happy path where the CLI presents the list of server-selected packages and they just go 'yep'
 		{"if we enter the loop with any unresolved packages, force version selection for them before entering the main loop", func(t *testing.T, qa *testutil.AskMocker, stdout *bytes.Buffer) {
 			baselineSomeUnresolved := []*create.StepPackageVersion{
@@ -1116,6 +1221,7 @@ func TestReleaseCreate_AutomationMode(t *testing.T) {
 			// This is fine though, the main program entrypoint prints any errors that bubble up to it.
 			assert.Equal(t, "", stdErr.String())
 		}},
+
 		{"release creation specifying project only (bare minimum)", func(t *testing.T, api *testutil.MockHttpServer, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
 			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
 				defer api.Close()
@@ -1153,7 +1259,116 @@ func TestReleaseCreate_AutomationMode(t *testing.T) {
 			_, err = testutil.ReceivePair(cmdReceiver)
 			assert.Nil(t, err)
 
-			assert.Equal(t, "Successfully created release version 1.2.3 (Releases-999) using channel Alpha channel (Channels-32)\n", stdOut.String())
+			assert.Equal(t, heredoc.Doc(`
+				Successfully created release version 1.2.3 using channel Alpha channel
+				
+				View this release on Octopus Deploy: http://server/app#/Spaces-1/releases/Releases-999
+				`), stdOut.String())
+			assert.Equal(t, "", stdErr.String())
+		}},
+
+		{"release creation specifying project only (bare minimum)", func(t *testing.T, api *testutil.MockHttpServer, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
+			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
+				defer api.Close()
+				rootCmd.SetArgs([]string{"release", "create", "--project", cacProject.Name})
+				return rootCmd.ExecuteC()
+			})
+
+			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
+
+			req := api.ExpectRequest(t, "POST", "/api/Spaces-1/releases/create/v1")
+
+			// check that it sent the server the right request body
+			requestBody, err := testutil.ReadJson[releases.CreateReleaseV1](req.Request.Body)
+			assert.Nil(t, err)
+
+			assert.Equal(t, releases.CreateReleaseV1{
+				SpaceIDOrName:   "Spaces-1",
+				ProjectIDOrName: cacProject.Name,
+			}, requestBody)
+
+			req.RespondWith(&releases.CreateReleaseResponseV1{
+				ReleaseID:      "Releases-999", // new release
+				ReleaseVersion: "1.2.3",
+			})
+
+			// after it creates the release it's going to go back to the server and lookup the release by its ID
+			// so it can tell the user what channel got selected
+			releaseInfo := releases.NewRelease("Channels-32", cacProject.ID, "1.2.3")
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/releases/Releases-999").RespondWith(releaseInfo)
+
+			// and now it wants to lookup the channel name too
+			channelInfo := fixtures.NewChannel(space1.ID, "Channels-32", "Alpha channel", cacProject.ID)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/channels/Channels-32").RespondWith(channelInfo)
+
+			_, err = testutil.ReceivePair(cmdReceiver)
+			assert.Nil(t, err)
+
+			assert.Equal(t, heredoc.Doc(`
+				Successfully created release version 1.2.3 using channel Alpha channel
+				
+				View this release on Octopus Deploy: http://server/app#/Spaces-1/releases/Releases-999
+				`), stdOut.String())
+			assert.Equal(t, "", stdErr.String())
+		}},
+
+		{"release creation outputformat basic", func(t *testing.T, api *testutil.MockHttpServer, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
+			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
+				defer api.Close()
+				rootCmd.SetArgs([]string{"release", "create", "--project", cacProject.Name, "--output-format", "basic"})
+				return rootCmd.ExecuteC()
+			})
+
+			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
+
+			// don't need to validate the json received by the server, we've done that already
+			api.ExpectRequest(t, "POST", "/api/Spaces-1/releases/create/v1").RespondWith(&releases.CreateReleaseResponseV1{
+				ReleaseID:      "Releases-999",
+				ReleaseVersion: "1.2.3",
+			})
+
+			// after it creates the release it's going to go back to the server and lookup the release by its ID
+			// so it can tell the user what channel got selected
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/releases/Releases-999").RespondWith(releases.NewRelease("Channels-32", cacProject.ID, "1.2.3"))
+
+			// and now it wants to lookup the channel name too
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/channels/Channels-32").
+				RespondWith(fixtures.NewChannel(space1.ID, "Channels-32", "Alpha channel", cacProject.ID))
+
+			_, err := testutil.ReceivePair(cmdReceiver)
+			assert.Nil(t, err)
+
+			assert.Equal(t, "1.2.3\n", stdOut.String())
+			assert.Equal(t, "", stdErr.String())
+		}},
+
+		{"release creation outputformat json", func(t *testing.T, api *testutil.MockHttpServer, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
+			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
+				defer api.Close()
+				rootCmd.SetArgs([]string{"release", "create", "--project", cacProject.Name, "--output-format", "json"})
+				return rootCmd.ExecuteC()
+			})
+
+			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
+
+			// don't need to validate the json received by the server, we've done that already
+			api.ExpectRequest(t, "POST", "/api/Spaces-1/releases/create/v1").RespondWith(&releases.CreateReleaseResponseV1{
+				ReleaseID:      "Releases-999",
+				ReleaseVersion: "1.2.3",
+			})
+
+			// after it creates the release it's going to go back to the server and lookup the release by its ID
+			// so it can tell the user what channel got selected
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/releases/Releases-999").RespondWith(releases.NewRelease("Channels-32", cacProject.ID, "1.2.3"))
+
+			// and now it wants to lookup the channel name too
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/channels/Channels-32").
+				RespondWith(fixtures.NewChannel(space1.ID, "Channels-32", "Alpha channel", cacProject.ID))
+
+			_, err := testutil.ReceivePair(cmdReceiver)
+			assert.Nil(t, err)
+
+			assert.Equal(t, "{\"Channel\":\"Alpha channel\",\"Version\":\"1.2.3\"}\n", stdOut.String())
 			assert.Equal(t, "", stdErr.String())
 		}},
 
@@ -1193,7 +1408,11 @@ func TestReleaseCreate_AutomationMode(t *testing.T) {
 			_, err = testutil.ReceivePair(cmdReceiver)
 			assert.Nil(t, err)
 
-			assert.Equal(t, "Successfully created release version 1.2.3 (Releases-999) using channel Alpha channel (Channels-32)\n", stdOut.String())
+			assert.Equal(t, heredoc.Doc(`
+				Successfully created release version 1.2.3 using channel Alpha channel
+				
+				View this release on Octopus Deploy: http://server/app#/Spaces-1/releases/Releases-999
+				`), stdOut.String())
 			assert.Equal(t, "", stdErr.String())
 		}},
 
@@ -1240,7 +1459,11 @@ func TestReleaseCreate_AutomationMode(t *testing.T) {
 			_, err = testutil.ReceivePair(cmdReceiver)
 			assert.Nil(t, err)
 
-			assert.Equal(t, "Successfully created release version 1.2.3 (Releases-999) using channel Alpha channel (Channels-32)\n", stdOut.String())
+			assert.Equal(t, heredoc.Doc(`
+				Successfully created release version 1.2.3 using channel Alpha channel
+				
+				View this release on Octopus Deploy: http://server/app#/Spaces-1/releases/Releases-999
+				`), stdOut.String())
 			assert.Equal(t, "", stdErr.String())
 		}},
 
@@ -1315,7 +1538,12 @@ func TestReleaseCreate_AutomationMode(t *testing.T) {
 			_, err = testutil.ReceivePair(cmdReceiver)
 			assert.Nil(t, err)
 
-			assert.Equal(t, "Successfully created release version 1.0.5 (Releases-999) using channel Alpha channel (Channels-32)\n", stdOut.String())
+			assert.Equal(t, heredoc.Doc(`
+				Successfully created release version 1.0.5 using channel Alpha channel
+				
+				View this release on Octopus Deploy: http://server/app#/Spaces-1/releases/Releases-999
+				`), stdOut.String())
+
 			assert.Equal(t, "", stdErr.String())
 		}},
 
@@ -1379,7 +1607,11 @@ func TestReleaseCreate_AutomationMode(t *testing.T) {
 			_, err = testutil.ReceivePair(cmdReceiver)
 			assert.Nil(t, err)
 
-			assert.Equal(t, "Successfully created release version 1.0.5 (Releases-999) using channel Alpha channel (Channels-32)\n", stdOut.String())
+			assert.Equal(t, heredoc.Doc(`
+				Successfully created release version 1.0.5 using channel Alpha channel
+				
+				View this release on Octopus Deploy: http://server/app#/Spaces-1/releases/Releases-999
+				`), stdOut.String())
 			assert.Equal(t, "", stdErr.String())
 		}},
 
@@ -1438,7 +1670,11 @@ func TestReleaseCreate_AutomationMode(t *testing.T) {
 			_, err = testutil.ReceivePair(cmdReceiver)
 			assert.Nil(t, err)
 
-			assert.Equal(t, "Successfully created release version 1.0.5 (Releases-999) using channel Alpha channel (Channels-32)\n", stdOut.String())
+			assert.Equal(t, heredoc.Doc(`
+				Successfully created release version 1.0.5 using channel Alpha channel
+				
+				View this release on Octopus Deploy: http://server/app#/Spaces-1/releases/Releases-999
+				`), stdOut.String())
 			assert.Equal(t, "", stdErr.String())
 		}},
 
@@ -1494,7 +1730,12 @@ func TestReleaseCreate_AutomationMode(t *testing.T) {
 			_, err = testutil.ReceivePair(cmdReceiver)
 			assert.Nil(t, err)
 
-			assert.Equal(t, "Successfully created release version 1.0.5 (Releases-999) using channel Alpha channel (Channels-32)\n", stdOut.String())
+			assert.Equal(t, heredoc.Doc(`
+				Successfully created release version 1.0.5 using channel Alpha channel
+				
+				View this release on Octopus Deploy: http://server/app#/Spaces-1/releases/Releases-999
+				`), stdOut.String())
+
 			assert.Equal(t, "", stdErr.String())
 		}},
 	}

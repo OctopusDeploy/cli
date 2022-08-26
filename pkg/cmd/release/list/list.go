@@ -27,6 +27,11 @@ func NewListFlags() *ListFlags {
 	}
 }
 
+type ReleaseViewModel struct {
+	Channel string
+	Version string
+}
+
 func NewCmdList(f factory.Factory) *cobra.Command {
 	listFlags := NewListFlags()
 	cmd := &cobra.Command{
@@ -86,12 +91,6 @@ func listRun(cmd *cobra.Command, f factory.Factory, flags *ListFlags) error {
 		}
 	}
 
-	type ReleaseViewModel struct {
-		Channel   string
-		ChannelID string `json:",omitempty"`
-		Version   string
-	}
-
 	spinner.Start()
 
 	foundReleases, err := octopus.Projects.GetReleases(selectedProject) // does paging internally
@@ -109,9 +108,8 @@ func listRun(cmd *cobra.Command, f factory.Factory, flags *ListFlags) error {
 		},
 		func(item *releases.Release, lookup []string) ReleaseViewModel { // result producer
 			return ReleaseViewModel{
-				ChannelID: item.ChannelID,
-				Channel:   lookup[0],
-				Version:   item.Version}
+				Channel: lookup[0],
+				Version: item.Version}
 		},
 		// lookup for channel names
 		func(keys []string) ([]string, error) {
@@ -135,6 +133,7 @@ func listRun(cmd *cobra.Command, f factory.Factory, flags *ListFlags) error {
 
 	return output.PrintArray(allReleases, cmd, output.Mappers[ReleaseViewModel]{
 		Json: func(item ReleaseViewModel) any {
+			// TODO should the ReleaseID go in the JSON as well as the release number? How about channelID?
 			return item
 		},
 		Table: output.TableDefinition[ReleaseViewModel]{

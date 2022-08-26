@@ -223,17 +223,15 @@ func TestReleaseList(t *testing.T) {
 			assert.Nil(t, err)
 
 			type x struct {
-				Channel   string
-				ChannelID string
-				Version   string
+				Channel string
+				Version string
 			}
 			parsedStdout, err := testutil.ParseJsonStrict[[]x](stdOut)
 			assert.Nil(t, err)
 
 			assert.Equal(t, []x{{
-				Channel:   defaultChannel.Name,
-				ChannelID: defaultChannel.ID,
-				Version:   "2.1",
+				Channel: defaultChannel.Name,
+				Version: "2.1",
 			}}, parsedStdout)
 			assert.Equal(t, "", stdErr.String())
 		}},
