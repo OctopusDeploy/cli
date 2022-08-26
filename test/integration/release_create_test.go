@@ -110,7 +110,7 @@ func TestReleaseCreateBasics(t *testing.T) {
 		assert.Equal(t, "2.3.4", r1.Version)
 
 		// assert CLI output *after* we've gone to the server and looked up what we expect the release ID to be.
-		assert.Equal(t, fmt.Sprintf("Successfully created release version 2.3.4 (%s) using channel %s (%s)\n", r1.ID, customChannel.Name, customChannel.ID), stdOut)
+		assert.Regexp(t, "Successfully created release version 2.3.4", stdOut) // unit tests check full text, we just want the basic confirmation
 	})
 
 	t.Run("create a release specifying project,channel - server allocates version", func(t *testing.T) {
@@ -136,7 +136,7 @@ func TestReleaseCreateBasics(t *testing.T) {
 		assert.Equal(t, "5.0.1", r1.Version)
 
 		// assert CLI output *after* we've gone to the server and looked up what we expect the release ID to be.
-		assert.Equal(t, fmt.Sprintf("Successfully created release version 5.0.1 (%s) using channel %s (%s)\n", r1.ID, customChannel.Name, customChannel.ID), stdOut)
+		assert.Regexp(t, "Successfully created release version 5.0.1", stdOut) // unit tests check full text, we just want the basic confirmation
 	})
 
 	t.Run("create a release specifying project and version - server uses default channel", func(t *testing.T) {
@@ -155,7 +155,7 @@ func TestReleaseCreateBasics(t *testing.T) {
 		assert.Equal(t, "6.0.0", r1.Version)
 
 		// assert CLI output *after* we've gone to the server and looked up what we expect the release ID to be.
-		assert.Equal(t, fmt.Sprintf("Successfully created release version 6.0.0 (%s) using channel Default (%s)\n", r1.ID, fx.ProjectDefaultChannel.ID), stdOut)
+		assert.Regexp(t, "Successfully created release version 6.0.0", stdOut) // unit tests check full text, we just want the basic confirmation
 	})
 
 	t.Run("create a release specifying project - server uses default channel and allocates version", func(t *testing.T) {
@@ -180,10 +180,8 @@ func TestReleaseCreateBasics(t *testing.T) {
 		assert.Equal(t, fx.ProjectDefaultChannel.ID, r1.ChannelID)
 		assert.Equal(t, "7.0.1", r1.Version)
 
-		// TODO should the CLI output that it's using the Default channel, and possibly what the name of that channel is?
-
 		// assert CLI output *after* we've gone to the server and looked up what we expect the release ID to be.
-		assert.Equal(t, fmt.Sprintf("Successfully created release version 7.0.1 (%s) using channel Default (%s)\n", r1.ID, fx.ProjectDefaultChannel.ID), stdOut)
+		assert.Regexp(t, "Successfully created release version 7.0.1", stdOut) // unit tests check full text, we just want the basic confirmation
 	})
 
 	t.Run("cli returns an error if project is not specified", func(t *testing.T) {
