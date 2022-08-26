@@ -2,6 +2,7 @@ package integration_test
 
 import (
 	"fmt"
+	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/test/integration"
 	"github.com/OctopusDeploy/cli/test/testutil"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/channels"
@@ -9,35 +10,14 @@ import (
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/core"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/deployments"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/releases"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"os/exec"
+	"strings"
 	"testing"
 )
-
-// things to test (interactive mode):
-// NOTE the question flow does the matching here:
-//   case-insensitive match on channel name
-//   no partial match on channel name
-//   case-insensitive match on project name
-//   no partial match on project name
-
-// things to test (automation mode):
-// NOTE the question flow does not run here, should it?
-//   case-insensitive match on channel name
-//   no partial match on channel name
-//   case-insensitive match on project name
-//   no partial match on project name
-
-// DESIGN QUESTION:
-// In automation mode, if a user specifies "foo project" and the actual thing is "Foo PROJECT", should the
-// command do a pass over the options first, and replace things with their correctly-cased versions before
-// feeding into the executor, or should the executor do that?
-//
-// The nicest thing would be if the executor could just be a blind pass-through into the server, however
-// because the octopus server doesn't support things like
-// matching a project based on exact name, we have to do at least SOME client side filtering first.
-// The executions API may be an exception to this rule, but in general, it holds.
 
 const space1ID = "Spaces-1"
 
@@ -110,7 +90,7 @@ func TestReleaseCreateBasics(t *testing.T) {
 		assert.Equal(t, "2.3.4", r1.Version)
 
 		// assert CLI output *after* we've gone to the server and looked up what we expect the release ID to be.
-		assert.Equal(t, fmt.Sprintf("Successfully created release version 2.3.4 (%s) using channel %s (%s)\n", r1.ID, customChannel.Name, customChannel.ID), stdOut)
+		assert.Regexp(t, "Successfully created release version 2.3.4", stdOut) // unit tests check full text, we just want the basic confirmation
 	})
 
 	t.Run("create a release specifying project,channel - server allocates version", func(t *testing.T) {
@@ -136,7 +116,7 @@ func TestReleaseCreateBasics(t *testing.T) {
 		assert.Equal(t, "5.0.1", r1.Version)
 
 		// assert CLI output *after* we've gone to the server and looked up what we expect the release ID to be.
-		assert.Equal(t, fmt.Sprintf("Successfully created release version 5.0.1 (%s) using channel %s (%s)\n", r1.ID, customChannel.Name, customChannel.ID), stdOut)
+		assert.Regexp(t, "Successfully created release version 5.0.1", stdOut) // unit tests check full text, we just want the basic confirmation
 	})
 
 	t.Run("create a release specifying project and version - server uses default channel", func(t *testing.T) {
@@ -155,7 +135,7 @@ func TestReleaseCreateBasics(t *testing.T) {
 		assert.Equal(t, "6.0.0", r1.Version)
 
 		// assert CLI output *after* we've gone to the server and looked up what we expect the release ID to be.
-		assert.Equal(t, fmt.Sprintf("Successfully created release version 6.0.0 (%s) using channel Default (%s)\n", r1.ID, fx.ProjectDefaultChannel.ID), stdOut)
+		assert.Regexp(t, "Successfully created release version 6.0.0", stdOut) // unit tests check full text, we just want the basic confirmation
 	})
 
 	t.Run("create a release specifying project - server uses default channel and allocates version", func(t *testing.T) {
@@ -180,10 +160,8 @@ func TestReleaseCreateBasics(t *testing.T) {
 		assert.Equal(t, fx.ProjectDefaultChannel.ID, r1.ChannelID)
 		assert.Equal(t, "7.0.1", r1.Version)
 
-		// TODO should the CLI output that it's using the Default channel, and possibly what the name of that channel is?
-
 		// assert CLI output *after* we've gone to the server and looked up what we expect the release ID to be.
-		assert.Equal(t, fmt.Sprintf("Successfully created release version 7.0.1 (%s) using channel Default (%s)\n", r1.ID, fx.ProjectDefaultChannel.ID), stdOut)
+		assert.Regexp(t, "Successfully created release version 7.0.1", stdOut) // unit tests check full text, we just want the basic confirmation
 	})
 
 	t.Run("cli returns an error if project is not specified", func(t *testing.T) {
@@ -197,5 +175,121 @@ func TestReleaseCreateBasics(t *testing.T) {
 
 		assert.Equal(t, "\n", stdOut)
 		assert.Equal(t, "project must be specified", stdErr)
+	})
+}
+
+func TestReleaseListAndDelete(t *testing.T) {
+	runId := uuid.New()
+	apiClient, err := integration.GetApiClient(space1ID)
+	testutil.RequireSuccess(t, err)
+
+	fx, err := integration.CreateCommonProject(t, apiClient, runId)
+	testutil.RequireSuccess(t, err)
+
+	project := fx.Project // alias for convenience
+
+	dep, err := apiClient.DeploymentProcesses.Get(fx.Project, "")
+	if !testutil.AssertSuccess(t, err) {
+		return
+	}
+	dep.Steps = []*deployments.DeploymentStep{
+		{
+			Name:       fmt.Sprintf("step1-%s", runId),
+			Properties: map[string]core.PropertyValue{"Octopus.Action.TargetRoles": core.NewPropertyValue("deploy", false)},
+			Actions: []*deployments.DeploymentAction{
+				{
+					ActionType: "Octopus.Script",
+					Name:       "Run a script",
+					Properties: map[string]core.PropertyValue{
+						"Octopus.Action.Script.ScriptBody": core.NewPropertyValue("echo 'hello'", false),
+					},
+				},
+			},
+		},
+	}
+	dep, err = apiClient.DeploymentProcesses.Update(dep)
+	if !testutil.AssertSuccess(t, err) {
+		return
+	}
+
+	// create some releases so we can list them
+	createReleaseCmd := releases.NewCreateReleaseV1(space1ID, fx.Project.ID)
+	for i := 0; i < 5; i++ {
+		createReleaseCmd.ReleaseVersion = fmt.Sprintf("%d.0", i+1)
+		_, err := apiClient.Releases.CreateV1(createReleaseCmd)
+		assert.Nil(t, err)
+	}
+	t.Cleanup(func() { deleteAllReleasesInProject(t, apiClient, project) })
+
+	t.Run("list releases - basic", func(t *testing.T) {
+		stdOut, stdErr, err := integration.RunCli(space1ID, "release", "list", "--project", project.Name, "--output-format", "basic")
+		if !testutil.AssertSuccess(t, err, stdOut, stdErr) {
+			return
+		}
+
+		assert.Equal(t, "5.0\n4.0\n3.0\n2.0\n1.0\n", stdOut)
+		assert.Equal(t, "", stdErr)
+	})
+
+	t.Run("list releases - json", func(t *testing.T) {
+		stdOut, stdErr, err := integration.RunCli(space1ID, "release", "list", "--project", project.Name, "--output-format", "json")
+		if !testutil.AssertSuccess(t, err, stdOut, stdErr) {
+			return
+		}
+
+		type x struct {
+			Channel string
+			Version string
+		}
+
+		parsed, err := testutil.ParseJsonStrict[[]x](strings.NewReader(stdOut))
+		assert.Nil(t, err)
+		assert.Equal(t, []x{
+			{Channel: "Default", Version: "5.0"},
+			{Channel: "Default", Version: "4.0"},
+			{Channel: "Default", Version: "3.0"},
+			{Channel: "Default", Version: "2.0"},
+			{Channel: "Default", Version: "1.0"},
+		}, parsed)
+		assert.Equal(t, "", stdErr)
+	})
+
+	t.Run("list releases - default", func(t *testing.T) {
+		stdOut, stdErr, err := integration.RunCli(space1ID, "release", "list", "--project", project.Name)
+		if !testutil.AssertSuccess(t, err, stdOut, stdErr) {
+			return
+		}
+		assert.Equal(t, heredoc.Doc(`
+			VERSION  CHANNEL
+			5.0      Default
+			4.0      Default
+			3.0      Default
+			2.0      Default
+			1.0      Default
+			`), stdOut)
+		assert.Equal(t, "", stdErr)
+	})
+
+	t.Run("delete release", func(t *testing.T) {
+		createReleaseCmd.ReleaseVersion = "DeleteMe5.0"
+		createResponse, err := apiClient.Releases.CreateV1(createReleaseCmd)
+		require.Nil(t, err)
+
+		// sanity check create worked so we can prove that deleting works
+		resp, err := apiClient.Releases.GetByID(createResponse.ReleaseID)
+		require.Nil(t, err)
+		assert.Equal(t, "DeleteMe5.0", resp.Version)
+
+		stdOut, stdErr, err := integration.RunCli(space1ID, "release", "delete", "--project", project.Name, "--version", "DeleteMe5.0")
+		if !testutil.AssertSuccess(t, err, stdOut, stdErr) {
+			return
+		}
+
+		assert.Regexp(t, "Success", stdOut)
+		assert.Equal(t, "", stdErr)
+
+		resp, err = apiClient.Releases.GetByID(createResponse.ReleaseID)
+		assert.Nil(t, resp)
+		assert.Equal(t, &core.APIError{ErrorMessage: fmt.Sprintf("The resource '%s' was not found.", createResponse.ReleaseID), StatusCode: 404}, err)
 	})
 }
