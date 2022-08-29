@@ -12,23 +12,31 @@ permissions:
 jobs:
   goreleaser:
     runs-on: ubuntu-latest
+    outputs:
+      artifacts: ${{ steps.goreleaser.outputs.artifacts }}
+
     steps:
     - name: Checkout
       uses: actions/checkout@v3
       with:
         fetch-depth: 0
+    
     - name: Fetch all tags
       run: git fetch --force --tags
+    
     - name: Set up Go
       uses: actions/setup-go@v3
       with:
           go-version: 1.19
+    
     - uses: crazy-max/ghaction-import-gpg@v5
       id: import_gpg
       with:
         gpg_private_key: ${{ secrets.OCTOPUS_GPG_PRIVATE_KEY }}
         passphrase: ${{ secrets.OCTOPUS_GPG_PASSPHRASE }}
+    
     - name: Run GoReleaser
+      id: goreleaser-release
       uses: goreleaser/goreleaser-action@v3
       with:
         version: latest
@@ -38,12 +46,26 @@ jobs:
         GPG_FINGERPRINT: ${{ steps.import_gpg.outputs.fingerprint }}
         GPG_PASSWORD: ${{ secrets.OCTOPUS_GPG_PASSPHRASE }}
 
+    - uses: actions/upload-artifact@v3
+      with:
+        name: artifacts
+        path: |
+          dist/*.tar.gz
+          dist/*.zip
+
   msi:
     needs: goreleaser
     runs-on: windows-latest
+    outputs:
+      msi_file: ${{ steps.buildmsi.outputs.msi }}
+
     steps:
-    - name: Checkout
-      uses: actions/checkout@v3
+    - uses: actions/checkout@v3
+
+    - uses: actions/download-artifact@v3
+      with:
+        name: artifacts
+        path: artifacts
 
     - name: Download octopus.exe
       id: download_exe
@@ -55,7 +77,7 @@ jobs:
         printf "::set-output name=zip::%s\n" *.zip
         unzip -o *.zip && rm -v *.zip
 
-    - name: Prepare PATH
+    - name: Setup MSBuild
       id: setupmsbuild
       uses: microsoft/setup-msbuild@v1.0.3
 
@@ -73,7 +95,7 @@ jobs:
     - name: Install AzureSignTool
       run: dotnet tool install --global AzureSignTool
 
-    - name: Sign package
+    - name: Sign MSI
       env:
         MSI_FILE: ${{ steps.buildmsi.outputs.msi }}
       shell: powershell
@@ -130,3 +152,90 @@ jobs:
       run: |
         tag_name="${GITHUB_REF#refs/tags/}"
         gh release upload "$tag_name" "$MSI_FILE"
+
+    - uses: actions/upload-artifact@v3
+      with:
+        name: artifacts
+        path: ${{ steps.buildmsi.outputs.msi }}
+
+  generate-packages:
+    needs: [goreleaser, msi]
+    runs-on: ubuntu-latest
+    outputs:
+      package_version: ${{ steps.get-version.outputs.version }}
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - uses: actions/download-artifact@v3
+      with:
+        name: artifacts
+        path: artifacts/
+
+    - name: Download nuget.exe
+      run: curl -o ./nuget.exe https://dist.nuget.org/win-x86-commandline/latest/nuget.exe
+
+    - name: Set package version
+      id: get-version
+      run: echo "::set-output name=version::$(echo -e ${GITHUB_REF#refs/tags/v})"
+
+    - name: Create Chocolatey package
+      run: mono nuget.exe build/cli.nuspec -p:version=${{ steps.get-version.outputs.version }} -OutputDirectory artifacts/
+
+    - name: Create Linux and OSX packages
+      run: |
+        zip -rj artifacts/OctopusCLI.${{ step.get-version.outputs.version }}.zip /
+          artifacts/*.nupkg \
+          artifacts/*.linux*.tar.gz \
+          artifacts/*.macOS*.tar.gz \
+          artifacts/*.windows*.zip
+
+    - uses: actions/upload-artifact@v3
+      with:
+        name: artifacts
+        path: artifacts/
+
+  publish:
+    needs: generate-packages
+    runs-on: ubuntu-latest
+    env:
+      OCTOPUS_API_KEY: ${{ secrets.OCTOPUS_API_KEY }}
+      OCTOPUS_HOST: ${{ secrets.OCTOPUS_URL }}      
+      OCTOPUS_CLI_SERVER: ${{ secrets.OCTOPUS_URL }}
+      OCTOPUS_CLI_API_KEY: ${{ secrets.OCTOPUS_API_KEY }}
+
+    steps:
+    - uses: actions/download-artifact@v3
+      with:
+        name: artifacts
+        path: artifacts
+
+    - name: Install Octopus CLI 🐙
+      uses: OctopusDeploy/install-octopus-cli-action@v1
+      with:
+        version: latest
+
+    - name: Push a package to Octopus Deploy 🐙
+      uses: OctopusDeploy/push-package-action@v2
+      with:
+        space: Integrations
+        packages: artifacts/OctopusCli.${{ needs.generate-packages.outputs.package_version }}.zip
+
+    - name: Fetch Release Notes
+      id: fetch-release-notes
+      run: |
+        echo "::debug::${{github.event_name}}"
+        OUTPUT_FILE="release_notes.txt"
+        gh view release "${GITHUB_REF#refs/tags/}" --jq '.body' --json 'body' | sed 's#\r#  #g' > $OUTPUT_FILE
+        echo "::set-output name=release-note-file::$OUTPUT_FILE"
+
+    - name: Create a release in Octopus Deploy 🐙
+      uses: OctopusDeploy/create-release-action@v2
+      with:
+        space: Integrations
+        project: 'cli'
+        package_version: ${{ needs.generate-packages.outputs.package_version }}
+        packages: '*:NuGet.CommandLine:4.4.1'
+        release_notes_file: ${{ steps.fetch-release-notes.outputs.release-note-file || ''}}
+        git_ref: ${{ (github.ref_type == 'tag' && github.event.repository.default_branch ) || (github.head_ref || github.ref) }}
+        git_commit: ${{ github.event.after || github.event.pull_request.head.sha }}
