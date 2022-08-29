@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2010/07/nuspec.xsd" xmlns:octopus="http://octopus.org">
+  <metadata>
+    <id>OctopusCLI</id>
+    <title>Octopus CLI</title>
+    <version>$version$</version>
+    <authors>Octopus Deploy</authors>
+    <owners>Octopus Deploy</owners>
+    <summary>Create, deploy and promote releases using Octopus Deploy.</summary>
+    <description>
+      Octopus is a user-friendly DevOps tool for developers that supports release management, deployment automation, and operations runbooks.
+
+      This package contains the Octopus CLI (octopus), a tool to create and deploy releases, create and push packages, and manage environments with Octopus.
+    </description>
+    <releaseNotes>https://github.com/OctopusDeploy/cli/releases/latest</releaseNotes>
+    <language>en-US</language>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <license type="expression">Apache-2.0</license>
+    <projectUrl>https://github.com/OctopusDeploy/cli/</projectUrl>
+    <repository type="git" url="https://github.com/OctopusDeploy/cli" />
+    <icon>tools\icon.png</icon>
+    <tags>automation deployment</tags>
+    <developmentDependency>true</developmentDependency>
+  </metadata>
+  <files>
+    <file src="tools/**" target="tools" />
+  </files>
+</package>
