@@ -1,23 +1,32 @@
 package deploy
 
 import (
-	"errors"
+	"fmt"
 	"github.com/MakeNowJust/heredoc/v2"
+	"github.com/OctopusDeploy/cli/pkg/constants"
+	cliErrors "github.com/OctopusDeploy/cli/pkg/errors"
+	"github.com/OctopusDeploy/cli/pkg/executor"
 	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/OctopusDeploy/cli/pkg/output"
+	"github.com/OctopusDeploy/cli/pkg/question"
 	"github.com/OctopusDeploy/cli/pkg/util"
 	"github.com/OctopusDeploy/cli/pkg/util/flag"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/channels"
+	octopusApiClient "github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
 	"github.com/spf13/cobra"
+	"io"
 )
 
+// octopus release deploy <stuff>
+// octopus release deploy-tenanted <stuff>
+
 const (
-	// TODO progress?
-	// TODO waitForDeployment?
-	// TODO deploymentTimeout?
-	// TODO cancelOnTimeout?
-	// TODO deploymentCheckSleepCycle?
+
+	// NO
 	// TODO force?
+
+	// YES; Prompted Variable Only: read about prompted variables (user has to input them during deployment)
 	// TODO variable(s)?
 	// TODO updateVariables?
 
@@ -28,19 +37,24 @@ const (
 	FlagAliasReleaseNumberLegacy = "releaseNumber"
 
 	FlagEnvironment         = "environment" // can be specified multiple times; but only once if tenanted
-	FlagAliasDeployToLegacy = "deployTo"    // TODO should "deployTo" be primary or "environment"?
+	FlagAliasEnv            = "env"
+	FlagAliasDeployToLegacy = "deployTo" // alias for environment
 
-	FlagTenant               = "tenant"     // can be specified multiple times
+	FlagTenant = "tenant" // can be specified multiple times
+
 	FlagTenantTag            = "tenant-tag" // can be specified multiple times
+	FlagAliasTag             = "tag"
 	FlagAliasTenantTagLegacy = "tenantTag"
 
-	FlagWhen          = "when"
-	FlagAliasDeployAt = "deployAt" // TODO should "deployAt" be primary or "when"?
+	FlagDeployAt            = "deploy-at"
+	FlagAliasWhen           = "when" // alias for deploy-at
+	FlagAliasDeployAtLegacy = "deployAt"
 
-	FlagNoDeployAfter = "noDeployAfter"
+	// Don't ask this question in interactive mode; leave it for advanced. TODO review later with team
+	FlagMaxQueueTime             = "max-queue-time" // should we have this as --no-deploy-after instead?
+	FlagAliasNoDeployAfterLegacy = "noDeployAfter"  // max queue time
 
-	FlagExcludedSteps = "excludeStep" // can be specified multiple times
-	FlagAliasSkip     = "skip"        // TODO which should be primary?
+	FlagSkip = "skip" // can be specified multiple times
 
 	FlagGuidedFailureMode            = "guided-failure"
 	FlagAliasGuidedFailureModeLegacy = "guidedFailure"
@@ -48,24 +62,48 @@ const (
 	FlagForcePackageDownload            = "force-package-download"
 	FlagAliasForcePackageDownloadLegacy = "forcePackageDownload"
 
-	FlagDeploymentTargets           = "deploymentTargets"
+	FlagDeploymentTargets           = "targets" // specific machines
 	FlagAliasSpecificMachinesLegacy = "specificMachines"
-	FlagAliasExcludeMachinesLegacy  = "excludeMachines"
+
+	FlagExcludeDeploymentTargets   = "exclude-targets"
+	FlagAliasExcludeMachinesLegacy = "excludeMachines"
+
+	FlagVariable = "variable"
+
+	FlagUpdateVariables            = "update-variables"
+	FlagAliasUpdateVariablesLegacy = "updateVariables"
 )
+
+// executions API stops here.
+
+// DEPLOYMENT TRACKING (Server Tasks): - this might be a separate `octopus task follow ID1, ID2, ID3`
+
+// DESIGN CHOICE: We are not going to show servertask progress in the CLI. We will need to optionally wait for deployments to complete though
+
+// TODO progress? // OUT?
+
+// TODO deploymentTimeout? (default to 10m)
+// TODO cancelOnTimeout? (default to true)
+
+// TODO deploymentCheckSleepCycle?
+// TODO waitForDeployment?
 
 type DeployFlags struct {
 	Project              *flag.Flag[string]
 	Channel              *flag.Flag[string]
 	ReleaseVersion       *flag.Flag[string]   // the release to deploy
-	Environment          *flag.Flag[string]   // singular for tenanted deployment
 	Environments         *flag.Flag[[]string] // multiple for untenanted deployment
 	Tenants              *flag.Flag[[]string]
 	TenantTags           *flag.Flag[[]string]
-	When                 *flag.Flag[string]
+	DeployAt             *flag.Flag[string]
+	MaxQueueTime         *flag.Flag[string]
+	Variables            *flag.Flag[[]string]
+	UpdateVariables      *flag.Flag[bool]
 	ExcludedSteps        *flag.Flag[[]string]
 	GuidedFailureMode    *flag.Flag[string] // tri-state: true, false, or "use default". Can we model it with an optional bool?
 	ForcePackageDownload *flag.Flag[bool]
 	DeploymentTargets    *flag.Flag[[]string]
+	ExcludeTargets       *flag.Flag[[]string]
 	// TODO what about deployment targets per tenant? How do you specify that on the cmdline? Look at octo
 }
 
@@ -74,15 +112,18 @@ func NewDeployFlags() *DeployFlags {
 		Project:              flag.New[string](FlagProject, false),
 		Channel:              flag.New[string](FlagChannel, false),
 		ReleaseVersion:       flag.New[string](FlagReleaseVersion, false),
-		Environment:          flag.New[string](FlagEnvironment, false),
-		Environments:         flag.New[[]string](FlagEnvironments, false),
-		Tenants:              flag.New[[]string](FlagTenants, false),
-		TenantTags:           flag.New[[]string](FlagTenantTags, false),
-		When:                 flag.New[string](FlagWhen, false),
-		ExcludedSteps:        flag.New[[]string](FlagExcludedSteps, false),
+		Environments:         flag.New[[]string](FlagEnvironment, false),
+		Tenants:              flag.New[[]string](FlagTenant, false),
+		TenantTags:           flag.New[[]string](FlagTenantTag, false),
+		MaxQueueTime:         flag.New[string](FlagMaxQueueTime, false),
+		DeployAt:             flag.New[string](FlagDeployAt, false),
+		Variables:            flag.New[[]string](FlagVariable, false),
+		UpdateVariables:      flag.New[bool](FlagUpdateVariables, false),
+		ExcludedSteps:        flag.New[[]string](FlagSkip, false),
 		GuidedFailureMode:    flag.New[string](FlagGuidedFailureMode, false),
 		ForcePackageDownload: flag.New[bool](FlagForcePackageDownload, false),
 		DeploymentTargets:    flag.New[[]string](FlagDeploymentTargets, false),
+		ExcludeTargets:       flag.New[[]string](FlagExcludeDeploymentTargets, false),
 	}
 }
 
@@ -105,31 +146,36 @@ func NewCmdDeploy(f factory.Factory) *cobra.Command {
 	}
 
 	flags := cmd.Flags()
-	flags.StringVarP(&deployFlags.Project.Value, deployFlags.Project.Name, "p", "", "Name or ID of the project to deploy the release within")
-	flags.StringVarP(&deployFlags.Channel.Value, deployFlags.Channel.Name, "", "", "TODO")
-	flags.StringVarP(&deployFlags.ReleaseVersion.Value, deployFlags.ReleaseVersion.Name, "", "", "TODO")
-	flags.StringVarP(&deployFlags.Environment.Value, deployFlags.Environment.Name, "", "", "TODO")
-	flags.StringSliceVarP(&deployFlags.Environments.Value, deployFlags.Environments.Name, "", nil, "TODO")
-	flags.StringSliceVarP(&deployFlags.Tenants.Value, deployFlags.Tenants.Name, "", nil, "TODO")
-	flags.StringSliceVarP(&deployFlags.TenantTags.Value, deployFlags.TenantTags.Name, "", nil, "TODO")
-	flags.StringVarP(&deployFlags.When.Value, deployFlags.When.Name, "", "", "TODO")
-	flags.StringSliceVarP(&deployFlags.ExcludedSteps.Value, deployFlags.ExcludedSteps.Name, "", nil, "TODO")
-	flags.StringVarP(&deployFlags.GuidedFailureMode.Value, deployFlags.GuidedFailureMode.Name, "", "", "TODO")
-	flags.BoolVarP(&deployFlags.ForcePackageDownload.Value, deployFlags.ForcePackageDownload.Name, "", false, "TODO")
-	flags.StringSliceVarP(&deployFlags.DeploymentTargets.Value, deployFlags.DeploymentTargets.Name, "", nil, "TODO")
+	flags.StringVarP(&deployFlags.Project.Value, deployFlags.Project.Name, "p", "", "Name or ID of the project to deploy the release from")
+	flags.StringVarP(&deployFlags.Channel.Value, deployFlags.Channel.Name, "c", "", "Name or ID of the project to deploy the release from")
+	flags.StringVarP(&deployFlags.ReleaseVersion.Value, deployFlags.ReleaseVersion.Name, "v", "", "Release version to deploy")
+	flags.StringSliceVarP(&deployFlags.Environments.Value, deployFlags.Environments.Name, "e", nil, "Deploy to this environment (can be specified multiple times)")
+	flags.StringSliceVarP(&deployFlags.Tenants.Value, deployFlags.Tenants.Name, "", nil, "Deploy to this tenant (can be specified multiple times)")
+	flags.StringSliceVarP(&deployFlags.TenantTags.Value, deployFlags.TenantTags.Name, "", nil, "Deploy to tenants matching this tag (can be specified multiple times)")
+	flags.StringVarP(&deployFlags.DeployAt.Value, deployFlags.DeployAt.Name, "", "", "Deploy at a later time. Deploy now if omitted. TODO date formats and timezones!")
+	flags.StringVarP(&deployFlags.MaxQueueTime.Value, deployFlags.MaxQueueTime.Name, "", "", "Cancel the deployment if it hasn't started within this time period.")
+	flags.StringSliceVarP(&deployFlags.Variables.Value, deployFlags.Variables.Name, "r", nil, "Set the value for a prompted variable in the format Label:Value")
+	flags.BoolVarP(&deployFlags.UpdateVariables.Value, deployFlags.UpdateVariables.Name, "", false, "Overwrite the release variable snapshot by re-importing variables from the project.")
+	flags.StringSliceVarP(&deployFlags.ExcludedSteps.Value, deployFlags.ExcludedSteps.Name, "", nil, "Exclude specific steps from the deployment")
+	flags.StringVarP(&deployFlags.GuidedFailureMode.Value, deployFlags.GuidedFailureMode.Name, "", "", "Enable Guided failure mode (yes/no/default)")
+	flags.BoolVarP(&deployFlags.ForcePackageDownload.Value, deployFlags.ForcePackageDownload.Name, "", false, "Force re-download of packages")
+	flags.StringSliceVarP(&deployFlags.DeploymentTargets.Value, deployFlags.DeploymentTargets.Name, "", nil, "Deploy to this target (can be specified multiple times)")
+	flags.StringSliceVarP(&deployFlags.ExcludeTargets.Value, deployFlags.ExcludeTargets.Name, "", nil, "Deploy to targets except for this (can be specified multiple times)")
 
 	flags.SortFlags = false
 
 	// flags aliases for compat with old .NET CLI
 	flagAliases := make(map[string][]string, 10)
-	util.AddFlagAliasesString(flags, FlagGitRef, flagAliases, FlagAliasGitRefRef, FlagAliasGitRefLegacy)
-	util.AddFlagAliasesString(flags, FlagGitCommit, flagAliases, FlagAliasGitCommitLegacy)
-	util.AddFlagAliasesString(flags, FlagPackageVersion, flagAliases, FlagAliasDefaultPackageVersion, FlagAliasPackageVersionLegacy, FlagAliasDefaultPackageVersionLegacy)
-	util.AddFlagAliasesString(flags, FlagReleaseNotes, flagAliases, FlagAliasReleaseNotesLegacy)
-	util.AddFlagAliasesString(flags, FlagReleaseNotesFile, flagAliases, FlagAliasReleaseNotesFileLegacy, FlagAliasReleaseNoteFileLegacy)
-	util.AddFlagAliasesString(flags, FlagVersion, flagAliases, FlagAliasReleaseNumberLegacy)
-	util.AddFlagAliasesBool(flags, FlagIgnoreExisting, flagAliases, FlagAliasIgnoreExistingLegacy)
-	util.AddFlagAliasesBool(flags, FlagIgnoreChannelRules, flagAliases, FlagAliasIgnoreChannelRulesLegacy)
+	util.AddFlagAliasesString(flags, FlagReleaseVersion, flagAliases, FlagAliasReleaseNumberLegacy)
+	util.AddFlagAliasesString(flags, FlagEnvironment, flagAliases, FlagAliasDeployToLegacy, FlagAliasEnv)
+	util.AddFlagAliasesString(flags, FlagTenantTag, flagAliases, FlagAliasTag, FlagAliasTenantTagLegacy)
+	util.AddFlagAliasesString(flags, FlagDeployAt, flagAliases, FlagAliasWhen, FlagAliasDeployAtLegacy)
+	util.AddFlagAliasesString(flags, FlagMaxQueueTime, flagAliases, FlagAliasNoDeployAfterLegacy)
+	util.AddFlagAliasesString(flags, FlagUpdateVariables, flagAliases, FlagAliasUpdateVariablesLegacy)
+	util.AddFlagAliasesString(flags, FlagGuidedFailureMode, flagAliases, FlagAliasGuidedFailureModeLegacy)
+	util.AddFlagAliasesBool(flags, FlagForcePackageDownload, flagAliases, FlagAliasForcePackageDownloadLegacy)
+	util.AddFlagAliasesBool(flags, FlagDeploymentTargets, flagAliases, FlagAliasSpecificMachinesLegacy)
+	util.AddFlagAliasesBool(flags, FlagExcludeDeploymentTargets, flagAliases, FlagAliasExcludeMachinesLegacy)
 
 	cmd.PreRunE = func(cmd *cobra.Command, args []string) error {
 		// map alias values
@@ -148,47 +194,143 @@ func NewCmdDeploy(f factory.Factory) *cobra.Command {
 }
 
 func deployRun(cmd *cobra.Command, f factory.Factory, flags *DeployFlags) error {
-	projectNameOrID := flags.Project.Value
+	outputFormat, err := cmd.Flags().GetString(constants.FlagOutputFormat)
+	if err != nil { // should never happen, but fallback if it does
+		outputFormat = constants.OutputFormatTable
+	}
 
 	octopus, err := f.GetSpacedClient()
 	if err != nil {
 		return err
 	}
-	spinner := f.Spinner()
 
-	var selectedProject *projects.Project
-	if f.IsPromptEnabled() { // this would be AskQuestions if it were bigger
-		if projectNameOrID == "" {
-			selectedProject, err = util.SelectProject("Select the project to list releases for", octopus, f.Ask, spinner)
-			if err != nil {
-				return err
-			}
-		} else { // project name is already provided, fetch the object because it's needed for further questions
-			selectedProject, err = util.FindProject(octopus, spinner, projectNameOrID)
-			if err != nil {
-				return err
-			}
-			cmd.Printf("Project %s\n", output.Cyan(selectedProject.Name))
-		}
-	} else { // we don't have the executions API backing us and allowing NameOrID; we need to do the lookup ourselves
-		if projectNameOrID == "" {
-			return errors.New("project must be specified")
-		}
-		selectedProject, err = util.FindProject(octopus, factory.NoSpinner, projectNameOrID)
+	options := &executor.TaskOptionsDeployRelease{
+		ProjectName: flags.Project.Value,
+	}
+
+	if f.IsPromptEnabled() {
+		err = AskQuestions(octopus, cmd.OutOrStdout(), f.Ask, f.Spinner(), options)
 		if err != nil {
 			return err
 		}
+
+		if !constants.IsProgrammaticOutputFormat(outputFormat) {
+			// the Q&A process will have modified options;backfill into flags for generation of the automation cmd
+			resolvedFlags := NewDeployFlags()
+			resolvedFlags.Project.Value = options.ProjectName
+			resolvedFlags.Channel.Value = options.ChannelName
+			resolvedFlags.ReleaseVersion.Value = options.ReleaseVersion
+			resolvedFlags.Environments.Value = options.Environments
+			resolvedFlags.Tenants.Value = options.Tenants
+			resolvedFlags.TenantTags.Value = options.TenantTags
+			resolvedFlags.DeployAt.Value = options.DeployAt
+			resolvedFlags.MaxQueueTime.Value = options.MaxQueueTime
+			resolvedFlags.ExcludedSteps.Value = options.ExcludedSteps
+			resolvedFlags.GuidedFailureMode.Value = options.GuidedFailureMode
+			resolvedFlags.ForcePackageDownload.Value = options.ForcePackageDownload
+			resolvedFlags.DeploymentTargets.Value = options.DeploymentTargets
+			resolvedFlags.ExcludeTargets.Value = options.ExcludeTargets
+
+			autoCmd := flag.GenerateAutomationCmd(constants.ExecutableName+" release deploy",
+				resolvedFlags.Project,
+				resolvedFlags.Channel,
+				resolvedFlags.ReleaseVersion,
+				resolvedFlags.Environments,
+				resolvedFlags.Tenants,
+				resolvedFlags.TenantTags,
+				resolvedFlags.DeployAt,
+				resolvedFlags.MaxQueueTime,
+				resolvedFlags.ExcludedSteps,
+				resolvedFlags.GuidedFailureMode,
+				resolvedFlags.ForcePackageDownload,
+				resolvedFlags.DeploymentTargets,
+				resolvedFlags.ExcludeTargets,
+			)
+			cmd.Printf("\nAutomation Command: %s\n", autoCmd)
+		}
 	}
 
+	// the executor will raise errors if any required options are missing
+	err = executor.ProcessTasks(octopus, f.GetCurrentSpace(), []*executor.Task{
+		executor.NewTask(executor.TaskTypeCreateRelease, options),
+	})
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker question.Asker, spinner factory.Spinner, options *executor.TaskOptionsDeployRelease) error {
+	if octopus == nil {
+		return cliErrors.NewArgumentNullOrEmptyError("octopus")
+	}
+	if asker == nil {
+		return cliErrors.NewArgumentNullOrEmptyError("asker")
+	}
+	if options == nil {
+		return cliErrors.NewArgumentNullOrEmptyError("options")
+	}
+	// Note: we don't get here at all if no-prompt is enabled, so we know we are free to ask questions
+
+	// Note on output: survey prints things; if the option is specified already from the command line,
+	// we should emulate that so there is always a line where you can see what the item was when specified on the command line,
+	// however if we support a "quiet mode" then we shouldn't emit those
+
+	var err error
+
+	// select project
+	var selectedProject *projects.Project
+	if options.ProjectName == "" {
+		selectedProject, err = util.SelectProject("Select the project to deploy from", octopus, asker, spinner)
+		if err != nil {
+			return err
+		}
+	} else { // project name is already provided, fetch the object because it's needed for further questions
+		selectedProject, err = util.FindProject(octopus, spinner, options.ProjectName)
+		if err != nil {
+			return err
+		}
+		_, _ = fmt.Fprintf(stdout, "Project %s\n", output.Cyan(selectedProject.Name))
+	}
+
+	// QUESTION: Presumably channel here is used to narrow down the search for release versions?
+	// if --version is specified on the command line, then we should be able to skip the question?
+
 	// select channel
+	var selectedChannel *channels.Channel
+	if options.ChannelName == "" {
+		selectedChannel, err = util.SelectChannel(octopus, asker, spinner, "Select the channel to deploy from", selectedProject)
+		if err != nil {
+			return err
+		}
+	} else {
+		selectedChannel, err = util.FindChannel(octopus, spinner, selectedProject, options.ChannelName)
+		if err != nil {
+			return err
+		}
+		_, _ = fmt.Fprintf(stdout, "Channel %s\n", output.Cyan(selectedChannel.Name))
+	}
+	options.ChannelName = selectedChannel.Name
+	if err != nil {
+		return err
+	}
 
 	// select release
 
-	// If tentanted:
-	//   select (singular) environment
-	//   select tenants and/or tags
-	// else:
-	//   select environments
+	// NOTE: Tenant can be disabled or forced. In these cases we know what to do.
+
+	// The middle case is "allowed, but not forced", in which case we don't know ahead of time what to do WRT tenants,
+	// so we'd need to ask the user (presumably though we can check if the project itself is linked to any tenants and only ask then)?
+	// there is a ListTenants(projectID) api that we can use. /api/tenants?projectID=
+
+	// 		If tentanted:
+	// 		  select (singular) environment
+	// 		    select tenants and/or tags (this is just a way of finding which tenants we are going to deploy to)
+	// 		else:
+	// 		  select environments
+
+	// 		UX problem: How do we find tenants via their tags?
 
 	// when? (timed deployment)
 
@@ -205,6 +347,5 @@ func deployRun(cmd *cobra.Command, f factory.Factory, flags *DeployFlags) error 
 	//   select deployment target(s)
 
 	// DONE
-
 	return nil
 }

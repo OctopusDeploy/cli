@@ -217,18 +217,17 @@ func createRun(cmd *cobra.Command, f factory.Factory, flags *CreateFlags) error 
 
 	// ignore errors when fetching flags
 	options := &executor.TaskOptionsCreateRelease{
-		ProjectName: flags.Project.Value,
+		ProjectName:             flags.Project.Value,
+		DefaultPackageVersion:   flags.PackageVersion.Value,
+		PackageVersionOverrides: flags.PackageVersionSpec.Value,
+		ChannelName:             flags.Channel.Value,
+		GitReference:            flags.GitRef.Value,
+		GitCommit:               flags.GitCommit.Value,
+		Version:                 flags.Version.Value,
+		ReleaseNotes:            flags.ReleaseNotes.Value,
+		IgnoreIfAlreadyExists:   flags.IgnoreExisting.Value,
+		IgnoreChannelRules:      flags.IgnoreChannelRules.Value,
 	}
-
-	options.DefaultPackageVersion = flags.PackageVersion.Value
-	options.PackageVersionOverrides = flags.PackageVersionSpec.Value
-	options.ChannelName = flags.Channel.Value
-	options.GitReference = flags.GitRef.Value
-	options.GitCommit = flags.GitCommit.Value
-	options.Version = flags.Version.Value
-	options.ReleaseNotes = flags.ReleaseNotes.Value
-	options.IgnoreIfAlreadyExists = flags.IgnoreExisting.Value
-	options.IgnoreChannelRules = flags.IgnoreChannelRules.Value
 
 	if flags.ReleaseNotesFile.Value != "" {
 		fileContents, err := os.ReadFile(flags.ReleaseNotesFile.Value)
@@ -878,12 +877,12 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 
 	var selectedChannel *channels.Channel
 	if options.ChannelName == "" {
-		selectedChannel, err = selectChannel(octopus, asker, spinner, selectedProject)
+		selectedChannel, err = util.SelectChannel(octopus, asker, spinner, "Select the channel in which the release will be created", selectedProject)
 		if err != nil {
 			return err
 		}
 	} else {
-		selectedChannel, err = findChannel(octopus, spinner, selectedProject, options.ChannelName)
+		selectedChannel, err = util.FindChannel(octopus, spinner, selectedProject, options.ChannelName)
 		if err != nil {
 			return err
 		}
@@ -1171,34 +1170,6 @@ func askReleaseNotes(ask question.Asker) (string, error) {
 		return "", err
 	}
 	return result, nil
-}
-
-func selectChannel(octopus *octopusApiClient.Client, ask question.Asker, spinner factory.Spinner, project *projects.Project) (*channels.Channel, error) {
-	spinner.Start()
-	existingChannels, err := octopus.Projects.GetChannels(project)
-	spinner.Stop()
-	if err != nil {
-		return nil, err
-	}
-
-	return question.SelectMap(ask, "Select the channel in which the release will be created", existingChannels, func(p *channels.Channel) string {
-		return p.Name
-	})
-}
-
-func findChannel(octopus *octopusApiClient.Client, spinner factory.Spinner, project *projects.Project, channelName string) (*channels.Channel, error) {
-	spinner.Start()
-	foundChannels, err := octopus.Projects.GetChannels(project) // TODO change this to channel partial name search on server; will require go client update
-	spinner.Stop()
-	if err != nil {
-		return nil, err
-	}
-	for _, c := range foundChannels { // server doesn't support channel search by exact name so we must emulate it
-		if strings.EqualFold(c.Name, channelName) {
-			return c, nil
-		}
-	}
-	return nil, fmt.Errorf("no channel found with name of %s", channelName)
 }
 
 func selectGitReference(octopus *octopusApiClient.Client, ask question.Asker, spinner factory.Spinner, project *projects.Project) (*projects.GitReference, error) {

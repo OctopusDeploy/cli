@@ -3,9 +3,11 @@ package executor
 import (
 	"errors"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/releases"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/executionsapi"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/spaces"
 )
+
+// ----- Create Release --------------------------------------
 
 type TaskResultCreateRelease struct {
 	Version string
@@ -13,6 +15,7 @@ type TaskResultCreateRelease struct {
 
 // the command processor is responsible for accepting related entity names from the end user
 // and looking them up for their ID's; we should only deal with strong references at this level
+
 type TaskOptionsCreateRelease struct {
 	ProjectName             string   // Required
 	DefaultPackageVersion   string   // Optional
@@ -25,7 +28,7 @@ type TaskOptionsCreateRelease struct {
 	IgnoreChannelRules      bool     // optional
 	PackageVersionOverrides []string // optional
 	// if the task succeeds, the resulting output will be stored here
-	Response *releases.CreateReleaseResponseV1
+	Response *executionsapi.CreateReleaseResponseV1
 }
 
 func releaseCreate(octopus *client.Client, space *spaces.Space, input any) error {
@@ -43,19 +46,7 @@ func releaseCreate(octopus *client.Client, space *spaces.Space, input any) error
 		return errors.New("project must be specified")
 	}
 
-	// CreateReleaseV1 looks like this:
-	//SpaceIDOrName         string   `json:"spaceIdOrName"`
-	//ProjectIDOrName       string   `json:"projectName"`
-	//PackageVersion        string   `json:"packageVersion,omitempty"`
-	//GitCommit             string   `json:"gitCommit,omitempty"`
-	//GitRef                string   `json:"gitRef,omitempty"`
-	//ReleaseVersion        string   `json:"releaseVersion,omitempty"`
-	//ChannelIDOrName       string   `json:"channelName,omitempty"`
-	//Packages              []string `json:"packages,omitempty"`
-	//ReleaseNotes          string   `json:"releaseNotes,omitempty"`
-	//IgnoreIfAlreadyExists bool     `json:"ignoreIfAlreadyExists,omitempty"`
-	//IgnoreChannelRules    bool     `json:"ignoreChannelRules,omitempty"`
-	createReleaseParams := releases.NewCreateReleaseV1(space.ID, params.ProjectName)
+	createReleaseParams := executionsapi.NewCreateReleaseCommandV1(space.ID, params.ProjectName)
 
 	createReleaseParams.PackageVersion = params.DefaultPackageVersion
 
@@ -74,11 +65,50 @@ func releaseCreate(octopus *client.Client, space *spaces.Space, input any) error
 	createReleaseParams.IgnoreIfAlreadyExists = params.IgnoreIfAlreadyExists
 	createReleaseParams.IgnoreChannelRules = params.IgnoreChannelRules
 
-	createReleaseResponse, err := octopus.Releases.CreateV1(createReleaseParams)
+	createReleaseResponse, err := executionsapi.CreateReleaseV1(octopus, createReleaseParams)
 	if err != nil {
 		return err
 	}
 
 	params.Response = createReleaseResponse
+	return nil
+}
+
+// ----- Deploy Release --------------------------------------
+
+type TaskOptionsDeployRelease struct {
+	ProjectName          string
+	ChannelName          string
+	ReleaseVersion       string   // the release to deploy
+	Environment          string   // singular for tenanted deployment
+	Environments         []string // multiple for untenanted deployment
+	Tenants              []string
+	TenantTags           []string
+	DeployAt             string
+	MaxQueueTime         string
+	ExcludedSteps        []string
+	GuidedFailureMode    string // tri-state: true, false, or "use default". Can we model it with an optional bool?
+	ForcePackageDownload bool
+	DeploymentTargets    []string
+	ExcludeTargets       []string
+
+	// TODO response output carrier
+}
+
+func releaseDeploy(octopus *client.Client, space *spaces.Space, input any) error {
+	params, ok := input.(*TaskOptionsDeployRelease)
+	if !ok {
+		return errors.New("invalid input type; expecting TaskOptionsDeployRelease")
+	}
+
+	if space == nil {
+		return errors.New("space must be specified")
+	}
+
+	// we have the provided project name; go look it up
+	if params.ProjectName == "" {
+		return errors.New("project must be specified")
+	}
+
 	return nil
 }

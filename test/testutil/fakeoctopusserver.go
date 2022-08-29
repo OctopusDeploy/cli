@@ -136,7 +136,7 @@ func (m *MockHttpServer) ExpectRequest(t *testing.T, method string, pathAndQuery
 	if !ok { // this means the channel was closed
 		// don't fatal, there'll be some other assertion failure too and we want to let that have a chance to print
 		t.Errorf("ExpectRequest %s %s failed; channel closed", method, pathAndQuery)
-		return &RequestWrapper{nil, m}
+		return &RequestWrapper{&http.Request{}, m}
 	}
 
 	rPathAndQuery := r.URL.Path
