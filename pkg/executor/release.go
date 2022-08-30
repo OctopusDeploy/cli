@@ -3,7 +3,8 @@ package executor
 import (
 	"errors"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/executionsapi"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/deployments"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/releases"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/spaces"
 )
 
@@ -28,7 +29,7 @@ type TaskOptionsCreateRelease struct {
 	IgnoreChannelRules      bool     // optional
 	PackageVersionOverrides []string // optional
 	// if the task succeeds, the resulting output will be stored here
-	Response *executionsapi.CreateReleaseResponseV1
+	Response *releases.CreateReleaseResponseV1
 }
 
 func releaseCreate(octopus *client.Client, space *spaces.Space, input any) error {
@@ -46,7 +47,7 @@ func releaseCreate(octopus *client.Client, space *spaces.Space, input any) error
 		return errors.New("project must be specified")
 	}
 
-	createReleaseParams := executionsapi.NewCreateReleaseCommandV1(space.ID, params.ProjectName)
+	createReleaseParams := releases.NewCreateReleaseCommandV1(space.ID, params.ProjectName)
 
 	createReleaseParams.PackageVersion = params.DefaultPackageVersion
 
@@ -65,7 +66,7 @@ func releaseCreate(octopus *client.Client, space *spaces.Space, input any) error
 	createReleaseParams.IgnoreIfAlreadyExists = params.IgnoreIfAlreadyExists
 	createReleaseParams.IgnoreChannelRules = params.IgnoreChannelRules
 
-	createReleaseResponse, err := executionsapi.CreateReleaseV1(octopus, createReleaseParams)
+	createReleaseResponse, err := releases.CreateReleaseV1(octopus, createReleaseParams)
 	if err != nil {
 		return err
 	}
@@ -92,7 +93,7 @@ type TaskOptionsDeployRelease struct {
 	DeploymentTargets    []string
 	ExcludeTargets       []string
 
-	// TODO response output carrier
+	Response *deployments.CreateDeploymentResponseV1
 }
 
 func releaseDeploy(octopus *client.Client, space *spaces.Space, input any) error {
@@ -110,5 +111,13 @@ func releaseDeploy(octopus *client.Client, space *spaces.Space, input any) error
 		return errors.New("project must be specified")
 	}
 
+	tenantedCommand := deployments.NewCreateDeploymentTenantedCommandV1(space.ID, params.ProjectName)
+
+	createDeploymentResponse, err := deployments.CreateDeploymentTenantedV1(octopus, tenantedCommand)
+	if err != nil {
+		return err
+	}
+
+	params.Response = createDeploymentResponse
 	return nil
 }

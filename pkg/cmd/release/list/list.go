@@ -133,7 +133,6 @@ func listRun(cmd *cobra.Command, f factory.Factory, flags *ListFlags) error {
 
 	return output.PrintArray(allReleases, cmd, output.Mappers[ReleaseViewModel]{
 		Json: func(item ReleaseViewModel) any {
-			// TODO should the ReleaseID go in the JSON as well as the release number? How about channelID?
 			return item
 		},
 		Table: output.TableDefinition[ReleaseViewModel]{
