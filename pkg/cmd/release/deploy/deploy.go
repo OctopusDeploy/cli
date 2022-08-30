@@ -14,6 +14,7 @@ import (
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/channels"
 	octopusApiClient "github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/releases"
 	"github.com/spf13/cobra"
 	"io"
 )
@@ -318,6 +319,24 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 
 	// select release
 
+	var selectedRelease *releases.Release
+	if options.ReleaseVersion == "" {
+		selectedRelease, err = selectRelease(octopus, asker, spinner, "Select the release to deploy", selectedProject, selectedChannel)
+		if err != nil {
+			return err
+		}
+	} else {
+		selectedRelease, err = findRelease(octopus, spinner, selectedProject, selectedChannel)
+		if err != nil {
+			return err
+		}
+		_, _ = fmt.Fprintf(stdout, "Release %s\n", output.Cyan(selectedRelease.Version))
+	}
+	options.ReleaseVersion = selectedRelease.Version
+	if err != nil {
+		return err
+	}
+
 	// NOTE: Tenant can be disabled or forced. In these cases we know what to do.
 
 	// The middle case is "allowed, but not forced", in which case we don't know ahead of time what to do WRT tenants,
@@ -348,4 +367,42 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 
 	// DONE
 	return nil
+}
+
+func selectRelease(octopus *octopusApiClient.Client, ask question.Asker, spinner factory.Spinner, questionText string, project *projects.Project, channel *channels.Channel) (*releases.Release, error) {
+	foundReleases := make([]*releases.Release, 0)
+	spinner.Start()
+	recv, _ := projects.GetReleasesForChannel(octopus, project, channel)
+	for {
+		pageOrError := <-recv
+		if pageOrError.Response != nil && len(pageOrError.Response.Items) != 0 {
+			foundReleases = append(foundReleases, pageOrError.Response.Items...)
+		} else if pageOrError.Error != nil {
+			spinner.Stop()
+			return nil, pageOrError.Error
+		} else { // both nil means channel closed
+			break
+		}
+	}
+	spinner.Stop()
+
+	return question.SelectMap(ask, questionText, foundReleases, func(p *releases.Release) string {
+		return p.Version
+	})
+}
+
+func findRelease(octopus *octopusApiClient.Client, spinner factory.Spinner, project *projects.Project, channel *channels.Channel) (*releases.Release, error) {
+	spinner.Start()
+	//foundChannels, err := octopus.Projects.GetChannels(project) // TODO change this to channel partial name search on server; will require go client update
+	spinner.Stop()
+	//if err != nil {
+	//	return nil, err
+	//}
+	//for _, c := range foundChannels { // server doesn't support channel search by exact name so we must emulate it
+	//	if strings.EqualFold(c.Name, channelName) {
+	//		return c, nil
+	//	}
+	//}
+	//return nil, fmt.Errorf("no channel found with name of %s", channelName)
+	return nil, nil
 }
