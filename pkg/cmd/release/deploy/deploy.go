@@ -9,10 +9,13 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/OctopusDeploy/cli/pkg/output"
 	"github.com/OctopusDeploy/cli/pkg/question"
+	"github.com/OctopusDeploy/cli/pkg/question/selectors"
 	"github.com/OctopusDeploy/cli/pkg/util"
 	"github.com/OctopusDeploy/cli/pkg/util/flag"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/channels"
 	octopusApiClient "github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/core"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/environments"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/releases"
 	"github.com/spf13/cobra"
@@ -91,7 +94,6 @@ const (
 
 type DeployFlags struct {
 	Project              *flag.Flag[string]
-	Channel              *flag.Flag[string]
 	ReleaseVersion       *flag.Flag[string]   // the release to deploy
 	Environments         *flag.Flag[[]string] // multiple for untenanted deployment
 	Tenants              *flag.Flag[[]string]
@@ -111,7 +113,6 @@ type DeployFlags struct {
 func NewDeployFlags() *DeployFlags {
 	return &DeployFlags{
 		Project:              flag.New[string](FlagProject, false),
-		Channel:              flag.New[string](FlagChannel, false),
 		ReleaseVersion:       flag.New[string](FlagReleaseVersion, false),
 		Environments:         flag.New[[]string](FlagEnvironment, false),
 		Tenants:              flag.New[[]string](FlagTenant, false),
@@ -148,7 +149,6 @@ func NewCmdDeploy(f factory.Factory) *cobra.Command {
 
 	flags := cmd.Flags()
 	flags.StringVarP(&deployFlags.Project.Value, deployFlags.Project.Name, "p", "", "Name or ID of the project to deploy the release from")
-	flags.StringVarP(&deployFlags.Channel.Value, deployFlags.Channel.Name, "c", "", "Name or ID of the project to deploy the release from")
 	flags.StringVarP(&deployFlags.ReleaseVersion.Value, deployFlags.ReleaseVersion.Name, "v", "", "Release version to deploy")
 	flags.StringSliceVarP(&deployFlags.Environments.Value, deployFlags.Environments.Name, "e", nil, "Deploy to this environment (can be specified multiple times)")
 	flags.StringSliceVarP(&deployFlags.Tenants.Value, deployFlags.Tenants.Name, "", nil, "Deploy to this tenant (can be specified multiple times)")
@@ -219,7 +219,6 @@ func deployRun(cmd *cobra.Command, f factory.Factory, flags *DeployFlags) error 
 			// the Q&A process will have modified options;backfill into flags for generation of the automation cmd
 			resolvedFlags := NewDeployFlags()
 			resolvedFlags.Project.Value = options.ProjectName
-			resolvedFlags.Channel.Value = options.ChannelName
 			resolvedFlags.ReleaseVersion.Value = options.ReleaseVersion
 			resolvedFlags.Environments.Value = options.Environments
 			resolvedFlags.Tenants.Value = options.Tenants
@@ -234,7 +233,6 @@ func deployRun(cmd *cobra.Command, f factory.Factory, flags *DeployFlags) error 
 
 			autoCmd := flag.GenerateAutomationCmd(constants.ExecutableName+" release deploy",
 				resolvedFlags.Project,
-				resolvedFlags.Channel,
 				resolvedFlags.ReleaseVersion,
 				resolvedFlags.Environments,
 				resolvedFlags.Tenants,
@@ -283,50 +281,33 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 	// select project
 	var selectedProject *projects.Project
 	if options.ProjectName == "" {
-		selectedProject, err = util.SelectProject("Select the project to deploy from", octopus, asker, spinner)
+		selectedProject, err = selectors.Project("Select the project to deploy from", octopus, asker, spinner)
 		if err != nil {
 			return err
 		}
 	} else { // project name is already provided, fetch the object because it's needed for further questions
-		selectedProject, err = util.FindProject(octopus, spinner, options.ProjectName)
+		selectedProject, err = selectors.FindProject(octopus, spinner, options.ProjectName)
 		if err != nil {
 			return err
 		}
 		_, _ = fmt.Fprintf(stdout, "Project %s\n", output.Cyan(selectedProject.Name))
 	}
 
-	// QUESTION: Presumably channel here is used to narrow down the search for release versions?
-	// if --version is specified on the command line, then we should be able to skip the question?
-
-	// select channel
-	var selectedChannel *channels.Channel
-	if options.ChannelName == "" {
-		selectedChannel, err = util.SelectChannel(octopus, asker, spinner, "Select the channel to deploy from", selectedProject)
-		if err != nil {
-			return err
-		}
-	} else {
-		selectedChannel, err = util.FindChannel(octopus, spinner, selectedProject, options.ChannelName)
-		if err != nil {
-			return err
-		}
-		_, _ = fmt.Fprintf(stdout, "Channel %s\n", output.Cyan(selectedChannel.Name))
-	}
-	options.ChannelName = selectedChannel.Name
-	if err != nil {
-		return err
-	}
-
 	// select release
 
 	var selectedRelease *releases.Release
 	if options.ReleaseVersion == "" {
+		// first we want to ask them to pick a channel just to narrow down the search space for releases (not sent to server)
+		selectedChannel, err := selectors.Channel(octopus, asker, spinner, "Select the channel to deploy from", selectedProject)
+		if err != nil {
+			return err
+		}
 		selectedRelease, err = selectRelease(octopus, asker, spinner, "Select the release to deploy", selectedProject, selectedChannel)
 		if err != nil {
 			return err
 		}
 	} else {
-		selectedRelease, err = findRelease(octopus, spinner, selectedProject, selectedChannel)
+		selectedRelease, err = findRelease(octopus, spinner, selectedProject, options.ReleaseVersion)
 		if err != nil {
 			return err
 		}
@@ -337,6 +318,10 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 		return err
 	}
 
+	isTenanted, err := determineIsTenanted(selectedProject, asker)
+	if err != nil {
+		return err
+	}
 	// NOTE: Tenant can be disabled or forced. In these cases we know what to do.
 
 	// The middle case is "allowed, but not forced", in which case we don't know ahead of time what to do WRT tenants,
@@ -348,6 +333,19 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 	// 		    select tenants and/or tags (this is just a way of finding which tenants we are going to deploy to)
 	// 		else:
 	// 		  select environments
+	if isTenanted {
+		env, err := selectors.EnvironmentSelect(asker, octopus, spinner, "Select environment to deploy to")
+		if err != nil {
+			return err
+		}
+		options.Environment = env.ID
+	} else {
+		envs, err := selectors.EnvironmentsMultiSelect(asker, octopus, spinner, "Select environments to deploy to")
+		if err != nil {
+			return err
+		}
+		options.Environments = util.SliceTransform(envs, func(env *environments.Environment) string { return env.ID })
+	}
 
 	// 		UX problem: How do we find tenants via their tags?
 
@@ -370,39 +368,41 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 }
 
 func selectRelease(octopus *octopusApiClient.Client, ask question.Asker, spinner factory.Spinner, questionText string, project *projects.Project, channel *channels.Channel) (*releases.Release, error) {
-	foundReleases := make([]*releases.Release, 0)
 	spinner.Start()
-	recv, _ := projects.GetReleasesForChannel(octopus, project, channel)
-	for {
-		pageOrError := <-recv
-		if pageOrError.Response != nil && len(pageOrError.Response.Items) != 0 {
-			foundReleases = append(foundReleases, pageOrError.Response.Items...)
-		} else if pageOrError.Error != nil {
-			spinner.Stop()
-			return nil, pageOrError.Error
-		} else { // both nil means channel closed
-			break
-		}
-	}
+	foundReleases, err := releases.GetReleasesInProjectChannel(octopus, project.ID, channel.ID)
 	spinner.Stop()
+	if err != nil {
+		return nil, err
+	}
 
 	return question.SelectMap(ask, questionText, foundReleases, func(p *releases.Release) string {
 		return p.Version
 	})
 }
 
-func findRelease(octopus *octopusApiClient.Client, spinner factory.Spinner, project *projects.Project, channel *channels.Channel) (*releases.Release, error) {
+func findRelease(octopus *octopusApiClient.Client, spinner factory.Spinner, project *projects.Project, releaseVersion string) (*releases.Release, error) {
 	spinner.Start()
-	//foundChannels, err := octopus.Projects.GetChannels(project) // TODO change this to channel partial name search on server; will require go client update
+	foundRelease, err := releases.GetReleaseInProject(octopus, project.ID, releaseVersion)
 	spinner.Stop()
-	//if err != nil {
-	//	return nil, err
-	//}
-	//for _, c := range foundChannels { // server doesn't support channel search by exact name so we must emulate it
-	//	if strings.EqualFold(c.Name, channelName) {
-	//		return c, nil
-	//	}
-	//}
-	//return nil, fmt.Errorf("no channel found with name of %s", channelName)
-	return nil, nil
+	return foundRelease, err
+}
+
+func determineIsTenanted(project *projects.Project, ask question.Asker) (bool, error) {
+	switch project.TenantedDeploymentMode {
+	case core.TenantedDeploymentModeUntenanted:
+		return false, nil
+	case core.TenantedDeploymentModeTenanted:
+		return true, nil
+	case core.TenantedDeploymentModeTenantedOrUntenanted:
+		return question.SelectMap(ask, "Select Tenanted or Untenanted deployment", []bool{true, false}, func(b bool) string {
+			if b {
+				return "Tenanted" // should be the default; they probably want tenanted
+			} else {
+				return "Untenanted"
+			}
+		})
+
+	default: // should not get here
+		return false, fmt.Errorf("unhandled tenanted deployment mode %s", project.TenantedDeploymentMode)
+	}
 }

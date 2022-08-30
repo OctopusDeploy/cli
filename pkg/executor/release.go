@@ -78,8 +78,7 @@ func releaseCreate(octopus *client.Client, space *spaces.Space, input any) error
 // ----- Deploy Release --------------------------------------
 
 type TaskOptionsDeployRelease struct {
-	ProjectName          string
-	ChannelName          string
+	ProjectName          string   // required
 	ReleaseVersion       string   // the release to deploy
 	Environment          string   // singular for tenanted deployment
 	Environments         []string // multiple for untenanted deployment

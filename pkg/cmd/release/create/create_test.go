@@ -15,7 +15,6 @@ import (
 	octopusApiClient "github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/constants"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/deployments"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/executionsapi"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/feeds"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/packages"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
@@ -1237,15 +1236,15 @@ func TestReleaseCreate_AutomationMode(t *testing.T) {
 			req := api.ExpectRequest(t, "POST", "/api/Spaces-1/releases/create/v1")
 
 			// check that it sent the server the right request body
-			requestBody, err := testutil.ReadJson[executionsapi.CreateReleaseCommandV1](req.Request.Body)
+			requestBody, err := testutil.ReadJson[releases.CreateReleaseCommandV1](req.Request.Body)
 			assert.Nil(t, err)
 
-			assert.Equal(t, executionsapi.CreateReleaseCommandV1{
+			assert.Equal(t, releases.CreateReleaseCommandV1{
 				SpaceIDOrName:   "Spaces-1",
 				ProjectIDOrName: cacProject.Name,
 			}, requestBody)
 
-			req.RespondWith(&executionsapi.CreateReleaseResponseV1{
+			req.RespondWith(&releases.CreateReleaseResponseV1{
 				ReleaseID:      "Releases-999", // new release
 				ReleaseVersion: "1.2.3",
 			})
@@ -1283,15 +1282,15 @@ func TestReleaseCreate_AutomationMode(t *testing.T) {
 			req := api.ExpectRequest(t, "POST", "/api/Spaces-1/releases/create/v1")
 
 			// check that it sent the server the right request body
-			requestBody, err := testutil.ReadJson[executionsapi.CreateReleaseCommandV1](req.Request.Body)
+			requestBody, err := testutil.ReadJson[releases.CreateReleaseCommandV1](req.Request.Body)
 			assert.Nil(t, err)
 
-			assert.Equal(t, executionsapi.CreateReleaseCommandV1{
+			assert.Equal(t, releases.CreateReleaseCommandV1{
 				SpaceIDOrName:   "Spaces-1",
 				ProjectIDOrName: cacProject.Name,
 			}, requestBody)
 
-			req.RespondWith(&executionsapi.CreateReleaseResponseV1{
+			req.RespondWith(&releases.CreateReleaseResponseV1{
 				ReleaseID:      "Releases-999", // new release
 				ReleaseVersion: "1.2.3",
 			})
@@ -1327,7 +1326,7 @@ func TestReleaseCreate_AutomationMode(t *testing.T) {
 			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
 
 			// don't need to validate the json received by the server, we've done that already
-			api.ExpectRequest(t, "POST", "/api/Spaces-1/releases/create/v1").RespondWith(&executionsapi.CreateReleaseResponseV1{
+			api.ExpectRequest(t, "POST", "/api/Spaces-1/releases/create/v1").RespondWith(&releases.CreateReleaseResponseV1{
 				ReleaseID:      "Releases-999",
 				ReleaseVersion: "1.2.3",
 			})
@@ -1358,7 +1357,7 @@ func TestReleaseCreate_AutomationMode(t *testing.T) {
 			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
 
 			// don't need to validate the json received by the server, we've done that already
-			api.ExpectRequest(t, "POST", "/api/Spaces-1/releases/create/v1").RespondWith(&executionsapi.CreateReleaseResponseV1{
+			api.ExpectRequest(t, "POST", "/api/Spaces-1/releases/create/v1").RespondWith(&releases.CreateReleaseResponseV1{
 				ReleaseID:      "Releases-999",
 				ReleaseVersion: "1.2.3",
 			})
@@ -1391,17 +1390,17 @@ func TestReleaseCreate_AutomationMode(t *testing.T) {
 			req := api.ExpectRequest(t, "POST", "/api/Spaces-1/releases/create/v1")
 
 			// check that it sent the server the right request body
-			requestBody, err := testutil.ReadJson[executionsapi.CreateReleaseCommandV1](req.Request.Body)
+			requestBody, err := testutil.ReadJson[releases.CreateReleaseCommandV1](req.Request.Body)
 			assert.Nil(t, err)
 
-			assert.Equal(t, executionsapi.CreateReleaseCommandV1{
+			assert.Equal(t, releases.CreateReleaseCommandV1{
 				SpaceIDOrName:   "Spaces-1",
 				ProjectIDOrName: cacProject.Name,
 				GitCommit:       "6ef5e8c83cdcd4933bbeaeb458dc99902ad831ca",
 				GitRef:          "refs/heads/main",
 			}, requestBody)
 
-			req.RespondWith(&executionsapi.CreateReleaseResponseV1{
+			req.RespondWith(&releases.CreateReleaseResponseV1{
 				ReleaseID:      "Releases-999", // new release
 				ReleaseVersion: "1.2.3",
 			})
@@ -1436,10 +1435,10 @@ func TestReleaseCreate_AutomationMode(t *testing.T) {
 			req := api.ExpectRequest(t, "POST", "/api/Spaces-1/releases/create/v1")
 
 			// check that it sent the server the right request body
-			requestBody, err := testutil.ReadJson[executionsapi.CreateReleaseCommandV1](req.Request.Body)
+			requestBody, err := testutil.ReadJson[releases.CreateReleaseCommandV1](req.Request.Body)
 			assert.Nil(t, err)
 
-			assert.Equal(t, executionsapi.CreateReleaseCommandV1{
+			assert.Equal(t, releases.CreateReleaseCommandV1{
 				SpaceIDOrName:   "Spaces-1",
 				ProjectIDOrName: cacProject.Name,
 				PackageVersion:  "1.2",
@@ -1450,7 +1449,7 @@ func TestReleaseCreate_AutomationMode(t *testing.T) {
 				},
 			}, requestBody)
 
-			req.RespondWith(&executionsapi.CreateReleaseResponseV1{
+			req.RespondWith(&releases.CreateReleaseResponseV1{
 				ReleaseID:      "Releases-999", // new release
 				ReleaseVersion: "1.2.3",
 			})
@@ -1511,10 +1510,10 @@ func TestReleaseCreate_AutomationMode(t *testing.T) {
 			req := api.ExpectRequest(t, "POST", "/api/Spaces-1/releases/create/v1")
 
 			// check that it sent the server the right request body
-			requestBody, err := testutil.ReadJson[executionsapi.CreateReleaseCommandV1](req.Request.Body)
+			requestBody, err := testutil.ReadJson[releases.CreateReleaseCommandV1](req.Request.Body)
 			assert.Nil(t, err)
 
-			assert.Equal(t, executionsapi.CreateReleaseCommandV1{
+			assert.Equal(t, releases.CreateReleaseCommandV1{
 				SpaceIDOrName:         "Spaces-1",
 				ProjectIDOrName:       cacProject.Name,
 				PackageVersion:        "5.6.7-beta",
@@ -1531,7 +1530,7 @@ func TestReleaseCreate_AutomationMode(t *testing.T) {
 
 			// this isn't realistic, we asked for version 1.0.2 and channel Beta, but it proves that
 			// if the server changes its mind and uses a different channel, the CLI will show that.
-			req.RespondWith(&executionsapi.CreateReleaseResponseV1{
+			req.RespondWith(&releases.CreateReleaseResponseV1{
 				ReleaseID:      "Releases-999", // new release
 				ReleaseVersion: "1.0.5",
 			})
@@ -1581,10 +1580,10 @@ func TestReleaseCreate_AutomationMode(t *testing.T) {
 			req := api.ExpectRequest(t, "POST", "/api/Spaces-1/releases/create/v1")
 
 			// check that it sent the server the right request body
-			requestBody, err := testutil.ReadJson[executionsapi.CreateReleaseCommandV1](req.Request.Body)
+			requestBody, err := testutil.ReadJson[releases.CreateReleaseCommandV1](req.Request.Body)
 			assert.Nil(t, err)
 
-			assert.Equal(t, executionsapi.CreateReleaseCommandV1{
+			assert.Equal(t, releases.CreateReleaseCommandV1{
 				SpaceIDOrName:         "Spaces-1",
 				ProjectIDOrName:       cacProject.Name,
 				PackageVersion:        "5.6.7-beta",
@@ -1601,7 +1600,7 @@ func TestReleaseCreate_AutomationMode(t *testing.T) {
 
 			// this isn't realistic, we asked for version 1.0.2 and channel Beta, but it proves that
 			// if the server changes its mind and uses a different channel, the CLI will show that.
-			req.RespondWith(&executionsapi.CreateReleaseResponseV1{
+			req.RespondWith(&releases.CreateReleaseResponseV1{
 				ReleaseID:      "Releases-999", // new release
 				ReleaseVersion: "1.0.5",
 			})
@@ -1646,10 +1645,10 @@ func TestReleaseCreate_AutomationMode(t *testing.T) {
 			req := api.ExpectRequest(t, "POST", "/api/Spaces-1/releases/create/v1")
 
 			// check that it sent the server the right request body
-			requestBody, err := testutil.ReadJson[executionsapi.CreateReleaseCommandV1](req.Request.Body)
+			requestBody, err := testutil.ReadJson[releases.CreateReleaseCommandV1](req.Request.Body)
 			assert.Nil(t, err)
 
-			assert.Equal(t, executionsapi.CreateReleaseCommandV1{
+			assert.Equal(t, releases.CreateReleaseCommandV1{
 				SpaceIDOrName:         "Spaces-1",
 				ProjectIDOrName:       cacProject.Name,
 				PackageVersion:        "5.6.7-beta",
@@ -1665,7 +1664,7 @@ func TestReleaseCreate_AutomationMode(t *testing.T) {
 
 			// this isn't realistic, we asked for version 1.0.2 and channel Beta, but it proves that
 			// if the server changes its mind and uses a different channel, the CLI will show that.
-			req.RespondWith(&executionsapi.CreateReleaseResponseV1{
+			req.RespondWith(&releases.CreateReleaseResponseV1{
 				ReleaseID:      "Releases-999", // new release
 				ReleaseVersion: "1.0.5",
 			})
@@ -1714,10 +1713,10 @@ func TestReleaseCreate_AutomationMode(t *testing.T) {
 			req := api.ExpectRequest(t, "POST", "/api/Spaces-1/releases/create/v1")
 
 			// check that it sent the server the right request body
-			requestBody, err := testutil.ReadJson[executionsapi.CreateReleaseCommandV1](req.Request.Body)
+			requestBody, err := testutil.ReadJson[releases.CreateReleaseCommandV1](req.Request.Body)
 			assert.Nil(t, err)
 
-			assert.Equal(t, executionsapi.CreateReleaseCommandV1{
+			assert.Equal(t, releases.CreateReleaseCommandV1{
 				SpaceIDOrName:   "Spaces-1",
 				ProjectIDOrName: cacProject.Name,
 				ChannelIDOrName: "BetaChannel",
@@ -1726,7 +1725,7 @@ func TestReleaseCreate_AutomationMode(t *testing.T) {
 
 			// this isn't realistic, we asked for version 1.0.2 and channel Beta, but it proves that
 			// if the server changes its mind and uses a different channel, the CLI will show that.
-			req.RespondWith(&executionsapi.CreateReleaseResponseV1{
+			req.RespondWith(&releases.CreateReleaseResponseV1{
 				ReleaseID:      "Releases-999", // new release
 				ReleaseVersion: "1.0.5",
 			})

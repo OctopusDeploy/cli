@@ -13,6 +13,7 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/OctopusDeploy/cli/pkg/output"
 	"github.com/OctopusDeploy/cli/pkg/question"
+	"github.com/OctopusDeploy/cli/pkg/question/selectors"
 	"github.com/OctopusDeploy/cli/pkg/surveyext"
 	"github.com/OctopusDeploy/cli/pkg/util"
 	"github.com/OctopusDeploy/cli/pkg/util/flag"
@@ -819,12 +820,12 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 	var err error
 	var selectedProject *projects.Project
 	if options.ProjectName == "" {
-		selectedProject, err = util.SelectProject("Select the project in which the release will be created", octopus, asker, spinner)
+		selectedProject, err = selectors.Project("Select the project in which the release will be created", octopus, asker, spinner)
 		if err != nil {
 			return err
 		}
 	} else { // project name is already provided, fetch the object because it's needed for further questions
-		selectedProject, err = util.FindProject(octopus, spinner, options.ProjectName)
+		selectedProject, err = selectors.FindProject(octopus, spinner, options.ProjectName)
 		if err != nil {
 			return err
 		}
@@ -877,12 +878,12 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 
 	var selectedChannel *channels.Channel
 	if options.ChannelName == "" {
-		selectedChannel, err = util.SelectChannel(octopus, asker, spinner, "Select the channel in which the release will be created", selectedProject)
+		selectedChannel, err = selectors.Channel(octopus, asker, spinner, "Select the channel in which the release will be created", selectedProject)
 		if err != nil {
 			return err
 		}
 	} else {
-		selectedChannel, err = util.FindChannel(octopus, spinner, selectedProject, options.ChannelName)
+		selectedChannel, err = selectors.FindChannel(octopus, spinner, selectedProject, options.ChannelName)
 		if err != nil {
 			return err
 		}

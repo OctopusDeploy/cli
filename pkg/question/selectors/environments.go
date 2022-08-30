@@ -7,7 +7,7 @@ import (
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/environments"
 )
 
-func EnvironmentsMultiSelect(ask question.Asker, client *client.Client, s factory.Spinner, message string) ([]string, error) {
+func EnvironmentSelect(ask question.Asker, client *client.Client, s factory.Spinner, message string) (*environments.Environment, error) {
 	s.Start()
 	envResources, err := client.Environments.Get(environments.EnvironmentsQuery{})
 	if err != nil {
@@ -20,15 +20,25 @@ func EnvironmentsMultiSelect(ask question.Asker, client *client.Client, s factor
 		return nil, err
 	}
 	s.Stop()
-	items, err := question.MultiSelectMap(ask, message, allEnvs, func(item *environments.Environment) string {
+	return question.SelectMap(ask, message, allEnvs, func(item *environments.Environment) string {
 		return item.Name
 	})
+}
+
+func EnvironmentsMultiSelect(ask question.Asker, client *client.Client, s factory.Spinner, message string) ([]*environments.Environment, error) {
+	s.Start()
+	envResources, err := client.Environments.Get(environments.EnvironmentsQuery{})
 	if err != nil {
+		s.Stop()
 		return nil, err
 	}
-	itemIds := make([]string, 0, len(items))
-	for _, env := range items {
-		itemIds = append(itemIds, env.GetID())
+	allEnvs, err := envResources.GetAllPages(client.Environments.GetClient())
+	if err != nil {
+		s.Stop()
+		return nil, err
 	}
-	return itemIds, nil
+	s.Stop()
+	return question.MultiSelectMap(ask, message, allEnvs, func(item *environments.Environment) string {
+		return item.Name
+	})
 }

@@ -8,6 +8,7 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/OctopusDeploy/cli/pkg/output"
 	"github.com/OctopusDeploy/cli/pkg/question"
+	"github.com/OctopusDeploy/cli/pkg/question/selectors"
 	"github.com/OctopusDeploy/cli/pkg/util"
 	"github.com/OctopusDeploy/cli/pkg/util/flag"
 	octopusApiClient "github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
@@ -87,12 +88,12 @@ func deleteRun(cmd *cobra.Command, f factory.Factory, flags *Flags, args []strin
 
 	if f.IsPromptEnabled() { // this would be AskQuestions if it were bigger
 		if projectNameOrID == "" {
-			selectedProject, err = util.SelectProject("Select the project to delete a release in", octopus, f.Ask, spinner)
+			selectedProject, err = selectors.Project("Select the project to delete a release in", octopus, f.Ask, spinner)
 			if err != nil {
 				return err
 			}
 		} else { // project name is already provided, fetch the object because it's needed for further questions
-			selectedProject, err = util.FindProject(octopus, spinner, projectNameOrID)
+			selectedProject, err = selectors.FindProject(octopus, spinner, projectNameOrID)
 			if err != nil {
 				return err
 			}
@@ -141,7 +142,7 @@ func deleteRun(cmd *cobra.Command, f factory.Factory, flags *Flags, args []strin
 			return errors.New("at least one release version must be specified")
 		}
 
-		selectedProject, err = util.FindProject(octopus, factory.NoSpinner, projectNameOrID)
+		selectedProject, err = selectors.FindProject(octopus, factory.NoSpinner, projectNameOrID)
 		if err != nil {
 			return err
 		}
