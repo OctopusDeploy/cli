@@ -322,11 +322,6 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 	if err != nil {
 		return err
 	}
-	// NOTE: Tenant can be disabled or forced. In these cases we know what to do.
-
-	// The middle case is "allowed, but not forced", in which case we don't know ahead of time what to do WRT tenants,
-	// so we'd need to ask the user (presumably though we can check if the project itself is linked to any tenants and only ask then)?
-	// there is a ListTenants(projectID) api that we can use. /api/tenants?projectID=
 
 	// 		If tentanted:
 	// 		  select (singular) environment
@@ -339,6 +334,9 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 			return err
 		}
 		options.Environment = env.ID
+
+		// TODO select TagsAndTenants is going to require it's own function
+		// 		UX problem: How do we find tenants via their tags?
 	} else {
 		envs, err := selectors.EnvironmentsMultiSelect(asker, octopus, spinner, "Select environments to deploy to")
 		if err != nil {
@@ -346,8 +344,6 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 		}
 		options.Environments = util.SliceTransform(envs, func(env *environments.Environment) string { return env.ID })
 	}
-
-	// 		UX problem: How do we find tenants via their tags?
 
 	// when? (timed deployment)
 
@@ -366,6 +362,27 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 	// DONE
 	return nil
 }
+
+//
+//type RequestProcessor struct {
+//	GetReleasesInProjectChannel func(client newclient.Client, projectID string, channelID string) ([]*releases.Release, error)
+//	// 300 more functions for every kind of GetXyz
+//}
+//
+//func NewRealRequestProcessor() *RequestProcessor {
+//	return &RequestProcessor{
+//		GetReleasesInProjectChannel: releases.GetReleasesInProjectChannel,
+//	}
+//}
+//
+//func NewFakeRequestProcessor() *RequestProcessor {
+//	return &RequestProcessor{
+//		GetReleasesInProjectChannel: func(client newclient.Client, projectID string, channelID string) ([]*releases.Release, error) {
+//			// It's a mock!
+//			return nil, nil
+//		},
+//	}
+//}
 
 func selectRelease(octopus *octopusApiClient.Client, ask question.Asker, spinner factory.Spinner, questionText string, project *projects.Project, channel *channels.Channel) (*releases.Release, error) {
 	spinner.Start()
@@ -387,6 +404,11 @@ func findRelease(octopus *octopusApiClient.Client, spinner factory.Spinner, proj
 	return foundRelease, err
 }
 
+// determineIsTenanted returns true if we are going to do a tenanted deployment, false if untenanted
+// NOTE: Tenant can be disabled or forced. In these cases we know what to do.
+// The middle case is "allowed, but not forced", in which case we don't know ahead of time what to do WRT tenants,
+// so we'd need to ask the user (presumably though we can check if the project itself is linked to any tenants and only ask then)?
+// there is a ListTenants(projectID) api that we can use. /api/tenants?projectID=
 func determineIsTenanted(project *projects.Project, ask question.Asker) (bool, error) {
 	switch project.TenantedDeploymentMode {
 	case core.TenantedDeploymentModeUntenanted:
