@@ -184,7 +184,7 @@ jobs:
 
     - name: Create Linux and OSX packages
       run: |
-        zip -rj artifacts/OctopusCLI.${{ step.get-version.outputs.version }}.zip /
+        zip -rj artifacts/OctopusCLI.${{ steps.get-version.outputs.version }}.zip /
           artifacts/*.nupkg \
           artifacts/*.linux*.tar.gz \
           artifacts/*.macOS*.tar.gz \
