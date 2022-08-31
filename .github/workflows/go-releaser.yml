@@ -182,7 +182,9 @@ jobs:
       run: curl -o ./nuget.exe https://dist.nuget.org/win-x86-commandline/latest/nuget.exe
 
     - name: Create Chocolatey package
-      run: mono nuget.exe build/cli.nuspec -p:version=${{ needs.goreleaser.outputs.version }} -OutputDirectory artifacts/
+      run: |
+        cp artifacts/$(basename "${{ needs.msi.outputs.msi_file }}") build/tools
+        mono nuget.exe build/cli.nuspec -p:version=${{ needs.goreleaser.outputs.version }} -OutputDirectory artifacts/
 
     - name: Create Linux and OSX packages
       run: |
