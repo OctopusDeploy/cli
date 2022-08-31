@@ -403,10 +403,10 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 			switch g {
 			case "":
 				return "Use default setting from the target environment"
-			case "false":
-				return "Do not use guided failure mode"
 			case "true":
 				return "Use guided failure mode"
+			case "false":
+				return "Do not use guided failure mode"
 			default:
 				return fmt.Sprintf("Unhandled %s", g)
 			}
