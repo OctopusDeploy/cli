@@ -366,7 +366,7 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 		// 		UX problem: How do we find tenants via their tags?
 	} else {
 		if len(options.Environments) == 0 {
-			envs, err := selectors.EnvironmentsMultiSelect(asker, octopus, spinner, "Select environments to deploy to")
+			envs, err := selectors.EnvironmentsMultiSelect(asker, octopus, spinner, "Select environments to deploy to", 1)
 			if err != nil {
 				return err
 			}
@@ -385,7 +385,7 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 	if len(options.ExcludedSteps) == 0 {
 		stepsToExclude, err := question.MultiSelectMap(asker, "Select steps to skip (if any)", deploymentProcess.Steps, func(s *deployments.DeploymentStep) string {
 			return s.Name
-		})
+		}, 0)
 		if err != nil {
 			return err
 		}

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"github.com/AlecAivazis/survey/v2"
+	surveyCore "github.com/AlecAivazis/survey/v2/core"
 	"github.com/OctopusDeploy/cli/pkg/cmd/release/deploy"
 	"github.com/OctopusDeploy/cli/pkg/executor"
 	"github.com/OctopusDeploy/cli/test/fixtures"
@@ -118,14 +119,16 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 			_ = qa.ExpectQuestion(t, &survey.MultiSelect{
 				Message: "Select environments to deploy to",
 				Options: []string{devEnvironment.Name, prodEnvironment.Name},
-			}).AnswerWith(devEnvironment.Name)
+			}).AnswerWith([]surveyCore.OptionAnswer{
+				{Value: devEnvironment.Name, Index: 0},
+			})
 
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/deploymentprocesses/"+depProcessSnapshot.ID).RespondWith(depProcessSnapshot)
 
 			_ = qa.ExpectQuestion(t, &survey.MultiSelect{
 				Message: "Select steps to skip (if any)",
 				Options: []string{"Install", "Cleanup"},
-			}).AnswerWith(make([]string, 0))
+			}).AnswerWith(make([]surveyCore.OptionAnswer, 0))
 
 			_ = qa.ExpectQuestion(t, &survey.Select{
 				Message: "Guided Failure Mode?",

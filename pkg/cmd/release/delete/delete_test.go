@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/AlecAivazis/survey/v2"
+	"github.com/AlecAivazis/survey/v2/core"
 	"github.com/MakeNowJust/heredoc/v2"
 	cmdRoot "github.com/OctopusDeploy/cli/pkg/cmd/root"
 	"github.com/OctopusDeploy/cli/pkg/question"
@@ -333,7 +334,10 @@ func TestReleaseDelete(t *testing.T) {
 					rBeta20b2.Version,
 					rBeta20b1.Version,
 				},
-			}).AnswerWith([]string{rDefault21.Version, rDefault20.Version})
+			}).AnswerWith([]core.OptionAnswer{
+				{Value: rDefault21.Version, Index: 0},
+				{Value: rDefault20.Version, Index: 1},
+			})
 
 			q := qa.ExpectQuestion(t, &survey.Confirm{Message: "Confirm delete of 2 release(s)"})
 			assert.Equal(t, heredoc.Doc(`

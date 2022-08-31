@@ -25,7 +25,7 @@ func EnvironmentSelect(ask question.Asker, client *client.Client, s factory.Spin
 	})
 }
 
-func EnvironmentsMultiSelect(ask question.Asker, client *client.Client, s factory.Spinner, message string) ([]*environments.Environment, error) {
+func EnvironmentsMultiSelect(ask question.Asker, client *client.Client, s factory.Spinner, message string, minItems int) ([]*environments.Environment, error) {
 	s.Start()
 	envResources, err := client.Environments.Get(environments.EnvironmentsQuery{})
 	if err != nil {
@@ -40,5 +40,5 @@ func EnvironmentsMultiSelect(ask question.Asker, client *client.Client, s factor
 	s.Stop()
 	return question.MultiSelectMap(ask, message, allEnvs, func(item *environments.Environment) string {
 		return item.Name
-	})
+	}, minItems)
 }

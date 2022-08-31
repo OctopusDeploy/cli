@@ -192,7 +192,7 @@ func selectReleases(octopus *octopusApiClient.Client, project *projects.Project,
 
 	return question.MultiSelectMap(ask, "Select Releases to delete", existingReleases, func(p *releases.Release) string {
 		return p.Version
-	})
+	}, 0)
 }
 
 func findReleases(octopus *octopusApiClient.Client, spinner factory.Spinner, project *projects.Project, versionStrings []string) ([]*releases.Release, error) {
