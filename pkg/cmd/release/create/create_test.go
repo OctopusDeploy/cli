@@ -1236,10 +1236,10 @@ func TestReleaseCreate_AutomationMode(t *testing.T) {
 			req := api.ExpectRequest(t, "POST", "/api/Spaces-1/releases/create/v1")
 
 			// check that it sent the server the right request body
-			requestBody, err := testutil.ReadJson[releases.CreateCommandV1](req.Request.Body)
+			requestBody, err := testutil.ReadJson[releases.CreateReleaseCommandV1](req.Request.Body)
 			assert.Nil(t, err)
 
-			assert.Equal(t, releases.CreateCommandV1{
+			assert.Equal(t, releases.CreateReleaseCommandV1{
 				SpaceID:         "Spaces-1",
 				ProjectIDOrName: cacProject.Name,
 			}, requestBody)
@@ -1282,10 +1282,10 @@ func TestReleaseCreate_AutomationMode(t *testing.T) {
 			req := api.ExpectRequest(t, "POST", "/api/Spaces-1/releases/create/v1")
 
 			// check that it sent the server the right request body
-			requestBody, err := testutil.ReadJson[releases.CreateCommandV1](req.Request.Body)
+			requestBody, err := testutil.ReadJson[releases.CreateReleaseCommandV1](req.Request.Body)
 			assert.Nil(t, err)
 
-			assert.Equal(t, releases.CreateCommandV1{
+			assert.Equal(t, releases.CreateReleaseCommandV1{
 				SpaceID:         "Spaces-1",
 				ProjectIDOrName: cacProject.Name,
 			}, requestBody)
@@ -1390,10 +1390,10 @@ func TestReleaseCreate_AutomationMode(t *testing.T) {
 			req := api.ExpectRequest(t, "POST", "/api/Spaces-1/releases/create/v1")
 
 			// check that it sent the server the right request body
-			requestBody, err := testutil.ReadJson[releases.CreateCommandV1](req.Request.Body)
+			requestBody, err := testutil.ReadJson[releases.CreateReleaseCommandV1](req.Request.Body)
 			assert.Nil(t, err)
 
-			assert.Equal(t, releases.CreateCommandV1{
+			assert.Equal(t, releases.CreateReleaseCommandV1{
 				SpaceID:         "Spaces-1",
 				ProjectIDOrName: cacProject.Name,
 				GitCommit:       "6ef5e8c83cdcd4933bbeaeb458dc99902ad831ca",
@@ -1435,10 +1435,10 @@ func TestReleaseCreate_AutomationMode(t *testing.T) {
 			req := api.ExpectRequest(t, "POST", "/api/Spaces-1/releases/create/v1")
 
 			// check that it sent the server the right request body
-			requestBody, err := testutil.ReadJson[releases.CreateCommandV1](req.Request.Body)
+			requestBody, err := testutil.ReadJson[releases.CreateReleaseCommandV1](req.Request.Body)
 			assert.Nil(t, err)
 
-			assert.Equal(t, releases.CreateCommandV1{
+			assert.Equal(t, releases.CreateReleaseCommandV1{
 				SpaceID:         "Spaces-1",
 				ProjectIDOrName: cacProject.Name,
 				PackageVersion:  "1.2",
@@ -1510,10 +1510,10 @@ func TestReleaseCreate_AutomationMode(t *testing.T) {
 			req := api.ExpectRequest(t, "POST", "/api/Spaces-1/releases/create/v1")
 
 			// check that it sent the server the right request body
-			requestBody, err := testutil.ReadJson[releases.CreateCommandV1](req.Request.Body)
+			requestBody, err := testutil.ReadJson[releases.CreateReleaseCommandV1](req.Request.Body)
 			assert.Nil(t, err)
 
-			assert.Equal(t, releases.CreateCommandV1{
+			assert.Equal(t, releases.CreateReleaseCommandV1{
 				SpaceID:               "Spaces-1",
 				ProjectIDOrName:       cacProject.Name,
 				PackageVersion:        "5.6.7-beta",
@@ -1580,10 +1580,10 @@ func TestReleaseCreate_AutomationMode(t *testing.T) {
 			req := api.ExpectRequest(t, "POST", "/api/Spaces-1/releases/create/v1")
 
 			// check that it sent the server the right request body
-			requestBody, err := testutil.ReadJson[releases.CreateCommandV1](req.Request.Body)
+			requestBody, err := testutil.ReadJson[releases.CreateReleaseCommandV1](req.Request.Body)
 			assert.Nil(t, err)
 
-			assert.Equal(t, releases.CreateCommandV1{
+			assert.Equal(t, releases.CreateReleaseCommandV1{
 				SpaceID:               "Spaces-1",
 				ProjectIDOrName:       cacProject.Name,
 				PackageVersion:        "5.6.7-beta",
@@ -1645,10 +1645,10 @@ func TestReleaseCreate_AutomationMode(t *testing.T) {
 			req := api.ExpectRequest(t, "POST", "/api/Spaces-1/releases/create/v1")
 
 			// check that it sent the server the right request body
-			requestBody, err := testutil.ReadJson[releases.CreateCommandV1](req.Request.Body)
+			requestBody, err := testutil.ReadJson[releases.CreateReleaseCommandV1](req.Request.Body)
 			assert.Nil(t, err)
 
-			assert.Equal(t, releases.CreateCommandV1{
+			assert.Equal(t, releases.CreateReleaseCommandV1{
 				SpaceID:               "Spaces-1",
 				ProjectIDOrName:       cacProject.Name,
 				PackageVersion:        "5.6.7-beta",
@@ -1713,10 +1713,10 @@ func TestReleaseCreate_AutomationMode(t *testing.T) {
 			req := api.ExpectRequest(t, "POST", "/api/Spaces-1/releases/create/v1")
 
 			// check that it sent the server the right request body
-			requestBody, err := testutil.ReadJson[releases.CreateCommandV1](req.Request.Body)
+			requestBody, err := testutil.ReadJson[releases.CreateReleaseCommandV1](req.Request.Body)
 			assert.Nil(t, err)
 
-			assert.Equal(t, releases.CreateCommandV1{
+			assert.Equal(t, releases.CreateReleaseCommandV1{
 				SpaceID:         "Spaces-1",
 				ProjectIDOrName: cacProject.Name,
 				ChannelIDOrName: "BetaChannel",
