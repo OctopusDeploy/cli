@@ -1,7 +1,6 @@
 package testutil
 
 import (
-	"bytes"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -96,7 +95,7 @@ func Close(server *MockHttpServer, qa *AskMocker) {
 }
 
 // ParseJsonStrict parses the incoming byte buffer into objects of type T, failing if any unexpected fields are present
-func ParseJsonStrict[T any](input *bytes.Buffer) (T, error) {
+func ParseJsonStrict[T any](input io.Reader) (T, error) {
 	var parsedStdout T
 	decoder := json.NewDecoder(input)
 	decoder.DisallowUnknownFields()
