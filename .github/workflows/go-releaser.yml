@@ -14,6 +14,8 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       artifacts: ${{ steps.goreleaser.outputs.artifacts }}
+      version: ${{ steps.version-details.outputs.version }}
+      tag_name: ${{ steps.version-details.outputs.tag_name }}
 
     steps:
     - name: Checkout
@@ -40,11 +42,17 @@ jobs:
       uses: goreleaser/goreleaser-action@v3
       with:
         version: latest
-        args: release --rm-dist
+        args: release
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         GPG_FINGERPRINT: ${{ steps.import_gpg.outputs.fingerprint }}
         GPG_PASSWORD: ${{ secrets.OCTOPUS_GPG_PASSPHRASE }}
+
+    - name: Populate version details
+      id: version-details
+      run: |
+        echo "::set-output name=tag_name::$(echo -e ${GITHUB_REF#refs/tags/})"
+        echo "::set-output name=version::$(echo -e ${GITHUB_REF#refs/tags/v})"
 
     - uses: actions/upload-artifact@v3
       with:
@@ -65,15 +73,13 @@ jobs:
     - uses: actions/download-artifact@v3
       with:
         name: artifacts
-        path: artifacts
+        path: artifacts/
 
-    - name: Download octopus.exe
-      id: download_exe
+    - name: Extract octopus.exe
+      id: extract_exe
       shell: bash
-      env:
-        GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
       run: |
-        gh release download "${GITHUB_REF#refs/tags/}" --pattern '*Windows_x86_64.zip'
+        cp ./artifacts/*.windows_x86_64.zip .
         printf "::set-output name=zip::%s\n" *.zip
         unzip -o *.zip && rm -v *.zip
 
@@ -85,11 +91,11 @@ jobs:
       id: buildmsi
       shell: bash
       env:
-        ZIP_FILE: ${{ steps.download_exe.outputs.zip }}
+        ZIP_FILE: ${{ steps.extract_exe.outputs.zip }}
         MSBUILD_PATH: ${{ steps.setupmsbuild.outputs.msbuildPath }}
       run: |
         name="$(basename "$ZIP_FILE" ".zip")"
-        version="$(echo -e ${GITHUB_REF#refs/tags/v} | sed s/-.*$//)"
+        version="$(echo -e ${{ needs.goreleaser.outputs.version }} | sed s/-.*$//)"
         "${MSBUILD_PATH}\MSBuild.exe" ./build/windows/octopus.wixproj -p:SourceDir="$PWD" -p:OutputPath="$PWD" -p:OutputName="$name" -p:ProductVersion="$version"
 
     - name: Install AzureSignTool
@@ -149,9 +155,7 @@ jobs:
       env:
         MSI_FILE: ${{ steps.buildmsi.outputs.msi }}
         GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
-      run: |
-        tag_name="${GITHUB_REF#refs/tags/}"
-        gh release upload "$tag_name" "$MSI_FILE"
+      run: gh release upload "${{ needs.goreleaser.outputs.tag_name }}" "$MSI_FILE"
 
     - uses: actions/upload-artifact@v3
       with:
@@ -161,8 +165,6 @@ jobs:
   generate-packages:
     needs: [goreleaser, msi]
     runs-on: ubuntu-latest
-    outputs:
-      package_version: ${{ steps.get-version.outputs.version }}
 
     steps:
     - uses: actions/checkout@v3
@@ -175,16 +177,12 @@ jobs:
     - name: Download nuget.exe
       run: curl -o ./nuget.exe https://dist.nuget.org/win-x86-commandline/latest/nuget.exe
 
-    - name: Set package version
-      id: get-version
-      run: echo "::set-output name=version::$(echo -e ${GITHUB_REF#refs/tags/v})"
-
     - name: Create Chocolatey package
-      run: mono nuget.exe build/cli.nuspec -p:version=${{ steps.get-version.outputs.version }} -OutputDirectory artifacts/
+      run: mono nuget.exe build/cli.nuspec -p:version=${{ needs.goreleaser.outputs.version }} -OutputDirectory artifacts/
 
     - name: Create Linux and OSX packages
       run: |
-        zip -rj artifacts/OctopusCLI.${{ steps.get-version.outputs.version }}.zip /
+        zip -rj artifacts/OctopusCLI.${{ needs.goreleaser.outputs.version }}.zip /
           artifacts/*.nupkg \
           artifacts/*.linux*.tar.gz \
           artifacts/*.macOS*.tar.gz \
@@ -219,14 +217,14 @@ jobs:
       uses: OctopusDeploy/push-package-action@v2
       with:
         space: Integrations
-        packages: artifacts/OctopusCli.${{ needs.generate-packages.outputs.package_version }}.zip
+        packages: artifacts/OctopusCli.${{ needs.goreleaser.outputs.version }}.zip
 
     - name: Fetch Release Notes
       id: fetch-release-notes
       run: |
         echo "::debug::${{github.event_name}}"
         OUTPUT_FILE="release_notes.txt"
-        gh view release "${GITHUB_REF#refs/tags/}" --jq '.body' --json 'body' | sed 's#\r#  #g' > $OUTPUT_FILE
+        gh view release "${{ needs.goreleaser.outputs.tag_name }}" --jq '.body' --json 'body' | sed 's#\r#  #g' > $OUTPUT_FILE
         echo "::set-output name=release-note-file::$OUTPUT_FILE"
 
     - name: Create a release in Octopus Deploy 🐙
@@ -234,7 +232,7 @@ jobs:
       with:
         space: Integrations
         project: 'cli'
-        package_version: ${{ needs.generate-packages.outputs.package_version }}
+        package_version: ${{ needs.goreleaser.outputs.version }}
         packages: '*:NuGet.CommandLine:4.4.1'
         release_notes_file: ${{ steps.fetch-release-notes.outputs.release-note-file || ''}}
         git_ref: ${{ (github.ref_type == 'tag' && github.event.repository.default_branch ) || (github.head_ref || github.ref) }}

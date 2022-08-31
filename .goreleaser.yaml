@@ -24,18 +24,13 @@ builds:
     binary: "{{ .ProjectName }}"
 
 archives:
-  - id: nix
-    builds: [macos, linux]
-    <<: &archive_defaults
-      name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}{{if .Arm }}v{{ .Arm }}{{ end }}"
-    replacements:
+  - replacements:
       darwin: macOS
-    format: tar.gz
-
-  - id: windows
-    builds: [windows]
-    <<: *archive_defaults
-    format: zip
+      amd64: x86_64
+    format_overrides:
+      - goos: windows
+        format: zip
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
 
 nfpms:
   - license: Apache 2.0
