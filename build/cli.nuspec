@@ -6,11 +6,15 @@
     <version>$version$</version>
     <authors>Octopus Deploy</authors>
     <owners>Octopus Deploy</owners>
-    <summary>Create, deploy and promote releases using Octopus Deploy.</summary>
-    <description>
-      Octopus is a user-friendly DevOps tool for developers that supports release management, deployment automation, and operations runbooks.
+    <summary>Command line wrapper for continuous deployments that makes you better at Octopus Deploy.</summary>
+    <description>octopus is Octopus Deploy on the command line. It brings releases, deployments, and other Octopus Deploy concepts to the terminal next to where you are already working with projects and your continuous deployment processes.
 
-      This package contains the Octopus CLI (octopus), a tool to create and deploy releases, create and push packages, and manage environments with Octopus.
+### Usage
+```
+octopus release [list, create, delete]
+octopus account <aws|azure|gcp|ssh|token|username> [list, create]
+octopus help
+```
     </description>
     <releaseNotes>https://github.com/OctopusDeploy/cli/releases/latest</releaseNotes>
     <language>en-US</language>
