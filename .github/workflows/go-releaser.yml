@@ -76,7 +76,6 @@ jobs:
     - uses: actions/download-artifact@v3
       with:
         name: artifacts
-        path: artifacts/
 
     - name: Extract octopus.exe
       id: extract_exe
@@ -176,7 +175,6 @@ jobs:
     - uses: actions/download-artifact@v3
       with:
         name: artifacts
-        path: artifacts/
 
     - name: Download nuget.exe
       run: curl -o ./nuget.exe https://dist.nuget.org/win-x86-commandline/latest/nuget.exe
@@ -212,7 +210,6 @@ jobs:
     - uses: actions/download-artifact@v3
       with:
         name: artifacts
-        path: artifacts
 
     - name: Install Octopus CLI 🐙
       uses: OctopusDeploy/install-octopus-cli-action@v1
