@@ -22,6 +22,7 @@ import (
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/spaces"
 	"github.com/spf13/cobra"
 	"io"
+	"strings"
 )
 
 // octopus release deploy <stuff>
@@ -207,6 +208,11 @@ func deployRun(cmd *cobra.Command, f factory.Factory, flags *DeployFlags) error 
 		return err
 	}
 
+	parsedVariables, err := ParseVariableStringArray(flags.Variables.Value)
+	if err != nil {
+		return err
+	}
+
 	options := &executor.TaskOptionsDeployRelease{
 		ProjectName:          flags.Project.Value,
 		ReleaseVersion:       flags.ReleaseVersion.Value,
@@ -220,6 +226,7 @@ func deployRun(cmd *cobra.Command, f factory.Factory, flags *DeployFlags) error 
 		ForcePackageDownload: flags.ForcePackageDownload.Value,
 		DeploymentTargets:    flags.DeploymentTargets.Value,
 		ExcludeTargets:       flags.ExcludeTargets.Value,
+		Variables:            parsedVariables,
 	}
 
 	// special case for FlagForcePackageDownload bool so we can tell if it was set on the cmdline or missing
@@ -247,6 +254,7 @@ func deployRun(cmd *cobra.Command, f factory.Factory, flags *DeployFlags) error 
 			resolvedFlags.GuidedFailureMode.Value = options.GuidedFailureMode
 			resolvedFlags.DeploymentTargets.Value = options.DeploymentTargets
 			resolvedFlags.ExcludeTargets.Value = options.ExcludeTargets
+			resolvedFlags.Variables.Value = ToVariableStringArray(options.Variables)
 
 			// we're deliberately adding --no-prompt to the generated cmdline so ForcePackageDownload=false will be missing,
 			// but that's fine
@@ -265,6 +273,7 @@ func deployRun(cmd *cobra.Command, f factory.Factory, flags *DeployFlags) error 
 				resolvedFlags.ForcePackageDownload,
 				resolvedFlags.DeploymentTargets,
 				resolvedFlags.ExcludeTargets,
+				resolvedFlags.Variables,
 			)
 			cmd.Printf("\nAutomation Command: %s\n", autoCmd)
 		}
@@ -336,6 +345,11 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 		_, _ = fmt.Fprintf(stdout, "Release %s\n", output.Cyan(selectedRelease.Version))
 	}
 	options.ReleaseVersion = selectedRelease.Version
+	if err != nil {
+		return err
+	}
+
+	_, err = AskPromptedVariables(octopus, spinner, space, selectedRelease.ProjectVariableSetSnapshotID, options.Variables)
 	if err != nil {
 		return err
 	}
@@ -442,6 +456,23 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 	return nil
 }
 
+func AskPromptedVariables(octopus *octopusApiClient.Client, spinner factory.Spinner, space *spaces.Space, id string, variableFromCmd map[string]string) (map[string]string, error) {
+	//
+	//variableSet, err := variables.GetVariableSet(octopus, space.ID, selectedRelease.ProjectVariableSetSnapshotID)
+	//if err != nil {
+	//	return err
+	//}
+	//
+	//if len(variableSet.Variables) > 0 { // nothing to be done here, move along
+	//	for _, v := range variableSet.Variables {
+	//		if v.Prompt != nil { // this is a prompted variable, ask for input
+	//			asker(&survey.Input{})
+	//		}
+	//	}
+	//}
+	return nil, nil
+}
+
 //
 //type RequestProcessor struct {
 //	GetReleasesInProjectChannel func(client newclient.Client, projectID string, channelID string) ([]*releases.Release, error)
@@ -506,4 +537,67 @@ func determineIsTenanted(project *projects.Project, ask question.Asker) (bool, e
 	default: // should not get here
 		return false, fmt.Errorf("unhandled tenanted deployment mode %s", project.TenantedDeploymentMode)
 	}
+}
+
+func ParseVariableStringArray(variables []string) (map[string]string, error) {
+	result := make(map[string]string, len(variables))
+	for _, v := range variables {
+		components := splitVariableString(v, 2)
+		if len(components) != 2 || components[0] == "" || components[1] == "" {
+			return nil, fmt.Errorf("could not parse variable definition '%s'", v)
+		}
+		result[strings.TrimSpace(components[0])] = strings.TrimSpace(components[1])
+	}
+	return result, nil
+}
+
+func ToVariableStringArray(variables map[string]string) []string {
+	result := make([]string, 0, len(variables))
+	for k, v := range variables {
+		result = append(result, fmt.Sprintf("%s:%s", k, v)) // TODO what about variables that have a : in their name?
+	}
+	return result
+}
+
+// splitVariableString is a derivative of splitPackageOverrideString in release create.
+// it is required because the builtin go strings.SplitN can't handle more than one delimeter character.
+// otherwise it works the same, but caps the number of splits at 'n'
+func splitVariableString(s string, n int) []string {
+	// pass 1: collect spans; golang strings.FieldsFunc says it's much more efficient this way
+	type span struct {
+		start int
+		end   int
+	}
+	spans := make([]span, 0, n)
+
+	// Find the field start and end indices.
+	start := 0 // we always start the first span at the beginning of the string
+	for idx, ch := range s {
+		if ch == ':' || ch == '=' {
+			if start >= 0 { // we found a delimiter and we are already in a span; end the span and start a new one
+				if len(spans) == n-1 { // we're about to append the last span, break so the 'last field' code consumes the rest of the string
+					break
+				} else {
+					spans = append(spans, span{start, idx})
+					start = idx + 1
+				}
+			} else { // we found a delimiter and we are not in a span; start a new span
+				if start < 0 {
+					start = idx
+				}
+			}
+		}
+	}
+
+	// Last field might end at EOF.
+	if start >= 0 {
+		spans = append(spans, span{start, len(s)})
+	}
+
+	// pass 2: create strings from recorded field indices.
+	a := make([]string, len(spans))
+	for i, span := range spans {
+		a[i] = s[span.start:span.end]
+	}
+	return a
 }

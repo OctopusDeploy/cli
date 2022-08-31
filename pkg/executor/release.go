@@ -93,6 +93,8 @@ type TaskOptionsDeployRelease struct {
 	ForcePackageDownload bool
 	DeploymentTargets    []string
 	ExcludeTargets       []string
+	Variables            map[string]string
+	UpdateVariables      bool
 
 	// extra behaviour commands
 
@@ -126,7 +128,7 @@ func releaseDeploy(octopus *client.Client, space *spaces.Space, input any) error
 		SkipStepNames:        params.ExcludedSteps,
 		RunAt:                "",
 		NoRunAfter:           "",
-		Variables:            nil,
+		Variables:            params.Variables,
 	}
 
 	b, err := strconv.ParseBool(params.GuidedFailureMode)

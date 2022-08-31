@@ -2,6 +2,7 @@ package deploy_test
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"github.com/AlecAivazis/survey/v2"
 	surveyCore "github.com/AlecAivazis/survey/v2/core"
@@ -153,6 +154,35 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			api, qa := testutil.NewMockServerAndAsker()
 			test.run(t, api, qa, new(bytes.Buffer))
+		})
+	}
+}
+
+func TestParseVariableStringArray(t *testing.T) {
+	tests := []struct {
+		name      string
+		input     []string
+		expect    map[string]string
+		expectErr error
+	}{
+		{name: "foo:bar", input: []string{"foo:bar"}, expect: map[string]string{"foo": "bar"}},
+		{name: "foo:bar,baz:qux", input: []string{"foo:bar", "baz:qux"}, expect: map[string]string{"foo": "bar", "baz": "qux"}},
+		{name: "foo=bar", input: []string{"foo=bar"}, expect: map[string]string{"foo": "bar"}},
+
+		{name: "foo:bar:more=stuff", input: []string{"foo:bar:more=stuff"}, expect: map[string]string{"foo": "bar:more=stuff"}},
+
+		{name: "trims whitespace", input: []string{" foo : \tbar "}, expect: map[string]string{"foo": "bar"}},
+
+		// error cases
+		{name: "missing key", input: []string{":bar"}, expectErr: errors.New("could not parse variable definition ':bar'")},
+		{name: "missing val", input: []string{"foo:"}, expectErr: errors.New("could not parse variable definition 'foo:'")},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			result, err := deploy.ParseVariableStringArray(test.input)
+			assert.Equal(t, test.expectErr, err)
+			assert.Equal(t, test.expect, result)
 		})
 	}
 }

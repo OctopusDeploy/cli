@@ -505,7 +505,7 @@ func (p *PackageVersionOverride) ToPackageOverrideString() string {
 }
 
 // splitPackageOverrideString splits the input string into components based on delimiter characters.
-// we want to pick up empty entries here; so "::5" nad ":pterm:5" should both return THREE components, rather than one or two
+// we want to pick up empty entries here; so "::5" and ":pterm:5" should both return THREE components, rather than one or two
 // and we want to allow for multiple different delimeters.
 // neither the builtin golang strings.Split or strings.FieldsFunc support this. Logic borrowed from strings.FieldsFunc with heavy modifications
 func splitPackageOverrideString(s string) []string {
