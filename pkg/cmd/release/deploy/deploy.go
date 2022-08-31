@@ -61,7 +61,8 @@ const (
 
 	FlagSkip = "skip" // can be specified multiple times
 
-	FlagGuidedFailureMode            = "guided-failure"
+	FlagGuidedFailure                = "guided-failure"
+	FlagAliasGuidedFailureMode       = "guided-failure-mode"
 	FlagAliasGuidedFailureModeLegacy = "guidedFailure"
 
 	FlagForcePackageDownload            = "force-package-download"
@@ -123,7 +124,7 @@ func NewDeployFlags() *DeployFlags {
 		Variables:            flag.New[[]string](FlagVariable, false),
 		UpdateVariables:      flag.New[bool](FlagUpdateVariables, false),
 		ExcludedSteps:        flag.New[[]string](FlagSkip, false),
-		GuidedFailureMode:    flag.New[string](FlagGuidedFailureMode, false),
+		GuidedFailureMode:    flag.New[string](FlagGuidedFailure, false),
 		ForcePackageDownload: flag.New[bool](FlagForcePackageDownload, false),
 		DeploymentTargets:    flag.New[[]string](FlagDeploymentTargets, false),
 		ExcludeTargets:       flag.New[[]string](FlagExcludeDeploymentTargets, false),
@@ -150,13 +151,13 @@ func NewCmdDeploy(f factory.Factory) *cobra.Command {
 
 	flags := cmd.Flags()
 	flags.StringVarP(&deployFlags.Project.Value, deployFlags.Project.Name, "p", "", "Name or ID of the project to deploy the release from")
-	flags.StringVarP(&deployFlags.ReleaseVersion.Value, deployFlags.ReleaseVersion.Name, "v", "", "Release version to deploy")
+	flags.StringVarP(&deployFlags.ReleaseVersion.Value, deployFlags.ReleaseVersion.Name, "", "", "Release version to deploy")
 	flags.StringSliceVarP(&deployFlags.Environments.Value, deployFlags.Environments.Name, "e", nil, "Deploy to this environment (can be specified multiple times)")
 	flags.StringSliceVarP(&deployFlags.Tenants.Value, deployFlags.Tenants.Name, "", nil, "Deploy to this tenant (can be specified multiple times)")
 	flags.StringSliceVarP(&deployFlags.TenantTags.Value, deployFlags.TenantTags.Name, "", nil, "Deploy to tenants matching this tag (can be specified multiple times)")
 	flags.StringVarP(&deployFlags.DeployAt.Value, deployFlags.DeployAt.Name, "", "", "Deploy at a later time. Deploy now if omitted. TODO date formats and timezones!")
 	flags.StringVarP(&deployFlags.MaxQueueTime.Value, deployFlags.MaxQueueTime.Name, "", "", "Cancel the deployment if it hasn't started within this time period.")
-	flags.StringSliceVarP(&deployFlags.Variables.Value, deployFlags.Variables.Name, "r", nil, "Set the value for a prompted variable in the format Label:Value")
+	flags.StringSliceVarP(&deployFlags.Variables.Value, deployFlags.Variables.Name, "v", nil, "Set the value for a prompted variable in the format Label:Value")
 	flags.BoolVarP(&deployFlags.UpdateVariables.Value, deployFlags.UpdateVariables.Name, "", false, "Overwrite the release variable snapshot by re-importing variables from the project.")
 	flags.StringSliceVarP(&deployFlags.ExcludedSteps.Value, deployFlags.ExcludedSteps.Name, "", nil, "Exclude specific steps from the deployment")
 	flags.StringVarP(&deployFlags.GuidedFailureMode.Value, deployFlags.GuidedFailureMode.Name, "", "", "Enable Guided failure mode (yes/no/default)")
@@ -174,7 +175,7 @@ func NewCmdDeploy(f factory.Factory) *cobra.Command {
 	util.AddFlagAliasesString(flags, FlagDeployAt, flagAliases, FlagAliasWhen, FlagAliasDeployAtLegacy)
 	util.AddFlagAliasesString(flags, FlagMaxQueueTime, flagAliases, FlagAliasNoDeployAfterLegacy)
 	util.AddFlagAliasesString(flags, FlagUpdateVariables, flagAliases, FlagAliasUpdateVariablesLegacy)
-	util.AddFlagAliasesString(flags, FlagGuidedFailureMode, flagAliases, FlagAliasGuidedFailureModeLegacy)
+	util.AddFlagAliasesString(flags, FlagGuidedFailure, flagAliases, FlagAliasGuidedFailureMode, FlagAliasGuidedFailureModeLegacy)
 	util.AddFlagAliasesBool(flags, FlagForcePackageDownload, flagAliases, FlagAliasForcePackageDownloadLegacy)
 	util.AddFlagAliasesBool(flags, FlagDeploymentTargets, flagAliases, FlagAliasSpecificMachinesLegacy)
 	util.AddFlagAliasesBool(flags, FlagExcludeDeploymentTargets, flagAliases, FlagAliasExcludeMachinesLegacy)
@@ -207,7 +208,23 @@ func deployRun(cmd *cobra.Command, f factory.Factory, flags *DeployFlags) error 
 	}
 
 	options := &executor.TaskOptionsDeployRelease{
-		ProjectName: flags.Project.Value,
+		ProjectName:          flags.Project.Value,
+		ReleaseVersion:       flags.ReleaseVersion.Value,
+		Environments:         flags.Environments.Value,
+		Tenants:              flags.Tenants.Value,
+		TenantTags:           flags.TenantTags.Value,
+		DeployAt:             flags.DeployAt.Value,
+		MaxQueueTime:         flags.MaxQueueTime.Value,
+		ExcludedSteps:        flags.ExcludedSteps.Value,
+		GuidedFailureMode:    flags.GuidedFailureMode.Value,
+		ForcePackageDownload: flags.ForcePackageDownload.Value,
+		DeploymentTargets:    flags.DeploymentTargets.Value,
+		ExcludeTargets:       flags.ExcludeTargets.Value,
+	}
+
+	// special case for FlagForcePackageDownload bool so we can tell if it was set on the cmdline or missing
+	if cmd.Flags().Lookup(FlagForcePackageDownload).Changed {
+		options.ForcePackageDownloadWasSpecified = true
 	}
 
 	if f.IsPromptEnabled() {
@@ -231,9 +248,9 @@ func deployRun(cmd *cobra.Command, f factory.Factory, flags *DeployFlags) error 
 			resolvedFlags.DeploymentTargets.Value = options.DeploymentTargets
 			resolvedFlags.ExcludeTargets.Value = options.ExcludeTargets
 
-			if options.ForcePackageDownload != nil {
-				resolvedFlags.ForcePackageDownload.Value = *options.ForcePackageDownload
-			}
+			// we're deliberately adding --no-prompt to the generated cmdline so ForcePackageDownload=false will be missing,
+			// but that's fine
+			resolvedFlags.ForcePackageDownload.Value = options.ForcePackageDownload
 
 			autoCmd := flag.GenerateAutomationCmd(constants.ExecutableName+" release deploy",
 				resolvedFlags.Project,
@@ -296,6 +313,7 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 		}
 		_, _ = fmt.Fprintf(stdout, "Project %s\n", output.Cyan(selectedProject.Name))
 	}
+	options.ProjectName = selectedProject.Name
 
 	// select release
 
@@ -336,20 +354,24 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 	// TODO do we need to hit the releases/{id}/progression endpoint to filter environments here?
 
 	if isTenanted {
-		env, err := selectors.EnvironmentSelect(asker, octopus, spinner, "Select environment to deploy to")
-		if err != nil {
-			return err
+		if len(options.Environments) == 0 {
+			env, err := selectors.EnvironmentSelect(asker, octopus, spinner, "Select environment to deploy to")
+			if err != nil {
+				return err
+			}
+			options.Environments = []string{env.Name} // executions api allows env names, so let's use these instead so they look nice in generated automationcmd
 		}
-		options.Environment = env.ID
 
 		// TODO select TagsAndTenants is going to require it's own function
 		// 		UX problem: How do we find tenants via their tags?
 	} else {
-		envs, err := selectors.EnvironmentsMultiSelect(asker, octopus, spinner, "Select environments to deploy to")
-		if err != nil {
-			return err
+		if len(options.Environments) == 0 {
+			envs, err := selectors.EnvironmentsMultiSelect(asker, octopus, spinner, "Select environments to deploy to")
+			if err != nil {
+				return err
+			}
+			options.Environments = util.SliceTransform(envs, func(env *environments.Environment) string { return env.Name })
 		}
-		options.Environments = util.SliceTransform(envs, func(env *environments.Environment) string { return env.ID })
 	}
 
 	// when? (timed deployment)
@@ -373,37 +395,41 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 	}
 
 	// do we want guided failure mode?
-	if options.ForcePackageDownload == nil { // if they deliberately specified false, don't ask them
-		forcePackageDownload, err := question.SelectMap(asker, "Force package re-download?", []bool{false, true}, func(b bool) string {
-			if b {
-				return "No" // should be the default; they probably want to not force
-			} else {
-				return "Yes"
+	if options.GuidedFailureMode == "" { // if they deliberately specified false, don't ask them
+		modes := []core.GuidedFailureMode{
+			"", "true", "false",
+		}
+		gfm, err := question.SelectMap(asker, "Guided Failure Mode?", modes, func(g core.GuidedFailureMode) string {
+			switch g {
+			case "":
+				return "Use default setting from the target environment"
+			case "false":
+				return "Do not use guided failure mode"
+			case "true":
+				return "Use guided failure mode"
+			default:
+				return fmt.Sprintf("Unhandled %s", g)
 			}
 		})
 		if err != nil {
 			return err
 		}
-		if forcePackageDownload { // only set the option if it's true; if they choose false, leave it as unspecified
-			options.ForcePackageDownload = &forcePackageDownload
-		}
+		options.GuidedFailureMode = string(gfm)
 	}
 
 	// force package re-download?
-	if options.ForcePackageDownload == nil { // if they deliberately specified false, don't ask them
+	if !options.ForcePackageDownloadWasSpecified { // if they deliberately specified false, don't ask them
 		forcePackageDownload, err := question.SelectMap(asker, "Force package re-download?", []bool{false, true}, func(b bool) string {
 			if b {
-				return "No" // should be the default; they probably want to not force
+				return "Yes" // should be the default; they probably want to not force
 			} else {
-				return "Yes"
+				return "No"
 			}
 		})
 		if err != nil {
 			return err
 		}
-		if forcePackageDownload { // only set the option if it's true; if they choose false, leave it as unspecified
-			options.ForcePackageDownload = &forcePackageDownload
-		}
+		options.ForcePackageDownload = forcePackageDownload
 	}
 
 	// If tenanted:

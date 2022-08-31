@@ -1632,7 +1632,7 @@ func TestReleaseCreate_AutomationMode(t *testing.T) {
 					"--package-version", "5.6.7-beta",
 					"-r", "refs/heads/main",
 					"--git-commit", "6ef5e8c83cdcd4933bbeaeb458dc99902ad831ca",
-					"-v", "1.0.2",
+					"--version", "1.0.2", // no short form for version; or it wouldn't align with release deploy where -v is variable
 					"-c", "BetaChannel",
 					"-n", "Here are some **release notes**.",
 				})

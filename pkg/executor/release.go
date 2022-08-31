@@ -2,10 +2,13 @@ package executor
 
 import (
 	"errors"
+	"fmt"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/deployments"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/releases"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/spaces"
+	"strconv"
+	"strings"
 )
 
 // ----- Create Release --------------------------------------
@@ -80,17 +83,21 @@ func releaseCreate(octopus *client.Client, space *spaces.Space, input any) error
 type TaskOptionsDeployRelease struct {
 	ProjectName          string   // required
 	ReleaseVersion       string   // the release to deploy
-	Environment          string   // singular for tenanted deployment
-	Environments         []string // multiple for untenanted deployment
+	Environments         []string // multiple for untenanted deployment, only one entry for tenanted deployment
 	Tenants              []string
 	TenantTags           []string
 	DeployAt             string
 	MaxQueueTime         string
 	ExcludedSteps        []string
-	GuidedFailureMode    string // quad-state: [unspecified, true, false, "use default"]
-	ForcePackageDownload *bool  // tri-state: [unspecified, true, false]
+	GuidedFailureMode    string // ["", "true", "false", "default"]. Note default and "" are the same, the only difference is whether interactive mode prompts you
+	ForcePackageDownload bool
 	DeploymentTargets    []string
 	ExcludeTargets       []string
+
+	// extra behaviour commands
+
+	// true if the value was specified on the command line (because ForcePackageDownload is bool, we can't distinguish 'false' from 'missing')
+	ForcePackageDownloadWasSpecified bool
 
 	Response *deployments.CreateDeploymentResponseV1
 }
@@ -109,13 +116,64 @@ func releaseDeploy(octopus *client.Client, space *spaces.Space, input any) error
 		return errors.New("project must be specified")
 	}
 
-	tenantedCommand := deployments.NewCreateDeploymentTenantedCommandV1(space.ID, params.ProjectName)
-
-	createDeploymentResponse, err := deployments.CreateDeploymentTenantedV1(octopus, tenantedCommand)
-	if err != nil {
-		return err
+	// common properties
+	abstractCmd := deployments.CreateExecutionAbstractCommandV1{
+		SpaceID:              space.ID,
+		ProjectIDOrName:      params.ProjectName,
+		ForcePackageDownload: params.ForcePackageDownload,
+		SpecificMachineNames: params.DeploymentTargets,
+		ExcludedMachineNames: params.ExcludeTargets,
+		SkipStepNames:        params.ExcludedSteps,
+		RunAt:                "",
+		NoRunAfter:           "",
+		Variables:            nil,
 	}
 
-	params.Response = createDeploymentResponse
+	b, err := strconv.ParseBool(params.GuidedFailureMode)
+	if err == nil {
+		abstractCmd.UseGuidedFailure = &b
+	} else {
+		// else they must have specified nothing, or perhaps "default". Sanity check it's not garbage
+		if params.GuidedFailureMode != "" && !strings.EqualFold("default", params.GuidedFailureMode) {
+			return fmt.Errorf("'%s' is not a valid value for guided failure mode", params.GuidedFailureMode)
+		}
+	}
+
+	// If either tenants or tenantTags are specified then it must be a tenanted deployment.
+	// Otherwise it must be untenanted.
+	// If the server has a tenanted deployment and both TenantNames+Tags are empty, the request fails,
+	// which makes this a safe thing to build our logic on.
+	isTenanted := len(params.Tenants) > 0 || len(params.TenantTags) > 0
+
+	if isTenanted {
+		tenantedCommand := deployments.NewCreateDeploymentTenantedCommandV1(space.ID, params.ProjectName)
+		tenantedCommand.ReleaseVersion = params.ReleaseVersion
+		tenantedCommand.EnvironmentName = params.Environments[0]
+		tenantedCommand.Tenants = params.Tenants
+		tenantedCommand.TenantTags = params.TenantTags
+		tenantedCommand.ForcePackageRedeployment = params.ForcePackageDownload
+		// tenantedCommand.UpdateVariableSnapshot = params.UpdateVariableSnapshot
+		tenantedCommand.CreateExecutionAbstractCommandV1 = abstractCmd
+
+		createDeploymentResponse, err := deployments.CreateDeploymentTenantedV1(octopus, tenantedCommand)
+		if err != nil {
+			return err
+		}
+		params.Response = createDeploymentResponse
+	} else {
+		untenantedCommand := deployments.NewCreateDeploymentUntenantedCommandV1(space.ID, params.ProjectName)
+		untenantedCommand.ReleaseVersion = params.ReleaseVersion
+		untenantedCommand.EnvironmentNames = params.Environments
+		untenantedCommand.ForcePackageRedeployment = params.ForcePackageDownload
+		//untenantedCommand.UpdateVariableSnapshot = params.UpdateVariableSnapshot
+		untenantedCommand.CreateExecutionAbstractCommandV1 = abstractCmd
+
+		createDeploymentResponse, err := deployments.CreateDeploymentUntenantedV1(octopus, untenantedCommand)
+		if err != nil {
+			return err
+		}
+		params.Response = createDeploymentResponse
+	}
+
 	return nil
 }
