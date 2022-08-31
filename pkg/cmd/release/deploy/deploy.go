@@ -15,9 +15,11 @@ import (
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/channels"
 	octopusApiClient "github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/core"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/deployments"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/environments"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/releases"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/spaces"
 	"github.com/spf13/cobra"
 	"io"
 )
@@ -35,7 +37,6 @@ const (
 	// TODO updateVariables?
 
 	FlagProject = "project"
-	FlagChannel = "channel"
 
 	FlagReleaseVersion           = "version"
 	FlagAliasReleaseNumberLegacy = "releaseNumber"
@@ -210,7 +211,7 @@ func deployRun(cmd *cobra.Command, f factory.Factory, flags *DeployFlags) error 
 	}
 
 	if f.IsPromptEnabled() {
-		err = AskQuestions(octopus, cmd.OutOrStdout(), f.Ask, f.Spinner(), options)
+		err = AskQuestions(octopus, cmd.OutOrStdout(), f.Ask, f.Spinner(), f.GetCurrentSpace(), options)
 		if err != nil {
 			return err
 		}
@@ -227,9 +228,12 @@ func deployRun(cmd *cobra.Command, f factory.Factory, flags *DeployFlags) error 
 			resolvedFlags.MaxQueueTime.Value = options.MaxQueueTime
 			resolvedFlags.ExcludedSteps.Value = options.ExcludedSteps
 			resolvedFlags.GuidedFailureMode.Value = options.GuidedFailureMode
-			resolvedFlags.ForcePackageDownload.Value = options.ForcePackageDownload
 			resolvedFlags.DeploymentTargets.Value = options.DeploymentTargets
 			resolvedFlags.ExcludeTargets.Value = options.ExcludeTargets
+
+			if options.ForcePackageDownload != nil {
+				resolvedFlags.ForcePackageDownload.Value = *options.ForcePackageDownload
+			}
 
 			autoCmd := flag.GenerateAutomationCmd(constants.ExecutableName+" release deploy",
 				resolvedFlags.Project,
@@ -251,7 +255,7 @@ func deployRun(cmd *cobra.Command, f factory.Factory, flags *DeployFlags) error 
 
 	// the executor will raise errors if any required options are missing
 	err = executor.ProcessTasks(octopus, f.GetCurrentSpace(), []*executor.Task{
-		executor.NewTask(executor.TaskTypeCreateRelease, options),
+		executor.NewTask(executor.TaskTypeDeployRelease, options),
 	})
 	if err != nil {
 		return err
@@ -260,7 +264,7 @@ func deployRun(cmd *cobra.Command, f factory.Factory, flags *DeployFlags) error 
 	return nil
 }
 
-func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker question.Asker, spinner factory.Spinner, options *executor.TaskOptionsDeployRelease) error {
+func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker question.Asker, spinner factory.Spinner, space *spaces.Space, options *executor.TaskOptionsDeployRelease) error {
 	if octopus == nil {
 		return cliErrors.NewArgumentNullOrEmptyError("octopus")
 	}
@@ -302,12 +306,12 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 		if err != nil {
 			return err
 		}
-		selectedRelease, err = selectRelease(octopus, asker, spinner, "Select the release to deploy", selectedProject, selectedChannel)
+		selectedRelease, err = selectRelease(octopus, asker, spinner, "Select the release to deploy", space, selectedProject, selectedChannel)
 		if err != nil {
 			return err
 		}
 	} else {
-		selectedRelease, err = findRelease(octopus, spinner, selectedProject, options.ReleaseVersion)
+		selectedRelease, err = findRelease(octopus, spinner, space, selectedProject, options.ReleaseVersion)
 		if err != nil {
 			return err
 		}
@@ -328,6 +332,9 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 	// 		    select tenants and/or tags (this is just a way of finding which tenants we are going to deploy to)
 	// 		else:
 	// 		  select environments
+
+	// TODO do we need to hit the releases/{id}/progression endpoint to filter environments here?
+
 	if isTenanted {
 		env, err := selectors.EnvironmentSelect(asker, octopus, spinner, "Select environment to deploy to")
 		if err != nil {
@@ -348,10 +355,56 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 	// when? (timed deployment)
 
 	// select steps to exclude
+	deploymentProcess, err := deployments.GetDeploymentProcess(octopus, space.ID, selectedRelease.ProjectDeploymentProcessSnapshotID)
+	if err != nil {
+		return err
+	}
+
+	if len(options.ExcludedSteps) == 0 {
+		stepsToExclude, err := question.MultiSelectMap(asker, "Select steps to skip (if any)", deploymentProcess.Steps, func(s *deployments.DeploymentStep) string {
+			return s.Name
+		})
+		if err != nil {
+			return err
+		}
+		options.ExcludedSteps = util.SliceTransform(stepsToExclude, func(s *deployments.DeploymentStep) string {
+			return s.ID // this is a GUID, what should we actually be sending to the server?
+		})
+	}
 
 	// do we want guided failure mode?
+	if options.ForcePackageDownload == nil { // if they deliberately specified false, don't ask them
+		forcePackageDownload, err := question.SelectMap(asker, "Force package re-download?", []bool{false, true}, func(b bool) string {
+			if b {
+				return "No" // should be the default; they probably want to not force
+			} else {
+				return "Yes"
+			}
+		})
+		if err != nil {
+			return err
+		}
+		if forcePackageDownload { // only set the option if it's true; if they choose false, leave it as unspecified
+			options.ForcePackageDownload = &forcePackageDownload
+		}
+	}
 
 	// force package re-download?
+	if options.ForcePackageDownload == nil { // if they deliberately specified false, don't ask them
+		forcePackageDownload, err := question.SelectMap(asker, "Force package re-download?", []bool{false, true}, func(b bool) string {
+			if b {
+				return "No" // should be the default; they probably want to not force
+			} else {
+				return "Yes"
+			}
+		})
+		if err != nil {
+			return err
+		}
+		if forcePackageDownload { // only set the option if it's true; if they choose false, leave it as unspecified
+			options.ForcePackageDownload = &forcePackageDownload
+		}
+	}
 
 	// If tenanted:
 	//   foreach tenant:
@@ -384,9 +437,9 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 //	}
 //}
 
-func selectRelease(octopus *octopusApiClient.Client, ask question.Asker, spinner factory.Spinner, questionText string, project *projects.Project, channel *channels.Channel) (*releases.Release, error) {
+func selectRelease(octopus *octopusApiClient.Client, ask question.Asker, spinner factory.Spinner, questionText string, space *spaces.Space, project *projects.Project, channel *channels.Channel) (*releases.Release, error) {
 	spinner.Start()
-	foundReleases, err := releases.GetReleasesInProjectChannel(octopus, project.ID, channel.ID)
+	foundReleases, err := releases.GetReleasesInProjectChannel(octopus, space.ID, project.ID, channel.ID)
 	spinner.Stop()
 	if err != nil {
 		return nil, err
@@ -397,9 +450,9 @@ func selectRelease(octopus *octopusApiClient.Client, ask question.Asker, spinner
 	})
 }
 
-func findRelease(octopus *octopusApiClient.Client, spinner factory.Spinner, project *projects.Project, releaseVersion string) (*releases.Release, error) {
+func findRelease(octopus *octopusApiClient.Client, spinner factory.Spinner, space *spaces.Space, project *projects.Project, releaseVersion string) (*releases.Release, error) {
 	spinner.Start()
-	foundRelease, err := releases.GetReleaseInProject(octopus, project.ID, releaseVersion)
+	foundRelease, err := releases.GetReleaseInProject(octopus, space.ID, project.ID, releaseVersion)
 	spinner.Stop()
 	return foundRelease, err
 }

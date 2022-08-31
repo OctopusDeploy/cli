@@ -87,8 +87,8 @@ type TaskOptionsDeployRelease struct {
 	DeployAt             string
 	MaxQueueTime         string
 	ExcludedSteps        []string
-	GuidedFailureMode    string // tri-state: true, false, or "use default". Can we model it with an optional bool?
-	ForcePackageDownload bool
+	GuidedFailureMode    string // quad-state: [unspecified, true, false, "use default"]
+	ForcePackageDownload *bool  // tri-state: [unspecified, true, false]
 	DeploymentTargets    []string
 	ExcludeTargets       []string
 
@@ -100,7 +100,6 @@ func releaseDeploy(octopus *client.Client, space *spaces.Space, input any) error
 	if !ok {
 		return errors.New("invalid input type; expecting TaskOptionsDeployRelease")
 	}
-
 	if space == nil {
 		return errors.New("space must be specified")
 	}
