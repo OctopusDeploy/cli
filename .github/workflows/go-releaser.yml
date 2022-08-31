@@ -13,7 +13,6 @@ jobs:
   goreleaser:
     runs-on: ubuntu-latest
     outputs:
-      artifacts: ${{ steps.goreleaser.outputs.artifacts }}
       version: ${{ steps.version-details.outputs.version }}
       tag_name: ${{ steps.version-details.outputs.tag_name }}
 
@@ -42,7 +41,7 @@ jobs:
       uses: goreleaser/goreleaser-action@v3
       with:
         version: latest
-        args: release
+        args: release --rm-dist
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         GPG_FINGERPRINT: ${{ steps.import_gpg.outputs.fingerprint }}
@@ -51,17 +50,13 @@ jobs:
     - name: Populate version details
       id: version-details
       run: |
-        echo "::set-output name=tag_name::$(echo -e ${GITHUB_REF#refs/tags/})"
-        echo "::set-output name=version::$(echo -e ${GITHUB_REF#refs/tags/v})"
+        echo "::set-output name=tag_name::$(echo ${{ steps.goreleaser-release.outputs.metadata }} | jq -r '.tag')"
+        echo "::set-output name=version::$(echo ${{ steps.goreleaser-release.outputs.metadata }} | jq -r '.version')"
 
     - uses: actions/upload-artifact@v3
       with:
         name: artifacts
-        path: |
-          dist/*.tar.gz
-          dist/*.zip
-          dist/*.rpm
-          dist/*.deb
+        path: dist/*
 
   msi:
     needs: goreleaser
@@ -157,6 +152,7 @@ jobs:
       env:
         MSI_FILE: ${{ steps.buildmsi.outputs.msi }}
         GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
+      if: "!contains(needs.goreleaser.outputs.version, '-')" # skip prereleases
       run: gh release upload "${{ needs.goreleaser.outputs.tag_name }}" "$MSI_FILE"
 
     - uses: actions/upload-artifact@v3
@@ -223,6 +219,7 @@ jobs:
 
     - name: Fetch Release Notes
       id: fetch-release-notes
+      if: "!contains(needs.goreleaser.outputs.version, '-')"
       run: |
         echo "::debug::${{github.event_name}}"
         OUTPUT_FILE="release_notes.txt"
