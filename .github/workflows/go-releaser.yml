@@ -98,7 +98,7 @@ jobs:
         MSBUILD_PATH: ${{ steps.setupmsbuild.outputs.msbuildPath }}
       run: |
         name="$(basename "$ZIP_FILE" ".zip")"
-        version="$(echo -e ${{ needs.goreleaser.outputs.version }} | sed s/-.*$//)"
+        version="$(echo -e ${{ needs.goreleaser.outputs.version }} | sed 's/-.*$//')"
         "${MSBUILD_PATH}\MSBuild.exe" ./build/windows/octopus.wixproj -p:SourceDir="$PWD" -p:OutputPath="$PWD" -p:OutputName="$name" -p:ProductVersion="$version"
 
     - name: Install AzureSignTool
@@ -121,7 +121,7 @@ jobs:
             "https://rfc3161timestamp.globalsign.com/advanced"
         )
 
-        $ex = null
+        $ex = $null
         $signSuccessful = $false
 
         foreach ($url in $timestampurl) {
