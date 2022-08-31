@@ -3,6 +3,7 @@ package list
 import (
 	"errors"
 	"github.com/MakeNowJust/heredoc/v2"
+	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/OctopusDeploy/cli/pkg/output"
 	"github.com/OctopusDeploy/cli/pkg/question/selectors"
@@ -60,6 +61,11 @@ func NewCmdList(f factory.Factory) *cobra.Command {
 }
 
 func listRun(cmd *cobra.Command, f factory.Factory, flags *ListFlags) error {
+	outputFormat, err := cmd.Flags().GetString(constants.FlagOutputFormat)
+	if err != nil { // should never happen, but fallback if it does
+		outputFormat = constants.OutputFormatTable
+	}
+
 	projectNameOrID := flags.Project.Value
 
 	octopus, err := f.GetSpacedClient()
@@ -80,7 +86,9 @@ func listRun(cmd *cobra.Command, f factory.Factory, flags *ListFlags) error {
 			if err != nil {
 				return err
 			}
-			cmd.Printf("Project %s\n", output.Cyan(selectedProject.Name))
+			if !constants.IsProgrammaticOutputFormat(outputFormat) {
+				cmd.Printf("Project %s\n", output.Cyan(selectedProject.Name))
+			}
 		}
 	} else { // we don't have the executions API backing us and allowing NameOrID; we need to do the lookup ourselves
 		if projectNameOrID == "" {
