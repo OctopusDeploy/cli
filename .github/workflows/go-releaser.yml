@@ -60,6 +60,8 @@ jobs:
         path: |
           dist/*.tar.gz
           dist/*.zip
+          dist/*.rpm
+          dist/*.deb
 
   msi:
     needs: goreleaser
@@ -79,7 +81,7 @@ jobs:
       id: extract_exe
       shell: bash
       run: |
-        cp ./artifacts/*.windows_x86_64.zip .
+        cp ./artifacts/*windows_x86_64.zip .
         printf "::set-output name=zip::%s\n" *.zip
         unzip -o *.zip && rm -v *.zip
 
