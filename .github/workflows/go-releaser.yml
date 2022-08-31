@@ -50,8 +50,8 @@ jobs:
     - name: Populate version details
       id: version-details
       run: |
-        tag_name=$(echo "${{ steps.goreleaser-release.outputs.metadata }}" | jq -r '.tag'
-        version=$(echo "${{ steps.goreleaser-release.outputs.metadata }}" | jq -r '.version'
+        tag_name=${{ fromJson(steps.goreleaser-release.outputs.metadata).tag }}
+        version=${{ fromJson(steps.goreleaser-release.outputs.metadata).version }}
         echo "::set-output name=tag_name::$tag_name"
         echo "::set-output name=version::$version"
 
