@@ -194,8 +194,8 @@ jobs:
 
     - uses: actions/upload-artifact@v3
       with:
-        name: artifacts
-        path: artifacts/
+        name: octopus-cli.${{ needs.goreleaser.outputs.version }}
+        path: artifacts/octopus-cli*.zip
 
   publish:
     needs: generate-packages
@@ -209,7 +209,7 @@ jobs:
     steps:
     - uses: actions/download-artifact@v3
       with:
-        name: artifacts
+        name: octopus-cli.${{ needs.goreleaser.outputs.version }}
 
     - name: Install Octopus CLI 🐙
       uses: OctopusDeploy/install-octopus-cli-action@v1
@@ -220,7 +220,7 @@ jobs:
       uses: OctopusDeploy/push-package-action@v2
       with:
         space: Integrations
-        packages: artifacts/octopus-cli.${{ needs.goreleaser.outputs.version }}.zip
+        packages: octopus-cli.${{ needs.goreleaser.outputs.version }}.zip
 
     - name: Fetch Release Notes
       id: fetch-release-notes
