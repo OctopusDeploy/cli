@@ -186,7 +186,7 @@ jobs:
 
     - name: Create Linux and OSX packages
       run: |
-        zip -rj artifacts/OctopusCLI.${{ needs.goreleaser.outputs.version }}.zip /
+        zip -rj artifacts/octopus-cli.${{ needs.goreleaser.outputs.version }}.zip /
           artifacts/*.nupkg \
           artifacts/*.linux*.tar.gz \
           artifacts/*.macOS*.tar.gz \
@@ -221,7 +221,7 @@ jobs:
       uses: OctopusDeploy/push-package-action@v2
       with:
         space: Integrations
-        packages: artifacts/OctopusCli.${{ needs.goreleaser.outputs.version }}.zip
+        packages: artifacts/octopus-cli.${{ needs.goreleaser.outputs.version }}.zip
 
     - name: Fetch Release Notes
       id: fetch-release-notes
