@@ -17,7 +17,7 @@ step "push-cli-to-chocolatey" {
                 while ($currentAttempt -le $maxAttempts)
                 {
                     write-host "Pushing package ($packagePath) to Chocolatey (attempt $currentAttempt)"
-                    . $nugetExe push "$($packagePath)" -source $ChocolateyFeedUrl -apikey $ChocolateyFeedApiKey -NonInteractive -Verbosity detailed
+                    . $nugetExe push "$($packagePath)" -source $OctopusParameters["Publish:Chocolatey:FeedUrl"] -apikey $OctopusParameters["Publish:Chocolatey:ApiKey"] -NonInteractive -Verbosity detailed
                     if ($LastExitCode -eq 0) {
                         exit 0
                     } else {
@@ -62,11 +62,11 @@ step "push-changes-to-homebrew-repo" {
             Octopus.Action.Script.ScriptBody = <<-EOT
                 packageVersion="$(get_octopusvariable 'Octopus.Action.Package[cli].PackageVersion')"
                 extractedPath="$(get_octopusvariable 'Octopus.Action.Package[cli].ExtractedPath')"
-                username="$(get_octopusvariable 'HomeBrewGitUsername')"
-                email="$(get_octopusvariable 'HomeBrewGitUserEmail')"
-                personalAccessToken="$(get_octopusvariable 'HomeBrewKey')"
+                username="$(get_octopusvariable 'Publish:HomeBrew:Username')"
+                email="$(get_octopusvariable 'Publish:HomeBrew:UserEmail')"
+                personalAccessToken="$(get_octopusvariable 'Publish:HomeBrew:ApiKey')"
 
-                repoName="$(get_octopusvariable 'HomeBrewGitRepoName')"
+                repoName="$(get_octopusvariable 'Publish:HomeBrew:RepoName')"
                 fileName='octopus.rb'
                 branchName="releases/$packageVersion"
                 repoUrl="https://$username:$personalAccessToken@github.com/OctopusDeploy/$repoName.git"
@@ -133,9 +133,9 @@ step "publish-to-apt-repo" {
 
                 # Deploy APT repo
                 docker run --rm --volume $(pwd):/working \
-                  --env PUBLISH_LINUX_EXTERNAL="$(get_octopusvariable "Publish.Linux.External")" \
-                  --env PUBLISH_ARTIFACTORY_USERNAME="$(get_octopusvariable "Publish.Artifactory.Username")" \
-                  --env PUBLISH_ARTIFACTORY_PASSWORD="$(get_octopusvariable "Publish.Artifactory.Password")" \
+                  --env PUBLISH_LINUX_EXTERNAL="$(get_octopusvariable "Publish:Linux:External")" \
+                  --env PUBLISH_ARTIFACTORY_USERNAME="$(get_octopusvariable "Publish:Artifactory:Username")" \
+                  --env PUBLISH_ARTIFACTORY_PASSWORD="$(get_octopusvariable "Publish:Artifactory:Password")" \
                   --env AWS_ACCESS_KEY_ID="$(get_octopusvariable "LinuxPackagePublisherAwsAccount.AccessKey")" \
                   --env AWS_SECRET_ACCESS_KEY="$(get_octopusvariable "LinuxPackagePublisherAwsAccount.SecretKey")" \
                   octopusdeploy/publish-linux bash -c 'cd /working && bash publish-apt.sh' 2>&1 || exit
@@ -171,9 +171,9 @@ step "publish-to-rpm-repo" {
 
                 # Deploy RPM repo
                 docker run --rm --volume $(pwd):/working \
-                  --env PUBLISH_LINUX_EXTERNAL="$(get_octopusvariable "Publish.Linux.External")" \
-                  --env PUBLISH_ARTIFACTORY_USERNAME="$(get_octopusvariable "Publish.Artifactory.Username")" \
-                  --env PUBLISH_ARTIFACTORY_PASSWORD="$(get_octopusvariable "Publish.Artifactory.Password")" \
+                  --env PUBLISH_LINUX_EXTERNAL="$(get_octopusvariable "Publish:Linux:External")" \
+                  --env PUBLISH_ARTIFACTORY_USERNAME="$(get_octopusvariable "Publish:Artifactory:Username")" \
+                  --env PUBLISH_ARTIFACTORY_PASSWORD="$(get_octopusvariable "Publish:Artifactory:Password")" \
                   --env AWS_ACCESS_KEY_ID="$(get_octopusvariable "LinuxPackagePublisherAwsAccount.AccessKey")" \
                   --env AWS_SECRET_ACCESS_KEY="$(get_octopusvariable "LinuxPackagePublisherAwsAccount.SecretKey")" \
                   octopusdeploy/publish-linux bash -c 'cd /working && bash publish-rpm.sh' 2>&1 || exit
