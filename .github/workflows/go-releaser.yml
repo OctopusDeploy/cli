@@ -195,7 +195,7 @@ jobs:
         MSI_FILE: ${{ needs.msi.outputs.msi_file }}
       run: |
         cp artifacts/$(basename "${MSI_FILE//\\//}") build/tools
-        mono nuget.exe ./build/cli.nuspec -p:version=${{ needs.goreleaser.outputs.version }} -OutputDirectory artifacts/
+        mono nuget.exe pack ./build/cli.nuspec -p:version=${{ needs.goreleaser.outputs.version }} -OutputDirectory artifacts/
 
     - name: Compress packages
       run: |
