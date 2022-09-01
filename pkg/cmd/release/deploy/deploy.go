@@ -491,13 +491,18 @@ func AskPromptedVariables(asker question.Asker, octopus *octopusApiClient.Client
 					promptMessage = fmt.Sprintf("%s %s", promptMessage, output.Dimf("(%s)", v.Prompt.Description))
 				}
 
-				prompt, err := buildVariablePrompt(promptMessage, v.Value, v.Prompt.IsRequired, v.Prompt.DisplaySettings)
+				prompt, askOptions, err := buildVariablePrompt(promptMessage, v.Value, v.Prompt.IsRequired, v.Prompt.DisplaySettings)
 				if err != nil {
 					return nil, err
 				}
 
 				var response any
-				err = asker(prompt, &response)
+				err = asker(prompt, &response, func(options *survey.AskOptions) error {
+					if askOptions != nil {
+						options.Validators = askOptions.Validators
+					}
+					return nil
+				})
 				if err != nil {
 					return nil, err
 				}
@@ -531,13 +536,15 @@ func buildVariablePrompt(message string, defaultValue string, isRequired bool, d
 			},
 			Optional: !isRequired}, askOptions, nil
 	case variables.ControlTypeSelect:
-		return &survey.Select{
-			Message: message,
-			Default: defaultValue,
-			Options: []string{displaySettings.SelectOptions},
-		}, askOptions, nil
+		//question.SelectMap()
+		//return &survey.Select{
+		//	Message: message,
+		//	Default: defaultValue,
+		//	Options: []string{displaySettings.SelectOptions},
+		//}, askOptions, nil
 
 	}
+	return nil, nil, nil
 }
 
 func selectRelease(octopus *octopusApiClient.Client, ask question.Asker, spinner factory.Spinner, questionText string, space *spaces.Space, project *projects.Project, channel *channels.Channel) (*releases.Release, error) {
