@@ -10,7 +10,7 @@ connectivity_policy {
 versioning_strategy {
 
     donor_package {
-        package = "cli"
+        package = "octopus-cli"
         step = "push-cli-to-chocolatey"
     }
 }
