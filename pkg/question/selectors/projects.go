@@ -8,10 +8,8 @@ import (
 	"strings"
 )
 
-func Project(questionText string, octopus *octopusApiClient.Client, ask question.Asker, spinner factory.Spinner) (*projects.Project, error) {
-	spinner.Start()
+func Project(questionText string, octopus *octopusApiClient.Client, ask question.Asker) (*projects.Project, error) {
 	existingProjects, err := octopus.Projects.GetAll()
-	spinner.Stop()
 	if err != nil {
 		return nil, err
 	}

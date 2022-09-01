@@ -76,12 +76,12 @@ func listRun(cmd *cobra.Command, f factory.Factory, flags *ListFlags) error {
 	var selectedProject *projects.Project
 	if f.IsPromptEnabled() { // this would be AskQuestions if it were bigger
 		if projectNameOrID == "" {
-			selectedProject, err = selectors.Project("Select the project to list releases for", octopus, f.Ask, spinner)
+			selectedProject, err = selectors.Project("Select the project to list releases for", octopus, f.Ask)
 			if err != nil {
 				return err
 			}
 		} else { // project name is already provided, fetch the object because it's needed for further questions
-			selectedProject, err = selectors.FindProject(octopus, spinner, projectNameOrID)
+			selectedProject, err = selectors.FindProject(octopus, projectNameOrID)
 			if err != nil {
 				return err
 			}
@@ -93,7 +93,7 @@ func listRun(cmd *cobra.Command, f factory.Factory, flags *ListFlags) error {
 		if projectNameOrID == "" {
 			return errors.New("project must be specified")
 		}
-		selectedProject, err = selectors.FindProject(octopus, factory.NoSpinner, projectNameOrID)
+		selectedProject, err = selectors.FindProject(octopus, projectNameOrID)
 		if err != nil {
 			return err
 		}

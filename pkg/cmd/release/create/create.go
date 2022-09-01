@@ -820,12 +820,12 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 	var err error
 	var selectedProject *projects.Project
 	if options.ProjectName == "" {
-		selectedProject, err = selectors.Project("Select the project in which the release will be created", octopus, asker, spinner)
+		selectedProject, err = selectors.Project("Select the project in which the release will be created", octopus, asker)
 		if err != nil {
 			return err
 		}
 	} else { // project name is already provided, fetch the object because it's needed for further questions
-		selectedProject, err = selectors.FindProject(octopus, spinner, options.ProjectName)
+		selectedProject, err = selectors.FindProject(octopus, options.ProjectName)
 		if err != nil {
 			return err
 		}
@@ -876,12 +876,12 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 
 	var selectedChannel *channels.Channel
 	if options.ChannelName == "" {
-		selectedChannel, err = selectors.Channel(octopus, asker, spinner, "Select the channel in which the release will be created", selectedProject)
+		selectedChannel, err = selectors.Channel(octopus, asker, "Select the channel in which the release will be created", selectedProject)
 		if err != nil {
 			return err
 		}
 	} else {
-		selectedChannel, err = selectors.FindChannel(octopus, spinner, selectedProject, options.ChannelName)
+		selectedChannel, err = selectors.FindChannel(octopus, selectedProject, options.ChannelName)
 		if err != nil {
 			return err
 		}
@@ -1164,8 +1164,7 @@ func askReleaseNotes(ask question.Asker) (string, error) {
 	return result, nil
 }
 
-func selectGitReference(octopus *octopusApiClient.Client, ask question.Asker, spinner factory.Spinner, project *projects.Project) (*projects.GitReference, error) {
-	spinner.Start()
+func selectGitReference(octopus *octopusApiClient.Client, ask question.Asker, project *projects.Project) (*projects.GitReference, error) {
 	branches, err := octopus.Projects.GetGitBranches(project)
 	if err != nil {
 		return nil, err

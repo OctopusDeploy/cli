@@ -87,12 +87,12 @@ func deleteRun(cmd *cobra.Command, f factory.Factory, flags *Flags, args []strin
 
 	if f.IsPromptEnabled() { // this would be AskQuestions if it were bigger
 		if projectNameOrID == "" {
-			selectedProject, err = selectors.Project("Select the project to delete a release in", octopus, f.Ask, spinner)
+			selectedProject, err = selectors.Project("Select the project to delete a release in", octopus, f.Ask)
 			if err != nil {
 				return err
 			}
 		} else { // project name is already provided, fetch the object because it's needed for further questions
-			selectedProject, err = selectors.FindProject(octopus, spinner, projectNameOrID)
+			selectedProject, err = selectors.FindProject(octopus, projectNameOrID)
 			if err != nil {
 				return err
 			}
@@ -141,7 +141,7 @@ func deleteRun(cmd *cobra.Command, f factory.Factory, flags *Flags, args []strin
 			return errors.New("at least one release version must be specified")
 		}
 
-		selectedProject, err = selectors.FindProject(octopus, factory.NoSpinner, projectNameOrID)
+		selectedProject, err = selectors.FindProject(octopus, projectNameOrID)
 		if err != nil {
 			return err
 		}

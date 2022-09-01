@@ -302,12 +302,12 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 	// select project
 	var selectedProject *projects.Project
 	if options.ProjectName == "" {
-		selectedProject, err = selectors.Project("Select the project to deploy from", octopus, asker, spinner)
+		selectedProject, err = selectors.Project("Select the project to deploy from", octopus, asker)
 		if err != nil {
 			return err
 		}
 	} else { // project name is already provided, fetch the object because it's needed for further questions
-		selectedProject, err = selectors.FindProject(octopus, spinner, options.ProjectName)
+		selectedProject, err = selectors.FindProject(octopus, options.ProjectName)
 		if err != nil {
 			return err
 		}
@@ -320,7 +320,7 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 	var selectedRelease *releases.Release
 	if options.ReleaseVersion == "" {
 		// first we want to ask them to pick a channel just to narrow down the search space for releases (not sent to server)
-		selectedChannel, err := selectors.Channel(octopus, asker, spinner, "Select the channel to deploy from", selectedProject)
+		selectedChannel, err := selectors.Channel(octopus, asker, "Select the channel to deploy from", selectedProject)
 		if err != nil {
 			return err
 		}
@@ -355,7 +355,7 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 
 	if isTenanted {
 		if len(options.Environments) == 0 {
-			env, err := selectors.EnvironmentSelect(asker, octopus, spinner, "Select environment to deploy to")
+			env, err := selectors.EnvironmentSelect(asker, octopus, "Select environment to deploy to")
 			if err != nil {
 				return err
 			}
@@ -366,7 +366,7 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 		// 		UX problem: How do we find tenants via their tags?
 	} else {
 		if len(options.Environments) == 0 {
-			envs, err := selectors.EnvironmentsMultiSelect(asker, octopus, spinner, "Select environments to deploy to", 1)
+			envs, err := selectors.EnvironmentsMultiSelect(asker, octopus, "Select environments to deploy to", 1)
 			if err != nil {
 				return err
 			}

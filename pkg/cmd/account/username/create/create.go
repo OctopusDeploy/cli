@@ -2,6 +2,8 @@ package create
 
 import (
 	"fmt"
+	"github.com/OctopusDeploy/cli/pkg/util"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/environments"
 	"io"
 	"os"
 
@@ -191,13 +193,13 @@ func promptMissing(opts *CreateOptions) error {
 	}
 
 	if opts.Environments.Value == nil {
-		environmentIDs, err := selectors.EnvironmentsMultiSelect(opts.Ask, opts.Octopus,
+		envs, err := selectors.EnvironmentsMultiSelect(opts.Ask, opts.Octopus,
 			"Choose the environments that are allowed to use this account.\n"+
-				output.Dim("If nothing is selected, the account can be used for deployments to any environment."))
+				output.Dim("If nothing is selected, the account can be used for deployments to any environment."), 0)
 		if err != nil {
 			return err
 		}
-		opts.Environments.Value = environmentIDs
+		opts.Environments.Value = util.SliceTransform(envs, func(e *environments.Environment) string { return e.ID })
 	}
 	return nil
 }
