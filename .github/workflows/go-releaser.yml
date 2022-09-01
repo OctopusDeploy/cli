@@ -191,8 +191,10 @@ jobs:
       run: curl -o ./nuget.exe https://dist.nuget.org/win-x86-commandline/latest/nuget.exe
 
     - name: Create Chocolatey package
+      env:
+        MSI_FILE: ${{ needs.msi.outputs.msi_file }}
       run: |
-        cp artifacts/$(basename "${{ needs.msi.outputs.msi_file }}") build/tools
+        cp artifacts/$(basename "${MSI_FILE//\\//}") build/tools
         mono nuget.exe ./build/cli.nuspec -p:version=${{ needs.goreleaser.outputs.version }} -OutputDirectory artifacts/
 
     - name: Compress packages
