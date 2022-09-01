@@ -13,8 +13,8 @@ jobs:
   goreleaser:
     runs-on: ubuntu-latest
     outputs:
-      version: ${{ steps.version-details.outputs.version }}
-      tag_name: ${{ steps.version-details.outputs.tag_name }}
+      version: ${{ steps.calculate-version.outputs.version }}
+      tag_name: ${{ steps.calculate-version.outputs.tag_name }}
 
     steps:
     - name: Checkout
@@ -47,8 +47,8 @@ jobs:
         GPG_FINGERPRINT: ${{ steps.import_gpg.outputs.fingerprint }}
         GPG_PASSWORD: ${{ secrets.OCTOPUS_GPG_PASSPHRASE }}
 
-    - name: Populate version details
-      id: version-details
+    - name: Calculate version
+      id: calculate-version
       run: |
         tag_name=${{ fromJson(steps.goreleaser-release.outputs.metadata).tag }}
         version=${{ fromJson(steps.goreleaser-release.outputs.metadata).version }}
