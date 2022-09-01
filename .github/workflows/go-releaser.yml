@@ -186,7 +186,7 @@ jobs:
         cp artifacts/$(basename "${{ needs.msi.outputs.msi_file }}") build/tools
         mono nuget.exe build/cli.nuspec -p:version=${{ needs.goreleaser.outputs.version }} -OutputDirectory artifacts/
 
-    - name: Create Linux and OSX packages
+    - name: Compress packages
       run: |
         zip -rj artifacts/octopus-cli.${{ needs.goreleaser.outputs.version }}.zip /
           artifacts/*.nupkg \
