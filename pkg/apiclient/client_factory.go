@@ -131,7 +131,15 @@ func NewClientFactoryFromEnvironment(ask question.AskProvider) (ClientFactory, e
 		return nil, errs
 	}
 
-	return NewClientFactory(nil, host, apiKey, spaceNameOrID, ask)
+	var httpClient *http.Client
+	if ask.IsInteractive() {
+		// spinner round-tripper only needed for interactive mode
+		httpClient = &http.Client{
+			Transport: NewSpinnerRoundTripper(),
+		}
+	}
+
+	return NewClientFactory(httpClient, host, apiKey, spaceNameOrID, ask)
 }
 
 func ValidateMandatoryEnvironment(host string, apiKey string) error {

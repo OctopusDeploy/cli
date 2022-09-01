@@ -1,7 +1,6 @@
 package helper
 
 import (
-	"github.com/OctopusDeploy/cli/pkg/factory"
 	"strings"
 
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
@@ -11,8 +10,7 @@ import (
 // ResolveNamesOrId takes in an array of names and trys to find an exact match.
 // If a match is found it will return its corresponding ID. If no match is found
 // it will return the name as is, in assumption it is an ID.
-func ResolveEnvironmentNames(envs []string, octopus *client.Client, spinner factory.Spinner) ([]string, error) {
-	spinner.Start()
+func ResolveEnvironmentNames(envs []string, octopus *client.Client) ([]string, error) {
 	envIds := make([]string, 0, len(envs))
 loop:
 	for _, envName := range envs {
@@ -24,7 +22,6 @@ loop:
 		}
 		allMatches, err := matches.GetAllPages(octopus.Environments.GetClient())
 		if err != nil {
-			spinner.Stop()
 			return nil, err
 		}
 		for _, match := range allMatches {
@@ -35,6 +32,5 @@ loop:
 		}
 		envIds = append(envIds, envName)
 	}
-	spinner.Stop()
 	return envIds, nil
 }
