@@ -9,7 +9,8 @@ step "push-cli-to-chocolatey" {
             Octopus.Action.Script.ScriptBody = <<-EOT
                 $nugetPackagePath = $OctopusParameters["Octopus.Action.Package[NuGet.CommandLine].ExtractedPath"]
                 $nugetExe = Join-Path -Path $nugetPackagePath -ChildPath "Tools\nuget.exe"
-                $packagePath = $OctopusParameters["Octopus.Action.Package[cli].PackageFilePath"]
+                $extractedPath = $OctopusParameters["Octopus.Action.Package[cli].ExtractedPath"]
+                $packagePath = Get-ChildItem -Path $extractedPath -Name "octopus-cli*.nupkg"
 
                 $maxAttempts = 5
                 $currentAttempt = 1
@@ -17,7 +18,7 @@ step "push-cli-to-chocolatey" {
                 while ($currentAttempt -le $maxAttempts)
                 {
                     write-host "Pushing package ($packagePath) to Chocolatey (attempt $currentAttempt)"
-                    . $nugetExe push "$($packagePath)" -source $OctopusParameters["Publish:Chocolatey:FeedUrl"] -apikey $OctopusParameters["Publish:Chocolatey:ApiKey"] -NonInteractive -Verbosity detailed
+                    . $nugetExe push "$packagePath" -source $OctopusParameters["Publish:Chocolatey:FeedUrl"] -apikey $OctopusParameters["Publish:Chocolatey:ApiKey"] -NonInteractive -Verbosity detailed
                     if ($LastExitCode -eq 0) {
                         exit 0
                     } else {
@@ -35,9 +36,9 @@ step "push-cli-to-chocolatey" {
         packages "cli" {
             acquisition_location = "Server"
             feed = "octopus-server-built-in"
-            package_id = "OctopusCli"
+            package_id = "octopus-cli"
             properties = {
-                Extract = "False"
+                Extract = "True"
             }
         }
 
@@ -78,10 +79,10 @@ step "push-changes-to-homebrew-repo" {
                 # Update version property
                 sed -i "s/\(^.*version \"\).*\(\".*$\)/\1$packageVersion\2/g" $fileName
 
-                # Update download URL, `url = https://github.com/OctopusDeploy/cli/releases/download/vX.X.X/octopus_X.X.X_macOS_x86_65.tar.gz`
+                # Update download URL, `url = https://github.com/OctopusDeploy/cli/releases/download/vX.X.X/octopus_X.X.X_macOS_amd64.tar.gz`
                 sed -i "s/\(^.*url.*OctopusDeploy\/cli\/\).*\(\/.*octopus\_\).*\(\_macOS.*$\)/\1v$packageVersion\2$packageVersion\3/g" $fileName
 
-                newSha=$(sha256sum "$extractedPath/octopus-cli.$packageVersion.osx-x64.tar.gz" | awk '{ print $1 }')
+                newSha=$(sha256sum "$extractedPath/octopus_$packageVersion_macOS_amd64.tar.gz" | awk '{ print $1 }')
                 # Update sha256 property
                 sed -i "s/\(^.*sha256 \"\).*\(\".*$\)/\1$newSha\2/g" $fileName
 
@@ -110,7 +111,7 @@ step "push-changes-to-homebrew-repo" {
         packages "cli" {
             acquisition_location = "Server"
             feed = "octopus-server-built-in"
-            package_id = "OctopusCli.osx"
+            package_id = "octopus-cli"
             properties = {
                 Extract = "True"
                 Purpose = ""
@@ -149,7 +150,7 @@ step "publish-to-apt-repo" {
         packages "cli" {
             acquisition_location = "Server"
             feed = "octopus-server-built-in"
-            package_id = "OctopusCli.linux"
+            package_id = "octopus-cli"
             properties = {
                 Extract = "True"
                 SelectionMode = "immediate"
@@ -187,7 +188,7 @@ step "publish-to-rpm-repo" {
         packages "cli" {
             acquisition_location = "Server"
             feed = "octopus-server-built-in"
-            package_id = "OctopusCli.linux"
+            package_id = "octopus-cli"
             properties = {
                 Extract = "True"
                 SelectionMode = "immediate"

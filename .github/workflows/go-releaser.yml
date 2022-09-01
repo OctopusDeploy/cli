@@ -82,7 +82,7 @@ jobs:
       id: extract_exe
       shell: bash
       run: |
-        cp ./artifacts/*windows_x86_64.zip .
+        cp ./artifacts/*windows_amd64.zip .
         printf "::set-output name=zip::%s\n" *.zip
         unzip -o *.zip && rm -v *.zip
 
@@ -173,6 +173,15 @@ jobs:
     steps:
     - uses: actions/checkout@v3
 
+    - uses: actions/checkout@v3
+      with:
+        repository: OctopusDeploy/linux-package-feeds
+        token: ${{ secrets.INTEGRATIONS_FNM_BOT_TOKEN }}
+        path: linux-package-feeds-repo
+
+    - run: |
+        ln -s linux-package-feeds-repo/source linux-package-feeds
+
     - uses: actions/download-artifact@v3
       with:
         name: artifacts
@@ -184,20 +193,23 @@ jobs:
     - name: Create Chocolatey package
       run: |
         cp artifacts/$(basename "${{ needs.msi.outputs.msi_file }}") build/tools
-        mono nuget.exe build/cli.nuspec -p:version=${{ needs.goreleaser.outputs.version }} -OutputDirectory artifacts/
+        mono nuget.exe ./build/cli.nuspec -p:version=${{ needs.goreleaser.outputs.version }} -OutputDirectory artifacts/
 
     - name: Compress packages
       run: |
+        mkdir artifacts/linux-packages
+        cp artifacts/*.deb artifacts/*.rpm artifacts/linux-packages
+        cp linux-package-feeds/publish-*.sh artifacts/linux-packages
+
         zip -rj artifacts/octopus-cli.${{ needs.goreleaser.outputs.version }}.zip /
           artifacts/*.nupkg \
-          artifacts/*.linux*.tar.gz \
-          artifacts/*.macOS*.tar.gz \
-          artifacts/*.windows*.zip
+          artifacts/linux-packages/* \
+          artifacts/*macOS*amd64.tar.gz
 
     - uses: actions/upload-artifact@v3
       with:
         name: octopus-cli.${{ needs.goreleaser.outputs.version }}
-        path: artifacts/octopus-cli*.zip
+        path: artifacts/octopus-cli.${{ needs.goreleaser.outputs.version }}.zip
 
   publish:
     needs: generate-packages
