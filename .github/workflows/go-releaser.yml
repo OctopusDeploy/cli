@@ -247,6 +247,7 @@ jobs:
 
     - name: Create a release in Octopus Deploy 🐙
       uses: OctopusDeploy/create-release-action@v2
+      if: "!contains(needs.goreleaser.outputs.version, '-')"
       with:
         space: Integrations
         project: 'cli'
