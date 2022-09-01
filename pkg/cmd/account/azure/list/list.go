@@ -23,25 +23,22 @@ func NewCmdList(f factory.Factory) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return listAzureAccounts(client, cmd, f.Spinner())
+			return listAzureAccounts(client, cmd)
 		},
 	}
 
 	return cmd
 }
 
-func listAzureAccounts(client *client.Client, cmd *cobra.Command, s factory.Spinner) error {
-	s.Start()
+func listAzureAccounts(client *client.Client, cmd *cobra.Command) error {
 	accountResources, err := client.Accounts.Get(accounts.AccountsQuery{
 		AccountType: accounts.AccountTypeAzureServicePrincipal,
 	})
 	if err != nil {
-		s.Stop()
 		return err
 	}
 	items, err := accountResources.GetAllPages(client.Accounts.GetClient())
 	if err != nil {
-		s.Stop()
 		return err
 	}
 
@@ -52,7 +49,6 @@ func listAzureAccounts(client *client.Client, cmd *cobra.Command, s factory.Spin
 		"AzureGermanCloud":  "German Cloud",
 		"AzureUSGovernment": "US Government",
 	}
-	s.Stop()
 
 	output.PrintArray(items, cmd, output.Mappers[accounts.IAccount]{
 		Json: func(item accounts.IAccount) any {

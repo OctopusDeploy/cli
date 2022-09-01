@@ -2,7 +2,6 @@ package selectors
 
 import (
 	"fmt"
-	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/OctopusDeploy/cli/pkg/question"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/channels"
 	octopusApiClient "github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
@@ -10,10 +9,8 @@ import (
 	"strings"
 )
 
-func Channel(octopus *octopusApiClient.Client, ask question.Asker, spinner factory.Spinner, questionText string, project *projects.Project) (*channels.Channel, error) {
-	spinner.Start()
+func Channel(octopus *octopusApiClient.Client, ask question.Asker, questionText string, project *projects.Project) (*channels.Channel, error) {
 	existingChannels, err := octopus.Projects.GetChannels(project)
-	spinner.Stop()
 	if err != nil {
 		return nil, err
 	}
@@ -23,10 +20,8 @@ func Channel(octopus *octopusApiClient.Client, ask question.Asker, spinner facto
 	})
 }
 
-func FindChannel(octopus *octopusApiClient.Client, spinner factory.Spinner, project *projects.Project, channelName string) (*channels.Channel, error) {
-	spinner.Start()
+func FindChannel(octopus *octopusApiClient.Client, project *projects.Project, channelName string) (*channels.Channel, error) {
 	foundChannels, err := octopus.Projects.GetChannels(project) // TODO change this to channel partial name search on server; will require go client update
-	spinner.Stop()
 	if err != nil {
 		return nil, err
 	}

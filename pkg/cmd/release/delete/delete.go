@@ -81,19 +81,18 @@ func deleteRun(cmd *cobra.Command, f factory.Factory, flags *Flags, args []strin
 	if err != nil {
 		return err
 	}
-	spinner := f.Spinner()
 
 	var selectedProject *projects.Project
 	var releasesToDelete []*releases.Release
 
 	if f.IsPromptEnabled() { // this would be AskQuestions if it were bigger
 		if projectNameOrID == "" {
-			selectedProject, err = selectors.Project("Select the project to delete a release in", octopus, f.Ask, spinner)
+			selectedProject, err = selectors.Project("Select the project to delete a release in", octopus, f.Ask)
 			if err != nil {
 				return err
 			}
 		} else { // project name is already provided, fetch the object because it's needed for further questions
-			selectedProject, err = selectors.FindProject(octopus, spinner, projectNameOrID)
+			selectedProject, err = selectors.FindProject(octopus, projectNameOrID)
 			if err != nil {
 				return err
 			}
@@ -101,12 +100,12 @@ func deleteRun(cmd *cobra.Command, f factory.Factory, flags *Flags, args []strin
 		}
 
 		if len(versionsToDelete) == 0 {
-			releasesToDelete, err = selectReleases(octopus, selectedProject, f.Ask, spinner)
+			releasesToDelete, err = selectReleases(octopus, selectedProject, f.Ask)
 			if err != nil {
 				return err
 			}
 		} else {
-			releasesToDelete, err = findReleases(octopus, spinner, selectedProject, versionsToDelete)
+			releasesToDelete, err = findReleases(octopus, selectedProject, versionsToDelete)
 			if err != nil {
 				return err
 			}
@@ -142,11 +141,11 @@ func deleteRun(cmd *cobra.Command, f factory.Factory, flags *Flags, args []strin
 			return errors.New("at least one release version must be specified")
 		}
 
-		selectedProject, err = selectors.FindProject(octopus, factory.NoSpinner, projectNameOrID)
+		selectedProject, err = selectors.FindProject(octopus, projectNameOrID)
 		if err != nil {
 			return err
 		}
-		releasesToDelete, err = findReleases(octopus, factory.NoSpinner, selectedProject, versionsToDelete)
+		releasesToDelete, err = findReleases(octopus, selectedProject, versionsToDelete)
 		if err != nil {
 			return err
 		}
@@ -157,7 +156,6 @@ func deleteRun(cmd *cobra.Command, f factory.Factory, flags *Flags, args []strin
 		return nil
 	}
 
-	spinner.Start()
 	var releaseDeleteErrors = &multierror.Error{}
 	for _, r := range releasesToDelete {
 		err = octopus.Releases.DeleteByID(r.ID)
@@ -167,7 +165,6 @@ func deleteRun(cmd *cobra.Command, f factory.Factory, flags *Flags, args []strin
 			releaseDeleteErrors = multierror.Append(releaseDeleteErrors, wrappedErr)
 		}
 	}
-	spinner.Stop()
 
 	failedCount := releaseDeleteErrors.Len()
 	actuallyDeletedCount := len(releasesToDelete) - failedCount
@@ -182,10 +179,8 @@ func deleteRun(cmd *cobra.Command, f factory.Factory, flags *Flags, args []strin
 	return releaseDeleteErrors.ErrorOrNil()
 }
 
-func selectReleases(octopus *octopusApiClient.Client, project *projects.Project, ask question.Asker, spinner factory.Spinner) ([]*releases.Release, error) {
-	spinner.Start()
+func selectReleases(octopus *octopusApiClient.Client, project *projects.Project, ask question.Asker) ([]*releases.Release, error) {
 	existingReleases, err := octopus.Projects.GetReleases(project) // gets all of them, no paging
-	spinner.Stop()
 	if err != nil {
 		return nil, err
 	}
@@ -195,10 +190,8 @@ func selectReleases(octopus *octopusApiClient.Client, project *projects.Project,
 	}, 0)
 }
 
-func findReleases(octopus *octopusApiClient.Client, spinner factory.Spinner, project *projects.Project, versionStrings []string) ([]*releases.Release, error) {
-	spinner.Start()
+func findReleases(octopus *octopusApiClient.Client, project *projects.Project, versionStrings []string) ([]*releases.Release, error) {
 	existingReleases, err := octopus.Projects.GetReleases(project) // gets all of them, no paging
-	spinner.Stop()
 	if err != nil {
 		return nil, err
 	}

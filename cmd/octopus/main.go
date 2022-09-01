@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/briandowns/spinner"
 	"os"
 	"time"
 
@@ -9,7 +10,6 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/OctopusDeploy/cli/pkg/question"
 	"github.com/OctopusDeploy/cli/pkg/usage"
-	"github.com/briandowns/spinner"
 
 	"github.com/joho/godotenv"
 
