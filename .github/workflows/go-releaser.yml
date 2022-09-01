@@ -203,7 +203,7 @@ jobs:
         cp artifacts/*.deb artifacts/*.rpm artifacts/linux-packages
         cp linux-package-feeds/publish-*.sh artifacts/linux-packages
 
-        zip -rj artifacts/octopus-cli.${{ needs.goreleaser.outputs.version }}.zip /
+        zip -rj artifacts/octopus-cli.${{ needs.goreleaser.outputs.version }}.zip \
           artifacts/*.nupkg \
           artifacts/linux-packages/* \
           artifacts/*macOS*amd64.tar.gz
