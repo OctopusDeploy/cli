@@ -12,7 +12,7 @@
 ### Usage
 ```
 octopus release [list, create, delete]
-octopus account <aws|azure|gcp|ssh|token|username> [list, create]
+octopus account [aws|azure|gcp|ssh|token|username] [list, create]
 octopus help
 ```
     </description>
