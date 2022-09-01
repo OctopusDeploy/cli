@@ -199,14 +199,13 @@ jobs:
 
     - name: Compress packages
       run: |
-        mkdir artifacts/linux-packages
-        cp artifacts/*.deb artifacts/*.rpm artifacts/linux-packages
-        cp linux-package-feeds/publish-*.sh artifacts/linux-packages
 
         zip -rj artifacts/octopus-cli.${{ needs.goreleaser.outputs.version }}.zip \
           artifacts/*.nupkg \
-          artifacts/linux-packages/* \
-          artifacts/*macOS*amd64.tar.gz
+          artifacts/*macOS*amd64.tar.gz \
+          artifacts/*.deb \
+          artifacts/*.rpm \
+          linux-package-feeds/publish-*.sh
 
     - uses: actions/upload-artifact@v3
       with:
