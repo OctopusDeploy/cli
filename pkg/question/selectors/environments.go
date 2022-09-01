@@ -1,7 +1,6 @@
 package selectors
 
 import (
-	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/OctopusDeploy/cli/pkg/question"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/environments"
@@ -11,12 +10,10 @@ func EnvironmentSelect(ask question.Asker, client *client.Client, s factory.Spin
 	s.Start()
 	envResources, err := client.Environments.Get(environments.EnvironmentsQuery{})
 	if err != nil {
-		s.Stop()
 		return nil, err
 	}
 	allEnvs, err := envResources.GetAllPages(client.Environments.GetClient())
 	if err != nil {
-		s.Stop()
 		return nil, err
 	}
 	s.Stop()

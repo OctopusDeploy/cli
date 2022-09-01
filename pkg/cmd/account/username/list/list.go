@@ -23,28 +23,24 @@ func NewCmdList(f factory.Factory) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return listUsernameAccounts(client, cmd, f.Spinner())
+			return listUsernameAccounts(client, cmd)
 		},
 	}
 
 	return cmd
 }
 
-func listUsernameAccounts(client *client.Client, cmd *cobra.Command, s factory.Spinner) error {
-	s.Start()
+func listUsernameAccounts(client *client.Client, cmd *cobra.Command) error {
 	accountResources, err := client.Accounts.Get(accounts.AccountsQuery{
 		AccountType: accounts.AccountTypeUsernamePassword,
 	})
 	if err != nil {
-		s.Stop()
 		return err
 	}
 	items, err := accountResources.GetAllPages(client.Accounts.GetClient())
 	if err != nil {
-		s.Stop()
 		return err
 	}
-	s.Stop()
 
 	output.PrintArray(items, cmd, output.Mappers[accounts.IAccount]{
 		Json: func(item accounts.IAccount) any {

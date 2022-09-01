@@ -72,7 +72,6 @@ func listRun(cmd *cobra.Command, f factory.Factory, flags *ListFlags) error {
 	if err != nil {
 		return err
 	}
-	spinner := f.Spinner()
 
 	var selectedProject *projects.Project
 	if f.IsPromptEnabled() { // this would be AskQuestions if it were bigger
@@ -100,11 +99,8 @@ func listRun(cmd *cobra.Command, f factory.Factory, flags *ListFlags) error {
 		}
 	}
 
-	spinner.Start()
-
 	foundReleases, err := octopus.Projects.GetReleases(selectedProject) // does paging internally
 	if err != nil {
-		spinner.Stop()
 		return err
 	}
 
@@ -135,7 +131,6 @@ func listRun(cmd *cobra.Command, f factory.Factory, flags *ListFlags) error {
 			), nil
 		},
 	)
-	spinner.Stop()
 	if err != nil {
 		return err
 	}
