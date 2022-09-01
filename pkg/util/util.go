@@ -1,7 +1,7 @@
 package util
 
 import (
-	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 )
 
 // SliceContains returns true if it finds an item in the slice that is equal to the target
@@ -24,20 +24,16 @@ func SliceTransform[T any, TResult any](slice []T, transform func(item T) TResul
 	return results
 }
 
-// GetFlagString calls cmd.Flags().GetString repeatedly for each flag name, returning
-// the first time it finds a non-empty value. Use it for compatibility with old flags
-// because pflag SetNormalizeFunc doesn't work properly.
-func GetFlagString(cmd *cobra.Command, flagNames ...string) (string, error) {
-	for _, flagName := range flagNames {
-		result, err := cmd.Flags().GetString(flagName)
-		if err != nil {
-			return "", err
-		}
-		if result != "" {
-			return result, nil
+// SliceFilter takes an input collection and returns elements where `predicate` returns true
+// Known as 'filter' in most other languages or 'Select' in C# Linq.
+func SliceFilter[T any](slice []T, predicate func(item T) bool) []T {
+	var results []T = nil
+	for _, item := range slice {
+		if predicate(item) {
+			results = append(results, item)
 		}
 	}
-	return "", nil
+	return results
 }
 
 // ExtractValuesMatchingKeys returns a collection of values which matched a specified set of keys, in the exact order of keys.
@@ -69,6 +65,30 @@ func ExtractValuesMatchingKeys[T any](collection []T, keys []string, idSelector 
 		}
 	}
 	return results
+}
+
+func AddFlagAliasesString(flags *pflag.FlagSet, originalFlag string, aliasMap map[string][]string, aliases ...string) {
+	f := flags.Lookup(originalFlag)
+	if f == nil {
+		panic("bug! AddFlagAliasesString couldn't find original flag in collection")
+	}
+	for _, alias := range aliases {
+		flags.String(alias, f.DefValue, "")
+		_ = flags.MarkHidden(alias)
+	}
+	aliasMap[originalFlag] = aliases
+}
+
+func AddFlagAliasesBool(flags *pflag.FlagSet, originalFlag string, aliasMap map[string][]string, aliases ...string) {
+	f := flags.Lookup(originalFlag)
+	if f == nil {
+		panic("bug! AddFlagAliasesBool couldn't find original flag in collection")
+	}
+	for _, alias := range aliases {
+		flags.Bool(alias, false, "") // this would be broken if we had any bools with default value of true, but we don't
+		_ = flags.MarkHidden(alias)
+	}
+	aliasMap[originalFlag] = aliases
 }
 
 type MapCollectionCacheContainer struct {

@@ -55,40 +55,24 @@ func releaseCreate(octopus *client.Client, space *spaces.Space, input any) error
 	//ReleaseNotes          string   `json:"releaseNotes,omitempty"`
 	//IgnoreIfAlreadyExists bool     `json:"ignoreIfAlreadyExists,omitempty"`
 	//IgnoreChannelRules    bool     `json:"ignoreChannelRules,omitempty"`
-	//PackagePrerelease     string   `json:"packagePrerelease,omitempty"`
 	createReleaseParams := releases.NewCreateReleaseV1(space.ID, params.ProjectName)
 
-	if params.DefaultPackageVersion != "" {
-		createReleaseParams.PackageVersion = params.DefaultPackageVersion
-	}
+	createReleaseParams.PackageVersion = params.DefaultPackageVersion
 
 	if len(params.PackageVersionOverrides) > 0 {
 		createReleaseParams.Packages = params.PackageVersionOverrides
 	}
 
-	if params.GitCommit != "" {
-		createReleaseParams.GitCommit = params.GitCommit
-	}
-	if params.GitReference != "" {
-		createReleaseParams.GitRef = params.GitReference
-	}
+	createReleaseParams.GitCommit = params.GitCommit
+	createReleaseParams.GitRef = params.GitReference
 
-	if params.Version != "" {
-		createReleaseParams.ReleaseVersion = params.Version
-	}
-	if params.ChannelName != "" {
-		createReleaseParams.ChannelIDOrName = params.ChannelName
-	}
+	createReleaseParams.ReleaseVersion = params.Version
+	createReleaseParams.ChannelIDOrName = params.ChannelName
 
-	if params.ReleaseNotes != "" {
-		createReleaseParams.ReleaseNotes = params.ReleaseNotes
-	}
+	createReleaseParams.ReleaseNotes = params.ReleaseNotes
 
 	createReleaseParams.IgnoreIfAlreadyExists = params.IgnoreIfAlreadyExists
 	createReleaseParams.IgnoreChannelRules = params.IgnoreChannelRules
-
-	// TODO what is PackagePrerelease and do we need it?
-	// createReleaseParams.PackagePrerelease = params.PackagePrerelease
 
 	createReleaseResponse, err := octopus.Releases.CreateV1(createReleaseParams)
 	if err != nil {

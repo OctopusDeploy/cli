@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/OctopusDeploy/cli/pkg/constants"
-	"github.com/OctopusDeploy/cli/pkg/util"
 	"strings"
 
 	"github.com/OctopusDeploy/cli/pkg/usage"
@@ -48,10 +47,10 @@ type Mappers[T any] struct {
 }
 
 func PrintArray[T any](items []T, cmd *cobra.Command, mappers Mappers[T]) error {
-	outputFormat, _ := util.GetFlagString(cmd, constants.FlagOutputFormat, constants.FlagOutputFormatLegacy)
+	outputFormat, _ := cmd.Flags().GetString(constants.FlagOutputFormat)
 
 	switch strings.ToLower(outputFormat) {
-	case "json":
+	case constants.OutputFormatJson:
 		jsonMapper := mappers.Json
 		if jsonMapper == nil {
 			return errors.New("command does not support output in JSON format")
@@ -62,28 +61,27 @@ func PrintArray[T any](items []T, cmd *cobra.Command, mappers Mappers[T]) error 
 		}
 
 		data, _ := json.MarshalIndent(outputJson, "", "  ")
-		fmt.Println(string(data))
+		cmd.Println(string(data))
 
-	case "basic", "text":
+	case constants.OutputFormatBasic:
 		textMapper := mappers.Basic
 		if textMapper == nil {
 			return errors.New("command does not support output in plain text")
 		}
 		for _, e := range items {
-			fmt.Println(textMapper(e))
+			cmd.Println(textMapper(e))
 		}
 
-	case "table", "": // table is the default of unspecified
+	case constants.OutputFormatTable, "": // table is the default of unspecified
 		tableMapper := mappers.Table
 		if tableMapper.Row == nil {
 			return errors.New("command does not support output in table format")
 		}
 
-		ioWriter := cmd.OutOrStdout()
-		t := NewTable(ioWriter)
+		t := NewTable(cmd.OutOrStdout())
 		if tableMapper.Header != nil {
 			for k, v := range tableMapper.Header {
-				tableMapper.Header[k] = Dim(v)
+				tableMapper.Header[k] = Bold(v)
 			}
 			t.AddRow(tableMapper.Header...)
 		}

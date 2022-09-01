@@ -17,7 +17,7 @@ import (
 // which the Factory wrapper deliberately doesn't allow us to do
 func NewCmdRoot(f factory.Factory, clientFactory apiclient.ClientFactory, askProvider question.AskProvider) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "octopus",
+		Use:   "octopus <command>",
 		Short: "Octopus Deploy CLI",
 		Long:  `Work seamlessly with Octopus Deploy from the command line.`,
 	}
@@ -29,6 +29,7 @@ func NewCmdRoot(f factory.Factory, clientFactory apiclient.ClientFactory, askPro
 	cmdPFlags := cmd.PersistentFlags()
 
 	cmdPFlags.BoolP(constants.FlagHelp, "h", false, "Show help for command")
+	cmd.SetHelpFunc(rootHelpFunc)
 	cmdPFlags.StringP(constants.FlagSpace, "s", "", "Set Space")
 
 	// remember if you read FlagOutputFormat you also need to check FlagOutputFormatLegacy
@@ -41,8 +42,11 @@ func NewCmdRoot(f factory.Factory, clientFactory apiclient.ClientFactory, askPro
 	// flags. The pflag documentation says you can use SetNormalizeFunc to translate/alias flag
 	// names, however this doesn't actually work; It normalizes both the old and new flag
 	// names to the same thing at configuration time, then panics due to duplicate flag declarations.
-	cmdPFlags.StringP(constants.FlagOutputFormatLegacy, "", "", "Output Format")
+
+	cmdPFlags.String(constants.FlagOutputFormatLegacy, "", "")
 	_ = cmdPFlags.MarkHidden(constants.FlagOutputFormatLegacy)
+
+	flagAliases := map[string][]string{constants.FlagOutputFormat: {constants.FlagOutputFormatLegacy}}
 
 	// we want to allow outputFormat as well as output-format, but don't advertise it.
 	// must add this AFTER setting the normalize func or it strips out the flag
@@ -60,6 +64,17 @@ func NewCmdRoot(f factory.Factory, clientFactory apiclient.ClientFactory, askPro
 	// so we'll get bad values. PersistentPreRun is a convenient callback for setting up our
 	// environment after parsing but before execution.
 	cmd.PersistentPreRun = func(_ *cobra.Command, args []string) {
+		// map flag alias values
+		for k, v := range flagAliases {
+			for _, aliasName := range v {
+				f := cmdPFlags.Lookup(aliasName)
+				r := f.Value.String() // boolean flags get stringified here but it's fast enough and a one-shot so meh
+				if r != f.DefValue {
+					_ = cmdPFlags.Lookup(k).Value.Set(r)
+				}
+			}
+		}
+
 		if noPrompt, err := cmd.PersistentFlags().GetBool(constants.FlagNoPrompt); err == nil && noPrompt {
 			askProvider.DisableInteractive()
 		}

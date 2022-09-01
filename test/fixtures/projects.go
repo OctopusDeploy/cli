@@ -5,6 +5,7 @@ import (
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/channels"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/deployments"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/releases"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/spaces"
 	"net/url"
 )
@@ -60,6 +61,7 @@ func NewProject(spaceID string, projectID string, projectName string, lifecycleI
 		"Channels":           fmt.Sprintf("/api/%s/projects/%s/channels{/id}{?skip,take,partialName}", spaceID, projectID),
 		"DeploymentProcess":  fmt.Sprintf("/api/%s/projects/%s/deploymentprocesses", spaceID, projectID),
 		"DeploymentSettings": fmt.Sprintf("/api/%s/projects/%s/deploymentsettings", spaceID, projectID),
+		"Releases":           fmt.Sprintf("/api/%s/projects/%s/releases{/version}{?skip,take,searchByVersion}", spaceID, projectID),
 	}
 	return result
 }
@@ -67,25 +69,31 @@ func NewProject(spaceID string, projectID string, projectName string, lifecycleI
 func NewVersionControlledProject(spaceID string, projectID string, projectName string, lifecycleID string, projectGroupID string, deploymentProcessID string) *projects.Project {
 	repoUrl, _ := url.Parse("https://server/repo.git")
 
-	result := projects.NewProject(projectName, lifecycleID, projectGroupID)
-	result.ID = projectID
+	result := NewProject(spaceID, projectID, projectName, lifecycleID, projectGroupID, deploymentProcessID)
 	result.VersioningStrategy = nil // CaC projects seem to always report nil here via the API
 	result.PersistenceSettings = projects.NewGitPersistenceSettings(".octopus", projects.NewAnonymousGitCredential(), "main", repoUrl)
-	result.DeploymentProcessID = deploymentProcessID
-	result.Links = map[string]string{
-		"Channels":           fmt.Sprintf("/api/%s/projects/%s/channels{/id}{?skip,take,partialName}", spaceID, projectID),
-		"DeploymentProcess":  fmt.Sprintf("/api/%s/projects/%s/{gitRef}/deploymentprocesses", spaceID, projectID), // note gitRef is a template param in the middle of the url path
-		"DeploymentSettings": fmt.Sprintf("/api/%s/projects/%s/{gitRef}/deploymentsettings", spaceID, projectID),  // note gitRef is a template param in the middle of the url path
-		"Tags":               fmt.Sprintf("/api/%s/projects/%s/git/tags{/name}{?skip,take,searchByName,refresh}", spaceID, projectID),
-		"Branches":           fmt.Sprintf("/api/%s/projects/%s/git/branches{/name}{?skip,take,searchByName,refresh}", spaceID, projectID),
-		"Commits":            fmt.Sprintf("/api/%s/projects/%s/git/commits{/hash}{?skip,take,refresh}", spaceID, projectID),
-	}
+
+	// CaC projects have different values in these links
+	result.Links["DeploymentProcess"] = fmt.Sprintf("/api/%s/projects/%s/{gitRef}/deploymentprocesses", spaceID, projectID) // note gitRef is a template param in the middle of the url path
+	result.Links["DeploymentSettings"] = fmt.Sprintf("/api/%s/projects/%s/{gitRef}/deploymentsettings", spaceID, projectID) // note gitRef is a template param in the middle of the url path
+
+	// CaC projects have extra links
+	result.Links["Tags"] = fmt.Sprintf("/api/%s/projects/%s/git/tags{/name}{?skip,take,searchByName,refresh}", spaceID, projectID)
+	result.Links["Branches"] = fmt.Sprintf("/api/%s/projects/%s/git/branches{/name}{?skip,take,searchByName,refresh}", spaceID, projectID)
+	result.Links["Commits"] = fmt.Sprintf("/api/%s/projects/%s/git/commits{/hash}{?skip,take,refresh}", spaceID, projectID)
 	return result
 }
 
 func NewChannel(spaceID string, channelID string, channelName string, projectID string) *channels.Channel {
 	result := channels.NewChannel(channelName, projectID)
 	result.ID = channelID
+	result.SpaceID = spaceID
+	return result
+}
+
+func NewRelease(spaceID string, releaseID string, releaseVersion string, projectID string, channelID string) *releases.Release {
+	result := releases.NewRelease(channelID, projectID, releaseVersion)
+	result.ID = releaseID
 	result.SpaceID = spaceID
 	return result
 }

@@ -42,6 +42,9 @@ type ClientFactory interface {
 	// someone calls GetSpacedClient we will have to query the Octopus Server to look up spaceNameOrId,
 	// and any calls to GetActiveSpace before that will return nil
 	SetSpaceNameOrId(spaceNameOrId string)
+
+	// GetHostUrl returns the current set API URL as a string
+	GetHostUrl() string
 }
 
 type Client struct {
@@ -154,6 +157,10 @@ func ValidateMandatoryEnvironment(host string, apiKey string) error {
 
 func (c *Client) GetActiveSpace() *spaces.Space {
 	return c.ActiveSpace
+}
+
+func (c *Client) GetHostUrl() string {
+	return c.ApiUrl.String()
 }
 
 func (c *Client) SetSpaceNameOrId(spaceNameOrId string) {

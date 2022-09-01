@@ -93,3 +93,11 @@ func Close(server *MockHttpServer, qa *AskMocker) {
 		qa.Close()
 	}
 }
+
+// ParseJsonStrict parses the incoming byte buffer into objects of type T, failing if any unexpected fields are present
+func ParseJsonStrict[T any](input io.Reader) (T, error) {
+	var parsedStdout T
+	decoder := json.NewDecoder(input)
+	decoder.DisallowUnknownFields()
+	return parsedStdout, decoder.Decode(&parsedStdout)
+}

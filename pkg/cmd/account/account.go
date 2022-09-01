@@ -13,6 +13,7 @@ import (
 	cmdToken "github.com/OctopusDeploy/cli/pkg/cmd/account/token"
 	cmdUsr "github.com/OctopusDeploy/cli/pkg/cmd/account/username"
 	"github.com/OctopusDeploy/cli/pkg/constants"
+	"github.com/OctopusDeploy/cli/pkg/constants/annotations"
 	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/spf13/cobra"
 )
@@ -23,6 +24,9 @@ func NewCmdAccount(f factory.Factory) *cobra.Command {
 		Short:   "Manage accounts",
 		Long:    `Work with Octopus Deploy accounts.`,
 		Example: fmt.Sprintf("$ %s account list", constants.ExecutableName),
+		Annotations: map[string]string{
+			annotations.IsInfrastructure: "true",
+		},
 	}
 
 	cmd.AddCommand(cmdDelete.NewCmdDelete(f))

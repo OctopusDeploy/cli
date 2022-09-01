@@ -1,117 +1,148 @@
 package list
 
 import (
+	"errors"
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/OctopusDeploy/cli/pkg/output"
 	"github.com/OctopusDeploy/cli/pkg/util"
+	"github.com/OctopusDeploy/cli/pkg/util/flag"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/channels"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/releases"
 	"github.com/spf13/cobra"
 )
 
-func NewCmdList(client factory.Factory) *cobra.Command {
+const (
+	FlagProject = "project"
+)
+
+type ListFlags struct {
+	Project *flag.Flag[string]
+}
+
+func NewListFlags() *ListFlags {
+	return &ListFlags{
+		Project: flag.New[string](FlagProject, false),
+	}
+}
+
+type ReleaseViewModel struct {
+	Channel string
+	Version string
+}
+
+func NewCmdList(f factory.Factory) *cobra.Command {
+	listFlags := NewListFlags()
 	cmd := &cobra.Command{
 		Use:   "list",
-		Short: "List releases in an instance of Octopus Deploy",
-		Long:  "List releases in an instance of Octopus Deploy.",
+		Short: "List releases in Octopus Deploy",
+		Long:  "List releases in Octopus Deploy.",
 		Example: heredoc.Doc(`
-			$ octopus release list"
+			$ octopus release list myProject
+			$ octopus release ls "Other Project"
+			$ octopus release list --project myProject
 		`),
 		Aliases: []string{"ls"},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			octopusClient, err := client.GetSpacedClient()
-			if err != nil {
-				return err
+			if len(args) > 0 && listFlags.Project.Value == "" {
+				listFlags.Project.Value = args[0]
 			}
 
-			type ReleaseViewModel struct {
-				Channel   string
-				ChannelID string `json:",omitempty"`
-				Project   string
-				ProjectID string `json:",omitempty"`
-				Version   string
-			}
-
-			var allReleases []ReleaseViewModel
-
-			caches := util.MapCollectionCacheContainer{}
-
-			pageOfReleases, err := octopusClient.Releases.Get(releases.ReleasesQuery{}) // get all; server's default page size
-			if err != nil {
-				return err
-			}
-			for pageOfReleases != nil && len(pageOfReleases.Items) > 0 {
-				pageOutput, err := util.MapCollectionWithLookups(
-					&caches,
-					pageOfReleases.Items,
-					func(item *releases.Release) []string { // set of keys to lookup
-						return []string{item.ChannelID, item.ProjectID}
-					},
-					func(item *releases.Release, lookup []string) ReleaseViewModel { // result producer
-						return ReleaseViewModel{
-							ChannelID: item.ChannelID,
-							Channel:   lookup[0],
-							ProjectID: item.ProjectID,
-							Project:   lookup[1],
-							Version:   item.Version}
-					},
-					// lookup for channel names
-					func(keys []string) ([]string, error) {
-						// Take(len) is important here just in case we have more than 30 channelsToLookup (server's default page size is 30 and we'd have to deal with pagination)
-						lookupResult, err := octopusClient.Channels.Get(channels.Query{IDs: keys, Take: len(keys)})
-						if err != nil {
-							return nil, err
-						}
-						return util.ExtractValuesMatchingKeys(
-							lookupResult.Items,
-							keys,
-							func(x *channels.Channel) string { return x.ID },
-							func(x *channels.Channel) string { return x.Name },
-						), nil
-					},
-					// lookup for project names
-					func(keys []string) ([]string, error) {
-						lookupResult, err := octopusClient.Projects.Get(projects.ProjectsQuery{IDs: keys, Take: len(keys)})
-						if err != nil {
-							return nil, err
-						}
-						return util.ExtractValuesMatchingKeys(
-							lookupResult.Items,
-							keys,
-							func(x *projects.Project) string { return x.ID },
-							func(x *projects.Project) string { return x.Name },
-						), nil
-					})
-
-				if err != nil {
-					return err
-				}
-
-				allReleases = append(allReleases, pageOutput...)
-
-				pageOfReleases, err = pageOfReleases.GetNextPage(octopusClient.Releases.GetClient())
-				if err != nil {
-					return err
-				} // if there are no more pages, then GetNextPage will return nil, which breaks us out of the loop
-			}
-
-			return output.PrintArray(allReleases, cmd, output.Mappers[ReleaseViewModel]{
-				Json: func(item ReleaseViewModel) any {
-					return item
-				},
-				Table: output.TableDefinition[ReleaseViewModel]{
-					Header: []string{"VERSION", "PROJECT", "CHANNEL"},
-					Row: func(item ReleaseViewModel) []string {
-						return []string{output.Bold(item.Version), item.Project, item.Channel}
-					}},
-				Basic: func(item ReleaseViewModel) string {
-					return item.Version
-				},
-			})
+			return listRun(cmd, f, listFlags)
 		},
 	}
 
+	flags := cmd.Flags()
+	flags.StringVarP(&listFlags.Project.Value, listFlags.Project.Name, "p", "", "Name or ID of the project to list releases for")
 	return cmd
+}
+
+func listRun(cmd *cobra.Command, f factory.Factory, flags *ListFlags) error {
+	projectNameOrID := flags.Project.Value
+
+	octopus, err := f.GetSpacedClient()
+	if err != nil {
+		return err
+	}
+	spinner := f.Spinner()
+
+	var selectedProject *projects.Project
+	if f.IsPromptEnabled() { // this would be AskQuestions if it were bigger
+		if projectNameOrID == "" {
+			selectedProject, err = util.SelectProject("Select the project to list releases for", octopus, f.Ask, spinner)
+			if err != nil {
+				return err
+			}
+		} else { // project name is already provided, fetch the object because it's needed for further questions
+			selectedProject, err = util.FindProject(octopus, spinner, projectNameOrID)
+			if err != nil {
+				return err
+			}
+			cmd.Printf("Project %s\n", output.Cyan(selectedProject.Name))
+		}
+	} else { // we don't have the executions API backing us and allowing NameOrID; we need to do the lookup ourselves
+		if projectNameOrID == "" {
+			return errors.New("project must be specified")
+		}
+		selectedProject, err = util.FindProject(octopus, factory.NoSpinner, projectNameOrID)
+		if err != nil {
+			return err
+		}
+	}
+
+	spinner.Start()
+
+	foundReleases, err := octopus.Projects.GetReleases(selectedProject) // does paging internally
+	if err != nil {
+		spinner.Stop()
+		return err
+	}
+
+	caches := util.MapCollectionCacheContainer{}
+	allReleases, err := util.MapCollectionWithLookups(
+		&caches,
+		foundReleases,
+		func(item *releases.Release) []string { // set of keys to lookup
+			return []string{item.ChannelID}
+		},
+		func(item *releases.Release, lookup []string) ReleaseViewModel { // result producer
+			return ReleaseViewModel{
+				Channel: lookup[0],
+				Version: item.Version}
+		},
+		// lookup for channel names
+		func(keys []string) ([]string, error) {
+			// Take(len) is important here just in case we have more than 30 channelsToLookup (server's default page size is 30 and we'd have to deal with pagination)
+			lookupResult, err := octopus.Channels.Get(channels.Query{IDs: keys, Take: len(keys)})
+			if err != nil {
+				return nil, err
+			}
+			return util.ExtractValuesMatchingKeys(
+				lookupResult.Items,
+				keys,
+				func(x *channels.Channel) string { return x.ID },
+				func(x *channels.Channel) string { return x.Name },
+			), nil
+		},
+	)
+	spinner.Stop()
+	if err != nil {
+		return err
+	}
+
+	return output.PrintArray(allReleases, cmd, output.Mappers[ReleaseViewModel]{
+		Json: func(item ReleaseViewModel) any {
+			// TODO should the ReleaseID go in the JSON as well as the release number? How about channelID?
+			return item
+		},
+		Table: output.TableDefinition[ReleaseViewModel]{
+			Header: []string{"VERSION", "CHANNEL"},
+			Row: func(item ReleaseViewModel) []string {
+				return []string{item.Version, item.Channel}
+			}},
+		Basic: func(item ReleaseViewModel) string {
+			return item.Version
+		},
+	})
 }

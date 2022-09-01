@@ -40,6 +40,26 @@ func ReceivePair[T1 any, T2 any](receiver chan Pair[T1, T2]) (T1, T2) {
 	return pair.Item1, pair.Item2
 }
 
+type Triple[T1 any, T2 any, T3 any] struct {
+	Item1 T1
+	Item2 T2
+	Item3 T3
+}
+
+func GoBegin3[TResult1 any, TResult2 any, TResult3 any](action func() (TResult1, TResult2, TResult3)) chan Triple[TResult1, TResult2, TResult3] {
+	c := make(chan Triple[TResult1, TResult2, TResult3])
+	go func() {
+		r1, r2, r3 := action()
+		c <- Triple[TResult1, TResult2, TResult3]{Item1: r1, Item2: r2, Item3: r3}
+	}()
+	return c
+}
+
+func ReceiveTriple[T1 any, T2 any, T3 any](receiver chan Triple[T1, T2, T3]) (T1, T2, T3) {
+	pair := <-receiver
+	return pair.Item1, pair.Item2, pair.Item3
+}
+
 type responseOrError struct {
 	response *http.Response
 	error    error
@@ -120,6 +140,9 @@ func (m *MockHttpServer) ExpectRequest(t *testing.T, method string, pathAndQuery
 	}
 
 	rPathAndQuery := r.URL.Path
+	if r.URL.RawPath != "" { // RawPath may not be set, but if it is it should be used in preference to Path
+		rPathAndQuery = r.URL.RawPath
+	}
 	if r.URL.RawQuery != "" {
 		rPathAndQuery = fmt.Sprintf("%s?%s", rPathAndQuery, r.URL.RawQuery)
 	}
@@ -136,21 +159,35 @@ type RequestWrapper struct {
 }
 
 func (r *RequestWrapper) RespondWith(responseObject any) {
-	if responseObject == nil {
-		panic("TODO: implement responses with no body")
-	}
+	r.RespondWithStatus(http.StatusOK, "200 OK", responseObject)
+}
 
-	body, _ := json.Marshal(responseObject)
+func (r *RequestWrapper) RespondWithStatus(statusCode int, statusString string, responseObject any) {
+	var body []byte
+	if responseObject != nil {
+		b, err := json.Marshal(responseObject)
+		if err != nil {
+			panic(err) // you shouldn't feed unserializable stuff into RespondWithStatus
+		}
+		body = b
+	} else {
+		body = make([]byte, 0)
+	}
 
 	// Regarding response errors:
 	// Note that we would use an error here for a low level thing like a network error.
 	// An HTTP error like a 404 or 500 would be considered a valid response with an
 	// appropriate status code
 	r.Server.Respond(&http.Response{
-		StatusCode:    http.StatusOK,
+		StatusCode:    statusCode,
+		Status:        statusString,
 		Body:          ioutil.NopCloser(bytes.NewReader(body)),
 		ContentLength: int64(len(body)),
 	}, nil)
+}
+
+func (r *RequestWrapper) RespondWithError(err error) {
+	r.Server.Respond(nil, err)
 }
 
 func NewRootResource() *octopusApiClient.RootResource {

@@ -15,6 +15,7 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/question"
 	"github.com/OctopusDeploy/cli/pkg/question/selectors"
 	"github.com/OctopusDeploy/cli/pkg/surveyext"
+	"github.com/OctopusDeploy/cli/pkg/util/flag"
 	"github.com/OctopusDeploy/cli/pkg/validation"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/accounts"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
@@ -22,27 +23,48 @@ import (
 	"github.com/spf13/cobra"
 )
 
+type CreateFlags struct {
+	Name         *flag.Flag[string]
+	Description  *flag.Flag[string]
+	KeyFilePath  *flag.Flag[string]
+	Username     *flag.Flag[string]
+	Passphrase   *flag.Flag[string]
+	Environments *flag.Flag[[]string]
+}
+
 type CreateOptions struct {
+	*CreateFlags
 	Writer  io.Writer
 	Octopus *client.Client
 	Ask     question.Asker
+	Spinner factory.Spinner
+	Space   string
+	Host    string
+	CmdPath string
 
-	Name         string
-	Description  string
-	KeyFileData  []byte
-	Username     string
-	Passphrase   string
-	Environments []string
+	KeyFileData []byte
 
 	NoPrompt bool
 }
 
+func NewCreateFlags() *CreateFlags {
+	return &CreateFlags{
+		Name:         flag.New[string]("name", false),
+		Description:  flag.New[string]("description", false),
+		KeyFilePath:  flag.New[string]("private-key", false),
+		Username:     flag.New[string]("username", false),
+		Passphrase:   flag.New[string]("passphrase", true),
+		Environments: flag.New[[]string]("environment", false),
+	}
+}
+
 func NewCmdCreate(f factory.Factory) *cobra.Command {
 	opts := &CreateOptions{
-		Ask: f.Ask,
+		Ask:         f.Ask,
+		Spinner:     f.Spinner(),
+		CreateFlags: NewCreateFlags(),
 	}
 	descriptionFilePath := ""
-	keyFilePath := ""
 
 	cmd := &cobra.Command{
 		Use:   "create",
@@ -51,12 +73,15 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 		Example: fmt.Sprintf(heredoc.Doc(`
 			$ %s account ssh create"
 		`), constants.ExecutableName),
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(cmd *cobra.Command, _ []string) error {
 			client, err := f.GetSpacedClient()
 			if err != nil {
 				return err
 			}
+			opts.CmdPath = cmd.CommandPath()
 			opts.Octopus = client
+			opts.Space = f.GetCurrentSpace().GetID()
+			opts.Host = f.GetCurrentHost()
 			opts.Writer = cmd.OutOrStdout()
 			if descriptionFilePath != "" {
 				if err := validation.IsExistingFile(descriptionFilePath); err != nil {
@@ -66,21 +91,21 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 				if err != nil {
 					return err
 				}
-				opts.Description = string(data)
+				opts.Description.Value = string(data)
 			}
-			if keyFilePath != "" {
-				if err := validation.IsExistingFile(keyFilePath); err != nil {
+			if opts.KeyFilePath.Value != "" {
+				if err := validation.IsExistingFile(opts.KeyFilePath.Value); err != nil {
 					return err
 				}
-				data, err := os.ReadFile(keyFilePath)
+				data, err := os.ReadFile(opts.KeyFilePath.Value)
 				if err != nil {
 					return err
 				}
 				opts.KeyFileData = data
 			}
 			opts.NoPrompt = !f.IsPromptEnabled()
-			if opts.Environments != nil {
-				opts.Environments, err = helper.ResolveEnvironmentNames(opts.Environments, opts.Octopus)
+			if opts.Environments.Value != nil {
+				opts.Environments.Value, err = helper.ResolveEnvironmentNames(opts.Environments.Value, opts.Octopus, opts.Spinner)
 				if err != nil {
 					return err
 				}
@@ -89,12 +114,12 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringVarP(&opts.Name, "name", "n", "", "A short, memorable, unique name for this account.")
-	cmd.Flags().StringVarP(&opts.Description, "description", "d", "", "A summary explaining the use of the account to other users.")
-	cmd.Flags().StringVarP(&keyFilePath, "private-key", "K", "", "Path to the private key file portion of the key pair.")
-	cmd.Flags().StringVarP(&opts.Username, "username", "u", "", "The username to use when authenticating against the remote host.")
-	cmd.Flags().StringVarP(&opts.Passphrase, "passphrase", "p", "", "The passphrase for the private key, if required.")
-	cmd.Flags().StringArrayVarP(&opts.Environments, "environments", "e", nil, "The environments that are allowed to use this account.")
+	cmd.Flags().StringVarP(&opts.Name.Value, opts.Name.Name, "n", "", "A short, memorable, unique name for this account.")
+	cmd.Flags().StringVarP(&opts.Description.Value, opts.Description.Name, "d", "", "A summary explaining the use of the account to other users.")
+	cmd.Flags().StringVarP(&opts.KeyFilePath.Value, opts.KeyFilePath.Name, "K", "", "Path to the private key file portion of the key pair.")
+	cmd.Flags().StringVarP(&opts.Username.Value, opts.Username.Name, "u", "", "The username to use when authenticating against the remote host.")
+	cmd.Flags().StringVarP(&opts.Passphrase.Value, opts.Passphrase.Name, "p", "", "The passphrase for the private key, if required.")
+	cmd.Flags().StringArrayVarP(&opts.Environments.Value, opts.Environments.Name, "e", nil, "The environments that are allowed to use this account.")
 	cmd.Flags().StringVarP(&descriptionFilePath, "description-file", "D", "", "Read the description from `file`.")
 
 	return cmd
@@ -107,37 +132,45 @@ func CreateRun(opts *CreateOptions) error {
 		}
 	}
 	sshAccount, err := accounts.NewSSHKeyAccount(
-		opts.Name,
-		opts.Username,
+		opts.Name.Value,
+		opts.Username.Value,
 		core.NewSensitiveValue(b64.StdEncoding.EncodeToString(opts.KeyFileData)),
 	)
 	if err != nil {
 		return err
 	}
-	sshAccount.Description = opts.Description
-	sshAccount.EnvironmentIDs = opts.Environments
-	if opts.Passphrase != "" {
-		sshAccount.PrivateKeyPassphrase = core.NewSensitiveValue(opts.Passphrase)
+	sshAccount.Description = opts.Description.Value
+	sshAccount.EnvironmentIDs = opts.Environments.Value
+	if opts.Passphrase.Value != "" {
+		sshAccount.PrivateKeyPassphrase = core.NewSensitiveValue(opts.Passphrase.Value)
 	}
 
+	opts.Spinner.Start()
 	createdAccount, err := opts.Octopus.Accounts.Add(sshAccount)
+	opts.Spinner.Stop()
 	if err != nil {
 		return err
 	}
 
-	_, err = fmt.Fprintf(opts.Writer, "Successfully created SSH Account %s %s.\n", createdAccount.GetName(), output.Dimf("(%s)", createdAccount.GetID()))
+	_, err = fmt.Fprintf(opts.Writer, "Successfully created SSH account %s %s.\n", createdAccount.GetName(), output.Dimf("(%s)", createdAccount.GetID()))
 	if err != nil {
 		return err
+	}
+	link := output.Bluef("%s/app#/%s/infrastructure/accounts/%s", opts.Host, opts.Space, createdAccount.GetID())
+	fmt.Fprintf(opts.Writer, "\nView this account on Octopus Deploy: %s\n", link)
+	if !opts.NoPrompt {
+		autoCmd := flag.GenerateAutomationCmd(opts.CmdPath, opts.Name, opts.KeyFilePath, opts.Passphrase, opts.Description, opts.Environments)
+		fmt.Fprintf(opts.Writer, "\nAutomation Command: %s\n", autoCmd)
 	}
 	return nil
 }
 
 func promptMissing(opts *CreateOptions) error {
-	if opts.Name == "" {
+	if opts.Name.Value == "" {
 		if err := opts.Ask(&survey.Input{
 			Message: "Name",
 			Help:    "A short, memorable, unique name for this account.",
-		}, &opts.Name, survey.WithValidator(survey.ComposeValidators(
+		}, &opts.Name.Value, survey.WithValidator(survey.ComposeValidators(
 			survey.MaxLength(200),
 			survey.MinLength(1),
 			survey.Required,
@@ -146,7 +179,7 @@ func promptMissing(opts *CreateOptions) error {
 		}
 	}
 
-	if opts.Description == "" {
+	if opts.Description.Value == "" {
 		if err := opts.Ask(&surveyext.OctoEditor{
 			Editor: &survey.Editor{
 				Message:  "Description",
@@ -154,16 +187,16 @@ func promptMissing(opts *CreateOptions) error {
 				FileName: "*.md",
 			},
 			Optional: true,
-		}, &opts.Description); err != nil {
+		}, &opts.Description.Value); err != nil {
 			return err
 		}
 	}
 
-	if opts.Username == "" {
+	if opts.Username.Value == "" {
 		if err := opts.Ask(&survey.Input{
 			Message: "Username",
 			Help:    "The username to use when authenticating against the remote host.",
-		}, &opts.Username, survey.WithValidator(survey.ComposeValidators(
+		}, &opts.Username.Value, survey.WithValidator(survey.ComposeValidators(
 			survey.Required,
 		))); err != nil {
 			return err
@@ -171,40 +204,39 @@ func promptMissing(opts *CreateOptions) error {
 	}
 
 	if len(opts.KeyFileData) == 0 {
-		keyFilePath := ""
 		if err := opts.Ask(&survey.Input{
 			Message: "Private Key File Path",
 			Help:    "Path to the the private key file portion of the key pair.",
-		}, &keyFilePath, survey.WithValidator(survey.ComposeValidators(
+		}, &opts.KeyFilePath.Value, survey.WithValidator(survey.ComposeValidators(
 			survey.Required,
 			validation.IsExistingFile,
 		))); err != nil {
 			return err
 		}
-		data, err := os.ReadFile(keyFilePath)
+		data, err := os.ReadFile(opts.KeyFilePath.Value)
 		if err != nil {
 			return err
 		}
 		opts.KeyFileData = data
 	}
 
-	if opts.Passphrase == "" {
-		if err := opts.Ask(&survey.Input{
+	if opts.Passphrase.Value == "" {
+		if err := opts.Ask(&survey.Password{
 			Message: "Passphrase",
 			Help:    "The passphrase for the private key, if required.",
-		}, &opts.Passphrase); err != nil {
+		}, &opts.Passphrase.Value); err != nil {
 			return err
 		}
 	}
 
-	if opts.Environments == nil {
-		environmentIDs, err := selectors.EnvironmentsMultiSelect(opts.Ask, opts.Octopus,
+	if opts.Environments.Value == nil {
+		environmentIDs, err := selectors.EnvironmentsMultiSelect(opts.Ask, opts.Octopus, opts.Spinner,
 			"Choose the environments that are allowed to use this account.\n"+
 				output.Dim("If nothing is selected, the account can be used for deployments to any environment."))
 		if err != nil {
 			return err
 		}
-		opts.Environments = environmentIDs
+		opts.Environments.Value = environmentIDs
 	}
 	return nil
 }
