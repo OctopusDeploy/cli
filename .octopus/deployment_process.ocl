@@ -78,10 +78,10 @@ step "push-changes-to-homebrew-repo" {
                 # Update version property
                 sed -i "s/\(^.*version \"\).*\(\".*$\)/\1$packageVersion\2/g" $fileName
 
-                # Update download URL
-                sed -i "s/\(^.*url.*OctopusDeploy\/cli\/\).*\(\/.*Cli\.\).*\(\.osx.*$\)/\1$packageVersion\2$packageVersion\3/g" $fileName
+                # Update download URL, `url = https://github.com/OctopusDeploy/cli/releases/download/vX.X.X/octopus_X.X.X_macOS_x86_65.tar.gz`
+                sed -i "s/\(^.*url.*OctopusDeploy\/cli\/\).*\(\/.*octopus\_\).*\(\_macOS.*$\)/\1v$packageVersion\2$packageVersion\3/g" $fileName
 
-                newSha=$(sha256sum "$extractedPath/OctopusCli.$packageVersion.osx-x64.tar.gz" | awk '{ print $1 }')
+                newSha=$(sha256sum "$extractedPath/octopus-cli.$packageVersion.osx-x64.tar.gz" | awk '{ print $1 }')
                 # Update sha256 property
                 sed -i "s/\(^.*sha256 \"\).*\(\".*$\)/\1$newSha\2/g" $fileName
 
