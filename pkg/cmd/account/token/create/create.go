@@ -34,7 +34,6 @@ type CreateOptions struct {
 	Writer   io.Writer
 	Octopus  *client.Client
 	Ask      question.Asker
-	Spinner  factory.Spinner
 	Space    string
 	NoPrompt bool
 	CmdPath  string
@@ -53,7 +52,6 @@ func NewCreateFlags() *CreateFlags {
 func NewCmdCreate(f factory.Factory) *cobra.Command {
 	opts := &CreateOptions{
 		Ask:         f.Ask,
-		Spinner:     f.Spinner(),
 		CreateFlags: NewCreateFlags(),
 	}
 	descriptionFilePath := ""
@@ -66,12 +64,12 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 			$ %s account token create"
 		`), constants.ExecutableName),
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			client, err := f.GetSpacedClient()
+			octopus, err := f.GetSpacedClient()
 			if err != nil {
 				return err
 			}
 			opts.CmdPath = cmd.CommandPath()
-			opts.Octopus = client
+			opts.Octopus = octopus
 			opts.Host = f.GetCurrentHost()
 			opts.Space = f.GetCurrentSpace().GetID()
 			opts.Writer = cmd.OutOrStdout()
@@ -87,7 +85,7 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 			}
 			opts.NoPrompt = !f.IsPromptEnabled()
 			if opts.Environments.Value != nil {
-				opts.Environments.Value, err = helper.ResolveEnvironmentNames(opts.Environments.Value, opts.Octopus, opts.Spinner)
+				opts.Environments.Value, err = helper.ResolveEnvironmentNames(opts.Environments.Value, opts.Octopus)
 				if err != nil {
 					return err
 				}
@@ -121,9 +119,7 @@ func CreateRun(opts *CreateOptions) error {
 	tokenAccount.Description = opts.Description.Value
 	tokenAccount.EnvironmentIDs = opts.Environments.Value
 
-	opts.Spinner.Start()
 	createdAccount, err := opts.Octopus.Accounts.Add(tokenAccount)
-	opts.Spinner.Stop()
 	if err != nil {
 		return err
 	}
@@ -133,10 +129,10 @@ func CreateRun(opts *CreateOptions) error {
 		return err
 	}
 	link := output.Bluef("%s/app#/%s/infrastructure/accounts/%s", opts.Host, opts.Space, createdAccount.GetID())
-	fmt.Fprintf(opts.Writer, "\nView this account on Octopus Deploy: %s\n", link)
+	_, _ = fmt.Fprintf(opts.Writer, "\nView this account on Octopus Deploy: %s\n", link)
 	if !opts.NoPrompt {
 		autoCmd := flag.GenerateAutomationCmd(opts.CmdPath, opts.Name, opts.Token, opts.Description, opts.Environments)
-		fmt.Fprintf(opts.Writer, "\nAutomation Command: %s\n", autoCmd)
+		_, _ = fmt.Fprintf(opts.Writer, "\nAutomation Command: %s\n", autoCmd)
 	}
 	return nil
 }
@@ -180,7 +176,7 @@ func promptMissing(opts *CreateOptions) error {
 	}
 
 	if opts.Environments.Value == nil {
-		environmentIDs, err := selectors.EnvironmentsMultiSelect(opts.Ask, opts.Octopus, opts.Spinner,
+		environmentIDs, err := selectors.EnvironmentsMultiSelect(opts.Ask, opts.Octopus,
 			"Choose the environments that are allowed to use this account.\n"+
 				output.Dim("If nothing is selected, the account can be used for deployments to any environment."))
 		if err != nil {

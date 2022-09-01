@@ -63,7 +63,6 @@ func createRun(f factory.Factory, w io.Writer) error {
 		opts := &awsCreate.CreateOptions{
 			Writer:      w,
 			Octopus:     client,
-			Spinner:     f.Spinner(),
 			Ask:         f.Ask,
 			Space:       f.GetCurrentSpace().GetID(),
 			CreateFlags: awsCreate.NewCreateFlags(),
@@ -77,7 +76,6 @@ func createRun(f factory.Factory, w io.Writer) error {
 		opts := &azureCreate.CreateOptions{
 			Writer:      w,
 			Octopus:     client,
-			Spinner:     f.Spinner(),
 			Ask:         f.Ask,
 			Space:       f.GetCurrentSpace().GetID(),
 			CreateFlags: azureCreate.NewCreateFlags(),
@@ -91,7 +89,6 @@ func createRun(f factory.Factory, w io.Writer) error {
 		opts := &gcpCreate.CreateOptions{
 			Writer:      w,
 			Octopus:     client,
-			Spinner:     f.Spinner(),
 			Ask:         f.Ask,
 			Space:       f.GetCurrentSpace().GetID(),
 			CreateFlags: gcpCreate.NewCreateFlags(),
@@ -105,7 +102,6 @@ func createRun(f factory.Factory, w io.Writer) error {
 		opts := &sshCreate.CreateOptions{
 			Writer:      w,
 			Octopus:     client,
-			Spinner:     f.Spinner(),
 			Ask:         f.Ask,
 			Space:       f.GetCurrentSpace().GetID(),
 			CreateFlags: sshCreate.NewCreateFlags(),
@@ -119,7 +115,6 @@ func createRun(f factory.Factory, w io.Writer) error {
 		opts := &tokenCreate.CreateOptions{
 			Writer:      w,
 			Octopus:     client,
-			Spinner:     f.Spinner(),
 			Ask:         f.Ask,
 			Space:       f.GetCurrentSpace().GetID(),
 			CreateFlags: tokenCreate.NewCreateFlags(),
@@ -133,7 +128,6 @@ func createRun(f factory.Factory, w io.Writer) error {
 		opts := &usernameCreate.CreateOptions{
 			Writer:      w,
 			Octopus:     client,
-			Spinner:     f.Spinner(),
 			Ask:         f.Ask,
 			Space:       f.GetCurrentSpace().GetID(),
 			CreateFlags: usernameCreate.NewCreateFlags(),
