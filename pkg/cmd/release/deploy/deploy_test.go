@@ -167,13 +167,15 @@ func TestParseVariableStringArray(t *testing.T) {
 	}{
 		{name: "foo:bar", input: []string{"foo:bar"}, expect: map[string]string{"foo": "bar"}},
 		{name: "foo:bar,baz:qux", input: []string{"foo:bar", "baz:qux"}, expect: map[string]string{"foo": "bar", "baz": "qux"}},
-		{name: "foo=bar", input: []string{"foo=bar"}, expect: map[string]string{"foo": "bar"}},
+		{name: "foo=bar,baz=qux", input: []string{"foo=bar", "baz=qux"}, expect: map[string]string{"foo": "bar", "baz": "qux"}},
 
 		{name: "foo:bar:more=stuff", input: []string{"foo:bar:more=stuff"}, expect: map[string]string{"foo": "bar:more=stuff"}},
 
 		{name: "trims whitespace", input: []string{" foo : \tbar "}, expect: map[string]string{"foo": "bar"}},
 
 		// error cases
+		{name: "blank", input: []string{""}, expectErr: errors.New("could not parse variable definition ''")},
+		{name: "no delimeter", input: []string{"zzz"}, expectErr: errors.New("could not parse variable definition 'zzz'")},
 		{name: "missing key", input: []string{":bar"}, expectErr: errors.New("could not parse variable definition ':bar'")},
 		{name: "missing val", input: []string{"foo:"}, expectErr: errors.New("could not parse variable definition 'foo:'")},
 	}
@@ -182,6 +184,29 @@ func TestParseVariableStringArray(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			result, err := deploy.ParseVariableStringArray(test.input)
 			assert.Equal(t, test.expectErr, err)
+			assert.Equal(t, test.expect, result)
+		})
+	}
+}
+
+func TestToVariableStringArray(t *testing.T) {
+	tests := []struct {
+		name   string
+		input  map[string]string
+		expect []string
+	}{
+		{name: "foo:bar", input: map[string]string{"foo": "bar"}, expect: []string{"foo:bar"}},
+		{name: "foo:bar,baz:qux", input: map[string]string{"foo": "bar", "baz": "qux"}, expect: []string{"foo:bar", "baz:qux"}},
+
+		{name: "foo:bar:more=stuff", input: map[string]string{"foo": "bar:more=stuff"}, expect: []string{"foo:bar:more=stuff"}},
+
+		{name: "strips empty keys", input: map[string]string{"": "bar"}, expect: []string{}},
+		{name: "strips empty values", input: map[string]string{"foo": ""}, expect: []string{}},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			result := deploy.ToVariableStringArray(test.input)
 			assert.Equal(t, test.expect, result)
 		})
 	}

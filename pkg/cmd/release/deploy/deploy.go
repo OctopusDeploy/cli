@@ -2,6 +2,7 @@ package deploy
 
 import (
 	"fmt"
+	"github.com/AlecAivazis/survey/v2"
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	cliErrors "github.com/OctopusDeploy/cli/pkg/errors"
@@ -10,6 +11,7 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/output"
 	"github.com/OctopusDeploy/cli/pkg/question"
 	"github.com/OctopusDeploy/cli/pkg/question/selectors"
+	"github.com/OctopusDeploy/cli/pkg/surveyext"
 	"github.com/OctopusDeploy/cli/pkg/util"
 	"github.com/OctopusDeploy/cli/pkg/util/flag"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/channels"
@@ -20,6 +22,7 @@ import (
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/releases"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/spaces"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/variables"
 	"github.com/spf13/cobra"
 	"io"
 	"strings"
@@ -349,7 +352,7 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 		return err
 	}
 
-	_, err = AskPromptedVariables(octopus, spinner, space, selectedRelease.ProjectVariableSetSnapshotID, options.Variables)
+	_, err = AskPromptedVariables(asker, octopus, spinner, space, selectedRelease.ProjectVariableSetSnapshotID, options.Variables)
 	if err != nil {
 		return err
 	}
@@ -395,55 +398,26 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 	if err != nil {
 		return err
 	}
-
 	if len(options.ExcludedSteps) == 0 {
-		stepsToExclude, err := question.MultiSelectMap(asker, "Select steps to skip (if any)", deploymentProcess.Steps, func(s *deployments.DeploymentStep) string {
-			return s.Name
-		}, 0)
+		options.ExcludedSteps, err = askExcludedSteps(asker, deploymentProcess.Steps)
 		if err != nil {
 			return err
 		}
-		options.ExcludedSteps = util.SliceTransform(stepsToExclude, func(s *deployments.DeploymentStep) string {
-			return s.ID // this is a GUID, what should we actually be sending to the server?
-		})
 	}
 
-	// do we want guided failure mode?
 	if options.GuidedFailureMode == "" { // if they deliberately specified false, don't ask them
-		modes := []core.GuidedFailureMode{
-			"", "true", "false",
-		}
-		gfm, err := question.SelectMap(asker, "Guided Failure Mode?", modes, func(g core.GuidedFailureMode) string {
-			switch g {
-			case "":
-				return "Use default setting from the target environment"
-			case "true":
-				return "Use guided failure mode"
-			case "false":
-				return "Do not use guided failure mode"
-			default:
-				return fmt.Sprintf("Unhandled %s", g)
-			}
-		})
+		gfm, err := askGuidedFailureMode(asker)
 		if err != nil {
 			return err
 		}
 		options.GuidedFailureMode = string(gfm)
 	}
 
-	// force package re-download?
 	if !options.ForcePackageDownloadWasSpecified { // if they deliberately specified false, don't ask them
-		forcePackageDownload, err := question.SelectMap(asker, "Force package re-download?", []bool{false, true}, func(b bool) string {
-			if b {
-				return "Yes" // should be the default; they probably want to not force
-			} else {
-				return "No"
-			}
-		})
+		options.ForcePackageDownload, err = askPackageDownload(asker)
 		if err != nil {
 			return err
 		}
-		options.ForcePackageDownload = forcePackageDownload
 	}
 
 	// If tenanted:
@@ -456,43 +430,115 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 	return nil
 }
 
-func AskPromptedVariables(octopus *octopusApiClient.Client, spinner factory.Spinner, space *spaces.Space, id string, variableFromCmd map[string]string) (map[string]string, error) {
-	//
-	//variableSet, err := variables.GetVariableSet(octopus, space.ID, selectedRelease.ProjectVariableSetSnapshotID)
-	//if err != nil {
-	//	return err
-	//}
-	//
-	//if len(variableSet.Variables) > 0 { // nothing to be done here, move along
-	//	for _, v := range variableSet.Variables {
-	//		if v.Prompt != nil { // this is a prompted variable, ask for input
-	//			asker(&survey.Input{})
-	//		}
-	//	}
-	//}
+func askExcludedSteps(asker question.Asker, steps []*deployments.DeploymentStep) ([]string, error) {
+	stepsToExclude, err := question.MultiSelectMap(asker, "Select steps to skip (if any)", steps, func(s *deployments.DeploymentStep) string {
+		return s.Name
+	}, 0)
+	if err != nil {
+		return nil, err
+	}
+	return util.SliceTransform(stepsToExclude, func(s *deployments.DeploymentStep) string {
+		return s.ID // this is a GUID, what should we actually be sending to the server?
+	}), nil
+}
+
+func askPackageDownload(asker question.Asker) (bool, error) {
+	return question.SelectMap(asker, "Force package re-download?", []bool{false, true}, func(b bool) string {
+		if b {
+			return "Yes" // should be the default; they probably want to not force
+		} else {
+			return "No"
+		}
+	})
+
+}
+
+func askGuidedFailureMode(asker question.Asker) (core.GuidedFailureMode, error) {
+	modes := []core.GuidedFailureMode{
+		"", "true", "false",
+	}
+	return question.SelectMap(asker, "Guided Failure Mode?", modes, func(g core.GuidedFailureMode) string {
+		switch g {
+		case "":
+			return "Use default setting from the target environment"
+		case "true":
+			return "Use guided failure mode"
+		case "false":
+			return "Do not use guided failure mode"
+		default:
+			return fmt.Sprintf("Unhandled %s", g)
+		}
+	})
+}
+
+func AskPromptedVariables(asker question.Asker, octopus *octopusApiClient.Client, spinner factory.Spinner, space *spaces.Space, variableSetSnapshotID string, variableFromCmd map[string]string) (map[string]string, error) {
+	spinner.Start()
+	variableSet, err := variables.GetVariableSet(octopus, space.ID, variableSetSnapshotID)
+	spinner.Stop()
+	if err != nil {
+		return nil, err
+	}
+
+	if len(variableSet.Variables) > 0 { // nothing to be done here, move along
+		for _, v := range variableSet.Variables {
+			if v.Prompt != nil && variableFromCmd[v.Name] == "" { // this is a prompted variable, ask for input (unless we already have it)
+
+				promptMessage := v.Prompt.Label
+				if promptMessage == "" {
+					promptMessage = v.Name // fallback; label should always be specified, but just in case
+				}
+				if v.Prompt.Description != "" {
+					promptMessage = fmt.Sprintf("%s %s", promptMessage, output.Dimf("(%s)", v.Prompt.Description))
+				}
+
+				prompt, err := buildVariablePrompt(promptMessage, v.Value, v.Prompt.IsRequired, v.Prompt.DisplaySettings)
+				if err != nil {
+					return nil, err
+				}
+
+				var response any
+				err = asker(prompt, &response)
+				if err != nil {
+					return nil, err
+				}
+
+				// now pickup the response and stick it in the output
+			}
+		}
+	}
 	return nil, nil
 }
 
-//
-//type RequestProcessor struct {
-//	GetReleasesInProjectChannel func(client newclient.Client, projectID string, channelID string) ([]*releases.Release, error)
-//	// 300 more functions for every kind of GetXyz
-//}
-//
-//func NewRealRequestProcessor() *RequestProcessor {
-//	return &RequestProcessor{
-//		GetReleasesInProjectChannel: releases.GetReleasesInProjectChannel,
-//	}
-//}
-//
-//func NewFakeRequestProcessor() *RequestProcessor {
-//	return &RequestProcessor{
-//		GetReleasesInProjectChannel: func(client newclient.Client, projectID string, channelID string) ([]*releases.Release, error) {
-//			// It's a mock!
-//			return nil, nil
-//		},
-//	}
-//}
+func buildVariablePrompt(message string, defaultValue string, isRequired bool, displaySettings *variables.DisplaySettings) (survey.Prompt, *survey.AskOptions, error) {
+	//displaySettings.SelectOptions
+
+	var askOptions *survey.AskOptions = nil
+	if isRequired {
+		askOptions = &survey.AskOptions{Validators: []survey.Validator{survey.Required}}
+	}
+
+	switch displaySettings.ControlType {
+	case variables.ControlTypeSingleLineText:
+		return &survey.Input{
+			Message: message,
+			Default: defaultValue,
+		}, askOptions, nil
+	case variables.ControlTypeMultiLineText:
+		return &surveyext.OctoEditor{
+			Editor: &survey.Editor{
+				Message:  "message",
+				FileName: "*.txt",
+			},
+			Optional: !isRequired}, askOptions, nil
+	case variables.ControlTypeSelect:
+		return &survey.Select{
+			Message: message,
+			Default: defaultValue,
+			Options: []string{displaySettings.SelectOptions},
+		}, askOptions, nil
+
+	}
+}
 
 func selectRelease(octopus *octopusApiClient.Client, ask question.Asker, spinner factory.Spinner, questionText string, space *spaces.Space, project *projects.Project, channel *channels.Channel) (*releases.Release, error) {
 	spinner.Start()
@@ -554,6 +600,9 @@ func ParseVariableStringArray(variables []string) (map[string]string, error) {
 func ToVariableStringArray(variables map[string]string) []string {
 	result := make([]string, 0, len(variables))
 	for k, v := range variables {
+		if k == "" || v == "" {
+			continue
+		}
 		result = append(result, fmt.Sprintf("%s:%s", k, v)) // TODO what about variables that have a : in their name?
 	}
 	return result
