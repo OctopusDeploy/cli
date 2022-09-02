@@ -72,6 +72,8 @@ step "create-pull-request-to-update-formula-in-homebrew" {
                 repoName="$(get_octopusvariable 'Publish:HomeBrew:RepoName')"
                 releaseAssets=$(curl -X GET https://api.github.com/repos/$orgName/$repoName/releases | jq "map(select(.name == \"$packageVersion\"))[0].assets")
                 
+                # https://docs.brew.sh/Homebrew-on-Linux#requirements
+                apt-get install build-essential procps curl file git --yes
                 # https://github.com/Homebrew/install/#install-homebrew-on-macos-or-linux
                 NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
                 
