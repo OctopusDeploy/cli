@@ -9,18 +9,10 @@
 <?define InstallerVersion = "200"?>
 <?define UpgradeCode = "738e840f-6305-4a12-8136-8aad988daf43"?>
 <?define ProgramFilesFolder = "ProgramFiles64Folder"?>
-<?elseif $(var.Platform) = "x86"?>
-<?define InstallerVersion = "200"?>
-<?define UpgradeCode = "7154b20d-4082-4d7a-9709-00c73dd57072"?>
-<?define ProgramFilesFolder = "ProgramFilesFolder"?>
 <?elseif $(var.Platform) = "arm64"?>
 <?define InstallerVersion = "500"?>
 <?define UpgradeCode = "48c23b4e-ce2b-445b-b4b2-40420f6b10f9"?>
 <?define ProgramFilesFolder = "ProgramFiles64Folder"?>
-<?elseif $(var.Platform) = "arm"?>
-<?define InstallerVersion = "500"?>
-<?define UpgradeCode = "144c13dc-f6c4-4e8f-8f29-6da761789300"?>
-<?define ProgramFilesFolder = "ProgramFilesFolder"?>
 <?endif?>
 
 <Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
@@ -30,11 +22,6 @@
 
         <!-- Remove older product(s) early but within the transaction -->
         <MajorUpgrade Schedule="afterInstallInitialize" DowngradeErrorMessage="A newer version of !(bind.property.ProductName) is already installed."/>
-
-        <!-- Upgrade older x86 products -->
-        <Upgrade Id="8c0fe083-ff94-4c94-b6e6-f416fccfecab">
-            <UpgradeVersion Maximum="$(var.ProductVersion)" Property="OLDERX86VERSIONDETECTED"/>
-        </Upgrade>
 
         <Directory Id="TARGETDIR" Name="SourceDir">
             <Directory Id="$(var.ProgramFilesFolder)" Name="Program Files">
@@ -57,13 +44,6 @@
             <!-- Persist the INSTALLDIR and restore it in subsequent installs -->
             <Component Directory="INSTALLDIR">
                 <RegistryValue Root="HKLM" Key="SOFTWARE\Octopus\CLI" Name="InstallDir" Type="string" Value="[INSTALLDIR]"/>
-            </Component>
-
-            <Component Id="OlderX86Env" Guid="32d8ce4c-6422-4f40-8382-cb3ba306b3d1" Directory="TARGETDIR" Win64="no">
-                <Condition><![CDATA[OLDERX86VERSIONDETECTED]]></Condition>
-
-                <!-- Clean up the old x86 package default directory from the user environment -->
-                <Environment Id="OlderX86Path" Action="remove" Name="PATH" Part="last" System="no" Value="[ProgramFilesFolder]Octopus CLI\"/>
             </Component>
         </Feature>
 
