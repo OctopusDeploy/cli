@@ -53,8 +53,8 @@ step "push-cli-to-chocolatey" {
     }
 }
 
-step "push-changes-to-homebrew-repo" {
-    name = "Push Changes To Homebrew Repo"
+step "create-pull-request-to-update-formula-in-homebrew" {
+    name = "Create pull request to update formula in Homebrew"
 
     action {
         action_type = "Octopus.Script"
