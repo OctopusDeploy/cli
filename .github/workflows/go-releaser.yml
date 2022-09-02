@@ -140,12 +140,11 @@ jobs:
               $env:MSI_FILE
 
             $signSuccessful = $true
+            break
           }
           catch {
             $ex = $_
           }
-
-          if ($signSuccessful) { break }
         }
 
         if (-not $signSuccessful) {
