@@ -63,39 +63,33 @@ step "push-changes-to-homebrew-repo" {
             Octopus.Action.Script.ScriptBody = <<-EOT
                 packageVersion="$(get_octopusvariable 'Octopus.Action.Package[cli].PackageVersion')"
                 extractedPath="$(get_octopusvariable 'Octopus.Action.Package[cli].ExtractedPath')"
+                
                 username="$(get_octopusvariable 'Publish:HomeBrew:Username')"
                 email="$(get_octopusvariable 'Publish:HomeBrew:UserEmail')"
                 personalAccessToken="$(get_octopusvariable 'Publish:HomeBrew:ApiKey')"
 
+                orgName="OctopusDeploy"
                 repoName="$(get_octopusvariable 'Publish:HomeBrew:RepoName')"
-                fileName='octopus.rb'
-                branchName="releases/$packageVersion"
-                repoUrl="https://$username:$personalAccessToken@github.com/OctopusDeploy/$repoName.git"
+                releaseAssets=$(curl -X GET https://api.github.com/repos/$orgName/$repoName/releases | jq "map(select(.name == \"$packageVersion\"))[0].assets")
+                
+                # https://github.com/Homebrew/install/#install-homebrew-on-macos-or-linux
+                NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+                
+                # https://docs.brew.sh/Manpage#environment
+                HOMEBREW_GIT_EMAIL=$email
+                HOMEBREW_GIT_NAME=$username
+                HOMEBREW_GITHUB_API_TOKEN=$personalAccessToken
 
-                git clone $repoUrl
-
-                cd "$repoName"
-
-                # Update version property
-                sed -i "s/\(^.*version \"\).*\(\".*$\)/\1$packageVersion\2/g" $fileName
-
-                # Update download URL, `url = https://github.com/OctopusDeploy/cli/releases/download/vX.X.X/octopus_X.X.X_macOS_amd64.tar.gz`
-                sed -i "s/\(^.*url.*OctopusDeploy\/cli\/\).*\(\/.*octopus\_\).*\(\_macOS.*$\)/\1v$packageVersion\2$packageVersion\3/g" $fileName
-
+                newUrl=$(echo "$releaseAssets" | jq '.[] | .browser_download_url | select(test("macOS_amd64.tar.gz$"; "ig"))')
                 newSha=$(sha256sum "$extractedPath/octopus_$packageVersion_macOS_amd64.tar.gz" | awk '{ print $1 }')
-                # Update sha256 property
-                sed -i "s/\(^.*sha256 \"\).*\(\".*$\)/\1$newSha\2/g" $fileName
 
-                git config user.email $email
-                git config user.name $username
-
-                git checkout -b $branchName
-                git add $fileName
-
-                git diff-index --quiet HEAD || (git commit -m "Update for release $packageVersion" \
-                    && git push --repo $repoUrl --set-upstream origin $branchName \
-                )
-
+                # https://docs.brew.sh/Manpage#bump-formula-pr-options-formula
+                brew bump-formula-pr \
+                    --fork-org $orgName \
+                    --version $packageVersion \
+                    --url $newUrl \
+                    --sha256 $newSha \
+                    octopus
             EOT
             Octopus.Action.Script.ScriptSource = "Inline"
             Octopus.Action.Script.Syntax = "Bash"
