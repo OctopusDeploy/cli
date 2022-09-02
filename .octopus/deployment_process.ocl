@@ -70,7 +70,6 @@ step "create-pull-request-to-update-formula-in-homebrew" {
 
                 orgName="OctopusDeploy"
                 repoName="$(get_octopusvariable 'Publish:HomeBrew:RepoName')"
-                releaseAssets=$(curl -X GET https://api.github.com/repos/$orgName/$repoName/releases | jq "map(select(.name == \"$packageVersion\"))[0].assets")
                 
                 # https://docs.brew.sh/Homebrew-on-Linux#requirements
                 apt-get install build-essential procps curl file git --yes
@@ -82,7 +81,7 @@ step "create-pull-request-to-update-formula-in-homebrew" {
                 HOMEBREW_GIT_NAME=$username
                 HOMEBREW_GITHUB_API_TOKEN=$personalAccessToken
 
-                newUrl=$(echo "$releaseAssets" | jq '.[] | .browser_download_url | select(test("macOS_amd64.tar.gz$"; "ig"))')
+                newUrl="https://github.com/$orgName/$repoName/releases/download/v$packageVersion/octopus_$packageVersion_macOS_amd64.tar.gz"
                 newSha=$(sha256sum "$extractedPath/octopus_$packageVersion_macOS_amd64.tar.gz" | awk '{ print $1 }')
 
                 # https://docs.brew.sh/Manpage#bump-formula-pr-options-formula
