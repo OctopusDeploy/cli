@@ -9,6 +9,7 @@ import (
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/releases"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/spaces"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/variables"
 	"net/url"
 )
 
@@ -109,5 +110,15 @@ func NewEnvironment(spaceID string, envID string, name string) *environments.Env
 	result := environments.NewEnvironment(name)
 	result.ID = envID
 	result.SpaceID = spaceID
+	return result
+}
+
+func NewVariableSetForProject(spaceID string, projectID string) *variables.VariableSet {
+	result := variables.NewVariableSet()
+	result.OwnerID = projectID
+	result.SpaceID = spaceID
+	result.Variables = make([]*variables.Variable, 0)
+	result.ID = "variableset-" + projectID
+	result.Links = map[string]string{}
 	return result
 }

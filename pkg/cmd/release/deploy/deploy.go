@@ -352,7 +352,7 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 		return err
 	}
 
-	_, err = AskPromptedVariables(asker, octopus, spinner, space, selectedRelease.ProjectVariableSetSnapshotID, options.Variables)
+	options.Variables, err = AskVariables(asker, octopus, spinner, space, selectedRelease.ProjectVariableSetSnapshotID, options.Variables)
 	if err != nil {
 		return err
 	}
@@ -367,6 +367,9 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 	// 		    select tenants and/or tags (this is just a way of finding which tenants we are going to deploy to)
 	// 		else:
 	// 		  select environments
+
+	// (presumably though we can check if the project itself is linked to any tenants and only ask then)?
+	// there is a ListTenants(projectID) api that we can use. /api/tenants?projectID=
 
 	// TODO do we need to hit the releases/{id}/progression endpoint to filter environments here?
 
@@ -390,6 +393,17 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 			options.Environments = util.SliceTransform(envs, func(env *environments.Environment) string { return env.Name })
 		}
 	}
+
+	// ADVANCED QUESTIONS:
+	// argh we can't just ask these we need to pickup command line flags
+	//	_, _ = fmt.Fprintf(stdout, output.FormatDoc(heredoc.Doc(`
+	//		bold(Advanced Options):
+	//		Deploy Time: cyan(Now)
+	//		Skipped Steps: cyan(None)
+	//		Guided Failure Mode: cyan(Default setting from target environment)
+	//		Package Download: cyan(Use cached packages if available)
+	//		Deployment Targets: cyan(All applicable deployment targets)
+	//`)))
 
 	// when? (timed deployment)
 
@@ -420,10 +434,15 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 		}
 	}
 
+	// What the web portal does:
 	// If tenanted:
 	//   foreach tenant:
 	//     select deployment target(s)
 	// else
+	//   select deployment target(s)
+	//
+	// however the executions API doesn't support deployment targets per-tenant, so in all cases
+	// we can only do:
 	//   select deployment target(s)
 
 	// DONE
@@ -471,7 +490,9 @@ func askGuidedFailureMode(asker question.Asker) (core.GuidedFailureMode, error) 
 	})
 }
 
-func AskPromptedVariables(asker question.Asker, octopus *octopusApiClient.Client, spinner factory.Spinner, space *spaces.Space, variableSetSnapshotID string, variableFromCmd map[string]string) (map[string]string, error) {
+// AskVariables returns the map of ALL variables to send to the server, whether they were prompted for, or came from the command line.
+// variablesFromCmd is copied into the result, you don't need to merge them yourselves.
+func AskVariables(asker question.Asker, octopus *octopusApiClient.Client, spinner factory.Spinner, space *spaces.Space, variableSetSnapshotID string, variablesFromCmd map[string]string) (map[string]string, error) {
 	spinner.Start()
 	variableSet, err := variables.GetVariableSet(octopus, space.ID, variableSetSnapshotID)
 	spinner.Stop()
@@ -479,72 +500,96 @@ func AskPromptedVariables(asker question.Asker, octopus *octopusApiClient.Client
 		return nil, err
 	}
 
+	result := make(map[string]string)
+	for k, v := range variablesFromCmd {
+		result[k] = v
+	}
+
 	if len(variableSet.Variables) > 0 { // nothing to be done here, move along
 		for _, v := range variableSet.Variables {
-			if v.Prompt != nil && variableFromCmd[v.Name] == "" { // this is a prompted variable, ask for input (unless we already have it)
+			if v.Prompt != nil && result[v.Name] == "" { // this is a prompted variable, ask for input (unless we already have it)
 
-				promptMessage := v.Prompt.Label
-				if promptMessage == "" {
-					promptMessage = v.Name // fallback; label should always be specified, but just in case
-				}
+				// NOTE: there is a v.Prompt.Label which is shown in the web portal,
+				// but we explicitly don't use it here because it can lead to confusion.
+				// e.g.
+				// A variable "CrmTicketNumber" exists with Label "CRM Ticket Number"
+				// If we were to use the label then the prompt would ask for "CRM Ticket Number" but the command line
+				// invocation would say "CrmTicketNumber:<value>" and it wouldn't be clear to and end user whether
+				// "CrmTicketNumber" or "CRM Ticket Number" was the right thing.
+				promptMessage := v.Name
+
 				if v.Prompt.Description != "" {
-					promptMessage = fmt.Sprintf("%s %s", promptMessage, output.Dimf("(%s)", v.Prompt.Description))
+					promptMessage = fmt.Sprintf("%s (%s)", promptMessage, v.Prompt.Description) // we'd like to dim the description, but survey overrides this, so we can't
 				}
 
-				prompt, askOptions, err := buildVariablePrompt(promptMessage, v.Value, v.Prompt.IsRequired, v.Prompt.DisplaySettings)
+				responseString, err := askVariableSpecificPrompt(asker, promptMessage, v.Value, v.Prompt.IsRequired, v.Prompt.DisplaySettings)
 				if err != nil {
 					return nil, err
 				}
-
-				var response any
-				err = asker(prompt, &response, func(options *survey.AskOptions) error {
-					if askOptions != nil {
-						options.Validators = askOptions.Validators
-					}
-					return nil
-				})
-				if err != nil {
-					return nil, err
-				}
-
+				result[v.Name] = responseString
 				// now pickup the response and stick it in the output
 			}
 		}
 	}
-	return nil, nil
+	return result, nil
 }
 
-func buildVariablePrompt(message string, defaultValue string, isRequired bool, displaySettings *variables.DisplaySettings) (survey.Prompt, *survey.AskOptions, error) {
-	//displaySettings.SelectOptions
-
-	var askOptions *survey.AskOptions = nil
-	if isRequired {
-		askOptions = &survey.AskOptions{Validators: []survey.Validator{survey.Required}}
+func askVariableSpecificPrompt(asker question.Asker, message string, defaultValue string, isRequired bool, displaySettings *variables.DisplaySettings) (string, error) {
+	var askOpt survey.AskOpt = func(options *survey.AskOptions) error {
+		if isRequired {
+			options.Validators = append(options.Validators, survey.Required)
+		}
+		return nil
 	}
 
 	switch displaySettings.ControlType {
-	case variables.ControlTypeSingleLineText:
-		return &survey.Input{
+	case variables.ControlTypeSingleLineText, "": // if control type is not explicitly set it means single line text.
+		var response string
+		err := asker(&survey.Input{
 			Message: message,
 			Default: defaultValue,
-		}, askOptions, nil
+		}, &response, askOpt)
+		return response, err
+
+	case variables.ControlTypeSensitive:
+		var response string
+		err := asker(&survey.Password{
+			Message: message,
+		}, &response, askOpt)
+		return response, err // TODO: Logically the response would need to be a sensitive value but how does the executions API express this? doesn't make sense
+
 	case variables.ControlTypeMultiLineText:
-		return &surveyext.OctoEditor{
+		var response string
+		err := asker(&surveyext.OctoEditor{
 			Editor: &survey.Editor{
 				Message:  "message",
 				FileName: "*.txt",
 			},
-			Optional: !isRequired}, askOptions, nil
+			Optional: !isRequired}, &response)
+		return response, err
+
 	case variables.ControlTypeSelect:
-		//question.SelectMap()
-		//return &survey.Select{
-		//	Message: message,
-		//	Default: defaultValue,
-		//	Options: []string{displaySettings.SelectOptions},
-		//}, askOptions, nil
+		reverseMap := make(map[string]string, len(displaySettings.SelectOptions))
+		optionStrings := make([]string, 0, len(displaySettings.SelectOptions))
+		for k, v := range displaySettings.SelectOptions {
+			optionStrings = append(optionStrings, v)
+			reverseMap[v] = k
+		}
+		var response string
+		err := asker(&survey.Select{
+			Message: message,
+			Default: defaultValue,
+			Options: optionStrings,
+		}, &response, askOpt)
+		if err != nil {
+			return "", err
+		}
+		return reverseMap[response], nil
+
+	default:
+		return "", fmt.Errorf("unhandled control type %s", displaySettings.ControlType)
 
 	}
-	return nil, nil, nil
 }
 
 func selectRelease(octopus *octopusApiClient.Client, ask question.Asker, spinner factory.Spinner, questionText string, space *spaces.Space, project *projects.Project, channel *channels.Channel) (*releases.Release, error) {
@@ -570,8 +615,10 @@ func findRelease(octopus *octopusApiClient.Client, spinner factory.Spinner, spac
 // determineIsTenanted returns true if we are going to do a tenanted deployment, false if untenanted
 // NOTE: Tenant can be disabled or forced. In these cases we know what to do.
 // The middle case is "allowed, but not forced", in which case we don't know ahead of time what to do WRT tenants,
-// so we'd need to ask the user (presumably though we can check if the project itself is linked to any tenants and only ask then)?
-// there is a ListTenants(projectID) api that we can use. /api/tenants?projectID=
+// so we'd need to ask the user. This is not great UX, but the intent of the 'middle ground' tenant state
+// is to allow for graceful migrations of older projects, and we don't expect it to happen very often.
+// We COULD do a little bit of a shortcut; if tenant is 'allowed but not required' but the project has no
+// linked tenants, then it can't be tenanted, but is this worth the extra complexity? Decision: no
 func determineIsTenanted(project *projects.Project, ask question.Asker) (bool, error) {
 	switch project.TenantedDeploymentMode {
 	case core.TenantedDeploymentModeUntenanted:

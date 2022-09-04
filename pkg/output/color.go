@@ -3,6 +3,7 @@ package output
 import (
 	"fmt"
 	"os"
+	"regexp"
 
 	"github.com/mgutz/ansi"
 	"golang.org/x/term"
@@ -106,4 +107,18 @@ func Dim(s string) string {
 
 func Dimf(s string, args ...interface{}) string {
 	return Dim(fmt.Sprintf(s, args...))
+}
+
+// FormatDoc is designed to take a large block of heredoc text and replace formatting elements within it.
+// Like a really cheap basic version of Markdown
+func FormatDoc(str string) string {
+	str = regexp.MustCompile("bold\\((.*?)\\)").ReplaceAllString(str, Bold("$1"))
+	str = regexp.MustCompile("green\\((.*?)\\)").ReplaceAllString(str, Green("$1"))
+	str = regexp.MustCompile("yellow\\((.*?)\\)").ReplaceAllString(str, Yellow("$1"))
+	str = regexp.MustCompile("blue\\((.*?)\\)").ReplaceAllString(str, Blue("$1"))
+	str = regexp.MustCompile("cyan\\((.*?)\\)").ReplaceAllString(str, Cyan("$1"))
+	str = regexp.MustCompile("magenta\\((.*?)\\)").ReplaceAllString(str, Magenta("$1"))
+	str = regexp.MustCompile("red\\((.*?)\\)").ReplaceAllString(str, Red("$1"))
+	str = regexp.MustCompile("dim\\((.*?)\\)").ReplaceAllString(str, Dim("$1"))
+	return str
 }

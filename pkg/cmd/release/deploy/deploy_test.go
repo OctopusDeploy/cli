@@ -18,6 +18,7 @@ import (
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/releases"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/resources"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/variables"
 	"github.com/stretchr/testify/assert"
 	"net/url"
 	"testing"
@@ -62,11 +63,14 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 		},
 	}
 
+	variableSnapshot := fixtures.NewVariableSetForProject(spaceID, fireProjectID)
+	variableSnapshot.ID = fmt.Sprintf("%s-s-0-2ZFWS", variableSnapshot.ID)
+
 	release20 := fixtures.NewRelease(spaceID, "Releases-200", "2.0", fireProjectID, altChannel.ID)
-	// doesn't have any dep process snapshots, wat
+
 	release19 := fixtures.NewRelease(spaceID, "Releases-193", "1.9", fireProjectID, altChannel.ID)
 	release19.ProjectDeploymentProcessSnapshotID = depProcessSnapshot.ID
-	//release09 := fixtures.NewRelease(spaceID, "Releases-87", "0.9", fireProjectID, defaultChannel.ID)
+	release19.ProjectVariableSetSnapshotID = variableSnapshot.ID
 
 	devEnvironment := fixtures.NewEnvironment(spaceID, "Environments-12", "dev")
 	prodEnvironment := fixtures.NewEnvironment(spaceID, "Environments-13", "production")
@@ -111,6 +115,11 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 				Message: "Select the release to deploy",
 				Options: []string{release20.Version, release19.Version},
 			}).AnswerWith(release19.Version)
+
+			// now it's going to go looking for prompted variables
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/variables/"+variableSnapshot.ID).RespondWith(resources.Resources[*variables.VariableSet]{
+				Items: []*variables.VariableSet{variableSnapshot},
+			})
 
 			// TODO this isn't right; we should only be listing the environments that this project can deploy to based on... TODO???
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/environments").RespondWith(resources.Resources[*environments.Environment]{

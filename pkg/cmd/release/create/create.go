@@ -107,13 +107,6 @@ bold(PACKAGE OVERRIDE STRINGS)
 dim(---------------------------------------------------------------------)
 `) // note this expects to have prettifyHelp run over it
 
-func prettifyHelp(str string) string {
-	str = regexp.MustCompile("bold\\((.*?)\\)").ReplaceAllString(str, output.Bold("$1"))
-	str = regexp.MustCompile("green\\((.*?)\\)").ReplaceAllString(str, output.Green("$1"))
-	str = regexp.MustCompile("dim\\((.*?)\\)").ReplaceAllString(str, output.Dim("$1"))
-	return str
-}
-
 type CreateFlags struct {
 	Project            *flag.Flag[string]
 	Channel            *flag.Flag[string]
@@ -1103,7 +1096,7 @@ outerLoop:
 		case "y": // YES these are the packages they want
 			break outerLoop
 		case "?": // help text
-			_, _ = fmt.Fprintf(stdout, prettifyHelp(packageOverrideLoopHelpText))
+			_, _ = fmt.Fprintf(stdout, output.FormatDoc(packageOverrideLoopHelpText))
 		case "u": // undo!
 			if len(packageVersionOverrides) > 0 {
 				packageVersionOverrides = packageVersionOverrides[:len(packageVersionOverrides)-1]
