@@ -25,6 +25,7 @@ import (
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/variables"
 	"github.com/spf13/cobra"
 	"io"
+	"strconv"
 	"strings"
 )
 
@@ -257,6 +258,18 @@ func deployRun(cmd *cobra.Command, f factory.Factory, flags *DeployFlags) error 
 			resolvedFlags.GuidedFailureMode.Value = options.GuidedFailureMode
 			resolvedFlags.DeploymentTargets.Value = options.DeploymentTargets
 			resolvedFlags.ExcludeTargets.Value = options.ExcludeTargets
+
+			// mask sensitive variable names; TODO some unit tests for this
+			didMaskSensitiveVariable := false
+			automationVariables := make(map[string]string, len(options.Variables))
+			for k, v := range options.Variables {
+				if util.SliceContainsAny(options.SensitiveVariableNames, func(x string) bool { return strings.EqualFold(x, v) }) {
+					didMaskSensitiveVariable = true
+					automationVariables[k] = "*****"
+				} else {
+					automationVariables[k] = v
+				}
+			}
 			resolvedFlags.Variables.Value = ToVariableStringArray(options.Variables)
 
 			// we're deliberately adding --no-prompt to the generated cmdline so ForcePackageDownload=false will be missing,
@@ -279,6 +292,10 @@ func deployRun(cmd *cobra.Command, f factory.Factory, flags *DeployFlags) error 
 				resolvedFlags.Variables,
 			)
 			cmd.Printf("\nAutomation Command: %s\n", autoCmd)
+
+			if didMaskSensitiveVariable {
+				cmd.Printf("\n\n%s\n", output.Yellow("Warning: Command includes some sensitive variable values which have been replaced with placeholders."))
+			}
 		}
 	}
 
@@ -352,9 +369,18 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 		return err
 	}
 
-	options.Variables, err = AskVariables(asker, octopus, spinner, space, selectedRelease.ProjectVariableSetSnapshotID, options.Variables)
+	variableSet, err := variables.GetVariableSet(octopus, space.ID, selectedRelease.ProjectVariableSetSnapshotID)
 	if err != nil {
 		return err
+	}
+	options.Variables, err = AskVariables(asker, variableSet, options.Variables)
+	if err != nil {
+		return err
+	}
+	// provide list of sensitive variables to the output phase so it doesn't have to go to the server for the variableSet a second time
+	if variableSet.Variables != nil {
+		sv := util.SliceFilter(variableSet.Variables, func(v *variables.Variable) bool { return v.IsSensitive })
+		options.SensitiveVariableNames = util.SliceTransform(sv, func(v *variables.Variable) string { return v.Name })
 	}
 
 	isTenanted, err := determineIsTenanted(selectedProject, asker)
@@ -492,23 +518,34 @@ func askGuidedFailureMode(asker question.Asker) (core.GuidedFailureMode, error) 
 
 // AskVariables returns the map of ALL variables to send to the server, whether they were prompted for, or came from the command line.
 // variablesFromCmd is copied into the result, you don't need to merge them yourselves.
-func AskVariables(asker question.Asker, octopus *octopusApiClient.Client, spinner factory.Spinner, space *spaces.Space, variableSetSnapshotID string, variablesFromCmd map[string]string) (map[string]string, error) {
-	spinner.Start()
-	variableSet, err := variables.GetVariableSet(octopus, space.ID, variableSetSnapshotID)
-	spinner.Stop()
-	if err != nil {
-		return nil, err
+// Return values: 0: Variables to send to the server, 1: List of sensitive variable names for masking automation command, 2: error
+func AskVariables(asker question.Asker, variableSet *variables.VariableSet, variablesFromCmd map[string]string) (map[string]string, error) {
+	if asker == nil {
+		return nil, cliErrors.NewArgumentNullOrEmptyError("asker")
+	}
+	if variableSet == nil {
+		return nil, cliErrors.NewArgumentNullOrEmptyError("variableSet")
+	}
+	if variablesFromCmd == nil {
+		return nil, cliErrors.NewArgumentNullOrEmptyError("variablesFromCmd")
+	}
+
+	// variablesFromCmd is pure user input and may not have correct casing.
+	lcaseVarsFromCmd := make(map[string]string, len(variablesFromCmd))
+	for k, v := range variablesFromCmd {
+		lcaseVarsFromCmd[strings.ToLower(k)] = v
 	}
 
 	result := make(map[string]string)
-	for k, v := range variablesFromCmd {
-		result[k] = v
-	}
-
 	if len(variableSet.Variables) > 0 { // nothing to be done here, move along
 		for _, v := range variableSet.Variables {
-			if v.Prompt != nil && result[v.Name] == "" { // this is a prompted variable, ask for input (unless we already have it)
+			valueFromCmd, foundValueOnCommandLine := lcaseVarsFromCmd[strings.ToLower(v.Name)]
+			if foundValueOnCommandLine {
+				// implicitly fixes up variable casing
+				result[v.Name] = valueFromCmd
+			}
 
+			if v.Prompt != nil && !foundValueOnCommandLine { // this is a prompted variable, ask for input (unless we already have it)
 				// NOTE: there is a v.Prompt.Label which is shown in the web portal,
 				// but we explicitly don't use it here because it can lead to confusion.
 				// e.g.
@@ -522,19 +559,23 @@ func AskVariables(asker question.Asker, octopus *octopusApiClient.Client, spinne
 					promptMessage = fmt.Sprintf("%s (%s)", promptMessage, v.Prompt.Description) // we'd like to dim the description, but survey overrides this, so we can't
 				}
 
-				responseString, err := askVariableSpecificPrompt(asker, promptMessage, v.Value, v.Prompt.IsRequired, v.Prompt.DisplaySettings)
-				if err != nil {
-					return nil, err
+				if v.Type == "String" || v.Type == "Sensitive" {
+					responseString, err := askVariableSpecificPrompt(asker, promptMessage, v.Type, v.Value, v.Prompt.IsRequired, v.IsSensitive, v.Prompt.DisplaySettings)
+					if err != nil {
+						return nil, err
+					}
+					result[v.Name] = responseString
 				}
-				result[v.Name] = responseString
-				// now pickup the response and stick it in the output
+				// else it's a complex variable type with the prompt flag, which (at time of writing) is currently broken
+				// and a decision on how to fix it had not yet been made. Ignore it.
+				// BUG: https://github.com/OctopusDeploy/Issues/issues/7699
 			}
 		}
 	}
 	return result, nil
 }
 
-func askVariableSpecificPrompt(asker question.Asker, message string, defaultValue string, isRequired bool, displaySettings *variables.DisplaySettings) (string, error) {
+func askVariableSpecificPrompt(asker question.Asker, message string, variableType string, defaultValue string, isRequired bool, isSensitive bool, displaySettings *variables.DisplaySettings) (string, error) {
 	var askOpt survey.AskOpt = func(options *survey.AskOptions) error {
 		if isRequired {
 			options.Validators = append(options.Validators, survey.Required)
@@ -542,7 +583,24 @@ func askVariableSpecificPrompt(asker question.Asker, message string, defaultValu
 		return nil
 	}
 
-	switch displaySettings.ControlType {
+	// work out what kind of prompt to use
+	var controlType variables.ControlType
+	if displaySettings != nil && displaySettings.ControlType != "" {
+		controlType = displaySettings.ControlType
+	} else { // infer the control type based on other flags
+		// The shape of the data model allows for the possibility of a sensitive multi-line or sensitive combo-box
+		// variable. However, the web portal doesn't implement any of these, the only sensitive thing it supports
+		// is single-line text, so we can simplify our logic here.
+		if variableType == "Sensitive" || isSensitive {
+			// From comment in server:
+			// variable.IsSensitive is Kept for backwards compatibility. New way is to use variable.Type=VariableType.Sensitive
+			controlType = variables.ControlTypeSensitive
+		} else {
+			controlType = variables.ControlTypeSingleLineText
+		}
+	}
+
+	switch controlType {
 	case variables.ControlTypeSingleLineText, "": // if control type is not explicitly set it means single line text.
 		var response string
 		err := asker(&survey.Input{
@@ -556,9 +614,9 @@ func askVariableSpecificPrompt(asker question.Asker, message string, defaultValu
 		err := asker(&survey.Password{
 			Message: message,
 		}, &response, askOpt)
-		return response, err // TODO: Logically the response would need to be a sensitive value but how does the executions API express this? doesn't make sense
+		return response, err
 
-	case variables.ControlTypeMultiLineText:
+	case variables.ControlTypeMultiLineText: // not clear if the server ever does this
 		var response string
 		err := asker(&surveyext.OctoEditor{
 			Editor: &survey.Editor{
@@ -569,26 +627,46 @@ func askVariableSpecificPrompt(asker question.Asker, message string, defaultValu
 		return response, err
 
 	case variables.ControlTypeSelect:
-		reverseMap := make(map[string]string, len(displaySettings.SelectOptions))
+		if displaySettings == nil {
+			return "", cliErrors.NewArgumentNullOrEmptyError("displaySettings") // select needs actual display settings
+		}
+		reverseLookup := make(map[string]string, len(displaySettings.SelectOptions))
 		optionStrings := make([]string, 0, len(displaySettings.SelectOptions))
-		for k, v := range displaySettings.SelectOptions {
-			optionStrings = append(optionStrings, v)
-			reverseMap[v] = k
+		displayNameForDefaultValue := ""
+		for _, v := range displaySettings.SelectOptions {
+			if v.Value == defaultValue {
+				displayNameForDefaultValue = v.DisplayName
+			}
+			optionStrings = append(optionStrings, v.DisplayName)
+			reverseLookup[v.DisplayName] = v.Value
 		}
 		var response string
 		err := asker(&survey.Select{
 			Message: message,
-			Default: defaultValue,
+			Default: displayNameForDefaultValue,
 			Options: optionStrings,
 		}, &response, askOpt)
 		if err != nil {
 			return "", err
 		}
-		return reverseMap[response], nil
+		return reverseLookup[response], nil
+
+	case variables.ControlTypeCheckbox:
+		// if the server didn't specifically set a default value of True then default to No
+		defTrueFalse := "False"
+		if b, err := strconv.ParseBool(defaultValue); err == nil && b {
+			defTrueFalse = "True"
+		}
+		var response string
+		err := asker(&survey.Select{
+			Message: message,
+			Default: defTrueFalse,
+			Options: []string{"True", "False"}, // Yes/No would read more nicely, but doesn't fit well with cmdline which expects True/False
+		}, &response, askOpt)
+		return response, err
 
 	default:
 		return "", fmt.Errorf("unhandled control type %s", displaySettings.ControlType)
-
 	}
 }
 

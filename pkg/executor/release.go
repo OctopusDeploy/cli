@@ -100,6 +100,8 @@ type TaskOptionsDeployRelease struct {
 
 	// true if the value was specified on the command line (because ForcePackageDownload is bool, we can't distinguish 'false' from 'missing')
 	ForcePackageDownloadWasSpecified bool
+	// so the automation command can mask sensitive variable output
+	SensitiveVariableNames []string
 
 	Response *deployments.CreateDeploymentResponseV1
 }
