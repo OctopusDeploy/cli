@@ -436,59 +436,109 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 		}
 	}
 
-	// ADVANCED QUESTIONS:
-	// argh we can't just ask these we need to pickup command line flags
-	//	_, _ = fmt.Fprintf(stdout, output.FormatDoc(heredoc.Doc(`
-	//		bold(Advanced Options):
-	//		Deploy Time: cyan(Now)
-	//		Skipped Steps: cyan(None)
-	//		Guided Failure Mode: cyan(Default setting from target environment)
-	//		Package Download: cyan(Use cached packages if available)
-	//		Deployment Targets: cyan(All applicable deployment targets)
-	//`)))
-
-	// when? (timed deployment)
-
-	// select steps to exclude
-	deploymentProcess, err := deployments.GetDeploymentProcess(octopus, space.ID, selectedRelease.ProjectDeploymentProcessSnapshotID)
+	PrintAdvancedSummary(stdout, options)
+	var goDoIt string
+	err = asker(&survey.Select{
+		Message: "Do you want to change advanced options?",
+		Options: []string{"Proceed to deploy", "Change advanced options"},
+	}, &goDoIt)
 	if err != nil {
 		return err
 	}
-	if len(options.ExcludedSteps) == 0 {
-		options.ExcludedSteps, err = askExcludedSteps(asker, deploymentProcess.Steps)
+
+	if goDoIt == "Change advanced options" {
+		// when? (timed deployment)
+
+		// select steps to exclude
+		deploymentProcess, err := deployments.GetDeploymentProcess(octopus, space.ID, selectedRelease.ProjectDeploymentProcessSnapshotID)
 		if err != nil {
 			return err
 		}
-	}
-
-	if options.GuidedFailureMode == "" { // if they deliberately specified false, don't ask them
-		gfm, err := askGuidedFailureMode(asker)
-		if err != nil {
-			return err
+		if len(options.ExcludedSteps) == 0 {
+			options.ExcludedSteps, err = askExcludedSteps(asker, deploymentProcess.Steps)
+			if err != nil {
+				return err
+			}
 		}
-		options.GuidedFailureMode = string(gfm)
-	}
 
-	if !options.ForcePackageDownloadWasSpecified { // if they deliberately specified false, don't ask them
-		options.ForcePackageDownload, err = askPackageDownload(asker)
-		if err != nil {
-			return err
+		if options.GuidedFailureMode == "" { // if they deliberately specified false, don't ask them
+			gfm, err := askGuidedFailureMode(asker)
+			if err != nil {
+				return err
+			}
+			options.GuidedFailureMode = string(gfm)
 		}
+
+		if !options.ForcePackageDownloadWasSpecified { // if they deliberately specified false, don't ask them
+			options.ForcePackageDownload, err = askPackageDownload(asker)
+			if err != nil {
+				return err
+			}
+		}
+
+		// What the web portal does:
+		// If tenanted:
+		//   foreach tenant:
+		//     select deployment target(s)
+		// else
+		//   select deployment target(s)
+		//
+		// however the executions API doesn't support deployment targets per-tenant, so in all cases
+		// we can only do:
+		//   select deployment target(s)
 	}
-
-	// What the web portal does:
-	// If tenanted:
-	//   foreach tenant:
-	//     select deployment target(s)
-	// else
-	//   select deployment target(s)
-	//
-	// however the executions API doesn't support deployment targets per-tenant, so in all cases
-	// we can only do:
-	//   select deployment target(s)
-
 	// DONE
 	return nil
+}
+
+func lookupGuidedFailureModeString(value string) string {
+	switch value {
+	case "", "default":
+		return "Use default setting from the target environment"
+	case "true", "True":
+		return "Use guided failure mode"
+	case "false", "False":
+		return "Do not use guided failure mode"
+	default:
+		return fmt.Sprintf("Unknown %s", value)
+	}
+}
+
+func lookupPackageDownloadString(value bool) string {
+	if value {
+		return "Use cached packages (if available)"
+	} else {
+		return "Re-download packages from feed"
+	}
+}
+
+func PrintAdvancedSummary(stdout io.Writer, options *executor.TaskOptionsDeployRelease) {
+	deployAtStr := "Now"
+	if options.DeployAt != "" {
+		deployAtStr = options.DeployAt // we assume the server is going to understand this
+	}
+	skipStepsStr := "None"
+	if len(options.ExcludedSteps) > 0 {
+		skipStepsStr = strings.Join(options.ExcludedSteps, ",")
+	}
+
+	gfmStr := lookupGuidedFailureModeString(options.GuidedFailureMode)
+
+	pkgDownloadStr := lookupPackageDownloadString(!options.ForcePackageDownload)
+
+	depTargetsStr := "All included"
+	if len(options.DeploymentTargets) != 0 || len(options.ExcludeTargets) != 0 {
+		depTargetsStr = "TODO!"
+	}
+
+	_, _ = fmt.Fprintf(stdout, output.FormatDoc(heredoc.Doc(`
+		bold(Advanced Options):
+		  Deploy Time: cyan(%s)
+		  Skipped Steps: cyan(%s)
+		  Guided Failure Mode: cyan(%s)
+		  Package Download: cyan(%s)
+		  Deployment Targets: cyan(%s)
+	`)), deployAtStr, skipStepsStr, gfmStr, pkgDownloadStr, depTargetsStr)
 }
 
 func findTenantsAndTags(octopus *octopusApiClient.Client, projectID string, environmentID string) ([]string, []string, error) {
@@ -585,34 +635,17 @@ func askExcludedSteps(asker question.Asker, steps []*deployments.DeploymentStep)
 }
 
 func askPackageDownload(asker question.Asker) (bool, error) {
-	result, err := question.SelectMap(asker, "Package download", []bool{true, false}, func(b bool) string {
-		if b {
-			return "Use cached packages (if available)" // should be the default; they probably want to not force
-		} else {
-			return "Re-download packages from feed"
-		}
-	})
+	result, err := question.SelectMap(asker, "Package download", []bool{true, false}, lookupPackageDownloadString)
 	// our question is phrased such that "Use cached packages" (the do-nothing option) is true,
 	// but we want to set the --force-package-download flag, so we need to invert the response
 	return !result, err
 }
 
-func askGuidedFailureMode(asker question.Asker) (core.GuidedFailureMode, error) {
-	modes := []core.GuidedFailureMode{
-		"", "true", "false",
+func askGuidedFailureMode(asker question.Asker) (string, error) {
+	modes := []string{
+		"", "true", "false", // maps to a nullable bool in C#
 	}
-	return question.SelectMap(asker, "Guided Failure Mode?", modes, func(g core.GuidedFailureMode) string {
-		switch g {
-		case "":
-			return "Use default setting from the target environment"
-		case "true":
-			return "Use guided failure mode"
-		case "false":
-			return "Do not use guided failure mode"
-		default:
-			return fmt.Sprintf("Unhandled %s", g)
-		}
-	})
+	return question.SelectMap(asker, "Guided Failure Mode?", modes, lookupGuidedFailureModeString)
 }
 
 // AskVariables returns the map of ALL variables to send to the server, whether they were prompted for, or came from the command line.

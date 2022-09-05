@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/AlecAivazis/survey/v2"
 	surveyCore "github.com/AlecAivazis/survey/v2/core"
+	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/cmd/release/deploy"
 	"github.com/OctopusDeploy/cli/pkg/executor"
 	"github.com/OctopusDeploy/cli/test/fixtures"
@@ -79,7 +80,7 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 		name string
 		run  func(t *testing.T, api *testutil.MockHttpServer, qa *testutil.AskMocker, stdout *bytes.Buffer)
 	}{
-		{"standard process asking for everything (explicitly non-tenanted)", func(t *testing.T, api *testutil.MockHttpServer, qa *testutil.AskMocker, stdout *bytes.Buffer) {
+		{"default process asking for everything (non-tenanted, no advanced options)", func(t *testing.T, api *testutil.MockHttpServer, qa *testutil.AskMocker, stdout *bytes.Buffer) {
 			options := &executor.TaskOptionsDeployRelease{}
 
 			errReceiver := testutil.GoBegin(func() error {
@@ -133,22 +134,39 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 				{Value: devEnvironment.Name, Index: 0},
 			})
 
-			api.ExpectRequest(t, "GET", "/api/Spaces-1/deploymentprocesses/"+depProcessSnapshot.ID).RespondWith(depProcessSnapshot)
+			q := qa.ExpectQuestion(t, &survey.Select{
+				Message: "Do you want to change advanced options?",
+				Options: []string{"Proceed to deploy", "Change advanced options"},
+			})
 
-			_ = qa.ExpectQuestion(t, &survey.MultiSelect{
-				Message: "Select steps to skip (if any)",
-				Options: []string{"Install", "Cleanup"},
-			}).AnswerWith(make([]surveyCore.OptionAnswer, 0))
+			assert.Equal(t, heredoc.Doc(`
+				Advanced Options:
+				  Deploy Time: Now
+				  Skipped Steps: None
+				  Guided Failure Mode: Use default setting from the target environment
+				  Package Download: Use cached packages (if available)
+				  Deployment Targets: All included
+				`), stdout.String())
 
-			_ = qa.ExpectQuestion(t, &survey.Select{
-				Message: "Guided Failure Mode?",
-				Options: []string{"Use default setting from the target environment", "Use guided failure mode", "Do not use guided failure mode"},
-			}).AnswerWith("Do not use guided failure mode")
-
-			_ = qa.ExpectQuestion(t, &survey.Select{
-				Message: "Package download",
-				Options: []string{"Use cached packages (if available)", "Re-download packages from feed"},
-			}).AnswerWith("Use cached packages (if available)")
+			_ = q.AnswerWith("Proceed to deploy")
+			////
+			//
+			//api.ExpectRequest(t, "GET", "/api/Spaces-1/deploymentprocesses/"+depProcessSnapshot.ID).RespondWith(depProcessSnapshot)
+			//
+			//_ = qa.ExpectQuestion(t, &survey.MultiSelect{
+			//	Message: "Select steps to skip (if any)",
+			//	Options: []string{"Install", "Cleanup"},
+			//}).AnswerWith(make([]surveyCore.OptionAnswer, 0))
+			//
+			//_ = qa.ExpectQuestion(t, &survey.Select{
+			//	Message: "Guided Failure Mode?",
+			//	Options: []string{"Use default setting from the target environment", "Use guided failure mode", "Do not use guided failure mode"},
+			//}).AnswerWith("Do not use guided failure mode")
+			//
+			//_ = qa.ExpectQuestion(t, &survey.Select{
+			//	Message: "Package download",
+			//	Options: []string{"Use cached packages (if available)", "Re-download packages from feed"},
+			//}).AnswerWith("Use cached packages (if available)")
 
 			err := <-errReceiver
 			assert.Nil(t, err)
@@ -158,7 +176,7 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 				ProjectName:       "Fire Project",
 				ReleaseVersion:    "1.9",
 				Environments:      []string{"dev"},
-				GuidedFailureMode: "false",
+				GuidedFailureMode: "",
 				Variables:         make(map[string]string, 0),
 			}, options)
 		}},
