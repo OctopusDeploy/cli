@@ -526,9 +526,6 @@ func AskVariables(asker question.Asker, variableSet *variables.VariableSet, vari
 	if variableSet == nil {
 		return nil, cliErrors.NewArgumentNullOrEmptyError("variableSet")
 	}
-	if variablesFromCmd == nil {
-		return nil, cliErrors.NewArgumentNullOrEmptyError("variablesFromCmd")
-	}
 
 	// variablesFromCmd is pure user input and may not have correct casing.
 	lcaseVarsFromCmd := make(map[string]string, len(variablesFromCmd))
