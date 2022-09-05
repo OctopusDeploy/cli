@@ -146,16 +146,21 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 			}).AnswerWith("Do not use guided failure mode")
 
 			_ = qa.ExpectQuestion(t, &survey.Select{
-				Message: "Force package re-download?",
-				Options: []string{"No", "Yes"},
-			}).AnswerWith("No")
+				Message: "Package download",
+				Options: []string{"Use cached packages (if available)", "Re-download packages from feed"},
+			}).AnswerWith("Use cached packages (if available)")
 
 			err := <-errReceiver
 			assert.Nil(t, err)
 
 			// check that the question-asking process has filled out the things we told it to
-			assert.Equal(t, "Fire Project", options.ProjectName)
-			assert.Equal(t, "1.9", options.ReleaseVersion)
+			assert.Equal(t, &executor.TaskOptionsDeployRelease{
+				ProjectName:       "Fire Project",
+				ReleaseVersion:    "1.9",
+				Environments:      []string{"dev"},
+				GuidedFailureMode: "false",
+				Variables:         make(map[string]string, 0),
+			}, options)
 		}},
 	}
 

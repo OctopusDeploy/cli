@@ -580,19 +580,21 @@ func askExcludedSteps(asker question.Asker, steps []*deployments.DeploymentStep)
 		return nil, err
 	}
 	return util.SliceTransform(stepsToExclude, func(s *deployments.DeploymentStep) string {
-		return s.ID // this is a GUID, what should we actually be sending to the server?
+		return s.Name // server expects us to send a list of step names
 	}), nil
 }
 
 func askPackageDownload(asker question.Asker) (bool, error) {
-	return question.SelectMap(asker, "Force package re-download?", []bool{false, true}, func(b bool) string {
+	result, err := question.SelectMap(asker, "Package download", []bool{true, false}, func(b bool) string {
 		if b {
-			return "Yes" // should be the default; they probably want to not force
+			return "Use cached packages (if available)" // should be the default; they probably want to not force
 		} else {
-			return "No"
+			return "Re-download packages from feed"
 		}
 	})
-
+	// our question is phrased such that "Use cached packages" (the do-nothing option) is true,
+	// but we want to set the --force-package-download flag, so we need to invert the response
+	return !result, err
 }
 
 func askGuidedFailureMode(asker question.Asker) (core.GuidedFailureMode, error) {
