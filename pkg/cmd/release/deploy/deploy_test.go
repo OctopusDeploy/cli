@@ -515,12 +515,15 @@ func TestToVariableStringArray(t *testing.T) {
 		expect []string
 	}{
 		{name: "foo:bar", input: map[string]string{"foo": "bar"}, expect: []string{"foo:bar"}},
-		{name: "foo:bar,baz:qux", input: map[string]string{"foo": "bar", "baz": "qux"}, expect: []string{"foo:bar", "baz:qux"}},
 
 		{name: "foo:bar:more=stuff", input: map[string]string{"foo": "bar:more=stuff"}, expect: []string{"foo:bar:more=stuff"}},
 
 		{name: "strips empty keys", input: map[string]string{"": "bar"}, expect: []string{}},
 		{name: "strips empty values", input: map[string]string{"foo": ""}, expect: []string{}},
+
+		// these two tests in combination check that output order is deterministic
+		{name: "foo:bar,baz:qux", input: map[string]string{"foo": "bar", "baz": "qux"}, expect: []string{"baz:qux", "foo:bar"}},
+		{name: "baz:qux,foo:bar", input: map[string]string{"baz": "qux", "foo": "bar"}, expect: []string{"baz:qux", "foo:bar"}},
 	}
 
 	for _, test := range tests {

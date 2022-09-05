@@ -25,6 +25,7 @@ import (
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/variables"
 	"github.com/spf13/cobra"
 	"io"
+	"sort"
 	"strconv"
 	"strings"
 )
@@ -732,8 +733,9 @@ func ToVariableStringArray(variables map[string]string) []string {
 		if k == "" || v == "" {
 			continue
 		}
-		result = append(result, fmt.Sprintf("%s:%s", k, v)) // TODO what about variables that have a : in their name?
+		result = append(result, fmt.Sprintf("%s:%s", k, v))
 	}
+	sort.Strings(result) // sort for reliable test output
 	return result
 }
 
