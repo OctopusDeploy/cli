@@ -22,6 +22,7 @@ import (
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/releases"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/spaces"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/tenants"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/variables"
 	"github.com/spf13/cobra"
 	"io"
@@ -395,22 +396,32 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 	// 		else:
 	// 		  select environments
 
-	// (presumably though we can check if the project itself is linked to any tenants and only ask then)?
-	// there is a ListTenants(projectID) api that we can use. /api/tenants?projectID=
-
 	// TODO do we need to hit the releases/{id}/progression endpoint to filter environments here?
 
 	if isTenanted {
+		var selectedEnvironment *environments.Environment
 		if len(options.Environments) == 0 {
-			env, err := selectors.EnvironmentSelect(asker, octopus, "Select environment to deploy to")
+			selectedEnvironment, err = selectors.EnvironmentSelect(asker, octopus, "Select environment to deploy to")
 			if err != nil {
 				return err
 			}
-			options.Environments = []string{env.Name} // executions api allows env names, so let's use these instead so they look nice in generated automationcmd
+			options.Environments = []string{selectedEnvironment.Name} // executions api allows env names, so let's use these instead so they look nice in generated automationcmd
+		} else {
+			selectedEnvironment, err = selectors.FindEnvironment(octopus, options.Environments[0])
+			_, _ = fmt.Fprintf(stdout, "Environment %s\n", output.Cyan(selectedEnvironment.Name))
 		}
 
-		// TODO select TagsAndTenants is going to require it's own function
-		// 		UX problem: How do we find tenants via their tags?
+		// ask for tenants and/or tags unless some were specified on the command line
+		if len(options.Tenants) == 0 && len(options.TenantTags) == 0 {
+			options.Tenants, options.TenantTags, err = AskTenantsAndTags(asker, octopus, selectedRelease, selectedEnvironment)
+		} else {
+			if len(options.Tenants) > 0 {
+				_, _ = fmt.Fprintf(stdout, "Tenants %s\n", output.Cyan(strings.Join(options.Tenants, ",")))
+			}
+			if len(options.TenantTags) > 0 {
+				_, _ = fmt.Fprintf(stdout, "Tenant Tags %s\n", output.Cyan(strings.Join(options.TenantTags, ",")))
+			}
+		}
 	} else {
 		if len(options.Environments) == 0 {
 			envs, err := selectors.EnvironmentsMultiSelect(asker, octopus, "Select environments to deploy to", 1)
@@ -418,6 +429,10 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 				return err
 			}
 			options.Environments = util.SliceTransform(envs, func(env *environments.Environment) string { return env.Name })
+		} else {
+			if len(options.Environments) > 0 {
+				_, _ = fmt.Fprintf(stdout, "Environments %s\n", output.Cyan(strings.Join(options.Environments, ",")))
+			}
 		}
 	}
 
@@ -474,6 +489,87 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 
 	// DONE
 	return nil
+}
+
+func findTenantsAndTags(octopus *octopusApiClient.Client, projectID string, environmentID string) ([]string, []string, error) {
+	var validTenants []string
+	var validTags []string // these are 'Canonical' values i.e. "Regions/us-east", NOT TagSets-1/Tags-1
+
+	page, err := octopus.Tenants.Get(tenants.TenantsQuery{ProjectID: projectID})
+	if err != nil {
+		return nil, nil, err
+	}
+	for page != nil {
+		tenantsForMyEnvironment := util.SliceFilter(page.Items, func(t *tenants.Tenant) bool {
+			if envIdsForProject, ok := t.ProjectEnvironments[projectID]; ok {
+				return util.SliceContains(envIdsForProject, environmentID)
+			}
+			return false
+		})
+		for _, tenant := range tenantsForMyEnvironment {
+			for _, tag := range tenant.TenantTags {
+				if !util.SliceContains(validTags, tag) {
+					validTags = append(validTags, tag)
+				}
+			}
+			validTenants = append(validTenants, tenant.Name)
+		}
+
+		page, err = page.GetNextPage(octopus.Tenants.GetClient())
+		if err != nil {
+			return nil, nil, err
+		}
+	}
+
+	return validTenants, validTags, nil
+}
+
+func AskTenantsAndTags(asker question.Asker, octopus *octopusApiClient.Client, release *releases.Release, env *environments.Environment) ([]string, []string, error) {
+	// (presumably though we can check if the project itself is linked to any tenants and only ask then)?
+	// there is a ListTenants(projectID) api that we can use. /api/tenants?projectID=
+	foundTenants, foundTags, err := findTenantsAndTags(octopus, release.ProjectID, env.ID)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// sort because otherwise they may appear in weird order
+	sort.Strings(foundTenants)
+	sort.Strings(foundTags)
+
+	// Note: merging the list sets us up for a scenario where a tenant name could hypothetically collide with
+	// a tag name; we wouldn't handle that -- in practice this is so unlikely to happen that we can ignore it
+	combinedList := append(foundTenants, foundTags...)
+
+	var selection []string
+	err = asker(&survey.MultiSelect{
+		Message: "Select tenants and/or tags used to determine deployment targets",
+		Options: combinedList,
+	}, &selection, survey.WithValidator(survey.Required))
+	if err != nil {
+		return nil, nil, err
+	}
+
+	tenantsLookup := make(map[string]bool, len(foundTenants))
+	for _, t := range foundTenants {
+		tenantsLookup[t] = true
+	}
+	tagsLookup := make(map[string]bool, len(foundTags))
+	for _, t := range foundTags {
+		tagsLookup[t] = true
+	}
+
+	var selectedTenants []string
+	var selectedTags []string
+
+	for _, s := range selection {
+		if tenantsLookup[s] {
+			selectedTenants = append(selectedTenants, s)
+		} else if tagsLookup[s] {
+			selectedTags = append(selectedTags, s)
+		}
+	}
+
+	return selectedTenants, selectedTags, nil
 }
 
 func askExcludedSteps(asker question.Asker, steps []*deployments.DeploymentStep) ([]string, error) {
