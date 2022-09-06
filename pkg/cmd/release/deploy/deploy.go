@@ -262,18 +262,17 @@ func deployRun(cmd *cobra.Command, f factory.Factory, flags *DeployFlags) error 
 			resolvedFlags.DeploymentTargets.Value = options.DeploymentTargets
 			resolvedFlags.ExcludeTargets.Value = options.ExcludeTargets
 
-			// mask sensitive variable names; TODO some unit tests for this
 			didMaskSensitiveVariable := false
 			automationVariables := make(map[string]string, len(options.Variables))
-			for k, v := range options.Variables {
-				if util.SliceContainsAny(options.SensitiveVariableNames, func(x string) bool { return strings.EqualFold(x, v) }) {
+			for variableName, variableValue := range options.Variables {
+				if util.SliceContainsAny(options.SensitiveVariableNames, func(x string) bool { return strings.EqualFold(x, variableName) }) {
 					didMaskSensitiveVariable = true
-					automationVariables[k] = "*****"
+					automationVariables[variableName] = "*****"
 				} else {
-					automationVariables[k] = v
+					automationVariables[variableName] = variableValue
 				}
 			}
-			resolvedFlags.Variables.Value = ToVariableStringArray(options.Variables)
+			resolvedFlags.Variables.Value = ToVariableStringArray(automationVariables)
 
 			// we're deliberately adding --no-prompt to the generated cmdline so ForcePackageDownload=false will be missing,
 			// but that's fine
@@ -297,7 +296,7 @@ func deployRun(cmd *cobra.Command, f factory.Factory, flags *DeployFlags) error 
 			cmd.Printf("\nAutomation Command: %s\n", autoCmd)
 
 			if didMaskSensitiveVariable {
-				cmd.Printf("\n\n%s\n", output.Yellow("Warning: Command includes some sensitive variable values which have been replaced with placeholders."))
+				cmd.Printf("\n%s\n", output.Yellow("Warning: Command includes some sensitive variable values which have been replaced with placeholders."))
 			}
 		}
 	}
@@ -436,7 +435,7 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 	}
 	// provide list of sensitive variables to the output phase so it doesn't have to go to the server for the variableSet a second time
 	if variableSet.Variables != nil {
-		sv := util.SliceFilter(variableSet.Variables, func(v *variables.Variable) bool { return v.IsSensitive })
+		sv := util.SliceFilter(variableSet.Variables, func(v *variables.Variable) bool { return v.IsSensitive || v.Type == "Sensitive" })
 		options.SensitiveVariableNames = util.SliceTransform(sv, func(v *variables.Variable) string { return v.Name })
 	}
 

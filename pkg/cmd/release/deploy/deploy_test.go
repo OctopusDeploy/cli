@@ -8,7 +8,9 @@ import (
 	surveyCore "github.com/AlecAivazis/survey/v2/core"
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/cmd/release/deploy"
+	cmdRoot "github.com/OctopusDeploy/cli/pkg/cmd/root"
 	"github.com/OctopusDeploy/cli/pkg/executor"
+	"github.com/OctopusDeploy/cli/pkg/question"
 	"github.com/OctopusDeploy/cli/test/fixtures"
 	"github.com/OctopusDeploy/cli/test/testutil"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/channels"
@@ -21,6 +23,7 @@ import (
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/resources"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/tenants"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/variables"
+	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"net/url"
 	"reflect"
@@ -30,7 +33,6 @@ import (
 var serverUrl, _ = url.Parse("http://server")
 
 const placeholderApiKey = "API-XXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
-const packageOverrideQuestion = "Package override string (y to accept, u to undo, ? for help):"
 
 var spinner = &testutil.FakeSpinner{}
 
@@ -726,6 +728,145 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 			test.run(t, api, qa, new(bytes.Buffer))
 		})
 	}
+}
+
+// this happens outside the scope of the normal AskQuestions flow so warrants its own integration-style test
+func TestDeployCreate_GenerationOfAutomationCommand_MasksSensitiveVariables(t *testing.T) {
+	const spaceID = "Spaces-1"
+	const fireProjectID = "Projects-22"
+
+	space1 := fixtures.NewSpace(spaceID, "Default Space")
+
+	defaultChannel := fixtures.NewChannel(spaceID, "Channels-1", "Fire Project Default Channel", fireProjectID)
+
+	fireProject := fixtures.NewProject(spaceID, fireProjectID, "Fire Project", "Lifecycles-1", "ProjectGroups-1", "deploymentprocess-"+fireProjectID)
+
+	variableSnapshotWithPromptedVariables := fixtures.NewVariableSetForProject(spaceID, fireProjectID)
+	variableSnapshotWithPromptedVariables.ID = fmt.Sprintf("%s-s-0-9BZ22", variableSnapshotWithPromptedVariables.ID)
+	variableSnapshotWithPromptedVariables.Variables = []*variables.Variable{
+		{
+			Name: "Boring Variable",
+			Prompt: &variables.VariablePromptOptions{
+				IsRequired: true,
+			},
+			Type: "String",
+		},
+		{
+			Name: "Nuclear Launch Codes",
+			Prompt: &variables.VariablePromptOptions{
+				IsRequired: true,
+			},
+			Type: "Sensitive",
+		},
+		{
+			Name: "Secret Password",
+			Prompt: &variables.VariablePromptOptions{
+				IsRequired: true,
+			},
+			IsSensitive: true, // old way
+			Type:        "String",
+		},
+	}
+
+	release20 := fixtures.NewRelease(spaceID, "Releases-200", "2.0", fireProjectID, defaultChannel.ID)
+	//release20.ProjectDeploymentProcessSnapshotID = depProcessSnapshot.ID
+	release20.ProjectVariableSetSnapshotID = variableSnapshotWithPromptedVariables.ID
+	//
+	//devEnvironment := fixtures.NewEnvironment(spaceID, "Environments-12", "dev")
+
+	// TEST STARTS HERE
+
+	api, qa := testutil.NewMockServerAndAsker()
+	stdout, stderr := &bytes.Buffer{}, &bytes.Buffer{}
+	askProvider := question.NewAskProvider(qa.AsAsker())
+
+	rootCmd := cmdRoot.NewCmdRoot(testutil.NewMockFactoryWithSpaceAndPrompt(api, space1, askProvider), nil, askProvider)
+	rootCmd.SetOut(stdout)
+	rootCmd.SetErr(stderr)
+
+	// we don't need to fully test prompted variables; AskPromptedVariables already has all its own tests, we just
+	// need to very it's wired up properly
+	receiver := testutil.GoBegin2(func() (*cobra.Command, error) {
+		defer testutil.Close(api, qa)
+		rootCmd.SetArgs([]string{"release", "deploy", "--project", "fire project", "--version", "2.0", "--environment", "dev"})
+		return rootCmd.ExecuteC()
+	})
+
+	api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
+	api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
+
+	api.ExpectRequest(t, "GET", "/api/Spaces-1/projects?clonedFromProjectId=&partialName=fire+project").
+		RespondWith(resources.Resources[*projects.Project]{
+			Items: []*projects.Project{fireProject},
+		})
+
+	api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+fireProjectID+"/releases/"+release20.Version).RespondWith(release20)
+
+	// now it's going to go looking for prompted variables; we don't have any prompted variables here so it skips
+	api.ExpectRequest(t, "GET", "/api/Spaces-1/variables/"+variableSnapshotWithPromptedVariables.ID).RespondWith(&variableSnapshotWithPromptedVariables)
+
+	_ = qa.ExpectQuestion(t, &survey.Input{
+		Message: "Boring Variable",
+	}).AnswerWith("BORING")
+
+	_ = qa.ExpectQuestion(t, &survey.Password{
+		Message: "Nuclear Launch Codes",
+	}).AnswerWith("9001")
+
+	_ = qa.ExpectQuestion(t, &survey.Password{
+		Message: "Secret Password",
+	}).AnswerWith("donkey")
+
+	q := qa.ExpectQuestion(t, &survey.Select{
+		Message: "Do you want to change advanced options?",
+		Options: []string{"Proceed to deploy", "Change advanced options"},
+	})
+	_ = q.AnswerWith("Proceed to deploy")
+
+	req := api.ExpectRequest(t, "POST", "/api/Spaces-1/deployments/create/untenanted/v1")
+
+	// check that it sent the server the right request body
+	requestBody, err := testutil.ReadJson[deployments.CreateDeploymentUntenantedCommandV1](req.Request.Body)
+	assert.Nil(t, err)
+
+	assert.Equal(t, deployments.CreateDeploymentUntenantedCommandV1{
+		ReleaseVersion:   "2.0",
+		EnvironmentNames: []string{"dev"},
+		CreateExecutionAbstractCommandV1: deployments.CreateExecutionAbstractCommandV1{
+			SpaceID:         "Spaces-1",
+			ProjectIDOrName: fireProject.Name,
+			Variables: map[string]string{
+				"Boring Variable":      "BORING",
+				"Nuclear Launch Codes": "9001",
+				"Secret Password":      "donkey",
+			},
+		},
+	}, requestBody)
+
+	req.RespondWith(&releases.CreateReleaseResponseV1{
+		ReleaseID:      "Releases-999", // new release
+		ReleaseVersion: "1.2.3",
+	})
+
+	_, err = testutil.ReceivePair(receiver)
+	assert.Nil(t, err)
+
+	assert.Equal(t, heredoc.Doc(`
+		Project Fire Project
+		Release 2.0
+		Environments dev
+		Advanced Options:
+		  Deploy Time: Now
+		  Skipped Steps: None
+		  Guided Failure Mode: Use default setting from the target environment
+		  Package Download: Use cached packages (if available)
+		  Deployment Targets: All included
+		
+		Automation Command: octopus release deploy --project 'Fire Project' --version '2.0' --environment 'dev' --variable 'Boring Variable:BORING' --variable 'Nuclear Launch Codes:*****' --variable 'Secret Password:*****' --no-prompt
+
+		Warning: Command includes some sensitive variable values which have been replaced with placeholders.
+		`), stdout.String())
+	assert.Equal(t, "", stderr.String())
 }
 
 func TestDeployCreate_PrintAdvancedSummary(t *testing.T) {
