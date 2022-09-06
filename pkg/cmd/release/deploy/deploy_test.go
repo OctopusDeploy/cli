@@ -23,6 +23,7 @@ import (
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/variables"
 	"github.com/stretchr/testify/assert"
 	"net/url"
+	"reflect"
 	"testing"
 )
 
@@ -109,6 +110,23 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 		fireProjectID: {scratchEnvironment.ID},
 	}
 
+	// helper for advanced tests that want to skip past the first half of the questions
+	doStandardApiResponses := func(options *executor.TaskOptionsDeployRelease, api *testutil.MockHttpServer) {
+		if options.ReleaseVersion != "1.9" || !reflect.DeepEqual(options.Environments, []string{"dev"}) || options.ProjectName != "fire project" {
+			panic("doStandardApiResponses is only good for one thing")
+		}
+		api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
+
+		api.ExpectRequest(t, "GET", "/api/Spaces-1/projects?clonedFromProjectId=&partialName=fire+project").
+			RespondWith(resources.Resources[*projects.Project]{
+				Items: []*projects.Project{fireProject},
+			})
+
+		api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+fireProjectID+"/releases/"+release19.Version).RespondWith(release19)
+
+		api.ExpectRequest(t, "GET", "/api/Spaces-1/variables/"+variableSnapshot.ID).RespondWith(&variableSnapshot)
+	}
+
 	tests := []struct {
 		name string
 		run  func(t *testing.T, api *testutil.MockHttpServer, qa *testutil.AskMocker, stdout *bytes.Buffer)
@@ -179,16 +197,7 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 				Message: "Do you want to change advanced options?",
 				Options: []string{"Proceed to deploy", "Change advanced options"},
 			})
-
-			assert.Equal(t, heredoc.Doc(`
-				Advanced Options:
-				  Deploy Time: Now
-				  Skipped Steps: None
-				  Guided Failure Mode: Use default setting from the target environment
-				  Package Download: Use cached packages (if available)
-				  Deployment Targets: All included
-				`), stdout.String())
-
+			assert.Regexp(t, "Advanced Options", stdout.String()) // actual advanced options tested in PrintAdvancedSummary
 			_ = q.AnswerWith("Proceed to deploy")
 
 			err := <-errReceiver
@@ -232,23 +241,18 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 			// now it's going to go looking for prompted variables; we don't have any prompted variables here so it skips
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/variables/"+variableSnapshot.ID).RespondWith(&variableSnapshot)
 
-			q := qa.ExpectQuestion(t, &survey.Select{
-				Message: "Do you want to change advanced options?",
-				Options: []string{"Proceed to deploy", "Change advanced options"},
-			})
-
 			assert.Equal(t, heredoc.Doc(`
 				Project Fire Project
 				Release 1.9
 				Environments dev
-				Advanced Options:
-				  Deploy Time: Now
-				  Skipped Steps: None
-				  Guided Failure Mode: Use default setting from the target environment
-				  Package Download: Use cached packages (if available)
-				  Deployment Targets: All included
-				`), stdout.String())
+			`), stdout.String())
+			stdout.Reset()
 
+			q := qa.ExpectQuestion(t, &survey.Select{
+				Message: "Do you want to change advanced options?",
+				Options: []string{"Proceed to deploy", "Change advanced options"},
+			})
+			assert.Regexp(t, "Advanced Options", stdout.String()) // actual advanced options tested in PrintAdvancedSummary
 			_ = q.AnswerWith("Proceed to deploy")
 
 			err := <-errReceiver
@@ -301,23 +305,18 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 			validationErr = q.AnswerWith("John")
 			assert.Nil(t, validationErr)
 
-			q = qa.ExpectQuestion(t, &survey.Select{
-				Message: "Do you want to change advanced options?",
-				Options: []string{"Proceed to deploy", "Change advanced options"},
-			})
-
 			assert.Equal(t, heredoc.Doc(`
 				Project Fire Project
 				Release 2.0
 				Environments dev
-				Advanced Options:
-				  Deploy Time: Now
-				  Skipped Steps: None
-				  Guided Failure Mode: Use default setting from the target environment
-				  Package Download: Use cached packages (if available)
-				  Deployment Targets: All included
-				`), stdout.String())
+			`), stdout.String())
+			stdout.Reset()
 
+			q = qa.ExpectQuestion(t, &survey.Select{
+				Message: "Do you want to change advanced options?",
+				Options: []string{"Proceed to deploy", "Change advanced options"},
+			})
+			assert.Regexp(t, "Advanced Options", stdout.String()) // actual advanced options tested in PrintAdvancedSummary
 			_ = q.AnswerWith("Proceed to deploy")
 
 			err := <-errReceiver
@@ -397,22 +396,17 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 			// now it's going to go looking for prompted variables; we don't have any prompted variables here so it skips
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/variables/"+variableSnapshot.ID).RespondWith(&variableSnapshot)
 
+			assert.Equal(t, heredoc.Doc(`
+				Project Fire Project
+				Release 1.9
+			`), stdout.String())
+			stdout.Reset()
+
 			q = qa.ExpectQuestion(t, &survey.Select{
 				Message: "Do you want to change advanced options?",
 				Options: []string{"Proceed to deploy", "Change advanced options"},
 			})
-
-			assert.Equal(t, heredoc.Doc(`
-				Project Fire Project
-				Release 1.9
-				Advanced Options:
-				  Deploy Time: Now
-				  Skipped Steps: None
-				  Guided Failure Mode: Use default setting from the target environment
-				  Package Download: Use cached packages (if available)
-				  Deployment Targets: All included
-				`), stdout.String())
-
+			assert.Regexp(t, "Advanced Options", stdout.String()) // actual advanced options tested in PrintAdvancedSummary
 			_ = q.AnswerWith("Proceed to deploy")
 
 			err := <-errReceiver
@@ -498,22 +492,17 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 			// now it's going to go looking for prompted variables; we don't have any prompted variables here so it skips
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/variables/"+variableSnapshot.ID).RespondWith(&variableSnapshot)
 
+			assert.Equal(t, heredoc.Doc(`
+				Project Fire Project
+				Release 1.9
+			`), stdout.String())
+			stdout.Reset()
+
 			q = qa.ExpectQuestion(t, &survey.Select{
 				Message: "Do you want to change advanced options?",
 				Options: []string{"Proceed to deploy", "Change advanced options"},
 			})
-
-			assert.Equal(t, heredoc.Doc(`
-				Project Fire Project
-				Release 1.9
-				Advanced Options:
-				  Deploy Time: Now
-				  Skipped Steps: None
-				  Guided Failure Mode: Use default setting from the target environment
-				  Package Download: Use cached packages (if available)
-				  Deployment Targets: All included
-				`), stdout.String())
-
+			assert.Regexp(t, "Advanced Options", stdout.String()) // actual advanced options tested in PrintAdvancedSummary
 			_ = q.AnswerWith("Proceed to deploy")
 
 			err := <-errReceiver
@@ -581,23 +570,17 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 
 			// now it's going to go looking for prompted variables; we don't have any prompted variables here so it skips
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/variables/"+variableSnapshot.ID).RespondWith(&variableSnapshot)
+			assert.Equal(t, heredoc.Doc(`
+				Project Fire Project
+				Release 1.9
+			`), stdout.String())
+			stdout.Reset()
 
 			q := qa.ExpectQuestion(t, &survey.Select{
 				Message: "Do you want to change advanced options?",
 				Options: []string{"Proceed to deploy", "Change advanced options"},
 			})
-
-			assert.Equal(t, heredoc.Doc(`
-				Project Fire Project
-				Release 1.9
-				Advanced Options:
-				  Deploy Time: Now
-				  Skipped Steps: None
-				  Guided Failure Mode: Use default setting from the target environment
-				  Package Download: Use cached packages (if available)
-				  Deployment Targets: All included
-				`), stdout.String())
-
+			assert.Regexp(t, "Advanced Options", stdout.String()) // actual advanced options tested in PrintAdvancedSummary
 			_ = q.AnswerWith("Proceed to deploy")
 
 			err := <-errReceiver
@@ -612,12 +595,183 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 				Variables:         make(map[string]string, 0),
 			}, options)
 		}},
+
+		{"advanced options", func(t *testing.T, api *testutil.MockHttpServer, qa *testutil.AskMocker, stdout *bytes.Buffer) {
+			options := &executor.TaskOptionsDeployRelease{ProjectName: "fire project", ReleaseVersion: "1.9", Environments: []string{"dev"}}
+
+			errReceiver := testutil.GoBegin(func() error {
+				defer testutil.Close(api, qa)
+				octopus, _ := octopusApiClient.NewClient(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "")
+				return deploy.AskQuestions(octopus, stdout, qa.AsAsker(), spinner, space1, options)
+			})
+
+			doStandardApiResponses(options, api)
+			stdout.Reset()
+
+			_ = qa.ExpectQuestion(t, &survey.Select{
+				Message: "Do you want to change advanced options?",
+				Options: []string{"Proceed to deploy", "Change advanced options"},
+			}).AnswerWith("Change advanced options")
+			stdout.Reset()
+
+			// it's going to load the deployment process to ask about excluded steps
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/deploymentprocesses/"+depProcessSnapshot.ID).RespondWith(depProcessSnapshot)
+
+			_ = qa.ExpectQuestion(t, &survey.MultiSelect{
+				Message: "Select steps to skip (optional)",
+				Options: []string{"Install", "Cleanup"},
+			}).AnswerWith([]string{"Cleanup"})
+
+			_ = qa.ExpectQuestion(t, &survey.Select{
+				Message: "Guided Failure Mode?",
+				Options: []string{"Use default setting from the target environment", "Use guided failure mode", "Do not use guided failure mode"},
+			}).AnswerWith("Do not use guided failure mode")
+
+			_ = qa.ExpectQuestion(t, &survey.Select{
+				Message: "Package download",
+				Options: []string{"Use cached packages (if available)", "Re-download packages from feed"},
+			}).AnswerWith("Re-download packages from feed")
+
+			err := <-errReceiver
+			assert.Nil(t, err)
+
+			// check that the question-asking process has filled out the things we told it to
+			assert.Equal(t, &executor.TaskOptionsDeployRelease{
+				ProjectName:          "Fire Project",
+				ReleaseVersion:       "1.9",
+				Environments:         []string{"dev"},
+				GuidedFailureMode:    "false",
+				ForcePackageDownload: true,
+				Variables:            make(map[string]string, 0),
+				ExcludedSteps:        []string{"Cleanup"},
+			}, options)
+		}},
+
+		{"advanced options pickup from command line; doesn't ask if all opts are supplied", func(t *testing.T, api *testutil.MockHttpServer, qa *testutil.AskMocker, stdout *bytes.Buffer) {
+			options := &executor.TaskOptionsDeployRelease{
+				ProjectName:                      "fire project",
+				ReleaseVersion:                   "1.9",
+				Environments:                     []string{"dev"},
+				ExcludedSteps:                    []string{"Cleanup"},
+				GuidedFailureMode:                "false",
+				ForcePackageDownload:             true,
+				ForcePackageDownloadWasSpecified: true, // need this as well
+			}
+
+			errReceiver := testutil.GoBegin(func() error {
+				defer testutil.Close(api, qa)
+				octopus, _ := octopusApiClient.NewClient(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "")
+				return deploy.AskQuestions(octopus, stdout, qa.AsAsker(), spinner, space1, options)
+			})
+
+			doStandardApiResponses(options, api)
+			stdout.Reset()
+
+			err := <-errReceiver
+			assert.Nil(t, err)
+
+			// check that the question-asking process has filled out the things we told it to
+			assert.Equal(t, &executor.TaskOptionsDeployRelease{
+				ProjectName:                      "Fire Project",
+				ReleaseVersion:                   "1.9",
+				Environments:                     []string{"dev"},
+				GuidedFailureMode:                "false",
+				ForcePackageDownload:             true,
+				ForcePackageDownloadWasSpecified: true,
+				Variables:                        make(map[string]string, 0),
+				ExcludedSteps:                    []string{"Cleanup"},
+			}, options)
+		}},
+
+		{"advanced options pickup from command line; explicit default values", func(t *testing.T, api *testutil.MockHttpServer, qa *testutil.AskMocker, stdout *bytes.Buffer) {
+			options := &executor.TaskOptionsDeployRelease{
+				ProjectName:                      "fire project",
+				ReleaseVersion:                   "1.9",
+				Environments:                     []string{"dev"},
+				ExcludedSteps:                    []string{"Cleanup"},
+				GuidedFailureMode:                "default",
+				ForcePackageDownload:             false,
+				ForcePackageDownloadWasSpecified: true,
+			}
+
+			errReceiver := testutil.GoBegin(func() error {
+				defer testutil.Close(api, qa)
+				octopus, _ := octopusApiClient.NewClient(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "")
+				return deploy.AskQuestions(octopus, stdout, qa.AsAsker(), spinner, space1, options)
+			})
+
+			doStandardApiResponses(options, api)
+			stdout.Reset()
+
+			err := <-errReceiver
+			assert.Nil(t, err)
+
+			// check that the question-asking process has filled out the things we told it to
+			assert.Equal(t, &executor.TaskOptionsDeployRelease{
+				ProjectName:                      "Fire Project",
+				ReleaseVersion:                   "1.9",
+				Environments:                     []string{"dev"},
+				GuidedFailureMode:                "default",
+				ForcePackageDownload:             false,
+				ForcePackageDownloadWasSpecified: true,
+				Variables:                        make(map[string]string, 0),
+				ExcludedSteps:                    []string{"Cleanup"},
+			}, options)
+		}},
 	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			api, qa := testutil.NewMockServerAndAsker()
 			test.run(t, api, qa, new(bytes.Buffer))
+		})
+	}
+}
+
+func TestDeployCreate_PrintAdvancedSummary(t *testing.T) {
+	tests := []struct {
+		name string
+		run  func(t *testing.T, stdout *bytes.Buffer)
+	}{
+		{"default state", func(t *testing.T, stdout *bytes.Buffer) {
+			options := &executor.TaskOptionsDeployRelease{}
+			deploy.PrintAdvancedSummary(stdout, options)
+
+			assert.Equal(t, heredoc.Doc(`
+			Advanced Options:
+			  Deploy Time: Now
+			  Skipped Steps: None
+			  Guided Failure Mode: Use default setting from the target environment
+			  Package Download: Use cached packages (if available)
+			  Deployment Targets: All included
+			`), stdout.String())
+		}},
+
+		{"all the things different", func(t *testing.T, stdout *bytes.Buffer) {
+			options := &executor.TaskOptionsDeployRelease{
+				DeployAt:             "2022-09-23",
+				GuidedFailureMode:    "false",
+				ForcePackageDownload: true,
+				ExcludedSteps:        []string{"Step 1", "Step 37"},
+			}
+			deploy.PrintAdvancedSummary(stdout, options)
+
+			assert.Equal(t, heredoc.Doc(`
+			Advanced Options:
+			  Deploy Time: 2022-09-23
+			  Skipped Steps: Step 1,Step 37
+			  Guided Failure Mode: Do not use guided failure mode
+			  Package Download: Re-download packages from feed
+			  Deployment Targets: All included
+			`), stdout.String())
+		}},
+
+		// TODO test for deployment target include AND exclude
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			test.run(t, new(bytes.Buffer))
 		})
 	}
 }

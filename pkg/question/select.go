@@ -5,14 +5,16 @@ import (
 	"github.com/AlecAivazis/survey/v2"
 )
 
-func MultiSelectMap[T any](ask Asker, message string, items []T, getKey func(item T) string, minItems int) ([]T, error) {
+func MultiSelectMap[T any](ask Asker, message string, items []T, getKey func(item T) string, required bool) ([]T, error) {
 	optionMap, options := MakeItemMapAndOptions(items, getKey)
 
+	askOpts := func(options *survey.AskOptions) error { return nil }
+	if required {
+		askOpts = survey.WithValidator(survey.Required)
+	}
+
 	var selectedKeys []string
-	if err := ask(&survey.MultiSelect{
-		Message: message,
-		Options: options,
-	}, &selectedKeys, survey.WithValidator(survey.MinItems(minItems))); err != nil {
+	if err := ask(&survey.MultiSelect{Message: message, Options: options}, &selectedKeys, askOpts); err != nil {
 		return nil, err
 	}
 	selected := make([]T, 0)

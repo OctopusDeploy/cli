@@ -108,7 +108,7 @@ func selectTeams(ask question.Asker, client *client.Client, existingSpaces []*sp
 			}
 		}
 		return ""
-	}, 0)
+	}, false)
 }
 
 func selectUsers(ask question.Asker, client *client.Client, message string) ([]*users.User, error) {
@@ -119,5 +119,5 @@ func selectUsers(ask question.Asker, client *client.Client, message string) ([]*
 
 	return question.MultiSelectMap(ask, message, existingUsers, func(existingUser *users.User) string {
 		return fmt.Sprintf("%s %s", existingUser.DisplayName, output.Dimf("(%s)", existingUser.Username))
-	}, 0)
+	}, false)
 }

@@ -43,7 +43,7 @@ func FindEnvironment(octopus *client.Client, environmentName string) (*environme
 	return nil, fmt.Errorf("no environment found with name of %s", environmentName)
 }
 
-func EnvironmentsMultiSelect(ask question.Asker, client *client.Client, message string, minItems int) ([]*environments.Environment, error) {
+func EnvironmentsMultiSelect(ask question.Asker, client *client.Client, message string, required bool) ([]*environments.Environment, error) {
 	envResources, err := client.Environments.Get(environments.EnvironmentsQuery{})
 	if err != nil {
 		return nil, err
@@ -54,5 +54,5 @@ func EnvironmentsMultiSelect(ask question.Asker, client *client.Client, message 
 	}
 	return question.MultiSelectMap(ask, message, allEnvs, func(item *environments.Environment) string {
 		return item.Name
-	}, minItems)
+	}, required)
 }

@@ -441,31 +441,47 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 	}
 
 	PrintAdvancedSummary(stdout, options)
-	var goDoIt string
-	err = asker(&survey.Select{
-		Message: "Do you want to change advanced options?",
-		Options: []string{"Proceed to deploy", "Change advanced options"},
-	}, &goDoIt)
-	if err != nil {
-		return err
-	}
 
-	if goDoIt == "Change advanced options" {
-		// when? (timed deployment)
+	isExcludedStepsSpecified := len(options.ExcludedSteps) > 0
+	isGuidedFailureModeSpecified := options.GuidedFailureMode != ""
+	isForcePackageDownloadSpecified := options.ForcePackageDownloadWasSpecified
 
-		// select steps to exclude
-		deploymentProcess, err := deployments.GetDeploymentProcess(octopus, space.ID, selectedRelease.ProjectDeploymentProcessSnapshotID)
+	allAdvancedOptionsSpecified := isExcludedStepsSpecified && isGuidedFailureModeSpecified && isForcePackageDownloadSpecified
+
+	shouldAskAdvancedQuestions := false
+	if !allAdvancedOptionsSpecified {
+		var goDoIt string
+		err = asker(&survey.Select{
+			Message: "Do you want to change advanced options?",
+			Options: []string{"Proceed to deploy", "Change advanced options"},
+		}, &goDoIt)
 		if err != nil {
 			return err
 		}
-		if len(options.ExcludedSteps) == 0 {
+		if goDoIt == "Change advanced options" {
+			shouldAskAdvancedQuestions = true
+		} else {
+			shouldAskAdvancedQuestions = false
+		}
+
+	}
+
+	if shouldAskAdvancedQuestions {
+		// when? (timed deployment)
+
+		if !isExcludedStepsSpecified {
+			// select steps to exclude
+			deploymentProcess, err := deployments.GetDeploymentProcess(octopus, space.ID, selectedRelease.ProjectDeploymentProcessSnapshotID)
+			if err != nil {
+				return err
+			}
 			options.ExcludedSteps, err = askExcludedSteps(asker, deploymentProcess.Steps)
 			if err != nil {
 				return err
 			}
 		}
 
-		if options.GuidedFailureMode == "" { // if they deliberately specified false, don't ask them
+		if !isGuidedFailureModeSpecified { // if they deliberately specified false, don't ask them
 			gfm, err := askGuidedFailureMode(asker)
 			if err != nil {
 				return err
@@ -473,7 +489,7 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 			options.GuidedFailureMode = string(gfm)
 		}
 
-		if !options.ForcePackageDownloadWasSpecified { // if they deliberately specified false, don't ask them
+		if !isForcePackageDownloadSpecified { // if they deliberately specified false, don't ask them
 			options.ForcePackageDownload, err = askPackageDownload(asker)
 			if err != nil {
 				return err
@@ -734,9 +750,9 @@ func AskTenantsAndTags(asker question.Asker, octopus *octopusApiClient.Client, r
 }
 
 func askExcludedSteps(asker question.Asker, steps []*deployments.DeploymentStep) ([]string, error) {
-	stepsToExclude, err := question.MultiSelectMap(asker, "Select steps to skip (if any)", steps, func(s *deployments.DeploymentStep) string {
+	stepsToExclude, err := question.MultiSelectMap(asker, "Select steps to skip (optional)", steps, func(s *deployments.DeploymentStep) string {
 		return s.Name
-	}, 0)
+	}, false)
 	if err != nil {
 		return nil, err
 	}

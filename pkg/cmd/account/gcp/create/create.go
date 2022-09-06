@@ -200,7 +200,7 @@ func promptMissing(opts *CreateOptions) error {
 	if opts.Environments.Value == nil {
 		envs, err := selectors.EnvironmentsMultiSelect(opts.Ask, opts.Octopus,
 			"Choose the environments that are allowed to use this account.\n"+
-				output.Dim("If nothing is selected, the account can be used for deployments to any environment."), 0)
+				output.Dim("If nothing is selected, the account can be used for deployments to any environment."), false)
 		if err != nil {
 			return err
 		}
