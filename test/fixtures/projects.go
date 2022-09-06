@@ -3,6 +3,7 @@ package fixtures
 import (
 	"fmt"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/channels"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/constants"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/core"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/deployments"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/environments"
@@ -103,6 +104,9 @@ func NewRelease(spaceID string, releaseID string, releaseVersion string, project
 	result := releases.NewRelease(channelID, projectID, releaseVersion)
 	result.ID = releaseID
 	result.SpaceID = spaceID
+	result.Links = map[string]string{
+		constants.LinkProgression: fmt.Sprintf("/api/%s/releases/%s/progression", spaceID, releaseID),
+	}
 	return result
 }
 

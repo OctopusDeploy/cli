@@ -74,6 +74,7 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 	release19.ProjectVariableSetSnapshotID = variableSnapshot.ID
 
 	devEnvironment := fixtures.NewEnvironment(spaceID, "Environments-12", "dev")
+	scratchEnvironment := fixtures.NewEnvironment(spaceID, "Environments-82", "scratch")
 	prodEnvironment := fixtures.NewEnvironment(spaceID, "Environments-13", "production")
 
 	tests := []struct {
@@ -117,21 +118,31 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 				Options: []string{release20.Version, release19.Version},
 			}).AnswerWith(release19.Version)
 
-			// now it's going to go looking for prompted variables
-			api.ExpectRequest(t, "GET", "/api/Spaces-1/variables/"+variableSnapshot.ID).RespondWith(resources.Resources[*variables.VariableSet]{
-				Items: []*variables.VariableSet{variableSnapshot},
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/releases/"+release19.ID+"/progression").RespondWith(&releases.LifecycleProgression{
+				Phases: []*releases.LifecycleProgressionPhase{
+					{Name: "Dev", Progress: releases.PhaseProgressCurrent, AutomaticDeploymentTargets: []string{scratchEnvironment.ID}, OptionalDeploymentTargets: []string{devEnvironment.ID}},
+					{Name: "Prod", Progress: releases.PhaseProgressPending, OptionalDeploymentTargets: []string{prodEnvironment.ID}}, // should scope this out due to pending
+				},
+				NextDeployments: []string{devEnvironment.ID},
 			})
 
-			// TODO this isn't right; we should only be listing the environments that this project can deploy to based on... TODO???
-			api.ExpectRequest(t, "GET", "/api/Spaces-1/environments").RespondWith(resources.Resources[*environments.Environment]{
-				Items: []*environments.Environment{devEnvironment, prodEnvironment},
+			// now it needs to lookup the environment names
+			api.ExpectRequest(t, "GET", fmt.Sprintf("/api/Spaces-1/environments?ids=%s%%2C%s", scratchEnvironment.ID, devEnvironment.ID)).RespondWith(resources.Resources[*environments.Environment]{
+				Items: []*environments.Environment{scratchEnvironment, devEnvironment},
 			})
 
+			// Note: scratch comes first but default should be dev, due to NextDeployments
 			_ = qa.ExpectQuestion(t, &survey.MultiSelect{
 				Message: "Select environments to deploy to",
-				Options: []string{devEnvironment.Name, prodEnvironment.Name},
+				Options: []string{scratchEnvironment.Name, devEnvironment.Name},
+				Default: []string{devEnvironment.Name},
 			}).AnswerWith([]surveyCore.OptionAnswer{
 				{Value: devEnvironment.Name, Index: 0},
+			})
+
+			// now it's going to go looking for prompted variables; we don't have any prompted variables here so it skips
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/variables/"+variableSnapshot.ID).RespondWith(resources.Resources[*variables.VariableSet]{
+				Items: []*variables.VariableSet{variableSnapshot},
 			})
 
 			q := qa.ExpectQuestion(t, &survey.Select{

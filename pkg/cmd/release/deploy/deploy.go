@@ -371,37 +371,20 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 		return err
 	}
 
-	variableSet, err := variables.GetVariableSet(octopus, space.ID, selectedRelease.ProjectVariableSetSnapshotID)
-	if err != nil {
-		return err
-	}
-	options.Variables, err = AskVariables(asker, variableSet, options.Variables)
-	if err != nil {
-		return err
-	}
-	// provide list of sensitive variables to the output phase so it doesn't have to go to the server for the variableSet a second time
-	if variableSet.Variables != nil {
-		sv := util.SliceFilter(variableSet.Variables, func(v *variables.Variable) bool { return v.IsSensitive })
-		options.SensitiveVariableNames = util.SliceTransform(sv, func(v *variables.Variable) string { return v.Name })
-	}
-
 	isTenanted, err := determineIsTenanted(selectedProject, asker)
 	if err != nil {
 		return err
 	}
 
-	// 		If tentanted:
-	// 		  select (singular) environment
-	// 		    select tenants and/or tags (this is just a way of finding which tenants we are going to deploy to)
-	// 		else:
-	// 		  select environments
-
-	// TODO do we need to hit the releases/{id}/progression endpoint to filter environments here?
+	deployableEnvironmentIDs, nextEnvironmentID, err := findDeployableEnvironments(octopus, selectedRelease)
+	if err != nil {
+		return err
+	}
 
 	if isTenanted {
 		var selectedEnvironment *environments.Environment
 		if len(options.Environments) == 0 {
-			selectedEnvironment, err = selectors.EnvironmentSelect(asker, octopus, "Select environment to deploy to")
+			selectedEnvironment, err := selectDeploymentEnvironment(asker, octopus, deployableEnvironmentIDs, nextEnvironmentID)
 			if err != nil {
 				return err
 			}
@@ -424,7 +407,7 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 		}
 	} else {
 		if len(options.Environments) == 0 {
-			envs, err := selectors.EnvironmentsMultiSelect(asker, octopus, "Select environments to deploy to", 1)
+			envs, err := selectDeploymentEnvironments(asker, octopus, deployableEnvironmentIDs, nextEnvironmentID)
 			if err != nil {
 				return err
 			}
@@ -434,6 +417,20 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 				_, _ = fmt.Fprintf(stdout, "Environments %s\n", output.Cyan(strings.Join(options.Environments, ",")))
 			}
 		}
+	}
+
+	variableSet, err := variables.GetVariableSet(octopus, space.ID, selectedRelease.ProjectVariableSetSnapshotID)
+	if err != nil {
+		return err
+	}
+	options.Variables, err = AskVariables(asker, variableSet, options.Variables)
+	if err != nil {
+		return err
+	}
+	// provide list of sensitive variables to the output phase so it doesn't have to go to the server for the variableSet a second time
+	if variableSet.Variables != nil {
+		sv := util.SliceFilter(variableSet.Variables, func(v *variables.Variable) bool { return v.IsSensitive })
+		options.SensitiveVariableNames = util.SliceTransform(sv, func(v *variables.Variable) string { return v.Name })
 	}
 
 	PrintAdvancedSummary(stdout, options)
@@ -486,9 +483,116 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 		// however the executions API doesn't support deployment targets per-tenant, so in all cases
 		// we can only do:
 		//   select deployment target(s)
+
+		if len(options.DeploymentTargets) == 0 && len(options.ExcludeTargets) == 0 {
+
+		}
 	}
 	// DONE
 	return nil
+}
+
+// findDeployableEnvironments returns an array of environment IDs that we can deploy to,
+// the preferred 'next' environment, and an error
+func findDeployableEnvironments(octopus *octopusApiClient.Client, release *releases.Release) ([]string, string, error) {
+
+	var result []string
+	// to determine the list of viable environments we need to hit /api/projects/{ID}/progression.
+	releaseProgression, err := octopus.Deployments.GetProgression(release)
+	if err != nil {
+		return nil, "", err
+	}
+	for _, phase := range releaseProgression.Phases {
+		if phase.Progress == releases.PhaseProgressPending {
+			continue // we can't deploy to this phase yet
+		}
+		for _, id := range phase.AutomaticDeploymentTargets {
+			if !util.SliceContains(result, id) {
+				result = append(result, id)
+			}
+		}
+		for _, id := range phase.OptionalDeploymentTargets {
+			if !util.SliceContains(result, id) {
+				result = append(result, id)
+			}
+		}
+	}
+	nextDeployEnvID := ""
+	if len(releaseProgression.NextDeployments) > 0 {
+		nextDeployEnvID = releaseProgression.NextDeployments[0]
+	}
+
+	return result, nextDeployEnvID, nil
+}
+
+func loadEnvironmentsForDeploy(octopus *octopusApiClient.Client, deployableEnvironmentIDs []string, nextDeployEnvironmentID string) ([]*environments.Environment, string, error) {
+	envResources, err := octopus.Environments.Get(environments.EnvironmentsQuery{IDs: deployableEnvironmentIDs})
+	if err != nil {
+		return nil, "", err
+	}
+	allEnvs, err := envResources.GetAllPages(octopus.Environments.GetClient())
+	if err != nil {
+		return nil, "", err
+	}
+
+	// match the next deploy environment
+	nextDeployEnvironmentName := ""
+	for _, e := range allEnvs {
+		if e.ID == nextDeployEnvironmentID {
+			nextDeployEnvironmentName = e.Name
+			break
+		}
+	}
+	return allEnvs, nextDeployEnvironmentName, nil
+}
+
+func selectDeploymentEnvironment(asker question.Asker, octopus *octopusApiClient.Client, deployableEnvironmentIDs []string, nextDeployEnvironmentID string) (*environments.Environment, error) {
+	allEnvs, nextDeployEnvironmentName, err := loadEnvironmentsForDeploy(octopus, deployableEnvironmentIDs, nextDeployEnvironmentID)
+	if err != nil {
+		return nil, err
+	}
+
+	optionMap, options := question.MakeItemMapAndOptions(allEnvs, func(e *environments.Environment) string { return e.Name })
+	var selectedKey string
+	err = asker(&survey.Select{
+		Message: "Select environment to deploy to",
+		Options: options,
+		Default: nextDeployEnvironmentName,
+	}, &selectedKey)
+	if err != nil {
+		return nil, err
+	}
+	selectedValue, ok := optionMap[selectedKey]
+	if !ok {
+		return nil, fmt.Errorf("selectDeploymentEnvironment did not get valid answer (selectedKey=%s)", selectedKey)
+	}
+	return selectedValue, nil
+}
+
+func selectDeploymentEnvironments(asker question.Asker, octopus *octopusApiClient.Client, deployableEnvironmentIDs []string, nextDeployEnvironmentID string) ([]*environments.Environment, error) {
+	allEnvs, nextDeployEnvironmentName, err := loadEnvironmentsForDeploy(octopus, deployableEnvironmentIDs, nextDeployEnvironmentID)
+	if err != nil {
+		return nil, err
+	}
+
+	optionMap, options := question.MakeItemMapAndOptions(allEnvs, func(e *environments.Environment) string { return e.Name })
+	var selectedKeys []string
+	err = asker(&survey.MultiSelect{
+		Message: "Select environments to deploy to",
+		Options: options,
+		Default: []string{nextDeployEnvironmentName},
+	}, &selectedKeys, survey.WithValidator(survey.MinItems(1)))
+
+	if err != nil {
+		return nil, err
+	}
+	var selectedValues []*environments.Environment
+	for _, k := range selectedKeys {
+		if value, ok := optionMap[k]; ok {
+			selectedValues = append(selectedValues, value)
+		} // if we were to somehow get invalid answers, ignore them
+	}
+	return selectedValues, nil
 }
 
 func lookupGuidedFailureModeString(value string) string {

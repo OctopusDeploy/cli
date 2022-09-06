@@ -6,7 +6,7 @@ import (
 )
 
 func MultiSelectMap[T any](ask Asker, message string, items []T, getKey func(item T) string, minItems int) ([]T, error) {
-	optionMap, options := makeItemMapAndOptions(items, getKey)
+	optionMap, options := MakeItemMapAndOptions(items, getKey)
 
 	var selectedKeys []string
 	if err := ask(&survey.MultiSelect{
@@ -24,7 +24,7 @@ func MultiSelectMap[T any](ask Asker, message string, items []T, getKey func(ite
 }
 
 func SelectMap[T any](ask Asker, message string, items []T, getKey func(item T) string) (T, error) {
-	optionMap, options := makeItemMapAndOptions(items, getKey)
+	optionMap, options := MakeItemMapAndOptions(items, getKey)
 	var selectedValue T
 	var selectedKey string
 	if err := ask(&survey.Select{
@@ -40,7 +40,7 @@ func SelectMap[T any](ask Asker, message string, items []T, getKey func(item T) 
 	return selectedValue, nil
 }
 
-func makeItemMapAndOptions[T any](items []T, getKey func(item T) string) (map[string]T, []string) {
+func MakeItemMapAndOptions[T any](items []T, getKey func(item T) string) (map[string]T, []string) {
 	optionMap := make(map[string]T, len(items))
 	options := make([]string, 0, len(items))
 	for _, item := range items {
