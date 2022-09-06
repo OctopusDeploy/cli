@@ -1,6 +1,7 @@
 package deploy
 
 import (
+	"errors"
 	"fmt"
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/MakeNowJust/heredoc/v2"
@@ -384,7 +385,7 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 	if isTenanted {
 		var selectedEnvironment *environments.Environment
 		if len(options.Environments) == 0 {
-			selectedEnvironment, err := selectDeploymentEnvironment(asker, octopus, deployableEnvironmentIDs, nextEnvironmentID)
+			selectedEnvironment, err = selectDeploymentEnvironment(asker, octopus, deployableEnvironmentIDs, nextEnvironmentID)
 			if err != nil {
 				return err
 			}
@@ -397,6 +398,9 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 		// ask for tenants and/or tags unless some were specified on the command line
 		if len(options.Tenants) == 0 && len(options.TenantTags) == 0 {
 			options.Tenants, options.TenantTags, err = AskTenantsAndTags(asker, octopus, selectedRelease, selectedEnvironment)
+			if len(options.Tenants) == 0 && len(options.TenantTags) == 0 {
+				return errors.New("no tenants or tags available; cannot deploy")
+			}
 		} else {
 			if len(options.Tenants) > 0 {
 				_, _ = fmt.Fprintf(stdout, "Tenants %s\n", output.Cyan(strings.Join(options.Tenants, ",")))
