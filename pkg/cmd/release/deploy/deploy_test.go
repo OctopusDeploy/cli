@@ -19,6 +19,7 @@ import (
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/releases"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/resources"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/tenants"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/variables"
 	"github.com/stretchr/testify/assert"
 	"net/url"
@@ -45,6 +46,12 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 
 	fireProject := fixtures.NewProject(spaceID, fireProjectID, "Fire Project", "Lifecycles-1", "ProjectGroups-1", "deploymentprocess-"+fireProjectID)
 
+	fireProjectTenanted := fixtures.NewProject(spaceID, fireProjectID, "Fire Project", "Lifecycles-1", "ProjectGroups-1", "deploymentprocess-"+fireProjectID)
+	fireProjectTenanted.TenantedDeploymentMode = core.TenantedDeploymentModeTenanted
+
+	fireProjectMaybeTenanted := fixtures.NewProject(spaceID, fireProjectID, "Fire Project", "Lifecycles-1", "ProjectGroups-1", "deploymentprocess-"+fireProjectID)
+	fireProjectMaybeTenanted.TenantedDeploymentMode = core.TenantedDeploymentModeTenantedOrUntenanted
+
 	depProcessSnapshot := fixtures.NewDeploymentProcessForProject(spaceID, fireProjectID)
 	depProcessSnapshot.ID = fmt.Sprintf("%s-s-0-2ZFWS", depProcessSnapshot.ID)
 	depProcessSnapshot.Steps = []*deployments.DeploymentStep{
@@ -67,7 +74,23 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 	variableSnapshot := fixtures.NewVariableSetForProject(spaceID, fireProjectID)
 	variableSnapshot.ID = fmt.Sprintf("%s-s-0-2ZFWS", variableSnapshot.ID)
 
+	variableSnapshotWithPromptedVariables := fixtures.NewVariableSetForProject(spaceID, fireProjectID)
+	variableSnapshotWithPromptedVariables.ID = fmt.Sprintf("%s-s-0-9BZ22", variableSnapshotWithPromptedVariables.ID)
+	variableSnapshotWithPromptedVariables.Variables = []*variables.Variable{
+		{
+			Name: "Approver",
+			Prompt: &variables.VariablePromptOptions{
+				Description: "Who approved this deployment?",
+				IsRequired:  true,
+			},
+			Type:  "String",
+			Value: "",
+		},
+	}
+
 	release20 := fixtures.NewRelease(spaceID, "Releases-200", "2.0", fireProjectID, altChannel.ID)
+	release20.ProjectDeploymentProcessSnapshotID = depProcessSnapshot.ID
+	release20.ProjectVariableSetSnapshotID = variableSnapshotWithPromptedVariables.ID
 
 	release19 := fixtures.NewRelease(spaceID, "Releases-193", "1.9", fireProjectID, altChannel.ID)
 	release19.ProjectDeploymentProcessSnapshotID = depProcessSnapshot.ID
@@ -77,11 +100,20 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 	scratchEnvironment := fixtures.NewEnvironment(spaceID, "Environments-82", "scratch")
 	prodEnvironment := fixtures.NewEnvironment(spaceID, "Environments-13", "production")
 
+	cokeTenant := fixtures.NewTenant(spaceID, "Tenants-29", "Coke", "Regions/us-east", "Importance/High")
+	cokeTenant.ProjectEnvironments = map[string][]string{
+		fireProjectID: {devEnvironment.ID, prodEnvironment.ID},
+	}
+	pepsiTenant := fixtures.NewTenant(spaceID, "Tenants-37", "Pepsi", "Regions/us-east", "Importance/Low")
+	pepsiTenant.ProjectEnvironments = map[string][]string{
+		fireProjectID: {scratchEnvironment.ID},
+	}
+
 	tests := []struct {
 		name string
 		run  func(t *testing.T, api *testutil.MockHttpServer, qa *testutil.AskMocker, stdout *bytes.Buffer)
 	}{
-		{"default process asking for everything (non-tenanted, no advanced options)", func(t *testing.T, api *testutil.MockHttpServer, qa *testutil.AskMocker, stdout *bytes.Buffer) {
+		{"default process asking for standard things (non-tenanted, no advanced options)", func(t *testing.T, api *testutil.MockHttpServer, qa *testutil.AskMocker, stdout *bytes.Buffer) {
 			options := &executor.TaskOptionsDeployRelease{}
 
 			errReceiver := testutil.GoBegin(func() error {
@@ -141,9 +173,7 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 			})
 
 			// now it's going to go looking for prompted variables; we don't have any prompted variables here so it skips
-			api.ExpectRequest(t, "GET", "/api/Spaces-1/variables/"+variableSnapshot.ID).RespondWith(resources.Resources[*variables.VariableSet]{
-				Items: []*variables.VariableSet{variableSnapshot},
-			})
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/variables/"+variableSnapshot.ID).RespondWith(&variableSnapshot)
 
 			q := qa.ExpectQuestion(t, &survey.Select{
 				Message: "Do you want to change advanced options?",
@@ -160,24 +190,415 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 				`), stdout.String())
 
 			_ = q.AnswerWith("Proceed to deploy")
-			////
-			//
-			//api.ExpectRequest(t, "GET", "/api/Spaces-1/deploymentprocesses/"+depProcessSnapshot.ID).RespondWith(depProcessSnapshot)
-			//
-			//_ = qa.ExpectQuestion(t, &survey.MultiSelect{
-			//	Message: "Select steps to skip (if any)",
-			//	Options: []string{"Install", "Cleanup"},
-			//}).AnswerWith(make([]surveyCore.OptionAnswer, 0))
-			//
-			//_ = qa.ExpectQuestion(t, &survey.Select{
-			//	Message: "Guided Failure Mode?",
-			//	Options: []string{"Use default setting from the target environment", "Use guided failure mode", "Do not use guided failure mode"},
-			//}).AnswerWith("Do not use guided failure mode")
-			//
-			//_ = qa.ExpectQuestion(t, &survey.Select{
-			//	Message: "Package download",
-			//	Options: []string{"Use cached packages (if available)", "Re-download packages from feed"},
-			//}).AnswerWith("Use cached packages (if available)")
+
+			err := <-errReceiver
+			assert.Nil(t, err)
+
+			// check that the question-asking process has filled out the things we told it to
+			assert.Equal(t, &executor.TaskOptionsDeployRelease{
+				ProjectName:       "Fire Project",
+				ReleaseVersion:    "1.9",
+				Environments:      []string{"dev"},
+				GuidedFailureMode: "",
+				Variables:         make(map[string]string, 0),
+			}, options)
+		}},
+
+		{"default process picking up standard things from cmdline (non-tenanted, no advanced options)", func(t *testing.T, api *testutil.MockHttpServer, qa *testutil.AskMocker, stdout *bytes.Buffer) {
+			options := &executor.TaskOptionsDeployRelease{
+				ProjectName:    "fire project",
+				ReleaseVersion: "1.9",
+				Environments:   []string{"dev"},
+			}
+
+			errReceiver := testutil.GoBegin(func() error {
+				defer testutil.Close(api, qa)
+				// NewClient makes network calls so we have to run it in the goroutine
+				octopus, _ := octopusApiClient.NewClient(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "")
+				return deploy.AskQuestions(octopus, stdout, qa.AsAsker(), spinner, space1, options)
+			})
+
+			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
+
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects?clonedFromProjectId=&partialName=fire+project").
+				RespondWith(resources.Resources[*projects.Project]{
+					Items: []*projects.Project{fireProject},
+				})
+
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+fireProjectID+"/releases/"+release19.Version).RespondWith(release19)
+
+			// doesn't lookup the progression or env names because it already has them
+
+			// now it's going to go looking for prompted variables; we don't have any prompted variables here so it skips
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/variables/"+variableSnapshot.ID).RespondWith(&variableSnapshot)
+
+			q := qa.ExpectQuestion(t, &survey.Select{
+				Message: "Do you want to change advanced options?",
+				Options: []string{"Proceed to deploy", "Change advanced options"},
+			})
+
+			assert.Equal(t, heredoc.Doc(`
+				Project Fire Project
+				Release 1.9
+				Environments dev
+				Advanced Options:
+				  Deploy Time: Now
+				  Skipped Steps: None
+				  Guided Failure Mode: Use default setting from the target environment
+				  Package Download: Use cached packages (if available)
+				  Deployment Targets: All included
+				`), stdout.String())
+
+			_ = q.AnswerWith("Proceed to deploy")
+
+			err := <-errReceiver
+			assert.Nil(t, err)
+
+			// check that the question-asking process has filled out the things we told it to
+			assert.Equal(t, &executor.TaskOptionsDeployRelease{
+				ProjectName:       "Fire Project",
+				ReleaseVersion:    "1.9",
+				Environments:      []string{"dev"},
+				GuidedFailureMode: "",
+				Variables:         make(map[string]string, 0),
+			}, options)
+		}},
+
+		{"prompted variable", func(t *testing.T, api *testutil.MockHttpServer, qa *testutil.AskMocker, stdout *bytes.Buffer) {
+			// we don't need to fully test prompted variables; AskPromptedVariables already has all its own tests, we just
+			// need to very it's wired up properly
+			options := &executor.TaskOptionsDeployRelease{
+				ProjectName:    "fire project",
+				ReleaseVersion: "2.0",
+				Environments:   []string{"dev"},
+			}
+
+			errReceiver := testutil.GoBegin(func() error {
+				defer testutil.Close(api, qa)
+				// NewClient makes network calls so we have to run it in the goroutine
+				octopus, _ := octopusApiClient.NewClient(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "")
+				return deploy.AskQuestions(octopus, stdout, qa.AsAsker(), spinner, space1, options)
+			})
+
+			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
+
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects?clonedFromProjectId=&partialName=fire+project").
+				RespondWith(resources.Resources[*projects.Project]{
+					Items: []*projects.Project{fireProject},
+				})
+
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+fireProjectID+"/releases/"+release20.Version).RespondWith(release20)
+
+			// now it's going to go looking for prompted variables; we don't have any prompted variables here so it skips
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/variables/"+variableSnapshotWithPromptedVariables.ID).RespondWith(&variableSnapshotWithPromptedVariables)
+
+			q := qa.ExpectQuestion(t, &survey.Input{
+				Message: "Approver (Who approved this deployment?)",
+			})
+			validationErr := q.AnswerWith("")
+			assert.EqualError(t, validationErr, "Value is required")
+
+			validationErr = q.AnswerWith("John")
+			assert.Nil(t, validationErr)
+
+			q = qa.ExpectQuestion(t, &survey.Select{
+				Message: "Do you want to change advanced options?",
+				Options: []string{"Proceed to deploy", "Change advanced options"},
+			})
+
+			assert.Equal(t, heredoc.Doc(`
+				Project Fire Project
+				Release 2.0
+				Environments dev
+				Advanced Options:
+				  Deploy Time: Now
+				  Skipped Steps: None
+				  Guided Failure Mode: Use default setting from the target environment
+				  Package Download: Use cached packages (if available)
+				  Deployment Targets: All included
+				`), stdout.String())
+
+			_ = q.AnswerWith("Proceed to deploy")
+
+			err := <-errReceiver
+			assert.Nil(t, err)
+
+			// check that the question-asking process has filled out the things we told it to
+			assert.Equal(t, &executor.TaskOptionsDeployRelease{
+				ProjectName:       "Fire Project",
+				ReleaseVersion:    "2.0",
+				Environments:      []string{"dev"},
+				GuidedFailureMode: "",
+				Variables:         map[string]string{"Approver": "John"},
+			}, options)
+		}},
+
+		{"tenants and tags in a definitely tenanted project", func(t *testing.T, api *testutil.MockHttpServer, qa *testutil.AskMocker, stdout *bytes.Buffer) {
+			options := &executor.TaskOptionsDeployRelease{
+				ProjectName:    "fire project",
+				ReleaseVersion: "1.9",
+			}
+
+			errReceiver := testutil.GoBegin(func() error {
+				defer testutil.Close(api, qa)
+				// NewClient makes network calls so we have to run it in the goroutine
+				octopus, _ := octopusApiClient.NewClient(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "")
+				return deploy.AskQuestions(octopus, stdout, qa.AsAsker(), spinner, space1, options)
+			})
+
+			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
+
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects?clonedFromProjectId=&partialName=fire+project").
+				RespondWith(resources.Resources[*projects.Project]{
+					Items: []*projects.Project{fireProjectTenanted},
+				})
+
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+fireProjectID+"/releases/"+release19.Version).RespondWith(release19)
+
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/releases/"+release19.ID+"/progression").RespondWith(&releases.LifecycleProgression{
+				Phases: []*releases.LifecycleProgressionPhase{
+					{Name: "Dev", Progress: releases.PhaseProgressCurrent, AutomaticDeploymentTargets: []string{scratchEnvironment.ID}, OptionalDeploymentTargets: []string{devEnvironment.ID}},
+					{Name: "Prod", Progress: releases.PhaseProgressPending, OptionalDeploymentTargets: []string{prodEnvironment.ID}}, // should scope this out due to pending
+				},
+				NextDeployments: []string{devEnvironment.ID},
+			})
+
+			// now it needs to lookup the environment names
+			api.ExpectRequest(t, "GET", fmt.Sprintf("/api/Spaces-1/environments?ids=%s%%2C%s", scratchEnvironment.ID, devEnvironment.ID)).RespondWith(resources.Resources[*environments.Environment]{
+				Items: []*environments.Environment{scratchEnvironment, devEnvironment},
+			})
+
+			// Note: scratch comes first but default should be dev, due to NextDeployments
+			_ = qa.ExpectQuestion(t, &survey.Select{
+				Message: "Select environment to deploy to",
+				Options: []string{scratchEnvironment.Name, devEnvironment.Name},
+				Default: devEnvironment.Name,
+			}).AnswerWith(devEnvironment.Name)
+
+			// now we look for tenants for this project
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/tenants?projectId="+fireProjectID).RespondWith(resources.Resources[*tenants.Tenant]{
+				Items: []*tenants.Tenant{cokeTenant, pepsiTenant},
+			})
+
+			q := qa.ExpectQuestion(t, &survey.MultiSelect{
+				Message: "Select tenants and/or tags used to determine deployment targets",
+				Options: []string{"Coke", "Importance/High", "Regions/us-east"},
+			})
+
+			validationErr := q.AnswerWith([]surveyCore.OptionAnswer{})
+			assert.EqualError(t, validationErr, "Value is required")
+
+			validationErr = q.AnswerWith([]surveyCore.OptionAnswer{
+				{Value: "Coke", Index: 0},
+				{Value: "Regions/us-east", Index: 2},
+			})
+			assert.Nil(t, validationErr)
+
+			// now it's going to go looking for prompted variables; we don't have any prompted variables here so it skips
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/variables/"+variableSnapshot.ID).RespondWith(&variableSnapshot)
+
+			q = qa.ExpectQuestion(t, &survey.Select{
+				Message: "Do you want to change advanced options?",
+				Options: []string{"Proceed to deploy", "Change advanced options"},
+			})
+
+			assert.Equal(t, heredoc.Doc(`
+				Project Fire Project
+				Release 1.9
+				Advanced Options:
+				  Deploy Time: Now
+				  Skipped Steps: None
+				  Guided Failure Mode: Use default setting from the target environment
+				  Package Download: Use cached packages (if available)
+				  Deployment Targets: All included
+				`), stdout.String())
+
+			_ = q.AnswerWith("Proceed to deploy")
+
+			err := <-errReceiver
+			assert.Nil(t, err)
+
+			// check that the question-asking process has filled out the things we told it to
+			assert.Equal(t, &executor.TaskOptionsDeployRelease{
+				ProjectName:       "Fire Project",
+				ReleaseVersion:    "1.9",
+				Environments:      []string{"dev"},
+				Tenants:           []string{"Coke"},
+				TenantTags:        []string{"Regions/us-east"},
+				GuidedFailureMode: "",
+				Variables:         make(map[string]string, 0),
+			}, options)
+		}},
+
+		{"tenants and tags in a maybe tenanted project (choosing tenanted)", func(t *testing.T, api *testutil.MockHttpServer, qa *testutil.AskMocker, stdout *bytes.Buffer) {
+			options := &executor.TaskOptionsDeployRelease{
+				ProjectName:    "fire project",
+				ReleaseVersion: "1.9",
+			}
+
+			errReceiver := testutil.GoBegin(func() error {
+				defer testutil.Close(api, qa)
+				// NewClient makes network calls so we have to run it in the goroutine
+				octopus, _ := octopusApiClient.NewClient(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "")
+				return deploy.AskQuestions(octopus, stdout, qa.AsAsker(), spinner, space1, options)
+			})
+
+			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
+
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects?clonedFromProjectId=&partialName=fire+project").
+				RespondWith(resources.Resources[*projects.Project]{
+					Items: []*projects.Project{fireProjectMaybeTenanted},
+				})
+
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+fireProjectID+"/releases/"+release19.Version).RespondWith(release19)
+
+			_ = qa.ExpectQuestion(t, &survey.Select{
+				Message: "Select Tenanted or Untenanted deployment",
+				Options: []string{"Tenanted", "Untenanted"},
+			}).AnswerWith("Tenanted")
+
+			// find environments via progression
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/releases/"+release19.ID+"/progression").RespondWith(&releases.LifecycleProgression{
+				Phases: []*releases.LifecycleProgressionPhase{
+					{Name: "Dev", Progress: releases.PhaseProgressCurrent, AutomaticDeploymentTargets: []string{scratchEnvironment.ID}, OptionalDeploymentTargets: []string{devEnvironment.ID}},
+					{Name: "Prod", Progress: releases.PhaseProgressPending, OptionalDeploymentTargets: []string{prodEnvironment.ID}}, // should scope this out due to pending
+				},
+				NextDeployments: []string{devEnvironment.ID},
+			})
+			api.ExpectRequest(t, "GET", fmt.Sprintf("/api/Spaces-1/environments?ids=%s%%2C%s", scratchEnvironment.ID, devEnvironment.ID)).RespondWith(resources.Resources[*environments.Environment]{
+				Items: []*environments.Environment{scratchEnvironment, devEnvironment},
+			})
+
+			// Note: scratch comes first but default should be dev, due to NextDeployments
+			_ = qa.ExpectQuestion(t, &survey.Select{
+				Message: "Select environment to deploy to",
+				Options: []string{scratchEnvironment.Name, devEnvironment.Name},
+				Default: devEnvironment.Name,
+			}).AnswerWith(devEnvironment.Name)
+
+			// now we look for tenants for this project
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/tenants?projectId="+fireProjectID).RespondWith(resources.Resources[*tenants.Tenant]{
+				Items: []*tenants.Tenant{cokeTenant, pepsiTenant},
+			})
+
+			q := qa.ExpectQuestion(t, &survey.MultiSelect{
+				Message: "Select tenants and/or tags used to determine deployment targets",
+				Options: []string{"Coke", "Importance/High", "Regions/us-east"},
+			})
+
+			validationErr := q.AnswerWith([]surveyCore.OptionAnswer{})
+			assert.EqualError(t, validationErr, "Value is required")
+
+			validationErr = q.AnswerWith([]surveyCore.OptionAnswer{
+				{Value: "Coke", Index: 0},
+				{Value: "Regions/us-east", Index: 2},
+			})
+			assert.Nil(t, validationErr)
+
+			// now it's going to go looking for prompted variables; we don't have any prompted variables here so it skips
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/variables/"+variableSnapshot.ID).RespondWith(&variableSnapshot)
+
+			q = qa.ExpectQuestion(t, &survey.Select{
+				Message: "Do you want to change advanced options?",
+				Options: []string{"Proceed to deploy", "Change advanced options"},
+			})
+
+			assert.Equal(t, heredoc.Doc(`
+				Project Fire Project
+				Release 1.9
+				Advanced Options:
+				  Deploy Time: Now
+				  Skipped Steps: None
+				  Guided Failure Mode: Use default setting from the target environment
+				  Package Download: Use cached packages (if available)
+				  Deployment Targets: All included
+				`), stdout.String())
+
+			_ = q.AnswerWith("Proceed to deploy")
+
+			err := <-errReceiver
+			assert.Nil(t, err)
+
+			// check that the question-asking process has filled out the things we told it to
+			assert.Equal(t, &executor.TaskOptionsDeployRelease{
+				ProjectName:       "Fire Project",
+				ReleaseVersion:    "1.9",
+				Environments:      []string{"dev"},
+				Tenants:           []string{"Coke"},
+				TenantTags:        []string{"Regions/us-east"},
+				GuidedFailureMode: "",
+				Variables:         make(map[string]string, 0),
+			}, options)
+		}},
+
+		{"tenants and tags in a maybe tenanted project (choosing untenanted)", func(t *testing.T, api *testutil.MockHttpServer, qa *testutil.AskMocker, stdout *bytes.Buffer) {
+			options := &executor.TaskOptionsDeployRelease{
+				ProjectName:    "fire project",
+				ReleaseVersion: "1.9",
+			}
+
+			errReceiver := testutil.GoBegin(func() error {
+				defer testutil.Close(api, qa)
+				// NewClient makes network calls so we have to run it in the goroutine
+				octopus, _ := octopusApiClient.NewClient(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "")
+				return deploy.AskQuestions(octopus, stdout, qa.AsAsker(), spinner, space1, options)
+			})
+
+			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
+
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects?clonedFromProjectId=&partialName=fire+project").
+				RespondWith(resources.Resources[*projects.Project]{
+					Items: []*projects.Project{fireProjectMaybeTenanted},
+				})
+
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+fireProjectID+"/releases/"+release19.Version).RespondWith(release19)
+
+			_ = qa.ExpectQuestion(t, &survey.Select{
+				Message: "Select Tenanted or Untenanted deployment",
+				Options: []string{"Tenanted", "Untenanted"},
+			}).AnswerWith("Untenanted")
+
+			// find environments via progression
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/releases/"+release19.ID+"/progression").RespondWith(&releases.LifecycleProgression{
+				Phases: []*releases.LifecycleProgressionPhase{
+					{Name: "Dev", Progress: releases.PhaseProgressCurrent, AutomaticDeploymentTargets: []string{scratchEnvironment.ID}, OptionalDeploymentTargets: []string{devEnvironment.ID}},
+					{Name: "Prod", Progress: releases.PhaseProgressPending, OptionalDeploymentTargets: []string{prodEnvironment.ID}}, // should scope this out due to pending
+				},
+				NextDeployments: []string{devEnvironment.ID},
+			})
+			api.ExpectRequest(t, "GET", fmt.Sprintf("/api/Spaces-1/environments?ids=%s%%2C%s", scratchEnvironment.ID, devEnvironment.ID)).RespondWith(resources.Resources[*environments.Environment]{
+				Items: []*environments.Environment{scratchEnvironment, devEnvironment},
+			})
+
+			// Note: scratch comes first but default should be dev, due to NextDeployments
+			_ = qa.ExpectQuestion(t, &survey.MultiSelect{
+				Message: "Select environments to deploy to",
+				Options: []string{scratchEnvironment.Name, devEnvironment.Name},
+				Default: []string{devEnvironment.Name},
+			}).AnswerWith([]surveyCore.OptionAnswer{
+				{Value: devEnvironment.Name, Index: 0},
+			})
+
+			// now it's going to go looking for prompted variables; we don't have any prompted variables here so it skips
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/variables/"+variableSnapshot.ID).RespondWith(&variableSnapshot)
+
+			q := qa.ExpectQuestion(t, &survey.Select{
+				Message: "Do you want to change advanced options?",
+				Options: []string{"Proceed to deploy", "Change advanced options"},
+			})
+
+			assert.Equal(t, heredoc.Doc(`
+				Project Fire Project
+				Release 1.9
+				Advanced Options:
+				  Deploy Time: Now
+				  Skipped Steps: None
+				  Guided Failure Mode: Use default setting from the target environment
+				  Package Download: Use cached packages (if available)
+				  Deployment Targets: All included
+				`), stdout.String())
+
+			_ = q.AnswerWith("Proceed to deploy")
 
 			err := <-errReceiver
 			assert.Nil(t, err)

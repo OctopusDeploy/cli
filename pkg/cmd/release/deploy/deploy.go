@@ -377,14 +377,13 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 		return err
 	}
 
-	deployableEnvironmentIDs, nextEnvironmentID, err := findDeployableEnvironments(octopus, selectedRelease)
-	if err != nil {
-		return err
-	}
-
 	if isTenanted {
 		var selectedEnvironment *environments.Environment
 		if len(options.Environments) == 0 {
+			deployableEnvironmentIDs, nextEnvironmentID, err := findDeployableEnvironments(octopus, selectedRelease)
+			if err != nil {
+				return err
+			}
 			selectedEnvironment, err = selectDeploymentEnvironment(asker, octopus, deployableEnvironmentIDs, nextEnvironmentID)
 			if err != nil {
 				return err
@@ -411,6 +410,10 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 		}
 	} else {
 		if len(options.Environments) == 0 {
+			deployableEnvironmentIDs, nextEnvironmentID, err := findDeployableEnvironments(octopus, selectedRelease)
+			if err != nil {
+				return err
+			}
 			envs, err := selectDeploymentEnvironments(asker, octopus, deployableEnvironmentIDs, nextEnvironmentID)
 			if err != nil {
 				return err
