@@ -33,18 +33,7 @@ import (
 	"strings"
 )
 
-// octopus release deploy <stuff>
-// octopus release deploy-tenanted <stuff>
-
 const (
-
-	// NO
-	// TODO force?
-
-	// YES; Prompted Variable Only: read about prompted variables (user has to input them during deployment)
-	// TODO variable(s)?
-	// TODO updateVariables?
-
 	FlagProject = "project"
 
 	FlagReleaseVersion           = "version"
@@ -243,7 +232,7 @@ func deployRun(cmd *cobra.Command, f factory.Factory, flags *DeployFlags) error 
 	}
 
 	if f.IsPromptEnabled() {
-		err = AskQuestions(octopus, cmd.OutOrStdout(), f.Ask, f.Spinner(), f.GetCurrentSpace(), options)
+		err = AskQuestions(octopus, cmd.OutOrStdout(), f.Ask, f.GetCurrentSpace(), options)
 		if err != nil {
 			return err
 		}
@@ -297,7 +286,7 @@ func deployRun(cmd *cobra.Command, f factory.Factory, flags *DeployFlags) error 
 			cmd.Printf("\nAutomation Command: %s\n", autoCmd)
 
 			if didMaskSensitiveVariable {
-				cmd.Printf("\n%s\n", output.Yellow("Warning: Command includes some sensitive variable values which have been replaced with placeholders."))
+				cmd.Printf("%s\n", output.Yellow("Warning: Command includes some sensitive variable values which have been replaced with placeholders."))
 			}
 		}
 	}
@@ -331,19 +320,30 @@ func deployRun(cmd *cobra.Command, f factory.Factory, flags *DeployFlags) error 
 
 		// output web URL all the time, so long as output format is not JSON or basic
 		if err == nil && !constants.IsProgrammaticOutputFormat(outputFormat) {
-			// Web link requires the ID, not the version, which we don't neccessarily have
-			//r, err := findRelease(options.ReleaseVersion)
-			//if err == nil { // if this fails post-deploy, it doesn't matter; just don't print the link
-			//	link := output.Bluef("%s/app#/%s/releases/%s", f.GetCurrentHost(), f.GetCurrentSpace().ID, r.ID)
-			//	cmd.Printf("\nView this release on Octopus Deploy: %s\n", link)
-			//}
+			releaseID := options.ReleaseID
+			if releaseID == "" {
+				// we may already have the release ID from AskQuestions. If not, we need to go and look up the release ID to link to it
+				// which needs the project ID. Errors here are ignorable; it's not the end of the world if we can't print the web link
+				prj, err := selectors.FindProject(octopus, options.ProjectName)
+				if err == nil {
+					rel, err := releases.GetReleaseInProject(octopus, f.GetCurrentSpace().ID, prj.ID, options.ReleaseVersion)
+					if err == nil {
+						releaseID = rel.ID
+					}
+				}
+			}
+
+			if releaseID != "" {
+				link := output.Bluef("%s/app#/%s/releases/%s", f.GetCurrentHost(), f.GetCurrentSpace().ID, releaseID)
+				cmd.Printf("\nView this release on Octopus Deploy: %s\n", link)
+			}
 		}
 	}
 
 	return nil
 }
 
-func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker question.Asker, spinner factory.Spinner, space *spaces.Space, options *executor.TaskOptionsDeployRelease) error {
+func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker question.Asker, space *spaces.Space, options *executor.TaskOptionsDeployRelease) error {
 	if octopus == nil {
 		return cliErrors.NewArgumentNullOrEmptyError("octopus")
 	}
@@ -391,13 +391,14 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 			return err
 		}
 	} else {
-		selectedRelease, err = findRelease(octopus, space, selectedProject, options.ReleaseVersion)
+		selectedRelease, err = releases.GetReleaseInProject(octopus, space.ID, selectedProject.ID, options.ReleaseVersion)
 		if err != nil {
 			return err
 		}
 		_, _ = fmt.Fprintf(stdout, "Release %s\n", output.Cyan(selectedRelease.Version))
 	}
 	options.ReleaseVersion = selectedRelease.Version
+	options.ReleaseID = selectedRelease.ID
 	if err != nil {
 		return err
 	}
@@ -965,11 +966,6 @@ func selectRelease(octopus *octopusApiClient.Client, ask question.Asker, questio
 	return question.SelectMap(ask, questionText, foundReleases, func(p *releases.Release) string {
 		return p.Version
 	})
-}
-
-func findRelease(octopus *octopusApiClient.Client, space *spaces.Space, project *projects.Project, releaseVersion string) (*releases.Release, error) {
-	foundRelease, err := releases.GetReleaseInProject(octopus, space.ID, project.ID, releaseVersion)
-	return foundRelease, err
 }
 
 // determineIsTenanted returns true if we are going to do a tenanted deployment, false if untenanted

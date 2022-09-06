@@ -100,9 +100,16 @@ type TaskOptionsDeployRelease struct {
 
 	// true if the value was specified on the command line (because ForcePackageDownload is bool, we can't distinguish 'false' from 'missing')
 	ForcePackageDownloadWasSpecified bool
+
 	// so the automation command can mask sensitive variable output
 	SensitiveVariableNames []string
 
+	// printing a link to the release (to check deployment status) requires the release ID, not version.
+	// the interactive process looks this up, so we can cache it here to avoid a second lookup when generating
+	// the link for the browser. It isn't neccessary though
+	ReleaseID string
+
+	// After we send the request to the server, the response is stored here
 	Response *deployments.CreateDeploymentResponseV1
 }
 

@@ -34,8 +34,6 @@ var serverUrl, _ = url.Parse("http://server")
 
 const placeholderApiKey = "API-XXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
 
-var spinner = &testutil.FakeSpinner{}
-
 var rootResource = testutil.NewRootResource()
 
 func TestDeployCreate_AskQuestions(t *testing.T) {
@@ -140,7 +138,7 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 				defer testutil.Close(api, qa)
 				// NewClient makes network calls so we have to run it in the goroutine
 				octopus, _ := octopusApiClient.NewClient(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "")
-				return deploy.AskQuestions(octopus, stdout, qa.AsAsker(), spinner, space1, options)
+				return deploy.AskQuestions(octopus, stdout, qa.AsAsker(), space1, options)
 			})
 
 			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
@@ -212,6 +210,7 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 				Environments:      []string{"dev"},
 				GuidedFailureMode: "",
 				Variables:         make(map[string]string, 0),
+				ReleaseID:         release19.ID,
 			}, options)
 		}},
 
@@ -226,7 +225,7 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 				defer testutil.Close(api, qa)
 				// NewClient makes network calls so we have to run it in the goroutine
 				octopus, _ := octopusApiClient.NewClient(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "")
-				return deploy.AskQuestions(octopus, stdout, qa.AsAsker(), spinner, space1, options)
+				return deploy.AskQuestions(octopus, stdout, qa.AsAsker(), space1, options)
 			})
 
 			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
@@ -267,6 +266,7 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 				Environments:      []string{"dev"},
 				GuidedFailureMode: "",
 				Variables:         make(map[string]string, 0),
+				ReleaseID:         release19.ID,
 			}, options)
 		}},
 
@@ -283,7 +283,7 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 				defer testutil.Close(api, qa)
 				// NewClient makes network calls so we have to run it in the goroutine
 				octopus, _ := octopusApiClient.NewClient(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "")
-				return deploy.AskQuestions(octopus, stdout, qa.AsAsker(), spinner, space1, options)
+				return deploy.AskQuestions(octopus, stdout, qa.AsAsker(), space1, options)
 			})
 
 			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
@@ -331,6 +331,7 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 				Environments:      []string{"dev"},
 				GuidedFailureMode: "",
 				Variables:         map[string]string{"Approver": "John"},
+				ReleaseID:         release20.ID,
 			}, options)
 		}},
 
@@ -344,7 +345,7 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 				defer testutil.Close(api, qa)
 				// NewClient makes network calls so we have to run it in the goroutine
 				octopus, _ := octopusApiClient.NewClient(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "")
-				return deploy.AskQuestions(octopus, stdout, qa.AsAsker(), spinner, space1, options)
+				return deploy.AskQuestions(octopus, stdout, qa.AsAsker(), space1, options)
 			})
 
 			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
@@ -423,6 +424,7 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 				TenantTags:        []string{"Regions/us-east"},
 				GuidedFailureMode: "",
 				Variables:         make(map[string]string, 0),
+				ReleaseID:         release19.ID,
 			}, options)
 		}},
 
@@ -436,7 +438,7 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 				defer testutil.Close(api, qa)
 				// NewClient makes network calls so we have to run it in the goroutine
 				octopus, _ := octopusApiClient.NewClient(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "")
-				return deploy.AskQuestions(octopus, stdout, qa.AsAsker(), spinner, space1, options)
+				return deploy.AskQuestions(octopus, stdout, qa.AsAsker(), space1, options)
 			})
 
 			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
@@ -519,6 +521,7 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 				TenantTags:        []string{"Regions/us-east"},
 				GuidedFailureMode: "",
 				Variables:         make(map[string]string, 0),
+				ReleaseID:         release19.ID,
 			}, options)
 		}},
 
@@ -532,7 +535,7 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 				defer testutil.Close(api, qa)
 				// NewClient makes network calls so we have to run it in the goroutine
 				octopus, _ := octopusApiClient.NewClient(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "")
-				return deploy.AskQuestions(octopus, stdout, qa.AsAsker(), spinner, space1, options)
+				return deploy.AskQuestions(octopus, stdout, qa.AsAsker(), space1, options)
 			})
 
 			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
@@ -595,6 +598,7 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 				Environments:      []string{"dev"},
 				GuidedFailureMode: "",
 				Variables:         make(map[string]string, 0),
+				ReleaseID:         release19.ID,
 			}, options)
 		}},
 
@@ -604,7 +608,7 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 			errReceiver := testutil.GoBegin(func() error {
 				defer testutil.Close(api, qa)
 				octopus, _ := octopusApiClient.NewClient(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "")
-				return deploy.AskQuestions(octopus, stdout, qa.AsAsker(), spinner, space1, options)
+				return deploy.AskQuestions(octopus, stdout, qa.AsAsker(), space1, options)
 			})
 
 			doStandardApiResponses(options, api)
@@ -646,6 +650,7 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 				ForcePackageDownload: true,
 				Variables:            make(map[string]string, 0),
 				ExcludedSteps:        []string{"Cleanup"},
+				ReleaseID:            release19.ID,
 			}, options)
 		}},
 
@@ -663,7 +668,7 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 			errReceiver := testutil.GoBegin(func() error {
 				defer testutil.Close(api, qa)
 				octopus, _ := octopusApiClient.NewClient(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "")
-				return deploy.AskQuestions(octopus, stdout, qa.AsAsker(), spinner, space1, options)
+				return deploy.AskQuestions(octopus, stdout, qa.AsAsker(), space1, options)
 			})
 
 			doStandardApiResponses(options, api)
@@ -682,6 +687,7 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 				ForcePackageDownloadWasSpecified: true,
 				Variables:                        make(map[string]string, 0),
 				ExcludedSteps:                    []string{"Cleanup"},
+				ReleaseID:                        release19.ID,
 			}, options)
 		}},
 
@@ -699,7 +705,7 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 			errReceiver := testutil.GoBegin(func() error {
 				defer testutil.Close(api, qa)
 				octopus, _ := octopusApiClient.NewClient(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "")
-				return deploy.AskQuestions(octopus, stdout, qa.AsAsker(), spinner, space1, options)
+				return deploy.AskQuestions(octopus, stdout, qa.AsAsker(), space1, options)
 			})
 
 			doStandardApiResponses(options, api)
@@ -718,6 +724,7 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 				ForcePackageDownloadWasSpecified: true,
 				Variables:                        make(map[string]string, 0),
 				ExcludedSteps:                    []string{"Cleanup"},
+				ReleaseID:                        release19.ID,
 			}, options)
 		}},
 	}
@@ -865,9 +872,10 @@ func TestDeployCreate_GenerationOfAutomationCommand_MasksSensitiveVariables(t *t
 		  Deployment Targets: All included
 		
 		Automation Command: octopus release deploy --project 'Fire Project' --version '2.0' --environment 'dev' --variable 'Boring Variable:BORING' --variable 'Nuclear Launch Codes:*****' --variable 'Secret Password:*****' --no-prompt
-
 		Warning: Command includes some sensitive variable values which have been replaced with placeholders.
 		Successfully started 2 deployment(s)
+
+		View this release on Octopus Deploy: http://server/app#/Spaces-1/releases/Releases-200
 		`), stdout.String())
 	assert.Equal(t, "", stderr.String())
 }
