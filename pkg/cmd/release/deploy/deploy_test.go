@@ -843,9 +843,11 @@ func TestDeployCreate_GenerationOfAutomationCommand_MasksSensitiveVariables(t *t
 		},
 	}, requestBody)
 
-	req.RespondWith(&releases.CreateReleaseResponseV1{
-		ReleaseID:      "Releases-999", // new release
-		ReleaseVersion: "1.2.3",
+	req.RespondWith(&deployments.CreateDeploymentResponseV1{
+		DeploymentServerTasks: []*deployments.DeploymentServerTask{
+			{DeploymentID: "Deployments-1", ServerTaskID: "Tasks-100"},
+			{DeploymentID: "Deployments-2", ServerTaskID: "Tasks-101"},
+		},
 	})
 
 	_, err = testutil.ReceivePair(receiver)
@@ -865,6 +867,7 @@ func TestDeployCreate_GenerationOfAutomationCommand_MasksSensitiveVariables(t *t
 		Automation Command: octopus release deploy --project 'Fire Project' --version '2.0' --environment 'dev' --variable 'Boring Variable:BORING' --variable 'Nuclear Launch Codes:*****' --variable 'Secret Password:*****' --no-prompt
 
 		Warning: Command includes some sensitive variable values which have been replaced with placeholders.
+		Successfully started 2 deployment(s)
 		`), stdout.String())
 	assert.Equal(t, "", stderr.String())
 }

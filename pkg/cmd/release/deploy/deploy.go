@@ -1,6 +1,7 @@
 package deploy
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/AlecAivazis/survey/v2"
@@ -309,6 +310,36 @@ func deployRun(cmd *cobra.Command, f factory.Factory, flags *DeployFlags) error 
 		return err
 	}
 
+	if options.Response != nil {
+		switch outputFormat {
+		case constants.OutputFormatBasic:
+			for _, task := range options.Response.DeploymentServerTasks {
+				cmd.Printf("%s\n", task.ServerTaskID)
+			}
+
+		case constants.OutputFormatJson:
+			data, err := json.Marshal(options.Response.DeploymentServerTasks)
+			if err != nil { // shouldn't happen but fallback in case
+				cmd.PrintErrln(err)
+			} else {
+				_, _ = cmd.OutOrStdout().Write(data)
+				cmd.Println()
+			}
+		default: // table
+			cmd.Printf("Successfully started %d deployment(s)\n", len(options.Response.DeploymentServerTasks))
+		}
+
+		// output web URL all the time, so long as output format is not JSON or basic
+		if err == nil && !constants.IsProgrammaticOutputFormat(outputFormat) {
+			// Web link requires the ID, not the version, which we don't neccessarily have
+			//r, err := findRelease(options.ReleaseVersion)
+			//if err == nil { // if this fails post-deploy, it doesn't matter; just don't print the link
+			//	link := output.Bluef("%s/app#/%s/releases/%s", f.GetCurrentHost(), f.GetCurrentSpace().ID, r.ID)
+			//	cmd.Printf("\nView this release on Octopus Deploy: %s\n", link)
+			//}
+		}
+	}
+
 	return nil
 }
 
@@ -355,12 +386,12 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 		if err != nil {
 			return err
 		}
-		selectedRelease, err = selectRelease(octopus, asker, spinner, "Select the release to deploy", space, selectedProject, selectedChannel)
+		selectedRelease, err = selectRelease(octopus, asker, "Select the release to deploy", space, selectedProject, selectedChannel)
 		if err != nil {
 			return err
 		}
 	} else {
-		selectedRelease, err = findRelease(octopus, spinner, space, selectedProject, options.ReleaseVersion)
+		selectedRelease, err = findRelease(octopus, space, selectedProject, options.ReleaseVersion)
 		if err != nil {
 			return err
 		}
@@ -925,10 +956,8 @@ func askVariableSpecificPrompt(asker question.Asker, message string, variableTyp
 	}
 }
 
-func selectRelease(octopus *octopusApiClient.Client, ask question.Asker, spinner factory.Spinner, questionText string, space *spaces.Space, project *projects.Project, channel *channels.Channel) (*releases.Release, error) {
-	spinner.Start()
+func selectRelease(octopus *octopusApiClient.Client, ask question.Asker, questionText string, space *spaces.Space, project *projects.Project, channel *channels.Channel) (*releases.Release, error) {
 	foundReleases, err := releases.GetReleasesInProjectChannel(octopus, space.ID, project.ID, channel.ID)
-	spinner.Stop()
 	if err != nil {
 		return nil, err
 	}
@@ -938,10 +967,8 @@ func selectRelease(octopus *octopusApiClient.Client, ask question.Asker, spinner
 	})
 }
 
-func findRelease(octopus *octopusApiClient.Client, spinner factory.Spinner, space *spaces.Space, project *projects.Project, releaseVersion string) (*releases.Release, error) {
-	spinner.Start()
+func findRelease(octopus *octopusApiClient.Client, space *spaces.Space, project *projects.Project, releaseVersion string) (*releases.Release, error) {
 	foundRelease, err := releases.GetReleaseInProject(octopus, space.ID, project.ID, releaseVersion)
-	spinner.Stop()
 	return foundRelease, err
 }
 
