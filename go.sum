@@ -8,6 +8,8 @@ github.com/OctopusDeploy/go-octopusdeploy/v2 v2.3.3 h1:8TUtdkQqH0dNrdkETCAGk6mK8
 github.com/OctopusDeploy/go-octopusdeploy/v2 v2.3.3/go.mod h1:Fa2zv2io46wAvWaaCKIbrNG1FW3qj7KtBpXj19dWKiE=
 github.com/OctopusDeploy/go-octopusdeploy/v2 v2.3.4-0.20220905015522-3b46833ccae1 h1:Mu7foo0ehb7RsSWLpbVlz5Bpxyyp9XDuXa1beaBLfCY=
 github.com/OctopusDeploy/go-octopusdeploy/v2 v2.3.4-0.20220905015522-3b46833ccae1/go.mod h1:Fa2zv2io46wAvWaaCKIbrNG1FW3qj7KtBpXj19dWKiE=
+github.com/OctopusDeploy/go-octopusdeploy/v2 v2.3.4-0.20220906224003-626a6680def2 h1:e8R6dStpaI8ufjrVKqRmcp0Cs4kvW1v3tNPWuB3Id7s=
+github.com/OctopusDeploy/go-octopusdeploy/v2 v2.3.4-0.20220906224003-626a6680def2/go.mod h1:Fa2zv2io46wAvWaaCKIbrNG1FW3qj7KtBpXj19dWKiE=
 github.com/briandowns/spinner v1.19.0 h1:s8aq38H+Qju89yhp89b4iIiMzMm8YN3p6vGpwyh/a8E=
 github.com/briandowns/spinner v1.19.0/go.mod h1:mQak9GHqbspjC/5iUx3qMlIho8xBS/ppAL/hX5SmPJU=
 github.com/cpuguy83/go-md2man/v2 v2.0.2/go.mod h1:tgQtvFlXSQOSOSIRvRPT7W67SCa46tRHOmNcaadrF8o=

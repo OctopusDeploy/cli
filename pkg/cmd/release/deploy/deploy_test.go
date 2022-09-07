@@ -26,7 +26,6 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"net/url"
-	"reflect"
 	"testing"
 )
 
@@ -72,8 +71,8 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 		},
 	}
 
-	variableSnapshot := fixtures.NewVariableSetForProject(spaceID, fireProjectID)
-	variableSnapshot.ID = fmt.Sprintf("%s-s-0-2ZFWS", variableSnapshot.ID)
+	variableSnapshotNoVars := fixtures.NewVariableSetForProject(spaceID, fireProjectID)
+	variableSnapshotNoVars.ID = fmt.Sprintf("%s-s-0-2ZFWS", variableSnapshotNoVars.ID)
 
 	variableSnapshotWithPromptedVariables := fixtures.NewVariableSetForProject(spaceID, fireProjectID)
 	variableSnapshotWithPromptedVariables.ID = fmt.Sprintf("%s-s-0-9BZ22", variableSnapshotWithPromptedVariables.ID)
@@ -95,7 +94,7 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 
 	release19 := fixtures.NewRelease(spaceID, "Releases-193", "1.9", fireProjectID, altChannel.ID)
 	release19.ProjectDeploymentProcessSnapshotID = depProcessSnapshot.ID
-	release19.ProjectVariableSetSnapshotID = variableSnapshot.ID
+	release19.ProjectVariableSetSnapshotID = variableSnapshotNoVars.ID
 
 	devEnvironment := fixtures.NewEnvironment(spaceID, "Environments-12", "dev")
 	scratchEnvironment := fixtures.NewEnvironment(spaceID, "Environments-82", "scratch")
@@ -111,20 +110,20 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 	}
 
 	// helper for advanced tests that want to skip past the first half of the questions
-	doStandardApiResponses := func(options *executor.TaskOptionsDeployRelease, api *testutil.MockHttpServer) {
-		if options.ReleaseVersion != "1.9" || !reflect.DeepEqual(options.Environments, []string{"dev"}) || options.ProjectName != "fire project" {
-			panic("doStandardApiResponses is only good for one thing")
+	doStandardApiResponses := func(options *executor.TaskOptionsDeployRelease, api *testutil.MockHttpServer, release *releases.Release, vars *variables.VariableSet) {
+		if options.ReleaseVersion != release.Version {
+			panic("you must set `options.ReleaseVersion` to match the supplied `release.Version`")
 		}
 		api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
 
-		api.ExpectRequest(t, "GET", "/api/Spaces-1/projects?clonedFromProjectId=&partialName=fire+project").
+		api.ExpectRequest(t, "GET", "/api/Spaces-1/projects?clonedFromProjectId=&partialName="+url.QueryEscape(options.ProjectName)).
 			RespondWith(resources.Resources[*projects.Project]{
 				Items: []*projects.Project{fireProject},
 			})
 
-		api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+fireProjectID+"/releases/"+release19.Version).RespondWith(release19)
+		api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+fireProjectID+"/releases/"+release.Version).RespondWith(release)
 
-		api.ExpectRequest(t, "GET", "/api/Spaces-1/variables/"+variableSnapshot.ID).RespondWith(&variableSnapshot)
+		api.ExpectRequest(t, "GET", "/api/Spaces-1/variables/"+vars.ID).RespondWith(&vars)
 	}
 
 	tests := []struct {
@@ -191,7 +190,7 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 			})
 
 			// now it's going to go looking for prompted variables; we don't have any prompted variables here so it skips
-			api.ExpectRequest(t, "GET", "/api/Spaces-1/variables/"+variableSnapshot.ID).RespondWith(&variableSnapshot)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/variables/"+variableSnapshotNoVars.ID).RespondWith(&variableSnapshotNoVars)
 
 			q := qa.ExpectQuestion(t, &survey.Select{
 				Message: "Do you want to change advanced options?",
@@ -240,7 +239,7 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 			// doesn't lookup the progression or env names because it already has them
 
 			// now it's going to go looking for prompted variables; we don't have any prompted variables here so it skips
-			api.ExpectRequest(t, "GET", "/api/Spaces-1/variables/"+variableSnapshot.ID).RespondWith(&variableSnapshot)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/variables/"+variableSnapshotNoVars.ID).RespondWith(&variableSnapshotNoVars)
 
 			assert.Equal(t, heredoc.Doc(`
 				Project Fire Project
@@ -397,7 +396,7 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 			assert.Nil(t, validationErr)
 
 			// now it's going to go looking for prompted variables; we don't have any prompted variables here so it skips
-			api.ExpectRequest(t, "GET", "/api/Spaces-1/variables/"+variableSnapshot.ID).RespondWith(&variableSnapshot)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/variables/"+variableSnapshotNoVars.ID).RespondWith(&variableSnapshotNoVars)
 
 			assert.Equal(t, heredoc.Doc(`
 				Project Fire Project
@@ -494,7 +493,7 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 			assert.Nil(t, validationErr)
 
 			// now it's going to go looking for prompted variables; we don't have any prompted variables here so it skips
-			api.ExpectRequest(t, "GET", "/api/Spaces-1/variables/"+variableSnapshot.ID).RespondWith(&variableSnapshot)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/variables/"+variableSnapshotNoVars.ID).RespondWith(&variableSnapshotNoVars)
 
 			assert.Equal(t, heredoc.Doc(`
 				Project Fire Project
@@ -574,7 +573,7 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 			})
 
 			// now it's going to go looking for prompted variables; we don't have any prompted variables here so it skips
-			api.ExpectRequest(t, "GET", "/api/Spaces-1/variables/"+variableSnapshot.ID).RespondWith(&variableSnapshot)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/variables/"+variableSnapshotNoVars.ID).RespondWith(&variableSnapshotNoVars)
 			assert.Equal(t, heredoc.Doc(`
 				Project Fire Project
 				Release 1.9
@@ -603,7 +602,7 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 		}},
 
 		{"advanced options", func(t *testing.T, api *testutil.MockHttpServer, qa *testutil.AskMocker, stdout *bytes.Buffer) {
-			options := &executor.TaskOptionsDeployRelease{ProjectName: "fire project", ReleaseVersion: "1.9", Environments: []string{"dev"}}
+			options := &executor.TaskOptionsDeployRelease{ProjectName: "fire project", ReleaseVersion: "1.9", Environments: []string{"dev", "scratch"}}
 
 			errReceiver := testutil.GoBegin(func() error {
 				defer testutil.Close(api, qa)
@@ -611,7 +610,7 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 				return deploy.AskQuestions(octopus, stdout, qa.AsAsker(), space1, options)
 			})
 
-			doStandardApiResponses(options, api)
+			doStandardApiResponses(options, api, release19, variableSnapshotNoVars)
 			stdout.Reset()
 
 			_ = qa.ExpectQuestion(t, &survey.Select{
@@ -638,6 +637,31 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 				Options: []string{"Use cached packages (if available)", "Re-download packages from feed"},
 			}).AnswerWith("Re-download packages from feed")
 
+			// because environments were specified on the commandline, we didn't look them up earlier, but we
+			// must do it now in order to determine the list of deployment targets
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/environments/all").RespondWith([]*environments.Environment{
+				devEnvironment, scratchEnvironment, prodEnvironment,
+			})
+
+			api.ExpectRequest(t, "GET", fmt.Sprintf("/api/Spaces-1/releases/%s/deployments/preview/%s?includeDisabledSteps=true", release19.ID, devEnvironment.ID)).RespondWith(&deployments.DeploymentPreview{
+				StepsToExecute: []*deployments.DeploymentTemplateStep{
+					{},
+					{MachineNames: []string{"vm-1", "vm-2"}},
+					{MachineNames: []string{"vm-4"}},
+				},
+			})
+			api.ExpectRequest(t, "GET", fmt.Sprintf("/api/Spaces-1/releases/%s/deployments/preview/%s?includeDisabledSteps=true", release19.ID, scratchEnvironment.ID)).RespondWith(&deployments.DeploymentPreview{
+				StepsToExecute: []*deployments.DeploymentTemplateStep{
+					{MachineNames: []string{"vm-2"}}, // deliberate double up
+					{MachineNames: []string{"vm-2", "vm-5"}},
+				},
+			})
+
+			_ = qa.ExpectQuestion(t, &survey.MultiSelect{
+				Message: "Restrict to specific deployment targets (optional)",
+				Options: []string{"vm-1", "vm-2", "vm-4", "vm-5"},
+			}).AnswerWith([]string{"vm-1", "vm-2"})
+
 			err := <-errReceiver
 			assert.Nil(t, err)
 
@@ -645,13 +669,104 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 			assert.Equal(t, &executor.TaskOptionsDeployRelease{
 				ProjectName:          "Fire Project",
 				ReleaseVersion:       "1.9",
-				Environments:         []string{"dev"},
+				Environments:         []string{"dev", "scratch"},
 				GuidedFailureMode:    "false",
 				ForcePackageDownload: true,
 				Variables:            make(map[string]string, 0),
 				ExcludedSteps:        []string{"Cleanup"},
+				DeploymentTargets:    []string{"vm-1", "vm-2"},
 				ReleaseID:            release19.ID,
 			}, options)
+		}},
+
+		{"advanced options doesn't need to lookup environments if the Q&A process already asked for them", func(t *testing.T, api *testutil.MockHttpServer, qa *testutil.AskMocker, stdout *bytes.Buffer) {
+			options := &executor.TaskOptionsDeployRelease{
+				ProjectName:                      "fire project",
+				ReleaseVersion:                   "1.9",
+				ExcludedSteps:                    []string{"Cleanup"},
+				GuidedFailureMode:                "false",
+				ForcePackageDownloadWasSpecified: true,
+			}
+
+			errReceiver := testutil.GoBegin(func() error {
+				defer testutil.Close(api, qa)
+				octopus, _ := octopusApiClient.NewClient(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "")
+				return deploy.AskQuestions(octopus, stdout, qa.AsAsker(), space1, options)
+			})
+
+			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
+
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects?clonedFromProjectId=&partialName="+url.QueryEscape(options.ProjectName)).
+				RespondWith(resources.Resources[*projects.Project]{
+					Items: []*projects.Project{fireProject},
+				})
+
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+fireProjectID+"/releases/"+release19.Version).RespondWith(release19)
+
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/releases/"+release19.ID+"/progression").RespondWith(&releases.LifecycleProgression{
+				Phases: []*releases.LifecycleProgressionPhase{
+					{Name: "Dev", Progress: releases.PhaseProgressCurrent, OptionalDeploymentTargets: []string{devEnvironment.ID, prodEnvironment.ID}},
+				},
+				NextDeployments: []string{devEnvironment.ID},
+			})
+
+			// now it needs to lookup the environment names
+			api.ExpectRequest(t, "GET", fmt.Sprintf("/api/Spaces-1/environments?ids=%s%%2C%s", devEnvironment.ID, prodEnvironment.ID)).RespondWith(resources.Resources[*environments.Environment]{
+				Items: []*environments.Environment{devEnvironment, prodEnvironment},
+			})
+
+			// Note: scratch comes first but default should be dev, due to NextDeployments
+			_ = qa.ExpectQuestion(t, &survey.MultiSelect{
+				Message: "Select environments to deploy to",
+				Options: []string{devEnvironment.Name, prodEnvironment.Name},
+				Default: []string{devEnvironment.Name},
+			}).AnswerWith([]surveyCore.OptionAnswer{
+				{Value: devEnvironment.Name, Index: 0},
+			})
+
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/variables/"+variableSnapshotNoVars.ID).RespondWith(&variableSnapshotNoVars)
+
+			stdout.Reset()
+
+			_ = qa.ExpectQuestion(t, &survey.Select{
+				Message: "Do you want to change advanced options?",
+				Options: []string{"Proceed to deploy", "Change advanced options"},
+			}).AnswerWith("Change advanced options")
+			stdout.Reset()
+
+			// steps, guidedFailure and forcePackageDownload already on cmdline, so we go straight to targets
+
+			// NOTE there is NO CALL to environments.all here, because we already have info loaded for the selected environment (devEnvironment)
+
+			api.ExpectRequest(t, "GET", fmt.Sprintf("/api/Spaces-1/releases/%s/deployments/preview/%s?includeDisabledSteps=true", release19.ID, devEnvironment.ID)).RespondWith(&deployments.DeploymentPreview{
+				StepsToExecute: []*deployments.DeploymentTemplateStep{
+					{},
+					{MachineNames: []string{"vm-1", "vm-2"}},
+					{MachineNames: []string{"vm-4"}},
+				},
+			})
+			_ = qa.ExpectQuestion(t, &survey.MultiSelect{
+				Message: "Restrict to specific deployment targets (optional)",
+				Options: []string{"vm-1", "vm-2", "vm-4"},
+			}).AnswerWith([]string{"vm-1"})
+
+			err := <-errReceiver
+			assert.Nil(t, err)
+
+			// check that the question-asking process has filled out the things we told it to
+			assert.Equal(t, &executor.TaskOptionsDeployRelease{
+				ProjectName:                      "Fire Project",
+				ReleaseVersion:                   "1.9",
+				Environments:                     []string{"dev"},
+				GuidedFailureMode:                "false",
+				ForcePackageDownload:             false,
+				ForcePackageDownloadWasSpecified: true,
+				Variables:                        make(map[string]string, 0),
+				ExcludedSteps:                    []string{"Cleanup"},
+				DeploymentTargets:                []string{"vm-1"},
+				ReleaseID:                        release19.ID,
+			}, options)
+
 		}},
 
 		{"advanced options pickup from command line; doesn't ask if all opts are supplied", func(t *testing.T, api *testutil.MockHttpServer, qa *testutil.AskMocker, stdout *bytes.Buffer) {
@@ -663,6 +778,7 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 				GuidedFailureMode:                "false",
 				ForcePackageDownload:             true,
 				ForcePackageDownloadWasSpecified: true, // need this as well
+				ExcludeTargets:                   []string{"vm-99"},
 			}
 
 			errReceiver := testutil.GoBegin(func() error {
@@ -671,7 +787,7 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 				return deploy.AskQuestions(octopus, stdout, qa.AsAsker(), space1, options)
 			})
 
-			doStandardApiResponses(options, api)
+			doStandardApiResponses(options, api, release19, variableSnapshotNoVars)
 			stdout.Reset()
 
 			err := <-errReceiver
@@ -687,6 +803,7 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 				ForcePackageDownloadWasSpecified: true,
 				Variables:                        make(map[string]string, 0),
 				ExcludedSteps:                    []string{"Cleanup"},
+				ExcludeTargets:                   []string{"vm-99"},
 				ReleaseID:                        release19.ID,
 			}, options)
 		}},
@@ -700,6 +817,7 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 				GuidedFailureMode:                "default",
 				ForcePackageDownload:             false,
 				ForcePackageDownloadWasSpecified: true,
+				ExcludeTargets:                   []string{"vm-99"}, // just to skip the question
 			}
 
 			errReceiver := testutil.GoBegin(func() error {
@@ -708,7 +826,7 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 				return deploy.AskQuestions(octopus, stdout, qa.AsAsker(), space1, options)
 			})
 
-			doStandardApiResponses(options, api)
+			doStandardApiResponses(options, api, release19, variableSnapshotNoVars)
 			stdout.Reset()
 
 			err := <-errReceiver
@@ -724,6 +842,7 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 				ForcePackageDownloadWasSpecified: true,
 				Variables:                        make(map[string]string, 0),
 				ExcludedSteps:                    []string{"Cleanup"},
+				ExcludeTargets:                   []string{"vm-99"},
 				ReleaseID:                        release19.ID,
 			}, options)
 		}},
@@ -905,6 +1024,8 @@ func TestDeployCreate_PrintAdvancedSummary(t *testing.T) {
 				GuidedFailureMode:    "false",
 				ForcePackageDownload: true,
 				ExcludedSteps:        []string{"Step 1", "Step 37"},
+				DeploymentTargets:    []string{"vm-1", "vm-2"},
+				ExcludeTargets:       []string{"vm-3", "vm-4"},
 			}
 			deploy.PrintAdvancedSummary(stdout, options)
 
@@ -914,7 +1035,39 @@ func TestDeployCreate_PrintAdvancedSummary(t *testing.T) {
 			  Skipped Steps: Step 1,Step 37
 			  Guided Failure Mode: Do not use guided failure mode
 			  Package Download: Re-download packages from feed
-			  Deployment Targets: All included
+			  Deployment Targets: Include vm-1,vm-2; Exclude vm-3,vm-4
+			`), stdout.String())
+		}},
+
+		{"variation on include deployment targets only", func(t *testing.T, stdout *bytes.Buffer) {
+			options := &executor.TaskOptionsDeployRelease{
+				DeploymentTargets: []string{"vm-2"},
+			}
+			deploy.PrintAdvancedSummary(stdout, options)
+
+			assert.Equal(t, heredoc.Doc(`
+			Advanced Options:
+			  Deploy Time: Now
+			  Skipped Steps: None
+			  Guided Failure Mode: Use default setting from the target environment
+			  Package Download: Use cached packages (if available)
+			  Deployment Targets: Include vm-2
+			`), stdout.String())
+		}},
+
+		{"variation on exclude deployment targets only", func(t *testing.T, stdout *bytes.Buffer) {
+			options := &executor.TaskOptionsDeployRelease{
+				ExcludeTargets: []string{"vm-4"},
+			}
+			deploy.PrintAdvancedSummary(stdout, options)
+
+			assert.Equal(t, heredoc.Doc(`
+			Advanced Options:
+			  Deploy Time: Now
+			  Skipped Steps: None
+			  Guided Failure Mode: Use default setting from the target environment
+			  Package Download: Use cached packages (if available)
+			  Deployment Targets: Exclude vm-4
 			`), stdout.String())
 		}},
 

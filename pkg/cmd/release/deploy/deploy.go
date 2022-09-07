@@ -408,10 +408,13 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 		return err
 	}
 
+	// machine selection later on needs to refer back to the environments.
+	// NOTE: this is allowed to remain nil; environments will get looked up later on if needed
+	var selectedEnvironments []*environments.Environment
 	if isTenanted {
 		var selectedEnvironment *environments.Environment
 		if len(options.Environments) == 0 {
-			deployableEnvironmentIDs, nextEnvironmentID, err := findDeployableEnvironments(octopus, selectedRelease)
+			deployableEnvironmentIDs, nextEnvironmentID, err := findDeployableEnvironmentIDs(octopus, selectedRelease)
 			if err != nil {
 				return err
 			}
@@ -424,6 +427,7 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 			selectedEnvironment, err = selectors.FindEnvironment(octopus, options.Environments[0])
 			_, _ = fmt.Fprintf(stdout, "Environment %s\n", output.Cyan(selectedEnvironment.Name))
 		}
+		selectedEnvironments = []*environments.Environment{selectedEnvironment}
 
 		// ask for tenants and/or tags unless some were specified on the command line
 		if len(options.Tenants) == 0 && len(options.TenantTags) == 0 {
@@ -441,15 +445,15 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 		}
 	} else {
 		if len(options.Environments) == 0 {
-			deployableEnvironmentIDs, nextEnvironmentID, err := findDeployableEnvironments(octopus, selectedRelease)
+			deployableEnvironmentIDs, nextEnvironmentID, err := findDeployableEnvironmentIDs(octopus, selectedRelease)
 			if err != nil {
 				return err
 			}
-			envs, err := selectDeploymentEnvironments(asker, octopus, deployableEnvironmentIDs, nextEnvironmentID)
+			selectedEnvironments, err = selectDeploymentEnvironments(asker, octopus, deployableEnvironmentIDs, nextEnvironmentID)
 			if err != nil {
 				return err
 			}
-			options.Environments = util.SliceTransform(envs, func(env *environments.Environment) string { return env.Name })
+			options.Environments = util.SliceTransform(selectedEnvironments, func(env *environments.Environment) string { return env.Name })
 		} else {
 			if len(options.Environments) > 0 {
 				_, _ = fmt.Fprintf(stdout, "Environments %s\n", output.Cyan(strings.Join(options.Environments, ",")))
@@ -476,29 +480,29 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 	isExcludedStepsSpecified := len(options.ExcludedSteps) > 0
 	isGuidedFailureModeSpecified := options.GuidedFailureMode != ""
 	isForcePackageDownloadSpecified := options.ForcePackageDownloadWasSpecified
+	isDeploymentTargetsSpecified := len(options.DeploymentTargets) > 0 || len(options.ExcludeTargets) > 0
 
-	allAdvancedOptionsSpecified := isExcludedStepsSpecified && isGuidedFailureModeSpecified && isForcePackageDownloadSpecified
+	allAdvancedOptionsSpecified := isExcludedStepsSpecified && isGuidedFailureModeSpecified && isForcePackageDownloadSpecified && isDeploymentTargetsSpecified
 
 	shouldAskAdvancedQuestions := false
 	if !allAdvancedOptionsSpecified {
-		var goDoIt string
+		var changeOptionsAnswer string
 		err = asker(&survey.Select{
 			Message: "Do you want to change advanced options?",
 			Options: []string{"Proceed to deploy", "Change advanced options"},
-		}, &goDoIt)
+		}, &changeOptionsAnswer)
 		if err != nil {
 			return err
 		}
-		if goDoIt == "Change advanced options" {
+		if changeOptionsAnswer == "Change advanced options" {
 			shouldAskAdvancedQuestions = true
 		} else {
 			shouldAskAdvancedQuestions = false
 		}
-
 	}
 
 	if shouldAskAdvancedQuestions {
-		// when? (timed deployment)
+		// TODO when? (timed deployment)
 
 		if !isExcludedStepsSpecified {
 			// select steps to exclude
@@ -513,11 +517,10 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 		}
 
 		if !isGuidedFailureModeSpecified { // if they deliberately specified false, don't ask them
-			gfm, err := askGuidedFailureMode(asker)
+			options.GuidedFailureMode, err = askGuidedFailureMode(asker)
 			if err != nil {
 				return err
 			}
-			options.GuidedFailureMode = string(gfm)
 		}
 
 		if !isForcePackageDownloadSpecified { // if they deliberately specified false, don't ask them
@@ -527,29 +530,74 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 			}
 		}
 
-		// What the web portal does:
-		// If tenanted:
-		//   foreach tenant:
-		//     select deployment target(s)
-		// else
-		//   select deployment target(s)
-		//
-		// however the executions API doesn't support deployment targets per-tenant, so in all cases
-		// we can only do:
-		//   select deployment target(s)
-
-		if len(options.DeploymentTargets) == 0 && len(options.ExcludeTargets) == 0 {
-
+		if !isDeploymentTargetsSpecified {
+			// What the web portal does:
+			// If tenanted:
+			//   foreach tenant:
+			//     select deployment target(s)
+			// else
+			//   select deployment target(s)
+			//
+			// however the executions API doesn't support deployment targets per-tenant, so in all cases
+			// we can only do:
+			//   select deployment target(s)
+			if len(selectedEnvironments) == 0 { // if the Q&A process earlier hasn't loaded environments already, we need to load them now
+				selectedEnvironments, err = findEnvironments(octopus, options.Environments)
+				if err != nil {
+					return err
+				}
+			}
+			options.DeploymentTargets, err = askDeploymentTargets(octopus, asker, space.ID, selectedRelease.ID, selectedEnvironments)
+			if err != nil {
+				return err
+			}
 		}
 	}
 	// DONE
 	return nil
 }
 
-// findDeployableEnvironments returns an array of environment IDs that we can deploy to,
-// the preferred 'next' environment, and an error
-func findDeployableEnvironments(octopus *octopusApiClient.Client, release *releases.Release) ([]string, string, error) {
+func askDeploymentTargets(octopus *octopusApiClient.Client, asker question.Asker, spaceID string, releaseID string, selectedEnvironments []*environments.Environment) ([]string, error) {
+	var results []string
 
+	// this is what the portal does. Can we do it better? I don't know
+	for _, env := range selectedEnvironments {
+		preview, err := deployments.GetReleaseDeploymentPreview(octopus, spaceID, releaseID, env.ID, true)
+		if err != nil {
+			return nil, err
+		}
+		for _, step := range preview.StepsToExecute {
+			for _, m := range step.MachineNames {
+				if !util.SliceContains(results, m) {
+					results = append(results, m)
+				}
+			}
+		}
+	}
+
+	// if there are no machines, then either
+	// a) everything is server based
+	// b) machines will be provisioned dynamically
+	// c) or the deployment will fail.
+	// In all of the above cases, we can't do anything about it so the correct course of action is just skip the question
+	if len(results) > 0 {
+		var selectedDeploymentTargetNames []string
+		err := asker(&survey.MultiSelect{
+			Message: "Restrict to specific deployment targets (optional)",
+			Options: results,
+		}, &selectedDeploymentTargetNames)
+		if err != nil {
+			return nil, err
+		}
+
+		return selectedDeploymentTargetNames, nil
+	}
+	return nil, nil
+}
+
+// findDeployableEnvironmentIDs returns an array of environment IDs that we can deploy to,
+// the preferred 'next' environment, and an error
+func findDeployableEnvironmentIDs(octopus *octopusApiClient.Client, release *releases.Release) ([]string, string, error) {
 	var result []string
 	// to determine the list of viable environments we need to hit /api/projects/{ID}/progression.
 	releaseProgression, err := octopus.Deployments.GetProgression(release)
@@ -635,7 +683,7 @@ func selectDeploymentEnvironments(asker question.Asker, octopus *octopusApiClien
 		Message: "Select environments to deploy to",
 		Options: options,
 		Default: []string{nextDeployEnvironmentName},
-	}, &selectedKeys, survey.WithValidator(survey.MinItems(1)))
+	}, &selectedKeys, survey.WithValidator(survey.Required))
 
 	if err != nil {
 		return nil, err
@@ -647,6 +695,35 @@ func selectDeploymentEnvironments(asker question.Asker, octopus *octopusApiClien
 		} // if we were to somehow get invalid answers, ignore them
 	}
 	return selectedValues, nil
+}
+
+// given an array of environment names, maps these all to actual objects by querying the server
+func findEnvironments(client *octopusApiClient.Client, environmentNames []string) ([]*environments.Environment, error) {
+	if len(environmentNames) == 0 {
+		return nil, nil
+	}
+	// there's no "bulk lookup" API, so we either need to do a foreach loop to find each environment individually, or load the entire server's worth of environments
+	// it's probably going to be cheaper to just list out all the environments and match them client side, so we'll do that for simplicity's sake
+	allEnvs, err := client.Environments.GetAll()
+	if err != nil {
+		return nil, err
+	}
+
+	lookup := make(map[string]*environments.Environment, len(allEnvs))
+	for _, env := range allEnvs {
+		lookup[strings.ToLower(env.Name)] = env
+	}
+
+	var result []*environments.Environment
+	for _, name := range environmentNames {
+		env := lookup[strings.ToLower(name)]
+		if env != nil {
+			result = append(result, env)
+		} else {
+			return nil, fmt.Errorf("cannot find environment %s", name)
+		}
+	}
+	return result, nil
 }
 
 func lookupGuidedFailureModeString(value string) string {
@@ -686,7 +763,30 @@ func PrintAdvancedSummary(stdout io.Writer, options *executor.TaskOptionsDeployR
 
 	depTargetsStr := "All included"
 	if len(options.DeploymentTargets) != 0 || len(options.ExcludeTargets) != 0 {
-		depTargetsStr = "TODO!"
+		sb := strings.Builder{}
+		if len(options.DeploymentTargets) > 0 {
+			sb.WriteString("Include ")
+			for idx, name := range options.DeploymentTargets {
+				if idx > 0 {
+					sb.WriteString(",")
+				}
+				sb.WriteString(name)
+			}
+		}
+		if len(options.ExcludeTargets) > 0 {
+			if sb.Len() > 0 {
+				sb.WriteString("; ")
+			}
+
+			sb.WriteString("Exclude ")
+			for idx, name := range options.ExcludeTargets {
+				if idx > 0 {
+					sb.WriteString(",")
+				}
+				sb.WriteString(name)
+			}
+		}
+		depTargetsStr = sb.String()
 	}
 
 	_, _ = fmt.Fprintf(stdout, output.FormatDoc(heredoc.Doc(`
