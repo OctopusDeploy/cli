@@ -58,7 +58,7 @@ func NewCmdRoot(f factory.Factory, clientFactory apiclient.ClientFactory, askPro
 	cmd.AddCommand(environmentCmd.NewCmdEnvironment(f))
 
 	// configuration commands
-	cmd.AddCommand(configCmd.NewCmdRelease(f))
+	cmd.AddCommand(configCmd.NewCmdConfig(f))
 	cmd.AddCommand(spaceCmd.NewCmdSpace(f))
 
 	cmd.AddCommand(releaseCmd.NewCmdRelease(f))

@@ -8,7 +8,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func NewCmdRelease(f factory.Factory) *cobra.Command {
+func NewCmdConfig(f factory.Factory) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "config <command>",
 		Short: "Manage CLI config file",

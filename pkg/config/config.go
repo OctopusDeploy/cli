@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/OctopusDeploy/cli/pkg/constants"
+	"github.com/OctopusDeploy/cli/pkg/util"
 	"github.com/spf13/viper"
 )
 
@@ -34,7 +35,8 @@ func Setup() {
 	} else { // unix
 		viper.SetDefault(constants.ConfigEditor, "nano")
 	}
-	getConfigPath()
+	// used to set the config path in viper
+	_, _ = getConfigPath()
 
 	if err := viper.ReadInConfig(); err != nil {
 		if _, ok := err.(viper.ConfigFileNotFoundError); ok {
@@ -43,7 +45,7 @@ func Setup() {
 			// to the file system
 		} else {
 			// Config file was found but something is wrong
-			panic(fmt.Errorf("fatal error reading config file: %w", err))
+			fmt.Println("Error reading config file: %w", err)
 		}
 	}
 }
@@ -52,7 +54,8 @@ func SetupEnv() {
 	viper.BindEnv(constants.ConfigApiKey, constants.EnvOctopusApiKey)
 	viper.BindEnv(constants.ConfigHost, constants.EnvOctopusHost)
 	viper.BindEnv(constants.ConfigSpace, constants.EnvOctopusSpace)
-	viper.BindEnv(constants.ConfigEditor, constants.EnvEditor, constants.EnvVisual)
+	// Envs will take precedence in the specified order
+	viper.BindEnv(constants.ConfigEditor, constants.EnvVisual, constants.EnvEditor)
 	viper.BindEnv(constants.ConfigNoPrompt, constants.EnvCI)
 }
 
@@ -91,7 +94,7 @@ func getConfigPath() (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("error could not find user home directory: %w", err)
 	}
-	configPath := filepath.Join(home, ".config/octopus")
+	configPath := filepath.Join(home, ".config", "octopus")
 	viper.AddConfigPath(configPath)
 	return configPath, nil
 }
@@ -104,16 +107,11 @@ func writeNewConfig() error {
 	if err := os.MkdirAll(configPath, os.ModePerm); err != nil {
 		return err
 	}
-	return viper.SafeWriteConfigAs(fmt.Sprintf("%s/%s.%s", configPath, configName, defaultConfigFileType))
+	return viper.SafeWriteConfigAs(filepath.Join(configPath, fmt.Sprintf("%s.%s", configName, defaultConfigFileType)))
 }
 
 func ValidateKey(key string) bool {
 	key = strings.TrimSpace(key)
 	key = strings.ToLower(key)
-	for _, v := range viper.AllKeys() {
-		if v == key {
-			return true
-		}
-	}
-	return false
+	return util.SliceContains(viper.AllKeys(), key)
 }
