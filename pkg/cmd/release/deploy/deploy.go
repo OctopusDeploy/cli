@@ -81,16 +81,7 @@ const (
 // executions API stops here.
 
 // DEPLOYMENT TRACKING (Server Tasks): - this might be a separate `octopus task follow ID1, ID2, ID3`
-
-// DESIGN CHOICE: We are not going to show servertask progress in the CLI. We will need to optionally wait for deployments to complete though
-
-// TODO progress? // OUT?
-
-// TODO deploymentTimeout? (default to 10m)
-// TODO cancelOnTimeout? (default to true)
-
-// TODO deploymentCheckSleepCycle?
-// TODO waitForDeployment?
+// DESIGN CHOICE: We are not going to show servertask progress in the CLI.
 
 type DeployFlags struct {
 	Project              *flag.Flag[string]
@@ -107,7 +98,6 @@ type DeployFlags struct {
 	ForcePackageDownload *flag.Flag[bool]
 	DeploymentTargets    *flag.Flag[[]string]
 	ExcludeTargets       *flag.Flag[[]string]
-	// TODO what about deployment targets per tenant? How do you specify that on the cmdline? Look at octo
 }
 
 func NewDeployFlags() *DeployFlags {
@@ -136,7 +126,11 @@ func NewCmdDeploy(f factory.Factory) *cobra.Command {
 		Short: "Deploy releases in Octopus Deploy",
 		Long:  "Deploy releases in Octopus Deploy.",
 		Example: heredoc.Doc(`
-			$ octopus release deploy: TODO
+			$ octopus release deploy  # fully interactive
+			$ octopus release deploy --project MyProject --version 1.0 --environment Dev
+			$ octopus release deploy --project MyProject --version 1.0 --tenant-tag Regions/East --tenant-tag Regions/South
+			$ octopus release deploy -p MyProject --version 1.0 -e Dev --skip InstallStep --variable VarName:VarValue
+			$ octopus release deploy -p MyProject --version 1.0 -e Dev --force-package-download --guided-failure true -f basic
 		`),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) > 0 && deployFlags.Project.Value == "" {
@@ -158,7 +152,7 @@ func NewCmdDeploy(f factory.Factory) *cobra.Command {
 	flags.StringSliceVarP(&deployFlags.Variables.Value, deployFlags.Variables.Name, "v", nil, "Set the value for a prompted variable in the format Label:Value")
 	flags.BoolVarP(&deployFlags.UpdateVariables.Value, deployFlags.UpdateVariables.Name, "", false, "Overwrite the release variable snapshot by re-importing variables from the project.")
 	flags.StringSliceVarP(&deployFlags.ExcludedSteps.Value, deployFlags.ExcludedSteps.Name, "", nil, "Exclude specific steps from the deployment")
-	flags.StringVarP(&deployFlags.GuidedFailureMode.Value, deployFlags.GuidedFailureMode.Name, "", "", "Enable Guided failure mode (yes/no/default)")
+	flags.StringVarP(&deployFlags.GuidedFailureMode.Value, deployFlags.GuidedFailureMode.Name, "", "", "Enable Guided failure mode (true/false/default)")
 	flags.BoolVarP(&deployFlags.ForcePackageDownload.Value, deployFlags.ForcePackageDownload.Name, "", false, "Force re-download of packages")
 	flags.StringSliceVarP(&deployFlags.DeploymentTargets.Value, deployFlags.DeploymentTargets.Name, "", nil, "Deploy to this target (can be specified multiple times)")
 	flags.StringSliceVarP(&deployFlags.ExcludeTargets.Value, deployFlags.ExcludeTargets.Name, "", nil, "Deploy to targets except for this (can be specified multiple times)")
