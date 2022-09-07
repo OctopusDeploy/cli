@@ -4,12 +4,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/OctopusDeploy/cli/pkg/constants"
 	"strings"
+
+	"github.com/OctopusDeploy/cli/pkg/constants"
 
 	"github.com/OctopusDeploy/cli/pkg/usage"
 
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
 // Common struct used for rendering JSON summaries of things that just have an ID and a Name
@@ -48,6 +50,9 @@ type Mappers[T any] struct {
 
 func PrintArray[T any](items []T, cmd *cobra.Command, mappers Mappers[T]) error {
 	outputFormat, _ := cmd.Flags().GetString(constants.FlagOutputFormat)
+	if outputFormat == "" {
+		outputFormat = viper.GetString(constants.ConfigOutputFormat)
+	}
 
 	switch strings.ToLower(outputFormat) {
 	case constants.OutputFormatJson:
