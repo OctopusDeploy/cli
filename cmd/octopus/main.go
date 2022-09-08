@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/AlecAivazis/survey/v2/terminal"
 	"github.com/briandowns/spinner"
 	"os"
 	"time"
@@ -42,8 +43,8 @@ func main() {
 
 	cmd := root.NewCmdRoot(f, clientFactory, askProvider)
 	// if we don't do this then cmd.Print will get sent to stderr
-	cmd.SetOut(os.Stdout)
-	cmd.SetErr(os.Stderr)
+	cmd.SetOut(terminal.NewAnsiStdout(os.Stdout))
+	cmd.SetErr(terminal.NewAnsiStderr(os.Stderr))
 
 	if err := cmd.Execute(); err != nil {
 		cmd.PrintErr(err)
