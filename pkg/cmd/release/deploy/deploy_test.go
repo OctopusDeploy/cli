@@ -700,8 +700,8 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 				ExcludedSteps:        []string{"Cleanup"},
 				DeploymentTargets:    []string{"vm-1", "vm-2"},
 				ReleaseID:            release19.ID,
-				ScheduledStartTime:   "2022-09-09 09:25:02 +0800 Malaysia",
-				ScheduledExpiryTime:  "2022-09-09 09:30:02 +0800 Malaysia",
+				ScheduledStartTime:   "2022-09-09T09:25:02+08:00", // Important to note it's in ISO8601 which .NET on the server can parse with DateTimeOffset.Parse
+				ScheduledExpiryTime:  "2022-09-09T09:30:02+08:00", // Important to note it's in ISO8601 which .NET on the server can parse with DateTimeOffset.Parse
 			}, options)
 		}},
 
@@ -712,7 +712,7 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 				ExcludedSteps:                    []string{"Cleanup"},
 				GuidedFailureMode:                "false",
 				ForcePackageDownloadWasSpecified: true,
-				ScheduledStartTime:               now.String(),
+				ScheduledStartTime:               "some-sort-of-garbage(passthru to server)",
 			}
 
 			errReceiver := testutil.GoBegin(func() error {
@@ -792,7 +792,7 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 				ExcludedSteps:                    []string{"Cleanup"},
 				DeploymentTargets:                []string{"vm-1"},
 				ReleaseID:                        release19.ID,
-				ScheduledStartTime:               "2022-09-08 13:25:02 +0800 Malaysia",
+				ScheduledStartTime:               "some-sort-of-garbage(passthru to server)",
 			}, options)
 
 		}},
@@ -807,7 +807,7 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 				ForcePackageDownload:             true,
 				ForcePackageDownloadWasSpecified: true, // need this as well
 				ExcludeTargets:                   []string{"vm-99"},
-				ScheduledStartTime:               now.String(),
+				ScheduledStartTime:               "some-sort-of-garbage(passthru to server)",
 			}
 
 			errReceiver := testutil.GoBegin(func() error {
@@ -834,7 +834,7 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 				ExcludedSteps:                    []string{"Cleanup"},
 				ExcludeTargets:                   []string{"vm-99"},
 				ReleaseID:                        release19.ID,
-				ScheduledStartTime:               "2022-09-08 13:25:02 +0800 Malaysia",
+				ScheduledStartTime:               "some-sort-of-garbage(passthru to server)",
 			}, options)
 		}},
 

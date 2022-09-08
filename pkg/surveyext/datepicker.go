@@ -32,14 +32,15 @@ type DatePicker struct {
 	Help              string
 	selectedComponent componentIdx
 	runeBuffer        []rune
+	showingHelp       bool
 }
 
 type DatePickerTemplateData struct {
 	DatePicker
-	ShowHelp          bool
 	RawInput          string // this is full of ansi escape sequences... It'd be nice to have survey's template thing render this, TODO attempt that later
 	Answer            time.Time
 	ShowAnswer        bool
+	ShowHelp          bool
 	SelectedComponent componentIdx
 	Config            *survey.PromptConfig
 }
@@ -88,6 +89,7 @@ func (d *DatePicker) Cleanup(config *survey.PromptConfig, val interface{}) error
 		DatePickerTemplateData{
 			DatePicker: *d,
 			ShowAnswer: true,
+			ShowHelp:   d.showingHelp,
 			Answer:     t,
 			Config:     config,
 		})
@@ -137,6 +139,7 @@ func (d *DatePicker) Prompt(config *survey.PromptConfig) (interface{}, error) {
 			DatePickerTemplateData{
 				DatePicker: *d,
 				RawInput:   d.printTimeComponents(t),
+				ShowHelp:   d.showingHelp,
 				Config:     config,
 			})
 		if err != nil {
@@ -154,6 +157,14 @@ func (d *DatePicker) Prompt(config *survey.PromptConfig) (interface{}, error) {
 			return time.Time{}, err
 		}
 
+		var helpRune rune = 0
+		if config.HelpInput != "" {
+			for _, r := range config.HelpInput {
+				helpRune = r
+				break
+			}
+		}
+
 		switch r {
 		case terminal.KeyInterrupt:
 			_ = rr.RestoreTermMode()
@@ -163,6 +174,10 @@ func (d *DatePicker) Prompt(config *survey.PromptConfig) (interface{}, error) {
 			// if we don't re-print on exiting the loop it looks weird if we have uncommitted text
 			// let it fall through and exit the loop after it's printed
 			done = true
+		case helpRune:
+			if d.Help != "" {
+				d.showingHelp = true
+			}
 		case terminal.KeyArrowUp:
 			t = clamp(incrementComponent(d.commitRuneBuffer(t), d.selectedComponent), min, max)
 		case terminal.KeyArrowDown:
@@ -190,6 +205,7 @@ func (d *DatePicker) Prompt(config *survey.PromptConfig) (interface{}, error) {
 					DatePicker: *d,
 					RawInput:   d.printTimeComponents(t), // this overtypes any background color format etc
 					ShowAnswer: false,
+					ShowHelp:   d.showingHelp,
 					Config:     config,
 				})
 			if err != nil {

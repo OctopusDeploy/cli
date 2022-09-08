@@ -518,7 +518,7 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 			}
 			// if they enter a time within the 30s, assume 'now', else we need to pick it up
 			if answer.Time.After(now.Add(30 * time.Second)) {
-				options.ScheduledStartTime = answer.Time.String() // TODO can the server parse whatever this thing comes out with?
+				options.ScheduledStartTime = answer.Time.Format(time.RFC3339)
 
 				// only ask for an expiry if they didn't pick "now"
 				fiveMinExpiry := answer.Time.Add(5 * time.Minute)
@@ -531,7 +531,7 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 				if err != nil {
 					return err
 				}
-				options.ScheduledExpiryTime = answer.Time.String()
+				options.ScheduledExpiryTime = answer.Time.Format(time.RFC3339)
 			}
 		}
 
