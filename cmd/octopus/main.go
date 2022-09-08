@@ -2,11 +2,13 @@ package main
 
 import (
 	"fmt"
+	"github.com/AlecAivazis/survey/v2/terminal"
 	"github.com/briandowns/spinner"
 	"os"
 	"time"
 
 	"github.com/AlecAivazis/survey/v2"
+	"github.com/OctopusDeploy/cli/pkg/config"
 	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/OctopusDeploy/cli/pkg/question"
 	"github.com/OctopusDeploy/cli/pkg/usage"
@@ -21,6 +23,14 @@ func main() {
 	// if there is a missing or invalid .env file anywhere, we don't care, just ignore it
 	_ = godotenv.Load()
 
+	config.Setup()
+	config.SetupEnv()
+	arg := os.Args[1:]
+	cmdToRun := ""
+	if len(arg) > 0 {
+		cmdToRun = arg[0]
+	}
+
 	// initialize our wrapper around survey, which is also used as a flag for whether
 	// we are in interactive mode or automation mode
 	askProvider := question.NewAskProvider(survey.AskOne)
@@ -30,10 +40,12 @@ func main() {
 		askProvider.DisableInteractive()
 	}
 
-	clientFactory, err := apiclient.NewClientFactoryFromEnvironment(askProvider)
+	clientFactory, err := apiclient.NewClientFactoryFromConfig(askProvider)
 	if err != nil {
-		fmt.Println(err)
-		os.Exit(3)
+		if cmdToRun != "config" {
+			fmt.Println(err)
+			os.Exit(3)
+		}
 	}
 
 	s := spinner.New(spinner.CharSets[11], 100*time.Millisecond, spinner.WithColor("cyan"))
@@ -41,9 +53,10 @@ func main() {
 	f := factory.New(clientFactory, askProvider, s)
 
 	cmd := root.NewCmdRoot(f, clientFactory, askProvider)
+
 	// if we don't do this then cmd.Print will get sent to stderr
-	cmd.SetOut(os.Stdout)
-	cmd.SetErr(os.Stderr)
+	cmd.SetOut(terminal.NewAnsiStdout(os.Stdout))
+	cmd.SetErr(terminal.NewAnsiStderr(os.Stderr))
 
 	if err := cmd.Execute(); err != nil {
 		cmd.PrintErr(err)
