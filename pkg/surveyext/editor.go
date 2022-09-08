@@ -8,28 +8,18 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
-	"runtime"
 
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/AlecAivazis/survey/v2/terminal"
+	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/kballard/go-shellquote"
+	"github.com/spf13/viper"
 )
 
 var (
 	editor = "nano"
 	bom    = []byte{0xef, 0xbb, 0xbf}
 )
-
-func init() {
-	if runtime.GOOS == "windows" {
-		editor = "notepad"
-	}
-	if v := os.Getenv("VISUAL"); v != "" {
-		editor = v
-	} else if e := os.Getenv("EDITOR"); e != "" {
-		editor = e
-	}
-}
 
 type OctoEditor struct {
 	*survey.Editor
@@ -163,6 +153,8 @@ func (e *OctoEditor) prompt(initialValue string, config *survey.PromptConfig) (i
 	if err := f.Close(); err != nil {
 		return "", err
 	}
+
+	editor = viper.GetString(constants.ConfigEditor)
 
 	// check is input editor exist
 	if e.Editor.Editor != "" {
