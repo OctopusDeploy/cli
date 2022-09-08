@@ -86,8 +86,8 @@ type TaskOptionsDeployRelease struct {
 	Environments         []string // multiple for untenanted deployment, only one entry for tenanted deployment
 	Tenants              []string
 	TenantTags           []string
-	DeployAt             string
-	MaxQueueTime         string
+	ScheduledStartTime   string
+	ScheduledExpiryTime  string
 	ExcludedSteps        []string
 	GuidedFailureMode    string // ["", "true", "false", "default"]. Note default and "" are the same, the only difference is whether interactive mode prompts you
 	ForcePackageDownload bool

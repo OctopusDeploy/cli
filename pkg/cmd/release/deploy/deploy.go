@@ -31,6 +31,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 )
 
 const (
@@ -53,9 +54,8 @@ const (
 	FlagAliasWhen           = "when" // alias for deploy-at
 	FlagAliasDeployAtLegacy = "deployAt"
 
-	// Don't ask this question in interactive mode; leave it for advanced. TODO review later with team
-	FlagMaxQueueTime             = "max-queue-time" // should we have this as --no-deploy-after instead?
-	FlagAliasNoDeployAfterLegacy = "noDeployAfter"  // max queue time
+	FlagDeployAtExpiry           = "deploy-at-expiry"
+	FlagAliasNoDeployAfterLegacy = "noDeployAfter" // max queue time
 
 	FlagSkip = "skip" // can be specified multiple times
 
@@ -107,7 +107,7 @@ func NewDeployFlags() *DeployFlags {
 		Environments:         flag.New[[]string](FlagEnvironment, false),
 		Tenants:              flag.New[[]string](FlagTenant, false),
 		TenantTags:           flag.New[[]string](FlagTenantTag, false),
-		MaxQueueTime:         flag.New[string](FlagMaxQueueTime, false),
+		MaxQueueTime:         flag.New[string](FlagDeployAtExpiry, false),
 		DeployAt:             flag.New[string](FlagDeployAt, false),
 		Variables:            flag.New[[]string](FlagVariable, false),
 		UpdateVariables:      flag.New[bool](FlagUpdateVariables, false),
@@ -165,7 +165,7 @@ func NewCmdDeploy(f factory.Factory) *cobra.Command {
 	util.AddFlagAliasesString(flags, FlagEnvironment, flagAliases, FlagAliasDeployToLegacy, FlagAliasEnv)
 	util.AddFlagAliasesString(flags, FlagTenantTag, flagAliases, FlagAliasTag, FlagAliasTenantTagLegacy)
 	util.AddFlagAliasesString(flags, FlagDeployAt, flagAliases, FlagAliasWhen, FlagAliasDeployAtLegacy)
-	util.AddFlagAliasesString(flags, FlagMaxQueueTime, flagAliases, FlagAliasNoDeployAfterLegacy)
+	util.AddFlagAliasesString(flags, FlagDeployAtExpiry, flagAliases, FlagAliasNoDeployAfterLegacy)
 	util.AddFlagAliasesString(flags, FlagUpdateVariables, flagAliases, FlagAliasUpdateVariablesLegacy)
 	util.AddFlagAliasesString(flags, FlagGuidedFailure, flagAliases, FlagAliasGuidedFailureMode, FlagAliasGuidedFailureModeLegacy)
 	util.AddFlagAliasesBool(flags, FlagForcePackageDownload, flagAliases, FlagAliasForcePackageDownloadLegacy)
@@ -210,8 +210,8 @@ func deployRun(cmd *cobra.Command, f factory.Factory, flags *DeployFlags) error 
 		Environments:         flags.Environments.Value,
 		Tenants:              flags.Tenants.Value,
 		TenantTags:           flags.TenantTags.Value,
-		DeployAt:             flags.DeployAt.Value,
-		MaxQueueTime:         flags.MaxQueueTime.Value,
+		ScheduledStartTime:   flags.DeployAt.Value,
+		ScheduledExpiryTime:  flags.MaxQueueTime.Value,
 		ExcludedSteps:        flags.ExcludedSteps.Value,
 		GuidedFailureMode:    flags.GuidedFailureMode.Value,
 		ForcePackageDownload: flags.ForcePackageDownload.Value,
@@ -226,7 +226,14 @@ func deployRun(cmd *cobra.Command, f factory.Factory, flags *DeployFlags) error 
 	}
 
 	if f.IsPromptEnabled() {
-		err = AskQuestions(octopus, cmd.OutOrStdout(), f.Ask, f.GetCurrentSpace(), options)
+		now := time.Now()
+		if cmd.Context() != nil { // allow context to override the definition of 'now' for testing
+			if n, ok := cmd.Context().Value(constants.ContextKeyTimeNow).(time.Time); ok {
+				now = n
+			}
+		}
+
+		err = AskQuestions(octopus, cmd.OutOrStdout(), f.Ask, f.GetCurrentSpace(), options, now)
 		if err != nil {
 			return err
 		}
@@ -239,8 +246,8 @@ func deployRun(cmd *cobra.Command, f factory.Factory, flags *DeployFlags) error 
 			resolvedFlags.Environments.Value = options.Environments
 			resolvedFlags.Tenants.Value = options.Tenants
 			resolvedFlags.TenantTags.Value = options.TenantTags
-			resolvedFlags.DeployAt.Value = options.DeployAt
-			resolvedFlags.MaxQueueTime.Value = options.MaxQueueTime
+			resolvedFlags.DeployAt.Value = options.ScheduledStartTime
+			resolvedFlags.MaxQueueTime.Value = options.ScheduledExpiryTime
 			resolvedFlags.ExcludedSteps.Value = options.ExcludedSteps
 			resolvedFlags.GuidedFailureMode.Value = options.GuidedFailureMode
 			resolvedFlags.DeploymentTargets.Value = options.DeploymentTargets
@@ -337,7 +344,7 @@ func deployRun(cmd *cobra.Command, f factory.Factory, flags *DeployFlags) error 
 	return nil
 }
 
-func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker question.Asker, space *spaces.Space, options *executor.TaskOptionsDeployRelease) error {
+func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker question.Asker, space *spaces.Space, options *executor.TaskOptionsDeployRelease, now time.Time) error {
 	if octopus == nil {
 		return cliErrors.NewArgumentNullOrEmptyError("octopus")
 	}
@@ -471,12 +478,13 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 
 	PrintAdvancedSummary(stdout, options)
 
+	isDeployAtSpecified := options.ScheduledStartTime != ""
 	isExcludedStepsSpecified := len(options.ExcludedSteps) > 0
 	isGuidedFailureModeSpecified := options.GuidedFailureMode != ""
 	isForcePackageDownloadSpecified := options.ForcePackageDownloadWasSpecified
 	isDeploymentTargetsSpecified := len(options.DeploymentTargets) > 0 || len(options.ExcludeTargets) > 0
 
-	allAdvancedOptionsSpecified := isExcludedStepsSpecified && isGuidedFailureModeSpecified && isForcePackageDownloadSpecified && isDeploymentTargetsSpecified
+	allAdvancedOptionsSpecified := isDeployAtSpecified && isExcludedStepsSpecified && isGuidedFailureModeSpecified && isForcePackageDownloadSpecified && isDeploymentTargetsSpecified
 
 	shouldAskAdvancedQuestions := false
 	if !allAdvancedOptionsSpecified {
@@ -496,7 +504,35 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 	}
 
 	if shouldAskAdvancedQuestions {
-		// TODO when? (timed deployment)
+		if !isDeployAtSpecified {
+			var answer surveyext.DatePickerAnswer
+			err = asker(&surveyext.DatePicker{
+				Message: "Deploy Scheduled start time",
+				Default: now,
+				Help:    "Enter the date and time that this deployment should start",
+				Min:     now,
+			}, &answer)
+			if err != nil {
+				return err
+			}
+			// if they enter a time within the 30s, assume 'now', else we need to pick it up
+			if answer.Time.After(now.Add(30 * time.Second)) {
+				options.ScheduledStartTime = answer.Time.String() // TODO can the server parse whatever this thing comes out with?
+
+				// only ask for an expiry if they didn't pick "now"
+				fiveMinExpiry := answer.Time.Add(5 * time.Minute)
+				err = asker(&surveyext.DatePicker{
+					Message: "Deploy Scheduled expiry time",
+					Help:    "After the start time, the deployment will be queued. If it cannot start before 'expiry' time, then cancel the operation",
+					Default: fiveMinExpiry,
+					Min:     fiveMinExpiry,
+				}, &answer)
+				if err != nil {
+					return err
+				}
+				options.ScheduledExpiryTime = answer.Time.String()
+			}
+		}
 
 		if !isExcludedStepsSpecified {
 			// select steps to exclude
@@ -743,8 +779,8 @@ func lookupPackageDownloadString(value bool) string {
 
 func PrintAdvancedSummary(stdout io.Writer, options *executor.TaskOptionsDeployRelease) {
 	deployAtStr := "Now"
-	if options.DeployAt != "" {
-		deployAtStr = options.DeployAt // we assume the server is going to understand this
+	if options.ScheduledStartTime != "" {
+		deployAtStr = options.ScheduledStartTime // we assume the server is going to understand this
 	}
 	skipStepsStr := "None"
 	if len(options.ExcludedSteps) > 0 {

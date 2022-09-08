@@ -13,6 +13,12 @@ const (
 	FlagNoPrompt           = "no-prompt"
 )
 
+// flags for storing things in the go context
+const (
+	ContextKeyTimeNow = "time.now"
+)
+
+// values for output formats
 const (
 	OutputFormatJson  = "json"
 	OutputFormatBasic = "basic"

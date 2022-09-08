@@ -2,6 +2,7 @@ package deploy_test
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"github.com/AlecAivazis/survey/v2"
@@ -9,8 +10,10 @@ import (
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/cmd/release/deploy"
 	cmdRoot "github.com/OctopusDeploy/cli/pkg/cmd/root"
+	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/executor"
 	"github.com/OctopusDeploy/cli/pkg/question"
+	"github.com/OctopusDeploy/cli/pkg/surveyext"
 	"github.com/OctopusDeploy/cli/test/fixtures"
 	"github.com/OctopusDeploy/cli/test/testutil"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/channels"
@@ -27,6 +30,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"net/url"
 	"testing"
+	"time"
 )
 
 var serverUrl, _ = url.Parse("http://server")
@@ -34,6 +38,9 @@ var serverUrl, _ = url.Parse("http://server")
 const placeholderApiKey = "API-XXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
 
 var rootResource = testutil.NewRootResource()
+
+var now = time.Date(2022, time.September, 8, 13, 25, 2, 0, time.FixedZone("Malaysia", 8*3600)) // UTC+8
+var ctx = context.WithValue(context.TODO(), constants.ContextKeyTimeNow, now)
 
 func TestDeployCreate_AskQuestions(t *testing.T) {
 	const spaceID = "Spaces-1"
@@ -137,7 +144,7 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 				defer testutil.Close(api, qa)
 				// NewClient makes network calls so we have to run it in the goroutine
 				octopus, _ := octopusApiClient.NewClient(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "")
-				return deploy.AskQuestions(octopus, stdout, qa.AsAsker(), space1, options)
+				return deploy.AskQuestions(octopus, stdout, qa.AsAsker(), space1, options, now)
 			})
 
 			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
@@ -224,7 +231,7 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 				defer testutil.Close(api, qa)
 				// NewClient makes network calls so we have to run it in the goroutine
 				octopus, _ := octopusApiClient.NewClient(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "")
-				return deploy.AskQuestions(octopus, stdout, qa.AsAsker(), space1, options)
+				return deploy.AskQuestions(octopus, stdout, qa.AsAsker(), space1, options, now)
 			})
 
 			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
@@ -282,7 +289,7 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 				defer testutil.Close(api, qa)
 				// NewClient makes network calls so we have to run it in the goroutine
 				octopus, _ := octopusApiClient.NewClient(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "")
-				return deploy.AskQuestions(octopus, stdout, qa.AsAsker(), space1, options)
+				return deploy.AskQuestions(octopus, stdout, qa.AsAsker(), space1, options, now)
 			})
 
 			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
@@ -344,7 +351,7 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 				defer testutil.Close(api, qa)
 				// NewClient makes network calls so we have to run it in the goroutine
 				octopus, _ := octopusApiClient.NewClient(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "")
-				return deploy.AskQuestions(octopus, stdout, qa.AsAsker(), space1, options)
+				return deploy.AskQuestions(octopus, stdout, qa.AsAsker(), space1, options, now)
 			})
 
 			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
@@ -437,7 +444,7 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 				defer testutil.Close(api, qa)
 				// NewClient makes network calls so we have to run it in the goroutine
 				octopus, _ := octopusApiClient.NewClient(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "")
-				return deploy.AskQuestions(octopus, stdout, qa.AsAsker(), space1, options)
+				return deploy.AskQuestions(octopus, stdout, qa.AsAsker(), space1, options, now)
 			})
 
 			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
@@ -534,7 +541,7 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 				defer testutil.Close(api, qa)
 				// NewClient makes network calls so we have to run it in the goroutine
 				octopus, _ := octopusApiClient.NewClient(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "")
-				return deploy.AskQuestions(octopus, stdout, qa.AsAsker(), space1, options)
+				return deploy.AskQuestions(octopus, stdout, qa.AsAsker(), space1, options, now)
 			})
 
 			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
@@ -607,7 +614,7 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 			errReceiver := testutil.GoBegin(func() error {
 				defer testutil.Close(api, qa)
 				octopus, _ := octopusApiClient.NewClient(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "")
-				return deploy.AskQuestions(octopus, stdout, qa.AsAsker(), space1, options)
+				return deploy.AskQuestions(octopus, stdout, qa.AsAsker(), space1, options, now)
 			})
 
 			doStandardApiResponses(options, api, release19, variableSnapshotNoVars)
@@ -618,6 +625,22 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 				Options: []string{"Proceed to deploy", "Change advanced options"},
 			}).AnswerWith("Change advanced options")
 			stdout.Reset()
+
+			plus20hours := now.Add(20 * time.Hour)
+			_ = qa.ExpectQuestion(t, &surveyext.DatePicker{
+				Message: "Deploy Scheduled start time",
+				Default: now,
+				Help:    "Enter the date and time that this deployment should start",
+				Min:     now,
+			}).AnswerWith(plus20hours)
+
+			plus20hours5mins := plus20hours.Add(5 * time.Minute)
+			_ = qa.ExpectQuestion(t, &surveyext.DatePicker{
+				Message: "Deploy Scheduled expiry time",
+				Default: plus20hours5mins,
+				Help:    "After the start time, the deployment will be queued. If it cannot start before 'expiry' time, then cancel the operation",
+				Min:     plus20hours5mins,
+			}).AnswerWith(plus20hours5mins)
 
 			// it's going to load the deployment process to ask about excluded steps
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/deploymentprocesses/"+depProcessSnapshot.ID).RespondWith(depProcessSnapshot)
@@ -676,6 +699,8 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 				ExcludedSteps:        []string{"Cleanup"},
 				DeploymentTargets:    []string{"vm-1", "vm-2"},
 				ReleaseID:            release19.ID,
+				ScheduledStartTime:   "2022-09-09 09:25:02 +0800 Malaysia",
+				ScheduledExpiryTime:  "2022-09-09 09:30:02 +0800 Malaysia",
 			}, options)
 		}},
 
@@ -686,12 +711,13 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 				ExcludedSteps:                    []string{"Cleanup"},
 				GuidedFailureMode:                "false",
 				ForcePackageDownloadWasSpecified: true,
+				ScheduledStartTime:               now.String(),
 			}
 
 			errReceiver := testutil.GoBegin(func() error {
 				defer testutil.Close(api, qa)
 				octopus, _ := octopusApiClient.NewClient(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "")
-				return deploy.AskQuestions(octopus, stdout, qa.AsAsker(), space1, options)
+				return deploy.AskQuestions(octopus, stdout, qa.AsAsker(), space1, options, now)
 			})
 
 			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
@@ -765,6 +791,7 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 				ExcludedSteps:                    []string{"Cleanup"},
 				DeploymentTargets:                []string{"vm-1"},
 				ReleaseID:                        release19.ID,
+				ScheduledStartTime:               "2022-09-08 13:25:02 +0800 Malaysia",
 			}, options)
 
 		}},
@@ -779,12 +806,13 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 				ForcePackageDownload:             true,
 				ForcePackageDownloadWasSpecified: true, // need this as well
 				ExcludeTargets:                   []string{"vm-99"},
+				ScheduledStartTime:               now.String(),
 			}
 
 			errReceiver := testutil.GoBegin(func() error {
 				defer testutil.Close(api, qa)
 				octopus, _ := octopusApiClient.NewClient(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "")
-				return deploy.AskQuestions(octopus, stdout, qa.AsAsker(), space1, options)
+				return deploy.AskQuestions(octopus, stdout, qa.AsAsker(), space1, options, now)
 			})
 
 			doStandardApiResponses(options, api, release19, variableSnapshotNoVars)
@@ -805,6 +833,7 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 				ExcludedSteps:                    []string{"Cleanup"},
 				ExcludeTargets:                   []string{"vm-99"},
 				ReleaseID:                        release19.ID,
+				ScheduledStartTime:               "2022-09-08 13:25:02 +0800 Malaysia",
 			}, options)
 		}},
 
@@ -818,12 +847,13 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 				ForcePackageDownload:             false,
 				ForcePackageDownloadWasSpecified: true,
 				ExcludeTargets:                   []string{"vm-99"}, // just to skip the question
+				ScheduledStartTime:               now.String(),
 			}
 
 			errReceiver := testutil.GoBegin(func() error {
 				defer testutil.Close(api, qa)
 				octopus, _ := octopusApiClient.NewClient(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "")
-				return deploy.AskQuestions(octopus, stdout, qa.AsAsker(), space1, options)
+				return deploy.AskQuestions(octopus, stdout, qa.AsAsker(), space1, options, now)
 			})
 
 			doStandardApiResponses(options, api, release19, variableSnapshotNoVars)
@@ -844,6 +874,7 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 				ExcludedSteps:                    []string{"Cleanup"},
 				ExcludeTargets:                   []string{"vm-99"},
 				ReleaseID:                        release19.ID,
+				ScheduledStartTime:               "2022-09-08 13:25:02 +0800 Malaysia",
 			}, options)
 		}},
 	}
@@ -907,6 +938,7 @@ func TestDeployCreate_GenerationOfAutomationCommand_MasksSensitiveVariables(t *t
 	askProvider := question.NewAskProvider(qa.AsAsker())
 
 	rootCmd := cmdRoot.NewCmdRoot(testutil.NewMockFactoryWithSpaceAndPrompt(api, space1, askProvider), nil, askProvider)
+	rootCmd.SetContext(ctx)
 	rootCmd.SetOut(stdout)
 	rootCmd.SetErr(stderr)
 
@@ -1020,7 +1052,7 @@ func TestDeployCreate_PrintAdvancedSummary(t *testing.T) {
 
 		{"all the things different", func(t *testing.T, stdout *bytes.Buffer) {
 			options := &executor.TaskOptionsDeployRelease{
-				DeployAt:             "2022-09-23",
+				ScheduledStartTime:   "2022-09-23",
 				GuidedFailureMode:    "false",
 				ForcePackageDownload: true,
 				ExcludedSteps:        []string{"Step 1", "Step 37"},
@@ -1070,8 +1102,6 @@ func TestDeployCreate_PrintAdvancedSummary(t *testing.T) {
 			  Deployment Targets: Exclude vm-4
 			`), stdout.String())
 		}},
-
-		// TODO test for deployment target include AND exclude
 	}
 
 	for _, test := range tests {

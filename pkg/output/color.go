@@ -10,7 +10,7 @@ import (
 )
 
 var (
-	isColorEnabled = os.Getenv("NO_COLOR") == "" && term.IsTerminal(int(os.Stdout.Fd()))
+	IsColorEnabled = os.Getenv("NO_COLOR") == "" && term.IsTerminal(int(os.Stdout.Fd()))
 	magenta        = ansi.ColorFunc("magenta")
 	cyan           = ansi.ColorFunc("cyan")
 	red            = ansi.ColorFunc("red")
@@ -22,7 +22,7 @@ var (
 )
 
 func Blue(s string) string {
-	if !isColorEnabled {
+	if !IsColorEnabled {
 		return s
 	}
 	return blue(s)
@@ -33,7 +33,7 @@ func Bluef(s string, args ...interface{}) string {
 }
 
 func Magenta(s string) string {
-	if !isColorEnabled {
+	if !IsColorEnabled {
 		return s
 	}
 	return magenta(s)
@@ -44,7 +44,7 @@ func Magentaf(s string, args ...interface{}) string {
 }
 
 func Cyan(s string) string {
-	if !isColorEnabled {
+	if !IsColorEnabled {
 		return s
 	}
 	return cyan(s)
@@ -55,7 +55,7 @@ func Cyanf(s string, args ...interface{}) string {
 }
 
 func Red(s string) string {
-	if !isColorEnabled {
+	if !IsColorEnabled {
 		return s
 	}
 	return red(s)
@@ -66,7 +66,7 @@ func Redf(s string, args ...interface{}) string {
 }
 
 func Yellow(s string) string {
-	if !isColorEnabled {
+	if !IsColorEnabled {
 		return s
 	}
 	return yellow(s)
@@ -77,7 +77,7 @@ func Yellowf(s string, args ...interface{}) string {
 }
 
 func Green(s string) string {
-	if !isColorEnabled {
+	if !IsColorEnabled {
 		return s
 	}
 	return green(s)
@@ -88,7 +88,7 @@ func Greenf(s string, args ...interface{}) string {
 }
 
 func Bold(s string) string {
-	if !isColorEnabled {
+	if !IsColorEnabled {
 		return s
 	}
 	return bold(s)
@@ -99,7 +99,7 @@ func Boldf(s string, args ...interface{}) string {
 }
 
 func Dim(s string) string {
-	if !isColorEnabled {
+	if !IsColorEnabled {
 		return s
 	}
 	return dim(s)
