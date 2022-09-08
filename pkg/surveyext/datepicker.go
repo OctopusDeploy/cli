@@ -53,8 +53,7 @@ var DatePickerQuestionTemplate = `
 {{- else }}
   {{- if and .Help (not .ShowHelp)}}{{color "cyan"}}[{{ .Config.HelpInput }} for help]{{color "reset"}} {{end}}
   {{ .RawInput }}{{color "reset"}}{{"\n"}}
-{{- end}}
-`
+{{- end}}`
 
 // DatePickerAnswer exists to workaround a survey bug (unintented code path?) where if the answer is a struct it
 // thinks you're asking multiple questions and collecting the answers into struct fields.
@@ -81,15 +80,8 @@ func (a *DatePickerAnswer) WriteAnswer(_ string, value interface{}) error {
 	}
 }
 
-func (d *DatePicker) Prompt(config *survey.PromptConfig) (interface{}, error) {
-	return d.prompt(config)
-}
 func (d *DatePicker) Cleanup(config *survey.PromptConfig, val interface{}) error {
-	// because we're doing the color escape codes manually, we draw on a new line which we must erase after asking the question
-	//cursor := d.NewCursor()
-	//_ = cursor.Restore()
 	t := val.(time.Time)
-
 	d.selectedComponent = cmpNone
 	err := d.Render(
 		DatePickerQuestionTemplate,
@@ -101,6 +93,7 @@ func (d *DatePicker) Cleanup(config *survey.PromptConfig, val interface{}) error
 		})
 	return err
 }
+
 func (d *DatePicker) Error(*survey.PromptConfig, error) error {
 	return nil // do nothing; our prompt loop is self-contained
 }
@@ -118,7 +111,7 @@ func invertedCyanf(s string, args ...any) string {
 	return invertedCyan(fmt.Sprintf(s, args...))
 }
 
-func (d *DatePicker) prompt(config *survey.PromptConfig) (time.Time, error) {
+func (d *DatePicker) Prompt(config *survey.PromptConfig) (interface{}, error) {
 	var t time.Time
 
 	min := stripMilliseconds(d.Min)
@@ -132,12 +125,8 @@ func (d *DatePicker) prompt(config *survey.PromptConfig) (time.Time, error) {
 	}
 
 	cursor := d.NewCursor()
-	_ = cursor.Save()
 	_ = cursor.Hide()
-	defer func() {
-		_ = cursor.Show()
-		_ = cursor.Restore()
-	}()
+	defer func() { _ = cursor.Show() }()
 
 	d.selectedComponent = cmpYear
 
@@ -193,19 +182,14 @@ func (d *DatePicker) prompt(config *survey.PromptConfig) (time.Time, error) {
 		}
 
 		_ = rr.RestoreTermMode()
-		//err = cursor.Restore() // put cursor back at the start of the line, so we print over the top
-		//if err != nil {
-		//	return time.Time{}, err
-		//}
-
 		if done { // last extra print before we exit the loop
 			d.selectedComponent = cmpNone
 			err = d.Render(
 				DatePickerQuestionTemplate,
 				DatePickerTemplateData{
 					DatePicker: *d,
-					Answer:     t,
-					ShowAnswer: true,
+					RawInput:   d.printTimeComponents(t), // this overtypes any background color format etc
+					ShowAnswer: false,
 					Config:     config,
 				})
 			if err != nil {
