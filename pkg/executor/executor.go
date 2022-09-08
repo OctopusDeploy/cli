@@ -13,6 +13,7 @@ type TaskType string
 const (
 	TaskTypeCreateAccount = TaskType("CreateAccount")
 	TaskTypeCreateRelease = TaskType("CreateRelease")
+	TaskTypeDeployRelease = TaskType("DeployRelease")
 )
 
 type Task struct {
@@ -44,6 +45,10 @@ func ProcessTasks(octopus *client.Client, space *spaces.Space, tasks []*Task) er
 			}
 		case TaskTypeCreateRelease:
 			if err := releaseCreate(octopus, space, task.Options); err != nil {
+				return err
+			}
+		case TaskTypeDeployRelease:
+			if err := releaseDeploy(octopus, space, task.Options); err != nil {
 				return err
 			}
 		default:

@@ -2,6 +2,7 @@ package testutil
 
 import (
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"runtime/debug"
@@ -61,6 +62,9 @@ func NewMockHttpClientWithTransport(transport http.RoundTripper) *http.Client {
 
 // NOTE max length of 8k
 func ReadJson[T any](body io.ReadCloser) (T, error) {
+	if body == nil {
+		return *new(T), errors.New("can't read nil body")
+	}
 	buf := make([]byte, 8192)
 
 	bytesRead, err := body.Read(buf)

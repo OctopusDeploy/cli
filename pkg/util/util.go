@@ -36,6 +36,16 @@ func SliceFilter[T any](slice []T, predicate func(item T) bool) []T {
 	return results
 }
 
+// SliceContainsAny returns true if it finds an item in the slice where `predicate` returns true
+func SliceContainsAny[T comparable](slice []T, predicate func(item T) bool) bool {
+	for _, item := range slice {
+		if predicate(item) {
+			return true
+		}
+	}
+	return false
+}
+
 // ExtractValuesMatchingKeys returns a collection of values which matched a specified set of keys, in the exact order of keys.
 // Given a collection of items, and a collection of keys to match within that collection
 // This makes no sense, hopefully an example helps:

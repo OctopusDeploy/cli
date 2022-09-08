@@ -1,4 +1,4 @@
-package util
+package selectors
 
 import (
 	"fmt"
@@ -8,7 +8,7 @@ import (
 	"strings"
 )
 
-func SelectProject(questionText string, octopus *octopusApiClient.Client, ask question.Asker) (*projects.Project, error) {
+func Project(questionText string, octopus *octopusApiClient.Client, ask question.Asker) (*projects.Project, error) {
 	existingProjects, err := octopus.Projects.GetAll()
 	if err != nil {
 		return nil, err

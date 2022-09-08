@@ -13,6 +13,7 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/OctopusDeploy/cli/pkg/output"
 	"github.com/OctopusDeploy/cli/pkg/question"
+	"github.com/OctopusDeploy/cli/pkg/question/selectors"
 	"github.com/OctopusDeploy/cli/pkg/surveyext"
 	"github.com/OctopusDeploy/cli/pkg/util"
 	"github.com/OctopusDeploy/cli/pkg/util/flag"
@@ -106,13 +107,6 @@ bold(PACKAGE OVERRIDE STRINGS)
 dim(---------------------------------------------------------------------)
 `) // note this expects to have prettifyHelp run over it
 
-func prettifyHelp(str string) string {
-	str = regexp.MustCompile("bold\\((.*?)\\)").ReplaceAllString(str, output.Bold("$1"))
-	str = regexp.MustCompile("green\\((.*?)\\)").ReplaceAllString(str, output.Green("$1"))
-	str = regexp.MustCompile("dim\\((.*?)\\)").ReplaceAllString(str, output.Dim("$1"))
-	return str
-}
-
 type CreateFlags struct {
 	Project            *flag.Flag[string]
 	Channel            *flag.Flag[string]
@@ -169,7 +163,7 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 	flags.StringVarP(&createFlags.PackageVersion.Value, createFlags.PackageVersion.Name, "", "", "Default version to use for all Packages")
 	flags.StringVarP(&createFlags.ReleaseNotes.Value, createFlags.ReleaseNotes.Name, "n", "", "Release notes to attach")
 	flags.StringVarP(&createFlags.ReleaseNotesFile.Value, createFlags.ReleaseNotesFile.Name, "", "", "Release notes to attach (from file)")
-	flags.StringVarP(&createFlags.Version.Value, createFlags.Version.Name, "v", "", "Override the Release Version")
+	flags.StringVarP(&createFlags.Version.Value, createFlags.Version.Name, "", "", "Override the Release Version")
 	flags.BoolVarP(&createFlags.IgnoreExisting.Value, createFlags.IgnoreExisting.Name, "x", false, "If a release with the same version exists, do nothing instead of failing.")
 	flags.BoolVarP(&createFlags.IgnoreChannelRules.Value, createFlags.IgnoreChannelRules.Name, "", false, "Allow creation of a release where channel rules would otherwise prevent it.")
 	flags.StringSliceVarP(&createFlags.PackageVersionSpec.Value, createFlags.PackageVersionSpec.Name, "", []string{}, "Version specification a specific packages.\nFormat as {package}:{version}, {step}:{version} or {package-ref-name}:{packageOrStep}:{version}\nYou may specify this multiple times")
@@ -217,18 +211,17 @@ func createRun(cmd *cobra.Command, f factory.Factory, flags *CreateFlags) error 
 
 	// ignore errors when fetching flags
 	options := &executor.TaskOptionsCreateRelease{
-		ProjectName: flags.Project.Value,
+		ProjectName:             flags.Project.Value,
+		DefaultPackageVersion:   flags.PackageVersion.Value,
+		PackageVersionOverrides: flags.PackageVersionSpec.Value,
+		ChannelName:             flags.Channel.Value,
+		GitReference:            flags.GitRef.Value,
+		GitCommit:               flags.GitCommit.Value,
+		Version:                 flags.Version.Value,
+		ReleaseNotes:            flags.ReleaseNotes.Value,
+		IgnoreIfAlreadyExists:   flags.IgnoreExisting.Value,
+		IgnoreChannelRules:      flags.IgnoreChannelRules.Value,
 	}
-
-	options.DefaultPackageVersion = flags.PackageVersion.Value
-	options.PackageVersionOverrides = flags.PackageVersionSpec.Value
-	options.ChannelName = flags.Channel.Value
-	options.GitReference = flags.GitRef.Value
-	options.GitCommit = flags.GitCommit.Value
-	options.Version = flags.Version.Value
-	options.ReleaseNotes = flags.ReleaseNotes.Value
-	options.IgnoreIfAlreadyExists = flags.IgnoreExisting.Value
-	options.IgnoreChannelRules = flags.IgnoreChannelRules.Value
 
 	if flags.ReleaseNotesFile.Value != "" {
 		fileContents, err := os.ReadFile(flags.ReleaseNotesFile.Value)
@@ -505,7 +498,7 @@ func (p *PackageVersionOverride) ToPackageOverrideString() string {
 }
 
 // splitPackageOverrideString splits the input string into components based on delimiter characters.
-// we want to pick up empty entries here; so "::5" nad ":pterm:5" should both return THREE components, rather than one or two
+// we want to pick up empty entries here; so "::5" and ":pterm:5" should both return THREE components, rather than one or two
 // and we want to allow for multiple different delimeters.
 // neither the builtin golang strings.Split or strings.FieldsFunc support this. Logic borrowed from strings.FieldsFunc with heavy modifications
 func splitPackageOverrideString(s string) []string {
@@ -820,12 +813,12 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 	var err error
 	var selectedProject *projects.Project
 	if options.ProjectName == "" {
-		selectedProject, err = util.SelectProject("Select the project in which the release will be created", octopus, asker)
+		selectedProject, err = selectors.Project("Select the project in which the release will be created", octopus, asker)
 		if err != nil {
 			return err
 		}
 	} else { // project name is already provided, fetch the object because it's needed for further questions
-		selectedProject, err = util.FindProject(octopus, options.ProjectName)
+		selectedProject, err = selectors.FindProject(octopus, options.ProjectName)
 		if err != nil {
 			return err
 		}
@@ -876,12 +869,12 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 
 	var selectedChannel *channels.Channel
 	if options.ChannelName == "" {
-		selectedChannel, err = selectChannel(octopus, asker, selectedProject)
+		selectedChannel, err = selectors.Channel(octopus, asker, "Select the channel in which the release will be created", selectedProject)
 		if err != nil {
 			return err
 		}
 	} else {
-		selectedChannel, err = findChannel(octopus, selectedProject, options.ChannelName)
+		selectedChannel, err = selectors.FindChannel(octopus, selectedProject, options.ChannelName)
 		if err != nil {
 			return err
 		}
@@ -1103,7 +1096,7 @@ outerLoop:
 		case "y": // YES these are the packages they want
 			break outerLoop
 		case "?": // help text
-			_, _ = fmt.Fprintf(stdout, prettifyHelp(packageOverrideLoopHelpText))
+			_, _ = fmt.Fprintf(stdout, output.FormatDoc(packageOverrideLoopHelpText))
 		case "u": // undo!
 			if len(packageVersionOverrides) > 0 {
 				packageVersionOverrides = packageVersionOverrides[:len(packageVersionOverrides)-1]
@@ -1162,30 +1155,6 @@ func askReleaseNotes(ask question.Asker) (string, error) {
 		return "", err
 	}
 	return result, nil
-}
-
-func selectChannel(octopus *octopusApiClient.Client, ask question.Asker, project *projects.Project) (*channels.Channel, error) {
-	existingChannels, err := octopus.Projects.GetChannels(project)
-	if err != nil {
-		return nil, err
-	}
-
-	return question.SelectMap(ask, "Select the channel in which the release will be created", existingChannels, func(p *channels.Channel) string {
-		return p.Name
-	})
-}
-
-func findChannel(octopus *octopusApiClient.Client, project *projects.Project, channelName string) (*channels.Channel, error) {
-	foundChannels, err := octopus.Projects.GetChannels(project) // TODO change this to channel partial name search on server; will require go client update
-	if err != nil {
-		return nil, err
-	}
-	for _, c := range foundChannels { // server doesn't support channel search by exact name so we must emulate it
-		if strings.EqualFold(c.Name, channelName) {
-			return c, nil
-		}
-	}
-	return nil, fmt.Errorf("no channel found with name of %s", channelName)
 }
 
 func selectGitReference(octopus *octopusApiClient.Client, ask question.Asker, project *projects.Project) (*projects.GitReference, error) {

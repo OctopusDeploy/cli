@@ -213,10 +213,10 @@ func TestReleaseListAndDelete(t *testing.T) {
 	}
 
 	// create some releases so we can list them
-	createReleaseCmd := releases.NewCreateReleaseV1(space1ID, fx.Project.ID)
+	createReleaseCmd := releases.NewCreateReleaseCommandV1(space1ID, fx.Project.ID)
 	for i := 0; i < 5; i++ {
 		createReleaseCmd.ReleaseVersion = fmt.Sprintf("%d.0", i+1)
-		_, err := apiClient.Releases.CreateV1(createReleaseCmd)
+		_, err := releases.CreateReleaseV1(apiClient, createReleaseCmd)
 		assert.Nil(t, err)
 	}
 	t.Cleanup(func() { deleteAllReleasesInProject(t, apiClient, project) })
@@ -272,7 +272,7 @@ func TestReleaseListAndDelete(t *testing.T) {
 
 	t.Run("delete release", func(t *testing.T) {
 		createReleaseCmd.ReleaseVersion = "DeleteMe5.0"
-		createResponse, err := apiClient.Releases.CreateV1(createReleaseCmd)
+		createResponse, err := releases.CreateReleaseV1(apiClient, createReleaseCmd)
 		require.Nil(t, err)
 
 		// sanity check create worked so we can prove that deleting works

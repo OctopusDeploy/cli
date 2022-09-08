@@ -136,7 +136,7 @@ func (m *MockHttpServer) ExpectRequest(t *testing.T, method string, pathAndQuery
 	if !ok { // this means the channel was closed
 		// don't fatal, there'll be some other assertion failure too and we want to let that have a chance to print
 		t.Errorf("ExpectRequest %s %s failed; channel closed", method, pathAndQuery)
-		return &RequestWrapper{nil, m}
+		return &RequestWrapper{&http.Request{}, m}
 	}
 
 	rPathAndQuery := r.URL.Path
@@ -197,10 +197,12 @@ func NewRootResource() *octopusApiClient.RootResource {
 	// Note: all this stuff typically doesn't appear at the root resource level
 	// has assigned a default space. We don't like default spaces, so the unit tests
 	// should probably not mimic that structure; clean it up one day
-	root.Links[constants.LinkProjects] = "/api/Spaces-1/projects{/id}{?name,skip,ids,clone,take,partialName,clonedFromProjectId}"
 	root.Links[constants.LinkChannels] = "/api/Spaces-1/channels{/id}{?skip,take,ids,partialName}"
 	root.Links[constants.LinkDeploymentProcesses] = "/api/Spaces-1/deploymentprocesses{/id}{?skip,take,ids}"
-	root.Links[constants.LinkReleases] = "/api/Spaces-1/releases{/id}{?skip,ignoreChannelRules,take,ids}"
+	root.Links[constants.LinkEnvironments] = "/api/Spaces-1/environments{/id}{?name,skip,ids,take,partialName}"
 	root.Links[constants.LinkFeeds] = "/api/Spaces-1/feeds{/id}{?skip,take,ids,partialName,feedType,name}"
+	root.Links[constants.LinkProjects] = "/api/Spaces-1/projects{/id}{?name,skip,ids,clone,take,partialName,clonedFromProjectId}"
+	root.Links[constants.LinkReleases] = "/api/Spaces-1/releases{/id}{?skip,ignoreChannelRules,take,ids}"
+	root.Links[constants.LinkTenants] = "/api/Spaces-1/tenants{/id}{?skip,projectId,name,tags,take,ids,clone,partialName,clonedFromTenantId}"
 	return root
 }

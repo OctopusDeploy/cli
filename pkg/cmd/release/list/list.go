@@ -3,8 +3,10 @@ package list
 import (
 	"errors"
 	"github.com/MakeNowJust/heredoc/v2"
+	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/OctopusDeploy/cli/pkg/output"
+	"github.com/OctopusDeploy/cli/pkg/question/selectors"
 	"github.com/OctopusDeploy/cli/pkg/util"
 	"github.com/OctopusDeploy/cli/pkg/util/flag"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/channels"
@@ -59,6 +61,11 @@ func NewCmdList(f factory.Factory) *cobra.Command {
 }
 
 func listRun(cmd *cobra.Command, f factory.Factory, flags *ListFlags) error {
+	outputFormat, err := cmd.Flags().GetString(constants.FlagOutputFormat)
+	if err != nil { // should never happen, but fallback if it does
+		outputFormat = constants.OutputFormatTable
+	}
+
 	projectNameOrID := flags.Project.Value
 
 	octopus, err := f.GetSpacedClient()
@@ -69,22 +76,24 @@ func listRun(cmd *cobra.Command, f factory.Factory, flags *ListFlags) error {
 	var selectedProject *projects.Project
 	if f.IsPromptEnabled() { // this would be AskQuestions if it were bigger
 		if projectNameOrID == "" {
-			selectedProject, err = util.SelectProject("Select the project to list releases for", octopus, f.Ask)
+			selectedProject, err = selectors.Project("Select the project to list releases for", octopus, f.Ask)
 			if err != nil {
 				return err
 			}
 		} else { // project name is already provided, fetch the object because it's needed for further questions
-			selectedProject, err = util.FindProject(octopus, projectNameOrID)
+			selectedProject, err = selectors.FindProject(octopus, projectNameOrID)
 			if err != nil {
 				return err
 			}
-			cmd.Printf("Project %s\n", output.Cyan(selectedProject.Name))
+			if !constants.IsProgrammaticOutputFormat(outputFormat) {
+				cmd.Printf("Project %s\n", output.Cyan(selectedProject.Name))
+			}
 		}
 	} else { // we don't have the executions API backing us and allowing NameOrID; we need to do the lookup ourselves
 		if projectNameOrID == "" {
 			return errors.New("project must be specified")
 		}
-		selectedProject, err = util.FindProject(octopus, projectNameOrID)
+		selectedProject, err = selectors.FindProject(octopus, projectNameOrID)
 		if err != nil {
 			return err
 		}
@@ -128,7 +137,6 @@ func listRun(cmd *cobra.Command, f factory.Factory, flags *ListFlags) error {
 
 	return output.PrintArray(allReleases, cmd, output.Mappers[ReleaseViewModel]{
 		Json: func(item ReleaseViewModel) any {
-			// TODO should the ReleaseID go in the JSON as well as the release number? How about channelID?
 			return item
 		},
 		Table: output.TableDefinition[ReleaseViewModel]{
