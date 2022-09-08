@@ -126,6 +126,12 @@ func releaseDeploy(octopus *client.Client, space *spaces.Space, input any) error
 	if params.ProjectName == "" {
 		return errors.New("project must be specified")
 	}
+	if params.ReleaseVersion == "" {
+		return errors.New("release version must be specified")
+	}
+	if len(params.Environments) == 0 {
+		return errors.New("environment(s) must be specified")
+	}
 
 	// common properties
 	abstractCmd := deployments.CreateExecutionAbstractCommandV1{
@@ -135,8 +141,8 @@ func releaseDeploy(octopus *client.Client, space *spaces.Space, input any) error
 		SpecificMachineNames: params.DeploymentTargets,
 		ExcludedMachineNames: params.ExcludeTargets,
 		SkipStepNames:        params.ExcludedSteps,
-		RunAt:                "",
-		NoRunAfter:           "",
+		RunAt:                params.ScheduledStartTime,
+		NoRunAfter:           params.ScheduledExpiryTime,
 		Variables:            params.Variables,
 	}
 
@@ -163,6 +169,7 @@ func releaseDeploy(octopus *client.Client, space *spaces.Space, input any) error
 		tenantedCommand.Tenants = params.Tenants
 		tenantedCommand.TenantTags = params.TenantTags
 		tenantedCommand.ForcePackageRedeployment = params.ForcePackageDownload
+		tenantedCommand.UpdateVariableSnapshot = params.UpdateVariables
 		// tenantedCommand.UpdateVariableSnapshot = params.UpdateVariableSnapshot
 		tenantedCommand.CreateExecutionAbstractCommandV1 = abstractCmd
 
@@ -176,7 +183,7 @@ func releaseDeploy(octopus *client.Client, space *spaces.Space, input any) error
 		untenantedCommand.ReleaseVersion = params.ReleaseVersion
 		untenantedCommand.EnvironmentNames = params.Environments
 		untenantedCommand.ForcePackageRedeployment = params.ForcePackageDownload
-		//untenantedCommand.UpdateVariableSnapshot = params.UpdateVariableSnapshot
+		untenantedCommand.UpdateVariableSnapshot = params.UpdateVariables
 		untenantedCommand.CreateExecutionAbstractCommandV1 = abstractCmd
 
 		createDeploymentResponse, err := deployments.CreateDeploymentUntenantedV1(octopus, untenantedCommand)

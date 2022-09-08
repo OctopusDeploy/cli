@@ -3,6 +3,7 @@ package deploy_test
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/AlecAivazis/survey/v2"
@@ -40,7 +41,7 @@ const placeholderApiKey = "API-XXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
 var rootResource = testutil.NewRootResource()
 
 var now = time.Date(2022, time.September, 8, 13, 25, 2, 0, time.FixedZone("Malaysia", 8*3600)) // UTC+8
-var ctx = context.WithValue(context.TODO(), constants.ContextKeyTimeNow, now)
+var ctxWithFakeNow = context.WithValue(context.TODO(), constants.ContextKeyTimeNow, now)
 
 func TestDeployCreate_AskQuestions(t *testing.T) {
 	const spaceID = "Spaces-1"
@@ -887,6 +888,435 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 	}
 }
 
+// These tests ensure that given the right input, we call the server's API appropriately
+// they all run in automation mode where survey is disabled; they'd error if they tried to ask questions
+func TestDeployCreate_AutomationMode(t *testing.T) {
+	const spaceID = "Spaces-1"
+	const fireProjectID = "Projects-22"
+
+	space1 := fixtures.NewSpace(spaceID, "Default Space")
+
+	defaultChannel := fixtures.NewChannel(spaceID, "Channels-1", "Fire Project Default Channel", fireProjectID)
+
+	fireProject := fixtures.NewProject(spaceID, fireProjectID, "Fire Project", "Lifecycles-1", "ProjectGroups-1", "deploymentprocess-"+fireProjectID)
+	//
+	//
+	release10 := fixtures.NewRelease(spaceID, "Releases-200", "2.0", fireProjectID, defaultChannel.ID)
+	////release20.ProjectDeploymentProcessSnapshotID = depProcessSnapshot.ID
+	//release20.ProjectVariableSetSnapshotID = variableSnapshotWithPromptedVariables.ID
+	//
+	//devEnvironment := fixtures.NewEnvironment(spaceID, "Environments-12", "dev")
+
+	// TEST STARTS HERE
+	tests := []struct {
+		name string
+		run  func(t *testing.T, api *testutil.MockHttpServer, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer)
+	}{
+		{"release deploy requires a project name", func(t *testing.T, api *testutil.MockHttpServer, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
+			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
+				defer api.Close()
+				rootCmd.SetArgs([]string{"release", "deploy"})
+				return rootCmd.ExecuteC()
+			})
+
+			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
+
+			_, err := testutil.ReceivePair(cmdReceiver)
+			assert.EqualError(t, err, "project must be specified")
+
+			assert.Equal(t, "", stdOut.String())
+			assert.Equal(t, "", stdErr.String())
+		}},
+
+		{"release deploy requires a release version", func(t *testing.T, api *testutil.MockHttpServer, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
+			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
+				defer api.Close()
+				rootCmd.SetArgs([]string{"release", "deploy", "--project", "Fire Project"})
+				return rootCmd.ExecuteC()
+			})
+
+			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
+
+			_, err := testutil.ReceivePair(cmdReceiver)
+			assert.EqualError(t, err, "release version must be specified")
+
+			assert.Equal(t, "", stdOut.String())
+			assert.Equal(t, "", stdErr.String())
+		}},
+
+		{"release deploy requires at least one environment", func(t *testing.T, api *testutil.MockHttpServer, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
+			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
+				defer api.Close()
+				rootCmd.SetArgs([]string{"release", "deploy", "--project", "Fire Project", "--version", "1.9"})
+				return rootCmd.ExecuteC()
+			})
+
+			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
+
+			_, err := testutil.ReceivePair(cmdReceiver)
+			assert.EqualError(t, err, "environment(s) must be specified")
+
+			assert.Equal(t, "", stdOut.String())
+			assert.Equal(t, "", stdErr.String())
+		}},
+
+		{"release deploy specifying project, version, env only (bare minimum) assuming untenanted", func(t *testing.T, api *testutil.MockHttpServer, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
+			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
+				defer api.Close()
+				rootCmd.SetArgs([]string{"release", "deploy", "--project", fireProject.Name, "--version", "1.0", "--environment", "dev"})
+				return rootCmd.ExecuteC()
+			})
+
+			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
+
+			// Note: because we didn't specify --tenant or --tenant-tag, automation-mode code is going to assume untenanted
+			req := api.ExpectRequest(t, "POST", "/api/Spaces-1/deployments/create/untenanted/v1")
+			requestBody, err := testutil.ReadJson[deployments.CreateDeploymentUntenantedCommandV1](req.Request.Body)
+			assert.Nil(t, err)
+
+			assert.Equal(t, deployments.CreateDeploymentUntenantedCommandV1{
+				ReleaseVersion:   "1.0",
+				EnvironmentNames: []string{"dev"},
+				CreateExecutionAbstractCommandV1: deployments.CreateExecutionAbstractCommandV1{
+					SpaceID:         "Spaces-1",
+					ProjectIDOrName: fireProject.Name,
+				},
+			}, requestBody)
+
+			req.RespondWith(&deployments.CreateDeploymentResponseV1{
+				DeploymentServerTasks: []*deployments.DeploymentServerTask{
+					{DeploymentID: "Deployments-203", ServerTaskID: "ServerTasks-29394"},
+					{DeploymentID: "Deployments-204", ServerTaskID: "ServerTasks-55312"},
+				},
+			})
+
+			// now it's going to try and look up the project/version to generate the web URL
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects?clonedFromProjectId=&partialName=Fire+Project").RespondWith(resources.Resources[*projects.Project]{
+				Items: []*projects.Project{fireProject},
+			})
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+fireProjectID+"/releases/1.0").RespondWith(release10)
+
+			_, err = testutil.ReceivePair(cmdReceiver)
+			assert.Nil(t, err)
+
+			assert.Equal(t, heredoc.Docf(`
+				Successfully started 2 deployment(s)
+				
+				View this release on Octopus Deploy: http://server/app#/Spaces-1/releases/%s
+				`, release10.ID), stdOut.String())
+			assert.Equal(t, "", stdErr.String())
+		}},
+
+		{"release deploy specifying project, version, env only (bare minimum) assuming untenanted; basic output format", func(t *testing.T, api *testutil.MockHttpServer, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
+			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
+				defer api.Close()
+				rootCmd.SetArgs([]string{"release", "deploy", "--project", fireProject.Name, "--version", "1.0", "--environment", "dev", "--output-format", constants.OutputFormatBasic})
+				return rootCmd.ExecuteC()
+			})
+
+			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
+
+			// Note: because we didn't specify --tenant or --tenant-tag, automation-mode code is going to assume untenanted
+			api.ExpectRequest(t, "POST", "/api/Spaces-1/deployments/create/untenanted/v1").RespondWith(&deployments.CreateDeploymentResponseV1{
+				DeploymentServerTasks: []*deployments.DeploymentServerTask{
+					{DeploymentID: "Deployments-203", ServerTaskID: "ServerTasks-29394"},
+					{DeploymentID: "Deployments-204", ServerTaskID: "ServerTasks-55312"},
+				},
+			})
+
+			_, err := testutil.ReceivePair(cmdReceiver)
+			assert.Nil(t, err)
+
+			assert.Equal(t, heredoc.Doc(`
+				ServerTasks-29394
+				ServerTasks-55312
+				`), stdOut.String())
+
+			assert.Equal(t, "", stdErr.String())
+		}},
+
+		{"release deploy specifying project, version, env only (bare minimum) assuming untenanted; json output format", func(t *testing.T, api *testutil.MockHttpServer, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
+			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
+				defer api.Close()
+				rootCmd.SetArgs([]string{"release", "deploy", "--project", fireProject.Name, "--version", "1.0", "--environment", "dev", "--output-format", constants.OutputFormatJson})
+				return rootCmd.ExecuteC()
+			})
+
+			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
+
+			// Note: because we didn't specify --tenant or --tenant-tag, automation-mode code is going to assume untenanted
+			serverTasks := []*deployments.DeploymentServerTask{
+				{DeploymentID: "Deployments-203", ServerTaskID: "ServerTasks-29394"},
+				{DeploymentID: "Deployments-204", ServerTaskID: "ServerTasks-55312"},
+			}
+			api.ExpectRequest(t, "POST", "/api/Spaces-1/deployments/create/untenanted/v1").RespondWith(&deployments.CreateDeploymentResponseV1{
+				DeploymentServerTasks: serverTasks,
+			})
+
+			_, err := testutil.ReceivePair(cmdReceiver)
+			assert.Nil(t, err)
+
+			var response []*deployments.DeploymentServerTask
+			err = json.Unmarshal(stdOut.Bytes(), &response)
+			assert.Nil(t, err)
+
+			assert.Equal(t, serverTasks, response)
+			assert.Equal(t, "", stdErr.String())
+		}},
+
+		{"release deploy specifying project, version, env only (bare minimum) assuming tenanted", func(t *testing.T, api *testutil.MockHttpServer, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
+			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
+				defer api.Close()
+				rootCmd.SetArgs([]string{"release", "deploy", "--project", fireProject.Name, "--version", "1.0", "--environment", "dev", "--tenant", "Coke", "--tenant", "Pepsi"})
+				return rootCmd.ExecuteC()
+			})
+
+			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
+
+			req := api.ExpectRequest(t, "POST", "/api/Spaces-1/deployments/create/tenanted/v1")
+			requestBody, err := testutil.ReadJson[deployments.CreateDeploymentTenantedCommandV1](req.Request.Body)
+			assert.Nil(t, err)
+
+			assert.Equal(t, deployments.CreateDeploymentTenantedCommandV1{
+				ReleaseVersion:  "1.0",
+				EnvironmentName: "dev",
+				Tenants:         []string{"Coke", "Pepsi"},
+				CreateExecutionAbstractCommandV1: deployments.CreateExecutionAbstractCommandV1{
+					SpaceID:         "Spaces-1",
+					ProjectIDOrName: fireProject.Name,
+				},
+			}, requestBody)
+
+			req.RespondWith(&deployments.CreateDeploymentResponseV1{
+				DeploymentServerTasks: []*deployments.DeploymentServerTask{
+					{DeploymentID: "Deployments-203", ServerTaskID: "ServerTasks-29394"},
+				},
+			})
+
+			// now it's going to try and look up the project/version to generate the web URL
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects?clonedFromProjectId=&partialName=Fire+Project").RespondWith(resources.Resources[*projects.Project]{
+				Items: []*projects.Project{fireProject},
+			})
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+fireProjectID+"/releases/1.0").RespondWith(release10)
+
+			_, err = testutil.ReceivePair(cmdReceiver)
+			assert.Nil(t, err)
+
+			assert.Equal(t, heredoc.Docf(`
+				Successfully started 1 deployment(s)
+				
+				View this release on Octopus Deploy: http://server/app#/Spaces-1/releases/%s
+				`, release10.ID), stdOut.String())
+			assert.Equal(t, "", stdErr.String())
+		}},
+
+		{"release deploy specifying project, version, env only (bare minimum) assuming tenanted via tags", func(t *testing.T, api *testutil.MockHttpServer, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
+			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
+				defer api.Close()
+				rootCmd.SetArgs([]string{"release", "deploy", "--project", fireProject.Name, "--version", "1.0", "--environment", "dev", "--tenant-tag", "Regions/us-west", "--tenant-tag", "Importance/High"})
+				return rootCmd.ExecuteC()
+			})
+
+			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
+
+			req := api.ExpectRequest(t, "POST", "/api/Spaces-1/deployments/create/tenanted/v1")
+			requestBody, err := testutil.ReadJson[deployments.CreateDeploymentTenantedCommandV1](req.Request.Body)
+			assert.Nil(t, err)
+
+			assert.Equal(t, deployments.CreateDeploymentTenantedCommandV1{
+				ReleaseVersion:  "1.0",
+				EnvironmentName: "dev",
+				TenantTags:      []string{"Regions/us-west", "Importance/High"},
+				CreateExecutionAbstractCommandV1: deployments.CreateExecutionAbstractCommandV1{
+					SpaceID:         "Spaces-1",
+					ProjectIDOrName: fireProject.Name,
+				},
+			}, requestBody)
+
+			req.RespondWith(&deployments.CreateDeploymentResponseV1{
+				DeploymentServerTasks: []*deployments.DeploymentServerTask{
+					{DeploymentID: "Deployments-203", ServerTaskID: "ServerTasks-29394"},
+				},
+			})
+
+			// now it's going to try and look up the project/version to generate the web URL
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects?clonedFromProjectId=&partialName=Fire+Project").RespondWith(resources.Resources[*projects.Project]{
+				Items: []*projects.Project{fireProject},
+			})
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+fireProjectID+"/releases/1.0").RespondWith(release10)
+
+			_, err = testutil.ReceivePair(cmdReceiver)
+			assert.Nil(t, err)
+
+			assert.Equal(t, heredoc.Docf(`
+				Successfully started 1 deployment(s)
+				
+				View this release on Octopus Deploy: http://server/app#/Spaces-1/releases/%s
+				`, release10.ID), stdOut.String())
+			assert.Equal(t, "", stdErr.String())
+		}},
+
+		{"release deploy specifying all the args; untentanted", func(t *testing.T, api *testutil.MockHttpServer, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
+			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
+				defer api.Close()
+				rootCmd.SetArgs([]string{
+					"release", "deploy",
+					"--project", fireProject.Name,
+					"--version", "1.0",
+					"--environment", "dev", "--environment", "test",
+					"--deploy-at", "2022-09-10 13:32:03 +10:00",
+					"--deploy-at-expiry", "2022-09-10 13:37:03 +10:00",
+					"--skip", "Install",
+					"--skip", "Cleanup",
+					"--guided-failure", "true",
+					"--force-package-download",
+					"--update-variables",
+					"--target", "firstMachine", "--target", "secondMachine",
+					"--exclude-target", "thirdMachine",
+					"--variable", "Approver:John", "--variable", "Signoff:Jane",
+					"--output-format", "basic", // not neccessary, just means we don't need the follow up HTTP requests at the end to print the web link
+				})
+				return rootCmd.ExecuteC()
+			})
+
+			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
+
+			// Note: because we didn't specify --tenant or --tenant-tag, automation-mode code is going to assume untenanted
+			req := api.ExpectRequest(t, "POST", "/api/Spaces-1/deployments/create/untenanted/v1")
+			requestBody, err := testutil.ReadJson[deployments.CreateDeploymentUntenantedCommandV1](req.Request.Body)
+			assert.Nil(t, err)
+
+			trueVal := true
+			assert.Equal(t, deployments.CreateDeploymentUntenantedCommandV1{
+				ReleaseVersion:           "1.0",
+				EnvironmentNames:         []string{"dev", "test"},
+				ForcePackageRedeployment: true,
+				UpdateVariableSnapshot:   true,
+				CreateExecutionAbstractCommandV1: deployments.CreateExecutionAbstractCommandV1{
+					SpaceID:              "Spaces-1",
+					ProjectIDOrName:      fireProject.Name,
+					ForcePackageDownload: true,
+					SpecificMachineNames: []string{"firstMachine", "secondMachine"},
+					ExcludedMachineNames: []string{"thirdMachine"},
+					SkipStepNames:        []string{"Install", "Cleanup"},
+					UseGuidedFailure:     &trueVal,
+					RunAt:                "2022-09-10 13:32:03 +10:00",
+					NoRunAfter:           "2022-09-10 13:37:03 +10:00",
+					Variables: map[string]string{
+						"Approver": "John",
+						"Signoff":  "Jane",
+					},
+				},
+			}, requestBody)
+
+			req.RespondWith(&deployments.CreateDeploymentResponseV1{
+				DeploymentServerTasks: []*deployments.DeploymentServerTask{
+					{DeploymentID: "Deployments-203", ServerTaskID: "ServerTasks-29394"},
+				},
+			})
+
+			_, err = testutil.ReceivePair(cmdReceiver)
+			assert.Nil(t, err)
+
+			assert.Equal(t, "ServerTasks-29394\n", stdOut.String())
+			assert.Equal(t, "", stdErr.String())
+		}},
+
+		{"release deploy specifying all the args; tentanted", func(t *testing.T, api *testutil.MockHttpServer, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
+			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
+				defer api.Close()
+				rootCmd.SetArgs([]string{
+					"release", "deploy",
+					"--project", fireProject.Name,
+					"--version", "1.0",
+					"--environment", "dev",
+					"--deploy-at", "2022-09-10 13:32:03 +10:00",
+					"--deploy-at-expiry", "2022-09-10 13:37:03 +10:00",
+					"--skip", "Install",
+					"--skip", "Cleanup",
+					"--tenant", "Coke", "--tenant", "Pepsi",
+					"--tenant-tag", "Region/us-east",
+					"--guided-failure", "true",
+					"--force-package-download",
+					"--update-variables",
+					"--target", "firstMachine", "--target", "secondMachine",
+					"--exclude-target", "thirdMachine",
+					"--variable", "Approver:John", "--variable", "Signoff:Jane",
+					"--output-format", "basic", // not neccessary, just means we don't need the follow up HTTP requests at the end to print the web link
+				})
+				return rootCmd.ExecuteC()
+			})
+
+			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
+
+			req := api.ExpectRequest(t, "POST", "/api/Spaces-1/deployments/create/tenanted/v1")
+			requestBody, err := testutil.ReadJson[deployments.CreateDeploymentTenantedCommandV1](req.Request.Body)
+			assert.Nil(t, err)
+
+			trueVal := true
+			assert.Equal(t, deployments.CreateDeploymentTenantedCommandV1{
+				ReleaseVersion:           "1.0",
+				EnvironmentName:          "dev",
+				ForcePackageRedeployment: true,
+				UpdateVariableSnapshot:   true,
+				Tenants:                  []string{"Coke", "Pepsi"},
+				TenantTags:               []string{"Region/us-east"},
+				CreateExecutionAbstractCommandV1: deployments.CreateExecutionAbstractCommandV1{
+					SpaceID:              "Spaces-1",
+					ProjectIDOrName:      fireProject.Name,
+					ForcePackageDownload: true,
+					SpecificMachineNames: []string{"firstMachine", "secondMachine"},
+					ExcludedMachineNames: []string{"thirdMachine"},
+					SkipStepNames:        []string{"Install", "Cleanup"},
+					UseGuidedFailure:     &trueVal,
+					RunAt:                "2022-09-10 13:32:03 +10:00",
+					NoRunAfter:           "2022-09-10 13:37:03 +10:00",
+					Variables: map[string]string{
+						"Approver": "John",
+						"Signoff":  "Jane",
+					},
+				},
+			}, requestBody)
+
+			req.RespondWith(&deployments.CreateDeploymentResponseV1{
+				DeploymentServerTasks: []*deployments.DeploymentServerTask{
+					{DeploymentID: "Deployments-203", ServerTaskID: "ServerTasks-29394"},
+				},
+			})
+
+			_, err = testutil.ReceivePair(cmdReceiver)
+			assert.Nil(t, err)
+
+			assert.Equal(t, "ServerTasks-29394\n", stdOut.String())
+			assert.Equal(t, "", stdErr.String())
+		}},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			stdout, stderr := &bytes.Buffer{}, &bytes.Buffer{}
+			api := testutil.NewMockHttpServer()
+
+			rootCmd := cmdRoot.NewCmdRoot(testutil.NewMockFactoryWithSpace(api, space1), nil, nil)
+			rootCmd.SetContext(ctxWithFakeNow)
+			rootCmd.SetOut(stdout)
+			rootCmd.SetErr(stderr)
+
+			test.run(t, api, rootCmd, stdout, stderr)
+		})
+	}
+}
+
 // this happens outside the scope of the normal AskQuestions flow so warrants its own integration-style test
 func TestDeployCreate_GenerationOfAutomationCommand_MasksSensitiveVariables(t *testing.T) {
 	const spaceID = "Spaces-1"
@@ -938,7 +1368,7 @@ func TestDeployCreate_GenerationOfAutomationCommand_MasksSensitiveVariables(t *t
 	askProvider := question.NewAskProvider(qa.AsAsker())
 
 	rootCmd := cmdRoot.NewCmdRoot(testutil.NewMockFactoryWithSpaceAndPrompt(api, space1, askProvider), nil, askProvider)
-	rootCmd.SetContext(ctx)
+	rootCmd.SetContext(ctxWithFakeNow)
 	rootCmd.SetOut(stdout)
 	rootCmd.SetErr(stderr)
 

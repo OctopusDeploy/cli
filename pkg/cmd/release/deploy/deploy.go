@@ -66,10 +66,10 @@ const (
 	FlagForcePackageDownload            = "force-package-download"
 	FlagAliasForcePackageDownloadLegacy = "forcePackageDownload"
 
-	FlagDeploymentTargets           = "targets" // specific machines
+	FlagDeploymentTargets           = "target" // specific machines
 	FlagAliasSpecificMachinesLegacy = "specificMachines"
 
-	FlagExcludeDeploymentTargets   = "exclude-targets"
+	FlagExcludeDeploymentTargets   = "exclude-target"
 	FlagAliasExcludeMachinesLegacy = "excludeMachines"
 
 	FlagVariable = "variable"
@@ -218,6 +218,7 @@ func deployRun(cmd *cobra.Command, f factory.Factory, flags *DeployFlags) error 
 		DeploymentTargets:    flags.DeploymentTargets.Value,
 		ExcludeTargets:       flags.ExcludeTargets.Value,
 		Variables:            parsedVariables,
+		UpdateVariables:      flags.UpdateVariables.Value,
 	}
 
 	// special case for FlagForcePackageDownload bool so we can tell if it was set on the cmdline or missing
