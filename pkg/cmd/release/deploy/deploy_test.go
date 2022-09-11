@@ -153,7 +153,7 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/all").RespondWith([]*projects.Project{fireProject})
 
 			_ = qa.ExpectQuestion(t, &survey.Select{
-				Message: "Select the project to deploy from",
+				Message: "Select project",
 				Options: []string{"Fire Project"},
 			}).AnswerWith("Fire Project")
 
@@ -162,7 +162,7 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 			})
 
 			_ = qa.ExpectQuestion(t, &survey.Select{
-				Message: "Select the channel to deploy from",
+				Message: "Select channel",
 				Options: []string{defaultChannel.Name, altChannel.Name},
 			}).AnswerWith("Fire Project Alt Channel")
 
@@ -171,7 +171,7 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 			})
 
 			_ = qa.ExpectQuestion(t, &survey.Select{
-				Message: "Select the release to deploy",
+				Message: "Select a release to deploy",
 				Options: []string{release20.Version, release19.Version},
 			}).AnswerWith(release19.Version)
 
@@ -190,7 +190,7 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 
 			// Note: scratch comes first but default should be dev, due to NextDeployments
 			_ = qa.ExpectQuestion(t, &survey.MultiSelect{
-				Message: "Select environments to deploy to",
+				Message: "Select environment(s)",
 				Options: []string{scratchEnvironment.Name, devEnvironment.Name},
 				Default: []string{devEnvironment.Name},
 			}).AnswerWith([]surveyCore.OptionAnswer{
@@ -201,10 +201,10 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/variables/"+variableSnapshotNoVars.ID).RespondWith(&variableSnapshotNoVars)
 
 			q := qa.ExpectQuestion(t, &survey.Select{
-				Message: "Do you want to change advanced options?",
-				Options: []string{"Proceed to deploy", "Change advanced options"},
+				Message: "Change additional options?",
+				Options: []string{"Proceed to deploy", "Change"},
 			})
-			assert.Regexp(t, "Advanced Options", stdout.String()) // actual advanced options tested in PrintAdvancedSummary
+			assert.Regexp(t, "Additional Options", stdout.String()) // actual options tested in PrintAdvancedSummary
 			_ = q.AnswerWith("Proceed to deploy")
 
 			err := <-errReceiver
@@ -257,10 +257,10 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 			stdout.Reset()
 
 			q := qa.ExpectQuestion(t, &survey.Select{
-				Message: "Do you want to change advanced options?",
-				Options: []string{"Proceed to deploy", "Change advanced options"},
+				Message: "Change additional options?",
+				Options: []string{"Proceed to deploy", "Change"},
 			})
-			assert.Regexp(t, "Advanced Options", stdout.String()) // actual advanced options tested in PrintAdvancedSummary
+			assert.Regexp(t, "Additional Options", stdout.String()) // actual options tested in PrintAdvancedSummary
 			_ = q.AnswerWith("Proceed to deploy")
 
 			err := <-errReceiver
@@ -322,10 +322,10 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 			stdout.Reset()
 
 			q = qa.ExpectQuestion(t, &survey.Select{
-				Message: "Do you want to change advanced options?",
-				Options: []string{"Proceed to deploy", "Change advanced options"},
+				Message: "Change additional options?",
+				Options: []string{"Proceed to deploy", "Change"},
 			})
-			assert.Regexp(t, "Advanced Options", stdout.String()) // actual advanced options tested in PrintAdvancedSummary
+			assert.Regexp(t, "Additional Options", stdout.String()) // actual options tested in PrintAdvancedSummary
 			_ = q.AnswerWith("Proceed to deploy")
 
 			err := <-errReceiver
@@ -413,10 +413,10 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 			stdout.Reset()
 
 			q = qa.ExpectQuestion(t, &survey.Select{
-				Message: "Do you want to change advanced options?",
-				Options: []string{"Proceed to deploy", "Change advanced options"},
+				Message: "Change additional options?",
+				Options: []string{"Proceed to deploy", "Change"},
 			})
-			assert.Regexp(t, "Advanced Options", stdout.String()) // actual advanced options tested in PrintAdvancedSummary
+			assert.Regexp(t, "Additional Options", stdout.String()) // actual options tested in PrintAdvancedSummary
 			_ = q.AnswerWith("Proceed to deploy")
 
 			err := <-errReceiver
@@ -510,10 +510,10 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 			stdout.Reset()
 
 			q = qa.ExpectQuestion(t, &survey.Select{
-				Message: "Do you want to change advanced options?",
-				Options: []string{"Proceed to deploy", "Change advanced options"},
+				Message: "Change additional options?",
+				Options: []string{"Proceed to deploy", "Change"},
 			})
-			assert.Regexp(t, "Advanced Options", stdout.String()) // actual advanced options tested in PrintAdvancedSummary
+			assert.Regexp(t, "Additional Options", stdout.String()) // actual options tested in PrintAdvancedSummary
 			_ = q.AnswerWith("Proceed to deploy")
 
 			err := <-errReceiver
@@ -573,7 +573,7 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 
 			// Note: scratch comes first but default should be dev, due to NextDeployments
 			_ = qa.ExpectQuestion(t, &survey.MultiSelect{
-				Message: "Select environments to deploy to",
+				Message: "Select environment(s)",
 				Options: []string{scratchEnvironment.Name, devEnvironment.Name},
 				Default: []string{devEnvironment.Name},
 			}).AnswerWith([]surveyCore.OptionAnswer{
@@ -589,10 +589,10 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 			stdout.Reset()
 
 			q := qa.ExpectQuestion(t, &survey.Select{
-				Message: "Do you want to change advanced options?",
-				Options: []string{"Proceed to deploy", "Change advanced options"},
+				Message: "Change additional options?",
+				Options: []string{"Proceed to deploy", "Change"},
 			})
-			assert.Regexp(t, "Advanced Options", stdout.String()) // actual advanced options tested in PrintAdvancedSummary
+			assert.Regexp(t, "Additional Options", stdout.String()) // actual options tested in PrintAdvancedSummary
 			_ = q.AnswerWith("Proceed to deploy")
 
 			err := <-errReceiver
@@ -622,14 +622,14 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 			stdout.Reset()
 
 			_ = qa.ExpectQuestion(t, &survey.Select{
-				Message: "Do you want to change advanced options?",
-				Options: []string{"Proceed to deploy", "Change advanced options"},
-			}).AnswerWith("Change advanced options")
+				Message: "Change additional options?",
+				Options: []string{"Proceed to deploy", "Change"},
+			}).AnswerWith("Change")
 			stdout.Reset()
 
 			plus20hours := now.Add(20 * time.Hour)
 			_ = qa.ExpectQuestion(t, &surveyext.DatePicker{
-				Message: "Deploy Scheduled start time",
+				Message: "Scheduled start time",
 				Default: now,
 				Help:    "Enter the date and time that this deployment should start",
 				Min:     now,
@@ -639,7 +639,7 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 			_ = qa.ExpectQuestion(t, &surveyext.DatePicker{
 				Message: "Deploy Scheduled expiry time",
 				Default: plus20hours5mins,
-				Help:    "After the start time, the deployment will be queued. If it cannot start before 'expiry' time, then cancel the operation",
+				Help:    "At the start time, the deployment will be queued. If it cannot start before 'expiry' time, it will be cancelled. Minimum of 5 minutes after start time",
 				Min:     plus20hours5mins,
 			}).AnswerWith(plus20hours5mins)
 
@@ -744,7 +744,7 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 
 			// Note: scratch comes first but default should be dev, due to NextDeployments
 			_ = qa.ExpectQuestion(t, &survey.MultiSelect{
-				Message: "Select environments to deploy to",
+				Message: "Select environment(s)",
 				Options: []string{devEnvironment.Name, prodEnvironment.Name},
 				Default: []string{devEnvironment.Name},
 			}).AnswerWith([]surveyCore.OptionAnswer{
@@ -756,9 +756,9 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 			stdout.Reset()
 
 			_ = qa.ExpectQuestion(t, &survey.Select{
-				Message: "Do you want to change advanced options?",
-				Options: []string{"Proceed to deploy", "Change advanced options"},
-			}).AnswerWith("Change advanced options")
+				Message: "Change additional options?",
+				Options: []string{"Proceed to deploy", "Change"},
+			}).AnswerWith("Change")
 			stdout.Reset()
 
 			// steps, guidedFailure and forcePackageDownload already on cmdline, so we go straight to targets
@@ -1406,8 +1406,8 @@ func TestDeployCreate_GenerationOfAutomationCommand_MasksSensitiveVariables(t *t
 	}).AnswerWith("donkey")
 
 	q := qa.ExpectQuestion(t, &survey.Select{
-		Message: "Do you want to change advanced options?",
-		Options: []string{"Proceed to deploy", "Change advanced options"},
+		Message: "Change additional options?",
+		Options: []string{"Proceed to deploy", "Change"},
 	})
 	_ = q.AnswerWith("Proceed to deploy")
 

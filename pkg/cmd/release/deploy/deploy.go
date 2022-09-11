@@ -366,7 +366,7 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 	// select project
 	var selectedProject *projects.Project
 	if options.ProjectName == "" {
-		selectedProject, err = selectors.Project("Select the project to deploy from", octopus, asker)
+		selectedProject, err = selectors.Project("Select project", octopus, asker)
 		if err != nil {
 			return err
 		}
@@ -384,11 +384,11 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 	var selectedRelease *releases.Release
 	if options.ReleaseVersion == "" {
 		// first we want to ask them to pick a channel just to narrow down the search space for releases (not sent to server)
-		selectedChannel, err := selectors.Channel(octopus, asker, "Select the channel to deploy from", selectedProject)
+		selectedChannel, err := selectors.Channel(octopus, asker, "Select channel", selectedProject)
 		if err != nil {
 			return err
 		}
-		selectedRelease, err = selectRelease(octopus, asker, "Select the release to deploy", space, selectedProject, selectedChannel)
+		selectedRelease, err = selectRelease(octopus, asker, "Select a release to deploy", space, selectedProject, selectedChannel)
 		if err != nil {
 			return err
 		}
@@ -491,13 +491,13 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 	if !allAdvancedOptionsSpecified {
 		var changeOptionsAnswer string
 		err = asker(&survey.Select{
-			Message: "Do you want to change advanced options?",
-			Options: []string{"Proceed to deploy", "Change advanced options"},
+			Message: "Change additional options?",
+			Options: []string{"Proceed to deploy", "Change"},
 		}, &changeOptionsAnswer)
 		if err != nil {
 			return err
 		}
-		if changeOptionsAnswer == "Change advanced options" {
+		if changeOptionsAnswer == "Change" {
 			shouldAskAdvancedQuestions = true
 		} else {
 			shouldAskAdvancedQuestions = false
@@ -508,7 +508,7 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 		if !isDeployAtSpecified {
 			var answer surveyext.DatePickerAnswer
 			err = asker(&surveyext.DatePicker{
-				Message: "Deploy Scheduled start time",
+				Message: "Scheduled start time",
 				Default: now,
 				Help:    "Enter the date and time that this deployment should start",
 				Min:     now,
@@ -711,7 +711,7 @@ func selectDeploymentEnvironments(asker question.Asker, octopus *octopusApiClien
 	optionMap, options := question.MakeItemMapAndOptions(allEnvs, func(e *environments.Environment) string { return e.Name })
 	var selectedKeys []string
 	err = asker(&survey.MultiSelect{
-		Message: "Select environments to deploy to",
+		Message: "Select environment(s)",
 		Options: options,
 		Default: []string{nextDeployEnvironmentName},
 	}, &selectedKeys, survey.WithValidator(survey.Required))
@@ -821,7 +821,7 @@ func PrintAdvancedSummary(stdout io.Writer, options *executor.TaskOptionsDeployR
 	}
 
 	_, _ = fmt.Fprintf(stdout, output.FormatDoc(heredoc.Doc(`
-		bold(Advanced Options):
+		bold(Additional Options):
 		  Deploy Time: cyan(%s)
 		  Skipped Steps: cyan(%s)
 		  Guided Failure Mode: cyan(%s)
