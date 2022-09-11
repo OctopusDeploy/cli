@@ -5,13 +5,16 @@ import (
 	"github.com/AlecAivazis/survey/v2"
 )
 
-func MultiSelectMap[T any](ask Asker, message string, items []T, getKey func(item T) string) ([]T, error) {
-	optionMap, options := makeItemMapAndOptions(items, getKey)
+func MultiSelectMap[T any](ask Asker, message string, items []T, getKey func(item T) string, required bool) ([]T, error) {
+	optionMap, options := MakeItemMapAndOptions(items, getKey)
+
+	askOpts := func(options *survey.AskOptions) error { return nil }
+	if required {
+		askOpts = survey.WithValidator(survey.Required)
+	}
+
 	var selectedKeys []string
-	if err := ask(&survey.MultiSelect{
-		Message: message,
-		Options: options,
-	}, &selectedKeys); err != nil {
+	if err := ask(&survey.MultiSelect{Message: message, Options: options}, &selectedKeys, askOpts); err != nil {
 		return nil, err
 	}
 	selected := make([]T, 0)
@@ -23,7 +26,7 @@ func MultiSelectMap[T any](ask Asker, message string, items []T, getKey func(ite
 }
 
 func SelectMap[T any](ask Asker, message string, items []T, getKey func(item T) string) (T, error) {
-	optionMap, options := makeItemMapAndOptions(items, getKey)
+	optionMap, options := MakeItemMapAndOptions(items, getKey)
 	var selectedValue T
 	var selectedKey string
 	if err := ask(&survey.Select{
@@ -39,7 +42,7 @@ func SelectMap[T any](ask Asker, message string, items []T, getKey func(item T) 
 	return selectedValue, nil
 }
 
-func makeItemMapAndOptions[T any](items []T, getKey func(item T) string) (map[string]T, []string) {
+func MakeItemMapAndOptions[T any](items []T, getKey func(item T) string) (map[string]T, []string) {
 	optionMap := make(map[string]T, len(items))
 	options := make([]string, 0, len(items))
 	for _, item := range items {

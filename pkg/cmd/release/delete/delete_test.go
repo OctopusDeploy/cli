@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/AlecAivazis/survey/v2"
+	"github.com/AlecAivazis/survey/v2/core"
 	"github.com/MakeNowJust/heredoc/v2"
 	cmdRoot "github.com/OctopusDeploy/cli/pkg/cmd/root"
 	"github.com/OctopusDeploy/cli/pkg/question"
@@ -41,6 +42,7 @@ func TestReleaseDelete(t *testing.T) {
 	// we have a load of tests which are all the same except they vary the cmdline args; this is a common test body
 	standardDeleteTestBody := func(api *testutil.MockHttpServer, releaseIDs ...string) {
 		api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
+		api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
 
 		api.ExpectRequest(t, "GET", "/api/Spaces-1/projects?clonedFromProjectId=&partialName=Fire+Project").
 			RespondWith(resources.Resources[*projects.Project]{
@@ -70,6 +72,7 @@ func TestReleaseDelete(t *testing.T) {
 			})
 
 			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
 
 			_, err := testutil.ReceivePair(cmdReceiver)
 			assert.EqualError(t, err, "project must be specified")
@@ -86,6 +89,7 @@ func TestReleaseDelete(t *testing.T) {
 			})
 
 			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
 
 			_, err := testutil.ReceivePair(cmdReceiver)
 			assert.EqualError(t, err, "at least one release version must be specified")
@@ -181,6 +185,7 @@ func TestReleaseDelete(t *testing.T) {
 			})
 
 			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
 
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects?clonedFromProjectId=&partialName=Fire+Project").
 				RespondWith(resources.Resources[*projects.Project]{
@@ -216,6 +221,7 @@ func TestReleaseDelete(t *testing.T) {
 			})
 
 			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
 
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects?clonedFromProjectId=&partialName=Fire+Project").
 				RespondWith(resources.Resources[*projects.Project]{
@@ -251,6 +257,7 @@ func TestReleaseDelete(t *testing.T) {
 			})
 
 			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
 
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects?clonedFromProjectId=&partialName=Fire+Project").
 				RespondWith(resources.Resources[*projects.Project]{
@@ -304,6 +311,7 @@ func TestReleaseDelete(t *testing.T) {
 			})
 
 			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
 
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/all").
 				RespondWith([]*projects.Project{fireProject, waterProject})
@@ -326,7 +334,10 @@ func TestReleaseDelete(t *testing.T) {
 					rBeta20b2.Version,
 					rBeta20b1.Version,
 				},
-			}).AnswerWith([]string{rDefault21.Version, rDefault20.Version})
+			}).AnswerWith([]core.OptionAnswer{
+				{Value: rDefault21.Version, Index: 0},
+				{Value: rDefault20.Version, Index: 1},
+			})
 
 			q := qa.ExpectQuestion(t, &survey.Confirm{Message: "Confirm delete of 2 release(s)"})
 			assert.Equal(t, heredoc.Doc(`
@@ -355,6 +366,7 @@ func TestReleaseDelete(t *testing.T) {
 			})
 
 			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
 
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects?clonedFromProjectId=&partialName=Fire+Project").
 				RespondWith(resources.Resources[*projects.Project]{

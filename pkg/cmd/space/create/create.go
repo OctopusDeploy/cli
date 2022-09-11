@@ -2,6 +2,7 @@ package create
 
 import (
 	"fmt"
+	"github.com/OctopusDeploy/cli/pkg/util"
 	"io"
 
 	"github.com/AlecAivazis/survey/v2"
@@ -45,10 +46,7 @@ func createRun(f factory.Factory, _ io.Writer) error {
 		return err
 	}
 
-	spaceNames := []string{}
-	for _, existingSpace := range existingSpaces {
-		spaceNames = append(spaceNames, existingSpace.Name)
-	}
+	spaceNames := util.SliceTransform(existingSpaces, func(s *spaces.Space) string { return s.Name })
 
 	var name string
 	err = f.Ask(&survey.Input{
@@ -65,21 +63,21 @@ func createRun(f factory.Factory, _ io.Writer) error {
 	}
 	space := spaces.NewSpace(name)
 
-	teams, err := selectTeams(f.Ask, systemClient, existingSpaces, "Select one or more teams to manage this space:")
+	selectedTeams, err := selectTeams(f.Ask, systemClient, existingSpaces, "Select one or more teams to manage this space:")
 	if err != nil {
 		return err
 	}
 
-	for _, team := range teams {
+	for _, team := range selectedTeams {
 		space.SpaceManagersTeams = append(space.SpaceManagersTeams, team.ID)
 	}
 
-	users, err := selectUsers(f.Ask, systemClient, "Select one or more users to manage this space:")
+	selectedUsers, err := selectUsers(f.Ask, systemClient, "Select one or more users to manage this space:")
 	if err != nil {
 		return err
 	}
 
-	for _, user := range users {
+	for _, user := range selectedUsers {
 		space.SpaceManagersTeamMembers = append(space.SpaceManagersTeams, user.ID)
 	}
 
@@ -110,18 +108,16 @@ func selectTeams(ask question.Asker, client *client.Client, existingSpaces []*sp
 			}
 		}
 		return ""
-	})
+	}, false)
 }
 
 func selectUsers(ask question.Asker, client *client.Client, message string) ([]*users.User, error) {
-	selectedUsers := []*users.User{}
-
 	existingUsers, err := client.Users.GetAll()
 	if err != nil {
-		return selectedUsers, err
+		return nil, err
 	}
 
 	return question.MultiSelectMap(ask, message, existingUsers, func(existingUser *users.User) string {
 		return fmt.Sprintf("%s %s", existingUser.DisplayName, output.Dimf("(%s)", existingUser.Username))
-	})
+	}, false)
 }

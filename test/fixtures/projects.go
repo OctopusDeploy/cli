@@ -3,10 +3,15 @@ package fixtures
 import (
 	"fmt"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/channels"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/constants"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/core"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/deployments"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/environments"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/releases"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/spaces"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/tenants"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/variables"
 	"net/url"
 )
 
@@ -49,6 +54,10 @@ func NewDeploymentSettingsForProject(spaceID string, projectID string, versionin
 	return result
 }
 
+// NewProject creates a new project resource, using default settings from the server.
+// NOT tenanted
+// VersioningStrategy is template based
+// NOT version controlled
 func NewProject(spaceID string, projectID string, projectName string, lifecycleID string, projectGroupID string, deploymentProcessID string) *projects.Project {
 	result := projects.NewProject(projectName, lifecycleID, projectGroupID)
 	result.ID = projectID
@@ -57,6 +66,7 @@ func NewProject(spaceID string, projectID string, projectName string, lifecycleI
 	}
 	result.PersistenceSettings = projects.NewDatabasePersistenceSettings()
 	result.DeploymentProcessID = deploymentProcessID
+	result.TenantedDeploymentMode = core.TenantedDeploymentModeUntenanted
 	result.Links = map[string]string{
 		"Channels":           fmt.Sprintf("/api/%s/projects/%s/channels{/id}{?skip,take,partialName}", spaceID, projectID),
 		"DeploymentProcess":  fmt.Sprintf("/api/%s/projects/%s/deploymentprocesses", spaceID, projectID),
@@ -95,5 +105,34 @@ func NewRelease(spaceID string, releaseID string, releaseVersion string, project
 	result := releases.NewRelease(channelID, projectID, releaseVersion)
 	result.ID = releaseID
 	result.SpaceID = spaceID
+	result.Links = map[string]string{
+		constants.LinkProgression: fmt.Sprintf("/api/%s/releases/%s/progression", spaceID, releaseID),
+	}
+	return result
+}
+
+func NewEnvironment(spaceID string, envID string, name string) *environments.Environment {
+	result := environments.NewEnvironment(name)
+	result.ID = envID
+	result.SpaceID = spaceID
+	return result
+}
+
+func NewVariableSetForProject(spaceID string, projectID string) *variables.VariableSet {
+	result := variables.NewVariableSet()
+	result.OwnerID = projectID
+	result.SpaceID = spaceID
+	result.Variables = make([]*variables.Variable, 0)
+	result.ID = "variableset-" + projectID
+	result.Links = map[string]string{}
+	return result
+}
+
+func NewTenant(spaceID string, tenantID string, name string, tenantTags ...string) *tenants.Tenant {
+	result := tenants.NewTenant(name)
+	result.ID = tenantID
+	result.SpaceID = spaceID
+	result.TenantTags = tenantTags
+	// doesn't have any ProjectEnvironments, will need to add them externally
 	return result
 }

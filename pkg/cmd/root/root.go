@@ -3,6 +3,7 @@ package root
 import (
 	"github.com/OctopusDeploy/cli/pkg/apiclient"
 	accountCmd "github.com/OctopusDeploy/cli/pkg/cmd/account"
+	configCmd "github.com/OctopusDeploy/cli/pkg/cmd/config"
 	environmentCmd "github.com/OctopusDeploy/cli/pkg/cmd/environment"
 	releaseCmd "github.com/OctopusDeploy/cli/pkg/cmd/release"
 	spaceCmd "github.com/OctopusDeploy/cli/pkg/cmd/space"
@@ -10,6 +11,7 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/OctopusDeploy/cli/pkg/question"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
 // NewCmdRoot returns the base command when called without any subcommands
@@ -56,14 +58,17 @@ func NewCmdRoot(f factory.Factory, clientFactory apiclient.ClientFactory, askPro
 	cmd.AddCommand(environmentCmd.NewCmdEnvironment(f))
 
 	// configuration commands
+	cmd.AddCommand(configCmd.NewCmdConfig(f))
 	cmd.AddCommand(spaceCmd.NewCmdSpace(f))
 
 	cmd.AddCommand(releaseCmd.NewCmdRelease(f))
 
+	viper.BindPFlag(constants.ConfigNoPrompt, cmdPFlags.Lookup(constants.FlagNoPrompt))
+	viper.BindPFlag(constants.ConfigSpace, cmdPFlags.Lookup(constants.FlagSpace))
 	// if we attempt to check the flags before Execute is called, cobra hasn't parsed anything yet,
 	// so we'll get bad values. PersistentPreRun is a convenient callback for setting up our
 	// environment after parsing but before execution.
-	cmd.PersistentPreRun = func(_ *cobra.Command, args []string) {
+	cmd.PersistentPreRun = func(_ *cobra.Command, _ []string) {
 		// map flag alias values
 		for k, v := range flagAliases {
 			for _, aliasName := range v {
@@ -75,11 +80,11 @@ func NewCmdRoot(f factory.Factory, clientFactory apiclient.ClientFactory, askPro
 			}
 		}
 
-		if noPrompt, err := cmd.PersistentFlags().GetBool(constants.FlagNoPrompt); err == nil && noPrompt {
+		if noPrompt := viper.GetBool(constants.ConfigNoPrompt); noPrompt {
 			askProvider.DisableInteractive()
 		}
 
-		if spaceNameOrId, err := cmd.PersistentFlags().GetString(constants.FlagSpace); err == nil && spaceNameOrId != "" {
+		if spaceNameOrId := viper.GetString(constants.ConfigSpace); spaceNameOrId != "" {
 			clientFactory.SetSpaceNameOrId(spaceNameOrId)
 		}
 	}

@@ -42,6 +42,7 @@ func TestReleaseList(t *testing.T) {
 			})
 
 			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
 
 			_, err := testutil.ReceivePair(cmdReceiver)
 			assert.EqualError(t, err, "project must be specified")
@@ -58,6 +59,7 @@ func TestReleaseList(t *testing.T) {
 			})
 
 			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
 
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/all").RespondWith([]*projects.Project{fireProject})
 
@@ -102,6 +104,7 @@ func TestReleaseList(t *testing.T) {
 			})
 
 			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
 
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects?clonedFromProjectId=&partialName=Fire+Project").
 				RespondWith(resources.Resources[*projects.Project]{
@@ -143,6 +146,7 @@ func TestReleaseList(t *testing.T) {
 			})
 
 			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
 
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects?clonedFromProjectId=&partialName=Fire+Project").
 				RespondWith(resources.Resources[*projects.Project]{
@@ -174,6 +178,7 @@ func TestReleaseList(t *testing.T) {
 			})
 
 			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
 
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects?clonedFromProjectId=&partialName=Fire+Project").
 				RespondWith(resources.Resources[*projects.Project]{
@@ -203,8 +208,8 @@ func TestReleaseList(t *testing.T) {
 				rootCmd.SetArgs([]string{"release", "list", "-p", fireProject.Name, "--output-format", "json", "--no-prompt"})
 				return rootCmd.ExecuteC()
 			})
-
 			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
 
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects?clonedFromProjectId=&partialName=Fire+Project").
 				RespondWith(resources.Resources[*projects.Project]{
@@ -235,14 +240,46 @@ func TestReleaseList(t *testing.T) {
 			}}, parsedStdout)
 			assert.Equal(t, "", stdErr.String())
 		}},
+
 		{"outputFormat basic", func(t *testing.T, api *testutil.MockHttpServer, qa *testutil.AskMocker, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
 			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
 				defer api.Close()
 				rootCmd.SetArgs([]string{"release", "list", "-p", fireProject.Name, "--output-format", "basic", "--no-prompt"})
 				return rootCmd.ExecuteC()
 			})
-
 			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
+
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects?clonedFromProjectId=&partialName=Fire+Project").
+				RespondWith(resources.Resources[*projects.Project]{
+					Items: []*projects.Project{fireProject},
+				})
+
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/Projects-22/releases").
+				RespondWith(resources.Resources[*releases.Release]{
+					Items: []*releases.Release{releases.NewRelease(defaultChannel.ID, fireProjectID, "2.1")},
+				})
+
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/channels?ids=Channels-1&take=1").
+				RespondWith(resources.Resources[*channels.Channel]{Items: []*channels.Channel{defaultChannel}})
+
+			_, err := testutil.ReceivePair(cmdReceiver)
+			assert.Nil(t, err)
+
+			assert.Equal(t, heredoc.Doc(`
+				2.1
+				`), stdOut.String())
+			assert.Equal(t, "", stdErr.String())
+		}},
+
+		{"outputFormat basic in interactive mode doesn't print 'helpful' extra information", func(t *testing.T, api *testutil.MockHttpServer, qa *testutil.AskMocker, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
+			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
+				defer api.Close()
+				rootCmd.SetArgs([]string{"release", "list", "-p", fireProject.Name, "--output-format", "basic"})
+				return rootCmd.ExecuteC()
+			})
+			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
 
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects?clonedFromProjectId=&partialName=Fire+Project").
 				RespondWith(resources.Resources[*projects.Project]{

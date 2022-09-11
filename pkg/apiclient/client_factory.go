@@ -4,23 +4,18 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
-	"os"
 	"strings"
 
+	"github.com/MakeNowJust/heredoc/v2"
+	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/question"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/spaces"
+	"github.com/spf13/viper"
 
 	"net/http"
 
 	cliErrors "github.com/OctopusDeploy/cli/pkg/errors"
 	octopusApiClient "github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
-	"github.com/hashicorp/go-multierror"
-)
-
-const (
-	EnvOctopusHost   = "OCTOPUS_HOST"
-	EnvOctopusApiKey = "OCTOPUS_API_KEY"
-	EnvOctopusSpace  = "OCTOPUS_SPACE"
 )
 
 type ClientFactory interface {
@@ -119,32 +114,42 @@ func NewClientFactory(httpClient *http.Client, host string, apiKey string, space
 	return clientImpl, nil
 }
 
-// NewClientFactoryFromEnvironment Creates a new Client wrapper structure by reading the environment.
+// NewClientFactoryFromConfig Creates a new Client wrapper structure by reading the viper config.
 // specifies nil for the HTTP Client, so this is not for unit tests; use NewClientFactory(... instead)
-func NewClientFactoryFromEnvironment(ask question.AskProvider) (ClientFactory, error) {
-	host := os.Getenv(EnvOctopusHost)
-	apiKey := os.Getenv(EnvOctopusApiKey)
-	spaceNameOrID := os.Getenv(EnvOctopusSpace)
+func NewClientFactoryFromConfig(ask question.AskProvider) (ClientFactory, error) {
+	host := viper.GetString(constants.ConfigHost)
+	apiKey := viper.GetString(constants.ConfigApiKey)
+	spaceNameOrID := viper.GetString(constants.ConfigSpace)
 
 	errs := ValidateMandatoryEnvironment(host, apiKey)
 	if errs != nil {
 		return nil, errs
 	}
 
-	return NewClientFactory(nil, host, apiKey, spaceNameOrID, ask)
+	var httpClient *http.Client
+	if ask.IsInteractive() {
+		// spinner round-tripper only needed for interactive mode
+		httpClient = &http.Client{
+			Transport: NewSpinnerRoundTripper(),
+		}
+	}
+
+	return NewClientFactory(httpClient, host, apiKey, spaceNameOrID, ask)
 }
 
 func ValidateMandatoryEnvironment(host string, apiKey string) error {
-	var result *multierror.Error
 
-	if host == "" {
-		result = multierror.Append(result, &cliErrors.OsEnvironmentError{EnvironmentVariable: "OCTOPUS_HOST"})
-	}
-	if apiKey == "" {
-		result = multierror.Append(result, &cliErrors.OsEnvironmentError{EnvironmentVariable: "OCTOPUS_API_KEY"})
+	if host == "" || apiKey == "" {
+		err := heredoc.Docf(`
+          To get started with Octopus CLI, please populate the %s and %s environment variables
+          Alternatively you can run:
+            octopus config set %s
+            octopus config set %s
+    `, constants.EnvOctopusHost, constants.EnvOctopusApiKey, constants.ConfigHost, constants.ConfigApiKey)
+		return fmt.Errorf(err)
 	}
 
-	return result.ErrorOrNil()
+	return nil
 }
 
 func (c *Client) GetActiveSpace() *spaces.Space {

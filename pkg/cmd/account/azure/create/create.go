@@ -2,6 +2,8 @@ package create
 
 import (
 	"fmt"
+	"github.com/OctopusDeploy/cli/pkg/util"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/environments"
 	"io"
 	"os"
 	"strings"
@@ -42,7 +44,6 @@ type CreateOptions struct {
 	Writer   io.Writer
 	Octopus  *client.Client
 	Ask      question.Asker
-	Spinner  factory.Spinner
 	Space    string
 	NoPrompt bool
 	Host     string
@@ -86,7 +87,6 @@ var azureResourceManagementBaseUri = map[string]string{
 func NewCmdCreate(f factory.Factory) *cobra.Command {
 	opts := &CreateOptions{
 		Ask:         f.Ask,
-		Spinner:     f.Spinner(),
 		CreateFlags: NewCreateFlags(),
 	}
 	descriptionFilePath := ""
@@ -155,7 +155,7 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 				}
 			}
 			if opts.Environments.Value != nil {
-				opts.Environments.Value, err = helper.ResolveEnvironmentNames(opts.Environments.Value, opts.Octopus, opts.Spinner)
+				opts.Environments.Value, err = helper.ResolveEnvironmentNames(opts.Environments.Value, opts.Octopus)
 				if err != nil {
 					return err
 				}
@@ -213,9 +213,7 @@ func CreateRun(opts *CreateOptions) error {
 	servicePrincipalAccount.ResourceManagerEndpoint = opts.RMBaseUri.Value
 	servicePrincipalAccount.AuthenticationEndpoint = opts.ADEndpointBaseUrl.Value
 
-	opts.Spinner.Start()
 	createdAccount, err = opts.Octopus.Accounts.Add(servicePrincipalAccount)
-	opts.Spinner.Stop()
 	if err != nil {
 		return err
 	}
@@ -365,13 +363,13 @@ func promptMissing(opts *CreateOptions) error {
 	}
 
 	if opts.Environments.Value == nil {
-		environmentIDs, err := selectors.EnvironmentsMultiSelect(opts.Ask, opts.Octopus, opts.Spinner,
+		envs, err := selectors.EnvironmentsMultiSelect(opts.Ask, opts.Octopus,
 			"Choose the environments that are allowed to use this account.\n"+
-				output.Dim("If nothing is selected, the account can be used for deployments to any environment."))
+				output.Dim("If nothing is selected, the account can be used for deployments to any environment."), false)
 		if err != nil {
 			return err
 		}
-		opts.Environments.Value = environmentIDs
+		opts.Environments.Value = util.SliceTransform(envs, func(e *environments.Environment) string { return e.ID })
 	}
 	return nil
 }

@@ -13,10 +13,37 @@ const (
 	FlagNoPrompt           = "no-prompt"
 )
 
+// flags for storing things in the go context
+const (
+	ContextKeyTimeNow = "time.now"
+)
+
+// values for output formats
 const (
 	OutputFormatJson  = "json"
 	OutputFormatBasic = "basic"
 	OutputFormatTable = "table" // TODO I'd like to rename this to just "standard" or "default"; discuss with team
+)
+
+// keys for key/value store config file
+const (
+	ConfigHost     = "Host"
+	ConfigApiKey   = "ApiKey"
+	ConfigSpace    = "Space"
+	ConfigNoPrompt = "NoPrompt"
+	// ConfigProxyUrl     = "ProxyUrl"
+	ConfigEditor = "Editor"
+	// ConfigShowOctopus  = "ShowOctopus"
+	ConfigOutputFormat = "OutputFormat"
+)
+
+const (
+	EnvOctopusHost   = "OCTOPUS_HOST"
+	EnvOctopusApiKey = "OCTOPUS_API_KEY"
+	EnvOctopusSpace  = "OCTOPUS_SPACE"
+	EnvEditor        = "EDITOR"
+	EnvVisual        = "VISUAL"
+	EnvCI            = "CI"
 )
 
 // IsProgrammaticOutputFormat tells you if it is acceptable for your command to

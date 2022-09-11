@@ -37,11 +37,12 @@ func NewMockFactoryWithSpaceAndPrompt(api *MockHttpServer, space *spaces.Space, 
 }
 
 type MockFactory struct {
-	api          *MockHttpServer          // must not be nil
-	ApiClient    *octopusApiClient.Client // nil; lazily created like with the real factory
-	CurrentSpace *spaces.Space
-	RawSpinner   factory.Spinner
-	AskProvider  question.AskProvider
+	api               *MockHttpServer          // must not be nil
+	SystemClient      *octopusApiClient.Client // nil; lazily created like with the real factory
+	SpaceScopedClient *octopusApiClient.Client // nil; lazily created like with the real factory
+	CurrentSpace      *spaces.Space
+	RawSpinner        factory.Spinner
+	AskProvider       question.AskProvider
 }
 
 // refactor this later if there's ever a need for unit tests to vary the server url or API key (why would there be?)
@@ -51,20 +52,28 @@ const placeholderApiKey = "API-XXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
 func (f *MockFactory) GetSystemClient() (*octopusApiClient.Client, error) {
 	serverUrl, _ := url.Parse(serverUrl)
 
-	if f.ApiClient == nil {
+	if f.SystemClient == nil {
 		octopus, err := octopusApiClient.NewClient(NewMockHttpClientWithTransport(f.api), serverUrl, placeholderApiKey, "")
 		if err != nil {
 			return nil, err
 		}
-		f.ApiClient = octopus
+		f.SystemClient = octopus
 	}
-	return f.ApiClient, nil
+	return f.SystemClient, nil
 }
 func (f *MockFactory) GetSpacedClient() (*octopusApiClient.Client, error) {
 	if f.CurrentSpace == nil {
 		return nil, errors.New("can't get space-scoped client from MockFactory while CurrentSpace is nil")
 	}
-	return f.GetSystemClient() // not meaningful in unit tests
+	serverUrl, _ := url.Parse(serverUrl)
+	if f.SpaceScopedClient == nil {
+		octopus, err := octopusApiClient.NewClient(NewMockHttpClientWithTransport(f.api), serverUrl, placeholderApiKey, f.CurrentSpace.ID)
+		if err != nil {
+			return nil, err
+		}
+		f.SpaceScopedClient = octopus
+	}
+	return f.SpaceScopedClient, nil
 }
 func (f *MockFactory) GetCurrentSpace() *spaces.Space {
 	return f.CurrentSpace
