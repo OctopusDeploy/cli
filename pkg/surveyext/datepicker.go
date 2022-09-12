@@ -25,11 +25,14 @@ DatePicker is a prompt that presents a date/time picker. Response type is a time
 */
 type DatePicker struct {
 	survey.Renderer
-	Message           string
-	Default           time.Time
-	Min               time.Time
-	Max               time.Time
-	Help              string
+	Message         string
+	Default         time.Time
+	Min             time.Time
+	Max             time.Time
+	Help            string
+	AnswerFormatter func(time.Time, time.Time) string // first parameter is 'now', second parameter is the user's selected time
+	OverrideNow     time.Time                         // for unit testing; lets you override the definition of 'now'
+
 	selectedComponent componentIdx
 	runeBuffer        []rune
 	showingHelp       bool
@@ -38,7 +41,7 @@ type DatePicker struct {
 type DatePickerTemplateData struct {
 	DatePicker
 	RawInput          string // this is full of ansi escape sequences... It'd be nice to have survey's template thing render this, TODO attempt that later
-	Answer            time.Time
+	Answer            string
 	ShowAnswer        bool
 	ShowHelp          bool
 	SelectedComponent componentIdx
@@ -72,6 +75,8 @@ type DatePickerAnswer struct {
 
 var _ surveyCore.Settable = (*DatePickerAnswer)(nil)
 
+func defaultAnswerFormatter(_ time.Time, t time.Time) string { return t.String() }
+
 func (a *DatePickerAnswer) WriteAnswer(_ string, value interface{}) error {
 	if v, ok := value.(time.Time); ok {
 		a.Time = v
@@ -84,13 +89,18 @@ func (a *DatePickerAnswer) WriteAnswer(_ string, value interface{}) error {
 func (d *DatePicker) Cleanup(config *survey.PromptConfig, val interface{}) error {
 	t := val.(time.Time)
 	d.selectedComponent = cmpNone
+
+	answerFormatter := d.AnswerFormatter
+	if answerFormatter == nil {
+		answerFormatter = defaultAnswerFormatter
+	}
 	err := d.Render(
 		DatePickerQuestionTemplate,
 		DatePickerTemplateData{
 			DatePicker: *d,
 			ShowAnswer: true,
 			ShowHelp:   d.showingHelp,
-			Answer:     t,
+			Answer:     answerFormatter(d.OverrideNow, t),
 			Config:     config,
 		})
 	return err
@@ -113,6 +123,14 @@ func invertedCyanf(s string, args ...any) string {
 	return invertedCyan(fmt.Sprintf(s, args...))
 }
 
+func (d *DatePicker) Now() time.Time {
+	if !d.OverrideNow.IsZero() {
+		return d.OverrideNow
+	} else {
+		return time.Now()
+	}
+}
+
 func (d *DatePicker) Prompt(config *survey.PromptConfig) (interface{}, error) {
 	var t time.Time
 
@@ -121,7 +139,7 @@ func (d *DatePicker) Prompt(config *survey.PromptConfig) (interface{}, error) {
 
 	// choose the initial value. Use Default if supplied, otherwise use time.Now (constrained within Min/Max)
 	if d.Default.IsZero() {
-		t = clamp(stripMilliseconds(time.Now()), min, max)
+		t = clamp(stripMilliseconds(d.Now()), min, max)
 	} else {
 		t = clamp(stripMilliseconds(d.Default), min, max)
 	}

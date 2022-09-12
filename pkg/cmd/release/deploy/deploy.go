@@ -339,6 +339,16 @@ func deployRun(cmd *cobra.Command, f factory.Factory, flags *DeployFlags) error 
 	return nil
 }
 
+// scheduledStartTimeAnswerFormatter is passed to the DatePicker so that if the user selects a time within the next
+// one minute after 'now', it will show the answer as the string "Now" rather than the actual datetime string
+func scheduledStartTimeAnswerFormatter(now time.Time, t time.Time) string {
+	if t.Before(now.Add(1 * time.Minute)) {
+		return "Now"
+	} else {
+		return t.String()
+	}
+}
+
 func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker question.Asker, space *spaces.Space, options *executor.TaskOptionsDeployRelease, now func() time.Time) error {
 	if octopus == nil {
 		return cliErrors.NewArgumentNullOrEmptyError("octopus")
@@ -505,11 +515,13 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 
 			var answer surveyext.DatePickerAnswer
 			err = asker(&surveyext.DatePicker{
-				Message: "Scheduled start time",
-				Default: referenceNow,
-				Help:    "Enter the date and time that this deployment should start",
-				Min:     referenceNow,
-				Max:     maxSchedTime,
+				Message:         "Scheduled start time",
+				Help:            "Enter the date and time that this deployment should start. A value less than 1 minute in the future means 'now'",
+				Default:         referenceNow,
+				Min:             referenceNow,
+				Max:             maxSchedTime,
+				OverrideNow:     referenceNow,
+				AnswerFormatter: scheduledStartTimeAnswerFormatter,
 			}, &answer)
 			if err != nil {
 				return err
@@ -523,11 +535,12 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 				// only ask for an expiry if they didn't pick "now"
 				startPlusFiveMin := scheduledStartTime.Add(5 * time.Minute)
 				err = asker(&surveyext.DatePicker{
-					Message: "Scheduled expiry time",
-					Help:    "At the start time, the deployment will be queued. If it does not begin before 'expiry' time, it will be cancelled. Minimum of 5 minutes after start time",
-					Default: startPlusFiveMin,
-					Min:     startPlusFiveMin,
-					Max:     maxSchedTime.Add(24 * time.Hour),
+					Message:     "Scheduled expiry time",
+					Help:        "At the start time, the deployment will be queued. If it does not begin before 'expiry' time, it will be cancelled. Minimum of 5 minutes after start time",
+					Default:     startPlusFiveMin,
+					Min:         startPlusFiveMin,
+					Max:         maxSchedTime.Add(24 * time.Hour),
+					OverrideNow: referenceNow,
 				}, &answer)
 				if err != nil {
 					return err

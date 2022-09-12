@@ -631,21 +631,28 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 
 			refNow := now()
 			plus20hours := refNow.Add(20 * time.Hour)
-			_ = qa.ExpectQuestion(t, &surveyext.DatePicker{
-				Message: "Scheduled start time",
-				Default: refNow,
-				Help:    "Enter the date and time that this deployment should start",
-				Min:     refNow,
-				Max:     refNow.Add(30 * 24 * time.Hour),
-			}).AnswerWith(plus20hours)
+			q := qa.ReceiveQuestion() // can't use ExpectQuestion; the DatePicker struct contains a func which is not comparable with anything
+			datePicker := q.Question.(*surveyext.DatePicker)
+			datePicker.AnswerFormatter = nil // now we can compare the struct
+
+			assert.Equal(t, &surveyext.DatePicker{
+				Message:     "Scheduled start time",
+				Help:        "Enter the date and time that this deployment should start. A value less than 1 minute in the future means 'now'",
+				Default:     refNow,
+				Min:         refNow,
+				Max:         refNow.Add(30 * 24 * time.Hour),
+				OverrideNow: refNow,
+			}, datePicker)
+			_ = q.AnswerWith(plus20hours)
 
 			plus20hours5mins := plus20hours.Add(5 * time.Minute)
 			_ = qa.ExpectQuestion(t, &surveyext.DatePicker{
-				Message: "Scheduled expiry time",
-				Default: plus20hours5mins,
-				Help:    "At the start time, the deployment will be queued. If it does not begin before 'expiry' time, it will be cancelled. Minimum of 5 minutes after start time",
-				Min:     plus20hours5mins,
-				Max:     refNow.Add(31 * 24 * time.Hour),
+				Message:     "Scheduled expiry time",
+				Default:     plus20hours5mins,
+				Help:        "At the start time, the deployment will be queued. If it does not begin before 'expiry' time, it will be cancelled. Minimum of 5 minutes after start time",
+				Min:         plus20hours5mins,
+				Max:         refNow.Add(31 * 24 * time.Hour),
+				OverrideNow: refNow,
 			}).AnswerWith(plus20hours5mins)
 
 			// it's going to load the deployment process to ask about excluded steps
@@ -913,14 +920,19 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 
 			refNow := now()
 			plus59s := refNow.Add(59 * time.Second)
-			_ = qa.ExpectQuestion(t, &surveyext.DatePicker{
-				Message: "Scheduled start time",
-				Default: refNow,
-				Help:    "Enter the date and time that this deployment should start",
-				Min:     refNow,
-				Max:     refNow.Add(30 * 24 * time.Hour),
-			}).AnswerWith(plus59s)
+			q := qa.ReceiveQuestion() // can't use ExpectQuestion; the DatePicker struct contains a func which is not comparable with anything
+			datePicker := q.Question.(*surveyext.DatePicker)
+			datePicker.AnswerFormatter = nil // now we can compare the struct
 
+			assert.Equal(t, &surveyext.DatePicker{
+				Message:     "Scheduled start time",
+				Default:     refNow,
+				Help:        "Enter the date and time that this deployment should start. A value less than 1 minute in the future means 'now'",
+				Min:         refNow,
+				Max:         refNow.Add(30 * 24 * time.Hour),
+				OverrideNow: refNow,
+			}, datePicker)
+			_ = q.AnswerWith(plus59s)
 			// note it doesn't ask for a scheduled end time
 
 			err := <-errReceiver
@@ -971,21 +983,28 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 
 			refNow := now()
 			plus61s := refNow.Add(61 * time.Second)
-			_ = qa.ExpectQuestion(t, &surveyext.DatePicker{
-				Message: "Scheduled start time",
-				Default: refNow,
-				Help:    "Enter the date and time that this deployment should start",
-				Min:     refNow,
-				Max:     refNow.Add(30 * 24 * time.Hour),
-			}).AnswerWith(plus61s)
+
+			q := qa.ReceiveQuestion() // can't use ExpectQuestion; the DatePicker struct contains a func which is not comparable with anything
+			datePicker := q.Question.(*surveyext.DatePicker)
+			datePicker.AnswerFormatter = nil // now we can compare the struct
+			assert.Equal(t, &surveyext.DatePicker{
+				Message:     "Scheduled start time",
+				Help:        "Enter the date and time that this deployment should start. A value less than 1 minute in the future means 'now'",
+				Default:     refNow,
+				Min:         refNow,
+				Max:         refNow.Add(30 * 24 * time.Hour),
+				OverrideNow: refNow,
+			}, datePicker)
+			_ = q.AnswerWith(plus61s)
 
 			plus61s5min := plus61s.Add(5 * time.Minute)
 			_ = qa.ExpectQuestion(t, &surveyext.DatePicker{
-				Message: "Scheduled expiry time",
-				Default: plus61s5min,
-				Help:    "At the start time, the deployment will be queued. If it does not begin before 'expiry' time, it will be cancelled. Minimum of 5 minutes after start time",
-				Min:     plus61s5min,
-				Max:     refNow.Add(31 * 24 * time.Hour),
+				Message:     "Scheduled expiry time",
+				Default:     plus61s5min,
+				Help:        "At the start time, the deployment will be queued. If it does not begin before 'expiry' time, it will be cancelled. Minimum of 5 minutes after start time",
+				Min:         plus61s5min,
+				Max:         refNow.Add(31 * 24 * time.Hour),
+				OverrideNow: refNow,
 			}).AnswerWith(plus61s5min)
 
 			err := <-errReceiver
