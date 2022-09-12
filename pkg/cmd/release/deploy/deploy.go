@@ -50,7 +50,7 @@ const (
 	FlagAliasTag             = "tag"
 	FlagAliasTenantTagLegacy = "tenantTag"
 
-	FlagDeployAt            = "deploy-at" // if this is less than 10 mins in future, go now
+	FlagDeployAt            = "deploy-at" // if this is less than 1 min in the future, go now
 	FlagAliasWhen           = "when"      // alias for deploy-at
 	FlagAliasDeployAtLegacy = "deployAt"
 
