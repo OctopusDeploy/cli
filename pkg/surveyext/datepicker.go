@@ -30,8 +30,8 @@ type DatePicker struct {
 	Min             time.Time
 	Max             time.Time
 	Help            string
-	AnswerFormatter func(time.Time, time.Time) string // first parameter is 'now', second parameter is the user's selected time
-	OverrideNow     time.Time                         // for unit testing; lets you override the definition of 'now'
+	AnswerFormatter func(*DatePicker, time.Time) string
+	OverrideNow     time.Time // for unit testing; lets you override the definition of 'now'
 
 	selectedComponent componentIdx
 	runeBuffer        []rune
@@ -75,7 +75,7 @@ type DatePickerAnswer struct {
 
 var _ surveyCore.Settable = (*DatePickerAnswer)(nil)
 
-func defaultAnswerFormatter(_ time.Time, t time.Time) string { return t.String() }
+func defaultAnswerFormatter(_ *DatePicker, t time.Time) string { return t.String() }
 
 func (a *DatePickerAnswer) WriteAnswer(_ string, value interface{}) error {
 	if v, ok := value.(time.Time); ok {
@@ -100,7 +100,7 @@ func (d *DatePicker) Cleanup(config *survey.PromptConfig, val interface{}) error
 			DatePicker: *d,
 			ShowAnswer: true,
 			ShowHelp:   d.showingHelp,
-			Answer:     answerFormatter(d.OverrideNow, t),
+			Answer:     answerFormatter(d, t),
 			Config:     config,
 		})
 	return err
@@ -123,6 +123,7 @@ func invertedCyanf(s string, args ...any) string {
 	return invertedCyan(fmt.Sprintf(s, args...))
 }
 
+// Now returns the OverrideNow property (if it is set), else time.Now()
 func (d *DatePicker) Now() time.Time {
 	if !d.OverrideNow.IsZero() {
 		return d.OverrideNow

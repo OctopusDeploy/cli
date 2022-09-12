@@ -341,8 +341,8 @@ func deployRun(cmd *cobra.Command, f factory.Factory, flags *DeployFlags) error 
 
 // scheduledStartTimeAnswerFormatter is passed to the DatePicker so that if the user selects a time within the next
 // one minute after 'now', it will show the answer as the string "Now" rather than the actual datetime string
-func scheduledStartTimeAnswerFormatter(now time.Time, t time.Time) string {
-	if t.Before(now.Add(1 * time.Minute)) {
+func scheduledStartTimeAnswerFormatter(datePicker *surveyext.DatePicker, t time.Time) string {
+	if t.Before(datePicker.Now().Add(1 * time.Minute)) {
 		return "Now"
 	} else {
 		return t.String()
@@ -511,7 +511,7 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 	if shouldAskAdvancedQuestions {
 		if !isDeployAtSpecified {
 			referenceNow := now()
-			maxSchedTime := referenceNow.Add(30 * 24 * time.Hour) // octopus server won't let you schedule things more than 30d in
+			maxSchedStartTime := referenceNow.Add(30 * 24 * time.Hour) // octopus server won't let you schedule things more than 30d in the future
 
 			var answer surveyext.DatePickerAnswer
 			err = asker(&surveyext.DatePicker{
@@ -519,7 +519,7 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 				Help:            "Enter the date and time that this deployment should start. A value less than 1 minute in the future means 'now'",
 				Default:         referenceNow,
 				Min:             referenceNow,
-				Max:             maxSchedTime,
+				Max:             maxSchedStartTime,
 				OverrideNow:     referenceNow,
 				AnswerFormatter: scheduledStartTimeAnswerFormatter,
 			}, &answer)
@@ -539,7 +539,7 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 					Help:        "At the start time, the deployment will be queued. If it does not begin before 'expiry' time, it will be cancelled. Minimum of 5 minutes after start time",
 					Default:     startPlusFiveMin,
 					Min:         startPlusFiveMin,
-					Max:         maxSchedTime.Add(24 * time.Hour),
+					Max:         maxSchedStartTime.Add(24 * time.Hour), // the octopus server doesn't enforce any upper bound for schedule expiry, so we make a minor judgement call and pick 1d extra here.
 					OverrideNow: referenceNow,
 				}, &answer)
 				if err != nil {
