@@ -1,4 +1,3 @@
-
 step "push-cli-to-chocolatey" {
     name = "Push cli to Chocolatey"
 
@@ -11,10 +10,10 @@ step "push-cli-to-chocolatey" {
                 $nugetExe = Join-Path -Path $nugetPackagePath -ChildPath "Tools\nuget.exe"
                 $extractedPath = $OctopusParameters["Octopus.Action.Package[cli].ExtractedPath"]
                 $packagePath = Get-ChildItem -Path $extractedPath -Name "octopus-cli*.nupkg"
-
+                
                 $maxAttempts = 5
                 $currentAttempt = 1
-
+                
                 while ($currentAttempt -le $maxAttempts)
                 {
                     write-host "Pushing package ($packagePath) to Chocolatey (attempt $currentAttempt)"
@@ -55,6 +54,7 @@ step "push-cli-to-chocolatey" {
 
 step "create-pull-request-to-update-formula-in-homebrew" {
     name = "Create pull request to update formula in Homebrew"
+    start_trigger = "StartWithPrevious"
 
     action {
         action_type = "Octopus.Script"
@@ -67,7 +67,7 @@ step "create-pull-request-to-update-formula-in-homebrew" {
                 username="$(get_octopusvariable 'Publish:HomeBrew:Username')"
                 email="$(get_octopusvariable 'Publish:HomeBrew:UserEmail')"
                 personalAccessToken="$(get_octopusvariable 'Publish:HomeBrew:ApiKey')"
-
+                
                 orgName="OctopusDeploy"
                 repoName="$(get_octopusvariable 'Publish:HomeBrew:RepoName')"
                 
@@ -80,10 +80,10 @@ step "create-pull-request-to-update-formula-in-homebrew" {
                 HOMEBREW_GIT_EMAIL=$email
                 HOMEBREW_GIT_NAME=$username
                 HOMEBREW_GITHUB_API_TOKEN=$personalAccessToken
-
+                
                 newUrl="https://github.com/$orgName/$repoName/releases/download/v$packageVersion/octopus_$packageVersion_macOS_amd64.tar.gz"
                 newSha=$(sha256sum "$extractedPath/octopus_$packageVersion_macOS_amd64.tar.gz" | awk '{ print $1 }')
-
+                
                 # https://docs.brew.sh/Manpage#bump-formula-pr-options-formula
                 brew bump-formula-pr \
                     --fork-org $orgName \
@@ -126,7 +126,7 @@ step "publish-to-apt-repo" {
         properties = {
             Octopus.Action.Script.ScriptBody = <<-EOT
                 cd cli || exit
-
+                
                 # Deploy APT repo
                 docker run --rm --volume $(pwd):/working \
                   --env PUBLISH_LINUX_EXTERNAL="$(get_octopusvariable "Publish:Linux:External")" \
@@ -135,7 +135,7 @@ step "publish-to-apt-repo" {
                   --env AWS_ACCESS_KEY_ID="$(get_octopusvariable "LinuxPackagePublisherAwsAccount.AccessKey")" \
                   --env AWS_SECRET_ACCESS_KEY="$(get_octopusvariable "LinuxPackagePublisherAwsAccount.SecretKey")" \
                   octopusdeploy/publish-linux bash -c 'cd /working && bash publish-apt.sh' 2>&1 || exit
-
+                
             EOT
             Octopus.Action.Script.ScriptSource = "Inline"
             Octopus.Action.Script.Syntax = "Bash"
@@ -164,7 +164,7 @@ step "publish-to-rpm-repo" {
         properties = {
             Octopus.Action.Script.ScriptBody = <<-EOT
                 cd cli || exit
-
+                
                 # Deploy RPM repo
                 docker run --rm --volume $(pwd):/working \
                   --env PUBLISH_LINUX_EXTERNAL="$(get_octopusvariable "Publish:Linux:External")" \
@@ -173,7 +173,7 @@ step "publish-to-rpm-repo" {
                   --env AWS_ACCESS_KEY_ID="$(get_octopusvariable "LinuxPackagePublisherAwsAccount.AccessKey")" \
                   --env AWS_SECRET_ACCESS_KEY="$(get_octopusvariable "LinuxPackagePublisherAwsAccount.SecretKey")" \
                   octopusdeploy/publish-linux bash -c 'cd /working && bash publish-rpm.sh' 2>&1 || exit
-
+                
             EOT
             Octopus.Action.Script.ScriptSource = "Inline"
             Octopus.Action.Script.Syntax = "Bash"
