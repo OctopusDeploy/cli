@@ -637,9 +637,9 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 
 			plus20hours5mins := plus20hours.Add(5 * time.Minute)
 			_ = qa.ExpectQuestion(t, &surveyext.DatePicker{
-				Message: "Deploy Scheduled expiry time",
+				Message: "Scheduled expiry time",
 				Default: plus20hours5mins,
-				Help:    "At the start time, the deployment will be queued. If it cannot start before 'expiry' time, it will be cancelled. Minimum of 5 minutes after start time",
+				Help:    "At the start time, the deployment will be queued. If it does not begin before 'expiry' time, it will be cancelled. Minimum of 5 minutes after start time",
 				Min:     plus20hours5mins,
 			}).AnswerWith(plus20hours5mins)
 
@@ -1445,7 +1445,7 @@ func TestDeployCreate_GenerationOfAutomationCommand_MasksSensitiveVariables(t *t
 		Project Fire Project
 		Release 2.0
 		Environments dev
-		Advanced Options:
+		Additional Options:
 		  Deploy Time: Now
 		  Skipped Steps: None
 		  Guided Failure Mode: Use default setting from the target environment
@@ -1471,7 +1471,7 @@ func TestDeployCreate_PrintAdvancedSummary(t *testing.T) {
 			deploy.PrintAdvancedSummary(stdout, options)
 
 			assert.Equal(t, heredoc.Doc(`
-			Advanced Options:
+			Additional Options:
 			  Deploy Time: Now
 			  Skipped Steps: None
 			  Guided Failure Mode: Use default setting from the target environment
@@ -1492,7 +1492,7 @@ func TestDeployCreate_PrintAdvancedSummary(t *testing.T) {
 			deploy.PrintAdvancedSummary(stdout, options)
 
 			assert.Equal(t, heredoc.Doc(`
-			Advanced Options:
+			Additional Options:
 			  Deploy Time: 2022-09-23
 			  Skipped Steps: Step 1,Step 37
 			  Guided Failure Mode: Do not use guided failure mode
@@ -1508,7 +1508,7 @@ func TestDeployCreate_PrintAdvancedSummary(t *testing.T) {
 			deploy.PrintAdvancedSummary(stdout, options)
 
 			assert.Equal(t, heredoc.Doc(`
-			Advanced Options:
+			Additional Options:
 			  Deploy Time: Now
 			  Skipped Steps: None
 			  Guided Failure Mode: Use default setting from the target environment
@@ -1524,7 +1524,7 @@ func TestDeployCreate_PrintAdvancedSummary(t *testing.T) {
 			deploy.PrintAdvancedSummary(stdout, options)
 
 			assert.Equal(t, heredoc.Doc(`
-			Advanced Options:
+			Additional Options:
 			  Deploy Time: Now
 			  Skipped Steps: None
 			  Guided Failure Mode: Use default setting from the target environment

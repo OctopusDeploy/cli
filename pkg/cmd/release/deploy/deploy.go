@@ -50,12 +50,13 @@ const (
 	FlagAliasTag             = "tag"
 	FlagAliasTenantTagLegacy = "tenantTag"
 
-	FlagDeployAt            = "deploy-at"
-	FlagAliasWhen           = "when" // alias for deploy-at
+	FlagDeployAt            = "deploy-at" // if this is less than 10 mins in future, go now
+	FlagAliasWhen           = "when"      // alias for deploy-at
 	FlagAliasDeployAtLegacy = "deployAt"
 
 	FlagDeployAtExpiry           = "deploy-at-expiry"
-	FlagAliasNoDeployAfterLegacy = "noDeployAfter" // max queue time
+	FlagDeployAtExpire           = "deploy-at-expire"
+	FlagAliasNoDeployAfterLegacy = "noDeployAfter"
 
 	FlagSkip = "skip" // can be specified multiple times
 
@@ -66,11 +67,14 @@ const (
 	FlagForcePackageDownload            = "force-package-download"
 	FlagAliasForcePackageDownloadLegacy = "forcePackageDownload"
 
-	FlagDeploymentTargets           = "target" // specific machines
-	FlagAliasSpecificMachinesLegacy = "specificMachines"
+	// octo used "specificMachines" to specify deployment targets, but we deliberately do NOT make an alias for it because
+	// the structure has changed; octo accepted a single parameter which was a comma, separated string; we accept the parameter multiple times
+	FlagDeploymentTargets = "deployment-target"
+	FlagAliasTarget       = "target" // alias for deployment-target
 
-	FlagExcludeDeploymentTargets   = "exclude-target"
-	FlagAliasExcludeMachinesLegacy = "excludeMachines"
+	// octo used "excludeMachines" for excluding deployment targets. No alias; see above note on deployment-target
+	FlagExcludeDeploymentTargets = "exclude-deployment-target"
+	FlagAliasExcludeTargets      = "exclude-target"
 
 	FlagVariable = "variable"
 
@@ -162,27 +166,18 @@ func NewCmdDeploy(f factory.Factory) *cobra.Command {
 	// flags aliases for compat with old .NET CLI
 	flagAliases := make(map[string][]string, 10)
 	util.AddFlagAliasesString(flags, FlagReleaseVersion, flagAliases, FlagAliasReleaseNumberLegacy)
-	util.AddFlagAliasesString(flags, FlagEnvironment, flagAliases, FlagAliasDeployToLegacy, FlagAliasEnv)
-	util.AddFlagAliasesString(flags, FlagTenantTag, flagAliases, FlagAliasTag, FlagAliasTenantTagLegacy)
+	util.AddFlagAliasesStringSlice(flags, FlagEnvironment, flagAliases, FlagAliasDeployToLegacy, FlagAliasEnv)
+	util.AddFlagAliasesStringSlice(flags, FlagTenantTag, flagAliases, FlagAliasTag, FlagAliasTenantTagLegacy)
 	util.AddFlagAliasesString(flags, FlagDeployAt, flagAliases, FlagAliasWhen, FlagAliasDeployAtLegacy)
-	util.AddFlagAliasesString(flags, FlagDeployAtExpiry, flagAliases, FlagAliasNoDeployAfterLegacy)
+	util.AddFlagAliasesString(flags, FlagDeployAtExpiry, flagAliases, FlagDeployAtExpire, FlagAliasNoDeployAfterLegacy)
 	util.AddFlagAliasesString(flags, FlagUpdateVariables, flagAliases, FlagAliasUpdateVariablesLegacy)
 	util.AddFlagAliasesString(flags, FlagGuidedFailure, flagAliases, FlagAliasGuidedFailureMode, FlagAliasGuidedFailureModeLegacy)
 	util.AddFlagAliasesBool(flags, FlagForcePackageDownload, flagAliases, FlagAliasForcePackageDownloadLegacy)
-	util.AddFlagAliasesBool(flags, FlagDeploymentTargets, flagAliases, FlagAliasSpecificMachinesLegacy)
-	util.AddFlagAliasesBool(flags, FlagExcludeDeploymentTargets, flagAliases, FlagAliasExcludeMachinesLegacy)
+	util.AddFlagAliasesStringSlice(flags, FlagDeploymentTargets, flagAliases, FlagAliasTarget)
+	util.AddFlagAliasesStringSlice(flags, FlagExcludeDeploymentTargets, flagAliases, FlagAliasExcludeTargets)
 
 	cmd.PreRunE = func(cmd *cobra.Command, args []string) error {
-		// map alias values
-		for k, v := range flagAliases {
-			for _, aliasName := range v {
-				f := cmd.Flags().Lookup(aliasName)
-				r := f.Value.String() // boolean flags get stringified here but it's fast enough and a one-shot so meh
-				if r != f.DefValue {
-					_ = cmd.Flags().Lookup(k).Value.Set(r)
-				}
-			}
-		}
+		util.ApplyFlagAliases(cmd.Flags(), flagAliases)
 		return nil
 	}
 	return cmd
@@ -523,8 +518,8 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 				// only ask for an expiry if they didn't pick "now"
 				fiveMinExpiry := answer.Time.Add(5 * time.Minute)
 				err = asker(&surveyext.DatePicker{
-					Message: "Deploy Scheduled expiry time",
-					Help:    "After the start time, the deployment will be queued. If it cannot start before 'expiry' time, then cancel the operation",
+					Message: "Scheduled expiry time",
+					Help:    "At the start time, the deployment will be queued. If it does not begin before 'expiry' time, it will be cancelled. Minimum of 5 minutes after start time",
 					Default: fiveMinExpiry,
 					Min:     fiveMinExpiry,
 				}, &answer)
