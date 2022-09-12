@@ -50,12 +50,13 @@ const (
 	FlagAliasTag             = "tag"
 	FlagAliasTenantTagLegacy = "tenantTag"
 
-	FlagDeployAt            = "deploy-at"
-	FlagAliasWhen           = "when" // alias for deploy-at
+	FlagDeployAt            = "deploy-at" // if this is less than 1 min in the future, go now
+	FlagAliasWhen           = "when"      // alias for deploy-at
 	FlagAliasDeployAtLegacy = "deployAt"
 
 	FlagDeployAtExpiry           = "deploy-at-expiry"
-	FlagAliasNoDeployAfterLegacy = "noDeployAfter" // max queue time
+	FlagDeployAtExpire           = "deploy-at-expire"
+	FlagAliasNoDeployAfterLegacy = "noDeployAfter"
 
 	FlagSkip = "skip" // can be specified multiple times
 
@@ -66,11 +67,13 @@ const (
 	FlagForcePackageDownload            = "force-package-download"
 	FlagAliasForcePackageDownloadLegacy = "forcePackageDownload"
 
-	FlagDeploymentTargets           = "target" // specific machines
-	FlagAliasSpecificMachinesLegacy = "specificMachines"
+	FlagDeploymentTarget      = "deployment-target"
+	FlagAliasTarget           = "target"           // alias for deployment-target
+	FlagAliasSpecificMachines = "specificMachines" // octo wants a comma separated list. We prefer specifying --target multiple times, but CSV also works because pflag does it for free
 
-	FlagExcludeDeploymentTargets   = "exclude-target"
-	FlagAliasExcludeMachinesLegacy = "excludeMachines"
+	FlagExcludeDeploymentTarget = "exclude-deployment-target"
+	FlagAliasExcludeTarget      = "exclude-target"
+	FlagAliasExcludeMachines    = "excludeMachines" // octo wants a comma separated list. We prefer specifying --exclude-target multiple times, but CSV also works because pflag does it for free
 
 	FlagVariable = "variable"
 
@@ -114,8 +117,8 @@ func NewDeployFlags() *DeployFlags {
 		ExcludedSteps:        flag.New[[]string](FlagSkip, false),
 		GuidedFailureMode:    flag.New[string](FlagGuidedFailure, false),
 		ForcePackageDownload: flag.New[bool](FlagForcePackageDownload, false),
-		DeploymentTargets:    flag.New[[]string](FlagDeploymentTargets, false),
-		ExcludeTargets:       flag.New[[]string](FlagExcludeDeploymentTargets, false),
+		DeploymentTargets:    flag.New[[]string](FlagDeploymentTarget, false),
+		ExcludeTargets:       flag.New[[]string](FlagExcludeDeploymentTarget, false),
 	}
 }
 
@@ -162,27 +165,18 @@ func NewCmdDeploy(f factory.Factory) *cobra.Command {
 	// flags aliases for compat with old .NET CLI
 	flagAliases := make(map[string][]string, 10)
 	util.AddFlagAliasesString(flags, FlagReleaseVersion, flagAliases, FlagAliasReleaseNumberLegacy)
-	util.AddFlagAliasesString(flags, FlagEnvironment, flagAliases, FlagAliasDeployToLegacy, FlagAliasEnv)
-	util.AddFlagAliasesString(flags, FlagTenantTag, flagAliases, FlagAliasTag, FlagAliasTenantTagLegacy)
+	util.AddFlagAliasesStringSlice(flags, FlagEnvironment, flagAliases, FlagAliasDeployToLegacy, FlagAliasEnv)
+	util.AddFlagAliasesStringSlice(flags, FlagTenantTag, flagAliases, FlagAliasTag, FlagAliasTenantTagLegacy)
 	util.AddFlagAliasesString(flags, FlagDeployAt, flagAliases, FlagAliasWhen, FlagAliasDeployAtLegacy)
-	util.AddFlagAliasesString(flags, FlagDeployAtExpiry, flagAliases, FlagAliasNoDeployAfterLegacy)
+	util.AddFlagAliasesString(flags, FlagDeployAtExpiry, flagAliases, FlagDeployAtExpire, FlagAliasNoDeployAfterLegacy)
 	util.AddFlagAliasesString(flags, FlagUpdateVariables, flagAliases, FlagAliasUpdateVariablesLegacy)
 	util.AddFlagAliasesString(flags, FlagGuidedFailure, flagAliases, FlagAliasGuidedFailureMode, FlagAliasGuidedFailureModeLegacy)
 	util.AddFlagAliasesBool(flags, FlagForcePackageDownload, flagAliases, FlagAliasForcePackageDownloadLegacy)
-	util.AddFlagAliasesBool(flags, FlagDeploymentTargets, flagAliases, FlagAliasSpecificMachinesLegacy)
-	util.AddFlagAliasesBool(flags, FlagExcludeDeploymentTargets, flagAliases, FlagAliasExcludeMachinesLegacy)
+	util.AddFlagAliasesStringSlice(flags, FlagDeploymentTarget, flagAliases, FlagAliasTarget, FlagAliasSpecificMachines)
+	util.AddFlagAliasesStringSlice(flags, FlagExcludeDeploymentTarget, flagAliases, FlagAliasExcludeTarget, FlagAliasExcludeMachines)
 
 	cmd.PreRunE = func(cmd *cobra.Command, args []string) error {
-		// map alias values
-		for k, v := range flagAliases {
-			for _, aliasName := range v {
-				f := cmd.Flags().Lookup(aliasName)
-				r := f.Value.String() // boolean flags get stringified here but it's fast enough and a one-shot so meh
-				if r != f.DefValue {
-					_ = cmd.Flags().Lookup(k).Value.Set(r)
-				}
-			}
-		}
+		util.ApplyFlagAliases(cmd.Flags(), flagAliases)
 		return nil
 	}
 	return cmd
@@ -227,9 +221,9 @@ func deployRun(cmd *cobra.Command, f factory.Factory, flags *DeployFlags) error 
 	}
 
 	if f.IsPromptEnabled() {
-		now := time.Now()
+		now := time.Now
 		if cmd.Context() != nil { // allow context to override the definition of 'now' for testing
-			if n, ok := cmd.Context().Value(constants.ContextKeyTimeNow).(time.Time); ok {
+			if n, ok := cmd.Context().Value(constants.ContextKeyTimeNow).(func() time.Time); ok {
 				now = n
 			}
 		}
@@ -345,7 +339,17 @@ func deployRun(cmd *cobra.Command, f factory.Factory, flags *DeployFlags) error 
 	return nil
 }
 
-func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker question.Asker, space *spaces.Space, options *executor.TaskOptionsDeployRelease, now time.Time) error {
+// scheduledStartTimeAnswerFormatter is passed to the DatePicker so that if the user selects a time within the next
+// one minute after 'now', it will show the answer as the string "Now" rather than the actual datetime string
+func scheduledStartTimeAnswerFormatter(datePicker *surveyext.DatePicker, t time.Time) string {
+	if t.Before(datePicker.Now().Add(1 * time.Minute)) {
+		return "Now"
+	} else {
+		return t.String()
+	}
+}
+
+func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker question.Asker, space *spaces.Space, options *executor.TaskOptionsDeployRelease, now func() time.Time) error {
 	if octopus == nil {
 		return cliErrors.NewArgumentNullOrEmptyError("octopus")
 	}
@@ -366,7 +370,7 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 	// select project
 	var selectedProject *projects.Project
 	if options.ProjectName == "" {
-		selectedProject, err = selectors.Project("Select the project to deploy from", octopus, asker)
+		selectedProject, err = selectors.Project("Select project", octopus, asker)
 		if err != nil {
 			return err
 		}
@@ -384,11 +388,11 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 	var selectedRelease *releases.Release
 	if options.ReleaseVersion == "" {
 		// first we want to ask them to pick a channel just to narrow down the search space for releases (not sent to server)
-		selectedChannel, err := selectors.Channel(octopus, asker, "Select the channel to deploy from", selectedProject)
+		selectedChannel, err := selectors.Channel(octopus, asker, "Select channel", selectedProject)
 		if err != nil {
 			return err
 		}
-		selectedRelease, err = selectRelease(octopus, asker, "Select the release to deploy", space, selectedProject, selectedChannel)
+		selectedRelease, err = selectRelease(octopus, asker, "Select a release to deploy", space, selectedProject, selectedChannel)
 		if err != nil {
 			return err
 		}
@@ -491,13 +495,13 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 	if !allAdvancedOptionsSpecified {
 		var changeOptionsAnswer string
 		err = asker(&survey.Select{
-			Message: "Do you want to change advanced options?",
-			Options: []string{"Proceed to deploy", "Change advanced options"},
+			Message: "Change additional options?",
+			Options: []string{"Proceed to deploy", "Change"},
 		}, &changeOptionsAnswer)
 		if err != nil {
 			return err
 		}
-		if changeOptionsAnswer == "Change advanced options" {
+		if changeOptionsAnswer == "Change" {
 			shouldAskAdvancedQuestions = true
 		} else {
 			shouldAskAdvancedQuestions = false
@@ -506,27 +510,37 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 
 	if shouldAskAdvancedQuestions {
 		if !isDeployAtSpecified {
+			referenceNow := now()
+			maxSchedStartTime := referenceNow.Add(30 * 24 * time.Hour) // octopus server won't let you schedule things more than 30d in the future
+
 			var answer surveyext.DatePickerAnswer
 			err = asker(&surveyext.DatePicker{
-				Message: "Deploy Scheduled start time",
-				Default: now,
-				Help:    "Enter the date and time that this deployment should start",
-				Min:     now,
+				Message:         "Scheduled start time",
+				Help:            "Enter the date and time that this deployment should start. A value less than 1 minute in the future means 'now'",
+				Default:         referenceNow,
+				Min:             referenceNow,
+				Max:             maxSchedStartTime,
+				OverrideNow:     referenceNow,
+				AnswerFormatter: scheduledStartTimeAnswerFormatter,
 			}, &answer)
 			if err != nil {
 				return err
 			}
-			// if they enter a time within the 30s, assume 'now', else we need to pick it up
-			if answer.Time.After(now.Add(30 * time.Second)) {
-				options.ScheduledStartTime = answer.Time.Format(time.RFC3339)
+			scheduledStartTime := answer.Time
+			// if they enter a time within 1 minute, assume 'now', else we need to pick it up.
+			// note: the server has some code in it which attempts to detect past
+			if scheduledStartTime.After(referenceNow.Add(1 * time.Minute)) {
+				options.ScheduledStartTime = scheduledStartTime.Format(time.RFC3339)
 
 				// only ask for an expiry if they didn't pick "now"
-				fiveMinExpiry := answer.Time.Add(5 * time.Minute)
+				startPlusFiveMin := scheduledStartTime.Add(5 * time.Minute)
 				err = asker(&surveyext.DatePicker{
-					Message: "Deploy Scheduled expiry time",
-					Help:    "After the start time, the deployment will be queued. If it cannot start before 'expiry' time, then cancel the operation",
-					Default: fiveMinExpiry,
-					Min:     fiveMinExpiry,
+					Message:     "Scheduled expiry time",
+					Help:        "At the start time, the deployment will be queued. If it does not begin before 'expiry' time, it will be cancelled. Minimum of 5 minutes after start time",
+					Default:     startPlusFiveMin,
+					Min:         startPlusFiveMin,
+					Max:         maxSchedStartTime.Add(24 * time.Hour), // the octopus server doesn't enforce any upper bound for schedule expiry, so we make a minor judgement call and pick 1d extra here.
+					OverrideNow: referenceNow,
 				}, &answer)
 				if err != nil {
 					return err
@@ -614,7 +628,7 @@ func askDeploymentTargets(octopus *octopusApiClient.Client, asker question.Asker
 	if len(results) > 0 {
 		var selectedDeploymentTargetNames []string
 		err := asker(&survey.MultiSelect{
-			Message: "Restrict to specific deployment targets (optional)",
+			Message: "Deployment targets (If none selected, deploy to all)",
 			Options: results,
 		}, &selectedDeploymentTargetNames)
 		if err != nil {
@@ -688,7 +702,7 @@ func selectDeploymentEnvironment(asker question.Asker, octopus *octopusApiClient
 	optionMap, options := question.MakeItemMapAndOptions(allEnvs, func(e *environments.Environment) string { return e.Name })
 	var selectedKey string
 	err = asker(&survey.Select{
-		Message: "Select environment to deploy to",
+		Message: "Select environment",
 		Options: options,
 		Default: nextDeployEnvironmentName,
 	}, &selectedKey)
@@ -711,7 +725,7 @@ func selectDeploymentEnvironments(asker question.Asker, octopus *octopusApiClien
 	optionMap, options := question.MakeItemMapAndOptions(allEnvs, func(e *environments.Environment) string { return e.Name })
 	var selectedKeys []string
 	err = asker(&survey.MultiSelect{
-		Message: "Select environments to deploy to",
+		Message: "Select environment(s)",
 		Options: options,
 		Default: []string{nextDeployEnvironmentName},
 	}, &selectedKeys, survey.WithValidator(survey.Required))
@@ -821,7 +835,7 @@ func PrintAdvancedSummary(stdout io.Writer, options *executor.TaskOptionsDeployR
 	}
 
 	_, _ = fmt.Fprintf(stdout, output.FormatDoc(heredoc.Doc(`
-		bold(Advanced Options):
+		bold(Additional Options):
 		  Deploy Time: cyan(%s)
 		  Skipped Steps: cyan(%s)
 		  Guided Failure Mode: cyan(%s)
@@ -912,7 +926,7 @@ func AskTenantsAndTags(asker question.Asker, octopus *octopusApiClient.Client, r
 }
 
 func askExcludedSteps(asker question.Asker, steps []*deployments.DeploymentStep) ([]string, error) {
-	stepsToExclude, err := question.MultiSelectMap(asker, "Select steps to skip (optional)", steps, func(s *deployments.DeploymentStep) string {
+	stepsToExclude, err := question.MultiSelectMap(asker, "Steps to skip (If none selected, run all steps)", steps, func(s *deployments.DeploymentStep) string {
 		return s.Name
 	}, false)
 	if err != nil {
@@ -934,7 +948,7 @@ func askGuidedFailureMode(asker question.Asker) (string, error) {
 	modes := []string{
 		"", "true", "false", // maps to a nullable bool in C#
 	}
-	return question.SelectMap(asker, "Guided Failure Mode?", modes, lookupGuidedFailureModeString)
+	return question.SelectMap(asker, "Guided Failure Mode", modes, lookupGuidedFailureModeString)
 }
 
 // AskVariables returns the map of ALL variables to send to the server, whether they were prompted for, or came from the command line.

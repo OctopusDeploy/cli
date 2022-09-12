@@ -1,9 +1,5 @@
 package util
 
-import (
-	"github.com/spf13/pflag"
-)
-
 // SliceContains returns true if it finds an item in the slice that is equal to the target
 func SliceContains[T comparable](slice []T, target T) bool {
 	for _, item := range slice {
@@ -75,30 +71,6 @@ func ExtractValuesMatchingKeys[T any](collection []T, keys []string, idSelector 
 		}
 	}
 	return results
-}
-
-func AddFlagAliasesString(flags *pflag.FlagSet, originalFlag string, aliasMap map[string][]string, aliases ...string) {
-	f := flags.Lookup(originalFlag)
-	if f == nil {
-		panic("bug! AddFlagAliasesString couldn't find original flag in collection")
-	}
-	for _, alias := range aliases {
-		flags.String(alias, f.DefValue, "")
-		_ = flags.MarkHidden(alias)
-	}
-	aliasMap[originalFlag] = aliases
-}
-
-func AddFlagAliasesBool(flags *pflag.FlagSet, originalFlag string, aliasMap map[string][]string, aliases ...string) {
-	f := flags.Lookup(originalFlag)
-	if f == nil {
-		panic("bug! AddFlagAliasesBool couldn't find original flag in collection")
-	}
-	for _, alias := range aliases {
-		flags.Bool(alias, false, "") // this would be broken if we had any bools with default value of true, but we don't
-		_ = flags.MarkHidden(alias)
-	}
-	aliasMap[originalFlag] = aliases
 }
 
 type MapCollectionCacheContainer struct {

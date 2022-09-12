@@ -183,16 +183,7 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 	util.AddFlagAliasesBool(flags, FlagIgnoreChannelRules, flagAliases, FlagAliasIgnoreChannelRulesLegacy)
 
 	cmd.PreRunE = func(cmd *cobra.Command, args []string) error {
-		// map alias values
-		for k, v := range flagAliases {
-			for _, aliasName := range v {
-				f := cmd.Flags().Lookup(aliasName)
-				r := f.Value.String() // boolean flags get stringified here but it's fast enough and a one-shot so meh
-				if r != f.DefValue {
-					_ = cmd.Flags().Lookup(k).Value.Set(r)
-				}
-			}
-		}
+		util.ApplyFlagAliases(cmd.Flags(), flagAliases)
 		return nil
 	}
 
