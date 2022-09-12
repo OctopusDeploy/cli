@@ -40,7 +40,9 @@ const placeholderApiKey = "API-XXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
 
 var rootResource = testutil.NewRootResource()
 
-var now = time.Date(2022, time.September, 8, 13, 25, 2, 0, time.FixedZone("Malaysia", 8*3600)) // UTC+8
+var now = func() time.Time {
+	return time.Date(2022, time.September, 8, 13, 25, 2, 0, time.FixedZone("Malaysia", 8*3600)) // UTC+8
+}
 var ctxWithFakeNow = context.WithValue(context.TODO(), constants.ContextKeyTimeNow, now)
 
 func TestDeployCreate_AskQuestions(t *testing.T) {
@@ -627,12 +629,13 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 			}).AnswerWith("Change")
 			stdout.Reset()
 
-			plus20hours := now.Add(20 * time.Hour)
+			refNow := now()
+			plus20hours := refNow.Add(20 * time.Hour)
 			_ = qa.ExpectQuestion(t, &surveyext.DatePicker{
 				Message: "Scheduled start time",
-				Default: now,
+				Default: refNow,
 				Help:    "Enter the date and time that this deployment should start",
-				Min:     now,
+				Min:     refNow,
 			}).AnswerWith(plus20hours)
 
 			plus20hours5mins := plus20hours.Add(5 * time.Minute)
@@ -848,7 +851,7 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 				ForcePackageDownload:             false,
 				ForcePackageDownloadWasSpecified: true,
 				ExcludeTargets:                   []string{"vm-99"}, // just to skip the question
-				ScheduledStartTime:               now.String(),
+				ScheduledStartTime:               now().String(),
 			}
 
 			errReceiver := testutil.GoBegin(func() error {

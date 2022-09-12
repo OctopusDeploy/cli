@@ -221,9 +221,9 @@ func deployRun(cmd *cobra.Command, f factory.Factory, flags *DeployFlags) error 
 	}
 
 	if f.IsPromptEnabled() {
-		now := time.Now()
+		now := time.Now
 		if cmd.Context() != nil { // allow context to override the definition of 'now' for testing
-			if n, ok := cmd.Context().Value(constants.ContextKeyTimeNow).(time.Time); ok {
+			if n, ok := cmd.Context().Value(constants.ContextKeyTimeNow).(func() time.Time); ok {
 				now = n
 			}
 		}
@@ -339,7 +339,7 @@ func deployRun(cmd *cobra.Command, f factory.Factory, flags *DeployFlags) error 
 	return nil
 }
 
-func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker question.Asker, space *spaces.Space, options *executor.TaskOptionsDeployRelease, now time.Time) error {
+func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker question.Asker, space *spaces.Space, options *executor.TaskOptionsDeployRelease, now func() time.Time) error {
 	if octopus == nil {
 		return cliErrors.NewArgumentNullOrEmptyError("octopus")
 	}
@@ -500,18 +500,19 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 
 	if shouldAskAdvancedQuestions {
 		if !isDeployAtSpecified {
+			referenceNow := now()
 			var answer surveyext.DatePickerAnswer
 			err = asker(&surveyext.DatePicker{
 				Message: "Scheduled start time",
-				Default: now,
+				Default: referenceNow,
 				Help:    "Enter the date and time that this deployment should start",
-				Min:     now,
+				Min:     referenceNow,
 			}, &answer)
 			if err != nil {
 				return err
 			}
 			// if they enter a time within the 30s, assume 'now', else we need to pick it up
-			if answer.Time.After(now.Add(30 * time.Second)) {
+			if answer.Time.After(referenceNow.Add(30 * time.Second)) {
 				options.ScheduledStartTime = answer.Time.Format(time.RFC3339)
 
 				// only ask for an expiry if they didn't pick "now"
