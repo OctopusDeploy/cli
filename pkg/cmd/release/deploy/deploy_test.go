@@ -636,6 +636,7 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 				Default: refNow,
 				Help:    "Enter the date and time that this deployment should start",
 				Min:     refNow,
+				Max:     refNow.Add(30 * 24 * time.Hour),
 			}).AnswerWith(plus20hours)
 
 			plus20hours5mins := plus20hours.Add(5 * time.Minute)
@@ -644,6 +645,7 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 				Default: plus20hours5mins,
 				Help:    "At the start time, the deployment will be queued. If it does not begin before 'expiry' time, it will be cancelled. Minimum of 5 minutes after start time",
 				Min:     plus20hours5mins,
+				Max:     refNow.Add(31 * 24 * time.Hour),
 			}).AnswerWith(plus20hours5mins)
 
 			// it's going to load the deployment process to ask about excluded steps
@@ -879,6 +881,130 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 				ExcludeTargets:                   []string{"vm-99"},
 				ReleaseID:                        release19.ID,
 				ScheduledStartTime:               "2022-09-08 13:25:02 +0800 Malaysia",
+			}, options)
+		}},
+
+		{"scheduled start time; interactive start times less than 1 minute in future are interpreted as 'now'", func(t *testing.T, api *testutil.MockHttpServer, qa *testutil.AskMocker, stdout *bytes.Buffer) {
+			options := &executor.TaskOptionsDeployRelease{
+				ProjectName:                      "fire project",
+				ReleaseVersion:                   "1.9",
+				Environments:                     []string{"dev"},
+				ExcludedSteps:                    []string{"Cleanup"},
+				GuidedFailureMode:                "default",
+				ForcePackageDownload:             false,
+				ForcePackageDownloadWasSpecified: true,
+				ExcludeTargets:                   []string{"vm-99"}, // just to skip the question
+			}
+
+			errReceiver := testutil.GoBegin(func() error {
+				defer testutil.Close(api, qa)
+				octopus, _ := octopusApiClient.NewClient(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "")
+				return deploy.AskQuestions(octopus, stdout, qa.AsAsker(), space1, options, now)
+			})
+
+			doStandardApiResponses(options, api, release19, variableSnapshotNoVars)
+			stdout.Reset()
+
+			_ = qa.ExpectQuestion(t, &survey.Select{
+				Message: "Change additional options?",
+				Options: []string{"Proceed to deploy", "Change"},
+			}).AnswerWith("Change")
+			stdout.Reset()
+
+			refNow := now()
+			plus59s := refNow.Add(59 * time.Second)
+			_ = qa.ExpectQuestion(t, &surveyext.DatePicker{
+				Message: "Scheduled start time",
+				Default: refNow,
+				Help:    "Enter the date and time that this deployment should start",
+				Min:     refNow,
+				Max:     refNow.Add(30 * 24 * time.Hour),
+			}).AnswerWith(plus59s)
+
+			// note it doesn't ask for a scheduled end time
+
+			err := <-errReceiver
+			assert.Nil(t, err)
+
+			// check that the question-asking process has filled out the things we told it to
+			assert.Equal(t, &executor.TaskOptionsDeployRelease{
+				ProjectName:                      "Fire Project",
+				ReleaseVersion:                   "1.9",
+				Environments:                     []string{"dev"},
+				GuidedFailureMode:                "default",
+				ForcePackageDownload:             false,
+				ForcePackageDownloadWasSpecified: true,
+				Variables:                        make(map[string]string, 0),
+				ExcludedSteps:                    []string{"Cleanup"},
+				ExcludeTargets:                   []string{"vm-99"},
+				ReleaseID:                        release19.ID,
+				// no scheduled start time in the server command
+			}, options)
+		}},
+
+		{"scheduled start time; interactive start times greater than 1 minute in future are interpreted as scheduled", func(t *testing.T, api *testutil.MockHttpServer, qa *testutil.AskMocker, stdout *bytes.Buffer) {
+			options := &executor.TaskOptionsDeployRelease{
+				ProjectName:                      "fire project",
+				ReleaseVersion:                   "1.9",
+				Environments:                     []string{"dev"},
+				ExcludedSteps:                    []string{"Cleanup"},
+				GuidedFailureMode:                "default",
+				ForcePackageDownload:             false,
+				ForcePackageDownloadWasSpecified: true,
+				ExcludeTargets:                   []string{"vm-99"}, // just to skip the question
+			}
+
+			errReceiver := testutil.GoBegin(func() error {
+				defer testutil.Close(api, qa)
+				octopus, _ := octopusApiClient.NewClient(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "")
+				return deploy.AskQuestions(octopus, stdout, qa.AsAsker(), space1, options, now)
+			})
+
+			doStandardApiResponses(options, api, release19, variableSnapshotNoVars)
+			stdout.Reset()
+
+			_ = qa.ExpectQuestion(t, &survey.Select{
+				Message: "Change additional options?",
+				Options: []string{"Proceed to deploy", "Change"},
+			}).AnswerWith("Change")
+			stdout.Reset()
+
+			refNow := now()
+			plus61s := refNow.Add(61 * time.Second)
+			_ = qa.ExpectQuestion(t, &surveyext.DatePicker{
+				Message: "Scheduled start time",
+				Default: refNow,
+				Help:    "Enter the date and time that this deployment should start",
+				Min:     refNow,
+				Max:     refNow.Add(30 * 24 * time.Hour),
+			}).AnswerWith(plus61s)
+
+			plus61s5min := plus61s.Add(5 * time.Minute)
+			_ = qa.ExpectQuestion(t, &surveyext.DatePicker{
+				Message: "Scheduled expiry time",
+				Default: plus61s5min,
+				Help:    "At the start time, the deployment will be queued. If it does not begin before 'expiry' time, it will be cancelled. Minimum of 5 minutes after start time",
+				Min:     plus61s5min,
+				Max:     refNow.Add(31 * 24 * time.Hour),
+			}).AnswerWith(plus61s5min)
+
+			err := <-errReceiver
+			assert.Nil(t, err)
+
+			// check that the question-asking process has filled out the things we told it to
+			assert.Equal(t, &executor.TaskOptionsDeployRelease{
+				ProjectName:                      "Fire Project",
+				ReleaseVersion:                   "1.9",
+				Environments:                     []string{"dev"},
+				GuidedFailureMode:                "default",
+				ForcePackageDownload:             false,
+				ForcePackageDownloadWasSpecified: true,
+				Variables:                        make(map[string]string, 0),
+				ExcludedSteps:                    []string{"Cleanup"},
+				ExcludeTargets:                   []string{"vm-99"},
+				ReleaseID:                        release19.ID,
+				ScheduledStartTime:               "2022-09-08T13:26:03+08:00",
+				ScheduledExpiryTime:              "2022-09-08T13:31:03+08:00",
 			}, options)
 		}},
 	}

@@ -501,27 +501,33 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 	if shouldAskAdvancedQuestions {
 		if !isDeployAtSpecified {
 			referenceNow := now()
+			maxSchedTime := referenceNow.Add(30 * 24 * time.Hour) // octopus server won't let you schedule things more than 30d in
+
 			var answer surveyext.DatePickerAnswer
 			err = asker(&surveyext.DatePicker{
 				Message: "Scheduled start time",
 				Default: referenceNow,
 				Help:    "Enter the date and time that this deployment should start",
 				Min:     referenceNow,
+				Max:     maxSchedTime,
 			}, &answer)
 			if err != nil {
 				return err
 			}
-			// if they enter a time within the 30s, assume 'now', else we need to pick it up
-			if answer.Time.After(referenceNow.Add(30 * time.Second)) {
-				options.ScheduledStartTime = answer.Time.Format(time.RFC3339)
+			scheduledStartTime := answer.Time
+			// if they enter a time within 1 minute, assume 'now', else we need to pick it up.
+			// note: the server has some code in it which attempts to detect past
+			if scheduledStartTime.After(referenceNow.Add(1 * time.Minute)) {
+				options.ScheduledStartTime = scheduledStartTime.Format(time.RFC3339)
 
 				// only ask for an expiry if they didn't pick "now"
-				fiveMinExpiry := answer.Time.Add(5 * time.Minute)
+				startPlusFiveMin := scheduledStartTime.Add(5 * time.Minute)
 				err = asker(&surveyext.DatePicker{
 					Message: "Scheduled expiry time",
 					Help:    "At the start time, the deployment will be queued. If it does not begin before 'expiry' time, it will be cancelled. Minimum of 5 minutes after start time",
-					Default: fiveMinExpiry,
-					Min:     fiveMinExpiry,
+					Default: startPlusFiveMin,
+					Min:     startPlusFiveMin,
+					Max:     maxSchedTime.Add(24 * time.Hour),
 				}, &answer)
 				if err != nil {
 					return err
