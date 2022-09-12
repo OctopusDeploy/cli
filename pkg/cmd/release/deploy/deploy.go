@@ -67,14 +67,13 @@ const (
 	FlagForcePackageDownload            = "force-package-download"
 	FlagAliasForcePackageDownloadLegacy = "forcePackageDownload"
 
-	// octo used "specificMachines" to specify deployment targets, but we deliberately do NOT make an alias for it because
-	// the structure has changed; octo accepted a single parameter which was a comma, separated string; we accept the parameter multiple times
-	FlagDeploymentTargets = "deployment-target"
-	FlagAliasTarget       = "target" // alias for deployment-target
+	FlagDeploymentTarget      = "deployment-target"
+	FlagAliasTarget           = "target"           // alias for deployment-target
+	FlagAliasSpecificMachines = "specificMachines" // octo wants a comma separated list. We prefer specifying --target multiple times, but CSV also works because pflag does it for free
 
-	// octo used "excludeMachines" for excluding deployment targets. No alias; see above note on deployment-target
-	FlagExcludeDeploymentTargets = "exclude-deployment-target"
-	FlagAliasExcludeTargets      = "exclude-target"
+	FlagExcludeDeploymentTarget = "exclude-deployment-target"
+	FlagAliasExcludeTarget      = "exclude-target"
+	FlagAliasExcludeMachines    = "excludeMachines" // octo wants a comma separated list. We prefer specifying --exclude-target multiple times, but CSV also works because pflag does it for free
 
 	FlagVariable = "variable"
 
@@ -118,8 +117,8 @@ func NewDeployFlags() *DeployFlags {
 		ExcludedSteps:        flag.New[[]string](FlagSkip, false),
 		GuidedFailureMode:    flag.New[string](FlagGuidedFailure, false),
 		ForcePackageDownload: flag.New[bool](FlagForcePackageDownload, false),
-		DeploymentTargets:    flag.New[[]string](FlagDeploymentTargets, false),
-		ExcludeTargets:       flag.New[[]string](FlagExcludeDeploymentTargets, false),
+		DeploymentTargets:    flag.New[[]string](FlagDeploymentTarget, false),
+		ExcludeTargets:       flag.New[[]string](FlagExcludeDeploymentTarget, false),
 	}
 }
 
@@ -173,8 +172,8 @@ func NewCmdDeploy(f factory.Factory) *cobra.Command {
 	util.AddFlagAliasesString(flags, FlagUpdateVariables, flagAliases, FlagAliasUpdateVariablesLegacy)
 	util.AddFlagAliasesString(flags, FlagGuidedFailure, flagAliases, FlagAliasGuidedFailureMode, FlagAliasGuidedFailureModeLegacy)
 	util.AddFlagAliasesBool(flags, FlagForcePackageDownload, flagAliases, FlagAliasForcePackageDownloadLegacy)
-	util.AddFlagAliasesStringSlice(flags, FlagDeploymentTargets, flagAliases, FlagAliasTarget)
-	util.AddFlagAliasesStringSlice(flags, FlagExcludeDeploymentTargets, flagAliases, FlagAliasExcludeTargets)
+	util.AddFlagAliasesStringSlice(flags, FlagDeploymentTarget, flagAliases, FlagAliasTarget, FlagAliasSpecificMachines)
+	util.AddFlagAliasesStringSlice(flags, FlagExcludeDeploymentTarget, flagAliases, FlagAliasExcludeTarget, FlagAliasExcludeMachines)
 
 	cmd.PreRunE = func(cmd *cobra.Command, args []string) error {
 		util.ApplyFlagAliases(cmd.Flags(), flagAliases)
@@ -609,7 +608,7 @@ func askDeploymentTargets(octopus *octopusApiClient.Client, asker question.Asker
 	if len(results) > 0 {
 		var selectedDeploymentTargetNames []string
 		err := asker(&survey.MultiSelect{
-			Message: "Restrict to specific deployment targets (optional)",
+			Message: "Deployment targets (If none selected, deploy to all)",
 			Options: results,
 		}, &selectedDeploymentTargetNames)
 		if err != nil {
@@ -683,7 +682,7 @@ func selectDeploymentEnvironment(asker question.Asker, octopus *octopusApiClient
 	optionMap, options := question.MakeItemMapAndOptions(allEnvs, func(e *environments.Environment) string { return e.Name })
 	var selectedKey string
 	err = asker(&survey.Select{
-		Message: "Select environment to deploy to",
+		Message: "Select environment",
 		Options: options,
 		Default: nextDeployEnvironmentName,
 	}, &selectedKey)
@@ -907,7 +906,7 @@ func AskTenantsAndTags(asker question.Asker, octopus *octopusApiClient.Client, r
 }
 
 func askExcludedSteps(asker question.Asker, steps []*deployments.DeploymentStep) ([]string, error) {
-	stepsToExclude, err := question.MultiSelectMap(asker, "Select steps to skip (optional)", steps, func(s *deployments.DeploymentStep) string {
+	stepsToExclude, err := question.MultiSelectMap(asker, "Steps to skip (If none selected, run all steps)", steps, func(s *deployments.DeploymentStep) string {
 		return s.Name
 	}, false)
 	if err != nil {
@@ -929,7 +928,7 @@ func askGuidedFailureMode(asker question.Asker) (string, error) {
 	modes := []string{
 		"", "true", "false", // maps to a nullable bool in C#
 	}
-	return question.SelectMap(asker, "Guided Failure Mode?", modes, lookupGuidedFailureModeString)
+	return question.SelectMap(asker, "Guided Failure Mode", modes, lookupGuidedFailureModeString)
 }
 
 // AskVariables returns the map of ALL variables to send to the server, whether they were prompted for, or came from the command line.

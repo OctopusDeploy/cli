@@ -379,7 +379,7 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 
 			// Note: scratch comes first but default should be dev, due to NextDeployments
 			_ = qa.ExpectQuestion(t, &survey.Select{
-				Message: "Select environment to deploy to",
+				Message: "Select environment",
 				Options: []string{scratchEnvironment.Name, devEnvironment.Name},
 				Default: devEnvironment.Name,
 			}).AnswerWith(devEnvironment.Name)
@@ -476,7 +476,7 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 
 			// Note: scratch comes first but default should be dev, due to NextDeployments
 			_ = qa.ExpectQuestion(t, &survey.Select{
-				Message: "Select environment to deploy to",
+				Message: "Select environment",
 				Options: []string{scratchEnvironment.Name, devEnvironment.Name},
 				Default: devEnvironment.Name,
 			}).AnswerWith(devEnvironment.Name)
@@ -647,12 +647,12 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/deploymentprocesses/"+depProcessSnapshot.ID).RespondWith(depProcessSnapshot)
 
 			_ = qa.ExpectQuestion(t, &survey.MultiSelect{
-				Message: "Select steps to skip (optional)",
+				Message: "Steps to skip (If none selected, run all steps)",
 				Options: []string{"Install", "Cleanup"},
 			}).AnswerWith([]string{"Cleanup"})
 
 			_ = qa.ExpectQuestion(t, &survey.Select{
-				Message: "Guided Failure Mode?",
+				Message: "Guided Failure Mode",
 				Options: []string{"Use default setting from the target environment", "Use guided failure mode", "Do not use guided failure mode"},
 			}).AnswerWith("Do not use guided failure mode")
 
@@ -682,7 +682,7 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 			})
 
 			_ = qa.ExpectQuestion(t, &survey.MultiSelect{
-				Message: "Restrict to specific deployment targets (optional)",
+				Message: "Deployment targets (If none selected, deploy to all)",
 				Options: []string{"vm-1", "vm-2", "vm-4", "vm-5"},
 			}).AnswerWith([]string{"vm-1", "vm-2"})
 
@@ -773,7 +773,7 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 				},
 			})
 			_ = qa.ExpectQuestion(t, &survey.MultiSelect{
-				Message: "Restrict to specific deployment targets (optional)",
+				Message: "Deployment targets (If none selected, deploy to all)",
 				Options: []string{"vm-1", "vm-2", "vm-4"},
 			}).AnswerWith([]string{"vm-1"})
 
