@@ -75,31 +75,29 @@ jobs:
     steps:
     - uses: actions/checkout@v3
 
+    - uses: microsoft/setup-msbuild@v1.1
+      id: setupmsbuild
+
     - uses: actions/download-artifact@v3
       with:
         name: octopus-cli.${{ needs.goreleaser.outputs.version }}
         path: artifacts/
 
+     # the wix installer is going to expect octopus.exe to be in the working directory when it runs; this gets it there
+     # TODO we can include the arm64 version of octopus.exe in the same MSI, or we can build a second MSI for Arm64. Currently we do neither, this is x86_64 only
     - name: Extract octopus.exe
       id: extract_exe
       shell: bash
-      run: |
-        cp ./artifacts/*windows_amd64.zip .
-        printf "::set-output name=zip::%s\n" *.zip
-        unzip -o *.zip && rm -v *.zip
-
-    - name: Setup MSBuild
-      id: setupmsbuild
-      uses: microsoft/setup-msbuild@v1.0.3
+      run: unzip -d . ./artifacts/*Windows_x86_64.zip octopus.exe
 
     - name: Build MSI
       id: buildmsi
       shell: bash
       env:
-        ZIP_FILE: ${{ steps.extract_exe.outputs.zip }}
         MSBUILD_PATH: ${{ steps.setupmsbuild.outputs.msbuildPath }}
+      # note the wixproj deliberately logs "::set-output name=msi::$(TargetPath)" so this step has an output called 'msi'
       run: |
-        name="$(basename "$ZIP_FILE" ".zip")"
+        name="octopus_${{ needs.goreleaser.outputs.version }}_Windows_x86_64"
         version="$(echo -e ${{ needs.goreleaser.outputs.version }} | sed 's/-.*$//')"
         "${MSBUILD_PATH}\MSBuild.exe" ./build/windows/octopus.wixproj -p:SourceDir="$PWD" -p:OutputPath="$PWD" -p:OutputName="$name" -p:ProductVersion="$version"
 
