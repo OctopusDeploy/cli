@@ -167,9 +167,13 @@ jobs:
         name: octopus-cli.${{ needs.goreleaser.outputs.version }}
         path: ${{ steps.buildmsi.outputs.msi }}
 
-  generate-packages:
+  generate-packages-and-publish:
     needs: [goreleaser, msi]
     runs-on: ubuntu-latest
+    env:
+      OCTOPUS_API_KEY: ${{ secrets.OCTOPUS_API_KEY }}
+      OCTOPUS_HOST: ${{ secrets.OCTOPUS_URL }}  
+      OCTOPUS_SPACE: Integrations
 
     steps:
     - uses: actions/checkout@v3
@@ -179,10 +183,7 @@ jobs:
       with:
         repository: OctopusDeploy/linux-package-feeds
         token: ${{ secrets.INTEGRATIONS_FNM_BOT_TOKEN }}
-        path: linux-package-feeds-repo
-
-    - run: |
-        ln -s linux-package-feeds-repo/source linux-package-feeds
+        path: linux-package-feeds
 
     - uses: actions/download-artifact@v3
       with:
@@ -196,39 +197,23 @@ jobs:
         cp artifacts/$(basename "${MSI_FILE//\\//}") build/tools
         nuget pack ./build/cli.nuspec -Version ${{ needs.goreleaser.outputs.version }} -OutputDirectory artifacts/
 
-    - uses: actions/upload-artifact@v3
-      with:
-        name: octopus-cli.${{ needs.goreleaser.outputs.version }}
-        path: linux-package-feeds/publish-*.sh
+    - name: Copy publish-apt.sh and publish-rpm.sh
+      run: cp linux-package-feeds/source/publish-*.sh artifacts/
 
-    - uses: actions/upload-artifact@v3
-      with:
-        name: octopus-cli.${{ needs.goreleaser.outputs.version }}
-        path: artifacts/*.nupkg
+    - name: spurious ls for debugging
+      run: ls -R
 
-  publish:
-    needs: [goreleaser, generate-packages]
-    runs-on: ubuntu-latest
-    env:
-      OCTOPUS_API_KEY: ${{ secrets.OCTOPUS_API_KEY }}
-      OCTOPUS_HOST: ${{ secrets.OCTOPUS_URL }}      
+    - name: Create combined zipfile for publishing
+      run: zip -R octopus-cli.${{ needs.goreleaser.outputs.version }}.zip artifacts/
 
-    steps:
-    - uses: actions/download-artifact@v3
-      with:
-        name: octopus-cli.${{ needs.goreleaser.outputs.version }}
-
-    - name: Install Octopus CLI 🐙
-      uses: OctopusDeploy/install-octopus-cli-action@v1
+    - uses: OctopusDeploy/install-octopus-cli-action@v1
       with:
         version: latest
 
-    - name: Push a package to Octopus Deploy 🐙
-      uses: OctopusDeploy/push-package-action@v2
+    - uses: OctopusDeploy/push-package-action@v2
       with:
-        space: Integrations
         packages: octopus-cli.${{ needs.goreleaser.outputs.version }}.zip
-
+    
     - name: Fetch Release Notes
       id: fetch-release-notes
       if: "!contains(needs.goreleaser.outputs.version, '-')"
@@ -242,7 +227,6 @@ jobs:
       uses: OctopusDeploy/create-release-action@v2
       if: "!contains(needs.goreleaser.outputs.version, '-')"
       with:
-        space: Integrations
         project: 'cli'
         package_version: ${{ needs.goreleaser.outputs.version }}
         packages: '*:NuGet.CommandLine:4.4.1'
