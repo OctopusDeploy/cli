@@ -67,6 +67,8 @@ jobs:
   msi:
     needs: goreleaser
     runs-on: windows-latest
+    env:
+      DOTNET_CLI_TELEMETRY_OPTOUT: 1
     outputs:
       msi_file: ${{ steps.buildmsi.outputs.msi }}
 
@@ -162,7 +164,7 @@ jobs:
 
     - uses: actions/upload-artifact@v3
       with:
-        name: artifacts
+        name: octopus-cli.${{ needs.goreleaser.outputs.version }}
         path: ${{ steps.buildmsi.outputs.msi }}
 
   generate-packages:
@@ -187,13 +189,9 @@ jobs:
         name: octopus-cli.${{ needs.goreleaser.outputs.version }}
         path: artifacts/
 
-    # - name: Download nuget.exe
-    #   run: curl -o ./nuget.exe https://dist.nuget.org/win-x86-commandline/latest/nuget.exe
-
     - name: Create Chocolatey NuGet package
       env:
         MSI_FILE: ${{ needs.msi.outputs.msi_file }}
-        # GHA ubuntu-latest runner says it has mono + nuget builtin
       run: |
         cp artifacts/$(basename "${MSI_FILE//\\//}") build/tools
         nuget pack ./build/cli.nuspec -Version ${{ needs.goreleaser.outputs.version }} -OutputDirectory artifacts/
@@ -228,7 +226,7 @@ jobs:
       uses: OctopusDeploy/push-package-action@v2
       with:
         space: Integrations
-        packages: octopus-cli.${{ needs.goreleaser.outputs.version }}.zip
+        packages: octopus-cli.${{ needs.goreleaser.outputs.version }}
 
     - name: Fetch Release Notes
       id: fetch-release-notes
