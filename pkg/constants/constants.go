@@ -15,7 +15,7 @@ const (
 
 // flags for storing things in the go context
 const (
-	ContextKeyTimeNow = "time.now"
+	ContextKeyTimeNow = "time.now" // holds a func() time.Time
 )
 
 // values for output formats

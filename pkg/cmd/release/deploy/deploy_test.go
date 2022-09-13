@@ -40,7 +40,9 @@ const placeholderApiKey = "API-XXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
 
 var rootResource = testutil.NewRootResource()
 
-var now = time.Date(2022, time.September, 8, 13, 25, 2, 0, time.FixedZone("Malaysia", 8*3600)) // UTC+8
+var now = func() time.Time {
+	return time.Date(2022, time.September, 8, 13, 25, 2, 0, time.FixedZone("Malaysia", 8*3600)) // UTC+8
+}
 var ctxWithFakeNow = context.WithValue(context.TODO(), constants.ContextKeyTimeNow, now)
 
 func TestDeployCreate_AskQuestions(t *testing.T) {
@@ -153,7 +155,7 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/all").RespondWith([]*projects.Project{fireProject})
 
 			_ = qa.ExpectQuestion(t, &survey.Select{
-				Message: "Select the project to deploy from",
+				Message: "Select project",
 				Options: []string{"Fire Project"},
 			}).AnswerWith("Fire Project")
 
@@ -162,7 +164,7 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 			})
 
 			_ = qa.ExpectQuestion(t, &survey.Select{
-				Message: "Select the channel to deploy from",
+				Message: "Select channel",
 				Options: []string{defaultChannel.Name, altChannel.Name},
 			}).AnswerWith("Fire Project Alt Channel")
 
@@ -171,7 +173,7 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 			})
 
 			_ = qa.ExpectQuestion(t, &survey.Select{
-				Message: "Select the release to deploy",
+				Message: "Select a release to deploy",
 				Options: []string{release20.Version, release19.Version},
 			}).AnswerWith(release19.Version)
 
@@ -190,7 +192,7 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 
 			// Note: scratch comes first but default should be dev, due to NextDeployments
 			_ = qa.ExpectQuestion(t, &survey.MultiSelect{
-				Message: "Select environments to deploy to",
+				Message: "Select environment(s)",
 				Options: []string{scratchEnvironment.Name, devEnvironment.Name},
 				Default: []string{devEnvironment.Name},
 			}).AnswerWith([]surveyCore.OptionAnswer{
@@ -201,10 +203,10 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/variables/"+variableSnapshotNoVars.ID).RespondWith(&variableSnapshotNoVars)
 
 			q := qa.ExpectQuestion(t, &survey.Select{
-				Message: "Do you want to change advanced options?",
-				Options: []string{"Proceed to deploy", "Change advanced options"},
+				Message: "Change additional options?",
+				Options: []string{"Proceed to deploy", "Change"},
 			})
-			assert.Regexp(t, "Advanced Options", stdout.String()) // actual advanced options tested in PrintAdvancedSummary
+			assert.Regexp(t, "Additional Options", stdout.String()) // actual options tested in PrintAdvancedSummary
 			_ = q.AnswerWith("Proceed to deploy")
 
 			err := <-errReceiver
@@ -257,10 +259,10 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 			stdout.Reset()
 
 			q := qa.ExpectQuestion(t, &survey.Select{
-				Message: "Do you want to change advanced options?",
-				Options: []string{"Proceed to deploy", "Change advanced options"},
+				Message: "Change additional options?",
+				Options: []string{"Proceed to deploy", "Change"},
 			})
-			assert.Regexp(t, "Advanced Options", stdout.String()) // actual advanced options tested in PrintAdvancedSummary
+			assert.Regexp(t, "Additional Options", stdout.String()) // actual options tested in PrintAdvancedSummary
 			_ = q.AnswerWith("Proceed to deploy")
 
 			err := <-errReceiver
@@ -322,10 +324,10 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 			stdout.Reset()
 
 			q = qa.ExpectQuestion(t, &survey.Select{
-				Message: "Do you want to change advanced options?",
-				Options: []string{"Proceed to deploy", "Change advanced options"},
+				Message: "Change additional options?",
+				Options: []string{"Proceed to deploy", "Change"},
 			})
-			assert.Regexp(t, "Advanced Options", stdout.String()) // actual advanced options tested in PrintAdvancedSummary
+			assert.Regexp(t, "Additional Options", stdout.String()) // actual options tested in PrintAdvancedSummary
 			_ = q.AnswerWith("Proceed to deploy")
 
 			err := <-errReceiver
@@ -379,7 +381,7 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 
 			// Note: scratch comes first but default should be dev, due to NextDeployments
 			_ = qa.ExpectQuestion(t, &survey.Select{
-				Message: "Select environment to deploy to",
+				Message: "Select environment",
 				Options: []string{scratchEnvironment.Name, devEnvironment.Name},
 				Default: devEnvironment.Name,
 			}).AnswerWith(devEnvironment.Name)
@@ -413,10 +415,10 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 			stdout.Reset()
 
 			q = qa.ExpectQuestion(t, &survey.Select{
-				Message: "Do you want to change advanced options?",
-				Options: []string{"Proceed to deploy", "Change advanced options"},
+				Message: "Change additional options?",
+				Options: []string{"Proceed to deploy", "Change"},
 			})
-			assert.Regexp(t, "Advanced Options", stdout.String()) // actual advanced options tested in PrintAdvancedSummary
+			assert.Regexp(t, "Additional Options", stdout.String()) // actual options tested in PrintAdvancedSummary
 			_ = q.AnswerWith("Proceed to deploy")
 
 			err := <-errReceiver
@@ -476,7 +478,7 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 
 			// Note: scratch comes first but default should be dev, due to NextDeployments
 			_ = qa.ExpectQuestion(t, &survey.Select{
-				Message: "Select environment to deploy to",
+				Message: "Select environment",
 				Options: []string{scratchEnvironment.Name, devEnvironment.Name},
 				Default: devEnvironment.Name,
 			}).AnswerWith(devEnvironment.Name)
@@ -510,10 +512,10 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 			stdout.Reset()
 
 			q = qa.ExpectQuestion(t, &survey.Select{
-				Message: "Do you want to change advanced options?",
-				Options: []string{"Proceed to deploy", "Change advanced options"},
+				Message: "Change additional options?",
+				Options: []string{"Proceed to deploy", "Change"},
 			})
-			assert.Regexp(t, "Advanced Options", stdout.String()) // actual advanced options tested in PrintAdvancedSummary
+			assert.Regexp(t, "Additional Options", stdout.String()) // actual options tested in PrintAdvancedSummary
 			_ = q.AnswerWith("Proceed to deploy")
 
 			err := <-errReceiver
@@ -573,7 +575,7 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 
 			// Note: scratch comes first but default should be dev, due to NextDeployments
 			_ = qa.ExpectQuestion(t, &survey.MultiSelect{
-				Message: "Select environments to deploy to",
+				Message: "Select environment(s)",
 				Options: []string{scratchEnvironment.Name, devEnvironment.Name},
 				Default: []string{devEnvironment.Name},
 			}).AnswerWith([]surveyCore.OptionAnswer{
@@ -589,10 +591,10 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 			stdout.Reset()
 
 			q := qa.ExpectQuestion(t, &survey.Select{
-				Message: "Do you want to change advanced options?",
-				Options: []string{"Proceed to deploy", "Change advanced options"},
+				Message: "Change additional options?",
+				Options: []string{"Proceed to deploy", "Change"},
 			})
-			assert.Regexp(t, "Advanced Options", stdout.String()) // actual advanced options tested in PrintAdvancedSummary
+			assert.Regexp(t, "Additional Options", stdout.String()) // actual options tested in PrintAdvancedSummary
 			_ = q.AnswerWith("Proceed to deploy")
 
 			err := <-errReceiver
@@ -622,37 +624,47 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 			stdout.Reset()
 
 			_ = qa.ExpectQuestion(t, &survey.Select{
-				Message: "Do you want to change advanced options?",
-				Options: []string{"Proceed to deploy", "Change advanced options"},
-			}).AnswerWith("Change advanced options")
+				Message: "Change additional options?",
+				Options: []string{"Proceed to deploy", "Change"},
+			}).AnswerWith("Change")
 			stdout.Reset()
 
-			plus20hours := now.Add(20 * time.Hour)
-			_ = qa.ExpectQuestion(t, &surveyext.DatePicker{
-				Message: "Deploy Scheduled start time",
-				Default: now,
-				Help:    "Enter the date and time that this deployment should start",
-				Min:     now,
-			}).AnswerWith(plus20hours)
+			refNow := now()
+			plus20hours := refNow.Add(20 * time.Hour)
+			q := qa.ReceiveQuestion() // can't use ExpectQuestion; the DatePicker struct contains a func which is not comparable with anything
+			datePicker := q.Question.(*surveyext.DatePicker)
+			datePicker.AnswerFormatter = nil // now we can compare the struct
+
+			assert.Equal(t, &surveyext.DatePicker{
+				Message:     "Scheduled start time",
+				Help:        "Enter the date and time that this deployment should start. A value less than 1 minute in the future means 'now'",
+				Default:     refNow,
+				Min:         refNow,
+				Max:         refNow.Add(30 * 24 * time.Hour),
+				OverrideNow: refNow,
+			}, datePicker)
+			_ = q.AnswerWith(plus20hours)
 
 			plus20hours5mins := plus20hours.Add(5 * time.Minute)
 			_ = qa.ExpectQuestion(t, &surveyext.DatePicker{
-				Message: "Deploy Scheduled expiry time",
-				Default: plus20hours5mins,
-				Help:    "After the start time, the deployment will be queued. If it cannot start before 'expiry' time, then cancel the operation",
-				Min:     plus20hours5mins,
+				Message:     "Scheduled expiry time",
+				Default:     plus20hours5mins,
+				Help:        "At the start time, the deployment will be queued. If it does not begin before 'expiry' time, it will be cancelled. Minimum of 5 minutes after start time",
+				Min:         plus20hours5mins,
+				Max:         refNow.Add(31 * 24 * time.Hour),
+				OverrideNow: refNow,
 			}).AnswerWith(plus20hours5mins)
 
 			// it's going to load the deployment process to ask about excluded steps
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/deploymentprocesses/"+depProcessSnapshot.ID).RespondWith(depProcessSnapshot)
 
 			_ = qa.ExpectQuestion(t, &survey.MultiSelect{
-				Message: "Select steps to skip (optional)",
+				Message: "Steps to skip (If none selected, run all steps)",
 				Options: []string{"Install", "Cleanup"},
 			}).AnswerWith([]string{"Cleanup"})
 
 			_ = qa.ExpectQuestion(t, &survey.Select{
-				Message: "Guided Failure Mode?",
+				Message: "Guided Failure Mode",
 				Options: []string{"Use default setting from the target environment", "Use guided failure mode", "Do not use guided failure mode"},
 			}).AnswerWith("Do not use guided failure mode")
 
@@ -682,7 +694,7 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 			})
 
 			_ = qa.ExpectQuestion(t, &survey.MultiSelect{
-				Message: "Restrict to specific deployment targets (optional)",
+				Message: "Deployment targets (If none selected, deploy to all)",
 				Options: []string{"vm-1", "vm-2", "vm-4", "vm-5"},
 			}).AnswerWith([]string{"vm-1", "vm-2"})
 
@@ -744,7 +756,7 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 
 			// Note: scratch comes first but default should be dev, due to NextDeployments
 			_ = qa.ExpectQuestion(t, &survey.MultiSelect{
-				Message: "Select environments to deploy to",
+				Message: "Select environment(s)",
 				Options: []string{devEnvironment.Name, prodEnvironment.Name},
 				Default: []string{devEnvironment.Name},
 			}).AnswerWith([]surveyCore.OptionAnswer{
@@ -756,9 +768,9 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 			stdout.Reset()
 
 			_ = qa.ExpectQuestion(t, &survey.Select{
-				Message: "Do you want to change advanced options?",
-				Options: []string{"Proceed to deploy", "Change advanced options"},
-			}).AnswerWith("Change advanced options")
+				Message: "Change additional options?",
+				Options: []string{"Proceed to deploy", "Change"},
+			}).AnswerWith("Change")
 			stdout.Reset()
 
 			// steps, guidedFailure and forcePackageDownload already on cmdline, so we go straight to targets
@@ -773,7 +785,7 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 				},
 			})
 			_ = qa.ExpectQuestion(t, &survey.MultiSelect{
-				Message: "Restrict to specific deployment targets (optional)",
+				Message: "Deployment targets (If none selected, deploy to all)",
 				Options: []string{"vm-1", "vm-2", "vm-4"},
 			}).AnswerWith([]string{"vm-1"})
 
@@ -848,7 +860,7 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 				ForcePackageDownload:             false,
 				ForcePackageDownloadWasSpecified: true,
 				ExcludeTargets:                   []string{"vm-99"}, // just to skip the question
-				ScheduledStartTime:               now.String(),
+				ScheduledStartTime:               now().String(),
 			}
 
 			errReceiver := testutil.GoBegin(func() error {
@@ -876,6 +888,142 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 				ExcludeTargets:                   []string{"vm-99"},
 				ReleaseID:                        release19.ID,
 				ScheduledStartTime:               "2022-09-08 13:25:02 +0800 Malaysia",
+			}, options)
+		}},
+
+		{"scheduled start time; interactive start times less than 1 minute in future are interpreted as 'now'", func(t *testing.T, api *testutil.MockHttpServer, qa *testutil.AskMocker, stdout *bytes.Buffer) {
+			options := &executor.TaskOptionsDeployRelease{
+				ProjectName:                      "fire project",
+				ReleaseVersion:                   "1.9",
+				Environments:                     []string{"dev"},
+				ExcludedSteps:                    []string{"Cleanup"},
+				GuidedFailureMode:                "default",
+				ForcePackageDownload:             false,
+				ForcePackageDownloadWasSpecified: true,
+				ExcludeTargets:                   []string{"vm-99"}, // just to skip the question
+			}
+
+			errReceiver := testutil.GoBegin(func() error {
+				defer testutil.Close(api, qa)
+				octopus, _ := octopusApiClient.NewClient(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "")
+				return deploy.AskQuestions(octopus, stdout, qa.AsAsker(), space1, options, now)
+			})
+
+			doStandardApiResponses(options, api, release19, variableSnapshotNoVars)
+			stdout.Reset()
+
+			_ = qa.ExpectQuestion(t, &survey.Select{
+				Message: "Change additional options?",
+				Options: []string{"Proceed to deploy", "Change"},
+			}).AnswerWith("Change")
+			stdout.Reset()
+
+			refNow := now()
+			plus59s := refNow.Add(59 * time.Second)
+			q := qa.ReceiveQuestion() // can't use ExpectQuestion; the DatePicker struct contains a func which is not comparable with anything
+			datePicker := q.Question.(*surveyext.DatePicker)
+			datePicker.AnswerFormatter = nil // now we can compare the struct
+
+			assert.Equal(t, &surveyext.DatePicker{
+				Message:     "Scheduled start time",
+				Default:     refNow,
+				Help:        "Enter the date and time that this deployment should start. A value less than 1 minute in the future means 'now'",
+				Min:         refNow,
+				Max:         refNow.Add(30 * 24 * time.Hour),
+				OverrideNow: refNow,
+			}, datePicker)
+			_ = q.AnswerWith(plus59s)
+			// note it doesn't ask for a scheduled end time
+
+			err := <-errReceiver
+			assert.Nil(t, err)
+
+			// check that the question-asking process has filled out the things we told it to
+			assert.Equal(t, &executor.TaskOptionsDeployRelease{
+				ProjectName:                      "Fire Project",
+				ReleaseVersion:                   "1.9",
+				Environments:                     []string{"dev"},
+				GuidedFailureMode:                "default",
+				ForcePackageDownload:             false,
+				ForcePackageDownloadWasSpecified: true,
+				Variables:                        make(map[string]string, 0),
+				ExcludedSteps:                    []string{"Cleanup"},
+				ExcludeTargets:                   []string{"vm-99"},
+				ReleaseID:                        release19.ID,
+				// no scheduled start time in the server command
+			}, options)
+		}},
+
+		{"scheduled start time; interactive start times greater than 1 minute in future are interpreted as scheduled", func(t *testing.T, api *testutil.MockHttpServer, qa *testutil.AskMocker, stdout *bytes.Buffer) {
+			options := &executor.TaskOptionsDeployRelease{
+				ProjectName:                      "fire project",
+				ReleaseVersion:                   "1.9",
+				Environments:                     []string{"dev"},
+				ExcludedSteps:                    []string{"Cleanup"},
+				GuidedFailureMode:                "default",
+				ForcePackageDownload:             false,
+				ForcePackageDownloadWasSpecified: true,
+				ExcludeTargets:                   []string{"vm-99"}, // just to skip the question
+			}
+
+			errReceiver := testutil.GoBegin(func() error {
+				defer testutil.Close(api, qa)
+				octopus, _ := octopusApiClient.NewClient(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "")
+				return deploy.AskQuestions(octopus, stdout, qa.AsAsker(), space1, options, now)
+			})
+
+			doStandardApiResponses(options, api, release19, variableSnapshotNoVars)
+			stdout.Reset()
+
+			_ = qa.ExpectQuestion(t, &survey.Select{
+				Message: "Change additional options?",
+				Options: []string{"Proceed to deploy", "Change"},
+			}).AnswerWith("Change")
+			stdout.Reset()
+
+			refNow := now()
+			plus61s := refNow.Add(61 * time.Second)
+
+			q := qa.ReceiveQuestion() // can't use ExpectQuestion; the DatePicker struct contains a func which is not comparable with anything
+			datePicker := q.Question.(*surveyext.DatePicker)
+			datePicker.AnswerFormatter = nil // now we can compare the struct
+			assert.Equal(t, &surveyext.DatePicker{
+				Message:     "Scheduled start time",
+				Help:        "Enter the date and time that this deployment should start. A value less than 1 minute in the future means 'now'",
+				Default:     refNow,
+				Min:         refNow,
+				Max:         refNow.Add(30 * 24 * time.Hour),
+				OverrideNow: refNow,
+			}, datePicker)
+			_ = q.AnswerWith(plus61s)
+
+			plus61s5min := plus61s.Add(5 * time.Minute)
+			_ = qa.ExpectQuestion(t, &surveyext.DatePicker{
+				Message:     "Scheduled expiry time",
+				Default:     plus61s5min,
+				Help:        "At the start time, the deployment will be queued. If it does not begin before 'expiry' time, it will be cancelled. Minimum of 5 minutes after start time",
+				Min:         plus61s5min,
+				Max:         refNow.Add(31 * 24 * time.Hour),
+				OverrideNow: refNow,
+			}).AnswerWith(plus61s5min)
+
+			err := <-errReceiver
+			assert.Nil(t, err)
+
+			// check that the question-asking process has filled out the things we told it to
+			assert.Equal(t, &executor.TaskOptionsDeployRelease{
+				ProjectName:                      "Fire Project",
+				ReleaseVersion:                   "1.9",
+				Environments:                     []string{"dev"},
+				GuidedFailureMode:                "default",
+				ForcePackageDownload:             false,
+				ForcePackageDownloadWasSpecified: true,
+				Variables:                        make(map[string]string, 0),
+				ExcludedSteps:                    []string{"Cleanup"},
+				ExcludeTargets:                   []string{"vm-99"},
+				ReleaseID:                        release19.ID,
+				ScheduledStartTime:               "2022-09-08T13:26:03+08:00",
+				ScheduledExpiryTime:              "2022-09-08T13:31:03+08:00",
 			}, options)
 		}},
 	}
@@ -1406,8 +1554,8 @@ func TestDeployCreate_GenerationOfAutomationCommand_MasksSensitiveVariables(t *t
 	}).AnswerWith("donkey")
 
 	q := qa.ExpectQuestion(t, &survey.Select{
-		Message: "Do you want to change advanced options?",
-		Options: []string{"Proceed to deploy", "Change advanced options"},
+		Message: "Change additional options?",
+		Options: []string{"Proceed to deploy", "Change"},
 	})
 	_ = q.AnswerWith("Proceed to deploy")
 
@@ -1445,7 +1593,7 @@ func TestDeployCreate_GenerationOfAutomationCommand_MasksSensitiveVariables(t *t
 		Project Fire Project
 		Release 2.0
 		Environments dev
-		Advanced Options:
+		Additional Options:
 		  Deploy Time: Now
 		  Skipped Steps: None
 		  Guided Failure Mode: Use default setting from the target environment
@@ -1471,7 +1619,7 @@ func TestDeployCreate_PrintAdvancedSummary(t *testing.T) {
 			deploy.PrintAdvancedSummary(stdout, options)
 
 			assert.Equal(t, heredoc.Doc(`
-			Advanced Options:
+			Additional Options:
 			  Deploy Time: Now
 			  Skipped Steps: None
 			  Guided Failure Mode: Use default setting from the target environment
@@ -1492,7 +1640,7 @@ func TestDeployCreate_PrintAdvancedSummary(t *testing.T) {
 			deploy.PrintAdvancedSummary(stdout, options)
 
 			assert.Equal(t, heredoc.Doc(`
-			Advanced Options:
+			Additional Options:
 			  Deploy Time: 2022-09-23
 			  Skipped Steps: Step 1,Step 37
 			  Guided Failure Mode: Do not use guided failure mode
@@ -1508,7 +1656,7 @@ func TestDeployCreate_PrintAdvancedSummary(t *testing.T) {
 			deploy.PrintAdvancedSummary(stdout, options)
 
 			assert.Equal(t, heredoc.Doc(`
-			Advanced Options:
+			Additional Options:
 			  Deploy Time: Now
 			  Skipped Steps: None
 			  Guided Failure Mode: Use default setting from the target environment
@@ -1524,7 +1672,7 @@ func TestDeployCreate_PrintAdvancedSummary(t *testing.T) {
 			deploy.PrintAdvancedSummary(stdout, options)
 
 			assert.Equal(t, heredoc.Doc(`
-			Advanced Options:
+			Additional Options:
 			  Deploy Time: Now
 			  Skipped Steps: None
 			  Guided Failure Mode: Use default setting from the target environment
