@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.2.1](https://github.com/OctopusDeploy/cli/compare/v0.2.0...v0.2.1) (2022-09-12)
+
+
+### Features
+
+* config file support ([#66](https://github.com/OctopusDeploy/cli/issues/66)) ([d911e0c](https://github.com/OctopusDeploy/cli/commit/d911e0caa04477ce677bd7e0652d06de18081c79))
+* deploy release ([a2f85f0](https://github.com/OctopusDeploy/cli/commit/a2f85f0b357200d932cb4c0324678702b85c91e3))
+* surveyext.DatePicker ([a2f85f0](https://github.com/OctopusDeploy/cli/commit/a2f85f0b357200d932cb4c0324678702b85c91e3))
+
+
+### Bug Fixes
+
+* Use survey's terminal.NewAnsiStdout to get colors to work in windows cmd.exe ([#68](https://github.com/OctopusDeploy/cli/issues/68)) ([01e02aa](https://github.com/OctopusDeploy/cli/commit/01e02aa39a442cdb896ef12715eadef94b150333)), closes [#67](https://github.com/OctopusDeploy/cli/issues/67)
+
 ## [0.2.0](https://github.com/OctopusDeploy/cli/compare/v0.1.0...v0.2.0) (2022-08-26)
 
 
