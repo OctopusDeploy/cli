@@ -204,7 +204,8 @@ jobs:
       run: cp linux-package-feeds/source/publish-*.sh artifacts/
 
     - name: Create combined zipfile package for Octopus Deploy
-      run: zip -r octopus-cli.${{ needs.goreleaser.outputs.version }}.zip artifacts/
+      working-directory: artifacts
+      run: zip -r octopus-cli.${{ needs.goreleaser.outputs.version }}.zip .
 
     - uses: OctopusDeploy/install-octopus-cli-action@v1
       with:
@@ -212,7 +213,7 @@ jobs:
 
     - uses: OctopusDeploy/push-package-action@v2
       with:
-        packages: octopus-cli.${{ needs.goreleaser.outputs.version }}.zip
+        packages: artifacts/octopus-cli.${{ needs.goreleaser.outputs.version }}.zip
     
     - name: Fetch Release Notes
       id: fetch-release-notes
