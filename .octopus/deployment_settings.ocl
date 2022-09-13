@@ -1,0 +1,16 @@
+deployment_changes_template = <<-EOT
+        #{each release in Octopus.Deployment.Changes}
+        #{release.ReleaseNotes}
+        #{/each}
+    EOT
+
+connectivity_policy {
+}
+
+versioning_strategy {
+
+    donor_package {
+        package = "cli"
+        step = "push-cli-to-chocolatey"
+    }
+}

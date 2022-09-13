@@ -1,0 +1,193 @@
+step "push-cli-to-chocolatey" {
+    name = "Push cli to Chocolatey"
+
+    action {
+        action_type = "Octopus.Script"
+        environments = ["production"]
+        properties = {
+            Octopus.Action.Script.ScriptBody = <<-EOT
+                $nugetPackagePath = $OctopusParameters["Octopus.Action.Package[NuGet.CommandLine].ExtractedPath"]
+                $nugetExe = Join-Path -Path $nugetPackagePath -ChildPath "Tools\nuget.exe"
+                $extractedPath = $OctopusParameters["Octopus.Action.Package[cli].ExtractedPath"]
+                $packagePath = Get-ChildItem -Path $extractedPath -Name "octopus-cli*.nupkg"
+                
+                $maxAttempts = 5
+                $currentAttempt = 1
+                
+                while ($currentAttempt -le $maxAttempts)
+                {
+                    write-host "Pushing package ($packagePath) to Chocolatey (attempt $currentAttempt)"
+                    . $nugetExe push "$packagePath" -source $OctopusParameters["Publish:Chocolatey:FeedUrl"] -apikey $OctopusParameters["Publish:Chocolatey:ApiKey"] -NonInteractive -Verbosity detailed
+                    if ($LastExitCode -eq 0) {
+                        exit 0
+                    } else {
+                        write-host "Failed to push package - nuget returned $LastExitCode"
+                        $currentAttempt = $currentAttempt + 1
+                    }
+                }
+                exit 1
+            EOT
+            Octopus.Action.Script.ScriptSource = "Inline"
+            Octopus.Action.Script.Syntax = "PowerShell"
+        }
+        worker_pool = "hosted-windows-2019"
+
+        packages "cli" {
+            acquisition_location = "Server"
+            feed = "octopus-server-built-in"
+            package_id = "octopus-cli"
+            properties = {
+                Extract = "True"
+            }
+        }
+
+        packages "NuGet.CommandLine" {
+            acquisition_location = "Server"
+            feed = "nuget"
+            package_id = "NuGet.CommandLine"
+            properties = {
+                Extract = "True"
+            }
+        }
+    }
+}
+
+step "create-pull-request-to-update-formula-in-homebrew" {
+    name = "Create pull request to update formula in Homebrew"
+    start_trigger = "StartWithPrevious"
+
+    action {
+        action_type = "Octopus.Script"
+        environments = ["production"]
+        properties = {
+            Octopus.Action.Script.ScriptBody = <<-EOT
+                packageVersion="$(get_octopusvariable 'Octopus.Action.Package[cli].PackageVersion')"
+                extractedPath="$(get_octopusvariable 'Octopus.Action.Package[cli].ExtractedPath')"
+                
+                username="$(get_octopusvariable 'Publish:HomeBrew:Username')"
+                email="$(get_octopusvariable 'Publish:HomeBrew:UserEmail')"
+                personalAccessToken="$(get_octopusvariable 'Publish:HomeBrew:ApiKey')"
+                
+                orgName="OctopusDeploy"
+                repoName="$(get_octopusvariable 'Publish:HomeBrew:RepoName')"
+                
+                # https://docs.brew.sh/Homebrew-on-Linux#requirements
+                apt-get install build-essential procps curl file git --yes
+                # https://github.com/Homebrew/install/#install-homebrew-on-macos-or-linux
+                NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+                
+                # https://docs.brew.sh/Manpage#environment
+                HOMEBREW_GIT_EMAIL=$email
+                HOMEBREW_GIT_NAME=$username
+                HOMEBREW_GITHUB_API_TOKEN=$personalAccessToken
+                
+                newUrl="https://github.com/$orgName/$repoName/releases/download/v$packageVersion/octopus_$packageVersion_macOS_amd64.tar.gz"
+                newSha=$(sha256sum "$extractedPath/octopus_$packageVersion_macOS_amd64.tar.gz" | awk '{ print $1 }')
+                
+                # https://docs.brew.sh/Manpage#bump-formula-pr-options-formula
+                brew bump-formula-pr \
+                    --fork-org $orgName \
+                    --version $packageVersion \
+                    --url $newUrl \
+                    --sha256 $newSha \
+                    octopus
+            EOT
+            Octopus.Action.Script.ScriptSource = "Inline"
+            Octopus.Action.Script.Syntax = "Bash"
+            OctopusUseBundledTooling = "False"
+        }
+        worker_pool = "hosted-ubuntu"
+
+        container {
+            feed = "docker-hub"
+            image = "octopusdeploy/worker-tools:3.3.2-ubuntu.18.04"
+        }
+
+        packages "cli" {
+            acquisition_location = "Server"
+            feed = "octopus-server-built-in"
+            package_id = "octopus-cli"
+            properties = {
+                Extract = "True"
+                Purpose = ""
+                SelectionMode = "immediate"
+            }
+        }
+    }
+}
+
+step "publish-to-apt-repo" {
+    name = "Publish to APT repo"
+    start_trigger = "StartWithPrevious"
+
+    action {
+        action_type = "Octopus.Script"
+        environments = ["production"]
+        properties = {
+            Octopus.Action.Script.ScriptBody = <<-EOT
+                cd cli || exit
+                
+                # Deploy APT repo
+                docker run --rm --volume $(pwd):/working \
+                  --env PUBLISH_LINUX_EXTERNAL="$(get_octopusvariable "Publish:Linux:External")" \
+                  --env PUBLISH_ARTIFACTORY_USERNAME="$(get_octopusvariable "Publish:Artifactory:Username")" \
+                  --env PUBLISH_ARTIFACTORY_PASSWORD="$(get_octopusvariable "Publish:Artifactory:Password")" \
+                  --env AWS_ACCESS_KEY_ID="$(get_octopusvariable "LinuxPackagePublisherAwsAccount.AccessKey")" \
+                  --env AWS_SECRET_ACCESS_KEY="$(get_octopusvariable "LinuxPackagePublisherAwsAccount.SecretKey")" \
+                  octopusdeploy/publish-linux bash -c 'cd /working && bash publish-apt.sh' 2>&1 || exit
+                
+            EOT
+            Octopus.Action.Script.ScriptSource = "Inline"
+            Octopus.Action.Script.Syntax = "Bash"
+        }
+        worker_pool = "hosted-ubuntu"
+
+        packages "cli" {
+            acquisition_location = "Server"
+            feed = "octopus-server-built-in"
+            package_id = "octopus-cli"
+            properties = {
+                Extract = "True"
+                SelectionMode = "immediate"
+            }
+        }
+    }
+}
+
+step "publish-to-rpm-repo" {
+    name = "Publish to RPM repo"
+    start_trigger = "StartWithPrevious"
+
+    action {
+        action_type = "Octopus.Script"
+        environments = ["production"]
+        properties = {
+            Octopus.Action.Script.ScriptBody = <<-EOT
+                cd cli || exit
+                
+                # Deploy RPM repo
+                docker run --rm --volume $(pwd):/working \
+                  --env PUBLISH_LINUX_EXTERNAL="$(get_octopusvariable "Publish:Linux:External")" \
+                  --env PUBLISH_ARTIFACTORY_USERNAME="$(get_octopusvariable "Publish:Artifactory:Username")" \
+                  --env PUBLISH_ARTIFACTORY_PASSWORD="$(get_octopusvariable "Publish:Artifactory:Password")" \
+                  --env AWS_ACCESS_KEY_ID="$(get_octopusvariable "LinuxPackagePublisherAwsAccount.AccessKey")" \
+                  --env AWS_SECRET_ACCESS_KEY="$(get_octopusvariable "LinuxPackagePublisherAwsAccount.SecretKey")" \
+                  octopusdeploy/publish-linux bash -c 'cd /working && bash publish-rpm.sh' 2>&1 || exit
+                
+            EOT
+            Octopus.Action.Script.ScriptSource = "Inline"
+            Octopus.Action.Script.Syntax = "Bash"
+        }
+        worker_pool = "hosted-ubuntu"
+
+        packages "cli" {
+            acquisition_location = "Server"
+            feed = "octopus-server-built-in"
+            package_id = "octopus-cli"
+            properties = {
+                Extract = "True"
+                SelectionMode = "immediate"
+            }
+        }
+    }
+}

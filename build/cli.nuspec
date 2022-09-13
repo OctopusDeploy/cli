@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2010/07/nuspec.xsd" xmlns:octopus="http://octopus.org">
+  <metadata>
+    <id>octopus-cli</id>
+    <title>Octopus CLI</title>
+    <version>$version$</version>
+    <authors>Octopus Deploy</authors>
+    <owners>Octopus Deploy</owners>
+    <summary>Command line wrapper for continuous deployments that makes you better at Octopus Deploy.</summary>
+    <description>octopus is Octopus Deploy on the command line. It brings releases, deployments, and other Octopus Deploy concepts to the terminal next to where you are already working with projects and your continuous deployment processes.
+
+### Usage
+```
+octopus release [list, create, delete]
+octopus account [aws|azure|gcp|ssh|token|username] [list, create]
+octopus help
+```
+    </description>
+    <releaseNotes>https://github.com/OctopusDeploy/cli/releases/latest</releaseNotes>
+    <language>en-US</language>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <license type="expression">Apache-2.0</license>
+    <projectUrl>https://github.com/OctopusDeploy/cli/</projectUrl>
+    <repository type="git" url="https://github.com/OctopusDeploy/cli" />
+    <icon>tools\icon.png</icon>
+    <tags>automation deployment</tags>
+    <developmentDependency>true</developmentDependency>
+  </metadata>
+  <files>
+    <file src="tools/**" target="tools" />
+  </files>
+</package>

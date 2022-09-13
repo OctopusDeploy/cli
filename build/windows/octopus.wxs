@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<?ifndef ProductVersion?>
+<?error ProductVersion property not defined?>
+<?endif?>
+
+<!-- Define a unique UpgradeCode per platform -->
+<?if $(var.Platform) = "x64"?>
+<?define InstallerVersion = "200"?>
+<?define UpgradeCode = "738e840f-6305-4a12-8136-8aad988daf43"?>
+<?define ProgramFilesFolder = "ProgramFiles64Folder"?>
+<?elseif $(var.Platform) = "arm64"?>
+<?define InstallerVersion = "500"?>
+<?define UpgradeCode = "48c23b4e-ce2b-445b-b4b2-40420f6b10f9"?>
+<?define ProgramFilesFolder = "ProgramFiles64Folder"?>
+<?endif?>
+
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+    <Product Id="*" Name="Octopus CLI" Version="$(var.ProductVersion)" Language="1033" Manufacturer="Octopus Deploy Pty. Ltd." UpgradeCode="$(var.UpgradeCode)">
+        <Package Compressed="yes" InstallerVersion="$(var.InstallerVersion)" InstallScope="perMachine"/>
+        <MediaTemplate EmbedCab="yes"/>
+
+        <!-- Remove older product(s) early but within the transaction -->
+        <MajorUpgrade Schedule="afterInstallInitialize" DowngradeErrorMessage="A newer version of !(bind.property.ProductName) is already installed."/>
+
+        <Directory Id="TARGETDIR" Name="SourceDir">
+            <Directory Id="$(var.ProgramFilesFolder)" Name="Program Files">
+                <Directory Id="INSTALLDIR" Name="Octopus CLI"/>
+            </Directory>
+        </Directory>
+
+        <!-- Restore the INSTALLDIR if previously persisted to the registry -->
+        <Property Id="INSTALLDIR">
+            <RegistrySearch Id="InstallDir" Root="HKLM" Key="SOFTWARE\Octopus\CLI" Name="InstallDir" Type="directory"/>
+        </Property>
+
+        <Feature Id="DefaultFeature" ConfigurableDirectory="INSTALLDIR">
+            <!-- @Guid will be automatically and durably assigned based on key path -->
+            <Component Directory="INSTALLDIR">
+                <File Name="octopus.exe"/>
+                <Environment Id="Path" Action="set" Name="PATH" Part="last" System="yes" Value="[INSTALLDIR]"/>
+            </Component>
+
+            <!-- Persist the INSTALLDIR and restore it in subsequent installs -->
+            <Component Directory="INSTALLDIR">
+                <RegistryValue Root="HKLM" Key="SOFTWARE\Octopus\CLI" Name="InstallDir" Type="string" Value="[INSTALLDIR]"/>
+            </Component>
+        </Feature>
+
+        <!-- Broadcast environment variable changes -->
+        <CustomActionRef Id="WixBroadcastEnvironmentChange" />
+
+        <!-- Use customized WixUI_InstallDir that removes WixUI_LicenseAgreementDlg -->
+        <Property Id="WIXUI_INSTALLDIR" Value="INSTALLDIR"/>
+        <UIRef Id="OctopusCLI_InstallDir"/>
+    </Product>
+</Wix>

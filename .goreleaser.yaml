@@ -1,5 +1,10 @@
 project_name: octopus
 
+release:
+  prerelease: auto
+  draft: true # we publish during the Octopus deployment
+  name_template: "Octopus CLI {{.Version}}"
+
 before:
   hooks:
     - go mod tidy
@@ -16,21 +21,33 @@ builds:
       - arm64
     id: "octopus"
     main: ./cmd/octopus
-    binary: "{{ .ProjectName }}_v{{ .Version }}"
+    binary: "{{ .ProjectName }}"
 
 archives:
   - replacements:
-      darwin: Darwin
+      darwin: macOS
       linux: Linux
       windows: Windows
       amd64: x86_64
     format_overrides:
       - goos: windows
         format: zip
-    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}"
+
+nfpms:
+  - license: Apache 2.0
+    maintainer: Octopus Deploy
+    homepage: https://github.com/OctopusDeploy/cli
+    bindir: /usr/bin
+    description: Octopus Deploy's official command line tool.
+    formats:
+      - rpm
+      - deb
+
 checksum:
-  name_template: '{{ .ProjectName }}_{{ .Version }}_SHA256SUMS'
+  name_template: "{{ .ProjectName }}_{{ .Version }}_SHA256SUMS"
   algorithm: sha256
+
 signs:
   - artifacts: all
     args:
@@ -42,6 +59,7 @@ signs:
         "--detach-sign",
         "${artifact}",
       ]
-    stdin: '{{ .Env.GPG_PASSWORD }}'
+    stdin: "{{ .Env.GPG_PASSWORD }}"
+
 changelog:
   skip: true
