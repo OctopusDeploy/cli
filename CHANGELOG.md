@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.2](https://github.com/OctopusDeploy/cli/compare/v0.2.1...v0.2.2) (2022-09-13)
+
+
+### Bug Fixes
+
+* expand goreleaser workflow to build MSI and chocolatey packages ([1d86a77](https://github.com/OctopusDeploy/cli/commit/1d86a77ead003a199b3ee987c044dc45ae21e9ae))
+
 ## [0.2.1](https://github.com/OctopusDeploy/cli/compare/v0.2.0...v0.2.1) (2022-09-12)
 
 
