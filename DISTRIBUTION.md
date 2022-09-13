@@ -86,3 +86,23 @@ start-->homebrew-pr
 start-->apt-push
 start-->rpm-push
 ```
+
+
+## Homebrew Deployment process
+
+To publish new packages to homebrew, their defined process is that you fork their `Homebrew/core` repo, make a change to the ruby file representing your package, then create a github pull request with that change.
+
+Our process is a bit constrained because RBAC forbids us from merging anything to the git main branch in the OctopusDeploy organization, unless it has been reviewed by a human. Luckily the homebrew core repo is in a different organization, so we can do this:
+
+Pre-requisite: `Homebrew/core` has been cloned into `OctopusDeploy/homebrew-core`
+```mermaid
+flowchart TD;
+    start[New package version N.NN.NN]
+    clone[git clone OctopusDeploy/homebrew-core]
+    branch[git checkout -b bump-octopus-cli-N.NN.NN]
+    update[Update formula ruby file for new package]
+    push[git push -u origin bump-octopus-cli-N.NN.NN]
+    pr["gh pr create --base Homebrew/core --title 'octopus-cli N.NN.NN'"]
+    
+    start-->clone-->branch-->update-->push-->pr
+```
