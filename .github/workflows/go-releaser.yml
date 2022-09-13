@@ -199,9 +199,12 @@ jobs:
     - uses: actions/upload-artifact@v3
       with:
         name: octopus-cli.${{ needs.goreleaser.outputs.version }}
-        path: |
-          linux-package-feeds/publish-*.sh
-          artifacts/*.nupkg
+        path: linux-package-feeds/publish-*.sh
+
+    - uses: actions/upload-artifact@v3
+      with:
+        name: octopus-cli.${{ needs.goreleaser.outputs.version }}
+        path: artifacts/*.nupkg
 
   publish:
     needs: [goreleaser, generate-packages]
