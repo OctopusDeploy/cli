@@ -1,12 +1,12 @@
 # create-homebrew-pr.ps1
 
-origin=borland/homebrew-core # should be Homewbrew/homebrew-core for production
-packageVersion="0.2.0"
-packageUrl="https://github.com/OctopusDeploy/cli/releases/download/v${packageVersion}/octopus_${packageVersion}_Darwin_arm64.tar.gz"
-formulaFile="octopus-cli.rb"
+$origin="borland/homebrew-core" # should be Homewbrew/homebrew-core for production
+$packageVersion="0.2.0"
+$packageUrl="https://github.com/OctopusDeploy/cli/releases/download/v${packageVersion}/octopus_${packageVersion}_Darwin_arm64.tar.gz"
+$formulaFile="octopus-cli.rb"
 
 Invoke-WebRequest $packageUrl -outfile pkg.tgz
-sha256=(Get-FileHash pkg.tgz -a sha256).Hash.ToLowerInvariant()
+$sha256=(Get-FileHash pkg.tgz -a sha256).Hash.ToLowerInvariant()
 rm pkg.tgz
 
 # git clone --depth 1 $origin our-homebrew-core
@@ -14,10 +14,11 @@ rm pkg.tgz
 
 # git checkout -b bump-octopus-cli-$packageVersion
 
-((Get-Content $formulaFile)
-     -replace "^version \".*\"$", "version \"$packageVersion\""
-     -replace "^url \".*\"$", "url \"$packageUrl\""
-     -replace "^sha256 \".*\"$", "sha256 \"$sha256\"") | Set-Content $formulaFile
+((Get-Content $formulaFile) `
+    -replace "version `".*`"", "version `"$packageVersion`"" `
+    -replace "url `".*`"", "url `"$packageUrl`"" `
+    -replace "sha256 `".*`"", "sha256 `"$sha256`"") `
+    | Set-Content $formulaFile
 
 # git commit -a -m "octopus-cli $packageVersion"
 
