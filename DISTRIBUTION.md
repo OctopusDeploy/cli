@@ -33,39 +33,33 @@ The GoReleaser Github Actions workflow does most of the heavy lifting, as follow
 
 ```mermaid
 flowchart TD
-subgraph "goreleaser"
-    build[Build CLI binaries for all architectures]
-    debs["Build linux packages (.deb, .rpm)"]
-    upload1[Upload binaries+linux packages to GHA artifacts.zip]
+goreleaser --> msi --> generate-packages-and-publish
 
-    build-->debs-->upload1
+subgraph "goreleaser"
+    build --> uploadToGHA
+    
+    build[Build CLI binaries for all architectures including deb, rpm]
+    uploadToGHA[Upload binaries+linux packages to GHA artifact]
 end
 subgraph "msi"
-    fetch[Fetch GHA artifacts.zip]
+    fetch --> buildmsi --> signmsi --> attachMSIToRelease --> uploadMSIToGHA
+
+    fetch[Fetch GHA artifact]
     buildmsi[Build MSI installer]
-    msisign[Sign MSI installer]
-    uploadmsi[Upload MSI to GHA artifacts.zip]
-    
-    fetch-->buildmsi-->msisign-->uploadmsi
+    signmsi[Sign MSI installer]
+    attachMSIToRelease["Attach MSI to GHA release"]
+    uploadMSIToGHA["Upload(append) MSI to GHA artifact"]
 end
-subgraph generate-packages
-    fetch2[Fetch MSI + CLI Binaries from GHA artifacts.zip]
+subgraph generate-packages-and-publish
+    fetch2 --> getScripts --> choco --> zipall --> octoPush --> octoRelease
+
+    fetch2[Fetch MSI + CLI Binaries from GHA artifact]
+    getScripts[Copy scripts to publish rpm and deb from OctopusDeploy/linux-package-feeds]
     choco[Create chocolatey package]
-    zipall[Create octopus-cli-VERSION.zip with all binaries]
-    upload3[Upload versioned zip to GHA octopus-cli-VERSION.zip]
-
-    fetch2-->choco-->zipall-->upload3
+    zipall[Create octopus-cli-VERSION.zip with all packages and scripts]
+    octoPush[Push octopus-cli-VERSION.zip to octopus deploy]
+    octoRelease[Create release in octopus deploy using VERSION]
 end
-subgraph publish
-    fetch3[Fetch octopus-cli-VERSION.zip from GHA]
-    octo-push[Push octopus-cli-VERSION.zip to octopus deploy]
-    octo-release[Create release in octopus deploy using VERSION]
-
-    fetch3-->octo-push-->octo-release
-end
-
-goreleaser --> msi --> generate-packages --> publish
-goreleaser --> generate-packages
 ```
 
 After which point Octopus is used to publish the packages to the external marketplaces, using the following deployment process.
