@@ -209,8 +209,6 @@ jobs:
     env:
       OCTOPUS_API_KEY: ${{ secrets.OCTOPUS_API_KEY }}
       OCTOPUS_HOST: ${{ secrets.OCTOPUS_URL }}      
-      OCTOPUS_CLI_SERVER: ${{ secrets.OCTOPUS_URL }}
-      OCTOPUS_CLI_API_KEY: ${{ secrets.OCTOPUS_API_KEY }}
 
     steps:
     - uses: actions/download-artifact@v3
@@ -226,7 +224,7 @@ jobs:
       uses: OctopusDeploy/push-package-action@v2
       with:
         space: Integrations
-        packages: octopus-cli.${{ needs.goreleaser.outputs.version }}
+        packages: octopus-cli.${{ needs.goreleaser.outputs.version }}.zip
 
     - name: Fetch Release Notes
       id: fetch-release-notes
