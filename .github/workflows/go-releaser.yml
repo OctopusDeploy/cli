@@ -57,7 +57,7 @@ jobs:
 
     - uses: actions/upload-artifact@v3
       with:
-        name: artifacts
+        name: octopus-cli.${{ steps.calculate-version.outputs.version }}
         path: |
           dist/*.zip
           dist/*.tar.gz
@@ -75,7 +75,7 @@ jobs:
 
     - uses: actions/download-artifact@v3
       with:
-        name: artifacts
+        name: octopus-cli.${{ needs.goreleaser.outputs.version }}
         path: artifacts/
 
     - name: Extract octopus.exe
@@ -171,6 +171,7 @@ jobs:
 
     steps:
     - uses: actions/checkout@v3
+    - uses: nuget/setup-nuget@v1
 
     - uses: actions/checkout@v3
       with:
@@ -183,33 +184,26 @@ jobs:
 
     - uses: actions/download-artifact@v3
       with:
-        name: artifacts
+        name: octopus-cli.${{ needs.goreleaser.outputs.version }}
         path: artifacts/
 
-    - name: Download nuget.exe
-      run: curl -o ./nuget.exe https://dist.nuget.org/win-x86-commandline/latest/nuget.exe
+    # - name: Download nuget.exe
+    #   run: curl -o ./nuget.exe https://dist.nuget.org/win-x86-commandline/latest/nuget.exe
 
-    - name: Create Chocolatey package
+    - name: Create Chocolatey NuGet package
       env:
         MSI_FILE: ${{ needs.msi.outputs.msi_file }}
+        # GHA ubuntu-latest runner says it has mono + nuget builtin
       run: |
         cp artifacts/$(basename "${MSI_FILE//\\//}") build/tools
-        mono nuget.exe pack ./build/cli.nuspec -Version ${{ needs.goreleaser.outputs.version }} -OutputDirectory artifacts/
-
-    - name: Compress packages
-      run: |
-
-        zip -rj artifacts/octopus-cli.${{ needs.goreleaser.outputs.version }}.zip \
-          artifacts/*.nupkg \
-          artifacts/*macOS*amd64.tar.gz \
-          artifacts/*.deb \
-          artifacts/*.rpm \
-          linux-package-feeds/publish-*.sh
+        nuget pack ./build/cli.nuspec -Version ${{ needs.goreleaser.outputs.version }} -OutputDirectory artifacts/
 
     - uses: actions/upload-artifact@v3
       with:
         name: octopus-cli.${{ needs.goreleaser.outputs.version }}
-        path: artifacts/octopus-cli.${{ needs.goreleaser.outputs.version }}.zip
+        path: |
+          linux-package-feeds/publish-*.sh
+          artifacts/*.nupkg
 
   publish:
     needs: [goreleaser, generate-packages]
