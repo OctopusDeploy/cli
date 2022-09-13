@@ -200,11 +200,8 @@ jobs:
     - name: Copy publish-apt.sh and publish-rpm.sh
       run: cp linux-package-feeds/source/publish-*.sh artifacts/
 
-    - name: spurious ls for debugging
-      run: ls -R
-
     - name: Create combined zipfile for publishing
-      run: zip -R octopus-cli.${{ needs.goreleaser.outputs.version }}.zip artifacts/
+      run: zip -r octopus-cli.${{ needs.goreleaser.outputs.version }}.zip artifacts/
 
     - uses: OctopusDeploy/install-octopus-cli-action@v1
       with:
@@ -216,20 +213,19 @@ jobs:
     
     - name: Fetch Release Notes
       id: fetch-release-notes
-      if: "!contains(needs.goreleaser.outputs.version, '-')"
+      if: "!contains(needs.goreleaser.outputs.version, '-')" # don't generate release notes for SNAPSHOT builds because there won't be a github release to get them from
       run: |
         echo "::debug::${{github.event_name}}"
         OUTPUT_FILE="release_notes.txt"
         gh view release "${{ needs.goreleaser.outputs.tag_name }}" --jq '.body' --json 'body' | sed 's#\r#  #g' > $OUTPUT_FILE
         echo "::set-output name=release-note-file::$OUTPUT_FILE"
 
-    - name: Create a release in Octopus Deploy 🐙
-      uses: OctopusDeploy/create-release-action@v2
+    - uses: OctopusDeploy/create-release-action@v2
       if: "!contains(needs.goreleaser.outputs.version, '-')"
       with:
         project: 'cli'
         package_version: ${{ needs.goreleaser.outputs.version }}
-        packages: '*:NuGet.CommandLine:4.4.1'
+        packages: 'NuGet.CommandLine:6.2.1'
         release_notes_file: ${{ steps.fetch-release-notes.outputs.release-note-file || ''}}
         git_ref: ${{ github.event.repository.default_branch }}
         git_commit: ${{ github.event.after || github.event.pull_request.head.sha }}
