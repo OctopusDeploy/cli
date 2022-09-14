@@ -221,7 +221,7 @@ jobs:
       run: |
         echo "::debug::${{github.event_name}}"
         OUTPUT_FILE="release_notes.txt"
-        gh view release "${{ needs.goreleaser.outputs.tag_name }}" --jq '.body' --json 'body' | sed 's#\r#  #g' > $OUTPUT_FILE
+        gh release view "${{ needs.goreleaser.outputs.tag_name }}" --jq '.body' --json 'body' | sed 's#\r#  #g' > $OUTPUT_FILE
         echo "::set-output name=release-note-file::$OUTPUT_FILE"
 
     - uses: OctopusDeploy/create-release-action@v2
