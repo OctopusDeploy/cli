@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.3](https://github.com/OctopusDeploy/cli/compare/v0.2.2...v0.2.3) (2022-09-15)
+
+
+### Bug Fixes
+
+* releasenotes pickup in build flow, update go-octopusdeploy to 2.4.1 ([#76](https://github.com/OctopusDeploy/cli/issues/76)) ([4dc9550](https://github.com/OctopusDeploy/cli/commit/4dc955017ebbb12031830da37ab2d3ce3f3e3c78))
+
 ## [0.2.2](https://github.com/OctopusDeploy/cli/compare/v0.2.1...v0.2.2) (2022-09-13)
 
 
