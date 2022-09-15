@@ -62,36 +62,7 @@ step "create-pull-request-to-update-formula-in-homebrew" {
         environments = ["production"]
         properties = {
             Octopus.Action.Script.ScriptBody = <<-EOT
-                packageVersion="$(get_octopusvariable 'Octopus.Action.Package[cli].PackageVersion')"
-                extractedPath="$(get_octopusvariable 'Octopus.Action.Package[cli].ExtractedPath')"
-                
-                username="$(get_octopusvariable 'Publish:HomeBrew:Username')"
-                email="$(get_octopusvariable 'Publish:HomeBrew:UserEmail')"
-                personalAccessToken="$(get_octopusvariable 'Publish:HomeBrew:ApiKey')"
-                
-                orgName="OctopusDeploy"
-                repoName="$(get_octopusvariable 'Publish:HomeBrew:RepoName')"
-                
-                # https://docs.brew.sh/Homebrew-on-Linux#requirements
-                apt-get install build-essential procps curl file git --yes
-                # https://github.com/Homebrew/install/#install-homebrew-on-macos-or-linux
-                NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-                
-                # https://docs.brew.sh/Manpage#environment
-                HOMEBREW_GIT_EMAIL=$email
-                HOMEBREW_GIT_NAME=$username
-                HOMEBREW_GITHUB_API_TOKEN=$personalAccessToken
-                
-                newUrl="https://github.com/$orgName/$repoName/releases/download/v$packageVersion/octopus_$packageVersion_macOS_amd64.tar.gz"
-                newSha=$(sha256sum "$extractedPath/octopus_$packageVersion_macOS_amd64.tar.gz" | awk '{ print $1 }')
-                
-                # https://docs.brew.sh/Manpage#bump-formula-pr-options-formula
-                brew bump-formula-pr \
-                    --fork-org $orgName \
-                    --version $packageVersion \
-                    --url $newUrl \
-                    --sha256 $newSha \
-                    octopus
+                write-host "Temporarily disabled"
             EOT
             Octopus.Action.Script.ScriptSource = "Inline"
             Octopus.Action.Script.Syntax = "Bash"
