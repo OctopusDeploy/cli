@@ -217,6 +217,8 @@ jobs:
     
     - name: Fetch Release Notes
       id: fetch-release-notes
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       if: "!contains(needs.goreleaser.outputs.version, '-')" # don't generate release notes for SNAPSHOT builds because there won't be a github release to get them from
       run: |
         echo "::debug::${{github.event_name}}"
