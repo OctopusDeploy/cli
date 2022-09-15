@@ -10,14 +10,15 @@ step "push-cli-to-chocolatey" {
                 $nugetExe = Join-Path -Path $nugetPackagePath -ChildPath "Tools\nuget.exe"
                 $extractedPath = $OctopusParameters["Octopus.Action.Package[cli].ExtractedPath"]
                 $packagePath = Get-ChildItem -Path $extractedPath -Name "octopus-cli*.nupkg"
+                $fullPackagePath = Join-Path -Path $extractedPath -ChildPath $packagePath
                 
                 $maxAttempts = 5
                 $currentAttempt = 1
                 
                 while ($currentAttempt -le $maxAttempts)
                 {
-                    write-host "Pushing package ($packagePath) to Chocolatey (attempt $currentAttempt)"
-                    . $nugetExe push "$packagePath" -source $OctopusParameters["Publish:Chocolatey:FeedUrl"] -apikey $OctopusParameters["Publish:Chocolatey:ApiKey"] -NonInteractive -Verbosity detailed
+                    write-host "Pushing package ($fullPackagePath) to Chocolatey (attempt $currentAttempt)"
+                    . $nugetExe push "$fullPackagePath" -source $OctopusParameters["Publish:Chocolatey:FeedUrl"] -apikey $OctopusParameters["Publish:Chocolatey:ApiKey"] -NonInteractive -Verbosity detailed
                     if ($LastExitCode -eq 0) {
                         exit 0
                     } else {
