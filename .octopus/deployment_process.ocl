@@ -128,12 +128,9 @@ step "create-pull-request-to-update-formula-in-homebrew" {
                 
                 git push --set-upstream origin $branchName
                 
-                &$gh pr create --head $branchName --title "octopus-cli $packageVersion" --body "automatically generated"
+                &($gh) pr create --head $branchName --title "octopus-cli $packageVersion" --body "automatically generated"
                 
                 cd ..
-                
-                
-                
             EOT
             Octopus.Action.Script.ScriptSource = "Inline"
             Octopus.Action.Script.Syntax = "PowerShell"
