@@ -114,8 +114,8 @@ step "create-pull-request-to-update-formula-in-homebrew" {
                     -replace "linux_arm_sha256 = `".*`"", "linux_arm_sha256 = `"$linux_arm_sha256`"") | Set-Content $formulaFile
                 
                 if ($OctopusParameters) {
-                    git config --user.name $OctopusParameters["Publish:HomeBrew:Username"]
-                    git config --user.email $OctopusParameters["Publish:HomeBrew:UserEmail"]
+                    git config user.name $OctopusParameters["Publish:HomeBrew:Username"]
+                    git config user.email $OctopusParameters["Publish:HomeBrew:UserEmail"]
                     $env:GH_TOKEN = $OctopusParameters["Publish:HomeBrew:ApiKey"]
                 }
                 git commit -a -m "octopus-cli $packageVersion"
