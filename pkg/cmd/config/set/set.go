@@ -41,20 +41,20 @@ func setRun(isPromptEnabled bool, ask question.Asker, key string, value string) 
 		return err
 	}
 
-	newViper := viper.New()
-	config.SetupConfigFile(newViper, configPath)
+	localViper := viper.New()
+	config.SetupConfigFile(localViper, configPath)
 
-	if err := newViper.ReadInConfig(); err != nil {
+	if err := localViper.ReadInConfig(); err != nil {
 		if _, ok := err.(viper.ConfigFileNotFoundError); ok {
 			// config file not found, we create it here and recover
-			if err = newViper.SafeWriteConfig(); err != nil {
+			if err = localViper.SafeWriteConfig(); err != nil {
 				return err
 			}
 		} else {
 			return err // any other error is unrecoverable; abort
 		}
 	}
-	if key != "" && !config.ValidateKey(key) {
+	if key != "" && !config.IsValidKey(key) {
 		return fmt.Errorf("the key '%s' is not a valid", key)
 	}
 	if isPromptEnabled && value == "" {
@@ -71,11 +71,11 @@ func setRun(isPromptEnabled bool, ask question.Asker, key string, value string) 
 		if err != nil {
 			return fmt.Errorf("the provided value %s is not valid for NoPrompt, please use true of false", value)
 		}
-		newViper.Set(key, boolValue)
+		localViper.Set(key, boolValue)
 	} else {
-		newViper.Set(key, value)
+		localViper.Set(key, value)
 	}
-	if err := newViper.WriteConfig(); err != nil {
+	if err := localViper.WriteConfig(); err != nil {
 		return err
 	}
 	return nil
@@ -103,6 +103,7 @@ func promptMissing(ask question.Asker, key string) (string, string, error) {
 		}
 		key = k
 	}
+	// Deliberate reach-out to the global viper to ask it what is valid (localViper doesn't know much)
 	if !viper.InConfig(key) {
 		return "", "", fmt.Errorf("unable to get value for key: %s", key)
 	}

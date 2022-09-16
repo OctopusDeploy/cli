@@ -31,7 +31,7 @@ func NewCmdGet(f factory.Factory) *cobra.Command {
 
 func getRun(isPromptEnabled bool, ask question.Asker, key string, out io.Writer) error {
 	if key != "" {
-		if !config.ValidateKey(key) {
+		if !config.IsValidKey(key) {
 			return fmt.Errorf("the key '%s' is not a valid", key)
 		}
 	}
