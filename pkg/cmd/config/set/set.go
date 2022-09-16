@@ -45,20 +45,17 @@ func setRun(isPromptEnabled bool, ask question.Asker, key string, value string) 
 	config.SetupConfigFile(newViper, configPath)
 
 	if err := newViper.ReadInConfig(); err != nil {
-		if _, isNotFoundErr := err.(viper.ConfigFileNotFoundError); !isNotFoundErr {
-			// need to create the config file
-			return err // isNotFoundErr is ignorable, everything else is an actual problem
-		} else {
-			// config file not found, we create it here
+		if _, ok := err.(viper.ConfigFileNotFoundError); ok {
+			// config file not found, we create it here and recover
 			if err = newViper.SafeWriteConfig(); err != nil {
 				return err
 			}
+		} else {
+			return err // any other error is unrecoverable; abort
 		}
 	}
-	if key != "" {
-		if !config.ValidateKey(key) {
-			return fmt.Errorf("the key '%s' is not a valid", key)
-		}
+	if key != "" && !config.ValidateKey(key) {
+		return fmt.Errorf("the key '%s' is not a valid", key)
 	}
 	if isPromptEnabled && value == "" {
 		k, v, err := promptMissing(ask, key)

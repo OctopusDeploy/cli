@@ -24,7 +24,7 @@ func SetupConfigFile(v *viper.Viper, configPath string) {
 	v.AddConfigPath(configPath)
 }
 
-func SetupDefaults(v *viper.Viper) {
+func setDefaults(v *viper.Viper) {
 	v.SetDefault(constants.ConfigHost, "")
 	v.SetDefault(constants.ConfigApiKey, "")
 	v.SetDefault(constants.ConfigSpace, "")
@@ -42,7 +42,7 @@ func SetupDefaults(v *viper.Viper) {
 
 func Setup() error {
 	// we use the global static viper through all the CLI, EXCEPT when writing config files, which is done in pkg/cmd/set, not here
-	SetupDefaults(viper.GetViper())
+	setDefaults(viper.GetViper())
 
 	// bind environment variables
 	if err := viper.BindEnv(constants.ConfigApiKey, constants.EnvOctopusApiKey); err != nil {
@@ -117,6 +117,7 @@ func getConfigPath() (string, error) {
 }
 
 func ValidateKey(key string) bool {
-	key = strings.ToLower(strings.TrimSpace(key))
+	key = strings.TrimSpace(key)
+	key = strings.ToLower(key)
 	return util.SliceContains(viper.AllKeys(), key)
 }
