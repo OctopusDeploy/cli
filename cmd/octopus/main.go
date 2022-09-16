@@ -23,8 +23,10 @@ func main() {
 	// if there is a missing or invalid .env file anywhere, we don't care, just ignore it
 	_ = godotenv.Load()
 
-	config.Setup()
-	config.SetupEnv()
+	if err := config.Setup(); err != nil {
+		fmt.Println(err)
+		os.Exit(3)
+	}
 	arg := os.Args[1:]
 	cmdToRun := ""
 	if len(arg) > 0 {

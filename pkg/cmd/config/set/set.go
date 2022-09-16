@@ -35,13 +35,26 @@ func NewCmdSet(f factory.Factory) *cobra.Command {
 }
 
 func setRun(isPromptEnabled bool, ask question.Asker, key string, value string) error {
-	if err := config.CreateNewConfig(); err != nil {
+	// have to make new viper so it only contains file value, no ENVs or Flags
+	configPath, err := config.EnsureConfigPath()
+	if err != nil {
 		return err
 	}
-	// have to make new viper so it only contains file value, no ENVs or Flags
-	newConfig := viper.New()
-	newConfig.SetConfigFile(viper.ConfigFileUsed())
-	newConfig.ReadInConfig()
+
+	newViper := viper.New()
+	config.SetupConfigFile(newViper, configPath)
+
+	if err := newViper.ReadInConfig(); err != nil {
+		if _, isNotFoundErr := err.(viper.ConfigFileNotFoundError); !isNotFoundErr {
+			// need to create the config file
+			return err // isNotFoundErr is ignorable, everything else is an actual problem
+		} else {
+			// config file not found, we create it here
+			if err = newViper.SafeWriteConfig(); err != nil {
+				return err
+			}
+		}
+	}
 	if key != "" {
 		if !config.ValidateKey(key) {
 			return fmt.Errorf("the key '%s' is not a valid", key)
@@ -61,14 +74,13 @@ func setRun(isPromptEnabled bool, ask question.Asker, key string, value string) 
 		if err != nil {
 			return fmt.Errorf("the provided value %s is not valid for NoPrompt, please use true of false", value)
 		}
-		newConfig.Set(key, boolValue)
+		newViper.Set(key, boolValue)
 	} else {
-		newConfig.Set(key, value)
+		newViper.Set(key, value)
 	}
-	if err := newConfig.WriteConfig(); err != nil {
+	if err := newViper.WriteConfig(); err != nil {
 		return err
 	}
-
 	return nil
 }
 
