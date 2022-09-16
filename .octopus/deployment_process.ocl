@@ -3,7 +3,7 @@ step "push-cli-to-chocolatey" {
 
     action {
         action_type = "Octopus.Script"
-        environments = ["production"]
+        environments = ["chocolatey-production"]
         properties = {
             Octopus.Action.Script.ScriptBody = <<-EOT
                 $nugetPackagePath = $OctopusParameters["Octopus.Action.Package[NuGet.CommandLine].ExtractedPath"]
@@ -58,7 +58,7 @@ step "create-pull-request-to-update-formula-in-homebrew" {
 
     action {
         action_type = "Octopus.Script"
-        environments = ["production"]
+        environments = ["homebrew-production"]
         properties = {
             Octopus.Action.Script.ScriptBody = <<-EOT
                 packageVersion="$(get_octopusvariable 'Octopus.Action.Package[cli].PackageVersion')"
@@ -122,7 +122,7 @@ step "publish-to-apt-repo" {
 
     action {
         action_type = "Octopus.Script"
-        environments = ["production"]
+        environments = ["apt-production"]
         properties = {
             Octopus.Action.Script.ScriptBody = <<-EOT
                 cd cli || exit
@@ -160,7 +160,7 @@ step "publish-to-rpm-repo" {
 
     action {
         action_type = "Octopus.Script"
-        environments = ["production"]
+        environments = ["rpm-production"]
         properties = {
             Octopus.Action.Script.ScriptBody = <<-EOT
                 cd cli || exit
