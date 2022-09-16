@@ -78,8 +78,11 @@ step "create-pull-request-to-update-formula-in-homebrew" {
                     $extractedPath = $OctopusParameters["Octopus.Action.Package[cli].ExtractedPath"]
                 
                     $ghExtractedPath = $OctopusParameters["Octopus.Action.Package[gh_linux_amd64].ExtractedPath"]
+                    write-host "dbg: ghExtractedPath = $ghExtractedPath"
                     $ghVersion = $OctopusParameters["Octopus.Action.Package[gh_linux_amd64].PackageVersion"]
+                    write-host "dbg: ghVersion = $ghVersion"
                     $gh = Join-Path -Path $ghExtractedPath "gh_${ghVersion}_linux_amd64" "bin" "gh"
+                    write-host "dbg: gh = $gh"
 
                     $githubtoken = $OctopusParameters["Publish:HomeBrew:ApiKey"]
                     $origin="https://${githubtoken}@github.com/OctopusDeploy/homebrew-taps"
