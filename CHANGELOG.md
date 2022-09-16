@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.4](https://github.com/OctopusDeploy/cli/compare/v0.2.3...v0.2.4) (2022-09-16)
+
+
+### Bug Fixes
+
+* iron out the deployment process ([#78](https://github.com/OctopusDeploy/cli/issues/78)) ([fd59f84](https://github.com/OctopusDeploy/cli/commit/fd59f84b1be6b4c329583149577d540736646720))
+
 ## [0.2.3](https://github.com/OctopusDeploy/cli/compare/v0.2.2...v0.2.3) (2022-09-15)
 
 
