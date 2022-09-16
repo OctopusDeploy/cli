@@ -230,8 +230,8 @@ jobs:
       if: "!contains(needs.goreleaser.outputs.version, '-')"
       with:
         project: 'cli'
-        package_version: ${{ needs.goreleaser.outputs.version }}
-        packages: 'NuGet.CommandLine:6.2.1'
+        # don't specify a default package version; let all the 'tool' packages pick latest and just specify our own version
+        packages: octopus-cli:${{ needs.goreleaser.outputs.version }}
         release_notes_file: ${{ steps.fetch-release-notes.outputs.release-note-file || ''}}
         git_ref: ${{ github.event.repository.default_branch }}
         git_commit: ${{ github.event.after || github.event.pull_request.head.sha }}
