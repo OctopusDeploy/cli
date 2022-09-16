@@ -79,7 +79,7 @@ step "create-pull-request-to-update-formula-in-homebrew" {
                 
                     $ghExtractedPath = $OctopusParameters["Octopus.Action.Package[gh_linux_amd64].ExtractedPath"]
                     $ghVersion = $OctopusParameters["Octopus.Action.Package[gh_linux_amd64].PackageVersion"]
-                    $gh = Join-Path -Path $ghExtractedPath "gh_${$ghVersion}_linux_amd64" "bin" "gh"
+                    $gh = Join-Path -Path $ghExtractedPath "gh_${ghVersion}_linux_amd64" "bin" "gh"
                 }
                 
                 if (!$packageVersion || !$extractedPath) {
