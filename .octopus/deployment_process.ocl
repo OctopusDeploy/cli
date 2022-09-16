@@ -83,6 +83,7 @@ step "create-pull-request-to-update-formula-in-homebrew" {
                     write-host "dbg: ghVersion = $ghVersion"
                     $gh = Join-Path -Path $ghExtractedPath "gh_${ghVersion}_linux_amd64" "bin" "gh"
                     write-host "dbg: gh = $gh"
+                    chmod +x $gh
 
                     $githubtoken = $OctopusParameters["Publish:HomeBrew:ApiKey"]
                     $origin="https://${githubtoken}@github.com/OctopusDeploy/homebrew-taps"
