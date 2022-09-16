@@ -10,14 +10,15 @@ step "push-cli-to-chocolatey" {
                 $nugetExe = Join-Path -Path $nugetPackagePath -ChildPath "Tools\nuget.exe"
                 $extractedPath = $OctopusParameters["Octopus.Action.Package[cli].ExtractedPath"]
                 $packagePath = Get-ChildItem -Path $extractedPath -Name "octopus-cli*.nupkg"
+                $fullPackagePath = Join-Path -Path $extractedPath -ChildPath $packagePath
                 
                 $maxAttempts = 5
                 $currentAttempt = 1
                 
                 while ($currentAttempt -le $maxAttempts)
                 {
-                    write-host "Pushing package ($packagePath) to Chocolatey (attempt $currentAttempt)"
-                    . $nugetExe push "$packagePath" -source $OctopusParameters["Publish:Chocolatey:FeedUrl"] -apikey $OctopusParameters["Publish:Chocolatey:ApiKey"] -NonInteractive -Verbosity detailed
+                    write-host "Pushing package ($fullPackagePath) to Chocolatey (attempt $currentAttempt)"
+                    . $nugetExe push "$fullPackagePath" -source $OctopusParameters["Publish:Chocolatey:FeedUrl"] -apikey $OctopusParameters["Publish:Chocolatey:ApiKey"] -NonInteractive -Verbosity detailed
                     if ($LastExitCode -eq 0) {
                         exit 0
                     } else {
@@ -61,40 +62,79 @@ step "create-pull-request-to-update-formula-in-homebrew" {
         environments = ["production"]
         properties = {
             Octopus.Action.Script.ScriptBody = <<-EOT
-                packageVersion="$(get_octopusvariable 'Octopus.Action.Package[cli].PackageVersion')"
-                extractedPath="$(get_octopusvariable 'Octopus.Action.Package[cli].ExtractedPath')"
+                # create-homebrew-pr.ps1
+                param(
+                    [String]$packageVersion, # e.g. "0.2.2"
+                    [String]$extractedPath # e.g.  "C:\Users\Orion\Downloads\octopus-cli.0.2.2"
+                )
                 
-                username="$(get_octopusvariable 'Publish:HomeBrew:Username')"
-                email="$(get_octopusvariable 'Publish:HomeBrew:UserEmail')"
-                personalAccessToken="$(get_octopusvariable 'Publish:HomeBrew:ApiKey')"
+                $origin="https://github.com/OctopusDeploy/homebrew-taps"
+                $gh = "gh" # github cli
                 
-                orgName="OctopusDeploy"
-                repoName="$(get_octopusvariable 'Publish:HomeBrew:RepoName')"
+                if ($OctopusParameters) {
+                    write-host "using OctopusParameters"
+                    # we are running inside an octopus tentacle
+                    $packageVersion = $OctopusParameters["Octopus.Action.Package[cli].PackageVersion"]
+                    $extractedPath = $OctopusParameters["Octopus.Action.Package[cli].ExtractedPath"]
                 
-                # https://docs.brew.sh/Homebrew-on-Linux#requirements
-                apt-get install build-essential procps curl file git --yes
-                # https://github.com/Homebrew/install/#install-homebrew-on-macos-or-linux
-                NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+                    $ghExtractedPath = $OctopusParameters["Octopus.Action.Package[gh_linux_amd64].ExtractedPath"]
+                    write-host "dbg: ghExtractedPath = $ghExtractedPath"
+                    $ghVersion = $OctopusParameters["Octopus.Action.Package[gh_linux_amd64].PackageVersion"]
+                    write-host "dbg: ghVersion = $ghVersion"
+                    $gh = Join-Path -Path $ghExtractedPath "gh_${ghVersion}_linux_amd64" "bin" "gh"
+                    write-host "dbg: gh = $gh"
+                    chmod +x $gh
+
+                    $githubtoken = $OctopusParameters["Publish:HomeBrew:ApiKey"]
+                    $origin="https://${githubtoken}@github.com/OctopusDeploy/homebrew-taps"
+                }
                 
-                # https://docs.brew.sh/Manpage#environment
-                HOMEBREW_GIT_EMAIL=$email
-                HOMEBREW_GIT_NAME=$username
-                HOMEBREW_GITHUB_API_TOKEN=$personalAccessToken
+                if (!$packageVersion || !$extractedPath) {
+                    throw "Error: packageVersion or extractedPath are not set"
+                    exit
+                } else {
+                    write-host "Using: packageVersion $packageVersion from $extractedPath"
+                }
                 
-                newUrl="https://github.com/$orgName/$repoName/releases/download/v$packageVersion/octopus_$packageVersion_macOS_amd64.tar.gz"
-                newSha=$(sha256sum "$extractedPath/octopus_$packageVersion_macOS_amd64.tar.gz" | awk '{ print $1 }')
+                git clone --depth 1 $origin octopus-homebrew-taps
+                cd octopus-homebrew-taps
                 
-                # https://docs.brew.sh/Manpage#bump-formula-pr-options-formula
-                brew bump-formula-pr \
-                    --fork-org $orgName \
-                    --version $packageVersion \
-                    --url $newUrl \
-                    --sha256 $newSha \
-                    octopus
+                $branchName = "bump-octopus-cli-$packageVersion"
+                git checkout -b $branchName
+                
+                $macos_intel_sha256 = (Get-FileHash -Algorithm SHA256 "$extractedPath/octopus_${packageVersion}_macOS_x86_64.tar.gz").Hash.ToLowerInvariant()
+                write-host "macos_intel_sha256=$macos_intel_sha256"
+                $macos_arm_sha256 = (Get-FileHash -Algorithm SHA256 "$extractedPath/octopus_${packageVersion}_macOS_arm64.tar.gz").Hash.ToLowerInvariant()
+                write-host "macos_arm_sha256=$macos_arm_sha256"
+                
+                $linux_intel_sha256 = (Get-FileHash -Algorithm SHA256 "$extractedPath/octopus_${packageVersion}_Linux_x86_64.tar.gz").Hash.ToLowerInvariant()
+                write-host "linux_intel_sha256=$linux_intel_sha256"
+                $linux_arm_sha256 = (Get-FileHash -Algorithm SHA256 "$extractedPath/octopus_${packageVersion}_Linux_arm64.tar.gz").Hash.ToLowerInvariant()
+                write-host "linux_arm_sha256=$linux_arm_sha256"
+                
+                $formulaFile="octopus-cli.rb"
+                ((Get-Content $formulaFile) `
+                    -replace "version `".*`"", "version `"$packageVersion`"" `
+                    -replace "macos_intel_sha256 = `".*`"", "macos_intel_sha256 = `"$macos_intel_sha256`"" `
+                    -replace "macos_arm_sha256 = `".*`"", "macos_arm_sha256 = `"$macos_arm_sha256`"" `
+                    -replace "linux_intel_sha256 = `".*`"", "linux_intel_sha256 = `"$linux_intel_sha256`"" `
+                    -replace "linux_arm_sha256 = `".*`"", "linux_arm_sha256 = `"$linux_arm_sha256`"") | Set-Content $formulaFile
+                
+                if ($OctopusParameters) {
+                    git config user.name $OctopusParameters["Publish:HomeBrew:Username"]
+                    git config user.email $OctopusParameters["Publish:HomeBrew:UserEmail"]
+                    $env:GH_TOKEN = $githubtoken
+                }
+                git commit -a -m "octopus-cli $packageVersion"
+                
+                git push --set-upstream origin $branchName
+                
+                &($gh) pr create --head $branchName --title "octopus-cli $packageVersion" --body "automatically generated"
+                
+                cd ..
             EOT
             Octopus.Action.Script.ScriptSource = "Inline"
-            Octopus.Action.Script.Syntax = "Bash"
-            OctopusUseBundledTooling = "False"
+            Octopus.Action.Script.Syntax = "PowerShell"
         }
         worker_pool = "hosted-ubuntu"
 
@@ -107,6 +147,17 @@ step "create-pull-request-to-update-formula-in-homebrew" {
             acquisition_location = "Server"
             feed = "octopus-server-built-in"
             package_id = "octopus-cli"
+            properties = {
+                Extract = "True"
+                Purpose = ""
+                SelectionMode = "immediate"
+            }
+        }
+
+        packages "gh_linux_amd64" {
+            acquisition_location = "Server"
+            feed = "octopus-server-built-in"
+            package_id = "gh_linux_amd64"
             properties = {
                 Extract = "True"
                 Purpose = ""
