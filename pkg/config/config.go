@@ -59,17 +59,13 @@ func bindEnvironment(v *viper.Viper) error {
 
 func Setup(v *viper.Viper) error {
 	setDefaults(v)
-
-	// bind environment variables
 	if err := bindEnvironment(v); err != nil {
 		return err
 	}
 
-	// read the config file
 	configPath, err := getConfigPath()
 	if err == nil {
 		SetupConfigFile(v, configPath)
-
 		if err := v.ReadInConfig(); err != nil {
 			if _, ok := err.(viper.ConfigFileNotFoundError); ok {
 				// Do nothing, config file will be created on `config set` cmd
