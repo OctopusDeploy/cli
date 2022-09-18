@@ -2,7 +2,6 @@ project_name: octopus
 
 release:
   prerelease: auto
-  draft: true # we publish during the Octopus deployment
   name_template: "Octopus CLI {{.Version}}"
 
 before:
