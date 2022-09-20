@@ -1,11 +1,14 @@
 package main
 
 import (
+	_ "embed"
 	"fmt"
 	"github.com/AlecAivazis/survey/v2/terminal"
+	version "github.com/OctopusDeploy/cli"
 	"github.com/briandowns/spinner"
 	"github.com/spf13/viper"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/AlecAivazis/survey/v2"
@@ -43,9 +46,15 @@ func main() {
 		askProvider.DisableInteractive()
 	}
 
+	buildVersion := strings.TrimSpace(version.Version)
+
 	clientFactory, err := apiclient.NewClientFactoryFromConfig(askProvider)
 	if err != nil {
-		if cmdToRun != "config" {
+		// a small subset of commands can function even if the app doesn't have valid configuration information
+		if cmdToRun == "config" || cmdToRun == "version" {
+			clientFactory = apiclient.NewStubClientFactory()
+		} else {
+			// can't possibly work
 			fmt.Println(err)
 			os.Exit(3)
 		}
@@ -53,7 +62,7 @@ func main() {
 
 	s := spinner.New(spinner.CharSets[11], 100*time.Millisecond, spinner.WithColor("cyan"))
 
-	f := factory.New(clientFactory, askProvider, s)
+	f := factory.New(clientFactory, askProvider, s, buildVersion)
 
 	cmd := root.NewCmdRoot(f, clientFactory, askProvider)
 

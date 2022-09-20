@@ -70,19 +70,6 @@ type Client struct {
 	Ask question.AskProvider
 }
 
-func requireArguments(items map[string]any) error {
-	for k, v := range items {
-		if v == nil {
-			return fmt.Errorf("required argument %s was nil", k)
-		}
-
-		if vstr, ok := v.(string); ok && vstr == "" {
-			return fmt.Errorf("required string argument %s was empty", k)
-		}
-	}
-	return nil
-}
-
 func NewClientFactory(httpClient *http.Client, host string, apiKey string, spaceNameOrID string, ask question.AskProvider) (ClientFactory, error) {
 	// httpClient is allowed to be nil; it is passed through to the go-octopusdeploy library which falls back to a default httpClient
 	if host == "" {
@@ -286,3 +273,24 @@ func (c *Client) GetSystemClient() (*octopusApiClient.Client, error) {
 	c.SystemClient = systemClient
 	return systemClient, nil
 }
+
+// NewStubClientFactory returns a stub instance, so you can satisfy external code that needs a ClientFactory
+func NewStubClientFactory() ClientFactory {
+	return &stubClientFactory{}
+}
+
+type stubClientFactory struct{}
+
+func (s *stubClientFactory) GetSpacedClient() (*octopusApiClient.Client, error) {
+	return nil, errors.New("app is not configured correctly")
+}
+
+func (s *stubClientFactory) GetSystemClient() (*octopusApiClient.Client, error) {
+	return nil, errors.New("app is not configured correctly")
+}
+
+func (s *stubClientFactory) GetActiveSpace() *spaces.Space { return nil }
+
+func (s *stubClientFactory) SetSpaceNameOrId(_ string) {}
+
+func (s *stubClientFactory) GetHostUrl() string { return "" }

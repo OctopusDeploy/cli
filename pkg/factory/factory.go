@@ -15,9 +15,10 @@ type Spinner interface {
 }
 
 type factory struct {
-	client  apiclient.ClientFactory
-	asker   question.AskProvider
-	spinner Spinner
+	client       apiclient.ClientFactory
+	asker        question.AskProvider
+	spinner      Spinner
+	buildVersion string
 }
 
 type Factory interface {
@@ -28,13 +29,15 @@ type Factory interface {
 	Spinner() Spinner
 	IsPromptEnabled() bool
 	Ask(p survey.Prompt, response interface{}, opts ...survey.AskOpt) error
+	BuildVersion() string
 }
 
-func New(clientFactory apiclient.ClientFactory, asker question.AskProvider, s Spinner) Factory {
+func New(clientFactory apiclient.ClientFactory, asker question.AskProvider, s Spinner, buildVersion string) Factory {
 	return &factory{
-		client:  clientFactory,
-		asker:   asker,
-		spinner: s,
+		client:       clientFactory,
+		asker:        asker,
+		spinner:      s,
+		buildVersion: buildVersion,
 	}
 }
 
@@ -73,6 +76,10 @@ func (f *factory) Ask(p survey.Prompt, response interface{}, opts ...survey.AskO
 
 func (f *factory) Spinner() Spinner {
 	return f.spinner
+}
+
+func (f *factory) BuildVersion() string {
+	return f.buildVersion
 }
 
 // NoSpinner is a static singleton "does nothing" stand-in for spinner if you want to

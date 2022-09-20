@@ -10,6 +10,68 @@
 
 ---
 
+## Installation
+
+#### Windows - MSI file
+
+Navigate to latest release on the [GitHub releases page](https://github.com/OctopusDeploy/cli/releases) and expand the **Assets** list.
+
+Download and run the file `octopus_[version]_Windows_x86_64.msi` 
+
+*Note:* At this time, the installer is x64 only. If you are using Windows on ARM, download the manual archive instead.
+
+#### Windows - Chocolatey
+
+```shell
+choco install octopus-cli
+```
+
+*Note:* At this time, the chocolatey package is Intel only. If you are using Windows on ARM64, download the manual archive instead.
+
+#### macOS - Homebrew
+
+```shell
+brew install octopusdeploy/taps/octopus-cli
+```
+
+The Homebrew package has native support for macOS Intel and Apple Silicon
+
+#### Linux (debian/ubuntu based distributions)
+
+```shell
+sudo apt update && sudo apt install --no-install-recommends gnupg curl ca-certificates apt-transport-https && \
+curl -sSfL https://apt.octopus.com/public.key | sudo apt-key add - && \
+sudo sh -c "echo deb https://apt.octopus.com/ stable main > /etc/apt/sources.list.d/octopus.com.list" && \
+sudo apt update && sudo apt install octopus-cli
+```
+
+#### Linux (redhat/fedora based distributions)
+
+```shell
+sudo curl -sSfL https://rpm.octopus.com/octopuscli.repo -o /etc/yum.repos.d/octopuscli.repo && \
+sudo yum install octopus-cli
+```
+
+#### Any Platform - Manual
+
+Download and extract the archive file for your platform from the latest release on the [GitHub releases page](https://github.com/OctopusDeploy/cli/releases).
+
+- macOS (Apple Silicon): `octopus_[version]_macOS_arm64.tar.gz`
+- macOS (Intel): `octopus_[version]_macOS_x86_64.tar.gz`
+- Windows (x64): `octopus_[version]_Windows_x86_64.zip`
+- Linux (x64): `octopus_[version]_Linux_x86_64.tar.gz`
+
+The archive file simply contains a compressed version of the `octopus` binary. If you would like to add it to your `PATH` then you must do this yourself.
+
+#### Any platform - go install
+If you have the go development tools installed, you can run
+
+```shell
+go install github.com/OctopusDeploy/cli/cmd/octopus@latest
+```
+
+This will download the latest public release of the CLI from our GitHub repository, compile it for your platform/architecture, and install the binary in your GOPATH
+
 ## Overview
 
 This project aims to create a new CLI (written in Go) for communicating with the Octopus Deploy Server.
@@ -139,20 +201,7 @@ testutil/ # internal utility code used by both unit and integration tests
 integrationtest/ # Contains integration tests  
 ```
 
-## Testing
-
-The most important thing the CLI does is communicate with the Octopus server.
-
-We place high importance on compatibility with the server, and detection of breakages caused by server changes.
-As such, Integration tests form the most important part of our testing strategy for the CLI.
-
-If you are writing a new command, or extending an existing one, you should ensure that you have in place integration
-tests, which verify against a running instance of the server, that the command behaves correctly.
-
-Unit tests are used to fill gaps that integration testing cannot effectively cover, such as the
-workflow of prompting for user input, or highly algorithmic/mathematical code.
-
-### Unit Tests
+### Testing
 
 Unit tests for packages follow go language conventions, and is located next to the code it is testing.
 
@@ -186,15 +235,6 @@ If your server contains existing data, the tests may fail, and they may modify o
 
 The easiest way to run the tests is to `cd integrationtest` and run `go test ./...` or `gotestsum`  
 
-### Architecture to enable Testing of interactive mode
-
-While we aim for most functionality to be covered by integration tests, the question/answer flow when running
-in interactive mode is not amenable to integration tests. The test runner process would need a lot of highly complex
-and code parsing the CLI's stdout commands and emulating a terminal buffer. This is not a productive use of time.
-
-Rather, we architect the application so that the question/answer flows are contained within simple functions,
-that we can test using Unit Tests, supplying a mocked wrapper which impersonates the `Survey` library.
-
 ## Guidance and Example of how to create and test new commands
 
 Imagine that the CLI did not contain an "account create" command, and we wished to add one.
@@ -227,7 +267,6 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 	return cmd
 }
 ```
-
 
 #### 2. Create a `Task` which encapsulates the command arguments
 
@@ -266,9 +305,9 @@ to do the work (sending data to the octopus server, etc.)
 
 At this point you should have a functioning command which works in automation mode.
 
-#### 4. Write some integration tests to ensure your command works as expected when run against a real server
+#### 4. Write unit tests to ensure your command works as expected
 
-Add a new file under the `integrationtest` directory, and write tests as appropriate
+The unit tests for [release list](https://github.com/OctopusDeploy/cli/blob/main/pkg/cmd/release/list/list_test.go) are a reasonable place to start with as an example.
 
 #### 5. Implement interactive mode
 
