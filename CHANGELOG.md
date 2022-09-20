@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.5](https://github.com/OctopusDeploy/cli/compare/v0.2.4...v0.2.5) (2022-09-20)
+
+
+### Bug Fixes
+
+* cli[#71](https://github.com/OctopusDeploy/cli/issues/71) - config system was leaking env vars into the config file when it shouldn't have  ([#80](https://github.com/OctopusDeploy/cli/issues/80)) ([e8edb32](https://github.com/OctopusDeploy/cli/commit/e8edb32247e4baa438e11238b61fddf7cb0ae595))
+
 ## [0.2.4](https://github.com/OctopusDeploy/cli/compare/v0.2.3...v0.2.4) (2022-09-16)
 
 
