@@ -103,8 +103,8 @@ func promptMissing(ask question.Asker, key string) (string, string, error) {
 		}
 		key = k
 	}
-	// Deliberate reach-out to the global viper to ask it what is valid (localViper doesn't know much)
-	if !viper.InConfig(key) {
+
+	if !config.IsValidKey(key) {
 		return "", "", fmt.Errorf("unable to get value for key: %s", key)
 	}
 
