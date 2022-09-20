@@ -2,88 +2,105 @@ package config
 
 import (
 	"fmt"
+	"github.com/OctopusDeploy/cli/pkg/constants"
+	"github.com/OctopusDeploy/cli/pkg/util"
+	"github.com/spf13/viper"
 	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
-
-	"github.com/OctopusDeploy/cli/pkg/constants"
-	"github.com/OctopusDeploy/cli/pkg/util"
-	"github.com/spf13/viper"
 )
 
 const configName = "cli_config"
 const defaultConfigFileType = "json"
 const appData = "AppData"
 
-// var configPath string
+func SetupConfigFile(v *viper.Viper, configPath string) {
+	v.SetConfigName(configName)
+	v.SetConfigType(defaultConfigFileType)
+	v.AddConfigPath(configPath)
+}
 
-func Setup() {
-	viper.SetDefault(constants.ConfigHost, "")
-	viper.SetDefault(constants.ConfigApiKey, "")
-	viper.SetDefault(constants.ConfigSpace, "")
-	viper.SetDefault(constants.ConfigNoPrompt, false)
-	//	viper.SetDefault(constants.ConfigProxyUrl, "")
-	//	viper.SetDefault(constants.ConfigShowOctopus, true)
-	viper.SetDefault(constants.ConfigOutputFormat, "table")
-
-	viper.SetConfigName(configName)
-	viper.SetConfigType(defaultConfigFileType)
+func setDefaults(v *viper.Viper) {
+	v.SetDefault(constants.ConfigHost, "")
+	v.SetDefault(constants.ConfigApiKey, "")
+	v.SetDefault(constants.ConfigSpace, "")
+	v.SetDefault(constants.ConfigNoPrompt, false)
+	//	v.SetDefault(constants.ConfigProxyUrl, "")
+	//	v.SetDefault(constants.ConfigShowOctopus, true)
+	v.SetDefault(constants.ConfigOutputFormat, "table")
 
 	if runtime.GOOS == "windows" {
-		viper.SetDefault(constants.ConfigEditor, "notepad")
+		v.SetDefault(constants.ConfigEditor, "notepad")
 	} else { // unix
-		viper.SetDefault(constants.ConfigEditor, "nano")
-	}
-	// used to set the config path in viper
-	_, _ = getConfigPath()
-
-	if err := viper.ReadInConfig(); err != nil {
-		if _, ok := err.(viper.ConfigFileNotFoundError); ok {
-			// Do nothing, config file will be created on `config set` cmd
-			// This is to avoid issues with CI tools that may not have access
-			// to the file system
-		} else {
-			// Config file was found but something is wrong
-			fmt.Println("Error reading config file: %w", err)
-		}
+		v.SetDefault(constants.ConfigEditor, "nano")
 	}
 }
 
-func SetupEnv() {
-	viper.BindEnv(constants.ConfigApiKey, constants.EnvOctopusApiKey)
-	viper.BindEnv(constants.ConfigHost, constants.EnvOctopusHost)
-	viper.BindEnv(constants.ConfigSpace, constants.EnvOctopusSpace)
+func bindEnvironment(v *viper.Viper) error {
+	if err := v.BindEnv(constants.ConfigApiKey, constants.EnvOctopusApiKey); err != nil {
+		return err
+	}
+	if err := v.BindEnv(constants.ConfigHost, constants.EnvOctopusHost); err != nil {
+		return err
+	}
+	if err := v.BindEnv(constants.ConfigSpace, constants.EnvOctopusSpace); err != nil {
+		return err
+	}
 	// Envs will take precedence in the specified order
-	viper.BindEnv(constants.ConfigEditor, constants.EnvVisual, constants.EnvEditor)
-	viper.BindEnv(constants.ConfigNoPrompt, constants.EnvCI)
-}
-
-// CreateNewConfig will create a config file and read it if it does not
-// yet exist
-func CreateNewConfig() error {
-	if err := writeNewConfig(); err != nil {
-		if _, ok := err.(viper.ConfigFileAlreadyExistsError); ok {
-			return nil
-		}
-		return fmt.Errorf("error writing config file: %w", err)
+	if err := v.BindEnv(constants.ConfigEditor, constants.EnvVisual, constants.EnvEditor); err != nil {
+		return err
 	}
-	if err := viper.ReadInConfig(); err != nil {
-		if _, ok := err.(viper.ConfigFileNotFoundError); ok {
-			return fmt.Errorf("error could not find config file after create: %w", err)
-		} else {
-			// Config file was found but something is wrong
-			return fmt.Errorf("error reading config file after create: %w", err)
-		}
+	if err := v.BindEnv(constants.ConfigNoPrompt, constants.EnvCI); err != nil {
+		return err
 	}
 	return nil
 }
 
+func Setup(v *viper.Viper) error {
+	setDefaults(v)
+	if err := bindEnvironment(v); err != nil {
+		return err
+	}
+
+	configPath, err := getConfigPath()
+	if err == nil {
+		SetupConfigFile(v, configPath)
+		if err := v.ReadInConfig(); err != nil {
+			if _, ok := err.(viper.ConfigFileNotFoundError); ok {
+				// Do nothing, config file will be created on `config set` cmd
+				// This is to avoid issues with CI tools that may not have access
+				// to the file system
+			} else {
+				// Config file was found but something is wrong
+				// we can recover and run with no config
+				fmt.Println("Error reading config file: %w", err)
+			}
+		}
+	}
+	// if we can't get the configPath, then everything will just be defaulted
+	return nil
+}
+
+// EnsureConfigPath works out the config path, then creates the directory to make sure that it exists
+func EnsureConfigPath() (string, error) {
+	configPath, err := getConfigPath()
+	if err != nil {
+		return "", err
+	}
+	err = os.MkdirAll(configPath, os.ModePerm)
+	if err != nil {
+		return "", err
+	}
+	return configPath, nil
+}
+
+// getConfigPath works out the directory where the config file should be saved and returns it.
+// does not modify the global viper
 func getConfigPath() (string, error) {
 	if runtime.GOOS == "windows" {
 		if appdataPath := os.Getenv(appData); appdataPath != "" {
 			configPath := filepath.Join(appdataPath, "octopus")
-			viper.AddConfigPath(configPath)
 			return configPath, nil
 		} else {
 			return "", fmt.Errorf("error could not find path to appdata")
@@ -95,23 +112,15 @@ func getConfigPath() (string, error) {
 		return "", fmt.Errorf("error could not find user home directory: %w", err)
 	}
 	configPath := filepath.Join(home, ".config", "octopus")
-	viper.AddConfigPath(configPath)
 	return configPath, nil
 }
 
-func writeNewConfig() error {
-	configPath, err := getConfigPath()
-	if err != nil {
-		return err
-	}
-	if err := os.MkdirAll(configPath, os.ModePerm); err != nil {
-		return err
-	}
-	return viper.SafeWriteConfigAs(filepath.Join(configPath, fmt.Sprintf("%s.%s", configName, defaultConfigFileType)))
-}
+func IsValidKey(key string) bool {
+	// Deliberate reach-out to the global viper instance here.
+	// A key is valid if the global viper knows about it; our 'newViper' doesn't know about anything
+	validKeys := viper.AllKeys()
 
-func ValidateKey(key string) bool {
 	key = strings.TrimSpace(key)
 	key = strings.ToLower(key)
-	return util.SliceContains(viper.AllKeys(), key)
+	return util.SliceContains(validKeys, key)
 }

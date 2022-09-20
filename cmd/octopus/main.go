@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/AlecAivazis/survey/v2/terminal"
 	"github.com/briandowns/spinner"
+	"github.com/spf13/viper"
 	"os"
 	"time"
 
@@ -23,8 +24,10 @@ func main() {
 	// if there is a missing or invalid .env file anywhere, we don't care, just ignore it
 	_ = godotenv.Load()
 
-	config.Setup()
-	config.SetupEnv()
+	if err := config.Setup(viper.GetViper()); err != nil {
+		fmt.Println(err)
+		os.Exit(3)
+	}
 	arg := os.Args[1:]
 	cmdToRun := ""
 	if len(arg) > 0 {
