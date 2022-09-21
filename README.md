@@ -26,7 +26,7 @@ Download and run the file `octopus_[version]_Windows_x86_64.msi`
 choco install octopus-cli
 ```
 
-*Note:* At this time, the chocolatey package is Intel only. If you are using Windows on ARM64, download the manual archive instead.
+*Note:* At this time, the chocolatey package is x64 only. If you are using Windows on ARM, download the manual archive instead.
 
 #### macOS - Homebrew
 
