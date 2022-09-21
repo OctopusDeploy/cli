@@ -10,8 +10,8 @@ import (
 
 func NewCmdVersion(f factory.Factory) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "version",
-		Short: "print the version of this executable",
+		Use:    "version",
+		Hidden: true,
 		Example: fmt.Sprintf(heredoc.Doc(`
 			$ %s version"
 		`), constants.ExecutableName),
