@@ -7,6 +7,7 @@ import (
 	environmentCmd "github.com/OctopusDeploy/cli/pkg/cmd/environment"
 	releaseCmd "github.com/OctopusDeploy/cli/pkg/cmd/release"
 	spaceCmd "github.com/OctopusDeploy/cli/pkg/cmd/space"
+	"github.com/OctopusDeploy/cli/pkg/cmd/version"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/OctopusDeploy/cli/pkg/question"
@@ -23,6 +24,21 @@ func NewCmdRoot(f factory.Factory, clientFactory apiclient.ClientFactory, askPro
 		Short: "Octopus Deploy CLI",
 		Long:  `Work seamlessly with Octopus Deploy from the command line.`,
 	}
+
+	// ----- Child Commands -----
+
+	cmd.AddCommand(version.NewCmdVersion(f))
+
+	// infrastructure
+	cmd.AddCommand(accountCmd.NewCmdAccount(f))
+	cmd.AddCommand(environmentCmd.NewCmdEnvironment(f))
+
+	// configuration
+	cmd.AddCommand(configCmd.NewCmdConfig(f))
+	cmd.AddCommand(spaceCmd.NewCmdSpace(f))
+	cmd.AddCommand(releaseCmd.NewCmdRelease(f))
+
+	// ----- Configuration -----
 
 	// commands are expected to print their own errors to avoid double-ups
 	cmd.SilenceUsage = true
@@ -50,21 +66,8 @@ func NewCmdRoot(f factory.Factory, clientFactory apiclient.ClientFactory, askPro
 
 	flagAliases := map[string][]string{constants.FlagOutputFormat: {constants.FlagOutputFormatLegacy}}
 
-	// we want to allow outputFormat as well as output-format, but don't advertise it.
-	// must add this AFTER setting the normalize func or it strips out the flag
-
-	// infrastructure commands
-	cmd.AddCommand(accountCmd.NewCmdAccount(f))
-	cmd.AddCommand(environmentCmd.NewCmdEnvironment(f))
-
-	// configuration commands
-	cmd.AddCommand(configCmd.NewCmdConfig(f))
-	cmd.AddCommand(spaceCmd.NewCmdSpace(f))
-
-	cmd.AddCommand(releaseCmd.NewCmdRelease(f))
-
-	viper.BindPFlag(constants.ConfigNoPrompt, cmdPFlags.Lookup(constants.FlagNoPrompt))
-	viper.BindPFlag(constants.ConfigSpace, cmdPFlags.Lookup(constants.FlagSpace))
+	_ = viper.BindPFlag(constants.ConfigNoPrompt, cmdPFlags.Lookup(constants.FlagNoPrompt))
+	_ = viper.BindPFlag(constants.ConfigSpace, cmdPFlags.Lookup(constants.FlagSpace))
 	// if we attempt to check the flags before Execute is called, cobra hasn't parsed anything yet,
 	// so we'll get bad values. PersistentPreRun is a convenient callback for setting up our
 	// environment after parsing but before execution.

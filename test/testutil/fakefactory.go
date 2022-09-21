@@ -84,6 +84,9 @@ func (f *MockFactory) GetCurrentHost() string {
 func (f *MockFactory) Spinner() factory.Spinner {
 	return f.RawSpinner
 }
+func (f *MockFactory) BuildVersion() string {
+	return "0.0.0-test"
+}
 func (f *MockFactory) IsPromptEnabled() bool {
 	if f.AskProvider == nil {
 		return false
