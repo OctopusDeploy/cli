@@ -8,7 +8,6 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/test/fixtures"
 	"github.com/OctopusDeploy/cli/test/testutil"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/buildinformation"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/packages"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/resources"
 	"github.com/spf13/cobra"
@@ -88,13 +87,12 @@ func TestPackageUpload(t *testing.T) {
 			`, boundary, boundary)), string(buf[:bytesRead]))
 
 			req.RespondWithStatus(200, "200 OK", &packages.PackageUploadResponse{
-				PackageSizeBytes:               len(files["test1.zip"]),
-				Hash:                           "TODO",
-				PackageId:                      "test",
-				Title:                          "test.1.0",
-				Version:                        "1.0",
-				PackageVersionBuildInformation: buildinformation.PackageVersionBuildInformation{},
-				Resource:                       *resources.NewResource(),
+				PackageSizeBytes: len(files["test1.zip"]),
+				Hash:             "TODO",
+				PackageId:        "test",
+				Title:            "test.1.0",
+				Version:          "1.0",
+				Resource:         *resources.NewResource(),
 			})
 
 			_, err = testutil.ReceivePair(cmdReceiver)
@@ -132,13 +130,12 @@ func TestPackageUpload(t *testing.T) {
 			`, boundary, boundary)), string(buf[:bytesRead]))
 
 			req.RespondWithStatus(201, "201 Created", &packages.PackageUploadResponse{
-				PackageSizeBytes:               len(files["test.1.0.zip"]),
-				Hash:                           "TODO",
-				PackageId:                      "test",
-				Title:                          "test.1.0",
-				Version:                        "1.0",
-				PackageVersionBuildInformation: buildinformation.PackageVersionBuildInformation{},
-				Resource:                       *resources.NewResource(),
+				PackageSizeBytes: len(files["test.1.0.zip"]),
+				Hash:             "TODO",
+				PackageId:        "test",
+				Title:            "test.1.0",
+				Version:          "1.0",
+				Resource:         *resources.NewResource(),
 			})
 
 			// ----
@@ -158,13 +155,12 @@ func TestPackageUpload(t *testing.T) {
 			`, boundary, boundary)), string(buf[:bytesRead]))
 
 			req.RespondWithStatus(201, "201 Created", &packages.PackageUploadResponse{
-				PackageSizeBytes:               len(files["other.1.1.zip"]),
-				Hash:                           "TODO",
-				PackageId:                      "test",
-				Title:                          "test.1.0",
-				Version:                        "1.0",
-				PackageVersionBuildInformation: buildinformation.PackageVersionBuildInformation{},
-				Resource:                       *resources.NewResource(),
+				PackageSizeBytes: len(files["other.1.1.zip"]),
+				Hash:             "TODO",
+				PackageId:        "test",
+				Title:            "test.1.0",
+				Version:          "1.0",
+				Resource:         *resources.NewResource(),
 			})
 
 			_, err = testutil.ReceivePair(cmdReceiver)
@@ -192,13 +188,12 @@ func TestPackageUpload(t *testing.T) {
 			assert.Equal(t, 258, bytesRead)
 
 			req.RespondWithStatus(200, "200 OK", &packages.PackageUploadResponse{
-				PackageSizeBytes:               len(files["test1.zip"]),
-				Hash:                           "TODO",
-				PackageId:                      "test",
-				Title:                          "test.1.0",
-				Version:                        "1.0",
-				PackageVersionBuildInformation: buildinformation.PackageVersionBuildInformation{},
-				Resource:                       *resources.NewResource(),
+				PackageSizeBytes: len(files["test1.zip"]),
+				Hash:             "TODO",
+				PackageId:        "test",
+				Title:            "test.1.0",
+				Version:          "1.0",
+				Resource:         *resources.NewResource(),
 			})
 
 			_, err = testutil.ReceivePair(cmdReceiver)
