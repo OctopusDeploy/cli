@@ -12,6 +12,7 @@ import (
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/newclient"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/packages"
 	"github.com/spf13/cobra"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -143,20 +144,31 @@ func uploadRun(cmd *cobra.Command, f factory.Factory, flags *UploadFlags) error 
 			}
 		}
 	}
+	if len(seenPackages) == 0 {
+		return errors.New("at least one package must be specified")
+	}
 	return nil
 }
 
 func doUpload(octopus newclient.Client, uploadTemplate *packages.PackageUploadCommand, path string, cmd *cobra.Command, outputFormat string) (bool, error) {
 	up := *uploadTemplate
-	up.FileName = path
 
-	var err error
-	up.Contents, err = os.ReadFile(path)
+	opener := func(name string) (io.ReadCloser, error) { return os.Open(name) }
+	if cmd.Context() != nil { // allow context to override the definition of 'os.Open' for testing
+		if f, ok := cmd.Context().Value(constants.ContextKeyOsOpen).(func(string) (io.ReadCloser, error)); ok {
+			opener = f
+		}
+	}
+
+	f, err := opener(path)
 	if err != nil {
 		return false, err
 	}
 
+	up.FileName = filepath.Base(path)
+	up.FileReader = f
 	_, created, err := packages.Upload(octopus, &up)
+	_ = f.Close()
 
 	if !constants.IsProgrammaticOutputFormat(outputFormat) {
 		if created {
