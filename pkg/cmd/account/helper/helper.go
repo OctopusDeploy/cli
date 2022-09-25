@@ -7,7 +7,7 @@ import (
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/environments"
 )
 
-// ResolveNamesOrId takes in an array of names and trys to find an exact match.
+// ResolveEnvironmentNames takes in an array of names and trys to find an exact match.
 // If a match is found it will return its corresponding ID. If no match is found
 // it will return the name as is, in assumption it is an ID.
 func ResolveEnvironmentNames(envs []string, octopus *client.Client) ([]string, error) {

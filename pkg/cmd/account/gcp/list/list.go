@@ -18,7 +18,7 @@ func NewCmdList(f factory.Factory) *cobra.Command {
 			$ octopus account gcp list"
 		`),
 		Aliases: []string{"ls"},
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(cmd *cobra.Command, _ []string) error {
 			client, err := f.GetSpacedClient()
 			if err != nil {
 				return err
@@ -48,16 +48,18 @@ func listGcpAccounts(client *client.Client, cmd *cobra.Command) error {
 			return &struct {
 				Id   string
 				Name string
+				Slug string
 			}{
 				Id:   acc.GetID(),
 				Name: acc.GetName(),
+				Slug: acc.GetSlug(),
 			}
 		},
 		Table: output.TableDefinition[accounts.IAccount]{
-			Header: []string{"NAME"},
+			Header: []string{"NAME", "SLUG"},
 			Row: func(item accounts.IAccount) []string {
 				acc := item.(*accounts.GoogleCloudPlatformAccount)
-				return []string{output.Bold(acc.GetName())}
+				return []string{output.Bold(acc.GetName()), acc.GetSlug()}
 			}},
 		Basic: func(item accounts.IAccount) string {
 			return item.GetName()
