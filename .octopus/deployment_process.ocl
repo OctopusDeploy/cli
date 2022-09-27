@@ -66,27 +66,20 @@ step "create-pull-request-to-update-formula-in-homebrew" {
                 param(
                     [String]$packageVersion, # e.g. "0.2.2"
                     [String]$extractedPath # e.g.  "C:\Users\Orion\Downloads\octopus-cli.0.2.2"
+                    [String]$githubtoken
                 )
                 
                 $origin="https://github.com/OctopusDeploy/homebrew-taps"
-                $gh = "gh" # github cli
                 
                 if ($OctopusParameters) {
-                    write-host "using OctopusParameters"
-                    # we are running inside an octopus tentacle
                     $packageVersion = $OctopusParameters["Octopus.Action.Package[cli].PackageVersion"]
                     $extractedPath = $OctopusParameters["Octopus.Action.Package[cli].ExtractedPath"]
                 
-                    $ghExtractedPath = $OctopusParameters["Octopus.Action.Package[gh_linux_amd64].ExtractedPath"]
-                    write-host "dbg: ghExtractedPath = $ghExtractedPath"
-                    $ghVersion = $OctopusParameters["Octopus.Action.Package[gh_linux_amd64].PackageVersion"]
-                    write-host "dbg: ghVersion = $ghVersion"
-                    $gh = Join-Path -Path $ghExtractedPath "gh_${ghVersion}_linux_amd64" "bin" "gh"
-                    write-host "dbg: gh = $gh"
-                    chmod +x $gh
-
                     $githubtoken = $OctopusParameters["Publish:HomeBrew:ApiKey"]
                     $origin="https://${githubtoken}@github.com/OctopusDeploy/homebrew-taps"
+
+                    git config user.name $OctopusParameters["Publish:HomeBrew:Username"]
+                    git config user.email $OctopusParameters["Publish:HomeBrew:UserEmail"]
                 }
                 
                 if (!$packageVersion || !$extractedPath) {
@@ -98,7 +91,7 @@ step "create-pull-request-to-update-formula-in-homebrew" {
                 
                 git clone --depth 1 $origin octopus-homebrew-taps
                 cd octopus-homebrew-taps
-                
+
                 $branchName = "bump-octopus-cli-$packageVersion"
                 git checkout -b $branchName
                 
@@ -119,18 +112,20 @@ step "create-pull-request-to-update-formula-in-homebrew" {
                     -replace "macos_arm_sha256 = `".*`"", "macos_arm_sha256 = `"$macos_arm_sha256`"" `
                     -replace "linux_intel_sha256 = `".*`"", "linux_intel_sha256 = `"$linux_intel_sha256`"" `
                     -replace "linux_arm_sha256 = `".*`"", "linux_arm_sha256 = `"$linux_arm_sha256`"") | Set-Content $formulaFile
-                
-                if ($OctopusParameters) {
-                    git config user.name $OctopusParameters["Publish:HomeBrew:Username"]
-                    git config user.email $OctopusParameters["Publish:HomeBrew:UserEmail"]
-                    $env:GH_TOKEN = $githubtoken
-                }
+
                 git commit -a -m "octopus-cli $packageVersion"
-                
                 git push --set-upstream origin $branchName
-                
-                &($gh) pr create --head $branchName --title "octopus-cli $packageVersion" --body "automatically generated"
-                
+
+                if ($githubtoken) {
+                    $baseBranch = $(git symbolic-ref "refs/remotes/origin/HEAD") -replace "refs/remotes/origin/", ""
+
+                    curl -X POST `
+                        -H "Accept: application/vnd.github+json" `
+                        -H "Authorization: Bearer $githubtoken" `
+                        https://api.github.com/repos/OctopusDeploy/homebrew-taps/pulls `
+                        -d @{title = "octopus-cli $packageVersion";body = "automatically generated";head = $branchName;base = $baseBranch} | ConvertTo-Json
+                }
+
                 cd ..
             EOT
             Octopus.Action.Script.ScriptSource = "Inline"
@@ -147,17 +142,6 @@ step "create-pull-request-to-update-formula-in-homebrew" {
             acquisition_location = "Server"
             feed = "octopus-server-built-in"
             package_id = "octopus-cli"
-            properties = {
-                Extract = "True"
-                Purpose = ""
-                SelectionMode = "immediate"
-            }
-        }
-
-        packages "gh_linux_amd64" {
-            acquisition_location = "Server"
-            feed = "octopus-server-built-in"
-            package_id = "gh_linux_amd64"
             properties = {
                 Extract = "True"
                 Purpose = ""
