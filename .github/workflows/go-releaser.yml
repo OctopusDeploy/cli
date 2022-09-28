@@ -90,7 +90,7 @@ jobs:
     - name: Extract octopus.exe
       id: extract_exe
       shell: bash
-      run: unzip -d . ./artifacts/*Windows_x86_64.zip octopus.exe
+      run: unzip -d . ./artifacts/*windows_amd64.zip octopus.exe
 
     - name: Build MSI
       id: buildmsi
@@ -99,7 +99,7 @@ jobs:
         MSBUILD_PATH: ${{ steps.setupmsbuild.outputs.msbuildPath }}
       # note the wixproj deliberately logs "::set-output name=msi::$(TargetPath)" so this step has an output called 'msi'
       run: |
-        name="octopus_${{ needs.goreleaser.outputs.version }}_Windows_x86_64"
+        name="octopus_${{ needs.goreleaser.outputs.version }}_windows_amd64"
         version="$(echo -e ${{ needs.goreleaser.outputs.version }} | sed 's/-.*$//')"
         "${MSBUILD_PATH}\MSBuild.exe" ./build/windows/octopus.wixproj -p:SourceDir="$PWD" -p:OutputPath="$PWD" -p:OutputName="$name" -p:ProductVersion="$version"
 
