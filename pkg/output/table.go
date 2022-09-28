@@ -14,7 +14,7 @@ import (
 const (
 	delimiter     = "  "
 	delimiterSize = len(delimiter)
-	defaultWidth  = 80
+	defaultWidth  = 99999 // when running inside a script or CI system or something, we never want to truncate table output
 )
 
 type Table interface {

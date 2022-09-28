@@ -2,6 +2,7 @@ package _package
 
 import (
 	"fmt"
+	cmdList "github.com/OctopusDeploy/cli/pkg/cmd/package/list"
 	cmdUpload "github.com/OctopusDeploy/cli/pkg/cmd/package/upload"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/constants/annotations"
@@ -21,5 +22,6 @@ func NewCmdPackage(f factory.Factory) *cobra.Command {
 	}
 
 	cmd.AddCommand(cmdUpload.NewCmdUpload(f))
+	cmd.AddCommand(cmdList.NewCmdList(f))
 	return cmd
 }

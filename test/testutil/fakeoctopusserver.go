@@ -204,5 +204,6 @@ func NewRootResource() *octopusApiClient.RootResource {
 	root.Links[constants.LinkProjects] = "/api/Spaces-1/projects{/id}{?name,skip,ids,clone,take,partialName,clonedFromProjectId}"
 	root.Links[constants.LinkReleases] = "/api/Spaces-1/releases{/id}{?skip,ignoreChannelRules,take,ids}"
 	root.Links[constants.LinkTenants] = "/api/Spaces-1/tenants{/id}{?skip,projectId,name,tags,take,ids,clone,partialName,clonedFromTenantId}"
+	root.Links[constants.LinkPackages] = "/api/Spaces-1/packages{/id}{?nuGetPackageId,filter,latest,skip,take,includeNotes}"
 	return root
 }
