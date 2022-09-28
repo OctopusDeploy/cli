@@ -22,7 +22,6 @@ import (
 // - What should the response be for outputformat basic and json?
 // - Basic output: I have "Successfully uploaded package x-1.0.0.zip" when the package was created/overwritten, and "Successfully processed package x-1.0.0.zip" when it was ignored. Is this right?
 // - If we specify multiple packages and one of them fails, does it keep going or abort on first error?
-// - the package upload response from the server has a load of stuff in it. Is there any value in doing anything with this?
 
 const (
 	FlagPackage            = "package"
@@ -167,6 +166,8 @@ func doUpload(octopus newclient.Client, uploadTemplate *packages.PackageUploadCo
 
 	up.FileName = filepath.Base(path)
 	up.FileReader = f
+	// Note: the PackageUploadResponse has a lot of information in it, but we've chosen not to do anything
+	// with it in the CLI at this time.
 	_, created, err := packages.Upload(octopus, &up)
 	_ = f.Close()
 
@@ -174,7 +175,7 @@ func doUpload(octopus newclient.Client, uploadTemplate *packages.PackageUploadCo
 		if created {
 			cmd.Printf("Successfully uploaded package %s\n", path)
 		} else {
-			cmd.Printf("Successfully processed package %s\n", path)
+			cmd.Printf("Successfully ignored existing package %s\n", path)
 		}
 	}
 

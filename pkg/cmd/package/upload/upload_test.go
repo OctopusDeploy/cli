@@ -202,6 +202,10 @@ func TestPackageUpload(t *testing.T) {
 			assert.Equal(t, "Successfully processed package test.1.0.zip\n", stdOut.String())
 			assert.Equal(t, "", stdErr.String())
 		}},
+
+		{"uploads multiple packages; continues on error", func(t *testing.T, api *testutil.MockHttpServer, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
+			// TODO
+		}},
 	}
 
 	for _, test := range tests {
