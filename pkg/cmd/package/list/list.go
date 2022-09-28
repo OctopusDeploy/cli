@@ -74,7 +74,7 @@ func listRun(cmd *cobra.Command, f factory.Factory, flags *ListFlags) error {
 		limit = math.MaxInt32
 	}
 
-	page, err := packages.List(octopus, f.GetCurrentSpace().ID, filter, limit)
+	page, err := packages.List(octopus, f.GetCurrentSpace().ID, filter, int(limit))
 	if err != nil {
 		return err
 	}
