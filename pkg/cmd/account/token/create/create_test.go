@@ -26,7 +26,7 @@ const placeholderApiKey = "API-XXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
 
 var rootResource = testutil.NewRootResource()
 
-func TestTokenAccountCreatePropmtMissing(t *testing.T) {
+func TestTokenAccountCreatePromptMissing(t *testing.T) {
 	const spaceID = "Space-1"
 	const envID = "Env-1"
 	_ = fixtures.NewSpace(spaceID, "testspace")
