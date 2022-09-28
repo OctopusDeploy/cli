@@ -95,14 +95,14 @@ step "create-pull-request-to-update-formula-in-homebrew" {
                 $branchName = "bump-octopus-cli-$packageVersion"
                 git checkout -b $branchName
                 
-                $macos_intel_sha256 = (Get-FileHash -Algorithm SHA256 "$extractedPath/octopus_${packageVersion}_macOS_x86_64.tar.gz").Hash.ToLowerInvariant()
+                $macos_intel_sha256 = (Get-FileHash -Algorithm SHA256 "$extractedPath/octopus_${packageVersion}_macOS_amd64.tar.gz").Hash.ToLowerInvariant()
                 write-host "macos_intel_sha256=$macos_intel_sha256"
                 $macos_arm_sha256 = (Get-FileHash -Algorithm SHA256 "$extractedPath/octopus_${packageVersion}_macOS_arm64.tar.gz").Hash.ToLowerInvariant()
                 write-host "macos_arm_sha256=$macos_arm_sha256"
                 
-                $linux_intel_sha256 = (Get-FileHash -Algorithm SHA256 "$extractedPath/octopus_${packageVersion}_Linux_x86_64.tar.gz").Hash.ToLowerInvariant()
+                $linux_intel_sha256 = (Get-FileHash -Algorithm SHA256 "$extractedPath/octopus_${packageVersion}_linux_amd64.tar.gz").Hash.ToLowerInvariant()
                 write-host "linux_intel_sha256=$linux_intel_sha256"
-                $linux_arm_sha256 = (Get-FileHash -Algorithm SHA256 "$extractedPath/octopus_${packageVersion}_Linux_arm64.tar.gz").Hash.ToLowerInvariant()
+                $linux_arm_sha256 = (Get-FileHash -Algorithm SHA256 "$extractedPath/octopus_${packageVersion}_linux_arm64.tar.gz").Hash.ToLowerInvariant()
                 write-host "linux_arm_sha256=$linux_arm_sha256"
                 
                 $formulaFile="octopus-cli.rb"
