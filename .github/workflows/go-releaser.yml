@@ -42,6 +42,8 @@ jobs:
         PRIVATE_KEY_SHM="$(mktemp /dev/shm/cli.XXXXXXXX)" # Use private file in shared memory to avoid writing to disk
         echo "$GPG_PRIVATE_KEY" >> "$PRIVATE_KEY_SHM"
         echo "::set-output name=private_key_file_path::$PRIVATE_KEY_SHM"
+      env:
+        GPG_PRIVATE_KEY: ${{ secrets.OCTOPUS_GPG_PRIVATE_KEY }}
 
     - name: Run GoReleaser
       id: goreleaser-release
