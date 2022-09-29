@@ -341,7 +341,7 @@ func deployRun(cmd *cobra.Command, f factory.Factory, flags *DeployFlags) error 
 
 // scheduledStartTimeAnswerFormatter is passed to the DatePicker so that if the user selects a time within the next
 // one minute after 'now', it will show the answer as the string "Now" rather than the actual datetime string
-func scheduledStartTimeAnswerFormatter(datePicker *surveyext.DatePicker, t time.Time) string {
+func ScheduledStartTimeAnswerFormatter(datePicker *surveyext.DatePicker, t time.Time) string {
 	if t.Before(datePicker.Now().Add(1 * time.Minute)) {
 		return "Now"
 	} else {
@@ -420,7 +420,7 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 	if isTenanted {
 		var selectedEnvironment *environments.Environment
 		if len(options.Environments) == 0 {
-			deployableEnvironmentIDs, nextEnvironmentID, err := findDeployableEnvironmentIDs(octopus, selectedRelease)
+			deployableEnvironmentIDs, nextEnvironmentID, err := FindDeployableEnvironmentIDs(octopus, selectedRelease)
 			if err != nil {
 				return err
 			}
@@ -437,7 +437,7 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 
 		// ask for tenants and/or tags unless some were specified on the command line
 		if len(options.Tenants) == 0 && len(options.TenantTags) == 0 {
-			options.Tenants, options.TenantTags, err = AskTenantsAndTags(asker, octopus, selectedRelease, selectedEnvironment)
+			options.Tenants, options.TenantTags, err = AskTenantsAndTags(asker, octopus, selectedRelease.ProjectID, selectedEnvironment)
 			if len(options.Tenants) == 0 && len(options.TenantTags) == 0 {
 				return errors.New("no tenants or tags available; cannot deploy")
 			}
@@ -451,7 +451,7 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 		}
 	} else {
 		if len(options.Environments) == 0 {
-			deployableEnvironmentIDs, nextEnvironmentID, err := findDeployableEnvironmentIDs(octopus, selectedRelease)
+			deployableEnvironmentIDs, nextEnvironmentID, err := FindDeployableEnvironmentIDs(octopus, selectedRelease)
 			if err != nil {
 				return err
 			}
@@ -521,7 +521,7 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 				Min:             referenceNow,
 				Max:             maxSchedStartTime,
 				OverrideNow:     referenceNow,
-				AnswerFormatter: scheduledStartTimeAnswerFormatter,
+				AnswerFormatter: ScheduledStartTimeAnswerFormatter,
 			}, &answer)
 			if err != nil {
 				return err
@@ -555,21 +555,21 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 			if err != nil {
 				return err
 			}
-			options.ExcludedSteps, err = askExcludedSteps(asker, deploymentProcess.Steps)
+			options.ExcludedSteps, err = AskExcludedSteps(asker, deploymentProcess.Steps)
 			if err != nil {
 				return err
 			}
 		}
 
 		if !isGuidedFailureModeSpecified { // if they deliberately specified false, don't ask them
-			options.GuidedFailureMode, err = askGuidedFailureMode(asker)
+			options.GuidedFailureMode, err = AskGuidedFailureMode(asker)
 			if err != nil {
 				return err
 			}
 		}
 
 		if !isForcePackageDownloadSpecified { // if they deliberately specified false, don't ask them
-			options.ForcePackageDownload, err = askPackageDownload(asker)
+			options.ForcePackageDownload, err = AskPackageDownload(asker)
 			if err != nil {
 				return err
 			}
@@ -587,7 +587,7 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 			// we can only do:
 			//   select deployment target(s)
 			if len(selectedEnvironments) == 0 { // if the Q&A process earlier hasn't loaded environments already, we need to load them now
-				selectedEnvironments, err = findEnvironments(octopus, options.Environments)
+				selectedEnvironments, err = FindEnvironments(octopus, options.Environments)
 				if err != nil {
 					return err
 				}
@@ -640,9 +640,9 @@ func askDeploymentTargets(octopus *octopusApiClient.Client, asker question.Asker
 	return nil, nil
 }
 
-// findDeployableEnvironmentIDs returns an array of environment IDs that we can deploy to,
+// FindDeployableEnvironmentIDs returns an array of environment IDs that we can deploy to,
 // the preferred 'next' environment, and an error
-func findDeployableEnvironmentIDs(octopus *octopusApiClient.Client, release *releases.Release) ([]string, string, error) {
+func FindDeployableEnvironmentIDs(octopus *octopusApiClient.Client, release *releases.Release) ([]string, string, error) {
 	var result []string
 	// to determine the list of viable environments we need to hit /api/projects/{ID}/progression.
 	releaseProgression, err := octopus.Deployments.GetProgression(release)
@@ -743,7 +743,7 @@ func selectDeploymentEnvironments(asker question.Asker, octopus *octopusApiClien
 }
 
 // given an array of environment names, maps these all to actual objects by querying the server
-func findEnvironments(client *octopusApiClient.Client, environmentNames []string) ([]*environments.Environment, error) {
+func FindEnvironments(client *octopusApiClient.Client, environmentNames []string) ([]*environments.Environment, error) {
 	if len(environmentNames) == 0 {
 		return nil, nil
 	}
@@ -771,7 +771,7 @@ func findEnvironments(client *octopusApiClient.Client, environmentNames []string
 	return result, nil
 }
 
-func lookupGuidedFailureModeString(value string) string {
+func LookupGuidedFailureModeString(value string) string {
 	switch value {
 	case "", "default":
 		return "Use default setting from the target environment"
@@ -784,7 +784,7 @@ func lookupGuidedFailureModeString(value string) string {
 	}
 }
 
-func lookupPackageDownloadString(value bool) string {
+func LookupPackageDownloadString(value bool) string {
 	if value {
 		return "Use cached packages (if available)"
 	} else {
@@ -802,9 +802,9 @@ func PrintAdvancedSummary(stdout io.Writer, options *executor.TaskOptionsDeployR
 		skipStepsStr = strings.Join(options.ExcludedSteps, ",")
 	}
 
-	gfmStr := lookupGuidedFailureModeString(options.GuidedFailureMode)
+	gfmStr := LookupGuidedFailureModeString(options.GuidedFailureMode)
 
-	pkgDownloadStr := lookupPackageDownloadString(!options.ForcePackageDownload)
+	pkgDownloadStr := LookupPackageDownloadString(!options.ForcePackageDownload)
 
 	depTargetsStr := "All included"
 	if len(options.DeploymentTargets) != 0 || len(options.ExcludeTargets) != 0 {
@@ -877,10 +877,10 @@ func findTenantsAndTags(octopus *octopusApiClient.Client, projectID string, envi
 	return validTenants, validTags, nil
 }
 
-func AskTenantsAndTags(asker question.Asker, octopus *octopusApiClient.Client, release *releases.Release, env *environments.Environment) ([]string, []string, error) {
+func AskTenantsAndTags(asker question.Asker, octopus *octopusApiClient.Client, projectID string, env *environments.Environment) ([]string, []string, error) {
 	// (presumably though we can check if the project itself is linked to any tenants and only ask then)?
 	// there is a ListTenants(projectID) api that we can use. /api/tenants?projectID=
-	foundTenants, foundTags, err := findTenantsAndTags(octopus, release.ProjectID, env.ID)
+	foundTenants, foundTags, err := findTenantsAndTags(octopus, projectID, env.ID)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -925,7 +925,7 @@ func AskTenantsAndTags(asker question.Asker, octopus *octopusApiClient.Client, r
 	return selectedTenants, selectedTags, nil
 }
 
-func askExcludedSteps(asker question.Asker, steps []*deployments.DeploymentStep) ([]string, error) {
+func AskExcludedSteps(asker question.Asker, steps []*deployments.DeploymentStep) ([]string, error) {
 	stepsToExclude, err := question.MultiSelectMap(asker, "Steps to skip (If none selected, run all steps)", steps, func(s *deployments.DeploymentStep) string {
 		return s.Name
 	}, false)
@@ -937,18 +937,18 @@ func askExcludedSteps(asker question.Asker, steps []*deployments.DeploymentStep)
 	}), nil
 }
 
-func askPackageDownload(asker question.Asker) (bool, error) {
-	result, err := question.SelectMap(asker, "Package download", []bool{true, false}, lookupPackageDownloadString)
+func AskPackageDownload(asker question.Asker) (bool, error) {
+	result, err := question.SelectMap(asker, "Package download", []bool{true, false}, LookupPackageDownloadString)
 	// our question is phrased such that "Use cached packages" (the do-nothing option) is true,
 	// but we want to set the --force-package-download flag, so we need to invert the response
 	return !result, err
 }
 
-func askGuidedFailureMode(asker question.Asker) (string, error) {
+func AskGuidedFailureMode(asker question.Asker) (string, error) {
 	modes := []string{
 		"", "true", "false", // maps to a nullable bool in C#
 	}
-	return question.SelectMap(asker, "Guided Failure Mode", modes, lookupGuidedFailureModeString)
+	return question.SelectMap(asker, "Guided Failure Mode", modes, LookupGuidedFailureModeString)
 }
 
 // AskVariables returns the map of ALL variables to send to the server, whether they were prompted for, or came from the command line.
