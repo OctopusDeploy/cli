@@ -21,9 +21,9 @@ type TaskResultRunbookRun struct {
 // and looking them up for their ID's; we should only deal with strong references at this level
 
 type TaskOptionsRunbookRun struct {
-	ProjectName          string   // required
-	RunbookName          string   // the name of the runbook to run
-	Environments         []string // multiple for untenanted deployment, only one entry for tenanted deployment
+	ProjectName          string // required
+	RunbookName          string // the name of the runbook to run
+	Environments         []string
 	Tenants              []string
 	TenantTags           []string
 	ScheduledStartTime   string
@@ -31,7 +31,7 @@ type TaskOptionsRunbookRun struct {
 	ExcludedSteps        []string
 	GuidedFailureMode    string // ["", "true", "false", "default"]. Note default and "" are the same, the only difference is whether interactive mode prompts you
 	ForcePackageDownload bool
-	DeploymentTargets    []string
+	RunTargets           []string
 	ExcludeTargets       []string
 	Variables            map[string]string
 	Snapshot             string
@@ -75,7 +75,7 @@ func runbookRun(octopus *client.Client, space *spaces.Space, input any) error {
 		SpaceID:              space.ID,
 		ProjectIDOrName:      params.ProjectName,
 		ForcePackageDownload: params.ForcePackageDownload,
-		SpecificMachineNames: params.DeploymentTargets,
+		SpecificMachineNames: params.RunTargets,
 		ExcludedMachineNames: params.ExcludeTargets,
 		SkipStepNames:        params.ExcludedSteps,
 		RunAt:                params.ScheduledStartTime,
@@ -93,12 +93,6 @@ func runbookRun(octopus *client.Client, space *spaces.Space, input any) error {
 		}
 	}
 	// TODO why does release deploy have different commands for tenanted/untenanted but runbook run doesn't?
-
-	// If either tenants or tenantTags are specified then it must be a tenanted deployment.
-	// Otherwise it must be untenanted.
-	// If the server has a tenanted deployment and both TenantNames+Tags are empty, the request fails,
-	// which makes this a safe thing to build our logic on.
-	// isTenanted := len(params.Tenants) > 0 || len(params.TenantTags) > 0
 
 	runCommand := runbooks.NewRunbookRunCommandV1(space.ID, params.ProjectName)
 	runCommand.RunbookName = params.RunbookName
