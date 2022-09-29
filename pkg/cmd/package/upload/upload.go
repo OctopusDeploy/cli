@@ -11,6 +11,7 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/util/flag"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/newclient"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/packages"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/spaces"
 	"github.com/spf13/cobra"
 	"io"
 	"os"
@@ -24,18 +25,23 @@ import (
 // - If we specify multiple packages and one of them fails, does it keep going or abort on first error?
 
 const (
-	FlagPackage            = "package"
+	FlagPackage = "package"
+
 	FlagOverwriteMode      = "overwrite-mode"
 	FlagAliasOverwrite     = "overwrite"
 	FlagAliasOverwriteMode = "overwritemode" // I keep forgetting the hyphen
+
 	// replace-existing deprected in the .NET CLI so not brought across
-	FlagUseDeltaCompression = "use-delta-compression"
+	FlagUseDeltaCompression = "use-delta-compression" // this is not yet supported, but will be in future when we implement OctoDiff in go
+
+	FlagContinueOnError = "continue-on-error"
 )
 
 type UploadFlags struct {
 	Package             *flag.Flag[[]string]
 	OverwriteMode       *flag.Flag[string]
 	UseDeltaCompression *flag.Flag[bool]
+	ContinueOnError     *flag.Flag[bool]
 }
 
 func NewUploadFlags() *UploadFlags {
@@ -43,6 +49,7 @@ func NewUploadFlags() *UploadFlags {
 		Package:             flag.New[[]string](FlagPackage, false),
 		OverwriteMode:       flag.New[string](FlagOverwriteMode, false),
 		UseDeltaCompression: flag.New[bool](FlagUseDeltaCompression, false),
+		ContinueOnError:     flag.New[bool](FlagContinueOnError, false),
 	}
 }
 
@@ -57,7 +64,7 @@ func NewCmdUpload(f factory.Factory) *cobra.Command {
 				$ %s package upload --package SomePackage.1.0.0.zip
 				$ %s package upload SomePackage.1.0.0.tar.gz --overwrite-mode overwrite
 				$ %s package push SomePackage.1.0.0.zip	
-				$ %s package upload bin/**/*.zip --overwrite-mode ignore
+				$ %s package upload bin/**/*.zip --continue-on-error
 				$ %s package upload PkgA.1.0.0.zip PkgB.2.0.0.tar.gz PkgC.1.0.0.nupkg
 				`, constants.ExecutableName, constants.ExecutableName, constants.ExecutableName, constants.ExecutableName, constants.ExecutableName),
 		Annotations: map[string]string{annotations.IsCore: "true"},
@@ -66,7 +73,6 @@ func NewCmdUpload(f factory.Factory) *cobra.Command {
 			for _, arg := range args {
 				uploadFlags.Package.Value = append(uploadFlags.Package.Value, arg)
 			}
-
 			return uploadRun(cmd, f, uploadFlags)
 		},
 	}
@@ -74,6 +80,7 @@ func NewCmdUpload(f factory.Factory) *cobra.Command {
 	flags := cmd.Flags()
 	flags.StringSliceVarP(&uploadFlags.Package.Value, uploadFlags.Package.Name, "p", nil, "Package to upload, may be specified multiple times.")
 	flags.StringVarP(&uploadFlags.OverwriteMode.Value, uploadFlags.OverwriteMode.Name, "", "", "Action when a package already exists. Valid values are 'fail', 'overwrite', 'ignore'. Default is 'fail'")
+	flags.BoolVarP(&uploadFlags.ContinueOnError.Value, uploadFlags.ContinueOnError.Name, "", false, "When uploading multiple packages and one fails, this controls whether the CLI continues with the next package(s), or aborts. Default is to abort.")
 
 	flagAliases := make(map[string][]string, 1)
 	util.AddFlagAliasesString(flags, FlagOverwriteMode, flagAliases, FlagAliasOverwrite, FlagAliasOverwriteMode)
@@ -102,18 +109,18 @@ func uploadRun(cmd *cobra.Command, f factory.Factory, flags *UploadFlags) error 
 		return errors.New("package upload must run with a configured space")
 	}
 
-	template := packages.NewPackageUploadCommand(space.ID)
+	overwriteMode := packages.OverwriteMode("")
 
-	overwriteMode := flags.OverwriteMode.Value
-	switch strings.ToLower(overwriteMode) {
+	overwriteModeFlagValue := flags.OverwriteMode.Value
+	switch strings.ToLower(overwriteModeFlagValue) {
 	case "fail", "failifexists", "": // include aliases from old CLI, default (empty string) = fail
-		template.OverwriteMode = packages.OverwriteModeFailIfExists
+		overwriteMode = packages.OverwriteModeFailIfExists
 	case "ignore", "ignoreifexists":
-		template.OverwriteMode = packages.OverwriteModeIgnoreIfExists
+		overwriteMode = packages.OverwriteModeIgnoreIfExists
 	case "overwrite", "overwriteexisting", "replace":
-		template.OverwriteMode = packages.OverwriteModeOverwriteExisting
+		overwriteMode = packages.OverwriteModeOverwriteExisting
 	default:
-		return fmt.Errorf("invalid value '%s' for --overwrite-mode. Valid values are 'fail', 'ignore', 'overwrite'", overwriteMode)
+		return fmt.Errorf("invalid value '%s' for --overwrite-mode. Valid values are 'fail', 'ignore', 'overwrite'", overwriteModeFlagValue)
 	}
 
 	// with globs it's easy to upload the same thing twice by accident, so keep track of what's been uploaded as we go
@@ -123,7 +130,7 @@ func uploadRun(cmd *cobra.Command, f factory.Factory, flags *UploadFlags) error 
 		// nil, nil means this wasn't a valid glob pattern; assume it's just a filepath
 		if err == nil && matches == nil {
 			if !seenPackages[p] {
-				_, err := doUpload(octopus, template, p, cmd, outputFormat)
+				_, err := doUpload(octopus, space, p, overwriteMode, cmd, outputFormat)
 				if err != nil {
 					return err
 				}
@@ -134,7 +141,7 @@ func uploadRun(cmd *cobra.Command, f factory.Factory, flags *UploadFlags) error 
 		} else { // glob matched at least 1 thing
 			for _, m := range matches {
 				if !seenPackages[m] {
-					_, err := doUpload(octopus, template, m, cmd, outputFormat)
+					_, err := doUpload(octopus, space, m, overwriteMode, cmd, outputFormat)
 					if err != nil {
 						return err
 					}
@@ -149,8 +156,7 @@ func uploadRun(cmd *cobra.Command, f factory.Factory, flags *UploadFlags) error 
 	return nil
 }
 
-func doUpload(octopus newclient.Client, uploadTemplate *packages.PackageUploadCommand, path string, cmd *cobra.Command, outputFormat string) (bool, error) {
-	up := *uploadTemplate
+func doUpload(octopus newclient.Client, space *spaces.Space, path string, overwriteMode packages.OverwriteMode, cmd *cobra.Command, outputFormat string) (bool, error) {
 
 	opener := func(name string) (io.ReadCloser, error) { return os.Open(name) }
 	if cmd.Context() != nil { // allow context to override the definition of 'os.Open' for testing
@@ -159,23 +165,21 @@ func doUpload(octopus newclient.Client, uploadTemplate *packages.PackageUploadCo
 		}
 	}
 
-	f, err := opener(path)
+	fileReader, err := opener(path)
 	if err != nil {
 		return false, err
 	}
 
-	up.FileName = filepath.Base(path)
-	up.FileReader = f
 	// Note: the PackageUploadResponse has a lot of information in it, but we've chosen not to do anything
 	// with it in the CLI at this time.
-	_, created, err := packages.Upload(octopus, &up)
-	_ = f.Close()
+	_, created, err := packages.Upload(octopus, space.ID, filepath.Base(path), fileReader, overwriteMode)
+	_ = fileReader.Close()
 
 	if !constants.IsProgrammaticOutputFormat(outputFormat) {
 		if created {
-			cmd.Printf("Successfully uploaded package %s\n", path)
+			cmd.Printf("Uploaded package %s\n", path)
 		} else {
-			cmd.Printf("Successfully ignored existing package %s\n", path)
+			cmd.Printf("Ignored existing package %s\n", path)
 		}
 	}
 

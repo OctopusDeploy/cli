@@ -86,7 +86,7 @@ func TestPackageUpload(t *testing.T) {
 			--%s--
 			`, boundary, boundary)), string(buf[:bytesRead]))
 
-			req.RespondWithStatus(200, "200 OK", &packages.PackageUploadResponse{
+			req.RespondWithStatus(201, "201 Created", &packages.PackageUploadResponse{
 				PackageSizeBytes: len(files["test1.zip"]),
 				Hash:             "TODO",
 				PackageId:        "test",
@@ -98,7 +98,7 @@ func TestPackageUpload(t *testing.T) {
 			_, err = testutil.ReceivePair(cmdReceiver)
 			assert.Nil(t, err)
 			// http status of 200 means 'processed', we might ignored an existing file
-			assert.Equal(t, "Successfully processed package test.1.0.zip\n", stdOut.String())
+			assert.Equal(t, "Uploaded package test.1.0.zip\n", stdOut.String())
 			assert.Equal(t, "", stdErr.String())
 		}},
 
@@ -166,7 +166,7 @@ func TestPackageUpload(t *testing.T) {
 			_, err = testutil.ReceivePair(cmdReceiver)
 			assert.Nil(t, err)
 			// http status of 201 means 'created', we wrote the file
-			assert.Equal(t, "Successfully uploaded package test.1.0.zip\nSuccessfully uploaded package other.1.1.zip\n", stdOut.String())
+			assert.Equal(t, "Uploaded package test.1.0.zip\nUploaded package other.1.1.zip\n", stdOut.String())
 			assert.Equal(t, "", stdErr.String())
 		}},
 
@@ -199,7 +199,7 @@ func TestPackageUpload(t *testing.T) {
 			_, err = testutil.ReceivePair(cmdReceiver)
 			assert.Nil(t, err)
 			// http status of 200 means 'processed', we might ignored an existing file
-			assert.Equal(t, "Successfully processed package test.1.0.zip\n", stdOut.String())
+			assert.Equal(t, "Ignored existing package test.1.0.zip\n", stdOut.String())
 			assert.Equal(t, "", stdErr.String())
 		}},
 
