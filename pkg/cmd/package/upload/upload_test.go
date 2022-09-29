@@ -88,7 +88,7 @@ func TestPackageUpload(t *testing.T) {
 
 			req.RespondWithStatus(201, "201 Created", &packages.PackageUploadResponse{
 				PackageSizeBytes: len(files["test1.zip"]),
-				Hash:             "TODO",
+				Hash:             "some-hash",
 				PackageId:        "test",
 				Title:            "test.1.0",
 				Version:          "1.0",
@@ -131,7 +131,7 @@ func TestPackageUpload(t *testing.T) {
 
 			req.RespondWithStatus(201, "201 Created", &packages.PackageUploadResponse{
 				PackageSizeBytes: len(files["test.1.0.zip"]),
-				Hash:             "TODO",
+				Hash:             "some-hash",
 				PackageId:        "test",
 				Title:            "test.1.0",
 				Version:          "1.0",
@@ -156,7 +156,7 @@ func TestPackageUpload(t *testing.T) {
 
 			req.RespondWithStatus(201, "201 Created", &packages.PackageUploadResponse{
 				PackageSizeBytes: len(files["other.1.1.zip"]),
-				Hash:             "TODO",
+				Hash:             "some-hash",
 				PackageId:        "other",
 				Title:            "other.1.1",
 				Version:          "1.1",
@@ -189,7 +189,7 @@ func TestPackageUpload(t *testing.T) {
 
 			req.RespondWithStatus(200, "200 OK", &packages.PackageUploadResponse{
 				PackageSizeBytes: len(files["test1.zip"]),
-				Hash:             "TODO",
+				Hash:             "some-hash",
 				PackageId:        "test",
 				Title:            "test.1.0",
 				Version:          "1.0",
@@ -253,7 +253,7 @@ func TestPackageUpload(t *testing.T) {
 
 			req.RespondWithStatus(201, "201 Created", &packages.PackageUploadResponse{
 				PackageSizeBytes: len(files["other.1.1.zip"]),
-				Hash:             "TODO",
+				Hash:             "some-hash",
 				PackageId:        "other",
 				Title:            "other.1.1",
 				Version:          "1.1",
@@ -286,7 +286,7 @@ func TestPackageUpload(t *testing.T) {
 
 			req.RespondWithStatus(201, "201 Created", &packages.PackageUploadResponse{
 				PackageSizeBytes: len(files["test.1.0.zip"]),
-				Hash:             "TODO",
+				Hash:             "some-hash",
 				PackageId:        "test",
 				Title:            "test.1.0",
 				Version:          "1.0",
@@ -328,7 +328,7 @@ func TestPackageUpload(t *testing.T) {
 
 			req.RespondWithStatus(201, "201 Created", &packages.PackageUploadResponse{
 				PackageSizeBytes: len(files["other.1.1.zip"]),
-				Hash:             "TODO",
+				Hash:             "some-hash",
 				PackageId:        "other",
 				Title:            "other.1.1",
 				Version:          "1.1",
