@@ -38,8 +38,8 @@ goreleaser --> msi --> generate-packages-and-publish
 subgraph "goreleaser"
     build --> uploadToGHA
     
-    build[Build CLI binaries for all architectures including deb, rpm]
-    uploadToGHA[Upload binaries+linux packages to GHA artifact]
+    build[Build CLI binaries for all architectures including deb, rpm and generate homebrew formula]
+    uploadToGHA[Upload binaries+linux packages+homebrew formula to GHA artifact]
 end
 subgraph "msi"
     fetch --> buildmsi --> signmsi --> attachMSIToRelease --> uploadMSIToGHA
