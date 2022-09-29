@@ -14,6 +14,7 @@ const (
 	TaskTypeCreateAccount = TaskType("CreateAccount")
 	TaskTypeCreateRelease = TaskType("CreateRelease")
 	TaskTypeDeployRelease = TaskType("DeployRelease")
+	TaskTypeRunbookRun    = TaskType("RunbookRun")
 )
 
 type Task struct {
@@ -34,7 +35,7 @@ func NewTask(taskType TaskType, options any) *Task {
 
 // ProcessTasks iterates over the list of tasks and attempts to run them all.
 // If everything goes well, a nil error will be returned.
-// On the first failure, the error will be returned.
+// On the first failure, the error will be returned and the process will halt.
 // TODO some kind of progress/results callback? A Goroutine with channels?
 func ProcessTasks(octopus *client.Client, space *spaces.Space, tasks []*Task) error {
 	for _, task := range tasks {
@@ -49,6 +50,10 @@ func ProcessTasks(octopus *client.Client, space *spaces.Space, tasks []*Task) er
 			}
 		case TaskTypeDeployRelease:
 			if err := releaseDeploy(octopus, space, task.Options); err != nil {
+				return err
+			}
+		case TaskTypeRunbookRun:
+			if err := runbookRun(octopus, space, task.Options); err != nil {
 				return err
 			}
 		default:
