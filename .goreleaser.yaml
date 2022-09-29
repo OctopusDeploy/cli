@@ -40,6 +40,12 @@ nfpms:
     formats:
       - rpm
       - deb
+    rpm:
+      signature:
+        key_file: "{{ .Env.GPG_PRIVATE_KEY_FILE }}"
+    deb:
+      signature:
+        key_file: "{{ .Env.GPG_PRIVATE_KEY_FILE }}"
 
 checksum:
   name_template: "{{ .ProjectName }}_{{ .Version }}_SHA256SUMS"
