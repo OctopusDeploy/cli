@@ -290,12 +290,12 @@ func runbookRun(cmd *cobra.Command, f factory.Factory, flags *RunFlags) error {
 	if options.Response != nil {
 		switch outputFormat {
 		case constants.OutputFormatBasic:
-			for _, task := range options.Response.DeploymentServerTasks {
+			for _, task := range options.Response.RunbookRunServerTasks {
 				cmd.Printf("%s\n", task.ServerTaskID)
 			}
 
 		case constants.OutputFormatJson:
-			data, err := json.Marshal(options.Response.DeploymentServerTasks)
+			data, err := json.Marshal(options.Response.RunbookRunServerTasks)
 			if err != nil { // shouldn't happen but fallback in case
 				cmd.PrintErrln(err)
 			} else {
@@ -303,7 +303,7 @@ func runbookRun(cmd *cobra.Command, f factory.Factory, flags *RunFlags) error {
 				cmd.Println()
 			}
 		default: // table
-			cmd.Printf("Successfully started %d runbook run(s)\n", len(options.Response.DeploymentServerTasks))
+			cmd.Printf("Successfully started %d runbook run(s)\n", len(options.Response.RunbookRunServerTasks))
 		}
 
 		// output web URL all the time, so long as output format is not JSON or basic
