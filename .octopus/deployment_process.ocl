@@ -92,7 +92,7 @@ step "create-pull-request-to-update-formula-in-homebrew" {
                 git clone --depth 1 $origin octopus-homebrew-taps
                 cd octopus-homebrew-taps
 
-                $branchName = "bump-octopus-cli-$packageVersion"
+                $branchName = "releases/$packageVersion"
                 git checkout -b $branchName
                 
                 Copy-Item -Path "$extractedPath/*" -Filter "*.rb" -Destination "." -Force
