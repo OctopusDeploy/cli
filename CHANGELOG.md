@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.3.0](https://github.com/OctopusDeploy/cli/compare/v0.2.5...v0.3.0) (2022-09-29)
+
+
+### Features
+
+* accounts slugs ([#87](https://github.com/OctopusDeploy/cli/issues/87)) ([724f365](https://github.com/OctopusDeploy/cli/commit/724f365ba5bc908b24e69c21653c870dca345c68))
+* package list ([28090f3](https://github.com/OctopusDeploy/cli/commit/28090f32bd907f80fdf0e455f35982f3a546395d))
+* package upload/push ([28090f3](https://github.com/OctopusDeploy/cli/commit/28090f32bd907f80fdf0e455f35982f3a546395d))
+* package versions ([28090f3](https://github.com/OctopusDeploy/cli/commit/28090f32bd907f80fdf0e455f35982f3a546395d))
+
+
+### Bug Fixes
+
+* octopus config set in interactive mode would fail for anything that wasn't already in the config file ([#83](https://github.com/OctopusDeploy/cli/issues/83)) ([0b43d8b](https://github.com/OctopusDeploy/cli/commit/0b43d8b1155e09955facb2b39024ea4aa7e32f2e))
+* Update name of msi and add missing log argument to MSI call for Chocolatey ([7504b7d](https://github.com/OctopusDeploy/cli/commit/7504b7dd445146fdf2e8f35e1858135f2a56b2f0))
+
 ## [0.2.5](https://github.com/OctopusDeploy/cli/compare/v0.2.4...v0.2.5) (2022-09-20)
 
 
