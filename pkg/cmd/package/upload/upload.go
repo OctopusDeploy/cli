@@ -19,11 +19,6 @@ import (
 	"strings"
 )
 
-// TODO Outstanding questions for package upload:
-// - What should the response be for outputformat basic and json?
-// - Basic output: I have "Successfully uploaded package x-1.0.0.zip" when the package was created/overwritten, and "Successfully processed package x-1.0.0.zip" when it was ignored. Is this right?
-// - If we specify multiple packages and one of them fails, does it keep going or abort on first error?
-
 const (
 	FlagPackage = "package"
 
@@ -109,43 +104,65 @@ func uploadRun(cmd *cobra.Command, f factory.Factory, flags *UploadFlags) error 
 		return errors.New("package upload must run with a configured space")
 	}
 
-	overwriteMode := packages.OverwriteMode("")
+	continueOnError := flags.ContinueOnError.Value
 
-	overwriteModeFlagValue := flags.OverwriteMode.Value
-	switch strings.ToLower(overwriteModeFlagValue) {
+	overwriteMode := flags.OverwriteMode.Value
+	resolvedOverwriteMode := packages.OverwriteMode("")
+	switch strings.ToLower(overwriteMode) {
 	case "fail", "failifexists", "": // include aliases from old CLI, default (empty string) = fail
-		overwriteMode = packages.OverwriteModeFailIfExists
+		resolvedOverwriteMode = packages.OverwriteModeFailIfExists
 	case "ignore", "ignoreifexists":
-		overwriteMode = packages.OverwriteModeIgnoreIfExists
+		resolvedOverwriteMode = packages.OverwriteModeIgnoreIfExists
 	case "overwrite", "overwriteexisting", "replace":
-		overwriteMode = packages.OverwriteModeOverwriteExisting
+		resolvedOverwriteMode = packages.OverwriteModeOverwriteExisting
 	default:
-		return fmt.Errorf("invalid value '%s' for --overwrite-mode. Valid values are 'fail', 'ignore', 'overwrite'", overwriteModeFlagValue)
+		return fmt.Errorf("invalid value '%s' for --overwrite-mode. Valid values are 'fail', 'ignore', 'overwrite'", overwriteMode)
 	}
 
-	// with globs it's easy to upload the same thing twice by accident, so keep track of what's been uploaded as we go
+	// with globs it's easy to specify the same thing twice by accident, so keep track of what's been uploaded as we go
 	seenPackages := make(map[string]bool)
-	for _, p := range flags.Package.Value {
-		matches, err := filepath.Glob(p)
-		// nil, nil means this wasn't a valid glob pattern; assume it's just a filepath
-		if err == nil && matches == nil {
-			if !seenPackages[p] {
-				_, err := doUpload(octopus, space, p, overwriteMode, cmd, outputFormat)
-				if err != nil {
+	doUpload := func(path string) error {
+		if !seenPackages[path] {
+			created, err := uploadFileAtPath(octopus, space, path, resolvedOverwriteMode, cmd)
+			seenPackages[path] = true // whether a given package succeeds or fails, we still don't want to process it twice
+
+			if err != nil {
+				cmd.PrintErrf("Failed to upload package %s - %v\n", path, err)
+				if !continueOnError {
 					return err
+				} // else keep going to the next file.
+
+				// side-effect: If there is a single failed upload, and you specify --continue-on-error, then
+				// no error will be returned to the outer shell, and the process will exit with a *success* code.
+				// This is intended behaviour, not a bug
+			} else {
+				if !constants.IsProgrammaticOutputFormat(outputFormat) {
+					if created {
+						cmd.Printf("Uploaded package %s\n", path)
+					} else {
+						cmd.Printf("Ignored existing package %s\n", path)
+					}
 				}
-				seenPackages[p] = true
+			}
+		}
+		return nil
+	}
+
+	for _, pkgString := range flags.Package.Value {
+		globMatches, err := filepath.Glob(pkgString)
+		// nil, nil means this wasn't a valid glob pattern; assume it's just a filepath
+		if err == nil && globMatches == nil {
+			err = doUpload(pkgString)
+			if err != nil {
+				return err
 			}
 		} else if err != nil { // invalid glob pattern
 			return err
 		} else { // glob matched at least 1 thing
-			for _, m := range matches {
-				if !seenPackages[m] {
-					_, err := doUpload(octopus, space, m, overwriteMode, cmd, outputFormat)
-					if err != nil {
-						return err
-					}
-					seenPackages[m] = true
+			for _, globMatch := range globMatches {
+				err = doUpload(globMatch)
+				if err != nil {
+					return err
 				}
 			}
 		}
@@ -156,8 +173,7 @@ func uploadRun(cmd *cobra.Command, f factory.Factory, flags *UploadFlags) error 
 	return nil
 }
 
-func doUpload(octopus newclient.Client, space *spaces.Space, path string, overwriteMode packages.OverwriteMode, cmd *cobra.Command, outputFormat string) (bool, error) {
-
+func uploadFileAtPath(octopus newclient.Client, space *spaces.Space, path string, overwriteMode packages.OverwriteMode, cmd *cobra.Command) (bool, error) {
 	opener := func(name string) (io.ReadCloser, error) { return os.Open(name) }
 	if cmd.Context() != nil { // allow context to override the definition of 'os.Open' for testing
 		if f, ok := cmd.Context().Value(constants.ContextKeyOsOpen).(func(string) (io.ReadCloser, error)); ok {
@@ -174,14 +190,5 @@ func doUpload(octopus newclient.Client, space *spaces.Space, path string, overwr
 	// with it in the CLI at this time.
 	_, created, err := packages.Upload(octopus, space.ID, filepath.Base(path), fileReader, overwriteMode)
 	_ = fileReader.Close()
-
-	if !constants.IsProgrammaticOutputFormat(outputFormat) {
-		if created {
-			cmd.Printf("Uploaded package %s\n", path)
-		} else {
-			cmd.Printf("Ignored existing package %s\n", path)
-		}
-	}
-
 	return created, err
 }
