@@ -17,7 +17,7 @@ func NewCmdList(f factory.Factory) *cobra.Command {
 			$ octopus account list"
 		`),
 		Aliases: []string{"ls"},
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(cmd *cobra.Command, _ []string) error {
 			client, err := f.GetSpacedClient()
 			if err != nil {
 				return err
@@ -35,6 +35,7 @@ func NewCmdList(f factory.Factory) *cobra.Command {
 
 			type AccountJson struct {
 				Id   string
+				Slug string
 				Name string
 				Type string
 			}
@@ -51,12 +52,12 @@ func NewCmdList(f factory.Factory) *cobra.Command {
 
 			return output.PrintArray(items, cmd, output.Mappers[accounts.IAccount]{
 				Json: func(item accounts.IAccount) any {
-					return AccountJson{Id: item.GetID(), Name: item.GetName(), Type: string(item.GetAccountType())}
+					return AccountJson{Id: item.GetID(), Slug: item.GetSlug(), Name: item.GetName(), Type: string(item.GetAccountType())}
 				},
 				Table: output.TableDefinition[accounts.IAccount]{
-					Header: []string{"NAME", "TYPE"},
+					Header: []string{"NAME", "TYPE", "SLUG"},
 					Row: func(item accounts.IAccount) []string {
-						return []string{item.GetName(), accountTypeMap[item.GetAccountType()]}
+						return []string{item.GetName(), accountTypeMap[item.GetAccountType()], item.GetSlug()}
 					}},
 				Basic: func(item accounts.IAccount) string {
 					return item.GetName()

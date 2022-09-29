@@ -4,13 +4,14 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	octopusApiClient "github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/constants"
-	"github.com/stretchr/testify/assert"
 	"io/ioutil"
 	"net/http"
 	"sync/atomic"
 	"testing"
+
+	octopusApiClient "github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/constants"
+	"github.com/stretchr/testify/assert"
 )
 
 func GoBegin[TResult any](action func() TResult) chan TResult {
@@ -204,6 +205,7 @@ func NewRootResource() *octopusApiClient.RootResource {
 	root.Links[constants.LinkProjects] = "/api/Spaces-1/projects{/id}{?name,skip,ids,clone,take,partialName,clonedFromProjectId}"
 	root.Links[constants.LinkReleases] = "/api/Spaces-1/releases{/id}{?skip,ignoreChannelRules,take,ids}"
 	root.Links[constants.LinkTenants] = "/api/Spaces-1/tenants{/id}{?skip,projectId,name,tags,take,ids,clone,partialName,clonedFromTenantId}"
+	root.Links[constants.LinkAccounts] = "/api/Spaces-1/accounts{/id}{?skip,take,ids,partialName,accountType}"
 	root.Links[constants.LinkPackages] = "/api/Spaces-1/packages{/id}{?nuGetPackageId,filter,latest,skip,take,includeNotes}"
 	return root
 }

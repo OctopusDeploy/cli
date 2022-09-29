@@ -56,23 +56,26 @@ func listAzureAccounts(client *client.Client, cmd *cobra.Command) error {
 			return &struct {
 				Id                 string
 				Name               string
+				Slug               string
 				SubscriptionNumber string
 				AccountType        string
 				AzureEnvironment   string
 			}{
 				Id:                 acc.GetID(),
 				Name:               acc.GetName(),
+				Slug:               acc.GetSlug(),
 				SubscriptionNumber: acc.SubscriptionID.String(),
 				AccountType:        string(acc.AccountType),
 				AzureEnvironment:   acc.AzureEnvironment,
 			}
 		},
 		Table: output.TableDefinition[accounts.IAccount]{
-			Header: []string{"NAME", "SUBSCRIPTION ID", "AZURE ENVIRONMENT"},
+			Header: []string{"NAME", "SLUG", "SUBSCRIPTION ID", "AZURE ENVIRONMENT"},
 			Row: func(item accounts.IAccount) []string {
 				acc := item.(*accounts.AzureServicePrincipalAccount)
 				return []string{
 					output.Bold(acc.GetName()),
+					acc.GetSlug(),
 					acc.SubscriptionID.String(),
 					azureEnvMap[acc.AzureEnvironment]}
 			}},
