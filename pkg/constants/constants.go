@@ -15,7 +15,8 @@ const (
 
 // flags for storing things in the go context
 const (
-	ContextKeyTimeNow = "time.now" // holds a func() time.Time
+	ContextKeyTimeNow = "time.now" // func() time.Time
+	ContextKeyOsOpen  = "os.open"  // func(string) (io.ReadCloser, error)
 )
 
 // values for output formats

@@ -290,6 +290,10 @@ func TestReleaseListAndDelete(t *testing.T) {
 
 		resp, err = apiClient.Releases.GetByID(createResponse.ReleaseID)
 		assert.Nil(t, resp)
-		assert.Equal(t, &core.APIError{ErrorMessage: fmt.Sprintf("The resource '%s' was not found.", createResponse.ReleaseID), StatusCode: 404}, err)
+
+		apiErr, isCoreApiError := err.(*core.APIError)
+		assert.True(t, isCoreApiError)
+		assert.Equal(t, 404, apiErr.StatusCode)
+		// the error struct contains an error message, but the server can/will change this over time, and we don't particularly care about it; 404 statuscode is the important bit
 	})
 }

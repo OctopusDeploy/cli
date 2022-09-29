@@ -1,5 +1,5 @@
 <div align="center">
-  <img alt="go-octopusdeploy Logo" src="https://user-images.githubusercontent.com/71493/133961475-fd4d769f-dc32-4723-a9bd-5529c5b12faf.png" height="140" />
+  <img alt="go-octopusdeploy Logo" src="logo.png" width="256" />
   <h3 align="center">cli</h3>
   <p align="center">Command Line Interface for <a href="https://octopus.com/">Octopus Deploy</a> 🐙</p>
   <p align="center">
