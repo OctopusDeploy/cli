@@ -60,3 +60,26 @@ signs:
 
 changelog:
   skip: true
+
+brews:
+  - name: "octopus-cli"
+
+    tap:
+      owner: OctopusDeploy
+      name: homebrew-taps
+
+    homepage: "https://github.com/OctopusDeploy/cli"
+    description: "The New CLI (octopus) for Octopus Deploy, a user-friendly DevOps tool for developers that supports release management, deployment automation, and operations runbooks"
+    license: "Apache-2.0"
+
+    skip_upload: true
+
+    test: |
+      system "#{bin}/octopus", "--help"
+
+    install: |
+      bin.install "octopus"
+      # future: enhance the CLI to generate completion scripts, and install them as follows
+      # bash_completion.install "completions/octopus.bash" => "octopus"
+      # zsh_completion.install "completions/octopus.zsh" => "_octopus"
+      # fish_completion.install "completions/octopus.fish"
