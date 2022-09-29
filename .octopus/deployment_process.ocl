@@ -65,7 +65,7 @@ step "create-pull-request-to-update-formula-in-homebrew" {
                 # create-homebrew-pr.ps1
                 param(
                     [String]$packageVersion, # e.g. "0.2.2"
-                    [String]$extractedPath # e.g.  "C:\Users\Orion\Downloads\octopus-cli.0.2.2"
+                    [String]$extractedPath, # e.g.  "C:\Users\Orion\Downloads\octopus-cli.0.2.2"
                     [String]$githubtoken
                 )
                 
