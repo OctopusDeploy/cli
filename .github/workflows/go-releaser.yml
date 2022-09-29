@@ -57,6 +57,7 @@ jobs:
         NFPM_DEFAULT_PASSPHRASE: ${{ secrets.OCTOPUS_GPG_PASSPHRASE }}
     
     - name: Remove GPG private key from shared memory
+      if: ${{ success() || failure() }}
       run: rm -f "${{ steps.private_key_shm.outputs.private_key_file_path }}"
 
     - name: Calculate version
