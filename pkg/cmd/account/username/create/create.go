@@ -110,7 +110,7 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 
 func CreateRun(opts *CreateOptions) error {
 	if !opts.NoPrompt {
-		if err := promptMissing(opts); err != nil {
+		if err := PromptMissing(opts); err != nil {
 			return err
 		}
 	}
@@ -130,7 +130,7 @@ func CreateRun(opts *CreateOptions) error {
 		return err
 	}
 
-	_, err = fmt.Fprintf(opts.Writer, "Successfully created Token Account %s %s.\n", createdAccount.GetName(), output.Dimf("(%s)", createdAccount.GetID()))
+	_, err = fmt.Fprintf(opts.Writer, "Successfully created Username account %s %s.\n", createdAccount.GetName(), output.Dimf("(%s)", createdAccount.GetSlug()))
 	if err != nil {
 		return err
 	}
@@ -143,7 +143,7 @@ func CreateRun(opts *CreateOptions) error {
 	return nil
 }
 
-func promptMissing(opts *CreateOptions) error {
+func PromptMissing(opts *CreateOptions) error {
 	if opts.Name.Value == "" {
 		if err := opts.Ask(&survey.Input{
 			Message: "Name",

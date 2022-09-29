@@ -18,7 +18,7 @@ func NewCmdList(f factory.Factory) *cobra.Command {
 			$ octopus account aws list"
 		`),
 		Aliases: []string{"ls"},
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(cmd *cobra.Command, _ []string) error {
 			client, err := f.GetSpacedClient()
 			if err != nil {
 				return err
@@ -47,19 +47,21 @@ func listAwsAccounts(client *client.Client, cmd *cobra.Command) error {
 			acc := item.(*accounts.AmazonWebServicesAccount)
 			return &struct {
 				Id        string
+				Slug      string
 				Name      string
 				AccessKey string
 			}{
 				Id:        acc.GetID(),
+				Slug:      acc.GetSlug(),
 				Name:      acc.GetName(),
 				AccessKey: acc.AccessKey,
 			}
 		},
 		Table: output.TableDefinition[accounts.IAccount]{
-			Header: []string{"NAME", "ACCESS KEY"},
+			Header: []string{"NAME", "SLUG", "ACCESS KEY"},
 			Row: func(item accounts.IAccount) []string {
 				acc := item.(*accounts.AmazonWebServicesAccount)
-				return []string{output.Bold(acc.GetName()), acc.AccessKey}
+				return []string{output.Bold(acc.GetName()), acc.GetSlug(), acc.AccessKey}
 			}},
 		Basic: func(item accounts.IAccount) string {
 			return item.GetName()
