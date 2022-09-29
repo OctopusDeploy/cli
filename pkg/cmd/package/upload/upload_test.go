@@ -261,7 +261,7 @@ func TestPackageUpload(t *testing.T) {
 			})
 
 			_, err = testutil.ReceivePair(cmdReceiver)
-			assert.Nil(t, err)
+			assert.EqualError(t, err, "one or more packages failed to upload")
 			// http status of 201 means 'created', we wrote the file
 			assert.Equal(t, "Uploaded package other.1.1.zip\n", stdOut.String())
 			assert.Equal(t, "Failed to upload package test.1.0.zip - Octopus API error: the package is not gluten-free [] \n", stdErr.String())
@@ -299,6 +299,62 @@ func TestPackageUpload(t *testing.T) {
 			assert.Nil(t, err)
 			// http status of 201 means 'created', we wrote the file
 			assert.Equal(t, "Uploaded package test.1.0.zip\n", stdOut.String())
+			assert.Equal(t, "", stdErr.String())
+		}},
+
+		{"output-format=json, uploads multiple packages; --continue-on-error", func(t *testing.T, api *testutil.MockHttpServer, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
+			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
+				defer api.Close()
+				rootCmd.SetArgs([]string{"package", "upload", "-p", "test.1.0.zip", "--package", "other.1.1.zip", "--continue-on-error", "--output-format", "json"})
+				rootCmd.SetContext(contextWithOpener)
+				return rootCmd.ExecuteC()
+			})
+
+			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
+
+			req := api.ExpectRequest(t, "POST", "/api/Spaces-1/packages/raw?overwriteMode=FailIfExists")
+
+			// fail on the first file
+			req.RespondWithStatus(400, "400 Bad Request", struct{ ErrorMessage string }{ErrorMessage: "the package is not gluten-free"})
+
+			// continue on to the next file
+
+			req = api.ExpectRequest(t, "POST", "/api/Spaces-1/packages/raw?overwriteMode=FailIfExists")
+
+			buf := make([]byte, 8192)
+			bytesRead, err := req.Request.Body.Read(buf)
+			assert.Equal(t, 259, bytesRead)
+
+			req.RespondWithStatus(201, "201 Created", &packages.PackageUploadResponse{
+				PackageSizeBytes: len(files["other.1.1.zip"]),
+				Hash:             "TODO",
+				PackageId:        "other",
+				Title:            "other.1.1",
+				Version:          "1.1",
+				Resource:         *resources.NewResource(),
+			})
+
+			_, err = testutil.ReceivePair(cmdReceiver)
+			assert.EqualError(t, err, "one or more packages failed to upload")
+			type sr struct {
+				PackagePath string `json:"package,omitempty"`
+			}
+			type fr struct {
+				PackagePath string `json:"package,omitempty"`
+				Error       string `json:"error,omitempty"`
+			}
+			type xr struct {
+				Succeeded []sr `json:"succeeded,omitempty"`
+				Failed    []fr `json:"failed,omitempty"`
+			}
+			parsedStdout, err := testutil.ParseJsonStrict[xr](stdOut)
+			assert.Nil(t, err)
+
+			assert.Equal(t, xr{
+				Succeeded: []sr{{PackagePath: "other.1.1.zip"}},
+				Failed:    []fr{{PackagePath: "test.1.0.zip", Error: "Octopus API error: the package is not gluten-free [] "}},
+			}, parsedStdout)
 			assert.Equal(t, "", stdErr.String())
 		}},
 	}

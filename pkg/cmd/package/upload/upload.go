@@ -1,6 +1,7 @@
 package upload
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/MakeNowJust/heredoc/v2"
@@ -87,6 +88,18 @@ func NewCmdUpload(f factory.Factory) *cobra.Command {
 	return cmd
 }
 
+type uploadSucceededViewModel struct {
+	PackagePath string `json:"package,omitempty"`
+}
+type uploadFailedViewModel struct {
+	PackagePath string `json:"package,omitempty"`
+	Error       string `json:"error,omitempty"`
+}
+type uploadViewModel struct {
+	Succeeded []uploadSucceededViewModel `json:"succeeded,omitempty"`
+	Failed    []uploadFailedViewModel    `json:"failed,omitempty"`
+}
+
 func uploadRun(cmd *cobra.Command, f factory.Factory, flags *UploadFlags) error {
 	outputFormat, err := cmd.Flags().GetString(constants.FlagOutputFormat)
 	if err != nil { // should never happen, but fallback if it does
@@ -119,6 +132,9 @@ func uploadRun(cmd *cobra.Command, f factory.Factory, flags *UploadFlags) error 
 		return fmt.Errorf("invalid value '%s' for --overwrite-mode. Valid values are 'fail', 'ignore', 'overwrite'", overwriteMode)
 	}
 
+	var jsonResult uploadViewModel
+	didErrorsOccur := false
+
 	// with globs it's easy to specify the same thing twice by accident, so keep track of what's been uploaded as we go
 	seenPackages := make(map[string]bool)
 	doUpload := func(path string) error {
@@ -127,7 +143,19 @@ func uploadRun(cmd *cobra.Command, f factory.Factory, flags *UploadFlags) error 
 			seenPackages[path] = true // whether a given package succeeds or fails, we still don't want to process it twice
 
 			if err != nil {
-				cmd.PrintErrf("Failed to upload package %s - %v\n", path, err)
+				didErrorsOccur = true // for process exit code
+				switch outputFormat {
+				case constants.OutputFormatJson:
+					jsonResult.Failed = append(jsonResult.Failed, uploadFailedViewModel{
+						PackagePath: path,
+						Error:       err.Error(),
+					})
+				case constants.OutputFormatBasic:
+					cmd.PrintErrf("Failed %s\n", path)
+				default:
+					cmd.PrintErrf("Failed to upload package %s - %v\n", path, err)
+				}
+
 				if !continueOnError {
 					return err
 				} // else keep going to the next file.
@@ -136,7 +164,14 @@ func uploadRun(cmd *cobra.Command, f factory.Factory, flags *UploadFlags) error 
 				// no error will be returned to the outer shell, and the process will exit with a *success* code.
 				// This is intended behaviour, not a bug
 			} else {
-				if !constants.IsProgrammaticOutputFormat(outputFormat) {
+				switch outputFormat {
+				case constants.OutputFormatJson:
+					jsonResult.Succeeded = append(jsonResult.Succeeded, uploadSucceededViewModel{
+						PackagePath: path,
+					})
+				case constants.OutputFormatBasic:
+					cmd.Printf("%s\n", path)
+				default:
 					if created {
 						cmd.Printf("Uploaded package %s\n", path)
 					} else {
@@ -169,6 +204,14 @@ func uploadRun(cmd *cobra.Command, f factory.Factory, flags *UploadFlags) error 
 	}
 	if len(seenPackages) == 0 {
 		return errors.New("at least one package must be specified")
+	}
+	if outputFormat == constants.OutputFormatJson {
+		bytes, _ := json.Marshal(jsonResult)
+		_, _ = cmd.OutOrStdout().Write(bytes)
+	}
+	if didErrorsOccur {
+		// return a generic error to avoid repetition of a previous error, which should have already been printed to stderr
+		return errors.New("one or more packages failed to upload")
 	}
 	return nil
 }
