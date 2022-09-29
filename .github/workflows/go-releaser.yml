@@ -39,7 +39,7 @@ jobs:
     - name: Write GPG private key to shared memory for use when signing rpm/deb packages
       id: private_key_shm
       run: |
-        PRIVATE_KEY_SHM=$(mktemp /dev/shm/cli.XXXXXXXX)" # Use private file in shared memory to avoid writing to disk
+        PRIVATE_KEY_SHM="$(mktemp /dev/shm/cli.XXXXXXXX)" # Use private file in shared memory to avoid writing to disk
         echo "$GPG_PRIVATE_KEY" >> "$PRIVATE_KEY_SHM"
         echo "::set-output name=private_key_file_path::$PRIVATE_KEY_SHM"
 
