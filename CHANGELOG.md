@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.6](https://github.com/OctopusDeploy/cli/compare/v0.3.5...v0.3.6) (2022-09-30)
+
+
+### Bug Fixes
+
+* Add changed file before calling commit ([#101](https://github.com/OctopusDeploy/cli/issues/101)) ([552222a](https://github.com/OctopusDeploy/cli/commit/552222a16069a794e34892208f4146e2ed48633a))
+
 ## [0.3.5](https://github.com/OctopusDeploy/cli/compare/v0.3.4...v0.3.5) (2022-09-30)
 
 
