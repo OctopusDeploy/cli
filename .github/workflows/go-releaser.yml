@@ -79,6 +79,7 @@ jobs:
           dist/*.tar.gz
           dist/*.rpm
           dist/*.deb
+          dist/*.rb
 
   msi:
     needs: goreleaser
