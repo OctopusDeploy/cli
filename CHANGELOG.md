@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.3.1](https://github.com/OctopusDeploy/cli/compare/v0.3.0...v0.3.1) (2022-09-30)
+
+
+### Bug Fixes
+
+* Fix invalid syntax in script for pushing the updated homebrew formula ([#90](https://github.com/OctopusDeploy/cli/issues/90)) ([75e39a8](https://github.com/OctopusDeploy/cli/commit/75e39a84b8641f361e8fabaaa203426029b571ca))
+* Sign rpm/deb packages as part of the creation process in goreleaser ([#92](https://github.com/OctopusDeploy/cli/issues/92)) ([b30498f](https://github.com/OctopusDeploy/cli/commit/b30498fb54e140f85056fc5dc271182cd584dd6f))
+
 ## [0.3.0](https://github.com/OctopusDeploy/cli/compare/v0.2.5...v0.3.0) (2022-09-29)
 
 
