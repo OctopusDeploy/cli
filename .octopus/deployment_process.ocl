@@ -53,8 +53,8 @@ step "push-cli-to-chocolatey" {
     }
 }
 
-step "create-pull-request-to-update-formula-in-homebrew" {
-    name = "Create pull request to update formula in Homebrew"
+step "push-homebrew-formula-updates-to-the-homebrew-taps-repo" {
+    name = "Push homebrew formula updates to the homebrew taps repo"
     start_trigger = "StartWithPrevious"
 
     action {
