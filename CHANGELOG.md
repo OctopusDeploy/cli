@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.3](https://github.com/OctopusDeploy/cli/compare/v0.3.2...v0.3.3) (2022-09-30)
+
+
+### Bug Fixes
+
+* Fix issue when creating PR to update homebrew formula ([#95](https://github.com/OctopusDeploy/cli/issues/95)) ([03929eb](https://github.com/OctopusDeploy/cli/commit/03929ebd8a4f33c65ea8d0faf0e92449a0f4e74e))
+
 ## [0.3.2](https://github.com/OctopusDeploy/cli/compare/v0.3.1...v0.3.2) (2022-09-30)
 
 
