@@ -74,12 +74,12 @@ step "create-pull-request-to-update-formula-in-homebrew" {
                 if ($OctopusParameters) {
                     $packageVersion = $OctopusParameters["Octopus.Action.Package[cli].PackageVersion"]
                     $extractedPath = $OctopusParameters["Octopus.Action.Package[cli].ExtractedPath"]
+                    $gitUserName = $OctopusParameters["Publish:HomeBrew:Username"]
+                    $gitUserEmail = $OctopusParameters["Publish:HomeBrew:UserEmail"]
                 
                     $githubtoken = $OctopusParameters["Publish:HomeBrew:ApiKey"]
                     $origin="https://${githubtoken}@github.com/OctopusDeploy/homebrew-taps"
 
-                    git config user.name $OctopusParameters["Publish:HomeBrew:Username"]
-                    git config user.email $OctopusParameters["Publish:HomeBrew:UserEmail"]
                 }
                 
                 if (!$packageVersion || !$extractedPath) {
@@ -91,6 +91,11 @@ step "create-pull-request-to-update-formula-in-homebrew" {
                 
                 git clone --depth 1 $origin octopus-homebrew-taps
                 cd octopus-homebrew-taps
+
+                if ($gitUserName) {
+                    git config user.name $gitUserName
+                    git config user.email $gitUserEmail
+                }
 
                 $branchName = "releases/$packageVersion"
                 git checkout -b $branchName
