@@ -108,10 +108,20 @@ step "create-pull-request-to-update-formula-in-homebrew" {
                 if ($githubtoken) {
                     $baseBranch = $(git symbolic-ref "refs/remotes/origin/HEAD") -replace "refs/remotes/origin/", ""
 
+                    $body = @{
+                        title = "octopus-cli $packageVersion"
+                        body = "automatically generated"
+                        head = $branchName
+                        base = $baseBranch
+                    } | ConvertTo-Json
+
+                    $body
+
                     Invoke-RestMethod -Method POST `
                         -Headers @{"Accept" = "application/vnd.github+json";"Authorization" = "Bearer $githubtoken"} `
                         -Uri https://api.github.com/repos/OctopusDeploy/homebrew-taps/pulls `
-                        -Body @{title = "octopus-cli $packageVersion";body = "automatically generated";head = $branchName;base = $baseBranch}
+                        -ContentType "application/json" `
+                        -Body "$body"
                 }
 
                 cd ..
