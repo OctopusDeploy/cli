@@ -102,8 +102,8 @@ step "create-pull-request-to-update-formula-in-homebrew" {
                 
                 Copy-Item -Path "$extractedPath/*" -Filter "*.rb" -Destination "." -Force
 
-                git diff-index --quiet HEAD || (git commit -m "Update for release $packageVersion" \
-                    && git push --repo $origin --set-upstream origin $branchName \
+                git diff-index --quiet HEAD || (git commit -m "Update for release $packageVersion" `
+                    && git push --repo $origin --set-upstream origin $branchName `
                 )
 
                 cd ..
