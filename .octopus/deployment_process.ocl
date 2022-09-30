@@ -102,7 +102,7 @@ step "push-homebrew-formula-updates-to-the-homebrew-taps-repo" {
                 
                 Copy-Item -Path "$extractedPath/*" -Filter "*.rb" -Destination "." -Force
 
-                git diff-index --quiet HEAD || (git commit -m "Update for release $packageVersion" `
+                git diff-index --quiet HEAD || (git commit -a -m "Update for release $packageVersion" `
                     && git push --repo $origin --set-upstream origin $branchName `
                 )
 
