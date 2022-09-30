@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.2](https://github.com/OctopusDeploy/cli/compare/v0.3.1...v0.3.2) (2022-09-30)
+
+
+### Bug Fixes
+
+* Fix bug in deployment process causing homebrew update to fail ([#93](https://github.com/OctopusDeploy/cli/issues/93)) ([6c5ee67](https://github.com/OctopusDeploy/cli/commit/6c5ee678f1037415c4cbb7ab2605f9b3b20b780e))
+
 ## [0.3.1](https://github.com/OctopusDeploy/cli/compare/v0.3.0...v0.3.1) (2022-09-30)
 
 
