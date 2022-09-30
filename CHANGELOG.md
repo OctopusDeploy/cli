@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.4](https://github.com/OctopusDeploy/cli/compare/v0.3.3...v0.3.4) (2022-09-30)
+
+
+### Bug Fixes
+
+* PR creation is automated in the homebrew-taps repo so no need to create it here ([#97](https://github.com/OctopusDeploy/cli/issues/97)) ([ee03780](https://github.com/OctopusDeploy/cli/commit/ee03780ad54c915d6a78fbd6d0815d88cde2f232))
+
 ## [0.3.3](https://github.com/OctopusDeploy/cli/compare/v0.3.2...v0.3.3) (2022-09-30)
 
 
