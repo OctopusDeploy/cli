@@ -102,27 +102,9 @@ step "create-pull-request-to-update-formula-in-homebrew" {
                 
                 Copy-Item -Path "$extractedPath/*" -Filter "*.rb" -Destination "." -Force
 
-                git commit -a -m "octopus-cli $packageVersion"
-                git push --set-upstream origin $branchName
-
-                if ($githubtoken) {
-                    $baseBranch = $(git symbolic-ref "refs/remotes/origin/HEAD") -replace "refs/remotes/origin/", ""
-
-                    $body = @{
-                        title = "octopus-cli $packageVersion"
-                        body = "automatically generated"
-                        head = $branchName
-                        base = $baseBranch
-                    } | ConvertTo-Json
-
-                    $body
-
-                    Invoke-RestMethod -Method POST `
-                        -Headers @{"Accept" = "application/vnd.github+json";"Authorization" = "Bearer $githubtoken"} `
-                        -Uri https://api.github.com/repos/OctopusDeploy/homebrew-taps/pulls `
-                        -ContentType "application/json" `
-                        -Body "$body"
-                }
+                git diff-index --quiet HEAD || (git commit -m "Update for release $packageVersion" \
+                    && git push --repo $origin --set-upstream origin $branchName \
+                )
 
                 cd ..
             EOT
