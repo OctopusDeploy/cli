@@ -36,6 +36,15 @@ jobs:
         gpg_private_key: ${{ secrets.OCTOPUS_GPG_PRIVATE_KEY }}
         passphrase: ${{ secrets.OCTOPUS_GPG_PASSPHRASE }}
     
+    - name: Write GPG private key to shared memory for use when signing rpm/deb packages
+      id: private_key_shm
+      run: |
+        PRIVATE_KEY_SHM="$(mktemp /dev/shm/cli.XXXXXXXX)" # Use private file in shared memory to avoid writing to disk
+        echo "$GPG_PRIVATE_KEY" >> "$PRIVATE_KEY_SHM"
+        echo "::set-output name=private_key_file_path::$PRIVATE_KEY_SHM"
+      env:
+        GPG_PRIVATE_KEY: ${{ secrets.OCTOPUS_GPG_PRIVATE_KEY }}
+
     - name: Run GoReleaser
       id: goreleaser-release
       uses: goreleaser/goreleaser-action@v3
@@ -46,6 +55,12 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         GPG_FINGERPRINT: ${{ steps.import_gpg.outputs.fingerprint }}
         GPG_PASSWORD: ${{ secrets.OCTOPUS_GPG_PASSPHRASE }}
+        GPG_PRIVATE_KEY_FILE: ${{ steps.private_key_shm.outputs.private_key_file_path }}
+        NFPM_DEFAULT_PASSPHRASE: ${{ secrets.OCTOPUS_GPG_PASSPHRASE }}
+    
+    - name: Remove GPG private key from shared memory
+      if: ${{ success() || failure() }}
+      run: rm -f "${{ steps.private_key_shm.outputs.private_key_file_path }}"
 
     - name: Calculate version
       id: calculate-version
@@ -64,6 +79,7 @@ jobs:
           dist/*.tar.gz
           dist/*.rpm
           dist/*.deb
+          dist/*.rb
 
   msi:
     needs: goreleaser
