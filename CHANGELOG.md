@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.5](https://github.com/OctopusDeploy/cli/compare/v0.3.4...v0.3.5) (2022-09-30)
+
+
+### Bug Fixes
+
+* Refactor git command code to powershell instead of bash ([#99](https://github.com/OctopusDeploy/cli/issues/99)) ([3d5a1a8](https://github.com/OctopusDeploy/cli/commit/3d5a1a8b75bd841fed21e163ff94eb0992b6167f))
+
 ## [0.3.4](https://github.com/OctopusDeploy/cli/compare/v0.3.3...v0.3.4) (2022-09-30)
 
 
