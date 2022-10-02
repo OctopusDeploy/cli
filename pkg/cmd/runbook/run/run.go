@@ -49,7 +49,7 @@ const (
 	FlagAliasTenantTagLegacy = "tenantTag"
 
 	FlagRunAt            = "run-at" // if this is less than 1 min in the future, go now
-	FlagAliasWhen        = "when"   // alias for deploy-at
+	FlagAliasWhen        = "when"   // alias for run-at
 	FlagAliasRunAtLegacy = "runAt"
 
 	FlagRunAtExpiry           = "run-at-expiry"
@@ -66,7 +66,7 @@ const (
 	FlagAliasForcePackageDownloadLegacy = "forcePackageDownload"
 
 	FlagRunTarget             = "run-target"
-	FlagAliasTarget           = "target"           // alias for deployment-target
+	FlagAliasTarget           = "target"           // alias for run-target
 	FlagAliasSpecificMachines = "specificMachines" // octo wants a comma separated list. We prefer specifying --target multiple times, but CSV also works because pflag does it for free
 
 	FlagExcludeRunTarget     = "exclude-run-target"
@@ -75,11 +75,6 @@ const (
 
 	FlagVariable = "variable"
 )
-
-// executions API stops here.
-
-// DEPLOYMENT TRACKING (Server Tasks): - this might be a separate `octopus task follow ID1, ID2, ID3`
-// DESIGN CHOICE: We are not going to show servertask progress in the CLI.
 
 type RunFlags struct {
 	Project              *flag.Flag[string]
@@ -436,24 +431,22 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 		}
 	}
 
-	// TODO this whole snapshot bit is slightly wrong. Talk to Shannon and figure out how we are supposed to deal with it
-
 	// The runbook snapshot contains the variables, we must ask about snapshots in the mainline query path
-	// because otherwise we won't know if there are any required prompted variables
+	// because otherwise we won't know if there are any required prompted variables.
+	// NOTE: Using a non-default snapshot is advanced/niche behaviour, you can only opt into this by specifying
+	// --snapshot on the command line, there's deliberately no interactive flow for it.
 	var selectedSnapshot *runbooks.RunbookSnapshot
-	if options.Snapshot == "" {
-		selectedSnapshot, err = selectRunbookSnapshot(octopus, asker, "Select a snapshot", space, selectedProject, selectedRunbook)
-		if err != nil {
-			return err
-		}
-	} else {
+	if options.Snapshot != "" {
 		selectedSnapshot, err = findRunbookSnapshot(octopus, space.ID, selectedProject.ID, options.Snapshot)
 		if err != nil {
 			return err
 		}
+	} else {
+		selectedSnapshot, err = findRunbookPublishedSnapshot(octopus, space, selectedProject, selectedRunbook)
+		if err != nil {
+			return err
+		}
 	}
-	// TODO if they selected 'published snapshot', then don't back-propagate into the generated automation command
-	options.Snapshot = selectedSnapshot.Name
 
 	variableSet, err := variables.GetVariableSet(octopus, space.ID, selectedSnapshot.FrozenProjectVariableSetID)
 	if err != nil {
@@ -471,13 +464,13 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 
 	PrintAdvancedSummary(stdout, options)
 
-	isDeployAtSpecified := options.ScheduledStartTime != ""
+	isRunAtSpecified := options.ScheduledStartTime != ""
 	isExcludedStepsSpecified := len(options.ExcludedSteps) > 0
 	isGuidedFailureModeSpecified := options.GuidedFailureMode != ""
 	isForcePackageDownloadSpecified := options.ForcePackageDownloadWasSpecified
-	isDeploymentTargetsSpecified := len(options.RunTargets) > 0 || len(options.ExcludeTargets) > 0
+	isRunTargetsSpecified := len(options.RunTargets) > 0 || len(options.ExcludeTargets) > 0
 
-	allAdvancedOptionsSpecified := isDeployAtSpecified && isExcludedStepsSpecified && isGuidedFailureModeSpecified && isForcePackageDownloadSpecified && isDeploymentTargetsSpecified
+	allAdvancedOptionsSpecified := isRunAtSpecified && isExcludedStepsSpecified && isGuidedFailureModeSpecified && isForcePackageDownloadSpecified && isRunTargetsSpecified
 
 	shouldAskAdvancedQuestions := false
 	if !allAdvancedOptionsSpecified {
@@ -497,7 +490,7 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 	}
 
 	if shouldAskAdvancedQuestions {
-		if !isDeployAtSpecified {
+		if !isRunAtSpecified {
 			referenceNow := now()
 			maxSchedStartTime := referenceNow.Add(30 * 24 * time.Hour) // octopus server won't let you schedule things more than 30d in the future
 
@@ -524,7 +517,7 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 				startPlusFiveMin := scheduledStartTime.Add(5 * time.Minute)
 				err = asker(&surveyext.DatePicker{
 					Message:     "Scheduled expiry time",
-					Help:        "At the start time, the deployment will be queued. If it does not begin before 'expiry' time, it will be cancelled. Minimum of 5 minutes after start time",
+					Help:        "At the start time, the run will be queued. If it does not begin before 'expiry' time, it will be cancelled. Minimum of 5 minutes after start time",
 					Default:     startPlusFiveMin,
 					Min:         startPlusFiveMin,
 					Max:         maxSchedStartTime.Add(24 * time.Hour), // the octopus server doesn't enforce any upper bound for schedule expiry, so we make a minor judgement call and pick 1d extra here.
@@ -563,32 +556,60 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 			}
 		}
 
-		if !isDeploymentTargetsSpecified {
-			// What the web portal does:
-			// If tenanted:
-			//   foreach tenant:
-			//     select deployment target(s)
-			// else
-			//   select deployment target(s)
-			//
-			// however the executions API doesn't support deployment targets per-tenant, so in all cases
-			// we can only do:
-			//   select deployment target(s)
+		if !isRunTargetsSpecified {
 			if len(selectedEnvironments) == 0 { // if the Q&A process earlier hasn't loaded environments already, we need to load them now
 				selectedEnvironments, err = deploy.FindEnvironments(octopus, options.Environments)
 				if err != nil {
 					return err
 				}
 			}
-			// TODO figure out how to ask for runbook target machines
-			//options.RunTargets, err = askDeploymentTargets(octopus, asker, space.ID, selectedRunbook.ID, selectedEnvironments)
-			//if err != nil {
-			//	return err
-			//}
+
+			options.RunTargets, err = askRunbookTargets(octopus, asker, space.ID, selectedSnapshot.ID, selectedEnvironments)
+			if err != nil {
+				return err
+			}
 		}
 	}
 	// DONE
 	return nil
+}
+
+func askRunbookTargets(octopus *octopusApiClient.Client, asker question.Asker, spaceID string, runbookSnapshotID string, selectedEnvironments []*environments.Environment) ([]string, error) {
+	var results []string
+
+	// this is what the portal does. Can we do it better? I don't know
+	for _, env := range selectedEnvironments {
+		preview, err := runbooks.GetRunbookSnapshotRunPreview(octopus, spaceID, runbookSnapshotID, env.ID, true)
+		if err != nil {
+			return nil, err
+		}
+		for _, step := range preview.StepsToExecute {
+			for _, m := range step.MachineNames {
+				if !util.SliceContains(results, m) {
+					results = append(results, m)
+				}
+			}
+		}
+	}
+
+	// if there are no machines, then either
+	// a) everything is server based
+	// b) machines will be provisioned dynamically
+	// c) or the deployment will fail.
+	// In all of the above cases, we can't do anything about it so the correct course of action is just skip the question
+	if len(results) > 0 {
+		var selectedDeploymentTargetNames []string
+		err := asker(&survey.MultiSelect{
+			Message: "Run targets (If none selected, deploy to all)",
+			Options: results,
+		}, &selectedDeploymentTargetNames)
+		if err != nil {
+			return nil, err
+		}
+
+		return selectedDeploymentTargetNames, nil
+	}
+	return nil, nil
 }
 
 // selectRunEnvironment selects a single environment for use in a tenanted run
@@ -616,9 +637,9 @@ func selectRunEnvironments(ask question.Asker, octopus *octopusApiClient.Client,
 }
 
 func PrintAdvancedSummary(stdout io.Writer, options *executor.TaskOptionsRunbookRun) {
-	deployAtStr := "Now"
+	runAtStr := "Now"
 	if options.ScheduledStartTime != "" {
-		deployAtStr = options.ScheduledStartTime // we assume the server is going to understand this
+		runAtStr = options.ScheduledStartTime // we assume the server is going to understand this
 	}
 	skipStepsStr := "None"
 	if len(options.ExcludedSteps) > 0 {
@@ -664,7 +685,7 @@ func PrintAdvancedSummary(stdout io.Writer, options *executor.TaskOptionsRunbook
 		  Guided Failure Mode: cyan(%s)
 		  Package Download: cyan(%s)
 		  Targets: cyan(%s)
-	`)), deployAtStr, skipStepsStr, gfmStr, pkgDownloadStr, runTargetsStr)
+	`)), runAtStr, skipStepsStr, gfmStr, pkgDownloadStr, runTargetsStr)
 }
 
 // This mirrors determineIsTenanted in deploy release, but looks at a runbook, rather than a project
@@ -675,7 +696,7 @@ func determineIsTenanted(runbook *runbooks.Runbook, ask question.Asker) (bool, e
 	case core.TenantedDeploymentModeTenanted:
 		return true, nil
 	case core.TenantedDeploymentModeTenantedOrUntenanted:
-		return question.SelectMap(ask, "Select Tenanted or Untenanted deployment", []bool{true, false}, func(b bool) string {
+		return question.SelectMap(ask, "Select Tenanted or Untenanted run", []bool{true, false}, func(b bool) string {
 			if b {
 				return "Tenanted" // should be the default; they probably want tenanted
 			} else {
@@ -708,17 +729,6 @@ func findRunbook(octopus *octopusApiClient.Client, spaceID string, projectID str
 	return result, err
 }
 
-func selectRunbookSnapshot(octopus *octopusApiClient.Client, ask question.Asker, questionText string, space *spaces.Space, project *projects.Project, runbook *runbooks.Runbook) (*runbooks.RunbookSnapshot, error) {
-	foundSnapshots, err := runbooks.ListSnapshots(octopus, space.ID, project.ID, runbook.ID, math.MaxInt32)
-	if err != nil {
-		return nil, err
-	}
-
-	return question.SelectMap(ask, questionText, foundSnapshots.Items, func(p *runbooks.RunbookSnapshot) string {
-		return p.Name
-	})
-}
-
 // findRunbookSnapshot wraps the API client, such that we are always guaranteed to get a result, or error. The "successfully can't find matching name" case doesn't exist
 func findRunbookSnapshot(octopus *octopusApiClient.Client, spaceID string, projectID string, snapshotIDorName string) (*runbooks.RunbookSnapshot, error) {
 	result, err := runbooks.GetSnapshot(octopus, spaceID, projectID, snapshotIDorName)
@@ -726,4 +736,9 @@ func findRunbookSnapshot(octopus *octopusApiClient.Client, spaceID string, proje
 		return nil, fmt.Errorf("no snapshot found with ID or Name of %s", snapshotIDorName)
 	}
 	return result, err
+}
+
+// findRunbookPublishedSnapshot finds the published snapshot ID. If it cannot be found, an error is returned, you'll never get nil, nil
+func findRunbookPublishedSnapshot(octopus *octopusApiClient.Client, space *spaces.Space, project *projects.Project, runbook *runbooks.Runbook) (*runbooks.RunbookSnapshot, error) {
+	return findRunbookSnapshot(octopus, space.ID, project.ID, runbook.PublishedRunbookSnapshotID)
 }
