@@ -53,8 +53,8 @@ step "push-cli-to-chocolatey" {
     }
 }
 
-step "create-pull-request-to-update-formula-in-homebrew" {
-    name = "Create pull request to update formula in Homebrew"
+step "push-homebrew-formula-updates-to-the-homebrew-taps-repo" {
+    name = "Push homebrew formula updates to the homebrew taps repo"
     start_trigger = "StartWithPrevious"
 
     action {
@@ -74,12 +74,12 @@ step "create-pull-request-to-update-formula-in-homebrew" {
                 if ($OctopusParameters) {
                     $packageVersion = $OctopusParameters["Octopus.Action.Package[cli].PackageVersion"]
                     $extractedPath = $OctopusParameters["Octopus.Action.Package[cli].ExtractedPath"]
+                    $gitUserName = $OctopusParameters["Publish:HomeBrew:Username"]
+                    $gitUserEmail = $OctopusParameters["Publish:HomeBrew:UserEmail"]
                 
                     $githubtoken = $OctopusParameters["Publish:HomeBrew:ApiKey"]
                     $origin="https://${githubtoken}@github.com/OctopusDeploy/homebrew-taps"
 
-                    git config user.name $OctopusParameters["Publish:HomeBrew:Username"]
-                    git config user.email $OctopusParameters["Publish:HomeBrew:UserEmail"]
                 }
                 
                 if (!$packageVersion || !$extractedPath) {
@@ -92,22 +92,19 @@ step "create-pull-request-to-update-formula-in-homebrew" {
                 git clone --depth 1 $origin octopus-homebrew-taps
                 cd octopus-homebrew-taps
 
+                if ($gitUserName) {
+                    git config user.name $gitUserName
+                    git config user.email $gitUserEmail
+                }
+
                 $branchName = "releases/$packageVersion"
                 git checkout -b $branchName
                 
                 Copy-Item -Path "$extractedPath/*" -Filter "*.rb" -Destination "." -Force
 
-                git commit -a -m "octopus-cli $packageVersion"
-                git push --set-upstream origin $branchName
-
-                if ($githubtoken) {
-                    $baseBranch = $(git symbolic-ref "refs/remotes/origin/HEAD") -replace "refs/remotes/origin/", ""
-
-                    Invoke-RestMethod -Method POST `
-                        -Headers @{"Accept" = "application/vnd.github+json";"Authorization" = "Bearer $githubtoken"} `
-                        -Uri https://api.github.com/repos/OctopusDeploy/homebrew-taps/pulls `
-                        -Body @{title = "octopus-cli $packageVersion";body = "automatically generated";head = $branchName;base = $baseBranch}
-                }
+                git diff-index --quiet HEAD || (git commit -a -m "Update for release $packageVersion" `
+                    && git push --repo $origin --set-upstream origin $branchName `
+                )
 
                 cd ..
             EOT

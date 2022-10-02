@@ -1,5 +1,48 @@
 # Changelog
 
+## [0.3.6](https://github.com/OctopusDeploy/cli/compare/v0.3.5...v0.3.6) (2022-09-30)
+
+
+### Bug Fixes
+
+* Add changed file before calling commit ([#101](https://github.com/OctopusDeploy/cli/issues/101)) ([552222a](https://github.com/OctopusDeploy/cli/commit/552222a16069a794e34892208f4146e2ed48633a))
+
+## [0.3.5](https://github.com/OctopusDeploy/cli/compare/v0.3.4...v0.3.5) (2022-09-30)
+
+
+### Bug Fixes
+
+* Refactor git command code to powershell instead of bash ([#99](https://github.com/OctopusDeploy/cli/issues/99)) ([3d5a1a8](https://github.com/OctopusDeploy/cli/commit/3d5a1a8b75bd841fed21e163ff94eb0992b6167f))
+
+## [0.3.4](https://github.com/OctopusDeploy/cli/compare/v0.3.3...v0.3.4) (2022-09-30)
+
+
+### Bug Fixes
+
+* PR creation is automated in the homebrew-taps repo so no need to create it here ([#97](https://github.com/OctopusDeploy/cli/issues/97)) ([ee03780](https://github.com/OctopusDeploy/cli/commit/ee03780ad54c915d6a78fbd6d0815d88cde2f232))
+
+## [0.3.3](https://github.com/OctopusDeploy/cli/compare/v0.3.2...v0.3.3) (2022-09-30)
+
+
+### Bug Fixes
+
+* Fix issue when creating PR to update homebrew formula ([#95](https://github.com/OctopusDeploy/cli/issues/95)) ([03929eb](https://github.com/OctopusDeploy/cli/commit/03929ebd8a4f33c65ea8d0faf0e92449a0f4e74e))
+
+## [0.3.2](https://github.com/OctopusDeploy/cli/compare/v0.3.1...v0.3.2) (2022-09-30)
+
+
+### Bug Fixes
+
+* Fix bug in deployment process causing homebrew update to fail ([#93](https://github.com/OctopusDeploy/cli/issues/93)) ([6c5ee67](https://github.com/OctopusDeploy/cli/commit/6c5ee678f1037415c4cbb7ab2605f9b3b20b780e))
+
+## [0.3.1](https://github.com/OctopusDeploy/cli/compare/v0.3.0...v0.3.1) (2022-09-30)
+
+
+### Bug Fixes
+
+* Fix invalid syntax in script for pushing the updated homebrew formula ([#90](https://github.com/OctopusDeploy/cli/issues/90)) ([75e39a8](https://github.com/OctopusDeploy/cli/commit/75e39a84b8641f361e8fabaaa203426029b571ca))
+* Sign rpm/deb packages as part of the creation process in goreleaser ([#92](https://github.com/OctopusDeploy/cli/issues/92)) ([b30498f](https://github.com/OctopusDeploy/cli/commit/b30498fb54e140f85056fc5dc271182cd584dd6f))
+
 ## [0.3.0](https://github.com/OctopusDeploy/cli/compare/v0.2.5...v0.3.0) (2022-09-29)
 
 
