@@ -740,5 +740,8 @@ func findRunbookSnapshot(octopus *octopusApiClient.Client, spaceID string, proje
 
 // findRunbookPublishedSnapshot finds the published snapshot ID. If it cannot be found, an error is returned, you'll never get nil, nil
 func findRunbookPublishedSnapshot(octopus *octopusApiClient.Client, space *spaces.Space, project *projects.Project, runbook *runbooks.Runbook) (*runbooks.RunbookSnapshot, error) {
+	if runbook.PublishedRunbookSnapshotID == "" {
+		return nil, fmt.Errorf("cannot run runbook %s, it has no published snapshot", runbook.Name)
+	}
 	return findRunbookSnapshot(octopus, space.ID, project.ID, runbook.PublishedRunbookSnapshotID)
 }

@@ -144,3 +144,10 @@ func NewRunbook(spaceID string, projectID string, runbookID string, name string)
 	result.SpaceID = spaceID
 	return result
 }
+
+func NewRunbookSnapshot(projectID string, runbookID string, snapshotID string, name string) *runbooks.RunbookSnapshot {
+	result := runbooks.NewRunbookSnapshot(name, projectID, runbookID)
+	result.ID = snapshotID
+	// runbook snapshots don't have their own explicit spaceID, they are a child of the parent runbook
+	return result
+}
