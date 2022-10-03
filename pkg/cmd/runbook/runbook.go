@@ -3,6 +3,7 @@ package runbook
 import (
 	"fmt"
 	cmdList "github.com/OctopusDeploy/cli/pkg/cmd/runbook/list"
+	cmdListRuns "github.com/OctopusDeploy/cli/pkg/cmd/runbook/list-runs"
 	cmdRun "github.com/OctopusDeploy/cli/pkg/cmd/runbook/run"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/constants/annotations"
@@ -21,7 +22,9 @@ func NewCmdRunbook(f factory.Factory) *cobra.Command {
 		},
 	}
 
-	cmd.AddCommand(cmdList.NewCmdList(f))
 	cmd.AddCommand(cmdRun.NewCmdRun(f))
+	cmd.AddCommand(cmdList.NewCmdList(f))
+	cmd.AddCommand(cmdListRuns.NewCmdListRuns(f))
+
 	return cmd
 }

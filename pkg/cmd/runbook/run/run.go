@@ -352,12 +352,12 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, outputForm
 
 	var selectedRunbook *runbooks.Runbook
 	if options.RunbookName == "" {
-		selectedRunbook, err = selectRunbook(octopus, asker, "Select a runbook to run", space, selectedProject)
+		selectedRunbook, err = SelectRunbook(octopus, asker, "Select a runbook to run", space, selectedProject)
 		if err != nil {
 			return err
 		}
 	} else {
-		selectedRunbook, err = findRunbook(octopus, space.ID, selectedProject.ID, options.RunbookName)
+		selectedRunbook, err = FindRunbook(octopus, space.ID, selectedProject.ID, options.RunbookName)
 		if err != nil {
 			return err
 		}
@@ -697,7 +697,7 @@ func determineIsTenanted(runbook *runbooks.Runbook, ask question.Asker) (bool, e
 	}
 }
 
-func selectRunbook(octopus *octopusApiClient.Client, ask question.Asker, questionText string, space *spaces.Space, project *projects.Project) (*runbooks.Runbook, error) {
+func SelectRunbook(octopus *octopusApiClient.Client, ask question.Asker, questionText string, space *spaces.Space, project *projects.Project) (*runbooks.Runbook, error) {
 	foundRunbooks, err := runbooks.List(octopus, space.ID, project.ID, "", math.MaxInt32)
 	if err != nil {
 		return nil, err
@@ -708,8 +708,8 @@ func selectRunbook(octopus *octopusApiClient.Client, ask question.Asker, questio
 	})
 }
 
-// findRunbook wraps the API client, such that we are always guaranteed to get a result, or error. The "successfully can't find matching name" case doesn't exist
-func findRunbook(octopus *octopusApiClient.Client, spaceID string, projectID string, runbookName string) (*runbooks.Runbook, error) {
+// FindRunbook wraps the API client, such that we are always guaranteed to get a result, or error. The "successfully can't find matching name" case doesn't exist
+func FindRunbook(octopus *octopusApiClient.Client, spaceID string, projectID string, runbookName string) (*runbooks.Runbook, error) {
 	result, err := runbooks.GetByName(octopus, spaceID, projectID, runbookName)
 	if result == nil && err == nil {
 		return nil, fmt.Errorf("no runbook found with Name of %s", runbookName)

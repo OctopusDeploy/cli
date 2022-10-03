@@ -53,13 +53,9 @@ func SelectOrFindProject(projectNameOrID string, questionText string, octopus *o
 		return Project(questionText, octopus, asker)
 	} else { // project name is already provided, fetch the object because it's needed for further questions
 		selectedProject, err := FindProject(octopus, projectNameOrID)
-		if err != nil {
-			return nil, err
-		}
-
-		if !constants.IsProgrammaticOutputFormat(outputFormat) {
+		if err == nil && !constants.IsProgrammaticOutputFormat(outputFormat) {
 			_, _ = fmt.Fprintf(stdout, "Project %s\n", output.Cyan(selectedProject.Name))
 		}
-		return selectedProject, nil
+		return selectedProject, err
 	}
 }
