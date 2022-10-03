@@ -600,7 +600,7 @@ func askRunbookTargets(octopus *octopusApiClient.Client, asker question.Asker, s
 	if len(results) > 0 {
 		var selectedDeploymentTargetNames []string
 		err := asker(&survey.MultiSelect{
-			Message: "Run targets (If none selected, deploy to all)",
+			Message: "Run targets (If none selected, run on all)",
 			Options: results,
 		}, &selectedDeploymentTargetNames)
 		if err != nil {
@@ -684,7 +684,7 @@ func PrintAdvancedSummary(stdout io.Writer, options *executor.TaskOptionsRunbook
 		  Skipped Steps: cyan(%s)
 		  Guided Failure Mode: cyan(%s)
 		  Package Download: cyan(%s)
-		  Targets: cyan(%s)
+		  Run Targets: cyan(%s)
 	`)), runAtStr, skipStepsStr, gfmStr, pkgDownloadStr, runTargetsStr)
 }
 
