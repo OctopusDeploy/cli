@@ -2,10 +2,10 @@ package integration_test
 
 import (
 	"encoding/json"
+	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/stretchr/testify/require"
 	"testing"
 
-	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/test/integration"
 	"github.com/OctopusDeploy/cli/test/testutil"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/accounts"
@@ -95,11 +95,9 @@ user-pw-b  Username/Password  user-pw-b
 			IncludeSystem: true,
 		})
 
-		space := spaces.NewSpace("my-new-space")
-		space.Slug = "my-new-space"
+		space := spaces.NewSpace("My New Space")
 
 		for _, team := range systemTeams.Items {
-			space.SpaceManagersTeamMembers = append(space.SpaceManagersTeams, team.GetID())
 			space.SpaceManagersTeams = append(space.SpaceManagersTeams, team.GetID())
 		}
 
