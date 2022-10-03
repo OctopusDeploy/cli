@@ -151,3 +151,11 @@ func NewRunbookSnapshot(projectID string, runbookID string, snapshotID string, n
 	// runbook snapshots don't have their own explicit spaceID, they are a child of the parent runbook
 	return result
 }
+
+func NewRunbookProcessForRunbook(spaceID string, projectID string, runbookID string) *runbooks.RunbookProcess {
+	result := runbooks.NewRunbookProcess()
+	result.SpaceID = spaceID
+	result.ProjectID = projectID
+	result.ID = "RunbookProcess-" + runbookID
+	return result
+}
