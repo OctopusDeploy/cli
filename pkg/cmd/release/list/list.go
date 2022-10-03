@@ -75,19 +75,9 @@ func listRun(cmd *cobra.Command, f factory.Factory, flags *ListFlags) error {
 
 	var selectedProject *projects.Project
 	if f.IsPromptEnabled() { // this would be AskQuestions if it were bigger
-		if projectNameOrID == "" {
-			selectedProject, err = selectors.Project("Select the project to list releases for", octopus, f.Ask)
-			if err != nil {
-				return err
-			}
-		} else { // project name is already provided, fetch the object because it's needed for further questions
-			selectedProject, err = selectors.FindProject(octopus, projectNameOrID)
-			if err != nil {
-				return err
-			}
-			if !constants.IsProgrammaticOutputFormat(outputFormat) {
-				cmd.Printf("Project %s\n", output.Cyan(selectedProject.Name))
-			}
+		selectedProject, err = selectors.SelectOrFindProject(projectNameOrID, "Select the project to list releases for", octopus, f.Ask, cmd.OutOrStdout(), outputFormat)
+		if err != nil {
+			return err
 		}
 	} else { // we don't have the executions API backing us and allowing NameOrID; we need to do the lookup ourselves
 		if projectNameOrID == "" {

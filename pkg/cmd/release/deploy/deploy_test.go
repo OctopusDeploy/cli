@@ -37,6 +37,7 @@ import (
 var serverUrl, _ = url.Parse("http://server")
 
 const placeholderApiKey = "API-XXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+const noOutputFormat = ""
 
 var rootResource = testutil.NewRootResource()
 
@@ -147,7 +148,7 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 				defer testutil.Close(api, qa)
 				// NewClient makes network calls so we have to run it in the goroutine
 				octopus, _ := octopusApiClient.NewClient(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "")
-				return deploy.AskQuestions(octopus, stdout, qa.AsAsker(), space1, options, now)
+				return deploy.AskQuestions(octopus, stdout, noOutputFormat, qa.AsAsker(), space1, options, now)
 			})
 
 			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
@@ -234,7 +235,7 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 				defer testutil.Close(api, qa)
 				// NewClient makes network calls so we have to run it in the goroutine
 				octopus, _ := octopusApiClient.NewClient(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "")
-				return deploy.AskQuestions(octopus, stdout, qa.AsAsker(), space1, options, now)
+				return deploy.AskQuestions(octopus, stdout, noOutputFormat, qa.AsAsker(), space1, options, now)
 			})
 
 			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
@@ -292,7 +293,7 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 				defer testutil.Close(api, qa)
 				// NewClient makes network calls so we have to run it in the goroutine
 				octopus, _ := octopusApiClient.NewClient(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "")
-				return deploy.AskQuestions(octopus, stdout, qa.AsAsker(), space1, options, now)
+				return deploy.AskQuestions(octopus, stdout, noOutputFormat, qa.AsAsker(), space1, options, now)
 			})
 
 			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
@@ -354,7 +355,7 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 				defer testutil.Close(api, qa)
 				// NewClient makes network calls so we have to run it in the goroutine
 				octopus, _ := octopusApiClient.NewClient(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "")
-				return deploy.AskQuestions(octopus, stdout, qa.AsAsker(), space1, options, now)
+				return deploy.AskQuestions(octopus, stdout, noOutputFormat, qa.AsAsker(), space1, options, now)
 			})
 
 			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
@@ -447,7 +448,7 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 				defer testutil.Close(api, qa)
 				// NewClient makes network calls so we have to run it in the goroutine
 				octopus, _ := octopusApiClient.NewClient(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "")
-				return deploy.AskQuestions(octopus, stdout, qa.AsAsker(), space1, options, now)
+				return deploy.AskQuestions(octopus, stdout, noOutputFormat, qa.AsAsker(), space1, options, now)
 			})
 
 			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
@@ -544,7 +545,7 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 				defer testutil.Close(api, qa)
 				// NewClient makes network calls so we have to run it in the goroutine
 				octopus, _ := octopusApiClient.NewClient(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "")
-				return deploy.AskQuestions(octopus, stdout, qa.AsAsker(), space1, options, now)
+				return deploy.AskQuestions(octopus, stdout, noOutputFormat, qa.AsAsker(), space1, options, now)
 			})
 
 			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
@@ -617,7 +618,7 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 			errReceiver := testutil.GoBegin(func() error {
 				defer testutil.Close(api, qa)
 				octopus, _ := octopusApiClient.NewClient(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "")
-				return deploy.AskQuestions(octopus, stdout, qa.AsAsker(), space1, options, now)
+				return deploy.AskQuestions(octopus, stdout, noOutputFormat, qa.AsAsker(), space1, options, now)
 			})
 
 			doStandardApiResponses(options, api, release19, variableSnapshotNoVars)
@@ -730,7 +731,7 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 			errReceiver := testutil.GoBegin(func() error {
 				defer testutil.Close(api, qa)
 				octopus, _ := octopusApiClient.NewClient(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "")
-				return deploy.AskQuestions(octopus, stdout, qa.AsAsker(), space1, options, now)
+				return deploy.AskQuestions(octopus, stdout, noOutputFormat, qa.AsAsker(), space1, options, now)
 			})
 
 			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
@@ -825,7 +826,7 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 			errReceiver := testutil.GoBegin(func() error {
 				defer testutil.Close(api, qa)
 				octopus, _ := octopusApiClient.NewClient(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "")
-				return deploy.AskQuestions(octopus, stdout, qa.AsAsker(), space1, options, now)
+				return deploy.AskQuestions(octopus, stdout, noOutputFormat, qa.AsAsker(), space1, options, now)
 			})
 
 			doStandardApiResponses(options, api, release19, variableSnapshotNoVars)
@@ -866,7 +867,7 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 			errReceiver := testutil.GoBegin(func() error {
 				defer testutil.Close(api, qa)
 				octopus, _ := octopusApiClient.NewClient(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "")
-				return deploy.AskQuestions(octopus, stdout, qa.AsAsker(), space1, options, now)
+				return deploy.AskQuestions(octopus, stdout, noOutputFormat, qa.AsAsker(), space1, options, now)
 			})
 
 			doStandardApiResponses(options, api, release19, variableSnapshotNoVars)
@@ -906,7 +907,7 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 			errReceiver := testutil.GoBegin(func() error {
 				defer testutil.Close(api, qa)
 				octopus, _ := octopusApiClient.NewClient(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "")
-				return deploy.AskQuestions(octopus, stdout, qa.AsAsker(), space1, options, now)
+				return deploy.AskQuestions(octopus, stdout, noOutputFormat, qa.AsAsker(), space1, options, now)
 			})
 
 			doStandardApiResponses(options, api, release19, variableSnapshotNoVars)
@@ -969,7 +970,7 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 			errReceiver := testutil.GoBegin(func() error {
 				defer testutil.Close(api, qa)
 				octopus, _ := octopusApiClient.NewClient(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "")
-				return deploy.AskQuestions(octopus, stdout, qa.AsAsker(), space1, options, now)
+				return deploy.AskQuestions(octopus, stdout, noOutputFormat, qa.AsAsker(), space1, options, now)
 			})
 
 			doStandardApiResponses(options, api, release19, variableSnapshotNoVars)

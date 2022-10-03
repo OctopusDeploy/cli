@@ -34,8 +34,8 @@ import (
 const (
 	FlagProject = "project"
 
-	FlagRunbookName        = "name"
-	FlagAliasRunbookLegacy = "runbook"
+	FlagRunbook          = "runbook"
+	FlagAliasRunbookName = "name"
 
 	FlagSnapshot = "snapshot"
 
@@ -96,7 +96,7 @@ type RunFlags struct {
 func NewRunFlags() *RunFlags {
 	return &RunFlags{
 		Project:              flag.New[string](FlagProject, false),
-		RunbookName:          flag.New[string](FlagRunbookName, false),
+		RunbookName:          flag.New[string](FlagRunbook, false),
 		Environments:         flag.New[[]string](FlagEnvironment, false),
 		Tenants:              flag.New[[]string](FlagTenant, false),
 		TenantTags:           flag.New[[]string](FlagTenantTag, false),
@@ -151,7 +151,7 @@ func NewCmdRun(f factory.Factory) *cobra.Command {
 
 	// flags aliases for compat with old .NET CLI
 	flagAliases := make(map[string][]string, 10)
-	util.AddFlagAliasesString(flags, FlagRunbookName, flagAliases, FlagAliasRunbookLegacy)
+	util.AddFlagAliasesString(flags, FlagRunbook, flagAliases, FlagAliasRunbookName)
 	util.AddFlagAliasesStringSlice(flags, FlagEnvironment, flagAliases, FlagAliasEnv)
 	util.AddFlagAliasesStringSlice(flags, FlagTenantTag, flagAliases, FlagAliasTag, FlagAliasTenantTagLegacy)
 	util.AddFlagAliasesString(flags, FlagRunAt, flagAliases, FlagAliasWhen, FlagAliasRunAtLegacy)
@@ -214,7 +214,7 @@ func runbookRun(cmd *cobra.Command, f factory.Factory, flags *RunFlags) error {
 			}
 		}
 
-		err = AskQuestions(octopus, cmd.OutOrStdout(), f.Ask, f.GetCurrentSpace(), options, now)
+		err = AskQuestions(octopus, cmd.OutOrStdout(), outputFormat, f.Ask, f.GetCurrentSpace(), options, now)
 		if err != nil {
 			return err
 		}
@@ -326,7 +326,7 @@ func runbookRun(cmd *cobra.Command, f factory.Factory, flags *RunFlags) error {
 	return nil
 }
 
-func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker question.Asker, space *spaces.Space, options *executor.TaskOptionsRunbookRun, now func() time.Time) error {
+func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, outputFormat string, asker question.Asker, space *spaces.Space, options *executor.TaskOptionsRunbookRun, now func() time.Time) error {
 	if octopus == nil {
 		return cliErrors.NewArgumentNullOrEmptyError("octopus")
 	}
@@ -342,21 +342,9 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 	// we should emulate that so there is always a line where you can see what the item was when specified on the command line,
 	// however if we support a "quiet mode" then we shouldn't emit those
 
-	var err error
-
-	// select project
-	var selectedProject *projects.Project
-	if options.ProjectName == "" {
-		selectedProject, err = selectors.Project("Select project", octopus, asker)
-		if err != nil {
-			return err
-		}
-	} else { // project name is already provided, fetch the object because it's needed for further questions
-		selectedProject, err = selectors.FindProject(octopus, options.ProjectName)
-		if err != nil {
-			return err
-		}
-		_, _ = fmt.Fprintf(stdout, "Project %s\n", output.Cyan(selectedProject.Name))
+	selectedProject, err := selectors.SelectOrFindProject(options.ProjectName, "Select project", octopus, asker, stdout, outputFormat)
+	if err != nil {
+		return err
 	}
 	options.ProjectName = selectedProject.Name
 

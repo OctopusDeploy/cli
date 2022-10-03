@@ -228,7 +228,7 @@ func deployRun(cmd *cobra.Command, f factory.Factory, flags *DeployFlags) error 
 			}
 		}
 
-		err = AskQuestions(octopus, cmd.OutOrStdout(), f.Ask, f.GetCurrentSpace(), options, now)
+		err = AskQuestions(octopus, cmd.OutOrStdout(), outputFormat, f.Ask, f.GetCurrentSpace(), options, now)
 		if err != nil {
 			return err
 		}
@@ -349,7 +349,7 @@ func ScheduledStartTimeAnswerFormatter(datePicker *surveyext.DatePicker, t time.
 	}
 }
 
-func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker question.Asker, space *spaces.Space, options *executor.TaskOptionsDeployRelease, now func() time.Time) error {
+func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, outputFormat string, asker question.Asker, space *spaces.Space, options *executor.TaskOptionsDeployRelease, now func() time.Time) error {
 	if octopus == nil {
 		return cliErrors.NewArgumentNullOrEmptyError("octopus")
 	}
@@ -365,26 +365,13 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 	// we should emulate that so there is always a line where you can see what the item was when specified on the command line,
 	// however if we support a "quiet mode" then we shouldn't emit those
 
-	var err error
-
-	// select project
-	var selectedProject *projects.Project
-	if options.ProjectName == "" {
-		selectedProject, err = selectors.Project("Select project", octopus, asker)
-		if err != nil {
-			return err
-		}
-	} else { // project name is already provided, fetch the object because it's needed for further questions
-		selectedProject, err = selectors.FindProject(octopus, options.ProjectName)
-		if err != nil {
-			return err
-		}
-		_, _ = fmt.Fprintf(stdout, "Project %s\n", output.Cyan(selectedProject.Name))
+	selectedProject, err := selectors.SelectOrFindProject(options.ProjectName, "Select project", octopus, asker, stdout, outputFormat)
+	if err != nil {
+		return err
 	}
 	options.ProjectName = selectedProject.Name
 
 	// select release
-
 	var selectedRelease *releases.Release
 	if options.ReleaseVersion == "" {
 		// first we want to ask them to pick a channel just to narrow down the search space for releases (not sent to server)

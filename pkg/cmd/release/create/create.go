@@ -228,7 +228,7 @@ func createRun(cmd *cobra.Command, f factory.Factory, flags *CreateFlags) error 
 	}
 
 	if f.IsPromptEnabled() {
-		err = AskQuestions(octopus, cmd.OutOrStdout(), f.Ask, options)
+		err = AskQuestions(octopus, cmd.OutOrStdout(), outputFormat, f.Ask, options)
 		if err != nil {
 			return err
 		}
@@ -785,7 +785,7 @@ func printPackageVersions(ioWriter io.Writer, packages []*StepPackageVersion) er
 	return t.Print()
 }
 
-func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker question.Asker, options *executor.TaskOptionsCreateRelease) error {
+func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, outputFormat string, asker question.Asker, options *executor.TaskOptionsCreateRelease) error {
 	if octopus == nil {
 		return cliErrors.NewArgumentNullOrEmptyError("octopus")
 	}
@@ -801,19 +801,9 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 	// we should emulate that so there is always a line where you can see what the item was when specified on the command line,
 	// however if we support a "quiet mode" then we shouldn't emit those
 
-	var err error
-	var selectedProject *projects.Project
-	if options.ProjectName == "" {
-		selectedProject, err = selectors.Project("Select the project in which the release will be created", octopus, asker)
-		if err != nil {
-			return err
-		}
-	} else { // project name is already provided, fetch the object because it's needed for further questions
-		selectedProject, err = selectors.FindProject(octopus, options.ProjectName)
-		if err != nil {
-			return err
-		}
-		_, _ = fmt.Fprintf(stdout, "Project %s\n", output.Cyan(selectedProject.Name))
+	selectedProject, err := selectors.SelectOrFindProject(options.ProjectName, "Select the project in which the release will be created", octopus, asker, stdout, outputFormat)
+	if err != nil {
+		return err
 	}
 	options.ProjectName = selectedProject.Name
 

@@ -43,6 +43,8 @@ var now = func() time.Time {
 }
 var ctxWithFakeNow = context.WithValue(context.TODO(), constants.ContextKeyTimeNow, now)
 
+const noOutputFormat = ""
+
 func TestRunbookRun_AskQuestions(t *testing.T) {
 	const spaceID = "Spaces-1"
 	const fireProjectID = "Projects-22"
@@ -146,7 +148,7 @@ func TestRunbookRun_AskQuestions(t *testing.T) {
 				defer testutil.Close(api, qa)
 				// NewClient makes network calls so we have to run it in the goroutine
 				octopus, _ := octopusApiClient.NewClient(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "")
-				return run.AskQuestions(octopus, stdout, qa.AsAsker(), space1, options, now)
+				return run.AskQuestions(octopus, stdout, noOutputFormat, qa.AsAsker(), space1, options, now)
 			})
 
 			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
@@ -213,7 +215,7 @@ func TestRunbookRun_AskQuestions(t *testing.T) {
 				defer testutil.Close(api, qa)
 				// NewClient makes network calls so we have to run it in the goroutine
 				octopus, _ := octopusApiClient.NewClient(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "")
-				return run.AskQuestions(octopus, stdout, qa.AsAsker(), space1, options, now)
+				return run.AskQuestions(octopus, stdout, noOutputFormat, qa.AsAsker(), space1, options, now)
 			})
 
 			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
@@ -272,7 +274,7 @@ func TestRunbookRun_AskQuestions(t *testing.T) {
 				defer testutil.Close(api, qa)
 				// NewClient makes network calls so we have to run it in the goroutine
 				octopus, _ := octopusApiClient.NewClient(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "")
-				return run.AskQuestions(octopus, stdout, qa.AsAsker(), space1, options, now)
+				return run.AskQuestions(octopus, stdout, noOutputFormat, qa.AsAsker(), space1, options, now)
 			})
 
 			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
@@ -333,7 +335,7 @@ func TestRunbookRun_AskQuestions(t *testing.T) {
 				defer testutil.Close(api, qa)
 				// NewClient makes network calls so we have to run it in the goroutine
 				octopus, _ := octopusApiClient.NewClient(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "")
-				return run.AskQuestions(octopus, stdout, qa.AsAsker(), space1, options, now)
+				return run.AskQuestions(octopus, stdout, noOutputFormat, qa.AsAsker(), space1, options, now)
 			})
 
 			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
@@ -367,7 +369,7 @@ func TestRunbookRun_AskQuestions(t *testing.T) {
 				defer testutil.Close(api, qa)
 				// NewClient makes network calls so we have to run it in the goroutine
 				octopus, _ := octopusApiClient.NewClient(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "")
-				return run.AskQuestions(octopus, stdout, qa.AsAsker(), space1, options, now)
+				return run.AskQuestions(octopus, stdout, noOutputFormat, qa.AsAsker(), space1, options, now)
 			})
 
 			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
@@ -437,7 +439,7 @@ func TestRunbookRun_AskQuestions(t *testing.T) {
 				defer testutil.Close(api, qa)
 				// NewClient makes network calls so we have to run it in the goroutine
 				octopus, _ := octopusApiClient.NewClient(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "")
-				return run.AskQuestions(octopus, stdout, qa.AsAsker(), space1, options, now)
+				return run.AskQuestions(octopus, stdout, noOutputFormat, qa.AsAsker(), space1, options, now)
 			})
 
 			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
@@ -526,7 +528,7 @@ func TestRunbookRun_AskQuestions(t *testing.T) {
 				defer testutil.Close(api, qa)
 				// NewClient makes network calls so we have to run it in the goroutine
 				octopus, _ := octopusApiClient.NewClient(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "")
-				return run.AskQuestions(octopus, stdout, qa.AsAsker(), space1, options, now)
+				return run.AskQuestions(octopus, stdout, noOutputFormat, qa.AsAsker(), space1, options, now)
 			})
 
 			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
@@ -620,7 +622,7 @@ func TestRunbookRun_AskQuestions(t *testing.T) {
 				defer testutil.Close(api, qa)
 				// NewClient makes network calls so we have to run it in the goroutine
 				octopus, _ := octopusApiClient.NewClient(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "")
-				return run.AskQuestions(octopus, stdout, qa.AsAsker(), space1, options, now)
+				return run.AskQuestions(octopus, stdout, noOutputFormat, qa.AsAsker(), space1, options, now)
 			})
 
 			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
@@ -691,7 +693,7 @@ func TestRunbookRun_AskQuestions(t *testing.T) {
 				defer testutil.Close(api, qa)
 				// NewClient makes network calls so we have to run it in the goroutine
 				octopus, _ := octopusApiClient.NewClient(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "")
-				return run.AskQuestions(octopus, stdout, qa.AsAsker(), space1, options, now)
+				return run.AskQuestions(octopus, stdout, noOutputFormat, qa.AsAsker(), space1, options, now)
 			})
 
 			doStandardApiResponses(options, api, provisionDbRunbook, provisionDbRunbookSnapshot, variableSnapshotNoVars)
@@ -797,7 +799,7 @@ func TestRunbookRun_AskQuestions(t *testing.T) {
 				defer testutil.Close(api, qa)
 				// NewClient makes network calls so we have to run it in the goroutine
 				octopus, _ := octopusApiClient.NewClient(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "")
-				return run.AskQuestions(octopus, stdout, qa.AsAsker(), space1, options, now)
+				return run.AskQuestions(octopus, stdout, noOutputFormat, qa.AsAsker(), space1, options, now)
 			})
 
 			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
@@ -881,7 +883,7 @@ func TestRunbookRun_AskQuestions(t *testing.T) {
 				defer testutil.Close(api, qa)
 				// NewClient makes network calls so we have to run it in the goroutine
 				octopus, _ := octopusApiClient.NewClient(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "")
-				return run.AskQuestions(octopus, stdout, qa.AsAsker(), space1, options, now)
+				return run.AskQuestions(octopus, stdout, noOutputFormat, qa.AsAsker(), space1, options, now)
 			})
 
 			doStandardApiResponses(options, api, provisionDbRunbook, provisionDbRunbookSnapshot, variableSnapshotNoVars)
@@ -919,7 +921,7 @@ func TestRunbookRun_AskQuestions(t *testing.T) {
 				defer testutil.Close(api, qa)
 				// NewClient makes network calls so we have to run it in the goroutine
 				octopus, _ := octopusApiClient.NewClient(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "")
-				return run.AskQuestions(octopus, stdout, qa.AsAsker(), space1, options, now)
+				return run.AskQuestions(octopus, stdout, noOutputFormat, qa.AsAsker(), space1, options, now)
 			})
 
 			doStandardApiResponses(options, api, provisionDbRunbook, provisionDbRunbookSnapshot, variableSnapshotNoVars)
@@ -979,7 +981,7 @@ func TestRunbookRun_AskQuestions(t *testing.T) {
 				defer testutil.Close(api, qa)
 				// NewClient makes network calls so we have to run it in the goroutine
 				octopus, _ := octopusApiClient.NewClient(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "")
-				return run.AskQuestions(octopus, stdout, qa.AsAsker(), space1, options, now)
+				return run.AskQuestions(octopus, stdout, noOutputFormat, qa.AsAsker(), space1, options, now)
 			})
 
 			doStandardApiResponses(options, api, provisionDbRunbook, provisionDbRunbookSnapshot, variableSnapshotNoVars)
@@ -1498,7 +1500,7 @@ func TestRunbookRun_GenerationOfAutomationCommand_MasksSensitiveVariables(t *tes
 		  Package Download: Use cached packages (if available)
 		  Run Targets: All included
 		
-		Automation Command: octopus runbook run --project 'Fire Project' --name 'Provision Database' --environment 'dev' --variable 'Boring Variable:BORING' --variable 'Nuclear Launch Codes:*****' --variable 'Secret Password:*****' --no-prompt
+		Automation Command: octopus runbook run --project 'Fire Project' --runbook 'Provision Database' --environment 'dev' --variable 'Boring Variable:BORING' --variable 'Nuclear Launch Codes:*****' --variable 'Secret Password:*****' --no-prompt
 		Warning: Command includes some sensitive variable values which have been replaced with placeholders.
 		Successfully started 1 runbook run(s)
 		`), stdout.String())

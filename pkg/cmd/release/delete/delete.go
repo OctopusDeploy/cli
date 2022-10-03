@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/MakeNowJust/heredoc/v2"
+	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/factory"
-	"github.com/OctopusDeploy/cli/pkg/output"
 	"github.com/OctopusDeploy/cli/pkg/question"
 	"github.com/OctopusDeploy/cli/pkg/question/selectors"
 	"github.com/OctopusDeploy/cli/pkg/util"
@@ -59,6 +59,11 @@ func NewCmdDelete(f factory.Factory) *cobra.Command {
 }
 
 func deleteRun(cmd *cobra.Command, f factory.Factory, flags *Flags, args []string) error {
+	outputFormat, err := cmd.Flags().GetString(constants.FlagOutputFormat)
+	if err != nil { // should never happen, but fallback if it does
+		outputFormat = constants.OutputFormatTable
+	}
+
 	// command line arg interpretation depends on which flags are present.
 	// e.g. `release delete -p MyProject -v 2.0` means we don't need to look at args at
 	// e.g. `release delete -p MyProject 2.0` means args[0] is the version
@@ -86,17 +91,9 @@ func deleteRun(cmd *cobra.Command, f factory.Factory, flags *Flags, args []strin
 	var releasesToDelete []*releases.Release
 
 	if f.IsPromptEnabled() { // this would be AskQuestions if it were bigger
-		if projectNameOrID == "" {
-			selectedProject, err = selectors.Project("Select the project to delete a release in", octopus, f.Ask)
-			if err != nil {
-				return err
-			}
-		} else { // project name is already provided, fetch the object because it's needed for further questions
-			selectedProject, err = selectors.FindProject(octopus, projectNameOrID)
-			if err != nil {
-				return err
-			}
-			cmd.Printf("Project %s\n", output.Cyan(selectedProject.Name))
+		selectedProject, err := selectors.SelectOrFindProject(projectNameOrID, "Select the project to delete a release in", octopus, f.Ask, cmd.OutOrStdout(), outputFormat)
+		if err != nil {
+			return err
 		}
 
 		if len(versionsToDelete) == 0 {
