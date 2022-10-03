@@ -60,9 +60,9 @@ user-pw-b
 			}
 
 			assert.Equal(t, heredoc.Doc(`
-NAME       TYPE
-user-pw-a  Username/Password
-user-pw-b  Username/Password
+NAME       TYPE               SLUG
+user-pw-a  Username/Password  user-pw-a
+user-pw-b  Username/Password  user-pw-b
 `), stdOut)
 		})
 
@@ -96,8 +96,10 @@ user-pw-b  Username/Password
 		})
 
 		space := spaces.NewSpace("my-new-space")
+		space.Slug = "my-new-space"
 
 		for _, team := range systemTeams.Items {
+			space.SpaceManagersTeamMembers = append(space.SpaceManagersTeams, team.GetID())
 			space.SpaceManagersTeams = append(space.SpaceManagersTeams, team.GetID())
 		}
 
