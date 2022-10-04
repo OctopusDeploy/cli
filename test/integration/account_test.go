@@ -2,10 +2,10 @@ package integration_test
 
 import (
 	"encoding/json"
+	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/stretchr/testify/require"
 	"testing"
 
-	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/test/integration"
 	"github.com/OctopusDeploy/cli/test/testutil"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/accounts"
@@ -60,9 +60,9 @@ user-pw-b
 			}
 
 			assert.Equal(t, heredoc.Doc(`
-NAME       TYPE
-user-pw-a  Username/Password
-user-pw-b  Username/Password
+NAME       TYPE               SLUG
+user-pw-a  Username/Password  user-pw-a
+user-pw-b  Username/Password  user-pw-b
 `), stdOut)
 		})
 
@@ -90,7 +90,7 @@ user-pw-b  Username/Password
 		})
 	})
 
-	t.Run("different space ", func(t *testing.T) {
+	t.Run("different space", func(t *testing.T) {
 		systemTeams, err := systemApiClient.Teams.Get(teams.TeamsQuery{
 			IncludeSystem: true,
 		})
