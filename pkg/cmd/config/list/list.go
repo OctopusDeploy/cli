@@ -35,6 +35,10 @@ func listRun(cmd *cobra.Command) error {
 	configFile.SetConfigFile(viper.ConfigFileUsed())
 	configFile.ReadInConfig()
 
+	if configFile.IsSet(constants.ConfigApiKey) {
+		configFile.Set(constants.ConfigApiKey, "***")
+	}
+
 	type ConfigData struct {
 		ApiKey       string `json:"apikey"`
 		Editor       string `json:"editor"`
