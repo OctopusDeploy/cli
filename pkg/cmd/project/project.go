@@ -18,7 +18,7 @@ func NewCmdProject(f factory.Factory) *cobra.Command {
 		Long:    `Work with Octopus Deploy projects.`,
 		Example: fmt.Sprintf(heredoc.Doc(`
 			$ %s project list
-			$ %s env ls
+			$ %s project ls
 		`), constants.ExecutableName, constants.ExecutableName),
 		Annotations: map[string]string{
 			annotations.IsCore: "true",

@@ -14,7 +14,8 @@ func NewCmdList(f factory.Factory) *cobra.Command {
 		Short: "List projects in Octopus Deploy",
 		Long:  "List projects in Octopus Deploy",
 		Example: heredoc.Doc(`
-			$ octopus project list		
+			$ octopus project list
+			$ octopus project ls
 		`),
 		Aliases: []string{"ls"},
 		RunE: func(cmd *cobra.Command, args []string) error {
