@@ -90,12 +90,12 @@ user-pw-b  Username/Password  user-pw-b
 		})
 	})
 
-	t.Run("different space ", func(t *testing.T) {
+	t.Run("different space", func(t *testing.T) {
 		systemTeams, err := systemApiClient.Teams.Get(teams.TeamsQuery{
 			IncludeSystem: true,
 		})
 
-		space := spaces.NewSpace("My New Space")
+		space := spaces.NewSpace("my-new-space")
 
 		for _, team := range systemTeams.Items {
 			space.SpaceManagersTeams = append(space.SpaceManagersTeams, team.GetID())
