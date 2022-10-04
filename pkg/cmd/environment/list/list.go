@@ -18,7 +18,8 @@ func NewCmdList(f factory.Factory) *cobra.Command {
 		Short: "List environments in an instance of Octopus Deploy",
 		Long:  "List environments in an instance of Octopus Deploy.",
 		Example: fmt.Sprintf(heredoc.Doc(`
-			$ %s environment list"
+			$ %s environment list
+			$ %s environment ls"
 		`), constants.ExecutableName),
 		Aliases: []string{"ls"},
 		RunE: func(cmd *cobra.Command, args []string) error {

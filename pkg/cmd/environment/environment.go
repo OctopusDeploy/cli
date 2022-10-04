@@ -14,13 +14,12 @@ import (
 
 func NewCmdEnvironment(f factory.Factory) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:     "environment <command>",
-		Aliases: []string{"env"},
-		Short:   "Manage environments",
-		Long:    `Work with Octopus Deploy environments.`,
+		Use:   "environment <command>",
+		Short: "Manage environments",
+		Long:  "Work with Octopus Deploy environments.",
 		Example: fmt.Sprintf(heredoc.Doc(`
 			$ %s environment list
-			$ %s env ls
+			$ %s environment ls
 		`), constants.ExecutableName, constants.ExecutableName),
 		Annotations: map[string]string{
 			annotations.IsInfrastructure: "true",
