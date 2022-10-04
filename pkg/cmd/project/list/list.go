@@ -42,9 +42,9 @@ func listRun(cmd *cobra.Command, f factory.Factory) error {
 			return output.IdAndName{Id: p.ID, Name: p.Name}
 		},
 		Table: output.TableDefinition[*projects.Project]{
-			Header: []string{"NAME"},
+			Header: []string{"NAME", "DESCRIPTION"},
 			Row: func(p *projects.Project) []string {
-				return []string{output.Bold(p.Name)}
+				return []string{output.Bold(p.Name), p.Description}
 			},
 		},
 		Basic: func(p *projects.Project) string {
