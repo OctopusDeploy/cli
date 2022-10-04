@@ -754,7 +754,7 @@ func TestRunbookRun_AskQuestions(t *testing.T) {
 			})
 
 			api.ExpectRequest(t, "GET", fmt.Sprintf("/api/Spaces-1/runbookSnapshots/%s/runbookRuns/preview/%s?includeDisabledSteps=true", provisionDbRunbookSnapshot.ID, devEnvironment.ID)).RespondWith(&runbooks.RunPreview{
-				StepsToExecute: []*runbooks.DeploymentTemplateStep{
+				StepsToExecute: []*deployments.DeploymentTemplateStep{
 					{},
 					{MachineNames: []string{"vm-1", "vm-2"}},
 					{MachineNames: []string{"vm-4"}},
@@ -836,7 +836,7 @@ func TestRunbookRun_AskQuestions(t *testing.T) {
 			// NOTE there is NO CALL to environments.all here, because we already have info loaded for the selected environment (devEnvironment)
 
 			api.ExpectRequest(t, "GET", fmt.Sprintf("/api/Spaces-1/runbookSnapshots/%s/runbookRuns/preview/%s?includeDisabledSteps=true", provisionDbRunbookSnapshot.ID, devEnvironment.ID)).RespondWith(&runbooks.RunPreview{
-				StepsToExecute: []*runbooks.DeploymentTemplateStep{
+				StepsToExecute: []*deployments.DeploymentTemplateStep{
 					{},
 					{MachineNames: []string{"vm-1", "vm-2"}},
 					{MachineNames: []string{"vm-4"}},
