@@ -18,3 +18,5 @@ bin/
 dist/
 .idea
 .env
+
+cmd/octopus/octopus
