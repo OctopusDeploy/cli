@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/MakeNowJust/heredoc/v2"
-	"github.com/OctopusDeploy/cli/pkg/cmd/release/deploy"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	cliErrors "github.com/OctopusDeploy/cli/pkg/errors"
+	"github.com/OctopusDeploy/cli/pkg/executionscommon"
 	"github.com/OctopusDeploy/cli/pkg/executor"
 	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/OctopusDeploy/cli/pkg/output"
@@ -179,7 +179,7 @@ func runbookRun(cmd *cobra.Command, f factory.Factory, flags *RunFlags) error {
 		return err
 	}
 
-	parsedVariables, err := deploy.ParseVariableStringArray(flags.Variables.Value)
+	parsedVariables, err := executionscommon.ParseVariableStringArray(flags.Variables.Value)
 	if err != nil {
 		return err
 	}
@@ -244,7 +244,7 @@ func runbookRun(cmd *cobra.Command, f factory.Factory, flags *RunFlags) error {
 					automationVariables[variableName] = variableValue
 				}
 			}
-			resolvedFlags.Variables.Value = deploy.ToVariableStringArray(automationVariables)
+			resolvedFlags.Variables.Value = executionscommon.ToVariableStringArray(automationVariables)
 
 			// we're deliberately adding --no-prompt to the generated cmdline so ForcePackageDownload=false will be missing,
 			// but that's fine
@@ -300,27 +300,6 @@ func runbookRun(cmd *cobra.Command, f factory.Factory, flags *RunFlags) error {
 		default: // table
 			cmd.Printf("Successfully started %d runbook run(s)\n", len(options.Response.RunbookRunServerTasks))
 		}
-
-		// output web URL all the time, so long as output format is not JSON or basic
-		//if err == nil && !constants.IsProgrammaticOutputFormat(outputFormat) {
-		//	releaseID := options.ReleaseID
-		//	if releaseID == "" {
-		//		// we may already have the release ID from AskQuestions. If not, we need to go and look up the release ID to link to it
-		//		// which needs the project ID. Errors here are ignorable; it's not the end of the world if we can't print the web link
-		//		prj, err := selectors.FindProject(octopus, options.ProjectName)
-		//		if err == nil {
-		//			rel, err := releases.GetReleaseInProject(octopus, f.GetCurrentSpace().ID, prj.ID, options.ReleaseVersion)
-		//			if err == nil {
-		//				releaseID = rel.ID
-		//			}
-		//		}
-		//	}
-		//
-		//	if releaseID != "" {
-		//		link := output.Bluef("%s/app#/%s/releases/%s", f.GetCurrentHost(), f.GetCurrentSpace().ID, releaseID)
-		//		cmd.Printf("\nView this release on Octopus Deploy: %s\n", link)
-		//	}
-		//}
 	}
 
 	return nil
@@ -388,7 +367,7 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 	// machine selection later on needs to refer back to the environments.
 	// NOTE: this is allowed to remain nil; environments will get looked up later on if needed
 	var selectedEnvironments []*environments.Environment
-	// tenanted runs only allow one environment, untenanted allows multiple environments
+	// In deployments, tenanted runs only allow one environment, untenanted allows multiple environments; Runbook
 	if isTenanted {
 		var selectedEnvironment *environments.Environment
 		if len(options.Environments) == 0 {
@@ -405,7 +384,7 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 
 		// ask for tenants and/or tags unless some were specified on the command line
 		if len(options.Tenants) == 0 && len(options.TenantTags) == 0 {
-			options.Tenants, options.TenantTags, err = deploy.AskTenantsAndTags(asker, octopus, selectedRunbook.ProjectID, selectedEnvironment)
+			options.Tenants, options.TenantTags, err = executionscommon.AskTenantsAndTags(asker, octopus, selectedRunbook.ProjectID, selectedEnvironment)
 			if len(options.Tenants) == 0 && len(options.TenantTags) == 0 {
 				return errors.New("no tenants or tags available; cannot run")
 			}
@@ -452,7 +431,7 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 	if err != nil {
 		return err
 	}
-	options.Variables, err = deploy.AskVariables(asker, variableSet, options.Variables)
+	options.Variables, err = executionscommon.AskVariables(asker, variableSet, options.Variables)
 	if err != nil {
 		return err
 	}
@@ -502,7 +481,7 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 				Min:             referenceNow,
 				Max:             maxSchedStartTime,
 				OverrideNow:     referenceNow,
-				AnswerFormatter: deploy.ScheduledStartTimeAnswerFormatter,
+				AnswerFormatter: executionscommon.ScheduledStartTimeAnswerFormatter,
 			}, &answer)
 			if err != nil {
 				return err
@@ -536,21 +515,21 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 			if err != nil {
 				return err
 			}
-			options.ExcludedSteps, err = deploy.AskExcludedSteps(asker, runbookProcess.Steps)
+			options.ExcludedSteps, err = executionscommon.AskExcludedSteps(asker, runbookProcess.Steps)
 			if err != nil {
 				return err
 			}
 		}
 
 		if !isGuidedFailureModeSpecified { // if they deliberately specified false, don't ask them
-			options.GuidedFailureMode, err = deploy.AskGuidedFailureMode(asker)
+			options.GuidedFailureMode, err = executionscommon.AskGuidedFailureMode(asker)
 			if err != nil {
 				return err
 			}
 		}
 
 		if !isForcePackageDownloadSpecified { // if they deliberately specified false, don't ask them
-			options.ForcePackageDownload, err = deploy.AskPackageDownload(asker)
+			options.ForcePackageDownload, err = executionscommon.AskPackageDownload(asker)
 			if err != nil {
 				return err
 			}
@@ -558,7 +537,7 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 
 		if !isRunTargetsSpecified {
 			if len(selectedEnvironments) == 0 { // if the Q&A process earlier hasn't loaded environments already, we need to load them now
-				selectedEnvironments, err = deploy.FindEnvironments(octopus, options.Environments)
+				selectedEnvironments, err = executionscommon.FindEnvironments(octopus, options.Environments)
 				if err != nil {
 					return err
 				}
@@ -577,7 +556,6 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 func askRunbookTargets(octopus *octopusApiClient.Client, asker question.Asker, spaceID string, runbookSnapshotID string, selectedEnvironments []*environments.Environment) ([]string, error) {
 	var results []string
 
-	// this is what the portal does. Can we do it better? I don't know
 	for _, env := range selectedEnvironments {
 		preview, err := runbooks.GetRunbookSnapshotRunPreview(octopus, spaceID, runbookSnapshotID, env.ID, true)
 		if err != nil {
@@ -646,9 +624,9 @@ func PrintAdvancedSummary(stdout io.Writer, options *executor.TaskOptionsRunbook
 		skipStepsStr = strings.Join(options.ExcludedSteps, ",")
 	}
 
-	gfmStr := deploy.LookupGuidedFailureModeString(options.GuidedFailureMode)
+	gfmStr := executionscommon.LookupGuidedFailureModeString(options.GuidedFailureMode)
 
-	pkgDownloadStr := deploy.LookupPackageDownloadString(!options.ForcePackageDownload)
+	pkgDownloadStr := executionscommon.LookupPackageDownloadString(!options.ForcePackageDownload)
 
 	runTargetsStr := "All included"
 	if len(options.RunTargets) != 0 || len(options.ExcludeTargets) != 0 {

@@ -59,7 +59,7 @@ func NewCmdList(f factory.Factory) *cobra.Command {
 	flags := cmd.Flags()
 	flags.StringVarP(&listFlags.Project.Value, listFlags.Project.Name, "p", "", "Name or ID of the project to list runbooks for")
 	flags.Int32VarP(&listFlags.Limit.Value, listFlags.Limit.Name, "n", 0, "limit the maximum number of results that will be returned")
-	flags.StringVarP(&listFlags.Filter.Value, listFlags.Filter.Name, "q", "", "filter packages to match only ones that contain the given string")
+	flags.StringVarP(&listFlags.Filter.Value, listFlags.Filter.Name, "q", "", "filter runbooks to match only ones with a name containing the given string")
 	return cmd
 }
 

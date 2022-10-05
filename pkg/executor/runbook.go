@@ -44,8 +44,6 @@ type TaskOptionsRunbookRun struct {
 	// so the automation command can mask sensitive variable output
 	SensitiveVariableNames []string
 
-	// TODO something to do with generating a web link so you can see what the runbook is doing
-
 	// if the task succeeds, the resulting output will be stored here
 	Response *runbooks.RunbookRunResponseV1
 }
@@ -92,8 +90,6 @@ func runbookRun(octopus *client.Client, space *spaces.Space, input any) error {
 			return fmt.Errorf("'%s' is not a valid value for guided failure mode", params.GuidedFailureMode)
 		}
 	}
-	// TODO why does release deploy have different commands for tenanted/untenanted but runbook run doesn't?
-
 	runCommand := runbooks.NewRunbookRunCommandV1(space.ID, params.ProjectName)
 	runCommand.RunbookName = params.RunbookName
 	runCommand.EnvironmentNames = params.Environments
