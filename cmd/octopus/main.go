@@ -51,7 +51,7 @@ func main() {
 	clientFactory, err := apiclient.NewClientFactoryFromConfig(askProvider)
 	if err != nil {
 		// a small subset of commands can function even if the app doesn't have valid configuration information
-		if cmdToRun == "config" || cmdToRun == "version" {
+		if cmdToRun == "config" || cmdToRun == "version" || cmdToRun == "help" {
 			clientFactory = apiclient.NewStubClientFactory()
 		} else {
 			// can't possibly work
