@@ -367,7 +367,8 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 	// machine selection later on needs to refer back to the environments.
 	// NOTE: this is allowed to remain nil; environments will get looked up later on if needed
 	var selectedEnvironments []*environments.Environment
-	// In deployments, tenanted runs only allow one environment, untenanted allows multiple environments; Runbook
+	// In deployments, tenanted runs only allow one environment, untenanted allows multiple environments;
+	// Runbooks OTOH allow tenants multiplied by environments
 	if isTenanted {
 		var selectedEnvironment *environments.Environment
 		if len(options.Environments) == 0 {
