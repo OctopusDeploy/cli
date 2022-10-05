@@ -26,6 +26,12 @@ func NewCmdList(f factory.Factory) *cobra.Command {
 	return cmd
 }
 
+type ProjectAsJson struct {
+	Id          string `json:"Id"`
+	Name        string `json:"Name"`
+	Description string `json:"Description"`
+}
+
 func listRun(cmd *cobra.Command, f factory.Factory) error {
 	client, err := f.GetSpacedClient()
 	if err != nil {
@@ -39,7 +45,11 @@ func listRun(cmd *cobra.Command, f factory.Factory) error {
 
 	return output.PrintArray(allProjects, cmd, output.Mappers[*projects.Project]{
 		Json: func(p *projects.Project) any {
-			return output.IdAndName{Id: p.ID, Name: p.Name}
+			return ProjectAsJson{
+				Id:          p.GetID(),
+				Name:        p.Name,
+				Description: p.Description,
+			}
 		},
 		Table: output.TableDefinition[*projects.Project]{
 			Header: []string{"NAME", "DESCRIPTION"},
