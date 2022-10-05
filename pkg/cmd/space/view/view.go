@@ -44,7 +44,7 @@ func NewCmdView(f factory.Factory) *cobra.Command {
 			}
 
 			opts.Client = client
-			opts.Host = os.Getenv("OCTOPUS_HOST")
+			opts.Host = os.Getenv(constants.EnvOctopusHost)
 			opts.IO = cmd.OutOrStdout()
 			opts.Selector = args[0]
 
@@ -70,7 +70,7 @@ func printHumanSpacePreview(host string, space *spaces.Space, out io.Writer) err
 
 	// metadata
 	if len(space.Description) == 0 {
-		fmt.Fprintln(out, output.Dim("No description provided"))
+		fmt.Fprintln(out, output.Dim(constants.NoDescription))
 
 	} else {
 		fmt.Fprintln(out, output.Dim(space.Description))
