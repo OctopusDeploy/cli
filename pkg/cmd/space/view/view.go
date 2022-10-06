@@ -3,7 +3,6 @@ package view
 import (
 	"fmt"
 	"io"
-	"os"
 	"strings"
 
 	"github.com/OctopusDeploy/cli/pkg/factory"
@@ -44,7 +43,7 @@ func NewCmdView(f factory.Factory) *cobra.Command {
 			}
 
 			opts.Client = client
-			opts.Host = os.Getenv(constants.EnvOctopusHost)
+			opts.Host = f.GetCurrentHost()
 			opts.IO = cmd.OutOrStdout()
 			opts.Selector = args[0]
 

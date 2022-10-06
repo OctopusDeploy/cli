@@ -13,7 +13,6 @@ import (
 	"github.com/pkg/browser"
 	"github.com/spf13/cobra"
 	"io"
-	"os"
 )
 
 const (
@@ -58,7 +57,7 @@ func NewCmdView(f factory.Factory) *cobra.Command {
 
 			opts := &ViewOptions{
 				client,
-				os.Getenv(constants.EnvOctopusHost),
+				f.GetCurrentHost(),
 				cmd.OutOrStdout(),
 				args[0],
 				viewFlags,
