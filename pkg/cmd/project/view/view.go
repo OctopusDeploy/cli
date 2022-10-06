@@ -46,8 +46,8 @@ func NewCmdView(f factory.Factory) *cobra.Command {
 		Short: "View a project in an instance of Octopus Deploy",
 		Long:  "View a project in an instance of Octopus Deploy",
 		Example: fmt.Sprintf(heredoc.Doc(`
-			$ %s project view Projects-9000
 			$ %s project view 'Deploy Web App'
+			$ %s project view Projects-9000
 			$ %s project view deploy-web-app
 		`), constants.ExecutableName, constants.ExecutableName, constants.ExecutableName),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -80,7 +80,7 @@ func viewRun(opts *ViewOptions) error {
 		return err
 	}
 
-	fmt.Fprintf(opts.out, "%s %s\n", output.Bold(project.Name), output.Dimf("(%s)", project.GetID()))
+	fmt.Fprintf(opts.out, "%s %s\n", output.Bold(project.Name), output.Dimf("(%s)", project.Slug))
 
 	cacBranch := "Not version controlled"
 	if project.IsVersionControlled {
