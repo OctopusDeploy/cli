@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/MakeNowJust/heredoc/v2"
 	cmdList "github.com/OctopusDeploy/cli/pkg/cmd/project/list"
+	cmdView "github.com/OctopusDeploy/cli/pkg/cmd/project/view"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/constants/annotations"
 	"github.com/OctopusDeploy/cli/pkg/factory"
@@ -26,6 +27,7 @@ func NewCmdProject(f factory.Factory) *cobra.Command {
 	}
 
 	cmd.AddCommand(cmdList.NewCmdList(f))
+	cmd.AddCommand(cmdView.NewCmdView(f))
 
 	return cmd
 }

@@ -5,7 +5,7 @@ go 1.19
 require (
 	github.com/AlecAivazis/survey/v2 v2.3.5
 	github.com/MakeNowJust/heredoc/v2 v2.0.1
-	github.com/OctopusDeploy/go-octopusdeploy/v2 v2.6.1
+	github.com/OctopusDeploy/go-octopusdeploy/v2 v2.7.0
 	github.com/briandowns/spinner v1.19.0
 	github.com/google/uuid v1.3.0
 	github.com/hashicorp/go-multierror v1.1.1
@@ -13,6 +13,7 @@ require (
 	github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51
 	github.com/mgutz/ansi v0.0.0-20200706080929-d51e80ef957d
 	github.com/muesli/reflow v0.3.0
+	github.com/pkg/browser v0.0.0-20210911075715-681adbf594b8
 	github.com/spf13/cobra v1.5.0
 	github.com/spf13/pflag v1.0.5
 	github.com/spf13/viper v1.12.0
