@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.4.0](https://github.com/OctopusDeploy/cli/compare/v0.3.6...v0.4.0) (2022-10-10)
+
+
+### Features
+
+* add project list command ([d82273c](https://github.com/OctopusDeploy/cli/commit/d82273c4718e2bc71e8d62a85d85e26a05768191))
+* add project view command ([bb77af9](https://github.com/OctopusDeploy/cli/commit/bb77af98cf6777925be45b51a22ee4b3e866c8ec))
+* config list ([00942c3](https://github.com/OctopusDeploy/cli/commit/00942c33509c9f10ee71023d72cddf40efb2b0d2))
+* runbook run and list ([70578df](https://github.com/OctopusDeploy/cli/commit/70578df0946a2eaa0414f3abb8a213cc99b9b916))
+
 ## [0.3.6](https://github.com/OctopusDeploy/cli/compare/v0.3.5...v0.3.6) (2022-09-30)
 
 
