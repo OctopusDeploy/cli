@@ -9,6 +9,7 @@ import (
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/environments"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/releases"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/runbooks"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/spaces"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/tenants"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/variables"
@@ -134,5 +135,27 @@ func NewTenant(spaceID string, tenantID string, name string, tenantTags ...strin
 	result.SpaceID = spaceID
 	result.TenantTags = tenantTags
 	// doesn't have any ProjectEnvironments, will need to add them externally
+	return result
+}
+
+func NewRunbook(spaceID string, projectID string, runbookID string, name string) *runbooks.Runbook {
+	result := runbooks.NewRunbook(name, projectID)
+	result.ID = runbookID
+	result.SpaceID = spaceID
+	return result
+}
+
+func NewRunbookSnapshot(projectID string, runbookID string, snapshotID string, name string) *runbooks.RunbookSnapshot {
+	result := runbooks.NewRunbookSnapshot(name, projectID, runbookID)
+	result.ID = snapshotID
+	// runbook snapshots don't have their own explicit spaceID, they are a child of the parent runbook
+	return result
+}
+
+func NewRunbookProcessForRunbook(spaceID string, projectID string, runbookID string) *runbooks.RunbookProcess {
+	result := runbooks.NewRunbookProcess()
+	result.SpaceID = spaceID
+	result.ProjectID = projectID
+	result.ID = "RunbookProcess-" + runbookID
 	return result
 }

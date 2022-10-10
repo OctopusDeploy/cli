@@ -3,6 +3,7 @@ package executor
 import (
 	"errors"
 	"fmt"
+
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/accounts"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/core"
@@ -30,7 +31,7 @@ type TaskOptionsCreateAccountToken struct {
 	Token *core.SensitiveValue
 }
 
-func accountCreate(octopus *client.Client, space *spaces.Space, input any) error {
+func accountCreate(octopus *client.Client, _ *spaces.Space, input any) error {
 	params, ok := input.(*TaskOptionsCreateAccount)
 	if !ok {
 		return errors.New("invalid input type; expecting TaskOptionsCreateAccount")
@@ -51,7 +52,7 @@ func accountCreate(octopus *client.Client, space *spaces.Space, input any) error
 	case AccountTypeUsernamePassword:
 		options, ok := params.Options.(TaskOptionsCreateAccountUsernamePassword)
 		if !ok {
-			return errors.New("Options must be TaskInputCreateAccountUsernamePassword")
+			return errors.New("options must be TaskInputCreateAccountUsernamePassword")
 		}
 
 		p, err := accounts.NewUsernamePasswordAccount(accountName)
@@ -73,7 +74,7 @@ func accountCreate(octopus *client.Client, space *spaces.Space, input any) error
 	case AccountTypeToken:
 		options, ok := params.Options.(TaskOptionsCreateAccountToken)
 		if !ok {
-			return errors.New("Options must be TaskInputCreateAccountUsernamePassword")
+			return errors.New("options must be TaskInputCreateAccountUsernamePassword")
 		}
 
 		if !options.Token.HasValue {
@@ -89,7 +90,7 @@ func accountCreate(octopus *client.Client, space *spaces.Space, input any) error
 		// TODO AWS, Azure, Google accounts etc
 
 	default:
-		return errors.New(fmt.Sprintf("Unhandled account type %s", params.Type))
+		return fmt.Errorf("unhandled account type %s", params.Type)
 	}
 
 	// common
