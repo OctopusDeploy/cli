@@ -1,8 +1,8 @@
 package executor
 
 import (
-	"errors"
 	"fmt"
+
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/spaces"
 )
@@ -57,7 +57,7 @@ func ProcessTasks(octopus *client.Client, space *spaces.Space, tasks []*Task) er
 				return err
 			}
 		default:
-			return errors.New(fmt.Sprintf("Unhandled task CommandType %s", task.Type))
+			return fmt.Errorf("unhandled task CommandType %s", task.Type)
 		}
 	}
 	return nil

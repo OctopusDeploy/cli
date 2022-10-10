@@ -2,8 +2,12 @@ package run
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
+	"io"
+	"math"
+	"strings"
+	"time"
+
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/constants"
@@ -25,10 +29,6 @@ import (
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/spaces"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/variables"
 	"github.com/spf13/cobra"
-	"io"
-	"math"
-	"strings"
-	"time"
 )
 
 const (
@@ -161,7 +161,7 @@ func NewCmdRun(f factory.Factory) *cobra.Command {
 	util.AddFlagAliasesStringSlice(flags, FlagRunTarget, flagAliases, FlagAliasTarget, FlagAliasSpecificMachines)
 	util.AddFlagAliasesStringSlice(flags, FlagExcludeRunTarget, flagAliases, FlagAliasExcludeTarget, FlagAliasExcludeMachines)
 
-	cmd.PreRunE = func(cmd *cobra.Command, args []string) error {
+	cmd.PreRunE = func(cmd *cobra.Command, _ []string) error {
 		util.ApplyFlagAliases(cmd.Flags(), flagAliases)
 		return nil
 	}
@@ -325,6 +325,7 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 
 	// select project
 	var selectedProject *projects.Project
+	// selectedProject.TenantedDeploymentMode
 	if options.ProjectName == "" {
 		selectedProject, err = selectors.Project("Select project", octopus, asker)
 		if err != nil {
@@ -359,55 +360,31 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 		return err
 	}
 
-	isTenanted, err := determineIsTenanted(selectedRunbook, asker)
-	if err != nil {
-		return err
+	// machine selection later on needs to refer back to the environments.
+	var selectedEnvironments []*environments.Environment
+	if len(options.Environments) == 0 {
+		selectedEnvironments, err = selectRunEnvironments(asker, octopus, space, selectedProject, selectedRunbook)
+		if err != nil {
+			return err
+		}
+		options.Environments = util.SliceTransform(selectedEnvironments, func(env *environments.Environment) string { return env.Name })
+	} else {
+		_, _ = fmt.Fprintf(stdout, "Environments %s\n", output.Cyan(strings.Join(options.Environments, ",")))
 	}
 
-	// machine selection later on needs to refer back to the environments.
-	// NOTE: this is allowed to remain nil; environments will get looked up later on if needed
-	var selectedEnvironments []*environments.Environment
-	// In deployments, tenanted runs only allow one environment, untenanted allows multiple environments;
-	// Runbooks OTOH allow tenants multiplied by environments
-	if isTenanted {
-		var selectedEnvironment *environments.Environment
-		if len(options.Environments) == 0 {
-			selectedEnvironment, err = selectRunEnvironment(asker, octopus, space, selectedProject, selectedRunbook)
-			if err != nil {
-				return err
-			}
-			options.Environments = []string{selectedEnvironment.Name} // executions api allows env names, so let's use these instead so they look nice in generated automationcmd
-		} else {
-			selectedEnvironment, err = selectors.FindEnvironment(octopus, options.Environments[0])
-			_, _ = fmt.Fprintf(stdout, "Environment %s\n", output.Cyan(selectedEnvironment.Name))
+	// ask for tenants and/or tags unless some were specified on the command line
+	if len(options.Tenants) == 0 && len(options.TenantTags) == 0 {
+		tenantedDeploymentMode := false
+		if selectedProject.TenantedDeploymentMode == core.TenantedDeploymentModeTenanted {
+			tenantedDeploymentMode = true
 		}
-		selectedEnvironments = []*environments.Environment{selectedEnvironment}
-
-		// ask for tenants and/or tags unless some were specified on the command line
-		if len(options.Tenants) == 0 && len(options.TenantTags) == 0 {
-			options.Tenants, options.TenantTags, err = executionscommon.AskTenantsAndTags(asker, octopus, selectedRunbook.ProjectID, selectedEnvironment)
-			if len(options.Tenants) == 0 && len(options.TenantTags) == 0 {
-				return errors.New("no tenants or tags available; cannot run")
-			}
-		} else {
-			if len(options.Tenants) > 0 {
-				_, _ = fmt.Fprintf(stdout, "Tenants %s\n", output.Cyan(strings.Join(options.Tenants, ",")))
-			}
-			if len(options.TenantTags) > 0 {
-				_, _ = fmt.Fprintf(stdout, "Tenant Tags %s\n", output.Cyan(strings.Join(options.TenantTags, ",")))
-			}
-		}
+		options.Tenants, options.TenantTags, _ = executionscommon.AskTenantsAndTags(asker, octopus, selectedRunbook.ProjectID, selectedEnvironments, tenantedDeploymentMode)
 	} else {
-		if len(options.Environments) == 0 {
-			selectedEnvironments, err = selectRunEnvironments(asker, octopus, space, selectedProject, selectedRunbook)
-			if err != nil {
-				return err
-			}
-			options.Environments = util.SliceTransform(selectedEnvironments, func(env *environments.Environment) string { return env.Name })
-		} else {
-			if len(options.Environments) > 0 {
-				_, _ = fmt.Fprintf(stdout, "Environments %s\n", output.Cyan(strings.Join(options.Environments, ",")))
-			}
+		if len(options.Tenants) > 0 {
+			_, _ = fmt.Fprintf(stdout, "Tenants %s\n", output.Cyan(strings.Join(options.Tenants, ",")))
+		}
+		if len(options.TenantTags) > 0 {
+			_, _ = fmt.Fprintf(stdout, "Tenant Tags %s\n", output.Cyan(strings.Join(options.TenantTags, ",")))
 		}
 	}
 
@@ -667,31 +644,14 @@ func PrintAdvancedSummary(stdout io.Writer, options *executor.TaskOptionsRunbook
 	`)), runAtStr, skipStepsStr, gfmStr, pkgDownloadStr, runTargetsStr)
 }
 
-// This mirrors determineIsTenanted in deploy release, but looks at a runbook, rather than a project
-func determineIsTenanted(runbook *runbooks.Runbook, ask question.Asker) (bool, error) {
-	switch runbook.MultiTenancyMode {
-	case core.TenantedDeploymentModeUntenanted:
-		return false, nil
-	case core.TenantedDeploymentModeTenanted:
-		return true, nil
-	case core.TenantedDeploymentModeTenantedOrUntenanted:
-		return question.SelectMap(ask, "Select Tenanted or Untenanted run", []bool{true, false}, func(b bool) string {
-			if b {
-				return "Tenanted" // should be the default; they probably want tenanted
-			} else {
-				return "Untenanted"
-			}
-		})
-
-	default: // should not get here
-		return false, fmt.Errorf("unhandled tenanted deployment mode %s", runbook.MultiTenancyMode)
-	}
-}
-
 func selectRunbook(octopus *octopusApiClient.Client, ask question.Asker, questionText string, space *spaces.Space, project *projects.Project) (*runbooks.Runbook, error) {
 	foundRunbooks, err := runbooks.List(octopus, space.ID, project.ID, "", math.MaxInt32)
 	if err != nil {
 		return nil, err
+	}
+
+	if len(foundRunbooks.Items) == 0 {
+		return nil, fmt.Errorf("no runbooks found for selected project: %s", project.Name)
 	}
 
 	return question.SelectMap(ask, questionText, foundRunbooks.Items, func(p *runbooks.Runbook) string {

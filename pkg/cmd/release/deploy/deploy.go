@@ -173,7 +173,7 @@ func NewCmdDeploy(f factory.Factory) *cobra.Command {
 	util.AddFlagAliasesStringSlice(flags, FlagDeploymentTarget, flagAliases, FlagAliasTarget, FlagAliasSpecificMachines)
 	util.AddFlagAliasesStringSlice(flags, FlagExcludeDeploymentTarget, flagAliases, FlagAliasExcludeTarget, FlagAliasExcludeMachines)
 
-	cmd.PreRunE = func(cmd *cobra.Command, args []string) error {
+	cmd.PreRunE = func(cmd *cobra.Command, _ []string) error {
 		util.ApplyFlagAliases(cmd.Flags(), flagAliases)
 		return nil
 	}
@@ -419,15 +419,21 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 			options.Environments = []string{selectedEnvironment.Name} // executions api allows env names, so let's use these instead so they look nice in generated automationcmd
 		} else {
 			selectedEnvironment, err = selectors.FindEnvironment(octopus, options.Environments[0])
+			if err != nil {
+				return err
+			}
 			_, _ = fmt.Fprintf(stdout, "Environment %s\n", output.Cyan(selectedEnvironment.Name))
 		}
 		selectedEnvironments = []*environments.Environment{selectedEnvironment}
 
 		// ask for tenants and/or tags unless some were specified on the command line
 		if len(options.Tenants) == 0 && len(options.TenantTags) == 0 {
-			options.Tenants, options.TenantTags, err = executionscommon.AskTenantsAndTags(asker, octopus, selectedRelease.ProjectID, selectedEnvironment)
+			options.Tenants, options.TenantTags, err = executionscommon.AskTenantsAndTags(asker, octopus, selectedRelease.ProjectID, selectedEnvironments, true)
 			if len(options.Tenants) == 0 && len(options.TenantTags) == 0 {
 				return errors.New("no tenants or tags available; cannot deploy")
+			}
+			if err != nil {
+				return err
 			}
 		} else {
 			if len(options.Tenants) > 0 {

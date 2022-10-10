@@ -21,7 +21,7 @@ import (
 	"time"
 )
 
-func findTenantsAndTags(octopus *octopusApiClient.Client, projectID string, environmentID string) ([]string, []string, error) {
+func findTenantsAndTags(octopus *octopusApiClient.Client, projectID string, environmentIDs []string) ([]string, []string, error) {
 	var validTenants []string
 	var validTags []string // these are 'Canonical' values i.e. "Regions/us-east", NOT TagSets-1/Tags-1
 
@@ -30,13 +30,17 @@ func findTenantsAndTags(octopus *octopusApiClient.Client, projectID string, envi
 		return nil, nil, err
 	}
 	for page != nil {
-		tenantsForMyEnvironment := util.SliceFilter(page.Items, func(t *tenants.Tenant) bool {
-			if envIdsForProject, ok := t.ProjectEnvironments[projectID]; ok {
-				return util.SliceContains(envIdsForProject, environmentID)
-			}
-			return false
-		})
-		for _, tenant := range tenantsForMyEnvironment {
+		tenantsForMyEnvironments := make([]*tenants.Tenant, 0)
+		for _, envID := range environmentIDs {
+			tenantsForMyEnvironment := util.SliceFilter(page.Items, func(t *tenants.Tenant) bool {
+				if envIdsForProject, ok := t.ProjectEnvironments[projectID]; ok {
+					return util.SliceContains(envIdsForProject, envID)
+				}
+				return false
+			})
+			tenantsForMyEnvironments = append(tenantsForMyEnvironments, tenantsForMyEnvironment...)
+		}
+		for _, tenant := range tenantsForMyEnvironments {
 			for _, tag := range tenant.TenantTags {
 				if !util.SliceContains(validTags, tag) {
 					validTags = append(validTags, tag)
@@ -54,10 +58,13 @@ func findTenantsAndTags(octopus *octopusApiClient.Client, projectID string, envi
 	return validTenants, validTags, nil
 }
 
-func AskTenantsAndTags(asker question.Asker, octopus *octopusApiClient.Client, projectID string, env *environments.Environment) ([]string, []string, error) {
+func AskTenantsAndTags(asker question.Asker, octopus *octopusApiClient.Client, projectID string, env []*environments.Environment, required bool) ([]string, []string, error) {
 	// (presumably though we can check if the project itself is linked to any tenants and only ask then)?
 	// there is a ListTenants(projectID) api that we can use. /api/tenants?projectID=
-	foundTenants, foundTags, err := findTenantsAndTags(octopus, projectID, env.ID)
+	envIDs := util.SliceTransform(env, func(e *environments.Environment) string {
+		return e.ID
+	})
+	foundTenants, foundTags, err := findTenantsAndTags(octopus, projectID, envIDs)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -71,12 +78,22 @@ func AskTenantsAndTags(asker question.Asker, octopus *octopusApiClient.Client, p
 	combinedList := append(foundTenants, foundTags...)
 
 	var selection []string
-	err = asker(&survey.MultiSelect{
-		Message: "Select tenants and/or tags used to determine deployment targets",
-		Options: combinedList,
-	}, &selection, survey.WithValidator(survey.Required))
-	if err != nil {
-		return nil, nil, err
+	if required {
+		err = asker(&survey.MultiSelect{
+			Message: "Select tenants and/or tags used to determine deployment targets",
+			Options: combinedList,
+		}, &selection, survey.WithValidator(survey.Required))
+		if err != nil {
+			return nil, nil, err
+		}
+	} else {
+		err = asker(&survey.MultiSelect{
+			Message: "Select tenants and/or tags used to determine deployment targets",
+			Options: combinedList,
+		}, &selection)
+		if err != nil {
+			return nil, nil, err
+		}
 	}
 
 	tenantsLookup := make(map[string]bool, len(foundTenants))
