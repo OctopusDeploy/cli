@@ -2,9 +2,12 @@ package create
 
 import (
 	"fmt"
+	"github.com/AlecAivazis/survey/v2"
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/OctopusDeploy/cli/pkg/output"
+	"github.com/OctopusDeploy/cli/pkg/question"
+	"github.com/OctopusDeploy/cli/pkg/question/selectors"
 	"github.com/OctopusDeploy/cli/pkg/util/flag"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
@@ -29,10 +32,12 @@ type CreateFlags struct {
 
 type CreateOptions struct {
 	*CreateFlags
-	out    io.Writer
-	client *client.Client
-	host   string
-	space  *spaces.Space
+	Out      io.Writer
+	Client   *client.Client
+	Host     string
+	Space    *spaces.Space
+	NoPrompt bool
+	Ask      question.Asker
 }
 
 func NewCreateFlags() *CreateFlags {
@@ -46,6 +51,7 @@ func NewCreateFlags() *CreateFlags {
 
 func NewCmdCreate(f factory.Factory) *cobra.Command {
 	opts := &CreateOptions{
+		Ask:         f.Ask,
 		CreateFlags: NewCreateFlags(),
 	}
 	cmd := &cobra.Command{
@@ -60,10 +66,11 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			opts.out = cmd.OutOrStdout()
-			opts.client = client
-			opts.host = f.GetCurrentHost()
-			opts.space = f.GetCurrentSpace()
+			opts.Out = cmd.OutOrStdout()
+			opts.Client = client
+			opts.Host = f.GetCurrentHost()
+			opts.NoPrompt = !f.IsPromptEnabled()
+			opts.Space = f.GetCurrentSpace()
 
 			return createRun(opts)
 		},
@@ -80,16 +87,18 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 }
 
 func createRun(opts *CreateOptions) error {
+	if !opts.NoPrompt {
+		if err := PromptMissing(opts); err != nil {
+			return err
+		}
+	}
 
-	fmt.Println(opts.CreateFlags)
-	fmt.Println(opts.CreateFlags.Lifecycle)
-	fmt.Println(opts.CreateFlags.Lifecycle.Value)
-	lifecycle, err := opts.client.Lifecycles.GetByIDOrName(opts.CreateFlags.Lifecycle.Value)
+	lifecycle, err := opts.Client.Lifecycles.GetByIDOrName(opts.CreateFlags.Lifecycle.Value)
 	if err != nil {
 		return err
 	}
 
-	projectGroup, err := opts.client.ProjectGroups.GetByIDOrName(opts.CreateFlags.Group.Value)
+	projectGroup, err := opts.Client.ProjectGroups.GetByIDOrName(opts.CreateFlags.Group.Value)
 	if err != nil {
 		return err
 	}
@@ -97,19 +106,51 @@ func createRun(opts *CreateOptions) error {
 	project := projects.NewProject(opts.CreateFlags.Name.Value, lifecycle.ID, projectGroup.ID)
 	project.Description = opts.CreateFlags.Description.Value
 
-	createdProject, err := opts.client.Projects.Add(project)
+	createdProject, err := opts.Client.Projects.Add(project)
 	if err != nil {
 		return err
 	}
 
-	_, err = fmt.Fprintf(opts.out, "Successfully created project %s %s.\n", createdProject.Name, createdProject.Slug)
+	_, err = fmt.Fprintf(opts.Out, "Successfully created project %s (%s), with lifecycle %s in project group %s.\n", createdProject.Name, createdProject.Slug, opts.Lifecycle.Value, opts.Group.Value)
 	if err != nil {
 		return err
 	}
 
-	link := output.Bluef("%s/app#/%s/projects/%s", opts.host, opts.space.GetID(), createdProject.GetID())
-	fmt.Fprintf(opts.out, "\nView this account on Octopus Deploy: %s\n", link)
+	link := output.Bluef("%s/app#/%s/projects/%s", opts.Host, opts.Space.GetID(), createdProject.GetID())
+	fmt.Fprintf(opts.Out, "\nView this project on Octopus Deploy: %s\n", link)
 
 	return nil
+}
 
+func PromptMissing(opts *CreateOptions) error {
+	if opts.Name.Value == "" {
+		if err := opts.Ask(&survey.Input{
+			Message: "Name",
+			Help:    "A short, memorable, unique name for this project.",
+		}, &opts.Name.Value, survey.WithValidator(survey.ComposeValidators(
+			survey.MaxLength(200),
+			survey.MinLength(1),
+			survey.Required,
+		))); err != nil {
+			return err
+		}
+	}
+
+	if opts.Lifecycle.Value == "" {
+		lc, err := selectors.Lifecycle("You have not specified a Lifecycle for this project. Please select one:", opts.Client, opts.Ask)
+		if err != nil {
+			return err
+		}
+		opts.Lifecycle.Value = lc.Name
+	}
+
+	if opts.Group.Value == "" {
+		g, err := selectors.ProjectGroup("You have not specified a Project group for this project. Please select one:", opts.Client, opts.Ask)
+		if err != nil {
+			return err
+		}
+		opts.Group.Value = g.Name
+	}
+
+	return nil
 }
