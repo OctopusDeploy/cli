@@ -12,11 +12,7 @@ func Lifecycle(questionText string, octopus *client.Client, ask question.Asker) 
 		return nil, err
 	}
 
-	if len(existingLifecycles) == 1 {
-		return existingLifecycles[0], nil
-	}
-
-	return question.SelectMap(ask, questionText, existingLifecycles, func(lc *lifecycles.Lifecycle) string {
+	return Select(&ask, questionText, existingLifecycles, func(lc *lifecycles.Lifecycle) string {
 		return lc.Name
 	})
 }
