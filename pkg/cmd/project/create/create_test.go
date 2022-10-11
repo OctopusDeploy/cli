@@ -24,9 +24,7 @@ var rootResource = testutil.NewRootResource()
 func TestCreateProjectShouldPromptMissing(t *testing.T) {
 
 	const spaceID = "Spaces-1"
-	const envID = "Environments-1"
 	_ = fixtures.NewSpace(spaceID, "testspace")
-	//api, qa := testutil.NewMockServerAndAsker()
 	out := &bytes.Buffer{}
 
 	tests := []struct {

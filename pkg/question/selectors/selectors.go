@@ -8,6 +8,11 @@ import (
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/accounts"
 )
 
+type SelectOption[T any] struct {
+	Value   T
+	Display string
+}
+
 type NameOrID interface {
 	GetName() string
 	GetID() string
