@@ -11,8 +11,11 @@ func Lifecycle(questionText string, octopus *client.Client, ask question.Asker) 
 	if err != nil {
 		return nil, err
 	}
+	lifecyclesCallback := func() ([]*lifecycles.Lifecycle, error) {
+		return existingLifecycles, nil
+	}
 
-	return Select(ask, questionText, existingLifecycles, func(lc *lifecycles.Lifecycle) string {
+	return Select(ask, questionText, lifecyclesCallback, func(lc *lifecycles.Lifecycle) string {
 		return lc.Name
 	})
 }

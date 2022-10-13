@@ -13,12 +13,16 @@ type Item struct {
 }
 
 func TestSelectForSingleItem(t *testing.T) {
-	items := []*Item{
-		{
-			id:   "1",
-			name: "name",
-		}}
-	selectedItem, err := Select[Item](nil, "question", items, func(item *Item) string { return item.name })
+	itemsCallback := func() ([]*Item, error) {
+		return []*Item{
+			{
+				id:   "1",
+				name: "name",
+			},
+		}, nil
+	}
+
+	selectedItem, err := Select(nil, "question", itemsCallback, func(item *Item) string { return item.name })
 	assert.Nil(t, err)
 	assert.Equal(t, selectedItem.id, "1")
 }
@@ -32,13 +36,22 @@ func TestSelectForMultipleItem(t *testing.T) {
 		{
 			id:   "2",
 			name: "name 2",
-		}}
-	mocker := testutil.NewAskMocker()
-	mocker.ExpectQuestion(t, &survey.Select{
-		Message: "You have not specified a Lifecycle for this project. Please select one:",
-		Options: []string{items[0].name, items[1].name}}).AnswerWith("name 2")
-	asker := mocker.AsAsker()
-	selectedItem, err := Select[Item](asker, "question", items, func(item *Item) string { return item.name })
+		},
+	}
+	itemsCallback := func() ([]*Item, error) {
+		return items, nil
+	}
+	pa := []*testutil.PA{
+		{
+			Prompt: &survey.Select{
+				Message: "question",
+				Options: []string{items[0].name, items[1].name},
+			},
+			Answer: "name 2",
+		},
+	}
+	mockAsker := testutil.NewMockAsker(t, pa)
+	selectedItem, err := Select(mockAsker, "question", itemsCallback, func(item *Item) string { return item.name })
 	assert.Nil(t, err)
-	assert.Equal(t, selectedItem.id, "1")
+	assert.Equal(t, selectedItem.id, "2")
 }

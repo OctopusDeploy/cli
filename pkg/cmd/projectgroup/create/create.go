@@ -2,17 +2,15 @@ package create
 
 import (
 	"fmt"
-	"io"
 
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/MakeNowJust/heredoc/v2"
+	"github.com/OctopusDeploy/cli/pkg/cmd"
 	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/OctopusDeploy/cli/pkg/output"
 	"github.com/OctopusDeploy/cli/pkg/question"
 	"github.com/OctopusDeploy/cli/pkg/util/flag"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projectgroups"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/spaces"
 	"github.com/spf13/cobra"
 )
 
@@ -28,14 +26,14 @@ type CreateFlags struct {
 
 type CreateOptions struct {
 	*CreateFlags
-	Out               io.Writer
-	Client            *client.Client
-	Host              string
-	Space             *spaces.Space
-	NoPrompt          bool
-	Ask               question.Asker
-	CmdPath           string
-	ShowMessagePrefix bool
+	*cmd.Dependencies
+}
+
+func NewCreateOptions(flags *CreateFlags, opts *cmd.Dependencies) *CreateOptions {
+	return &CreateOptions{
+		CreateFlags:  flags,
+		Dependencies: opts,
+	}
 }
 
 func (co *CreateOptions) Commit() error {
@@ -70,10 +68,7 @@ func NewCreateFlags() *CreateFlags {
 }
 
 func NewCmdCreate(f factory.Factory) *cobra.Command {
-	opts := &CreateOptions{
-		Ask:         f.Ask,
-		CreateFlags: NewCreateFlags(),
-	}
+	optFlags := NewCreateFlags()
 	cmd := &cobra.Command{
 		Use:   "create",
 		Short: "Creates a new project group in Octopus Deploy",
@@ -81,25 +76,16 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 		Example: heredoc.Doc(`
 			$ octopus project-group create
 		`),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			client, err := f.GetSpacedClient()
-			if err != nil {
-				return err
-			}
-			opts.CmdPath = cmd.CommandPath()
-			opts.Out = cmd.OutOrStdout()
-			opts.Client = client
-			opts.Host = f.GetCurrentHost()
-			opts.NoPrompt = !f.IsPromptEnabled()
-			opts.Space = f.GetCurrentSpace()
+		RunE: func(c *cobra.Command, _ []string) error {
+			opts := NewCreateOptions(optFlags, cmd.NewDependencies(f, c))
 
 			return createRun(opts)
 		},
 	}
 
 	flags := cmd.Flags()
-	flags.StringVarP(&opts.Name.Value, opts.CreateFlags.Name.Name, "n", "", "Name of the project group")
-	flags.StringVarP(&opts.Description.Value, opts.CreateFlags.Description.Name, "d", "", "Description of the project group")
+	flags.StringVarP(&optFlags.Name.Value, optFlags.Name.Name, "n", "", "Name of the project group")
+	flags.StringVarP(&optFlags.Description.Value, optFlags.Description.Name, "d", "", "Description of the project group")
 	flags.SortFlags = false
 
 	return cmd
@@ -129,18 +115,7 @@ func PromptMissing(opts *CreateOptions) error {
 		messagePrefix = "Project Group "
 	}
 
-	if opts.Name.Value == "" {
-		if err := opts.Ask(&survey.Input{
-			Message: messagePrefix + "Name",
-			Help:    "A short, memorable, unique name for this project group.",
-		}, &opts.Name.Value, survey.WithValidator(survey.ComposeValidators(
-			survey.MaxLength(200),
-			survey.MinLength(1),
-			survey.Required,
-		))); err != nil {
-			return err
-		}
-	}
+	AskName(opts.Ask, messagePrefix, "project group", &opts.Name.Value)
 
 	if opts.Description.Value == "" {
 		if err := opts.Ask(&survey.Input{
@@ -151,5 +126,21 @@ func PromptMissing(opts *CreateOptions) error {
 		}
 	}
 
+	return nil
+}
+
+func AskName(ask question.Asker, messagePrefix string, resourceDescription string, value *string) error {
+	if *value == "" {
+		if err := ask(&survey.Input{
+			Message: messagePrefix + "Name",
+			Help:    fmt.Sprintf("A short, memorable, unique name for this %s.", resourceDescription),
+		}, value, survey.WithValidator(survey.ComposeValidators(
+			survey.MaxLength(200),
+			survey.MinLength(1),
+			survey.Required,
+		))); err != nil {
+			return err
+		}
+	}
 	return nil
 }
