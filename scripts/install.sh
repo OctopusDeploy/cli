@@ -35,7 +35,7 @@ release=${1:-latest}
 
 log "Selecting version..."
 
-version=${VERSION:-v0.3.6}
+version=${VERSION:-v0.4.0}
 
 if [ ! $version ]; then
     log "${YELLOW}"
@@ -53,7 +53,7 @@ log "Selected version: $version"
 
 log "${YELLOW}"
 log NOTE: Install a specific version of the CLI by using VERSION variable
-log 'curl -L https://github.com/OctopusDeploy/cli/raw/v0.3.6/scripts/install.sh | VERSION=v0.3.6 bash'
+log 'curl -L https://github.com/OctopusDeploy/cli/raw/v0.4.0/scripts/install.sh | VERSION=v0.4.0 bash'
 log "${NC}"
 
 # check for existing octopus cli installation
