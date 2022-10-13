@@ -103,6 +103,18 @@ if [ -e $targetExe ]; then
   rm $targetExe
 fi
 
+if [ -e "CHANGELOG.md" ]; then
+  rm "CHANGELOG.md"
+fi
+
+if [ -e "LICENSE" ]; then
+  rm "LICENSE"
+fi
+
+if [ -e "README.md" ]; then
+  rm "README.md"
+fi
+
 log "${PURPLE}Downloading Octopus cli for $platform-$arch to ${targetFile}${NC}"
 url=https://github.com/OctopusDeploy/cli/releases/download/$version/octopus$suffix
 
@@ -149,6 +161,18 @@ fi
 
 if [ -e $targetExe ]; then
   rm $targetExe
+fi
+
+if [ -e "CHANGELOG.md" ]; then
+  rm "CHANGELOG.md"
+fi
+
+if [ -e "LICENSE" ]; then
+  rm "LICENSE"
+fi
+
+if [ -e "README.md" ]; then
+  rm "README.md"
 fi
 
 log "Running ${BLUE}octopus version${NC}"
