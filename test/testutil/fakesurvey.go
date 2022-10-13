@@ -21,7 +21,7 @@ func NewMockAsker(t *testing.T, pa []*PA) question.Asker {
 	expectedQuestionIndex := 0
 	return func(p survey.Prompt, response interface{}, opts ...survey.AskOpt) error {
 		if expectedQuestionIndex >= len(pa) {
-			assert.FailNow(t, "Did not expect anymore questions but got: %+v", p)
+			assert.FailNow(t, fmt.Sprintf("Did not expect anymore questions but got: %+v", p))
 			return fmt.Errorf("did not expect anymore questions")
 		}
 
