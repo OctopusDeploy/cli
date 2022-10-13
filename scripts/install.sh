@@ -104,15 +104,15 @@ if [ -e $targetExe ]; then
 fi
 
 if [ -e "/tmp/CHANGELOG.md" ]; then
-  rm "CHANGELOG.md"
+  rm "/tmp/CHANGELOG.md"
 fi
 
 if [ -e "/tmp/LICENSE" ]; then
-  rm "LICENSE"
+  rm "/tmp/LICENSE"
 fi
 
 if [ -e "/tmp/README.md" ]; then
-  rm "README.md"
+  rm "/tmp/README.md"
 fi
 
 log "${PURPLE}Downloading Octopus cli for $platform-$arch to ${targetFile}${NC}"
@@ -164,15 +164,15 @@ if [ -e $targetExe ]; then
 fi
 
 if [ -e "/tmp/CHANGELOG.md" ]; then
-  rm "CHANGELOG.md"
+  rm "/tmp/CHANGELOG.md"
 fi
 
 if [ -e "/tmp/LICENSE" ]; then
-  rm "LICENSE"
+  rm "/tmp/LICENSE"
 fi
 
 if [ -e "/tmp/README.md" ]; then
-  rm "README.md"
+  rm "/tmp/README.md"
 fi
 
 log "Running ${BLUE}octopus version${NC}"
