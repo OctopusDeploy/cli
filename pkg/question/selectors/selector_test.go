@@ -44,7 +44,7 @@ func TestSelectForMultipleItem(t *testing.T) {
 	pa := []*testutil.PA{
 		{
 			Prompt: &survey.Select{
-				Message: "You have not specified a Lifecycle for this project. Please select one:",
+				Message: "question",
 				Options: []string{items[0].name, items[1].name},
 			},
 			Answer: "name 2",
