@@ -2,7 +2,6 @@ package create
 
 import (
 	"fmt"
-
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/cmd"
@@ -103,7 +102,7 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 	flags.StringVar(&createFlags.GitUsername.Value, createFlags.GitUsername.Name, "", "The username to authenticate with Git")
 	flags.StringVar(&createFlags.GitPassword.Value, createFlags.GitPassword.Name, "", "The password to authenticate with Git")
 	flags.StringVar(&createFlags.GitStorage.Value, createFlags.GitStorage.Name, "", "The location to store the supplied Git credentials. Options are library or project. Default is library")
-	flags.StringVar(&createFlags.GitInitialCommitMessage.Value, createFlags.GitInitialCommitMessage.Name, DefaultGitCommitMessage, "The initial commit message for configuring Config As Code.")
+	flags.StringVar(&createFlags.GitInitialCommitMessage.Value, createFlags.GitInitialCommitMessage.Name, "", "The initial commit message for configuring Config As Code.")
 	flags.SortFlags = false
 
 	return cmd
@@ -217,12 +216,14 @@ func PromptForConfigAsCode(opts *CreateOptions) error {
 			opts.GitStorage.Value = selectedOption.Value
 		}
 
-		if opts.GitInitialCommitMessage.Value == "" {
+		if opts.GitUrl.Value == "" {
 			if err := opts.Ask(&survey.Input{
-				Message: "Initial Git commit message",
-				Help:    "The commit message used in initializing. Default value: '" + DefaultGitCommitMessage + "'",
-			}, &opts.GitInitialCommitMessage.Value, survey.WithValidator(survey.ComposeValidators(
-				survey.MaxLength(50),
+				Message: "Git Url",
+				Help:    "The Url of the Git repository to store configuration.",
+			}, &opts.GitUrl.Value, survey.WithValidator(survey.ComposeValidators(
+				survey.MaxLength(200),
+				survey.MinLength(1),
+				survey.Required,
 			))); err != nil {
 				return err
 			}
@@ -239,19 +240,6 @@ func PromptForConfigAsCode(opts *CreateOptions) error {
 			}
 		}
 
-		if opts.GitUrl.Value == "" {
-			if err := opts.Ask(&survey.Input{
-				Message: "Git Url",
-				Help:    "The Url of the Git repository to store configuration.",
-			}, &opts.GitUrl.Value, survey.WithValidator(survey.ComposeValidators(
-				survey.MaxLength(200),
-				survey.MinLength(1),
-				survey.Required,
-			))); err != nil {
-				return err
-			}
-		}
-
 		if opts.GitBranch.Value == "" {
 			if err := opts.Ask(&survey.Input{
 				Message: "Git Branch",
@@ -261,6 +249,11 @@ func PromptForConfigAsCode(opts *CreateOptions) error {
 			))); err != nil {
 				return err
 			}
+		}
+
+		err := PromptForInitialCommitMessage(opts)
+		if err != nil {
+			return err
 		}
 
 		if opts.GitStorage.Value == GitStorageLibrary {
@@ -294,6 +287,24 @@ func PromptForConfigAsCode(opts *CreateOptions) error {
 		}
 	}
 
+	return nil
+}
+
+func PromptForInitialCommitMessage(opts *CreateOptions) error {
+	if opts.GitInitialCommitMessage.Value == "" {
+		if err := opts.Ask(&survey.Input{
+			Message: "Initial Git commit message",
+			Help:    "The commit message used in initializing. Default value: '" + DefaultGitCommitMessage + "'",
+		}, &opts.GitInitialCommitMessage.Value, survey.WithValidator(survey.ComposeValidators(
+			survey.MaxLength(50),
+		))); err != nil {
+			return err
+		}
+	}
+
+	if opts.GitInitialCommitMessage.Value == "" {
+		opts.GitInitialCommitMessage.Value = DefaultGitCommitMessage
+	}
 	return nil
 }
 

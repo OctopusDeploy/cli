@@ -41,6 +41,7 @@ func getAllGroups(client client.Client) ([]*projectgroups.ProjectGroup, error) {
 	}
 	return res, nil
 }
+
 func createProjectGroupCallback(dependencies *cmd.Dependencies) (string, cmd.Dependable, error) {
 	optValues := projectGroupCreate.NewCreateFlags()
 	projectGroupOpts := cmd.NewDependenciesFromExisting(dependencies, "octopus project-group create")
@@ -49,7 +50,6 @@ func createProjectGroupCallback(dependencies *cmd.Dependencies) (string, cmd.Dep
 	projectGroupCreate.PromptMissing(projectGroupCreateOpts)
 	returnValue := projectGroupCreateOpts.Name.Value
 	return returnValue, projectGroupCreateOpts, nil
-
 }
 
 func (co *CreateOptions) Commit() error {
