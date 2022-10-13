@@ -21,7 +21,7 @@ func NewDeleteFlags() *DeleteFlags {
 }
 
 func RegisterDeleteFlag(value *bool, cmd *cobra.Command, resourceDescription string) {
-	cmd.Flags().BoolVarP(value, FlagConfirm, "c", false, fmt.Sprintf("Don't ask for confirmation before deleting the %s.", resourceDescription))
+	cmd.Flags().BoolVarP(value, FlagConfirm, "y", false, fmt.Sprintf("Don't ask for confirmation before deleting the %s.", resourceDescription))
 }
 
 func DeleteWithConfirmation(ask Asker, itemType string, itemName string, itemID string, doDelete func() error) error {
