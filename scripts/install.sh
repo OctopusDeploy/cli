@@ -103,15 +103,15 @@ if [ -e $targetExe ]; then
   rm $targetExe
 fi
 
-if [ -e "CHANGELOG.md" ]; then
+if [ -e "/tmp/CHANGELOG.md" ]; then
   rm "CHANGELOG.md"
 fi
 
-if [ -e "LICENSE" ]; then
+if [ -e "/tmp/LICENSE" ]; then
   rm "LICENSE"
 fi
 
-if [ -e "README.md" ]; then
+if [ -e "/tmp/README.md" ]; then
   rm "README.md"
 fi
 
@@ -163,15 +163,15 @@ if [ -e $targetExe ]; then
   rm $targetExe
 fi
 
-if [ -e "CHANGELOG.md" ]; then
+if [ -e "/tmp/CHANGELOG.md" ]; then
   rm "CHANGELOG.md"
 fi
 
-if [ -e "LICENSE" ]; then
+if [ -e "/tmp/LICENSE" ]; then
   rm "LICENSE"
 fi
 
-if [ -e "README.md" ]; then
+if [ -e "/tmp/README.md" ]; then
   rm "README.md"
 fi
 
