@@ -8,16 +8,13 @@ import (
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
 	"github.com/spf13/cobra"
-	"io"
 )
 
 type DeleteOptions struct {
 	Client   *client.Client
 	Ask      question.Asker
-	Host     string
-	Writer   io.Writer
 	NoPrompt bool
-	idOrName string
+	IdOrName string
 	*question.DeleteFlags
 }
 
@@ -41,10 +38,8 @@ func NewCmdList(f factory.Factory) *cobra.Command {
 			opts := &DeleteOptions{
 				Client:      client,
 				Ask:         f.Ask,
-				Host:        f.GetCurrentHost(),
-				Writer:      cmd.OutOrStdout(),
 				NoPrompt:    !f.IsPromptEnabled(),
-				idOrName:    args[0],
+				IdOrName:    args[0],
 				DeleteFlags: deleteFlags,
 			}
 
@@ -64,7 +59,7 @@ func deleteRun(opts *DeleteOptions) error {
 		}
 	}
 
-	itemToDelete, err := opts.Client.Projects.GetByIdOrName(opts.idOrName)
+	itemToDelete, err := opts.Client.Projects.GetByIdOrName(opts.IdOrName)
 	if err != nil {
 		return err
 	}
@@ -76,12 +71,10 @@ func deleteRun(opts *DeleteOptions) error {
 			return delete(opts.Client, itemToDelete)
 		})
 	}
-
-	return nil
 }
 
 func PromptMissing(opts *DeleteOptions) error {
-	if opts.idOrName == "" {
+	if opts.IdOrName == "" {
 		existingProjects, err := opts.Client.Projects.GetAll()
 		if err != nil {
 			return err
@@ -90,7 +83,7 @@ func PromptMissing(opts *DeleteOptions) error {
 		if err != nil {
 			return err
 		}
-		opts.idOrName = itemToDelete.GetID()
+		opts.IdOrName = itemToDelete.GetID()
 	}
 
 	return nil
