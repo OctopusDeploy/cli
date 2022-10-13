@@ -33,7 +33,7 @@ func NewCmdList(f factory.Factory) *cobra.Command {
 			$ octopus project rm
 		`),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			client, err := f.GetSystemClient()
+			client, err := f.GetSpacedClient()
 			if err != nil {
 				return err
 			}
@@ -64,7 +64,7 @@ func deleteRun(opts *DeleteOptions) error {
 		}
 	}
 
-	itemToDelete, err := opts.Client.Projects.GetByID(opts.idOrName)
+	itemToDelete, err := opts.Client.Projects.GetByIdOrName(opts.idOrName)
 	if err != nil {
 		return err
 	}
