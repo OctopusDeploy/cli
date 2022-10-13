@@ -29,19 +29,20 @@ const (
 	FlagConfigAsCode            = "cac"
 	FlagGitUrl                  = "git-url"
 	FlagGitBranch               = "git-branch"
-	FlagGitCredential           = "git-credentials"
-	FlagGitCredentialName       = "git-credentials-name"
+	FlagGitLibraryCredentials   = "git-credentials"
 	FlagGitUsername             = "git-username"
 	FlagGitPassword             = "git-password"
-	FlagGitAnonymous            = "git-anonymous"
 	FlagGitCredentialStorage    = "git-cred-store"
 	FlagGitInitialCommitMessage = "git-initial-commit"
 	FlagGitBasePath             = "git-base-path"
 
-	InitialGitCommitMessage = "Initial commit of deployment process"
+	DefaultGitCommitMessage = "Initial commit of deployment process"
 	DefaultBasePath         = ".octopus/"
 	DefaultBranch           = "main"
 	GitPersistenceType      = "VersionControlled"
+
+	GitStorageProject = "project"
+	GitStorageLibrary = "library"
 )
 
 type CreateFlags struct {
@@ -50,13 +51,12 @@ type CreateFlags struct {
 	Description  *flag.Flag[string]
 	Lifecycle    *flag.Flag[string]
 	ConfigAsCode *flag.Flag[bool]
-	GitUrl       *flag.Flag[string]
-	GitBranch    *flag.Flag[string]
 
-	//GitCredentials *flag.Flag[string]
-	GitUsername *flag.Flag[string]
-	GitPassword *flag.Flag[string]
-	//GitAnonymous   *flag.Flag[bool]
+	GitUrl                  *flag.Flag[string]
+	GitBranch               *flag.Flag[string]
+	GitCredentials          *flag.Flag[string]
+	GitUsername             *flag.Flag[string]
+	GitPassword             *flag.Flag[string]
 	GitStorage              *flag.Flag[string]
 	GitInitialCommitMessage *flag.Flag[string]
 	GitBasePath             *flag.Flag[string]
@@ -93,17 +93,21 @@ func (co *CreateOptions) Commit() error {
 	}
 
 	if co.ConfigAsCode.Value {
+		var vcs *projects.VersionControlSettings
 		if co.GitStorage.Value == "project" {
-			credentials := projects.NewUsernamePasswordGitCredential(co.GitUsername.Value, core.NewSensitiveValue(co.GitPassword.Value))
-			url, err := url.Parse(co.GitUrl.Value)
-			vcs := projects.NewVersionControlSettings(getBasePath(co), credentials, getGitBranch(co), GitPersistenceType, url)
-			_, err = co.Client.Projects.ConvertToVcs(createdProject, getInitialCommitMessage(co), vcs)
+			vcs, err = co.buildProjectGitVersionControlSettings()
 			if err != nil {
 				return err
 			}
+
 		} else {
-			// TODO: create-git-credentials
+			vcs, err = co.buildLibraryGitVersionControlSettings()
+			if err != nil {
+				return err
+			}
 		}
+
+		_, err = co.Client.Projects.ConvertToVcs(createdProject, getInitialCommitMessage(co), vcs)
 	}
 
 	_, err = fmt.Fprintf(co.Out, "\nSuccessfully created project %s (%s), with lifecycle %s in project group %s.\n", createdProject.Name, createdProject.Slug, co.Lifecycle.Value, co.Group.Value)
@@ -117,6 +121,20 @@ func (co *CreateOptions) Commit() error {
 	return nil
 }
 
+func (co *CreateOptions) buildLibraryGitVersionControlSettings() (*projects.VersionControlSettings, error) {
+	panic("library git credentials not currently supported")
+}
+
+func (co *CreateOptions) buildProjectGitVersionControlSettings() (*projects.VersionControlSettings, error) {
+	credentials := projects.NewUsernamePasswordGitCredential(co.GitUsername.Value, core.NewSensitiveValue(co.GitPassword.Value))
+	url, err := url.Parse(co.GitUrl.Value)
+	if err != nil {
+		return nil, err
+	}
+	vcs := projects.NewVersionControlSettings(getBasePath(co), credentials, getGitBranch(co), GitPersistenceType, url)
+	return vcs, nil
+}
+
 func (co *CreateOptions) GenerateAutomationCmd() {
 	if !co.NoPrompt {
 		autoCmd := flag.GenerateAutomationCmd(co.CmdPath, co.Name, co.Description, co.Group, co.Lifecycle)
@@ -126,17 +144,16 @@ func (co *CreateOptions) GenerateAutomationCmd() {
 
 func NewCreateFlags() *CreateFlags {
 	return &CreateFlags{
-		Group:        flag.New[string](FlagGroup, false),
-		Name:         flag.New[string](FlagName, false),
-		Description:  flag.New[string](FlagDescription, false),
-		Lifecycle:    flag.New[string](FlagLifecycle, false),
-		ConfigAsCode: flag.New[bool](FlagConfigAsCode, false),
-		GitUrl:       flag.New[string](FlagGitUrl, false),
-		GitBranch:    flag.New[string](FlagGitBranch, false),
-		//GitCredentials: flag.New[string](FlagGitCredential, false),
-		GitUsername: flag.New[string](FlagGitUsername, false),
-		GitPassword: flag.New[string](FlagGitPassword, true),
-		//GitAnonymous:   flag.New[bool](FlagGitAnonymous, false),
+		Group:                   flag.New[string](FlagGroup, false),
+		Name:                    flag.New[string](FlagName, false),
+		Description:             flag.New[string](FlagDescription, false),
+		Lifecycle:               flag.New[string](FlagLifecycle, false),
+		ConfigAsCode:            flag.New[bool](FlagConfigAsCode, false),
+		GitUrl:                  flag.New[string](FlagGitUrl, false),
+		GitBranch:               flag.New[string](FlagGitBranch, false),
+		GitCredentials:          flag.New[string](FlagGitLibraryCredentials, false),
+		GitUsername:             flag.New[string](FlagGitUsername, false),
+		GitPassword:             flag.New[string](FlagGitPassword, true),
 		GitStorage:              flag.New[string](FlagGitCredentialStorage, false),
 		GitInitialCommitMessage: flag.New[string](FlagGitInitialCommitMessage, false),
 		GitBasePath:             flag.New[string](FlagGitBasePath, false),
@@ -180,12 +197,11 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 
 	flags.StringVarP(&opts.GitUrl.Value, opts.GitUrl.Name, "u", "", "Url of the Git repository for storing project configuration")
 	flags.StringVarP(&opts.GitBranch.Value, opts.GitBranch.Name, "b", "", "The default branch to use for Config As Code, default is main.")
-	//flags.StringVarP(&opts.GitCredentials.Value, opts..GitCredentials.Name, "c", "", "The Id or name of the Git credentials stored in Octopus")
+	flags.StringVar(&opts.GitCredentials.Value, opts.GitCredentials.Name, "", "The Id or name of the Git credentials stored in Octopus")
 	flags.StringVar(&opts.GitUsername.Value, opts.GitUsername.Name, "", "The username to authenticate with Git")
 	flags.StringVar(&opts.GitPassword.Value, opts.GitPassword.Name, "", "The password to authenticate with Git")
-	//flags.BoolVarP(&opts.GitAnonymous.Value, opts.GitAnonymous.Name, "", false, "Use anonymous authentication for accessing the Git repo.")
 	flags.StringVar(&opts.GitStorage.Value, opts.GitStorage.Name, "", "The location to store the supplied Git credentials. Options are library or project. Default is library")
-	flags.StringVar(&opts.GitInitialCommitMessage.Value, opts.GitInitialCommitMessage.Name, InitialGitCommitMessage, "The initial commit message for configuring Config As Code.")
+	flags.StringVar(&opts.GitInitialCommitMessage.Value, opts.GitInitialCommitMessage.Name, DefaultGitCommitMessage, "The initial commit message for configuring Config As Code.")
 	flags.SortFlags = false
 
 	return cmd
@@ -282,19 +298,27 @@ func PromptMissing(opts *CreateOptions) ([]cmd.NestedOpts, error) {
 }
 
 func PromptForConfigAsCode(opts *CreateOptions) error {
+	if !opts.ConfigAsCode.Value {
+		opts.Ask(&survey.Confirm{
+			Message: "Would you like to use Config as Code?",
+			Default: false,
+		}, &opts.ConfigAsCode.Value)
+	}
+
 	if opts.ConfigAsCode.Value {
 		if opts.GitStorage.Value == "" {
-			s, err := selectors.GitCredentialStorage("Select where to store the Git credentials", opts.Ask)
+			selectedOption, err := selectors.SelectOptions[string](opts.Ask, "Select where to store the Git credentials", getGitStorageOptions)
+
 			if err != nil {
 				return err
 			}
-			opts.GitStorage.Value = s
+			opts.GitStorage.Value = selectedOption.Value
 		}
 
 		if opts.GitInitialCommitMessage.Value == "" {
 			if err := opts.Ask(&survey.Input{
 				Message: "Initial Git commit message",
-				Help:    "The commit message used in initializing. Default value: '" + InitialGitCommitMessage + "'",
+				Help:    "The commit message used in initializing. Default value: '" + DefaultGitCommitMessage + "'",
 			}, &opts.GitInitialCommitMessage.Value, survey.WithValidator(survey.ComposeValidators(
 				survey.MaxLength(50),
 			))); err != nil {
@@ -337,38 +361,45 @@ func PromptForConfigAsCode(opts *CreateOptions) error {
 			}
 		}
 
-		if opts.GitUsername.Value == "" {
-			if err := opts.Ask(&survey.Input{
-				Message: "Git Username",
-				Help:    "The Git username.",
-			}, &opts.GitUsername.Value, survey.WithValidator(survey.ComposeValidators(
-				survey.MaxLength(200),
-				survey.MinLength(1),
-				survey.Required,
-			))); err != nil {
-				return err
-			}
-		}
+		if opts.GitStorage.Value == GitStorageLibrary {
+			panic("library storage not currently supported")
+		} else {
+			if !opts.GitAnonymous.Value {
+				if opts.GitUsername.Value == "" {
+					if err := opts.Ask(&survey.Input{
+						Message: "Git Username",
+						Help:    "The Git username.",
+					}, &opts.GitUsername.Value, survey.WithValidator(survey.ComposeValidators(
+						survey.MaxLength(200),
+						survey.MinLength(1),
+						survey.Required,
+					))); err != nil {
+						return err
+					}
+				}
 
-		if opts.GitPassword.Value == "" {
-			if err := opts.Ask(&survey.Password{
-				Message: "Git Password",
-				Help:    "The Git password.",
-			}, &opts.GitPassword.Value, survey.WithValidator(survey.ComposeValidators(
-				survey.MaxLength(200),
-				survey.MinLength(1),
-				survey.Required,
-			))); err != nil {
-				return err
+				if opts.GitPassword.Value == "" {
+					if err := opts.Ask(&survey.Password{
+						Message: "Git Password",
+						Help:    "The Git password.",
+					}, &opts.GitPassword.Value, survey.WithValidator(survey.ComposeValidators(
+						survey.MaxLength(200),
+						survey.MinLength(1),
+						survey.Required,
+					))); err != nil {
+						return err
+					}
+				}
 			}
 		}
 	}
+
 	return nil
 }
 
 func getInitialCommitMessage(opts *CreateOptions) string {
 	if opts.GitInitialCommitMessage.Value == "" {
-		return InitialGitCommitMessage
+		return DefaultGitCommitMessage
 	}
 
 	return opts.GitInitialCommitMessage.Value
@@ -388,4 +419,11 @@ func getGitBranch(opts *CreateOptions) string {
 	}
 
 	return opts.GitBranch.Value
+}
+
+func getGitStorageOptions() []*selectors.SelectOption[string] {
+	return []*selectors.SelectOption[string]{
+		{Display: "Project", Value: GitStorageProject},
+		{Display: "Library", Value: GitStorageLibrary},
+	}
 }

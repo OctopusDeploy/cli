@@ -12,7 +12,7 @@ func Lifecycle(questionText string, octopus *client.Client, ask question.Asker) 
 		return nil, err
 	}
 
-	return Select(&ask, questionText, existingLifecycles, func(lc *lifecycles.Lifecycle) string {
+	return Select(ask, questionText, existingLifecycles, func(lc *lifecycles.Lifecycle) string {
 		return lc.Name
 	})
 }

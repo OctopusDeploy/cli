@@ -12,7 +12,7 @@ func ProjectGroup(questionText string, octopus *client.Client, ask question.Aske
 		return nil, err
 	}
 
-	return Select(&ask, questionText, existingGroups, func(lc *projectgroups.ProjectGroup) string {
+	return Select(ask, questionText, existingGroups, func(lc *projectgroups.ProjectGroup) string {
 		return lc.Name
 	})
 }
