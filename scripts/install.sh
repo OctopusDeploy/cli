@@ -94,6 +94,9 @@ fi
 suffix="_${version//v}_${platform}_${arch}.tar.gz"
 targetFile="/tmp/octopus$suffix"
 targetExe="/tmp/octopus"
+targetChangeLog="/tmp/CHANGELOG.md"
+targetLicense="/tmp/LICENSE"
+targetReadme="/tmp/README.md"
 
 if [ -e $targetFile ]; then
     rm $targetFile
@@ -103,16 +106,16 @@ if [ -e $targetExe ]; then
   rm $targetExe
 fi
 
-if [ -e "/tmp/CHANGELOG.md" ]; then
-  rm "/tmp/CHANGELOG.md"
+if [ -e $targetChangeLog ]; then
+  rm $targetChangeLog
 fi
 
-if [ -e "/tmp/LICENSE" ]; then
-  rm "/tmp/LICENSE"
+if [ -e $targetLicense ]; then
+  rm $targetLicense
 fi
 
-if [ -e "/tmp/README.md" ]; then
-  rm "/tmp/README.md"
+if [ -e $targetReadme ]; then
+  rm $targetReadme
 fi
 
 log "${PURPLE}Downloading Octopus cli for $platform-$arch to ${targetFile}${NC}"
@@ -163,16 +166,16 @@ if [ -e $targetExe ]; then
   rm $targetExe
 fi
 
-if [ -e "/tmp/CHANGELOG.md" ]; then
-  rm "/tmp/CHANGELOG.md"
+if [ -e $targetChangeLog ]; then
+  rm $targetChangeLog
 fi
 
-if [ -e "/tmp/LICENSE" ]; then
-  rm "/tmp/LICENSE"
+if [ -e $targetLicense ]; then
+  rm $targetLicense
 fi
 
-if [ -e "/tmp/README.md" ]; then
-  rm "/tmp/README.md"
+if [ -e $targetReadme ]; then
+  rm $targetReadme
 fi
 
 log "Running ${BLUE}octopus version${NC}"
@@ -183,5 +186,4 @@ if ! $(echo "$PATH" | grep -q "$INSTALL_PATH"); then
     log "${YELLOW}$INSTALL_PATH not found in \$PATH, you might need to add it${NC}"
     log
 fi
-
 
