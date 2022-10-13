@@ -2,11 +2,81 @@ package testutil
 
 import (
 	"errors"
+	"fmt"
+	"testing"
+
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/AlecAivazis/survey/v2/core"
+	"github.com/OctopusDeploy/cli/pkg/question"
 	"github.com/stretchr/testify/assert"
-	"testing"
 )
+
+type PA struct {
+	Prompt               survey.Prompt
+	Answer               any
+	ShouldSkipValidation bool
+}
+
+func NewMockAsker(t *testing.T, pa []*PA) question.Asker {
+	expectedQuestionIndex := 0
+	return func(p survey.Prompt, response interface{}, opts ...survey.AskOpt) error {
+		if expectedQuestionIndex >= len(pa) {
+			assert.FailNow(t, "Did not expect anymore questions but got: %+v", p)
+			return fmt.Errorf("did not expect anymore questions")
+		}
+
+		options := &survey.AskOptions{}
+		for _, opt := range opts {
+			if opt == nil {
+				continue
+			}
+			if err := opt(options); err != nil {
+				return err
+			}
+		}
+
+		if response == nil {
+			return errors.New("cannot call Ask() with a nil reference to record the answers")
+		}
+
+		validate := func(q *survey.Question, val interface{}) error {
+			if q.Validate != nil {
+				if err := q.Validate(val); err != nil {
+					return err
+				}
+			}
+			for _, v := range options.Validators {
+				if err := v(val); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+
+		expectedQA := pa[expectedQuestionIndex]
+		expectedQuestionIndex += 1
+
+		isEqual := assert.Equal(t, expectedQA.Prompt, p)
+		if !isEqual {
+			return fmt.Errorf("did not get expected question")
+		}
+
+		currentQuestion := survey.Question{Prompt: p}
+
+		if !expectedQA.ShouldSkipValidation {
+			validationErr := validate(&currentQuestion, expectedQA.Answer)
+			if !assert.NoError(t, validationErr) {
+				return validationErr
+			}
+		}
+
+		if err := core.WriteAnswer(response, "", expectedQA.Answer); err != nil {
+			return err
+		}
+
+		return nil
+	}
+}
 
 type answerOrError struct {
 	answer any
