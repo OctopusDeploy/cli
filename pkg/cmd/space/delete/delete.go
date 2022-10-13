@@ -16,6 +16,7 @@ import (
 )
 
 func NewCmdDelete(f factory.Factory) *cobra.Command {
+	var alreadyConfirmed bool
 	cmd := &cobra.Command{
 		Use:     "delete {<name> | <id>}",
 		Short:   "Delete a space in an instance of Octopus Deploy",
@@ -31,11 +32,6 @@ func NewCmdDelete(f factory.Factory) *cobra.Command {
 			}
 
 			itemIDOrName := args[0]
-
-			alreadyConfirmed, err := cmd.Flags().GetBool("confirm")
-			if err != nil {
-				return err
-			}
 
 			client, err := f.GetSystemClient()
 			if err != nil {
@@ -59,8 +55,8 @@ func NewCmdDelete(f factory.Factory) *cobra.Command {
 			return nil
 		},
 	}
-	// TODO confirm might want to be a global flag?
-	cmd.Flags().BoolP("confirm", "y", false, "Don't ask for confirmation before deleting the space.")
+
+	question.RegisterDeleteFlag(&alreadyConfirmed, cmd, "space")
 
 	return cmd
 }

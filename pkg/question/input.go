@@ -2,10 +2,27 @@ package question
 
 import (
 	"fmt"
-
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/OctopusDeploy/cli/pkg/output"
+	"github.com/OctopusDeploy/cli/pkg/util/flag"
+	"github.com/spf13/cobra"
 )
+
+const FlagConfirm = "confirm"
+
+type DeleteFlags struct {
+	Confirm *flag.Flag[bool]
+}
+
+func NewDeleteFlags() *DeleteFlags {
+	return &DeleteFlags{
+		Confirm: flag.New[bool](FlagConfirm, false),
+	}
+}
+
+func RegisterDeleteFlag(value *bool, cmd *cobra.Command, resourceDescription string) {
+	cmd.Flags().BoolVarP(value, FlagConfirm, "c", false, fmt.Sprintf("Don't ask for confirmation before deleting the %s.", resourceDescription))
+}
 
 func DeleteWithConfirmation(ask Asker, itemType string, itemName string, itemID string, doDelete func() error) error {
 	var enteredName string
