@@ -28,7 +28,7 @@ func NewMockAsker(t *testing.T, pa []*PA) (question.Asker, CheckRemaining) {
 		}
 		remainingPA := pa[expectedQuestionIndex:]
 		for _, remaining := range remainingPA {
-			assert.Fail(t, fmt.Sprintf("Expected the following promp: %+v", remaining.Prompt))
+			assert.Fail(t, fmt.Sprintf("Expected the following prompt: %+v", remaining.Prompt))
 		}
 	}
 
