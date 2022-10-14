@@ -17,9 +17,22 @@ type PA struct {
 	ShouldSkipValidation bool
 }
 
-func NewMockAsker(t *testing.T, pa []*PA) question.Asker {
+type CheckRemaining func()
+
+func NewMockAsker(t *testing.T, pa []*PA) (question.Asker, CheckRemaining) {
 	expectedQuestionIndex := 0
-	return func(p survey.Prompt, response interface{}, opts ...survey.AskOpt) error {
+
+	checkRemaining := func() {
+		if expectedQuestionIndex >= len(pa) {
+			return
+		}
+		remainingPA := pa[expectedQuestionIndex:]
+		for _, remaining := range remainingPA {
+			assert.Fail(t, fmt.Sprintf("Expected the following promp: %+v", remaining.Prompt))
+		}
+	}
+
+	mockAsker := func(p survey.Prompt, response interface{}, opts ...survey.AskOpt) error {
 		if expectedQuestionIndex >= len(pa) {
 			assert.FailNow(t, fmt.Sprintf("Did not expect anymore questions but got: %+v", p))
 			return fmt.Errorf("did not expect anymore questions")
@@ -76,6 +89,7 @@ func NewMockAsker(t *testing.T, pa []*PA) question.Asker {
 
 		return nil
 	}
+	return mockAsker, checkRemaining
 }
 
 type answerOrError struct {
