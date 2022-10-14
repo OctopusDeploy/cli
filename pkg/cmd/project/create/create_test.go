@@ -43,7 +43,7 @@ func TestAskProjectGroup_WithExistingProjectGroup(t *testing.T) {
 			Answer: "bar",
 		},
 	}
-	asker := testutil.NewMockAsker(t, pa)
+	asker, checkRemainingPrompts := testutil.NewMockAsker(t, pa)
 
 	getFakeProjectGroups := func() ([]*projectgroups.ProjectGroup, error) {
 		return []*projectgroups.ProjectGroup{
@@ -53,6 +53,7 @@ func TestAskProjectGroup_WithExistingProjectGroup(t *testing.T) {
 	}
 
 	value, _, err := projectCreate.AskProjectGroups(asker, "", getFakeProjectGroups, nil)
+	checkRemainingPrompts()
 	assert.NoError(t, err)
 	assert.Equal(t, "bar", value)
 }
@@ -66,7 +67,7 @@ func TestAskProjectGroup_WithNewProjectGroup(t *testing.T) {
 			Answer: true,
 		},
 	}
-	asker := testutil.NewMockAsker(t, pa)
+	asker, checkRemainingPrompts := testutil.NewMockAsker(t, pa)
 
 	projectGroupCreateOpts := projectGroupCreate.NewCreateOptions(nil, nil)
 	createProjectGroup := func() (string, cmd.Dependable, error) {
@@ -74,6 +75,7 @@ func TestAskProjectGroup_WithNewProjectGroup(t *testing.T) {
 	}
 
 	value, pgOpts, err := projectCreate.AskProjectGroups(asker, "", nil, createProjectGroup)
+	checkRemainingPrompts()
 	assert.NoError(t, err)
 	assert.Equal(t, "foo", value)
 	assert.Equal(t, projectGroupCreateOpts, pgOpts)

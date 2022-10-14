@@ -50,8 +50,9 @@ func TestSelectForMultipleItem(t *testing.T) {
 			Answer: "name 2",
 		},
 	}
-	mockAsker := testutil.NewMockAsker(t, pa)
+	mockAsker, checkRemainingPrompts := testutil.NewMockAsker(t, pa)
 	selectedItem, err := Select(mockAsker, "question", itemsCallback, func(item *Item) string { return item.name })
+	checkRemainingPrompts()
 	assert.Nil(t, err)
 	assert.Equal(t, selectedItem.id, "2")
 }
