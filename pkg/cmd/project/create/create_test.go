@@ -60,12 +60,7 @@ func TestAskProjectGroup_WithExistingProjectGroup(t *testing.T) {
 
 func TestAskProjectGroup_WithNewProjectGroup(t *testing.T) {
 	pa := []*testutil.PA{
-		{
-			Prompt: &survey.Confirm{
-				Message: "Would you like to create a new Project Group?",
-			},
-			Answer: true,
-		},
+		testutil.NewConfirmPrompt("Would you like to create a new Project Group?", "", true),
 	}
 	asker, checkRemainingPrompts := testutil.NewMockAsker(t, pa)
 
