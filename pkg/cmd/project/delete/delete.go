@@ -47,7 +47,7 @@ func NewCmdList(f factory.Factory) *cobra.Command {
 		},
 	}
 
-	question.RegisterDeleteFlag(&deleteFlags.Confirm.Value, cmd, "project")
+	question.RegisterDeleteFlag(cmd, &deleteFlags.Confirm.Value, "project")
 
 	return cmd
 }

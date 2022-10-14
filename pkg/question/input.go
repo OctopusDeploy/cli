@@ -20,7 +20,7 @@ func NewDeleteFlags() *DeleteFlags {
 	}
 }
 
-func RegisterDeleteFlag(value *bool, cmd *cobra.Command, resourceDescription string) {
+func RegisterDeleteFlag(cmd *cobra.Command, value *bool, resourceDescription string) {
 	cmd.Flags().BoolVarP(value, FlagConfirm, "y", false, fmt.Sprintf("Don't ask for confirmation before deleting the %s.", resourceDescription))
 }
 

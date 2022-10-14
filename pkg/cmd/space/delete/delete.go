@@ -56,7 +56,7 @@ func NewCmdDelete(f factory.Factory) *cobra.Command {
 		},
 	}
 
-	question.RegisterDeleteFlag(&alreadyConfirmed, cmd, "space")
+	question.RegisterDeleteFlag(cmd, &alreadyConfirmed, "space")
 
 	return cmd
 }
