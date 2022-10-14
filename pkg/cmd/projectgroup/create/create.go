@@ -2,13 +2,13 @@ package create
 
 import (
 	"fmt"
+	"github.com/OctopusDeploy/cli/pkg/question"
 
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/cmd"
 	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/OctopusDeploy/cli/pkg/output"
-	"github.com/OctopusDeploy/cli/pkg/question"
 	"github.com/OctopusDeploy/cli/pkg/util/flag"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projectgroups"
 	"github.com/spf13/cobra"
@@ -115,7 +115,7 @@ func PromptMissing(opts *CreateOptions) error {
 		messagePrefix = "Project Group "
 	}
 
-	AskName(opts.Ask, messagePrefix, "project group", &opts.Name.Value)
+	question.AskName(opts.Ask, messagePrefix, "project group", &opts.Name.Value)
 
 	if opts.Description.Value == "" {
 		if err := opts.Ask(&survey.Input{
@@ -126,21 +126,5 @@ func PromptMissing(opts *CreateOptions) error {
 		}
 	}
 
-	return nil
-}
-
-func AskName(ask question.Asker, messagePrefix string, resourceDescription string, value *string) error {
-	if *value == "" {
-		if err := ask(&survey.Input{
-			Message: messagePrefix + "Name",
-			Help:    fmt.Sprintf("A short, memorable, unique name for this %s.", resourceDescription),
-		}, value, survey.WithValidator(survey.ComposeValidators(
-			survey.MaxLength(200),
-			survey.MinLength(1),
-			survey.Required,
-		))); err != nil {
-			return err
-		}
-	}
 	return nil
 }
