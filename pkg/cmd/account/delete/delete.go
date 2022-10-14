@@ -15,6 +15,7 @@ import (
 )
 
 func NewCmdDelete(f factory.Factory) *cobra.Command {
+	var skipConfirmation bool
 	cmd := &cobra.Command{
 		Use:     "delete {<name> | <id>}",
 		Short:   "Delete an account in an instance of Octopus Deploy",
@@ -30,11 +31,6 @@ func NewCmdDelete(f factory.Factory) *cobra.Command {
 			}
 
 			itemIDOrName := args[0]
-
-			skipConfirmation, err := cmd.Flags().GetBool("confirm")
-			if err != nil {
-				return err
-			}
 
 			client, err := f.GetSpacedClient()
 			if err != nil {
@@ -70,8 +66,8 @@ func NewCmdDelete(f factory.Factory) *cobra.Command {
 			return delete(client, itemToDelete)
 		},
 	}
-	// TODO confirm might want to be a global flag?
-	cmd.Flags().BoolP("confirm", "y", false, "Don't ask for confirmation before deleting the account.")
+
+	question.RegisterDeleteFlag(cmd, &skipConfirmation, "account")
 
 	return cmd
 }
