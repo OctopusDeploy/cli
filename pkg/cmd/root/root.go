@@ -9,6 +9,7 @@ import (
 	projectCmd "github.com/OctopusDeploy/cli/pkg/cmd/project"
 	projectGroupCmd "github.com/OctopusDeploy/cli/pkg/cmd/projectgroup"
 	releaseCmd "github.com/OctopusDeploy/cli/pkg/cmd/release"
+	runbookCmd "github.com/OctopusDeploy/cli/pkg/cmd/runbook"
 	spaceCmd "github.com/OctopusDeploy/cli/pkg/cmd/space"
 	"github.com/OctopusDeploy/cli/pkg/cmd/version"
 	"github.com/OctopusDeploy/cli/pkg/constants"
@@ -45,6 +46,7 @@ func NewCmdRoot(f factory.Factory, clientFactory apiclient.ClientFactory, askPro
 	cmd.AddCommand(configCmd.NewCmdConfig(f))
 	cmd.AddCommand(spaceCmd.NewCmdSpace(f))
 	cmd.AddCommand(releaseCmd.NewCmdRelease(f))
+	cmd.AddCommand(runbookCmd.NewCmdRunbook(f))
 
 	// ----- Configuration -----
 

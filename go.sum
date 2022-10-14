@@ -44,8 +44,10 @@ github.com/MakeNowJust/heredoc/v2 v2.0.1 h1:rlCHh70XXXv7toz95ajQWOWQnN4WNLt0TdpZ
 github.com/MakeNowJust/heredoc/v2 v2.0.1/go.mod h1:6/2Abh5s+hc3g9nbWLe9ObDIOhaRrqsyY9MWy+4JdRM=
 github.com/Netflix/go-expect v0.0.0-20220104043353-73e0943537d2 h1:+vx7roKuyA63nhn5WAunQHLTznkw5W8b1Xc0dNjp83s=
 github.com/Netflix/go-expect v0.0.0-20220104043353-73e0943537d2/go.mod h1:HBCaDeC1lPdgDeDbhX8XFpy1jqjK0IBG8W5K+xYqA0w=
-github.com/OctopusDeploy/go-octopusdeploy/v2 v2.9.0 h1:AhkNwSLWkxR3CyIBUvSPwFvfTebZKMiq+VGpEWVFpcY=
-github.com/OctopusDeploy/go-octopusdeploy/v2 v2.9.0/go.mod h1:XWqxyDUVElUlTaPqyCBblukpsHSnPcAKkAHgJgbsIAs=
+github.com/OctopusDeploy/go-octopusdeploy/v2 v2.8.1 h1:jaMlQAeI93w/BlwUf5LNXXlm0aRneroFKuV1BH0D89s=
+github.com/OctopusDeploy/go-octopusdeploy/v2 v2.8.1/go.mod h1:XWqxyDUVElUlTaPqyCBblukpsHSnPcAKkAHgJgbsIAs=
+github.com/OctopusDeploy/go-octopusdeploy/v2 v2.9.1 h1:rnG8B0t759J3en86aTSi9nZ/dv8VcNIz3s+iKWQxVrI=
+github.com/OctopusDeploy/go-octopusdeploy/v2 v2.9.1/go.mod h1:XWqxyDUVElUlTaPqyCBblukpsHSnPcAKkAHgJgbsIAs=
 github.com/briandowns/spinner v1.19.0 h1:s8aq38H+Qju89yhp89b4iIiMzMm8YN3p6vGpwyh/a8E=
 github.com/briandowns/spinner v1.19.0/go.mod h1:mQak9GHqbspjC/5iUx3qMlIho8xBS/ppAL/hX5SmPJU=
 github.com/census-instrumentation/opencensus-proto v0.2.1/go.mod h1:f6KPmirojxKA12rnyqOA5BBL4O983OfeGPqjHWSTneU=
