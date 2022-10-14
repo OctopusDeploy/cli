@@ -285,30 +285,6 @@ func PromptForConfigAsCode(opts *CreateOptions) error {
 	return nil
 }
 
-func getInitialCommitMessage(opts *CreateOptions) string {
-	if opts.GitInitialCommitMessage.Value == "" {
-		return DefaultGitCommitMessage
-	}
-
-	return opts.GitInitialCommitMessage.Value
-}
-
-func getBasePath(opts *CreateOptions) string {
-	if opts.GitBasePath.Value == "" {
-		return DefaultBasePath
-	}
-
-	return opts.GitBasePath.Value
-}
-
-func getGitBranch(opts *CreateOptions) string {
-	if opts.GitBranch.Value == "" {
-		return "main"
-	}
-
-	return opts.GitBranch.Value
-}
-
 func getGitStorageOptions() []*selectors.SelectOption[string] {
 	return []*selectors.SelectOption[string]{
 		{Display: "Project", Value: GitStorageProject},

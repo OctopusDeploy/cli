@@ -114,6 +114,30 @@ func (co *CreateOptions) buildProjectGitVersionControlSettings() (*projects.Vers
 	return vcs, nil
 }
 
+func getGitBranch(opts *CreateOptions) string {
+	if opts.GitBranch.Value == "" {
+		return "main"
+	}
+
+	return opts.GitBranch.Value
+}
+
+func getBasePath(opts *CreateOptions) string {
+	if opts.GitBasePath.Value == "" {
+		return DefaultBasePath
+	}
+
+	return opts.GitBasePath.Value
+}
+
+func getInitialCommitMessage(opts *CreateOptions) string {
+	if opts.GitInitialCommitMessage.Value == "" {
+		return DefaultGitCommitMessage
+	}
+
+	return opts.GitInitialCommitMessage.Value
+}
+
 func (co *CreateOptions) GenerateAutomationCmd() {
 	if !co.NoPrompt {
 		autoCmd := flag.GenerateAutomationCmd(co.CmdPath, co.Name, co.Description, co.Group, co.Lifecycle)
