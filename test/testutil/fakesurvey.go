@@ -19,6 +19,47 @@ type PA struct {
 
 type CheckRemaining func()
 
+func NewInputPrompt(prompt string, help string, response string) *PA {
+	return &PA{
+		Prompt: &survey.Input{
+			Message: prompt,
+			Help:    help,
+		},
+		Answer: response,
+	}
+}
+
+func NewPasswordPrompt(prompt string, help string, response string) *PA {
+	return &PA{
+		Prompt: &survey.Password{
+			Message: prompt,
+			Help:    help,
+		},
+		Answer: response,
+	}
+}
+
+func NewSelectPrompt(prompt string, help string, options []string, response string) *PA {
+	return &PA{
+		Prompt: &survey.Select{
+			Message: prompt,
+			Options: options,
+			Help:    help,
+		},
+		Answer: response,
+	}
+}
+
+func NewConfirmPrompt(prompt string, help string, response any) *PA {
+	return &PA{
+		Prompt: &survey.Confirm{
+			Message: prompt,
+			Help:    help,
+		},
+		Answer: response,
+	}
+}
+
 func NewMockAsker(t *testing.T, pa []*PA) (question.Asker, CheckRemaining) {
 	expectedQuestionIndex := 0
 

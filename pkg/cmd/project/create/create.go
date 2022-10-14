@@ -135,18 +135,7 @@ func createRun(opts *CreateOptions) error {
 func PromptMissing(opts *CreateOptions) ([]cmd.Dependable, error) {
 	nestedOpts := []cmd.Dependable{}
 
-	if opts.Name.Value == "" {
-		if err := opts.Ask(&survey.Input{
-			Message: "Name",
-			Help:    "A short, memorable, unique name for this project.",
-		}, &opts.Name.Value, survey.WithValidator(survey.ComposeValidators(
-			survey.MaxLength(200),
-			survey.MinLength(1),
-			survey.Required,
-		))); err != nil {
-			return nil, err
-		}
-	}
+	question.AskName(opts.Ask, "", "project", &opts.Name.Value)
 
 	if opts.Lifecycle.Value == "" {
 		lc, err := selectors.Lifecycle("You have not specified a Lifecycle for this project. Please select one:", opts.Client, opts.Ask)
@@ -218,8 +207,8 @@ func PromptForConfigAsCode(opts *CreateOptions) error {
 
 		if opts.GitUrl.Value == "" {
 			if err := opts.Ask(&survey.Input{
-				Message: "Git Url",
-				Help:    "The Url of the Git repository to store configuration.",
+				Message: "Git URL",
+				Help:    "The URL of the Git repository to store configuration.",
 			}, &opts.GitUrl.Value, survey.WithValidator(survey.ComposeValidators(
 				survey.MaxLength(200),
 				survey.MinLength(1),
@@ -242,7 +231,7 @@ func PromptForConfigAsCode(opts *CreateOptions) error {
 
 		if opts.GitBranch.Value == "" {
 			if err := opts.Ask(&survey.Input{
-				Message: "Git Branch",
+				Message: "Git branch",
 				Help:    "The default branch to use. Default value: '" + DefaultBranch + "'",
 			}, &opts.GitBranch.Value, survey.WithValidator(survey.ComposeValidators(
 				survey.MaxLength(200),
@@ -251,9 +240,15 @@ func PromptForConfigAsCode(opts *CreateOptions) error {
 			}
 		}
 
-		err := PromptForInitialCommitMessage(opts)
-		if err != nil {
-			return err
+		if opts.GitInitialCommitMessage.Value == "" {
+			if err := opts.Ask(&survey.Input{
+				Message: "Initial Git commit message",
+				Help:    "The commit message used in initializing. Default value: '" + DefaultGitCommitMessage + "'",
+			}, &opts.GitInitialCommitMessage.Value, survey.WithValidator(survey.ComposeValidators(
+				survey.MaxLength(50),
+			))); err != nil {
+				return err
+			}
 		}
 
 		if opts.GitStorage.Value == GitStorageLibrary {
@@ -261,7 +256,7 @@ func PromptForConfigAsCode(opts *CreateOptions) error {
 		} else {
 			if opts.GitUsername.Value == "" {
 				if err := opts.Ask(&survey.Input{
-					Message: "Git Username",
+					Message: "Git username",
 					Help:    "The Git username.",
 				}, &opts.GitUsername.Value, survey.WithValidator(survey.ComposeValidators(
 					survey.MaxLength(200),
@@ -274,7 +269,7 @@ func PromptForConfigAsCode(opts *CreateOptions) error {
 
 			if opts.GitPassword.Value == "" {
 				if err := opts.Ask(&survey.Password{
-					Message: "Git Password",
+					Message: "Git password",
 					Help:    "The Git password.",
 				}, &opts.GitPassword.Value, survey.WithValidator(survey.ComposeValidators(
 					survey.MaxLength(200),
@@ -287,24 +282,6 @@ func PromptForConfigAsCode(opts *CreateOptions) error {
 		}
 	}
 
-	return nil
-}
-
-func PromptForInitialCommitMessage(opts *CreateOptions) error {
-	if opts.GitInitialCommitMessage.Value == "" {
-		if err := opts.Ask(&survey.Input{
-			Message: "Initial Git commit message",
-			Help:    "The commit message used in initializing. Default value: '" + DefaultGitCommitMessage + "'",
-		}, &opts.GitInitialCommitMessage.Value, survey.WithValidator(survey.ComposeValidators(
-			survey.MaxLength(50),
-		))); err != nil {
-			return err
-		}
-	}
-
-	if opts.GitInitialCommitMessage.Value == "" {
-		opts.GitInitialCommitMessage.Value = DefaultGitCommitMessage
-	}
 	return nil
 }
 
