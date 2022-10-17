@@ -31,8 +31,6 @@ if [ "$?" = "1" ]; then
     die "You need to install curl to use this script."
 fi
 
-release=${1:-latest}
-
 log "Selecting version..."
 
 version=${VERSION:-v0.4.0}
@@ -42,7 +40,7 @@ if [ ! $version ]; then
     log "Failed while attempting to install octopus cli. Please manually install:"
     log ""
     log "1. Open your web browser and go to https://github.com/OctopusDeploy/cli/releases"
-    log "2. Download the cli from latest release for your platform. Make sure its names octopus"
+    log "2. Download the cli from the latest release for your platform. Make sure rename it octopus"
     log "3. chmod +x ./octopus"
     log "4. mv ./octopus /usr/local/bin"
     log "${NC}"
@@ -53,7 +51,7 @@ log "Selected version: $version"
 
 log "${YELLOW}"
 log NOTE: Install a specific version of the CLI by using VERSION variable
-log 'curl -L https://github.com/OctopusDeploy/cli/raw/v0.4.0/scripts/install.sh | VERSION=v0.4.0 bash'
+log 'curl -L https://github.com/OctopusDeploy/cli/raw/scripts/install.sh | VERSION=v0.4.0 bash'
 log "${NC}"
 
 # check for existing octopus cli installation

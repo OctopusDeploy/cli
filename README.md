@@ -12,11 +12,33 @@
 
 ## Installation
 
+#### Linux & macOS - CURL script
+
+In your Terminal, run the following command:
+
+```shell
+curl -L https://github.com/OctopusDeploy/cli/raw/scripts/install.sh | bash
+```
+
+This will install Octopus CLI in `/usr/local/bin`. Depending on the permission of `/usr/local/bin`, you may need to provide your sudo password.
+
+If you would like to install to a different location, set the `INSTALL_PATH` variable accordingly:
+
+```shell
+curl -L https://github.com/OctopusDeploy/cli/raw/scripts/install.sh | INSTALL_PATH=$HOME/bin bash
+```
+
+You can also install a specific version by providing the `VERSION` variable:
+
+```shell
+curl -L https://github.com/OctopusDeploy/cli/raw/scripts/install.sh | VERSION=v0.4.0 bash
+```
+
 #### Windows - MSI file
 
 Navigate to latest release on the [GitHub releases page](https://github.com/OctopusDeploy/cli/releases) and expand the **Assets** list.
 
-Download and run the file `octopus_[version]_Windows_x86_64.msi` 
+Download and run the file `octopus_[version]_Windows_x86_64.msi`
 
 *Note:* At this time, the installer is x64 only. If you are using Windows on ARM, download the manual archive instead.
 
@@ -81,24 +103,24 @@ https://github.com/OctopusDeploy/OctopusCLI
 
 ### Differences from the .NET CLI
 
-The new CLI will not initially contain all the features of the existing .NET CLI. 
-Over time we plan to add features and may eventually reach parity, but our intent is that both the 
+The new CLI will not initially contain all the features of the existing .NET CLI.
+Over time we plan to add features and may eventually reach parity, but our intent is that both the
 .NET and Go CLI's will co-exist for a significant period of time.
 
 The new CLI restructures the command line to be more consistent, and fit with convention
-across other popular CLI apps. It is built on the popular and widely-used [Cobra](https://github.com/spf13/cobra) 
+across other popular CLI apps. It is built on the popular and widely-used [Cobra](https://github.com/spf13/cobra)
 command line processing library.
 
 #### Examples:
 
 **.NET CLI**
 
-    octo list-releases 
+    octo list-releases
     octo create-release
 
 **Go CLI**
 
-    octopus release list 
+    octopus release list
     octopus release create
 
 The new CLI supports an "interactive" mode, where it will prompt for input where
@@ -131,12 +153,12 @@ cd cmd/octopus
 go build .
 ```
 
-If successful, the go compiler does not output anything. You should now have an `octopus` binary 
+If successful, the go compiler does not output anything. You should now have an `octopus` binary
 (`octopus.exe` on windows) in your current directory.
 
 **Makefile**
 
-If you are using a sytem that has `make` installed, then you can also simpl run `make` in the cli root folder. 
+If you are using a sytem that has `make` installed, then you can also simpl run `make` in the cli root folder.
 The default action for the `Makefile` is to run `go build`, as above.
 
 ## Running the CLI
@@ -183,22 +205,22 @@ A rough overview is as follows:
 ```shell
 cmd/
    octopus/  # Contains the octopus binary
-   
+
 pkg/
    apiclient/ # Utility code used to manage authentication/connection to the octopus server
    cmd/ # contains sub-packages for each cobra command
       account/ # contains commands related to accounts
       environment/ # contains commands related to environments
-      ... # more commands   
+      ... # more commands
   constants/ # constant values to avoid duplicated strings, ints, etc
   errors/ # internal error objects
   executor/ # See 'architecture' below
   factory/ # "service locator" object used by commands to locate shared services
   output/ # internal utilities which help formatting output
-  question/ # See 'architecture' below 
+  question/ # See 'architecture' below
 
 testutil/ # internal utility code used by both unit and integration tests
-integrationtest/ # Contains integration tests  
+integrationtest/ # Contains integration tests
 ```
 
 ### Testing
@@ -207,20 +229,20 @@ Unit tests for packages follow go language conventions, and is located next to t
 
 ```shell
 pkg/
-  question/ 
+  question/
     input.go
-    input_test.go # unit tests for the code contained in input.go  
+    input_test.go # unit tests for the code contained in input.go
 ```
 
-The easiest way to run the tests is to `cd pkg` and run `go test ./...`.  
-We find `gotestsum` provides a nice wrapper around the underlying go test functionality, which you may also prefer. 
+The easiest way to run the tests is to `cd pkg` and run `go test ./...`.
+We find `gotestsum` provides a nice wrapper around the underlying go test functionality, which you may also prefer.
 
 ### Integration Tests
 
 Integration tests live outside the pkg structure and operate outside the app.
 They launch the CLI as a seperate process, and interact with it using stdout and stderr.
 
-**Important:** Integration tests assume that an Octopus Deploy server is running and accessible. 
+**Important:** Integration tests assume that an Octopus Deploy server is running and accessible.
 Before running the integration tests you must set the following environment variables, or the tests will fail.
 
 ```shell
@@ -233,7 +255,7 @@ OCTOPUS_TEST_APIKEY: "API-XXXXXXXXXXXXXXXXXXXXXXXXXXXXX" # replace with your API
 **Important:** Integration tests assume an empty Octopus Server database.
 If your server contains existing data, the tests may fail, and they may modify or delete any existing data.
 
-The easiest way to run the tests is to `cd integrationtest` and run `go test ./...` or `gotestsum`  
+The easiest way to run the tests is to `cd integrationtest` and run `go test ./...` or `gotestsum`
 
 ## Guidance and Example of how to create and test new commands
 
@@ -317,7 +339,7 @@ Return back to your new command's go file (`account/create.go` in this example)
 are not yet well defined. We will update the README to be more prescriptive as the situation changes.
 
 At a high level, you should create a function which encapsulates the interactive question/answer session, and returns
-your `TaskOptions` structure, which you then pass to `ProcessTasks` 
+your `TaskOptions` structure, which you then pass to `ProcessTasks`
 
 You should pass a reference to the `Ask` func, which allows you to mock out the `Survey` library, and then you should
 write a series of unit tests which ensure that the question/answer session works correctly.
