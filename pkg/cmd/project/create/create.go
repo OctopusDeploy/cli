@@ -19,7 +19,7 @@ const (
 	FlagName                    = "name"
 	FlagDescription             = "description"
 	FlagLifecycle               = "lifecycle"
-	FlagConfigAsCode            = "config-as-code"
+	FlagConfigAsCode            = "process-vcs"
 	FlagGitUrl                  = "git-url"
 	FlagGitBranch               = "git-branch"
 	FlagGitLibraryCredentials   = "git-credentials"
