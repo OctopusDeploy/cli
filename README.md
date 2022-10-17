@@ -31,7 +31,7 @@ curl -L https://github.com/OctopusDeploy/cli/raw/main/scripts/install.sh | INSTA
 You can also install a specific version by providing the `VERSION` variable:
 
 ```shell
-curl -L https://github.com/OctopusDeploy/cli/raw/scripts/install.sh  | VERSION=v0.4.0 bash
+curl -L https://github.com/OctopusDeploy/cli/raw/main/scripts/install.sh | VERSION=v0.4.0 bash
 ```
 
 #### Windows - MSI file
