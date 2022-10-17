@@ -17,7 +17,7 @@
 In your Terminal, run the following command:
 
 ```shell
-curl -L https://github.com/OctopusDeploy/cli/raw/scripts/install.sh | bash
+curl -L https://github.com/OctopusDeploy/cli/raw/main/scripts/install.sh | bash
 ```
 
 This will install Octopus CLI in `/usr/local/bin`. Depending on the permission of `/usr/local/bin`, you may need to provide your sudo password.
@@ -25,13 +25,13 @@ This will install Octopus CLI in `/usr/local/bin`. Depending on the permission o
 If you would like to install to a different location, set the `INSTALL_PATH` variable accordingly:
 
 ```shell
-curl -L https://github.com/OctopusDeploy/cli/raw/scripts/install.sh | INSTALL_PATH=$HOME/bin bash
+curl -L https://github.com/OctopusDeploy/cli/raw/main/scripts/install.sh | INSTALL_PATH=$HOME/bin bash
 ```
 
 You can also install a specific version by providing the `VERSION` variable:
 
 ```shell
-curl -L https://github.com/OctopusDeploy/cli/raw/scripts/install.sh | VERSION=v0.4.0 bash
+curl -L https://github.com/OctopusDeploy/cli/raw/main/scripts/install.sh | VERSION=v0.4.0 bash
 ```
 
 #### Windows - MSI file
