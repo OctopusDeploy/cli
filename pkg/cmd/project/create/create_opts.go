@@ -2,7 +2,9 @@ package create
 
 import (
 	"fmt"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/credentials"
 	"net/url"
+	"strings"
 
 	"github.com/OctopusDeploy/cli/pkg/cmd"
 	projectGroupCreate "github.com/OctopusDeploy/cli/pkg/cmd/projectgroup/create"
@@ -18,11 +20,14 @@ type CreateProjectGroupCallback func() (string, cmd.Dependable, error)
 
 type GetAllGroupsCallback func() ([]*projectgroups.ProjectGroup, error)
 
+type GetAllGitCredentialsCallback func() ([]*credentials.Resource, error)
+
 type CreateOptions struct {
 	*CreateFlags
 	*cmd.Dependencies
-	GetAllGroupsCallback       GetAllGroupsCallback
-	CreateProjectGroupCallback CreateProjectGroupCallback
+	GetAllGroupsCallback         GetAllGroupsCallback
+	CreateProjectGroupCallback   CreateProjectGroupCallback
+	GetAllGitCredentialsCallback GetAllGitCredentialsCallback
 }
 
 func NewCreateOptions(createFlags *CreateFlags, dependencies *cmd.Dependencies) *CreateOptions {
@@ -31,6 +36,9 @@ func NewCreateOptions(createFlags *CreateFlags, dependencies *cmd.Dependencies) 
 		Dependencies:               dependencies,
 		GetAllGroupsCallback:       func() ([]*projectgroups.ProjectGroup, error) { return getAllGroups(*dependencies.Client) },
 		CreateProjectGroupCallback: func() (string, cmd.Dependable, error) { return createProjectGroupCallback(dependencies) },
+		GetAllGitCredentialsCallback: func() ([]*credentials.Resource, error) {
+			return createGetAllGitCredentialsCallback(*dependencies.Client)
+		},
 	}
 }
 
@@ -52,6 +60,14 @@ func createProjectGroupCallback(dependencies *cmd.Dependencies) (string, cmd.Dep
 	return returnValue, projectGroupCreateOpts, nil
 }
 
+func createGetAllGitCredentialsCallback(client client.Client) ([]*credentials.Resource, error) {
+	res, err := client.GitCredentials.Get(credentials.Query{})
+	if err != nil {
+		return nil, err
+	}
+	return res.Items, nil
+}
+
 func (co *CreateOptions) Commit() error {
 	lifecycle, err := co.Client.Lifecycles.GetByIDOrName(co.Lifecycle.Value)
 	if err != nil {
@@ -63,7 +79,7 @@ func (co *CreateOptions) Commit() error {
 		return err
 	}
 
-	project := projects.NewProject(co.Name.Value, lifecycle.ID, projectGroup.ID)
+	project := projects.NewProject(co.Name.Value, lifecycle.GetID(), projectGroup.GetID())
 	project.Description = co.Description.Value
 
 	createdProject, err := co.Client.Projects.Add(project)
@@ -72,18 +88,9 @@ func (co *CreateOptions) Commit() error {
 	}
 
 	if co.ConfigAsCode.Value {
-		var vcs *projects.VersionControlSettings
-		if co.GitStorage.Value == "project" {
-			vcs, err = co.buildProjectGitVersionControlSettings()
-			if err != nil {
-				return err
-			}
-
-		} else {
-			vcs, err = co.buildLibraryGitVersionControlSettings()
-			if err != nil {
-				return err
-			}
+		vcs, err := co.buildVersionControlSettings()
+		if err != nil {
+			return err
 		}
 
 		_, err = co.Client.Projects.ConvertToVcs(createdProject, getInitialCommitMessage(co), vcs)
@@ -100,18 +107,42 @@ func (co *CreateOptions) Commit() error {
 	return nil
 }
 
-func (co *CreateOptions) buildLibraryGitVersionControlSettings() (*projects.VersionControlSettings, error) {
-	panic("library git credentials not currently supported")
-}
-
-func (co *CreateOptions) buildProjectGitVersionControlSettings() (*projects.VersionControlSettings, error) {
-	credentials := projects.NewUsernamePasswordGitCredential(co.GitUsername.Value, core.NewSensitiveValue(co.GitPassword.Value))
+func (co *CreateOptions) buildVersionControlSettings() (*projects.VersionControlSettings, error) {
+	var credentials credentials.IGitCredential
+	var err error
+	if strings.EqualFold(co.GitStorage.Value, GitStorageLibrary) {
+		credentials, err = co.buildLibraryGitVersionControlSettings()
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		credentials, err = co.buildProjectGitVersionControlSettings()
+		if err != nil {
+			return nil, err
+		}
+	}
 	url, err := url.Parse(co.GitUrl.Value)
 	if err != nil {
 		return nil, err
 	}
+
 	vcs := projects.NewVersionControlSettings(getBasePath(co), credentials, getGitBranch(co), GitPersistenceType, url)
 	return vcs, nil
+}
+
+func (co *CreateOptions) buildLibraryGitVersionControlSettings() (credentials.IGitCredential, error) {
+	creds, err := co.Client.GitCredentials.GetByIDOrName(co.GitCredentials.Value)
+	if err != nil {
+		return nil, err
+	}
+
+	credentials := credentials.NewReference(creds.GetID())
+	return credentials, nil
+}
+
+func (co *CreateOptions) buildProjectGitVersionControlSettings() (credentials.IGitCredential, error) {
+	credentials := credentials.NewUsernamePassword(co.GitUsername.Value, core.NewSensitiveValue(co.GitPassword.Value))
+	return credentials, nil
 }
 
 func getGitBranch(opts *CreateOptions) string {
@@ -140,7 +171,7 @@ func getInitialCommitMessage(opts *CreateOptions) string {
 
 func (co *CreateOptions) GenerateAutomationCmd() {
 	if !co.NoPrompt {
-		autoCmd := flag.GenerateAutomationCmd(co.CmdPath, co.Name, co.Description, co.Group, co.Lifecycle)
+		autoCmd := flag.GenerateAutomationCmd(co.CmdPath, co.Name, co.Description, co.Group, co.Lifecycle, co.ConfigAsCode, co.GitStorage, co.GitUrl, co.GitBranch, co.GitInitialCommitMessage, co.GitCredentials, co.GitUsername, co.GitPassword)
 		fmt.Fprintf(co.Out, "%s\n", autoCmd)
 	}
 }

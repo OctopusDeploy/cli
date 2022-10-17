@@ -9,6 +9,7 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/question"
 	"github.com/OctopusDeploy/cli/pkg/question/selectors"
 	"github.com/OctopusDeploy/cli/pkg/util/flag"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/credentials"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projectgroups"
 	"github.com/spf13/cobra"
 )
@@ -18,13 +19,13 @@ const (
 	FlagName                    = "name"
 	FlagDescription             = "description"
 	FlagLifecycle               = "lifecycle"
-	FlagConfigAsCode            = "cac"
+	FlagConfigAsCode            = "config-as-code"
 	FlagGitUrl                  = "git-url"
 	FlagGitBranch               = "git-branch"
 	FlagGitLibraryCredentials   = "git-credentials"
 	FlagGitUsername             = "git-username"
 	FlagGitPassword             = "git-password"
-	FlagGitCredentialStorage    = "git-cred-store"
+	FlagGitCredentialStorage    = "git-credential-store"
 	FlagGitInitialCommitMessage = "git-initial-commit"
 	FlagGitBasePath             = "git-base-path"
 
@@ -61,13 +62,13 @@ func NewCreateFlags() *CreateFlags {
 		Description:             flag.New[string](FlagDescription, false),
 		Lifecycle:               flag.New[string](FlagLifecycle, false),
 		ConfigAsCode:            flag.New[bool](FlagConfigAsCode, false),
+		GitStorage:              flag.New[string](FlagGitCredentialStorage, false),
 		GitUrl:                  flag.New[string](FlagGitUrl, false),
 		GitBranch:               flag.New[string](FlagGitBranch, false),
+		GitInitialCommitMessage: flag.New[string](FlagGitInitialCommitMessage, false),
 		GitCredentials:          flag.New[string](FlagGitLibraryCredentials, false),
 		GitUsername:             flag.New[string](FlagGitUsername, false),
 		GitPassword:             flag.New[string](FlagGitPassword, true),
-		GitStorage:              flag.New[string](FlagGitCredentialStorage, false),
-		GitInitialCommitMessage: flag.New[string](FlagGitInitialCommitMessage, false),
 		GitBasePath:             flag.New[string](FlagGitBasePath, false),
 	}
 }
@@ -154,7 +155,7 @@ func PromptMissing(opts *CreateOptions) ([]cmd.Dependable, error) {
 		nestedOpts = append(nestedOpts, projectGroupOpt)
 	}
 
-	err = PromptForConfigAsCode(opts)
+	err = PromptForConfigAsCode(opts, opts.GetAllGitCredentialsCallback)
 	if err != nil {
 		return nil, err
 	}
@@ -187,7 +188,7 @@ func AskProjectGroups(ask question.Asker, value string, getAllGroupsCallback Get
 
 }
 
-func PromptForConfigAsCode(opts *CreateOptions) error {
+func PromptForConfigAsCode(opts *CreateOptions, getGitCredentialsCallback GetAllGitCredentialsCallback) error {
 	if !opts.ConfigAsCode.Value {
 		opts.Ask(&survey.Confirm{
 			Message: "Would you like to use Config as Code?",
@@ -252,32 +253,14 @@ func PromptForConfigAsCode(opts *CreateOptions) error {
 		}
 
 		if opts.GitStorage.Value == GitStorageLibrary {
-			panic("library storage not currently supported")
-		} else {
-			if opts.GitUsername.Value == "" {
-				if err := opts.Ask(&survey.Input{
-					Message: "Git username",
-					Help:    "The Git username.",
-				}, &opts.GitUsername.Value, survey.WithValidator(survey.ComposeValidators(
-					survey.MaxLength(200),
-					survey.MinLength(1),
-					survey.Required,
-				))); err != nil {
-					return err
-				}
+			err := promptLibraryGitCredentials(opts, getGitCredentialsCallback)
+			if err != nil {
+				return err
 			}
-
-			if opts.GitPassword.Value == "" {
-				if err := opts.Ask(&survey.Password{
-					Message: "Git password",
-					Help:    "The Git password.",
-				}, &opts.GitPassword.Value, survey.WithValidator(survey.ComposeValidators(
-					survey.MaxLength(200),
-					survey.MinLength(1),
-					survey.Required,
-				))); err != nil {
-					return err
-				}
+		} else {
+			err := promptProjectGitCredentials(opts)
+			if err != nil {
+				return err
 			}
 		}
 	}
@@ -285,9 +268,50 @@ func PromptForConfigAsCode(opts *CreateOptions) error {
 	return nil
 }
 
+func promptProjectGitCredentials(opts *CreateOptions) error {
+	if opts.GitUsername.Value == "" {
+		if err := opts.Ask(&survey.Input{
+			Message: "Git username",
+			Help:    "The Git username.",
+		}, &opts.GitUsername.Value, survey.WithValidator(survey.ComposeValidators(
+			survey.MaxLength(200),
+			survey.MinLength(1),
+			survey.Required,
+		))); err != nil {
+			return err
+		}
+	}
+
+	if opts.GitPassword.Value == "" {
+		if err := opts.Ask(&survey.Password{
+			Message: "Git password",
+			Help:    "The Git password.",
+		}, &opts.GitPassword.Value, survey.WithValidator(survey.ComposeValidators(
+			survey.MaxLength(200),
+			survey.MinLength(1),
+			survey.Required,
+		))); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func promptLibraryGitCredentials(opts *CreateOptions, gitCredentialsCallback GetAllGitCredentialsCallback) error {
+	if opts.GitCredentials.Value == "" {
+		selectedOption, err := selectors.Select(opts.Ask, "Select which Git credentials to use", gitCredentialsCallback, func(resource *credentials.Resource) string { return resource.Name })
+
+		if err != nil {
+			return err
+		}
+		opts.GitCredentials.Value = selectedOption.GetName()
+	}
+	return nil
+}
+
 func getGitStorageOptions() []*selectors.SelectOption[string] {
 	return []*selectors.SelectOption[string]{
-		{Display: "Project", Value: GitStorageProject},
 		{Display: "Library", Value: GitStorageLibrary},
+		{Display: "Project", Value: GitStorageProject},
 	}
 }
