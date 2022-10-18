@@ -230,7 +230,7 @@ func PromptForConfigAsCode(opts *CreateOptions, getGitCredentialsCallback GetAll
 		if opts.GitBasePath.Value == "" {
 			if err := opts.Ask(&survey.Input{
 				Message: "Git repository base path",
-				Help:    "The path in the repository where Config As Code settings are stored. Default value: '" + DefaultBasePath + "'",
+				Help:    fmt.Sprintf("The path in the repository where Config As Code settings are stored. Default value is '%s'.", DefaultBasePath),
 			}, &opts.GitBasePath.Value, survey.WithValidator(survey.ComposeValidators(
 				survey.MaxLength(200),
 			))); err != nil {
@@ -241,7 +241,7 @@ func PromptForConfigAsCode(opts *CreateOptions, getGitCredentialsCallback GetAll
 		if opts.GitBranch.Value == "" {
 			if err := opts.Ask(&survey.Input{
 				Message: "Git branch",
-				Help:    "The default branch to use. Default value: '" + DefaultBranch + "'",
+				Help:    fmt.Sprintf("The default branch to use. Default value is '%s'.", DefaultBranch),
 			}, &opts.GitBranch.Value, survey.WithValidator(survey.ComposeValidators(
 				survey.MaxLength(200),
 			))); err != nil {
@@ -252,7 +252,7 @@ func PromptForConfigAsCode(opts *CreateOptions, getGitCredentialsCallback GetAll
 		if opts.GitInitialCommitMessage.Value == "" {
 			if err := opts.Ask(&survey.Input{
 				Message: "Initial Git commit message",
-				Help:    "The commit message used in initializing. Default value: '" + DefaultGitCommitMessage + "'",
+				Help:    fmt.Sprintf("The commit message used in initializing. Default value is '%s'.", DefaultGitCommitMessage),
 			}, &opts.GitInitialCommitMessage.Value, survey.WithValidator(survey.ComposeValidators(
 				survey.MaxLength(50),
 			))); err != nil {
