@@ -97,9 +97,9 @@ func TestPromptForConfigAsCode_UsingCacWithProjectStorage(t *testing.T) {
 		testutil.NewConfirmPrompt("Would you like to use Config as Code?", "", true),
 		testutil.NewSelectPrompt("Select where to store the Git credentials", "", []string{"Library", "Project"}, "Project"),
 		testutil.NewInputPrompt("Git URL", "The URL of the Git repository to store configuration.", "https://github.com/blah.git"),
-		testutil.NewInputPrompt("Git repository base path", "The path in the repository where Config As Code settings are stored. Default value: '.octopus/'", "./octopus/project"),
-		testutil.NewInputPrompt("Git branch", "The default branch to use. Default value: 'main'", "main"),
-		testutil.NewInputPrompt("Initial Git commit message", "The commit message used in initializing. Default value: 'Initial commit of deployment process'", "init message"),
+		testutil.NewInputPrompt("Git repository base path", "The path in the repository where Config As Code settings are stored. Default value is '.octopus/'.", "./octopus/project"),
+		testutil.NewInputPrompt("Git branch", "The default branch to use. Default value is 'main'.", "main"),
+		testutil.NewInputPrompt("Initial Git commit message", "The commit message used in initializing. Default value is 'Initial commit of deployment process'.", "init message"),
 		testutil.NewInputPrompt("Git username", "The Git username.", "user1"),
 		testutil.NewPasswordPrompt("Git password", "The Git password.", "password"),
 	}
@@ -127,9 +127,9 @@ func TestPromptForConfigAsCode_UsingCacWithLibraryStorage(t *testing.T) {
 		testutil.NewConfirmPrompt("Would you like to use Config as Code?", "", true),
 		testutil.NewSelectPrompt("Select where to store the Git credentials", "", []string{"Library", "Project"}, "Library"),
 		testutil.NewInputPrompt("Git URL", "The URL of the Git repository to store configuration.", "https://github.com/blah.git"),
-		testutil.NewInputPrompt("Git repository base path", "The path in the repository where Config As Code settings are stored. Default value: '.octopus/'", "./octopus/project"),
-		testutil.NewInputPrompt("Git branch", "The default branch to use. Default value: 'main'", "main"),
-		testutil.NewInputPrompt("Initial Git commit message", "The commit message used in initializing. Default value: 'Initial commit of deployment process'", "init message"),
+		testutil.NewInputPrompt("Git repository base path", "The path in the repository where Config As Code settings are stored. Default value is '.octopus/'.", "./octopus/project"),
+		testutil.NewInputPrompt("Git branch", "The default branch to use. Default value is 'main'.", "main"),
+		testutil.NewInputPrompt("Initial Git commit message", "The commit message used in initializing. Default value is 'Initial commit of deployment process'.", "init message"),
 		testutil.NewSelectPrompt("Select which Git credentials to use", "", []string{"Git Creds 1", "Git Creds 2"}, "Git Creds 2"),
 	}
 
