@@ -5,6 +5,7 @@ import (
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/cmd"
+	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/OctopusDeploy/cli/pkg/question"
 	"github.com/OctopusDeploy/cli/pkg/question/selectors"
@@ -80,9 +81,11 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 		Use:   "create",
 		Short: "Creates a new project in Octopus Deploy",
 		Long:  "Creates a new project in Octopus Deploy.",
-		Example: heredoc.Doc(`
-			$ octopus project create .... fill this in later
-		`),
+		Example: fmt.Sprintf(heredoc.Doc(`
+			$ %s project create
+			$ %s project create --process-vcs 
+			$ %s project create --name 'Deploy web app' --lifecycle 'Default Lifecycle' --group 'Default Project Group'
+		`), constants.ExecutableName, constants.ExecutableName, constants.ExecutableName),
 		RunE: func(c *cobra.Command, _ []string) error {
 			opts := NewCreateOptions(createFlags, cmd.NewDependencies(f, c))
 
