@@ -114,23 +114,27 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 }
 
 func createRun(opts *CreateOptions) error {
+	var optsArray []cmd.Dependable
+	var err error
 	if !opts.NoPrompt {
-		optsArray, err := PromptMissing(opts)
+		optsArray, err = PromptMissing(opts)
 		if err != nil {
 			return err
 		}
+	} else {
+		optsArray = append(optsArray, opts)
+	}
 
-		for _, o := range optsArray {
-			if err := o.Commit(); err != nil {
-				return err
-			}
+	for _, o := range optsArray {
+		if err := o.Commit(); err != nil {
+			return err
 		}
+	}
 
-		if !opts.NoPrompt {
-			fmt.Fprintln(opts.Out, "\nAutomation Commands:")
-			for _, o := range optsArray {
-				o.GenerateAutomationCmd()
-			}
+	if !opts.NoPrompt {
+		fmt.Fprintln(opts.Out, "\nAutomation Commands:")
+		for _, o := range optsArray {
+			o.GenerateAutomationCmd()
 		}
 	}
 
