@@ -100,13 +100,14 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 	flags.StringVarP(&createFlags.Lifecycle.Value, createFlags.Lifecycle.Name, "l", "", "Lifecycle of the project")
 	flags.BoolVar(&createFlags.ConfigAsCode.Value, createFlags.ConfigAsCode.Name, false, "Use Config As Code for the project")
 
-	flags.StringVarP(&createFlags.GitUrl.Value, createFlags.GitUrl.Name, "u", "", "Url of the Git repository for storing project configuration")
-	flags.StringVarP(&createFlags.GitBranch.Value, createFlags.GitBranch.Name, "b", "", "The default branch to use for Config As Code, default is main.")
+	flags.StringVar(&createFlags.GitUrl.Value, createFlags.GitUrl.Name, "", "Url of the Git repository for storing project configuration")
+	flags.StringVar(&createFlags.GitBranch.Value, createFlags.GitBranch.Name, "", fmt.Sprintf("The default branch to use for Config As Code. Default is '%s'.", DefaultBranch))
 	flags.StringVar(&createFlags.GitCredentials.Value, createFlags.GitCredentials.Name, "", "The Id or name of the Git credentials stored in Octopus")
 	flags.StringVar(&createFlags.GitUsername.Value, createFlags.GitUsername.Name, "", "The username to authenticate with Git")
 	flags.StringVar(&createFlags.GitPassword.Value, createFlags.GitPassword.Name, "", "The password to authenticate with Git")
 	flags.StringVar(&createFlags.GitStorage.Value, createFlags.GitStorage.Name, "", "The location to store the supplied Git credentials. Options are library or project. Default is library")
 	flags.StringVar(&createFlags.GitInitialCommitMessage.Value, createFlags.GitInitialCommitMessage.Name, "", "The initial commit message for configuring Config As Code.")
+	flags.StringVar(&createFlags.GitBasePath.Value, createFlags.GitBasePath.Name, "", fmt.Sprintf("The directory where Octopus should store the project files in the repository. Default is '%s'", DefaultBasePath))
 	flags.SortFlags = false
 
 	return cmd
