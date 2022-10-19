@@ -260,11 +260,12 @@ func projectSelector(questionText string, getAllProjectsCallback GetAllProjectsC
 
 func getProjectDisplay() func(p *projects.Project) string {
 	return func(p *projects.Project) string {
-		if p.TenantedDeploymentMode == core.TenantedDeploymentModeUntenanted {
-			return output.Dim(fmt.Sprintf("%s (Tenants not currently supported)", p.Name))
+		if supportsTenantedDeployments(p) {
+			return p.GetName()
+
 		}
 
-		return p.GetName()
+		return output.Dim(fmt.Sprintf("%s (Tenanted deployments not currently supported)", p.Name))
 	}
 }
 
