@@ -123,20 +123,24 @@ func NewCmdConnect(f factory.Factory) *cobra.Command {
 		RunE: func(c *cobra.Command, args []string) error {
 			opts := NewConnectOptions(connectFlags, cmd.NewDependencies(f, c))
 
-			return connectRun(opts)
+			return ConnectRun(opts)
 		},
 	}
 
+	ConfigureFlags(cmd, connectFlags)
+	return cmd
+}
+
+func ConfigureFlags(cmd *cobra.Command, connectFlags *ConnectFlags) {
 	flags := cmd.Flags()
 	flags.StringVarP(&connectFlags.Tenant.Value, connectFlags.Tenant.Name, "t", "", "Name or Id of the tenant")
 	flags.StringVarP(&connectFlags.Project.Value, connectFlags.Project.Name, "p", "", "Name, ID or Slug of the project to connect to the tenant")
 	flags.StringSliceVarP(&connectFlags.Environments.Value, connectFlags.Environments.Name, "e", nil, "The environments to connect to the tenant (can be specified multiple times)")
 	flags.StringSliceVar(&connectFlags.Environments.Value, FlagAliasEnvironment, nil, "The environments to connect to the tenant (can be specified multiple times)")
 	flags.BoolVar(&connectFlags.EnableTenantDeployments.Value, connectFlags.EnableTenantDeployments.Name, false, "Update the project to support tenanted deployments, if required")
-	return cmd
 }
 
-func connectRun(opts *ConnectOptions) error {
+func ConnectRun(opts *ConnectOptions) error {
 	if !opts.NoPrompt {
 		if err := PromptMissing(opts); err != nil {
 			return err
