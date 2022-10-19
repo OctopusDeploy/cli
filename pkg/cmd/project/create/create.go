@@ -220,7 +220,6 @@ func PromptForConfigAsCode(opts *CreateOptions, getGitCredentialsCallback GetAll
 				Help:    "The URL of the Git repository to store configuration.",
 			}, &opts.GitUrl.Value, survey.WithValidator(survey.ComposeValidators(
 				survey.MaxLength(200),
-				survey.MinLength(1),
 				survey.Required,
 			))); err != nil {
 				return err
@@ -283,7 +282,6 @@ func promptProjectGitCredentials(opts *CreateOptions) error {
 			Help:    "The Git username.",
 		}, &opts.GitUsername.Value, survey.WithValidator(survey.ComposeValidators(
 			survey.MaxLength(200),
-			survey.MinLength(1),
 			survey.Required,
 		))); err != nil {
 			return err
@@ -296,7 +294,6 @@ func promptProjectGitCredentials(opts *CreateOptions) error {
 			Help:    "The Git password.",
 		}, &opts.GitPassword.Value, survey.WithValidator(survey.ComposeValidators(
 			survey.MaxLength(200),
-			survey.MinLength(1),
 			survey.Required,
 		))); err != nil {
 			return err
