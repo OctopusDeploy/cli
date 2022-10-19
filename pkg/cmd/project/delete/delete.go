@@ -59,7 +59,7 @@ func deleteRun(opts *DeleteOptions) error {
 		}
 	}
 
-	itemToDelete, err := opts.Client.Projects.GetByIdOrName(opts.IdOrName)
+	itemToDelete, err := opts.Client.Projects.GetByIdentifier(opts.IdOrName)
 	if err != nil {
 		return err
 	}

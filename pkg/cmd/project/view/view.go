@@ -74,7 +74,7 @@ func NewCmdView(f factory.Factory) *cobra.Command {
 }
 
 func viewRun(opts *ViewOptions) error {
-	project, err := opts.Client.Projects.GetByIdOrName(opts.idOrName)
+	project, err := opts.Client.Projects.GetByIdentifier(opts.idOrName)
 	if err != nil {
 		return err
 	}
