@@ -1,6 +1,7 @@
 package connect
 
 import (
+	"errors"
 	"fmt"
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/MakeNowJust/heredoc/v2"
@@ -152,7 +153,7 @@ func connectRun(opts *ConnectOptions) error {
 
 	if !supportsTenantedDeployments(project) {
 		if opts.EnableTenantDeployments.Value == false {
-			fail()
+			getFailureMessageForUntenantedProject(project)
 		}
 		project.TenantedDeploymentMode = core.TenantedDeploymentModeTenantedOrUntenanted
 		project, err = opts.Client.Projects.Update(project)
@@ -236,7 +237,7 @@ func PromptForEnablingTenantedDeployments(opts *ConnectOptions, getProjectCallba
 			}, &opts.EnableTenantDeployments.Value)
 
 			if !opts.EnableTenantDeployments.Value {
-				fail()
+				return errors.New(getFailureMessageForUntenantedProject(project))
 			}
 		}
 	}
@@ -244,8 +245,8 @@ func PromptForEnablingTenantedDeployments(opts *ConnectOptions, getProjectCallba
 	return nil
 }
 
-func fail() {
-	panic("Cannot connect tenant to project that does not support tenanted deployments")
+func getFailureMessageForUntenantedProject(project *projects.Project) string {
+	return fmt.Sprintf("Cannot connect tenant to project '%s' as it does not support tenanted deployments.", project.GetName())
 }
 
 func projectSelector(questionText string, getAllProjectsCallback GetAllProjectsCallback, ask question.Asker) (*projects.Project, error) {
