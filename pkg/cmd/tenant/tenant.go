@@ -3,6 +3,7 @@ package tenant
 import (
 	"fmt"
 	"github.com/MakeNowJust/heredoc/v2"
+	cmdConnect "github.com/OctopusDeploy/cli/pkg/cmd/tenant/connect"
 	cmdList "github.com/OctopusDeploy/cli/pkg/cmd/tenant/list"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/constants/annotations"
@@ -10,7 +11,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func NewCmdTenaant(f factory.Factory) *cobra.Command {
+func NewCmdTenant(f factory.Factory) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "tenant <command>",
 		Short: "Manage tenants",
@@ -24,6 +25,7 @@ func NewCmdTenaant(f factory.Factory) *cobra.Command {
 		},
 	}
 
+	cmd.AddCommand(cmdConnect.NewCmdConnect(f))
 	cmd.AddCommand(cmdList.NewCmdList(f))
 
 	return cmd

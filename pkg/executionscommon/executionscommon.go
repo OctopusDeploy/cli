@@ -395,8 +395,8 @@ func ScheduledStartTimeAnswerFormatter(datePicker *surveyext.DatePicker, t time.
 }
 
 // given an array of environment names, maps these all to actual objects by querying the server
-func FindEnvironments(client *octopusApiClient.Client, environmentNames []string) ([]*environments.Environment, error) {
-	if len(environmentNames) == 0 {
+func FindEnvironments(client *octopusApiClient.Client, environmentNamesOrIds []string) ([]*environments.Environment, error) {
+	if len(environmentNamesOrIds) == 0 {
 		return nil, nil
 	}
 	// there's no "bulk lookup" API, so we either need to do a foreach loop to find each environment individually, or load the entire server's worth of environments
@@ -406,18 +406,27 @@ func FindEnvironments(client *octopusApiClient.Client, environmentNames []string
 		return nil, err
 	}
 
-	lookup := make(map[string]*environments.Environment, len(allEnvs))
+	nameLookup := make(map[string]*environments.Environment, len(allEnvs))
+	idLookup := make(map[string]*environments.Environment, len(allEnvs))
+
 	for _, env := range allEnvs {
-		lookup[strings.ToLower(env.Name)] = env
+		nameLookup[strings.ToLower(env.GetName())] = env
+		idLookup[strings.ToLower(env.GetID())] = env
 	}
 
 	var result []*environments.Environment
-	for _, name := range environmentNames {
-		env := lookup[strings.ToLower(name)]
+	for _, n := range environmentNamesOrIds {
+		nameOrId := strings.ToLower(n)
+		env := nameLookup[nameOrId]
 		if env != nil {
 			result = append(result, env)
 		} else {
-			return nil, fmt.Errorf("cannot find environment %s", name)
+			env = idLookup[nameOrId]
+			if env != nil {
+				result = append(result, env)
+			} else {
+				return nil, fmt.Errorf("cannot find environment %s", nameOrId)
+			}
 		}
 	}
 	return result, nil
