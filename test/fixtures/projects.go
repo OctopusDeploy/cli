@@ -5,6 +5,7 @@ import (
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/channels"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/constants"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/core"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/credentials"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/deployments"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/environments"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
@@ -80,9 +81,11 @@ func NewProject(spaceID string, projectID string, projectName string, lifecycleI
 func NewVersionControlledProject(spaceID string, projectID string, projectName string, lifecycleID string, projectGroupID string, deploymentProcessID string) *projects.Project {
 	repoUrl, _ := url.Parse("https://server/repo.git")
 
+	conversionState := projects.NewConversionState(false)
+	protectedBranchNamePatterns := []string{}
 	result := NewProject(spaceID, projectID, projectName, lifecycleID, projectGroupID, deploymentProcessID)
 	result.VersioningStrategy = nil // CaC projects seem to always report nil here via the API
-	result.PersistenceSettings = projects.NewGitPersistenceSettings(".octopus", projects.NewAnonymousGitCredential(), "main", repoUrl)
+	result.PersistenceSettings = projects.NewGitPersistenceSettings(".octopus", conversionState, credentials.NewAnonymous(), "main", protectedBranchNamePatterns, repoUrl)
 
 	// CaC projects have different values in these links
 	result.Links["DeploymentProcess"] = fmt.Sprintf("/api/%s/projects/%s/{gitRef}/deploymentprocesses", spaceID, projectID) // note gitRef is a template param in the middle of the url path
