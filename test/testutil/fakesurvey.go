@@ -50,6 +50,17 @@ func NewSelectPrompt(prompt string, help string, options []string, response stri
 	}
 }
 
+func NewMultiSelectPrompt(prompt string, help string, options []string, responses []string) *PA {
+	return &PA{
+		Prompt: &survey.MultiSelect{
+			Message: prompt,
+			Options: options,
+			Help:    help,
+		},
+		Answer: responses,
+	}
+}
+
 func NewConfirmPrompt(prompt string, help string, response any) *PA {
 	return &PA{
 		Prompt: &survey.Confirm{

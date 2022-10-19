@@ -56,7 +56,9 @@ func NewConnectOptions(connectFlags *ConnectFlags, dependencies *cmd.Dependencie
 		ConnectFlags:           connectFlags,
 		GetAllTenantsCallback:  func() ([]*tenants.Tenant, error) { return getAllTenants(*dependencies.Client) },
 		GetAllProjectsCallback: func() ([]*projects.Project, error) { return getAllProjects(*dependencies.Client) },
-		GetProjectCallback:     func(idOrName string) (*projects.Project, error) { return getProject(*dependencies.Client, idOrName) },
+		GetProjectCallback: func(identifier string) (*projects.Project, error) {
+			return getProject(*dependencies.Client, identifier)
+		},
 		GetProjectProgressionCallback: func(project *projects.Project) (*projects.Progression, error) {
 			return getProjectProgression(*dependencies.Client, project)
 		},
@@ -153,7 +155,7 @@ func connectRun(opts *ConnectOptions) error {
 
 	if !supportsTenantedDeployments(project) {
 		if opts.EnableTenantDeployments.Value == false {
-			getFailureMessageForUntenantedProject(project)
+			return errors.New(getFailureMessageForUntenantedProject(project))
 		}
 		project.TenantedDeploymentMode = core.TenantedDeploymentModeTenantedOrUntenanted
 		project, err = opts.Client.Projects.Update(project)
@@ -175,12 +177,13 @@ func connectRun(opts *ConnectOptions) error {
 		return err
 	}
 
+	fmt.Fprintf(opts.Out, "Successfully connected '%s' to '%s'.\n", tenant.Name, project.GetName())
 	return nil
 }
 
 func PromptMissing(opts *ConnectOptions) error {
 	if opts.Tenant.Value == "" {
-		tenant, err := selectors.Select(opts.Ask, "Select the tenant", opts.GetAllTenantsCallback, func(tenant *tenants.Tenant) string {
+		tenant, err := selectors.Select(opts.Ask, "You have not specified a Tenant. Please select one:", opts.GetAllTenantsCallback, func(tenant *tenants.Tenant) string {
 			return tenant.Name
 		})
 		if err != nil {
@@ -191,7 +194,7 @@ func PromptMissing(opts *ConnectOptions) error {
 	}
 
 	if opts.Project.Value == "" {
-		project, err := projectSelector("Select the project to connect", opts.GetAllProjectsCallback, opts.Ask)
+		project, err := projectSelector("You have not specified a Project. Please select one:", opts.GetAllProjectsCallback, opts.Ask)
 		if err != nil {
 			return nil
 		}
@@ -214,7 +217,7 @@ func PromptMissing(opts *ConnectOptions) error {
 			opts.Environments.Value = append(opts.Environments.Value, progression.Environments[0].Name)
 		} else {
 			var selectedEnvironments []*resources.ReferenceDataItem
-			selectedEnvironments, err = question.MultiSelectMap(opts.Ask, "Select the environments to connect", progression.Environments, func(item *resources.ReferenceDataItem) string { return item.Name }, true)
+			selectedEnvironments, err = question.MultiSelectMap(opts.Ask, "You have not specified any environments. Please select at least one:", progression.Environments, func(item *resources.ReferenceDataItem) string { return item.Name }, true)
 			for _, e := range selectedEnvironments {
 				opts.Environments.Value = append(opts.Environments.Value, e.Name)
 			}
@@ -232,7 +235,7 @@ func PromptForEnablingTenantedDeployments(opts *ConnectOptions, getProjectCallba
 		}
 		if !supportsTenantedDeployments(project) {
 			opts.Ask(&survey.Confirm{
-				Message: fmt.Sprintf("Do you want to enable tenanted deployments for %s?", project.GetName()),
+				Message: fmt.Sprintf("Do you want to enable tenanted deployments for '%s'?", project.GetName()),
 				Default: false,
 			}, &opts.EnableTenantDeployments.Value)
 
@@ -246,7 +249,7 @@ func PromptForEnablingTenantedDeployments(opts *ConnectOptions, getProjectCallba
 }
 
 func getFailureMessageForUntenantedProject(project *projects.Project) string {
-	return fmt.Sprintf("Cannot connect tenant to project '%s' as it does not support tenanted deployments.", project.GetName())
+	return fmt.Sprintf("Cannot connect tenant to '%s' as it does not support tenanted deployments.", project.GetName())
 }
 
 func projectSelector(questionText string, getAllProjectsCallback GetAllProjectsCallback, ask question.Asker) (*projects.Project, error) {
