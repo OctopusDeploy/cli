@@ -8,6 +8,11 @@ import (
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/accounts"
 )
 
+type SelectOption[T any] struct {
+	Value   T
+	Display string
+}
+
 type NameOrID interface {
 	GetName() string
 	GetID() string
@@ -33,4 +38,24 @@ func Account(ask question.Asker, list []accounts.IAccount, message string) (acco
 		return selectedItem, err
 	}
 	return selectedItem, nil
+}
+
+func SelectOptions[T any](ask question.Asker, questionText string, itemsCallback func() []*SelectOption[T]) (*SelectOption[T], error) {
+	items := itemsCallback()
+	callback := func() ([]*SelectOption[T], error) {
+		return items, nil
+	}
+	return Select(ask, questionText, callback, func(option *SelectOption[T]) string { return option.Display })
+}
+
+func Select[T any](ask question.Asker, questionText string, itemsCallback func() ([]*T, error), getKey func(item *T) string) (*T, error) {
+	items, err := itemsCallback()
+	if err != nil {
+		return nil, err
+	}
+	if len(items) == 1 {
+		return items[0], nil
+	}
+
+	return question.SelectMap(ask, questionText, items, getKey)
 }

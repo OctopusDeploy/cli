@@ -45,3 +45,19 @@ func DeleteWithConfirmation(ask Asker, itemType string, itemName string, itemID 
 	fmt.Printf("%s The %s, \"%s\" %s was deleted successfully.\n", output.Red("✔"), itemType, itemName, output.Dimf("(%s)", itemID))
 	return nil
 }
+
+func AskName(ask Asker, messagePrefix string, resourceDescription string, value *string) error {
+	if *value == "" {
+		if err := ask(&survey.Input{
+			Message: messagePrefix + "Name",
+			Help:    fmt.Sprintf("A short, memorable, unique name for this %s.", resourceDescription),
+		}, value, survey.WithValidator(survey.ComposeValidators(
+			survey.MaxLength(200),
+			survey.MinLength(1),
+			survey.Required,
+		))); err != nil {
+			return err
+		}
+	}
+	return nil
+}

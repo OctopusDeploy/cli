@@ -67,3 +67,15 @@ func TestQuestion_DeleteWithConfirmation_deleteError(t *testing.T) {
 	err := <-errReceiver
 	assert.Equal(t, errors.New("ouch"), err)
 }
+
+func TestAskName(t *testing.T) {
+	pa := []*testutil.PA{
+		testutil.NewInputPrompt("prefix Name", "A short, memorable, unique name for this resource.", "answer"),
+	}
+	qa, _ := testutil.NewMockAsker(t, pa)
+
+	var value string
+	err := question.AskName(qa, "prefix ", "resource", &value)
+	assert.NoError(t, err)
+	assert.Equal(t, value, "answer")
+}

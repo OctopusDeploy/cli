@@ -14,6 +14,7 @@ import (
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/channels"
 	octopusApiClient "github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/constants"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/credentials"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/deployments"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/feeds"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/packages"
@@ -1192,11 +1193,15 @@ func TestReleaseCreate_AutomationMode(t *testing.T) {
 
 	depProcess := fixtures.NewDeploymentProcessForProject(space1.ID, cacProjectID)
 
+	conversionState := projects.NewConversionState(false)
+	protectedBranchNamePatterns := []string{}
 	cacProject := fixtures.NewProject(space1.ID, cacProjectID, "CaC Project", "Lifecycles-1", "ProjectGroups-1", depProcess.ID)
 	cacProject.PersistenceSettings = projects.NewGitPersistenceSettings(
 		".octopus",
-		projects.NewAnonymousGitCredential(),
+		conversionState,
+		credentials.NewAnonymous(),
 		"main",
+		protectedBranchNamePatterns,
 		fakeRepoUrl,
 	)
 

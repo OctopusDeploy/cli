@@ -2,11 +2,136 @@ package testutil
 
 import (
 	"errors"
+	"fmt"
+	"testing"
+
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/AlecAivazis/survey/v2/core"
+	"github.com/OctopusDeploy/cli/pkg/question"
 	"github.com/stretchr/testify/assert"
-	"testing"
 )
+
+type PA struct {
+	Prompt               survey.Prompt
+	Answer               any
+	ShouldSkipValidation bool
+}
+
+type CheckRemaining func()
+
+func NewInputPrompt(prompt string, help string, response string) *PA {
+	return &PA{
+		Prompt: &survey.Input{
+			Message: prompt,
+			Help:    help,
+		},
+		Answer: response,
+	}
+}
+
+func NewPasswordPrompt(prompt string, help string, response string) *PA {
+	return &PA{
+		Prompt: &survey.Password{
+			Message: prompt,
+			Help:    help,
+		},
+		Answer: response,
+	}
+}
+
+func NewSelectPrompt(prompt string, help string, options []string, response string) *PA {
+	return &PA{
+		Prompt: &survey.Select{
+			Message: prompt,
+			Options: options,
+			Help:    help,
+		},
+		Answer: response,
+	}
+}
+
+func NewConfirmPrompt(prompt string, help string, response any) *PA {
+	return &PA{
+		Prompt: &survey.Confirm{
+			Message: prompt,
+			Help:    help,
+		},
+		Answer: response,
+	}
+}
+
+func NewMockAsker(t *testing.T, pa []*PA) (question.Asker, CheckRemaining) {
+	expectedQuestionIndex := 0
+
+	checkRemaining := func() {
+		if expectedQuestionIndex >= len(pa) {
+			return
+		}
+		remainingPA := pa[expectedQuestionIndex:]
+		for _, remaining := range remainingPA {
+			assert.Fail(t, fmt.Sprintf("Expected the following prompt: %+v", remaining.Prompt))
+		}
+	}
+
+	mockAsker := func(p survey.Prompt, response interface{}, opts ...survey.AskOpt) error {
+		if expectedQuestionIndex >= len(pa) {
+			assert.FailNow(t, fmt.Sprintf("Did not expect anymore questions but got: %+v", p))
+			return fmt.Errorf("did not expect anymore questions")
+		}
+
+		options := &survey.AskOptions{}
+		for _, opt := range opts {
+			if opt == nil {
+				continue
+			}
+			if err := opt(options); err != nil {
+				return err
+			}
+		}
+
+		if response == nil {
+			return errors.New("cannot call Ask() with a nil reference to record the answers")
+		}
+
+		validate := func(q *survey.Question, val interface{}) error {
+			if q.Validate != nil {
+				if err := q.Validate(val); err != nil {
+					return err
+				}
+			}
+			for _, v := range options.Validators {
+				if err := v(val); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+
+		expectedQA := pa[expectedQuestionIndex]
+		expectedQuestionIndex += 1
+
+		isEqual := assert.Equal(t, expectedQA.Prompt, p)
+		if !isEqual {
+			return fmt.Errorf("did not get expected question")
+		}
+
+		currentQuestion := survey.Question{Prompt: p}
+
+		if !expectedQA.ShouldSkipValidation {
+			validationErr := validate(&currentQuestion, expectedQA.Answer)
+			if !assert.NoError(t, validationErr) {
+				return validationErr
+			}
+		}
+
+		if err := core.WriteAnswer(response, "", expectedQA.Answer); err != nil {
+			return err
+		}
+
+		return nil
+	}
+	return mockAsker, checkRemaining
+}
 
 type answerOrError struct {
 	answer any
