@@ -40,7 +40,7 @@ func NewCmdRoot(f factory.Factory, clientFactory apiclient.ClientFactory, askPro
 
 	// core
 	cmd.AddCommand(projectCmd.NewCmdProject(f))
-	cmd.AddCommand(tenantCmd.NewCmdTenaant(f))
+	cmd.AddCommand(tenantCmd.NewCmdTenant(f))
 
 	// configuration
 	cmd.AddCommand(configCmd.NewCmdConfig(f))
