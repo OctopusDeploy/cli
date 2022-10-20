@@ -102,14 +102,7 @@ func WaitRun(out io.Writer, taskIDs []string, getServerTasksCallback ServerTasks
 			for _, t := range tasks {
 				if t.IsCompleted != nil && *t.IsCompleted {
 					fmt.Fprintf(out, "%s: %s\n", t.Description, t.State)
-					// remove completed taskID from pending slice
-					for i, p := range pendingTaskIDs {
-						if p == t.ID {
-							pendingTaskIDs[i] = pendingTaskIDs[len(pendingTaskIDs)-1]
-							pendingTaskIDs = pendingTaskIDs[:len(pendingTaskIDs)-1]
-							break
-						}
-					}
+					pendingTaskIDs = removeTaskID(pendingTaskIDs, t.ID)
 				}
 			}
 		}
@@ -145,4 +138,15 @@ func GetServerTasksCallback(octopus *client.Client) ServerTasksCallback {
 
 		return tasks, nil
 	}
+}
+
+func removeTaskID(taskIDs []string, taskID string) []string {
+	for i, p := range taskIDs {
+		if p == taskID {
+			taskIDs[i] = taskIDs[len(taskIDs)-1]
+			taskIDs = taskIDs[:len(taskIDs)-1]
+			break
+		}
+	}
+	return taskIDs
 }
