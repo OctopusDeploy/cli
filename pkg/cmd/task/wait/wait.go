@@ -43,7 +43,7 @@ func NewCmdWait(f factory.Factory) *cobra.Command {
 		Short: "Wait for task(s) to finish",
 		Long:  "Wait for a provided list of task(s) to finish",
 		Example: heredoc.Docf(`
-			$ %s octopus task wait
+			$ %s task wait
 		`, constants.ExecutableName),
 		RunE: func(c *cobra.Command, args []string) error {
 			taskIDs := make([]string, len(args))
