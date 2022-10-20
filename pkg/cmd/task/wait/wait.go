@@ -41,7 +41,7 @@ func NewCmdWait(f factory.Factory) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "wait [TaskIDs]",
 		Short: "Wait for task(s) to finish",
-		Long:  "Wait for a provided list of task/s to finish",
+		Long:  "Wait for a provided list of task(s) to finish",
 		Example: heredoc.Docf(`
 			$ %s octopus task wait
 		`, constants.ExecutableName),
