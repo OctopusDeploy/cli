@@ -109,8 +109,12 @@ func DisconnectRun(opts *DisconnectOptions) error {
 		return err
 	}
 
+	if len(tenant.ProjectEnvironments) == 0 {
+		return errors.New("Tenant is not connected to any projects")
+	}
+
 	if _, ok := tenant.ProjectEnvironments[project.GetID()]; !ok {
-		return errors.New("Tenant is not currently connected to the project")
+		return errors.New(fmt.Sprintf("Tenant is not currently connected to the '%s' project", project.GetName()))
 	}
 
 	delete(tenant.ProjectEnvironments, project.GetID())
@@ -147,38 +151,9 @@ func PromptMissing(opts *DisconnectOptions) error {
 		}
 	}
 
-	var selectedProject *projects.Project
-	if opts.Project.Value == "" {
-		switch len(selectedTenant.ProjectEnvironments) {
-		case 0:
-			return errors.New("Not currently connected to any projects")
-		case 1:
-			var projectId string
-			for i, _ := range selectedTenant.ProjectEnvironments {
-				projectId = i
-			}
-			selectedProject, err = opts.GetProjectCallback(projectId)
-			if err != nil {
-				return err
-			}
-		default:
-			currentlyConnectedProjects, err := getCurrentlyConnectedProjects(selectedTenant, opts.GetProjectCallback)
-			if err != nil {
-				return err
-			}
-			project, err := projectSelector("You have not specified a Project. Please select one:", func() ([]*projects.Project, error) { return currentlyConnectedProjects, nil }, opts.Ask)
-			if err != nil {
-				return nil
-			}
-			opts.Project.Value = project.GetName()
-			selectedProject = project
-		}
-
-	} else {
-		selectedProject, err = opts.GetProjectCallback(opts.Project.Value)
-		if err != nil {
-			return err
-		}
+	selectedProject, err := PromptForProject(opts, selectedTenant)
+	if err != nil {
+		return err
 	}
 
 	if !opts.Confirm.Value {
@@ -189,6 +164,44 @@ func PromptMissing(opts *DisconnectOptions) error {
 	}
 
 	return nil
+}
+
+func PromptForProject(opts *DisconnectOptions, selectedTenant *tenants.Tenant) (*projects.Project, error) {
+	var selectedProject *projects.Project
+	var err error
+	if opts.Project.Value == "" {
+		switch len(selectedTenant.ProjectEnvironments) {
+		case 0:
+			return nil, errors.New("Not currently connected to any projects")
+		case 1:
+			var projectId string
+			for i, _ := range selectedTenant.ProjectEnvironments {
+				projectId = i
+			}
+			selectedProject, err = opts.GetProjectCallback(projectId)
+			if err != nil {
+				return nil, err
+			}
+		default:
+			currentlyConnectedProjects, err := getCurrentlyConnectedProjects(selectedTenant, opts.GetProjectCallback)
+			if err != nil {
+				return nil, err
+			}
+			project, err := projectSelector("You have not specified a Project. Please select one:", func() ([]*projects.Project, error) { return currentlyConnectedProjects, nil }, opts.Ask)
+			if err != nil {
+				return nil, nil
+			}
+			opts.Project.Value = project.GetName()
+			selectedProject = project
+		}
+
+	} else {
+		selectedProject, err = opts.GetProjectCallback(opts.Project.Value)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return selectedProject, nil
 }
 
 func getCurrentlyConnectedProjects(tenant *tenants.Tenant, getProjectCallback shared.GetProjectCallback) ([]*projects.Project, error) {
