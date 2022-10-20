@@ -29,7 +29,7 @@ type WaitOptions struct {
 
 func NewWaitOps(dependencies *cmd.Dependencies, taskIDs []string) *WaitOptions {
 	return &WaitOptions{
-		Dependencies:          dependencies,
+		Dependencies:           dependencies,
 		GetServerTasksCallback: GetServerTasksCallback(dependencies.Client),
 	}
 }
@@ -65,7 +65,10 @@ func NewCmdWait(f factory.Factory) *cobra.Command {
 }
 
 func WaitRun(out io.Writer, taskIDs []string, getServerTasksCallback GetServerTaskCallback, timeout int) error {
-	tasks, err := getServerTaskCallback(taskIDs)
+	if len(taskIDs) == 0 {
+		return fmt.Errorf("no server task IDs provided, at least one is required")
+	}
+	tasks, err := getServerTasksCallback(taskIDs)
 	if err != nil {
 		return err
 	}
