@@ -67,7 +67,7 @@ func NewCmdDelete(f factory.Factory) *cobra.Command {
 		},
 	}
 
-	question.RegisterDeleteFlag(cmd, &skipConfirmation, "account")
+	question.RegisterConfirmDeletionFlag(cmd, &skipConfirmation, "account")
 
 	return cmd
 }

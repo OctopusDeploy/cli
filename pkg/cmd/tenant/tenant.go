@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/MakeNowJust/heredoc/v2"
 	cmdConnect "github.com/OctopusDeploy/cli/pkg/cmd/tenant/connect"
+	cmdDisconnect "github.com/OctopusDeploy/cli/pkg/cmd/tenant/disconnect"
 	cmdList "github.com/OctopusDeploy/cli/pkg/cmd/tenant/list"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/constants/annotations"
@@ -26,6 +27,7 @@ func NewCmdTenant(f factory.Factory) *cobra.Command {
 	}
 
 	cmd.AddCommand(cmdConnect.NewCmdConnect(f))
+	cmd.AddCommand(cmdDisconnect.NewCmdDisconnect(f))
 	cmd.AddCommand(cmdList.NewCmdList(f))
 
 	return cmd
