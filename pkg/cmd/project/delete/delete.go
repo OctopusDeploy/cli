@@ -15,11 +15,11 @@ type DeleteOptions struct {
 	Ask      question.Asker
 	NoPrompt bool
 	IdOrName string
-	*question.DeleteFlags
+	*question.ConfirmFlags
 }
 
 func NewCmdList(f factory.Factory) *cobra.Command {
-	deleteFlags := question.NewDeleteFlags()
+	confirmFlags := question.NewConfirmFlags()
 	cmd := &cobra.Command{
 		Use:     "delete {<name> | <id> | <slug>}",
 		Short:   "Delete projects in Octopus Deploy",
@@ -36,18 +36,18 @@ func NewCmdList(f factory.Factory) *cobra.Command {
 			}
 
 			opts := &DeleteOptions{
-				Client:      client,
-				Ask:         f.Ask,
-				NoPrompt:    !f.IsPromptEnabled(),
-				IdOrName:    args[0],
-				DeleteFlags: deleteFlags,
+				Client:       client,
+				Ask:          f.Ask,
+				NoPrompt:     !f.IsPromptEnabled(),
+				IdOrName:     args[0],
+				ConfirmFlags: confirmFlags,
 			}
 
 			return deleteRun(opts)
 		},
 	}
 
-	question.RegisterDeleteFlag(cmd, &deleteFlags.Confirm.Value, "project")
+	question.RegisterConfirmDeletionFlag(cmd, &confirmFlags.Confirm.Value, "project")
 
 	return cmd
 }
@@ -64,7 +64,7 @@ func deleteRun(opts *DeleteOptions) error {
 		return err
 	}
 
-	if opts.DeleteFlags.Confirm.Value {
+	if opts.ConfirmFlags.Confirm.Value {
 		return delete(opts.Client, itemToDelete)
 	} else {
 		return question.DeleteWithConfirmation(opts.Ask, "project", itemToDelete.Name, itemToDelete.ID, func() error {

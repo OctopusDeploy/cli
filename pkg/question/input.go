@@ -10,17 +10,17 @@ import (
 
 const FlagConfirm = "confirm"
 
-type DeleteFlags struct {
+type ConfirmFlags struct {
 	Confirm *flag.Flag[bool]
 }
 
-func NewDeleteFlags() *DeleteFlags {
-	return &DeleteFlags{
+func NewConfirmFlags() *ConfirmFlags {
+	return &ConfirmFlags{
 		Confirm: flag.New[bool](FlagConfirm, false),
 	}
 }
 
-func RegisterDeleteFlag(cmd *cobra.Command, value *bool, resourceDescription string) {
+func RegisterConfirmDeletionFlag(cmd *cobra.Command, value *bool, resourceDescription string) {
 	cmd.Flags().BoolVarP(value, FlagConfirm, "y", false, fmt.Sprintf("Don't ask for confirmation before deleting the %s.", resourceDescription))
 }
 
