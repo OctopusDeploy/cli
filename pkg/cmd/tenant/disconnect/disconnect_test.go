@@ -76,6 +76,7 @@ func TestPromptForProject_OneProjectConnected(t *testing.T) {
 	checkRemainingPrompts()
 	assert.NoError(t, err)
 	assert.Equal(t, project, selectedProject)
+	assert.Equal(t, project.Name, opts.Project.Value)
 }
 
 func TestPromptForProject_MultipleProjectsConnected(t *testing.T) {

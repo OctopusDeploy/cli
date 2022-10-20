@@ -123,7 +123,7 @@ func DisconnectRun(opts *DisconnectOptions) error {
 		return err
 	}
 
-	fmt.Fprintf(opts.Out, "Successfully disconnected '%s' to '%s'.\n", tenant.Name, project.GetName())
+	fmt.Fprintf(opts.Out, "Successfully disconnected '%s' from '%s'.\n", tenant.Name, project.GetName())
 	if !opts.NoPrompt {
 		autoCmd := flag.GenerateAutomationCmd(opts.CmdPath, opts.Tenant, opts.Project, opts.Confirm)
 		fmt.Fprintf(opts.Out, "\nAutomation Command: %s\n", autoCmd)
@@ -179,6 +179,7 @@ func PromptForProject(opts *DisconnectOptions, selectedTenant *tenants.Tenant) (
 				projectId = i
 			}
 			selectedProject, err = opts.GetProjectCallback(projectId)
+			opts.Project.Value = selectedProject.GetName()
 			if err != nil {
 				return nil, err
 			}
