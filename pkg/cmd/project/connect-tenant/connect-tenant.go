@@ -1,4 +1,4 @@
-package connect_tenant
+package connect
 
 import (
 	"fmt"
@@ -13,12 +13,12 @@ import (
 func NewCmdConnect(f factory.Factory) *cobra.Command {
 	connectFlags := connectTenant.NewConnectFlags()
 	cmd := &cobra.Command{
-		Use:   "connect-tenant",
+		Use:   "connect",
 		Short: "Connect a tenant to a project in Octopus Deploy",
 		Long:  "Connect a tenant to a project in Octopus Deploy",
 		Example: fmt.Sprintf(heredoc.Doc(`
-			$ %s project connect-tenant
-			$ %s project connect-tenant --project "Deploy web site" --environment "Production"
+			$ %s project connect
+			$ %s project connect --project "Deploy web site" --environment "Production"
 		`), constants.ExecutableName, constants.ExecutableName),
 		RunE: func(c *cobra.Command, args []string) error {
 			opts := connectTenant.NewConnectOptions(connectFlags, cmd.NewDependencies(f, c))
