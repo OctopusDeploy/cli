@@ -64,7 +64,7 @@ func NewCmdWait(f factory.Factory) *cobra.Command {
 	return cmd
 }
 
-func WaitRun(out io.Writer, taskIDs []string, getServerTaskCallback GetServerTaskCallback, timeout int) error {
+func WaitRun(out io.Writer, taskIDs []string, getServerTasksCallback GetServerTaskCallback, timeout int) error {
 	tasks, err := getServerTaskCallback(taskIDs)
 	if err != nil {
 		return err
