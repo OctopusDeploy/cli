@@ -3,7 +3,7 @@ package project
 import (
 	"fmt"
 	"github.com/MakeNowJust/heredoc/v2"
-	cmdConnect "github.com/OctopusDeploy/cli/pkg/cmd/project/connect-tenant"
+	cmdConnect "github.com/OctopusDeploy/cli/pkg/cmd/project/connect"
 	cmdCreate "github.com/OctopusDeploy/cli/pkg/cmd/project/create"
 	cmdDelete "github.com/OctopusDeploy/cli/pkg/cmd/project/delete"
 	cmdList "github.com/OctopusDeploy/cli/pkg/cmd/project/list"
