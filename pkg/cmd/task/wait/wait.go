@@ -70,6 +70,10 @@ func WaitRun(out io.Writer, taskIDs []string, getServerTaskCallback GetServerTas
 		return err
 	}
 
+	if len(tasks) == 0 {
+		return fmt.Errorf("no server tasks found")
+	}
+
 	pendingTaskIDs := make([]string, 0)
 	for _, t := range tasks {
 		if t.IsCompleted == nil || !*t.IsCompleted {

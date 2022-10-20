@@ -99,6 +99,9 @@ func NewCmdRoot(f factory.Factory, clientFactory apiclient.ClientFactory, askPro
 
 		if noPrompt := viper.GetBool(constants.ConfigNoPrompt); noPrompt {
 			askProvider.DisableInteractive()
+			if v, _ := cmdPFlags.GetString(constants.FlagOutputFormat); v == "" {
+				cmdPFlags.Set(constants.FlagOutputFormat, "basic")
+			}
 		}
 
 		if spaceNameOrId := viper.GetString(constants.ConfigSpace); spaceNameOrId != "" {
