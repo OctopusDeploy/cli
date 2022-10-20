@@ -59,7 +59,7 @@ func NewCmdWait(f factory.Factory) *cobra.Command {
 	}
 
 	flags := cmd.Flags()
-	flags.IntVar(&timeout, FlagTimeout, DefaultTimeout, "Time to run in seconds before stopping execution")
+	flags.IntVar(&timeout, FlagTimeout, DefaultTimeout, "Duration to wait (in seconds) before stopping execution")
 
 	return cmd
 }
