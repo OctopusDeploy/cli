@@ -23,8 +23,8 @@ const (
 
 type WaitOptions struct {
 	*cmd.Dependencies
-	taskIDs               []string
-	GetServerTaskCallback GetServerTaskCallback
+	taskIDs                []string
+	GetServerTasksCallback ServerTasksCallback
 }
 
 func NewWaitOps(dependencies *cmd.Dependencies, taskIDs []string) *WaitOptions {
@@ -34,7 +34,7 @@ func NewWaitOps(dependencies *cmd.Dependencies, taskIDs []string) *WaitOptions {
 	}
 }
 
-type GetServerTaskCallback func([]string) ([]*tasks.Task, error)
+type ServerTasksCallback func([]string) ([]*tasks.Task, error)
 
 func NewCmdWait(f factory.Factory) *cobra.Command {
 	var timeout int
@@ -54,7 +54,7 @@ func NewCmdWait(f factory.Factory) *cobra.Command {
 			dependencies := cmd.NewDependencies(f, c)
 			opts := NewWaitOps(dependencies, taskIDs)
 
-			return WaitRun(opts.Out, taskIDs, opts.GetServerTaskCallback, timeout)
+			return WaitRun(opts.Out, taskIDs, opts.GetServerTasksCallback, timeout)
 		},
 	}
 
@@ -64,7 +64,7 @@ func NewCmdWait(f factory.Factory) *cobra.Command {
 	return cmd
 }
 
-func WaitRun(out io.Writer, taskIDs []string, getServerTasksCallback GetServerTaskCallback, timeout int) error {
+func WaitRun(out io.Writer, taskIDs []string, getServerTasksCallback ServerTasksCallback, timeout int) error {
 	if len(taskIDs) == 0 {
 		return fmt.Errorf("no server task IDs provided, at least one is required")
 	}
@@ -94,7 +94,7 @@ func WaitRun(out io.Writer, taskIDs []string, getServerTasksCallback GetServerTa
 	go func() {
 		for len(pendingTaskIDs) != 0 {
 			time.Sleep(5 * time.Second)
-			tasks, err = getServerTaskCallback(pendingTaskIDs)
+			tasks, err = getServerTasksCallback(pendingTaskIDs)
 			if err != nil {
 				gotError <- err
 				return
@@ -127,7 +127,7 @@ func WaitRun(out io.Writer, taskIDs []string, getServerTasksCallback GetServerTa
 
 }
 
-func GetServerTasksCallback(octopus *client.Client) GetServerTaskCallback {
+func GetServerTasksCallback(octopus *client.Client) ServerTasksCallback {
 	return func(taskIDs []string) ([]*tasks.Task, error) {
 		query := tasks.TasksQuery{
 			IDs: taskIDs,
