@@ -30,7 +30,7 @@ type WaitOptions struct {
 func NewWaitOps(dependencies *cmd.Dependencies, taskIDs []string) *WaitOptions {
 	return &WaitOptions{
 		Dependencies:          dependencies,
-		GetServerTaskCallback: GetServerTasksCallback(dependencies.Client),
+		GetServerTasksCallback: GetServerTasksCallback(dependencies.Client),
 	}
 }
 
