@@ -6,18 +6,24 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/OctopusDeploy/cli/pkg/output"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projectgroups"
 	"github.com/spf13/cobra"
 )
+
+type ProjectGroupAsJson struct {
+	Id          string `json:"Id"`
+	Name        string `json:"Name"`
+	Description string `json:"Description"`
+}
 
 func NewCmdList(f factory.Factory) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "list",
-		Short: "List projects in Octopus Deploy",
-		Long:  "List projects in Octopus Deploy",
+		Short: "List project groups in Octopus Deploy",
+		Long:  "List project groups in Octopus Deploy",
 		Example: fmt.Sprintf(heredoc.Doc(`
-			$ %s project list
-			$ %s project ls
+			$ %s project-group list
+			$ %s project-group ls
 		`), constants.ExecutableName, constants.ExecutableName),
 		Aliases: []string{"ls"},
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -28,39 +34,33 @@ func NewCmdList(f factory.Factory) *cobra.Command {
 	return cmd
 }
 
-type ProjectAsJson struct {
-	Id          string `json:"Id"`
-	Name        string `json:"Name"`
-	Description string `json:"Description"`
-}
-
 func listRun(cmd *cobra.Command, f factory.Factory) error {
 	client, err := f.GetSpacedClient()
 	if err != nil {
 		return err
 	}
 
-	allProjects, err := client.Projects.GetAll()
+	allProjects, err := client.ProjectGroups.GetAll()
 	if err != nil {
 		return err
 	}
 
-	return output.PrintArray(allProjects, cmd, output.Mappers[*projects.Project]{
-		Json: func(p *projects.Project) any {
-			return ProjectAsJson{
+	return output.PrintArray(allProjects, cmd, output.Mappers[*projectgroups.ProjectGroup]{
+		Json: func(p *projectgroups.ProjectGroup) any {
+			return ProjectGroupAsJson{
 				Id:          p.GetID(),
-				Name:        p.GetName(),
+				Name:        p.Name,
 				Description: p.Description,
 			}
 		},
-		Table: output.TableDefinition[*projects.Project]{
+		Table: output.TableDefinition[*projectgroups.ProjectGroup]{
 			Header: []string{"NAME", "DESCRIPTION"},
-			Row: func(p *projects.Project) []string {
+			Row: func(p *projectgroups.ProjectGroup) []string {
 				return []string{output.Bold(p.Name), p.Description}
 			},
 		},
-		Basic: func(p *projects.Project) string {
-			return p.GetName()
+		Basic: func(p *projectgroups.ProjectGroup) string {
+			return p.Name
 		},
 	})
 }
