@@ -37,7 +37,7 @@ func TestReleaseList(t *testing.T) {
 		{"release list requires a project name in automation mode", func(t *testing.T, api *testutil.MockHttpServer, qa *testutil.AskMocker, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
 			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
 				defer api.Close()
-				rootCmd.SetArgs([]string{"release", "list", "--no-prompt"})
+				rootCmd.SetArgs([]string{"release", "list", "--no-prompt", "-f", "table"})
 				return rootCmd.ExecuteC()
 			})
 
@@ -99,7 +99,7 @@ func TestReleaseList(t *testing.T) {
 		{"release list picks up project from args in automation mode and prints list with multiple channels", func(t *testing.T, api *testutil.MockHttpServer, qa *testutil.AskMocker, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
 			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
 				defer api.Close()
-				rootCmd.SetArgs([]string{"release", "list", fireProject.Name, "--no-prompt"})
+				rootCmd.SetArgs([]string{"release", "list", fireProject.Name, "--no-prompt", "-f", "table"})
 				return rootCmd.ExecuteC()
 			})
 
@@ -141,7 +141,7 @@ func TestReleaseList(t *testing.T) {
 		{"release list picks up project from flag in automation mode and prints list", func(t *testing.T, api *testutil.MockHttpServer, qa *testutil.AskMocker, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
 			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
 				defer api.Close()
-				rootCmd.SetArgs([]string{"release", "list", "--project", fireProject.Name, "--no-prompt"})
+				rootCmd.SetArgs([]string{"release", "list", "--project", fireProject.Name, "--no-prompt", "-f", "table"})
 				return rootCmd.ExecuteC()
 			})
 
@@ -173,7 +173,7 @@ func TestReleaseList(t *testing.T) {
 		{"release list picks up project from short flag in automation mode and prints list", func(t *testing.T, api *testutil.MockHttpServer, qa *testutil.AskMocker, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
 			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
 				defer api.Close()
-				rootCmd.SetArgs([]string{"release", "list", "-p", fireProject.Name, "--no-prompt"})
+				rootCmd.SetArgs([]string{"release", "list", "-p", fireProject.Name, "--no-prompt", "-f", "table"})
 				return rootCmd.ExecuteC()
 			})
 

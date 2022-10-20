@@ -40,7 +40,7 @@ func TestRunbookList(t *testing.T) {
 		{"runbook list requires a project name in automation mode", func(t *testing.T, api *testutil.MockHttpServer, qa *testutil.AskMocker, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
 			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
 				defer api.Close()
-				rootCmd.SetArgs([]string{"runbook", "list", "--no-prompt"})
+				rootCmd.SetArgs([]string{"runbook", "list", "--no-prompt", "-f", "table"})
 				return rootCmd.ExecuteC()
 			})
 
@@ -90,7 +90,7 @@ func TestRunbookList(t *testing.T) {
 		{"runbook list picks up project from args in automation mode and prints list", func(t *testing.T, api *testutil.MockHttpServer, qa *testutil.AskMocker, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
 			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
 				defer api.Close()
-				rootCmd.SetArgs([]string{"runbook", "list", fireProject.Name, "--no-prompt"})
+				rootCmd.SetArgs([]string{"runbook", "list", fireProject.Name, "--no-prompt", "-f", "table"})
 				return rootCmd.ExecuteC()
 			})
 
@@ -121,7 +121,7 @@ func TestRunbookList(t *testing.T) {
 		{"runbook list picks up project from flag in automation mode and prints list", func(t *testing.T, api *testutil.MockHttpServer, qa *testutil.AskMocker, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
 			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
 				defer api.Close()
-				rootCmd.SetArgs([]string{"runbook", "list", "--project", fireProject.Name, "--no-prompt"})
+				rootCmd.SetArgs([]string{"runbook", "list", "--project", fireProject.Name, "--no-prompt", "-f", "table"})
 				return rootCmd.ExecuteC()
 			})
 
@@ -152,7 +152,7 @@ func TestRunbookList(t *testing.T) {
 		{"runbook list picks up project from short flag in automation mode and prints list", func(t *testing.T, api *testutil.MockHttpServer, qa *testutil.AskMocker, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
 			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
 				defer api.Close()
-				rootCmd.SetArgs([]string{"runbook", "list", "-p", fireProject.Name, "--no-prompt"})
+				rootCmd.SetArgs([]string{"runbook", "list", "-p", fireProject.Name, "--no-prompt", "-f", "table"})
 				return rootCmd.ExecuteC()
 			})
 
@@ -183,7 +183,7 @@ func TestRunbookList(t *testing.T) {
 		{"runbook list limit and filter", func(t *testing.T, api *testutil.MockHttpServer, qa *testutil.AskMocker, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
 			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
 				defer api.Close()
-				rootCmd.SetArgs([]string{"runbook", "list", "-p", fireProject.Name, "--limit", "1", "--filter", "Apply", "--no-prompt"})
+				rootCmd.SetArgs([]string{"runbook", "list", "-p", fireProject.Name, "--limit", "1", "--filter", "Apply", "--no-prompt", "-f", "table"})
 				return rootCmd.ExecuteC()
 			})
 
