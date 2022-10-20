@@ -1,7 +1,9 @@
 package list
 
 import (
+	"fmt"
 	"github.com/MakeNowJust/heredoc/v2"
+	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/OctopusDeploy/cli/pkg/output"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
@@ -13,10 +15,10 @@ func NewCmdList(f factory.Factory) *cobra.Command {
 		Use:   "list",
 		Short: "List projects in Octopus Deploy",
 		Long:  "List projects in Octopus Deploy",
-		Example: heredoc.Doc(`
-			$ octopus project list
-			$ octopus project ls
-		`),
+		Example: fmt.Sprintf(heredoc.Doc(`
+			$ %s project list
+			$ %s project ls
+		`), constants.ExecutableName, constants.ExecutableName),
 		Aliases: []string{"ls"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return listRun(cmd, f)
@@ -47,7 +49,7 @@ func listRun(cmd *cobra.Command, f factory.Factory) error {
 		Json: func(p *projects.Project) any {
 			return ProjectAsJson{
 				Id:          p.GetID(),
-				Name:        p.Name,
+				Name:        p.GetName(),
 				Description: p.Description,
 			}
 		},
@@ -58,7 +60,7 @@ func listRun(cmd *cobra.Command, f factory.Factory) error {
 			},
 		},
 		Basic: func(p *projects.Project) string {
-			return p.Name
+			return p.GetName()
 		},
 	})
 }
