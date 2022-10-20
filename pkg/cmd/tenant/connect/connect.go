@@ -6,6 +6,7 @@ import (
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/cmd"
+	"github.com/OctopusDeploy/cli/pkg/cmd/tenant/shared"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/executionscommon"
 	"github.com/OctopusDeploy/cli/pkg/factory"
@@ -29,11 +30,6 @@ const (
 	FlagAliasEnvironment        = "env"
 )
 
-type GetAllTenantsCallback func() ([]*tenants.Tenant, error)
-type GetAllProjectsCallback func() ([]*projects.Project, error)
-type GetProjectCallback func(idOrName string) (*projects.Project, error)
-type GetProjectProgression func(project *projects.Project) (*projects.Progression, error)
-
 type ConnectFlags struct {
 	Tenant                  *flag.Flag[string]
 	Project                 *flag.Flag[string]
@@ -54,10 +50,10 @@ func NewConnectOptions(connectFlags *ConnectFlags, dependencies *cmd.Dependencie
 	return &ConnectOptions{
 		Dependencies:           dependencies,
 		ConnectFlags:           connectFlags,
-		GetAllTenantsCallback:  func() ([]*tenants.Tenant, error) { return getAllTenants(*dependencies.Client) },
-		GetAllProjectsCallback: func() ([]*projects.Project, error) { return getAllProjects(*dependencies.Client) },
+		GetAllTenantsCallback:  func() ([]*tenants.Tenant, error) { return shared.GetAllTenants(*dependencies.Client) },
+		GetAllProjectsCallback: func() ([]*projects.Project, error) { return shared.GetAllProjects(*dependencies.Client) },
 		GetProjectCallback: func(identifier string) (*projects.Project, error) {
-			return getProject(*dependencies.Client, identifier)
+			return shared.GetProject(*dependencies.Client, identifier)
 		},
 		GetProjectProgressionCallback: func(project *projects.Project) (*projects.Progression, error) {
 			return getProjectProgression(*dependencies.Client, project)
@@ -74,40 +70,13 @@ func getProjectProgression(client client.Client, project *projects.Project) (*pr
 	return res, nil
 }
 
-func getAllTenants(client client.Client) ([]*tenants.Tenant, error) {
-	res, err := client.Tenants.GetAll()
-	if err != nil {
-		return nil, err
-	}
-
-	return res, nil
-}
-
-func getAllProjects(client client.Client) ([]*projects.Project, error) {
-	res, err := client.Projects.GetAll()
-	if err != nil {
-		return nil, err
-	}
-
-	return res, nil
-}
-
-func getProject(client client.Client, identifier string) (*projects.Project, error) {
-	res, err := client.Projects.GetByIdentifier(identifier)
-	if err != nil {
-		return nil, err
-	}
-
-	return res, nil
-}
-
 type ConnectOptions struct {
 	*cmd.Dependencies
 	*ConnectFlags
-	GetAllTenantsCallback         GetAllTenantsCallback
-	GetAllProjectsCallback        GetAllProjectsCallback
-	GetProjectCallback            GetProjectCallback
-	GetProjectProgressionCallback GetProjectProgression
+	GetAllTenantsCallback         shared.GetAllTenantsCallback
+	GetAllProjectsCallback        shared.GetAllProjectsCallback
+	GetProjectCallback            shared.GetProjectCallback
+	GetProjectProgressionCallback shared.GetProjectProgression
 }
 
 func NewCmdConnect(f factory.Factory) *cobra.Command {
@@ -235,7 +204,7 @@ func PromptMissing(opts *ConnectOptions) error {
 	return nil
 }
 
-func PromptForEnablingTenantedDeployments(opts *ConnectOptions, getProjectCallback GetProjectCallback) error {
+func PromptForEnablingTenantedDeployments(opts *ConnectOptions, getProjectCallback shared.GetProjectCallback) error {
 	if !opts.EnableTenantDeployments.Value {
 		project, err := getProjectCallback(opts.Project.Value)
 		if err != nil {
@@ -260,7 +229,7 @@ func getFailureMessageForUntenantedProject(project *projects.Project) string {
 	return fmt.Sprintf("Cannot connect tenant to '%s' as it does not support tenanted deployments.", project.GetName())
 }
 
-func projectSelector(questionText string, getAllProjectsCallback GetAllProjectsCallback, ask question.Asker) (*projects.Project, error) {
+func projectSelector(questionText string, getAllProjectsCallback shared.GetAllProjectsCallback, ask question.Asker) (*projects.Project, error) {
 	existingProjects, err := getAllProjectsCallback()
 	if err != nil {
 		return nil, err
