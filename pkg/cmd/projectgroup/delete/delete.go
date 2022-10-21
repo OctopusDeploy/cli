@@ -61,7 +61,7 @@ func deleteRun(opts *DeleteOptions) error {
 		}
 	}
 
-	itemToDelete, err := opts.Client.ProjectGroups.GetByIdentifier(opts.IdOrName)
+	itemToDelete, err := opts.Client.ProjectGroups.GetByIDOrName(opts.IdOrName)
 	if err != nil {
 		return err
 	}
