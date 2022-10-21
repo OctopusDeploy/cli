@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/MakeNowJust/heredoc/v2"
 	createCmd "github.com/OctopusDeploy/cli/pkg/cmd/projectgroup/create"
+	deleteCmd "github.com/OctopusDeploy/cli/pkg/cmd/projectgroup/delete"
 	listCmd "github.com/OctopusDeploy/cli/pkg/cmd/projectgroup/list"
 	viewCmd "github.com/OctopusDeploy/cli/pkg/cmd/projectgroup/view"
 	"github.com/OctopusDeploy/cli/pkg/constants"
@@ -28,6 +29,7 @@ func NewCmdProjectGroup(f factory.Factory) *cobra.Command {
 
 	cmd.AddCommand(createCmd.NewCmdCreate(f))
 	cmd.AddCommand(listCmd.NewCmdList(f))
+	cmd.AddCommand(deleteCmd.NewCmdList(f))
 	cmd.AddCommand(viewCmd.NewCmdView(f))
 
 	return cmd
