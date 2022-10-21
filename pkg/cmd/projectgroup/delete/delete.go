@@ -8,7 +8,7 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/question"
 	"github.com/OctopusDeploy/cli/pkg/question/selectors"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projectgroups"
 	"github.com/spf13/cobra"
 )
 
@@ -23,13 +23,13 @@ type DeleteOptions struct {
 func NewCmdList(f factory.Factory) *cobra.Command {
 	confirmFlags := question.NewConfirmFlags()
 	cmd := &cobra.Command{
-		Use:     "delete {<name> | <id> | <slug>}",
-		Short:   "Delete projects in Octopus Deploy",
-		Long:    "Delete projects in Octopus Deploy",
+		Use:     "delete {<name> | <id>}",
+		Short:   "Delete project groups in Octopus Deploy",
+		Long:    "Delete project groups in Octopus Deploy",
 		Aliases: []string{"del", "rm", "remove"},
 		Example: fmt.Sprintf(heredoc.Doc(`
-			$ %s project delete
-			$ %s project rm
+			$ %s project-group delete
+			$ %s project-group rm
 		`), constants.ExecutableName, constants.ExecutableName),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			client, err := f.GetSpacedClient()
@@ -49,7 +49,7 @@ func NewCmdList(f factory.Factory) *cobra.Command {
 		},
 	}
 
-	question.RegisterConfirmDeletionFlag(cmd, &confirmFlags.Confirm.Value, "project")
+	question.RegisterConfirmDeletionFlag(cmd, &confirmFlags.Confirm.Value, "project group")
 
 	return cmd
 }
@@ -61,7 +61,7 @@ func deleteRun(opts *DeleteOptions) error {
 		}
 	}
 
-	itemToDelete, err := opts.Client.Projects.GetByIdentifier(opts.IdOrName)
+	itemToDelete, err := opts.Client.ProjectGroups.GetByIdentifier(opts.IdOrName)
 	if err != nil {
 		return err
 	}
@@ -69,7 +69,7 @@ func deleteRun(opts *DeleteOptions) error {
 	if opts.ConfirmFlags.Confirm.Value {
 		return delete(opts.Client, itemToDelete)
 	} else {
-		return question.DeleteWithConfirmation(opts.Ask, "project", itemToDelete.Name, itemToDelete.ID, func() error {
+		return question.DeleteWithConfirmation(opts.Ask, "project group", itemToDelete.Name, itemToDelete.ID, func() error {
 			return delete(opts.Client, itemToDelete)
 		})
 	}
@@ -77,11 +77,11 @@ func deleteRun(opts *DeleteOptions) error {
 
 func PromptMissing(opts *DeleteOptions) error {
 	if opts.IdOrName == "" {
-		existingProjects, err := opts.Client.Projects.GetAll()
+		existingProjects, err := opts.Client.ProjectGroups.GetAll()
 		if err != nil {
 			return err
 		}
-		itemToDelete, err := selectors.ByNameOrID(opts.Ask, existingProjects, "Select the project you wish to delete:")
+		itemToDelete, err := selectors.ByNameOrID(opts.Ask, existingProjects, "Select the project group you wish to delete:")
 		if err != nil {
 			return err
 		}
@@ -91,6 +91,6 @@ func PromptMissing(opts *DeleteOptions) error {
 	return nil
 }
 
-func delete(client *client.Client, project *projects.Project) error {
-	return client.Projects.DeleteByID(project.GetID())
+func delete(client *client.Client, project *projectgroups.ProjectGroup) error {
+	return client.ProjectGroups.DeleteByID(project.GetID())
 }
