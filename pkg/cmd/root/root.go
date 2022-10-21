@@ -11,6 +11,7 @@ import (
 	releaseCmd "github.com/OctopusDeploy/cli/pkg/cmd/release"
 	runbookCmd "github.com/OctopusDeploy/cli/pkg/cmd/runbook"
 	spaceCmd "github.com/OctopusDeploy/cli/pkg/cmd/space"
+	taskCmd "github.com/OctopusDeploy/cli/pkg/cmd/task"
 	tenantCmd "github.com/OctopusDeploy/cli/pkg/cmd/tenant"
 	"github.com/OctopusDeploy/cli/pkg/cmd/version"
 	"github.com/OctopusDeploy/cli/pkg/constants"
@@ -43,6 +44,7 @@ func NewCmdRoot(f factory.Factory, clientFactory apiclient.ClientFactory, askPro
 	cmd.AddCommand(projectGroupCmd.NewCmdProjectGroup(f))
 	cmd.AddCommand(projectCmd.NewCmdProject(f))
 	cmd.AddCommand(tenantCmd.NewCmdTenant(f))
+	cmd.AddCommand(taskCmd.NewCmdTask(f))
 
 	// configuration
 	cmd.AddCommand(configCmd.NewCmdConfig(f))
@@ -97,6 +99,9 @@ func NewCmdRoot(f factory.Factory, clientFactory apiclient.ClientFactory, askPro
 
 		if noPrompt := viper.GetBool(constants.ConfigNoPrompt); noPrompt {
 			askProvider.DisableInteractive()
+			if v, _ := cmdPFlags.GetString(constants.FlagOutputFormat); v == "" {
+				cmdPFlags.Set(constants.FlagOutputFormat, "basic")
+			}
 		}
 
 		if spaceNameOrId := viper.GetString(constants.ConfigSpace); spaceNameOrId != "" {
