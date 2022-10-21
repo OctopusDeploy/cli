@@ -86,7 +86,7 @@ func viewRun(opts *ViewOptions) error {
 		cacBranch = project.PersistenceSettings.(*projects.GitPersistenceSettings).DefaultBranch
 	}
 	fmt.Fprintf(opts.out, "Version control branch: %s\n", output.Cyan(cacBranch))
-	if len(project.Description) == 0 {
+	if project.Description == "" {
 		fmt.Fprintln(opts.out, output.Dim(constants.NoDescription))
 	} else {
 		fmt.Fprintln(opts.out, output.Dim(project.Description))
