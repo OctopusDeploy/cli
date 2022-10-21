@@ -9,7 +9,6 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/usage"
 	"github.com/OctopusDeploy/cli/pkg/util/flag"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
 	"github.com/pkg/browser"
 	"github.com/spf13/cobra"
 	"io"
@@ -42,13 +41,12 @@ func NewCmdView(f factory.Factory) *cobra.Command {
 	cmd := &cobra.Command{
 		Args:  usage.ExactArgs(1),
 		Use:   "view {<name> | <id> | <slug>}",
-		Short: "View a project in an instance of Octopus Deploy",
-		Long:  "View a project in an instance of Octopus Deploy",
+		Short: "View a project-group in an instance of Octopus Deploy",
+		Long:  "View a project-group in an instance of Octopus Deploy",
 		Example: fmt.Sprintf(heredoc.Doc(`
-			$ %s project view 'Deploy Web App'
-			$ %s project view Projects-9000
-			$ %s project view deploy-web-app
-		`), constants.ExecutableName, constants.ExecutableName, constants.ExecutableName),
+			$ %s project-group view 'Default Project Group'
+			$ %s project-group view ProjectGroups-9000
+		`), constants.ExecutableName, constants.ExecutableName),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			client, err := f.GetSpacedClient()
 			if err != nil {
@@ -74,28 +72,32 @@ func NewCmdView(f factory.Factory) *cobra.Command {
 }
 
 func viewRun(opts *ViewOptions) error {
-	project, err := opts.Client.Projects.GetByIdentifier(opts.idOrName)
+	projectGroup, err := opts.Client.ProjectGroups.GetByIDOrName(opts.idOrName)
 	if err != nil {
 		return err
 	}
 
-	fmt.Fprintf(opts.out, "%s %s\n", output.Bold(project.Name), output.Dimf("(%s)", project.Slug))
+	fmt.Fprintf(opts.out, "%s %s\n", output.Bold(projectGroup.GetName()), output.Dimf("(%s)", projectGroup.GetID()))
 
-	cacBranch := "Not version controlled"
-	if project.IsVersionControlled {
-		cacBranch = project.PersistenceSettings.(*projects.GitPersistenceSettings).DefaultBranch
-	}
-	fmt.Fprintf(opts.out, "Version control branch: %s\n", output.Cyan(cacBranch))
-	if project.Description == "" {
+	if projectGroup.Description == "" {
 		fmt.Fprintln(opts.out, output.Dim(constants.NoDescription))
 	} else {
-		fmt.Fprintln(opts.out, output.Dim(project.Description))
+		fmt.Fprintln(opts.out, output.Dim(projectGroup.Description))
 	}
 
-	url := opts.Host + project.Links["Web"]
+	projects, err := opts.Client.ProjectGroups.GetProjects(projectGroup)
+	if err != nil {
+		return err
+	}
+	fmt.Fprintf(opts.out, output.Cyan("\nProjects:\n"))
+	for _, project := range projects {
+		fmt.Fprintf(opts.out, "%s (%s)\n", output.Bold(project.GetName()), project.Slug)
+	}
+
+	url := fmt.Sprintf("%s/app#/%s/projects?projectGroupId=%s", opts.Host, projectGroup.SpaceID, projectGroup.GetID())
 
 	// footer
-	fmt.Fprintf(opts.out, "View this project in Octopus Deploy: %s\n", output.Blue(url))
+	fmt.Fprintf(opts.out, "\nView this project group in Octopus Deploy: %s\n", output.Blue(url))
 
 	if opts.flags.Web.Value {
 		browser.OpenURL(url)
