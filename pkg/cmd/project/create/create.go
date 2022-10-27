@@ -2,6 +2,7 @@ package create
 
 import (
 	"fmt"
+
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/cmd"
@@ -83,7 +84,7 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 		Long:  "Creates a new project in Octopus Deploy.",
 		Example: fmt.Sprintf(heredoc.Doc(`
 			$ %s project create
-			$ %s project create --process-vcs 
+			$ %s project create --process-vcs
 			$ %s project create --name 'Deploy web app' --lifecycle 'Default Lifecycle' --group 'Default Project Group'
 		`), constants.ExecutableName, constants.ExecutableName, constants.ExecutableName),
 		RunE: func(c *cobra.Command, _ []string) error {
@@ -176,21 +177,14 @@ func AskProjectGroups(ask question.Asker, value string, getAllGroupsCallback Get
 	if value != "" {
 		return value, nil, nil
 	}
-	var shouldCreateNewProjectGroup bool
-	ask(&survey.Confirm{
-		Message: "Would you like to create a new Project Group?",
-		Default: false,
-	}, &shouldCreateNewProjectGroup)
-
-	if shouldCreateNewProjectGroup {
-		return createProjectGroupCallback()
-	}
-
-	g, err := selectors.Select(ask, "You have not specified a Project group for this project. Please select one:", getAllGroupsCallback, func(pg *projectgroups.ProjectGroup) string {
+	g, shouldCreateNew, err := selectors.SelectOrNew(ask, "You have not specified a Project group for this project. Please select one:", getAllGroupsCallback, func(pg *projectgroups.ProjectGroup) string {
 		return pg.Name
 	})
 	if err != nil {
 		return "", nil, err
+	}
+	if shouldCreateNew {
+		return createProjectGroupCallback()
 	}
 	return g.Name, nil, nil
 
