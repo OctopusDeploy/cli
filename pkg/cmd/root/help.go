@@ -6,9 +6,11 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/constants/annotations"
 	"github.com/OctopusDeploy/cli/pkg/output"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
 func isRootCmd(cmd *cobra.Command) bool {
@@ -62,6 +64,9 @@ func rootHelpFunc(cmd *cobra.Command, _ []string) {
 	helpEntries := []helpEntry{}
 	if longText != "" {
 		helpEntries = append(helpEntries, helpEntry{"", longText})
+	}
+	if isRootCmd(cmd) && viper.GetBool(constants.ConfigShowOctopus) {
+		helpEntries = append(helpEntries, helpEntry{"", output.Bluef("%s", constants.OctopusLogo)})
 	}
 	helpEntries = append(helpEntries, helpEntry{"USAGE", cmd.UseLine()})
 	if len(coreCmds) > 0 {
