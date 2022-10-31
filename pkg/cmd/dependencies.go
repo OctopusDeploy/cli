@@ -32,6 +32,18 @@ func NewDependencies(f factory.Factory, cmd *cobra.Command) *Dependencies {
 		panic(err)
 	}
 
+	return newDependencies(f, cmd, client)
+}
+
+func NewSystemDependencies(f factory.Factory, cmd *cobra.Command) *Dependencies {
+	client, err := f.GetSystemClient()
+	if err != nil {
+		panic(err)
+	}
+	return newDependencies(f, cmd, client)
+}
+
+func newDependencies(f factory.Factory, cmd *cobra.Command, client *client.Client) *Dependencies {
 	return &Dependencies{
 		Ask:      f.Ask,
 		CmdPath:  cmd.CommandPath(),

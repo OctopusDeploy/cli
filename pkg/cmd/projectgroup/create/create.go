@@ -120,7 +120,7 @@ func PromptMissing(opts *CreateOptions) error {
 	if opts.Description.Value == "" {
 		if err := opts.Ask(&survey.Input{
 			Message: messagePrefix + "Description",
-			Help:    "A short, memorable, unique name for this project.",
+			Help:    "A short, memorable, description for this project group.",
 		}, &opts.Description.Value); err != nil {
 			return err
 		}
