@@ -33,8 +33,8 @@ const (
 	ConfigSpace    = "Space"
 	ConfigNoPrompt = "NoPrompt"
 	// ConfigProxyUrl     = "ProxyUrl"
-	ConfigEditor = "Editor"
-	// ConfigShowOctopus  = "ShowOctopus"
+	ConfigEditor       = "Editor"
+	ConfigShowOctopus  = "ShowOctopus"
 	ConfigOutputFormat = "OutputFormat"
 )
 
@@ -51,9 +51,28 @@ const (
 	NoDescription = "No description provided"
 )
 
+const OctopusLogo = `            &#BGGGGGGB#&
+         &GP%%%%%%%%%%%%%G&
+       &G%%%%%%%%%%%%%%%%%%P&
+      &%%%%%%%%%%%%%%%%%%%%%%#
+      %%%%%%%%%%%%%%%%%%%%%%%%
+     #%%%%%%%%%%%%%%%%%%%%%%%%&
+     #%%%%%%%%%%%%%%%%%%%%%%%%&
+      P%%%%%%%%%%%%%%%%%%%%%%#
+      &%%%%%%%%%%%%%%%%%%%%%G
+       B%%%%%%%%%%%%%%%%%%%%#
+       P%%%%%%%%%%%%%%%%%%%%P
+     &P%%%%%%%%%%%%%%%%%%%%%%P#
+   #G%%%%P%%%%%%GP%%%%%%PP%%%%%PG&
+&G%%%PB&#P%%%%G   G%%%%P  &P%%P#&&
+ &&     G%%%%#    &%%%%G    #P%%#
+       &%%%G&      G%%%B       &&
+        &#          BPB`
+
 const (
 	PromptCreateNew = "<Create New>"
 )
+
 
 // IsProgrammaticOutputFormat tells you if it is acceptable for your command to
 // print miscellaneous output to stdout, such as progress messages.

@@ -27,7 +27,7 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault(constants.ConfigSpace, "")
 	v.SetDefault(constants.ConfigNoPrompt, false)
 	//	v.SetDefault(constants.ConfigProxyUrl, "")
-	//	v.SetDefault(constants.ConfigShowOctopus, true)
+	v.SetDefault(constants.ConfigShowOctopus, true)
 	v.SetDefault(constants.ConfigOutputFormat, "table")
 
 	if runtime.GOOS == "windows" {
