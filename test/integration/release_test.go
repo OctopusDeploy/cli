@@ -90,7 +90,7 @@ func TestReleaseCreateBasics(t *testing.T) {
 		assert.Equal(t, "2.3.4", r1.Version)
 
 		// assert CLI output *after* we've gone to the server and looked up what we expect the release ID to be.
-		assert.Regexp(t, "Successfully created release version 2.3.4", stdOut) // unit tests check full text, we just want the basic confirmation
+		assert.Regexp(t, "2.3.4", stdOut) // unit tests check full text, we just want the basic confirmation
 	})
 
 	t.Run("create a release specifying project,channel - server allocates version", func(t *testing.T) {
@@ -116,7 +116,7 @@ func TestReleaseCreateBasics(t *testing.T) {
 		assert.Equal(t, "5.0.1", r1.Version)
 
 		// assert CLI output *after* we've gone to the server and looked up what we expect the release ID to be.
-		assert.Regexp(t, "Successfully created release version 5.0.1", stdOut) // unit tests check full text, we just want the basic confirmation
+		assert.Regexp(t, "5.0.1", stdOut) // unit tests check full text, we just want the basic confirmation
 	})
 
 	t.Run("create a release specifying project and version - server uses default channel", func(t *testing.T) {
@@ -135,7 +135,7 @@ func TestReleaseCreateBasics(t *testing.T) {
 		assert.Equal(t, "6.0.0", r1.Version)
 
 		// assert CLI output *after* we've gone to the server and looked up what we expect the release ID to be.
-		assert.Regexp(t, "Successfully created release version 6.0.0", stdOut) // unit tests check full text, we just want the basic confirmation
+		assert.Regexp(t, "6.0.0", stdOut) // unit tests check full text, we just want the basic confirmation
 	})
 
 	t.Run("create a release specifying project - server uses default channel and allocates version", func(t *testing.T) {
@@ -161,7 +161,7 @@ func TestReleaseCreateBasics(t *testing.T) {
 		assert.Equal(t, "7.0.1", r1.Version)
 
 		// assert CLI output *after* we've gone to the server and looked up what we expect the release ID to be.
-		assert.Regexp(t, "Successfully created release version 7.0.1", stdOut) // unit tests check full text, we just want the basic confirmation
+		assert.Regexp(t, "7.0.1", stdOut) // unit tests check full text, we just want the basic confirmation
 	})
 
 	t.Run("cli returns an error if project is not specified", func(t *testing.T) {
@@ -260,12 +260,11 @@ func TestReleaseListAndDelete(t *testing.T) {
 			return
 		}
 		assert.Equal(t, heredoc.Doc(`
-			VERSION  CHANNEL
-			5.0      Default
-			4.0      Default
-			3.0      Default
-			2.0      Default
-			1.0      Default
+			5.0
+			4.0
+			3.0
+			2.0
+			1.0
 			`), stdOut)
 		assert.Equal(t, "", stdErr)
 	})

@@ -69,6 +69,11 @@ const OctopusLogo = `            &#BGGGGGGB#&
        &%%%G&      G%%%B       &&
         &#          BPB`
 
+const (
+	PromptCreateNew = "<Create New>"
+)
+
+
 // IsProgrammaticOutputFormat tells you if it is acceptable for your command to
 // print miscellaneous output to stdout, such as progress messages.
 // If your command is capable of printing such things, you should check the output format

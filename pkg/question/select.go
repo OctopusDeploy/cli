@@ -2,7 +2,10 @@ package question
 
 import (
 	"fmt"
+
 	"github.com/AlecAivazis/survey/v2"
+	"github.com/OctopusDeploy/cli/pkg/constants"
+	"github.com/OctopusDeploy/cli/pkg/surveyext"
 )
 
 func MultiSelectMap[T any](ask Asker, message string, items []T, getKey func(item T) string, required bool) ([]T, error) {
@@ -40,6 +43,26 @@ func SelectMap[T any](ask Asker, message string, items []T, getKey func(item T) 
 		return *new(T), fmt.Errorf("SelectMap did not get valid answer (selectedKey=%s)", selectedKey)
 	}
 	return selectedValue, nil
+}
+
+func SelectMapWithNew[T any](ask Asker, message string, items []T, getKey func(item T) string) (T, bool, error) {
+	optionMap, options := MakeItemMapAndOptions(items, getKey)
+	var selectedValue T
+	var selectedKey string
+	if err := ask(&surveyext.Select{
+		Message: message,
+		Options: options,
+	}, &selectedKey); err != nil {
+		return selectedValue, false, err
+	}
+	if selectedKey == constants.PromptCreateNew {
+		return *new(T), true, nil
+	}
+	selectedValue, ok := optionMap[selectedKey]
+	if !ok { // without this explict check SelectMap can return nil, nil which people don't expect
+		return *new(T), false, fmt.Errorf("SelectMap did not get valid answer (selectedKey=%s)", selectedKey)
+	}
+	return selectedValue, false, nil
 }
 
 func MakeItemMapAndOptions[T any](items []T, getKey func(item T) string) (map[string]T, []string) {

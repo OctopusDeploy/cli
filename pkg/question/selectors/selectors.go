@@ -59,3 +59,13 @@ func Select[T any](ask question.Asker, questionText string, itemsCallback func()
 
 	return question.SelectMap(ask, questionText, items, getKey)
 }
+
+// SelectOrNew is the same as Select but show a create new option at the bottom of the list
+// When create new is selected the returned bool will be true
+func SelectOrNew[T any](ask question.Asker, questionText string, itemsCallback func() ([]*T, error), getKey func(item *T) string) (*T, bool, error) {
+	items, err := itemsCallback()
+	if err != nil {
+		return nil, false, err
+	}
+	return question.SelectMapWithNew(ask, questionText, items, getKey)
+}
