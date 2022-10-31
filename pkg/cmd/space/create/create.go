@@ -3,9 +3,10 @@ package create
 import (
 	"errors"
 	"fmt"
+	"github.com/OctopusDeploy/cli/pkg/cmd"
+	"github.com/OctopusDeploy/cli/pkg/cmd/tenant/shared"
 	"github.com/OctopusDeploy/cli/pkg/util"
 	"github.com/OctopusDeploy/cli/pkg/util/flag"
-	"io"
 	"strings"
 
 	"github.com/AlecAivazis/survey/v2"
@@ -15,7 +16,6 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/output"
 	"github.com/OctopusDeploy/cli/pkg/question"
 	"github.com/OctopusDeploy/cli/pkg/validation"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/spaces"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/teams"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/users"
@@ -37,24 +37,25 @@ type CreateFlags struct {
 }
 
 type CreateOptions struct {
+	*cmd.Dependencies
 	*CreateFlags
-	Client   *client.Client
-	Out      io.Writer
-	Ask      question.Asker
-	NoPrompt bool
+	GetAllSpacesCallback shared.GetAllSpacesCallback
+	GetAllTeamsCallback  shared.GetAllTeamsCallback
+	GetAllUsersCallback  shared.GetAllUsersCallback
 }
 
-func NewCreateOptions(f factory.Factory, cmd *cobra.Command, flags *CreateFlags) *CreateOptions {
+func NewCreateOptions(f factory.Factory, flags *CreateFlags, dependencies *cmd.Dependencies) *CreateOptions {
 	client, err := f.GetSystemClient()
+	dependencies.Client = client // override the default space client
 	if err != nil {
 		panic(err)
 	}
 	return &CreateOptions{
-		CreateFlags: flags,
-		Ask:         f.Ask,
-		Client:      client,
-		Out:         cmd.OutOrStdout(),
-		NoPrompt:    !f.IsPromptEnabled(),
+		CreateFlags:          flags,
+		Dependencies:         dependencies,
+		GetAllSpacesCallback: func() ([]*spaces.Space, error) { return shared.GetAllSpaces(*client) },
+		GetAllTeamsCallback:  func() ([]*teams.Team, error) { return shared.GetAllTeams(*client) },
+		GetAllUsersCallback:  func() ([]*users.User, error) { return shared.GetAllUsers(*client) },
 	}
 }
 
@@ -76,8 +77,8 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 		Example: fmt.Sprintf(heredoc.Doc(`
 			$ %s space create"
 		`), constants.ExecutableName),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			opts := NewCreateOptions(f, cmd, createFlags)
+		RunE: func(c *cobra.Command, args []string) error {
+			opts := NewCreateOptions(f, createFlags, cmd.NewSystemDependencies(f, c))
 
 			return createRun(opts)
 		},
@@ -128,12 +129,19 @@ func createRun(opts *CreateOptions) error {
 		space.SpaceManagersTeamMembers = append(space.SpaceManagersTeamMembers, user.GetID())
 	}
 
+	space.Description = opts.Description.Value
+
 	createdSpace, err := opts.Client.Spaces.Add(space)
 	if err != nil {
 		return err
 	}
 
 	fmt.Printf("%s The space, \"%s\" %s was created successfully.\n", output.Green("✔"), createdSpace.Name, output.Dimf("(%s)", createdSpace.ID))
+
+	if !opts.NoPrompt {
+		autoCmd := flag.GenerateAutomationCmd(opts.CmdPath, opts.Name, opts.Description, opts.Teams, opts.Users)
+		fmt.Fprintf(opts.Out, "\nAutomation Command: %s\n", autoCmd)
+	}
 	return nil
 }
 
@@ -157,15 +165,13 @@ func findUser(allUsers []*users.User, identifier string) (*users.User, error) {
 	return nil, errors.New(fmt.Sprintf("Cannot find user '%s'", identifier))
 }
 
-func selectTeams(ask question.Asker, client *client.Client, existingSpaces []*spaces.Space, message string) ([]*teams.Team, error) {
-	systemTeams, err := client.Teams.Get(teams.TeamsQuery{
-		IncludeSystem: true,
-	})
+func selectTeams(ask question.Asker, getAllTeamsCallback shared.GetAllTeamsCallback, existingSpaces []*spaces.Space, message string) ([]*teams.Team, error) {
+	systemTeams, err := getAllTeamsCallback()
 	if err != nil {
 		return []*teams.Team{}, err
 	}
 
-	return question.MultiSelectMap(ask, message, systemTeams.Items, func(team *teams.Team) string {
+	return question.MultiSelectMap(ask, message, systemTeams, func(team *teams.Team) string {
 		if len(team.SpaceID) == 0 {
 			return fmt.Sprintf("%s %s", team.Name, output.Dim("(System Team)"))
 		}
@@ -178,8 +184,8 @@ func selectTeams(ask question.Asker, client *client.Client, existingSpaces []*sp
 	}, false)
 }
 
-func selectUsers(ask question.Asker, client *client.Client, message string) ([]*users.User, error) {
-	existingUsers, err := client.Users.GetAll()
+func selectUsers(ask question.Asker, getAllUsersCallback shared.GetAllUsersCallback, message string) ([]*users.User, error) {
+	existingUsers, err := getAllUsersCallback()
 	if err != nil {
 		return nil, err
 	}
@@ -190,7 +196,7 @@ func selectUsers(ask question.Asker, client *client.Client, message string) ([]*
 }
 
 func PromptMissing(opts *CreateOptions) error {
-	existingSpaces, err := opts.Client.Spaces.GetAll()
+	existingSpaces, err := opts.GetAllSpacesCallback()
 	if err != nil {
 		return err
 	}
@@ -221,24 +227,24 @@ func PromptMissing(opts *CreateOptions) error {
 	}
 
 	if len(opts.Teams.Value) == 0 {
-		selectedTeams, err := selectTeams(opts.Ask, opts.Client, existingSpaces, "Select one or more teams to manage this space:")
+		selectedTeams, err := selectTeams(opts.Ask, opts.GetAllTeamsCallback, existingSpaces, "Select one or more teams to manage this space:")
 		if err != nil {
 			return err
 		}
 
 		for _, team := range selectedTeams {
-			opts.Teams.Value = append(opts.Teams.Value, team.ID)
+			opts.Teams.Value = append(opts.Teams.Value, team.Name)
 		}
 	}
 
 	if len(opts.Users.Value) == 0 {
-		selectedUsers, err := selectUsers(opts.Ask, opts.Client, "Select one or more users to manage this space:")
+		selectedUsers, err := selectUsers(opts.Ask, opts.GetAllUsersCallback, "Select one or more users to manage this space:")
 		if err != nil {
 			return err
 		}
 
 		for _, user := range selectedUsers {
-			opts.Users.Value = append(opts.Users.Value, user.ID)
+			opts.Users.Value = append(opts.Users.Value, user.Username)
 		}
 	}
 
