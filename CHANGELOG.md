@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.5.0](https://github.com/OctopusDeploy/cli/compare/v0.4.0...v0.5.0) (2022-10-31)
+
+
+### Features
+
+* curl install ([e54dc3b](https://github.com/OctopusDeploy/cli/commit/e54dc3b98cb1cc79831bb5cbeb9b6d60cedb59a0))
+* new selector ([564dcff](https://github.com/OctopusDeploy/cli/commit/564dcffae85d9eba1e64f7b0f59ebf3ab24e79a0))
+* octopus logo on root help page ([1953205](https://github.com/OctopusDeploy/cli/commit/195320517d7879dabf3cf46f0692679c3d613338))
+* project connect ([#122](https://github.com/OctopusDeploy/cli/issues/122)) ([017b958](https://github.com/OctopusDeploy/cli/commit/017b95862e220966dfce48823eb98a3b6abb8f74))
+* project create ([#115](https://github.com/OctopusDeploy/cli/issues/115)) ([0a2e409](https://github.com/OctopusDeploy/cli/commit/0a2e40927a93344b76278e02db8dd18e0034f7d0))
+* project delete ([#112](https://github.com/OctopusDeploy/cli/issues/112)) ([38039c3](https://github.com/OctopusDeploy/cli/commit/38039c33a7bb1250deac95092f347bc1f8bb6e13))
+* project disconnect ([75ebb09](https://github.com/OctopusDeploy/cli/commit/75ebb09ea18594553c3c205239ff63ac61ba4198))
+* project-group delete ([#126](https://github.com/OctopusDeploy/cli/issues/126)) ([18b36f6](https://github.com/OctopusDeploy/cli/commit/18b36f680e56a9d91d31658b208382da57f2d2c2))
+* project-group list ([#125](https://github.com/OctopusDeploy/cli/issues/125)) ([d6e7f9f](https://github.com/OctopusDeploy/cli/commit/d6e7f9f40237610ebfd79954ce7e1aca424a5202))
+* project-group view ([#127](https://github.com/OctopusDeploy/cli/issues/127)) ([ff00390](https://github.com/OctopusDeploy/cli/commit/ff00390e2ce2ba82f366914d493da42155abc90c))
+* task wait ([#124](https://github.com/OctopusDeploy/cli/issues/124)) ([a4f925a](https://github.com/OctopusDeploy/cli/commit/a4f925a212fb398188de01a5eb5d9566b2f2e673))
+* tenant connect ([#119](https://github.com/OctopusDeploy/cli/issues/119)) ([abc1b31](https://github.com/OctopusDeploy/cli/commit/abc1b31262d8a5a3b9677473a76e9feae620111a))
+* tenant disconnect ([75ebb09](https://github.com/OctopusDeploy/cli/commit/75ebb09ea18594553c3c205239ff63ac61ba4198))
+* tenant list ([#118](https://github.com/OctopusDeploy/cli/issues/118)) ([4b9c854](https://github.com/OctopusDeploy/cli/commit/4b9c8540842fb266b9d7ed7bf91898e023771a9d))
+
 ## [0.4.0](https://github.com/OctopusDeploy/cli/compare/v0.3.6...v0.4.0) (2022-10-10)
 
 
