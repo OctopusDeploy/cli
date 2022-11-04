@@ -83,7 +83,7 @@ func viewRun(opts *ViewOptions) error {
 
 	cacBranch := "Not version controlled"
 	if project.IsVersionControlled {
-		cacBranch = project.PersistenceSettings.(*projects.GitPersistenceSettings).DefaultBranch
+		cacBranch = project.PersistenceSettings.(projects.GitPersistenceSettings).DefaultBranch()
 	}
 	fmt.Fprintf(opts.out, "Version control branch: %s\n", output.Cyan(cacBranch))
 	if project.Description == "" {

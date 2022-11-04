@@ -820,7 +820,7 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 	// we always need the deployment process, so we can prompt for package version overrides (or know that there aren't any packages, so it doesn't matter)
 
 	var gitReferenceKey string
-	if selectedProject.PersistenceSettings.GetType() == "VersionControlled" {
+	if selectedProject.PersistenceSettings.Type() == projects.PersistenceSettingsTypeVersionControlled {
 		// if there is no git reference specified, ask the server for the list and prompt.
 		// we leave GitCommit alone in interactive mode; we don't prompt, but if it was specified on the
 		// commandline we just pass it through untouched.

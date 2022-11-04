@@ -34,7 +34,6 @@ const (
 	DefaultGitCommitMessage = "Initial commit of deployment process"
 	DefaultBasePath         = ".octopus/"
 	DefaultBranch           = "main"
-	GitPersistenceType      = "VersionControlled"
 
 	GitStorageProject = "project"
 	GitStorageLibrary = "library"
