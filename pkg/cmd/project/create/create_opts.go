@@ -88,12 +88,12 @@ func (co *CreateOptions) Commit() error {
 	}
 
 	if co.ConfigAsCode.Value {
-		vcs, err := co.buildVersionControlSettings()
+		gitPersistenceSettings, err := co.buildGitPersistenceSettings()
 		if err != nil {
 			return err
 		}
 
-		_, err = co.Client.Projects.ConvertToVcs(createdProject, getInitialCommitMessage(co), vcs)
+		_, err = co.Client.Projects.ConvertToVcs(createdProject, getInitialCommitMessage(co), gitPersistenceSettings)
 	}
 
 	_, err = fmt.Fprintf(co.Out, "\nSuccessfully created project %s (%s), with lifecycle %s in project group %s.\n", createdProject.Name, createdProject.Slug, co.Lifecycle.Value, co.Group.Value)
@@ -107,8 +107,8 @@ func (co *CreateOptions) Commit() error {
 	return nil
 }
 
-func (co *CreateOptions) buildVersionControlSettings() (*projects.VersionControlSettings, error) {
-	var credentials credentials.IGitCredential
+func (co *CreateOptions) buildGitPersistenceSettings() (projects.GitPersistenceSettings, error) {
+	var credentials credentials.GitCredential
 	var err error
 	if strings.EqualFold(co.GitStorage.Value, GitStorageLibrary) {
 		credentials, err = co.buildLibraryGitVersionControlSettings()
@@ -126,11 +126,11 @@ func (co *CreateOptions) buildVersionControlSettings() (*projects.VersionControl
 		return nil, err
 	}
 
-	vcs := projects.NewVersionControlSettings(getBasePath(co), credentials, getGitBranch(co), GitPersistenceType, url)
+	vcs := projects.NewGitPersistenceSettings(getBasePath(co), credentials, getGitBranch(co), []string{}, url)
 	return vcs, nil
 }
 
-func (co *CreateOptions) buildLibraryGitVersionControlSettings() (credentials.IGitCredential, error) {
+func (co *CreateOptions) buildLibraryGitVersionControlSettings() (credentials.GitCredential, error) {
 	creds, err := co.Client.GitCredentials.GetByIDOrName(co.GitCredentials.Value)
 	if err != nil {
 		return nil, err
@@ -140,7 +140,7 @@ func (co *CreateOptions) buildLibraryGitVersionControlSettings() (credentials.IG
 	return credentials, nil
 }
 
-func (co *CreateOptions) buildProjectGitVersionControlSettings() (credentials.IGitCredential, error) {
+func (co *CreateOptions) buildProjectGitVersionControlSettings() (credentials.GitCredential, error) {
 	credentials := credentials.NewUsernamePassword(co.GitUsername.Value, core.NewSensitiveValue(co.GitPassword.Value))
 	return credentials, nil
 }
