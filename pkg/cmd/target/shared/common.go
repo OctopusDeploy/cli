@@ -31,6 +31,7 @@ const (
 )
 
 type GetAllTagsCallback func() ([]*tagsets.Tag, error)
+type GetAllRolesCallback func() ([]string, error)
 
 type CreateTargetCommonFlags struct {
 	Roles                  *flag.Flag[[]string]
@@ -44,8 +45,8 @@ type CreateTargetCommonOptions struct {
 	*cmd.Dependencies
 
 	GetAllTagsCallback
+	GetAllRolesCallback
 	sharedTenants.GetAllTenantsCallback
-	selectors.GetAllRolesCallback
 }
 
 func NewCreateTargetCommonOptions(dependencies *cmd.Dependencies) *CreateTargetCommonOptions {
@@ -57,7 +58,7 @@ func NewCreateTargetCommonOptions(dependencies *cmd.Dependencies) *CreateTargetC
 		GetAllTagsCallback: func() ([]*tagsets.Tag, error) {
 			return getAllTags(*dependencies.Client)
 		},
-		GetAllRolesCallback: func() ([]*string, error) {
+		GetAllRolesCallback: func() ([]string, error) {
 			return getAllMachineRoles(*dependencies.Client)
 		},
 	}
@@ -92,11 +93,16 @@ func PromptRolesAndEnvironments(opts *CreateTargetCommonOptions, flags *CreateTa
 	}
 
 	if util.Empty(flags.Roles.Value) {
-		roles, err := selectors.RoleMultiSelect(opts.Ask, opts.GetAllRolesCallback, "Choose at least one role for the deployment target.\n", true)
+		availableRoles, err := opts.GetAllRolesCallback()
 		if err != nil {
 			return err
 		}
-		flags.Roles.Value = util.SliceTransform(roles, func(r *string) string { return *r })
+		roles, err := question.MultiSelectWithAddMap(opts.Ask, "Choose at least one role for the deployment target.\n", availableRoles, true)
+
+		if err != nil {
+			return err
+		}
+		flags.Roles.Value = roles
 	}
 	return nil
 }
@@ -183,13 +189,17 @@ func getTenantDeploymentOptions() []*selectors.SelectOption[string] {
 	}
 }
 
-func getAllMachineRoles(client client.Client) ([]*string, error) {
+func getAllMachineRoles(client client.Client) ([]string, error) {
 	res, err := client.MachineRoles.GetAll()
 	if err != nil {
 		return nil, err
 	}
 
-	return res, nil
+	var roles []string
+	for _, r := range res {
+		roles = append(roles, *r)
+	}
+	return roles, nil
 }
 
 func getAllTags(client client.Client) ([]*tagsets.Tag, error) {

@@ -66,7 +66,7 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 		Short: "Creates an aws account",
 		Long:  "Creates an aws account in an instance of Octopus Deploy.",
 		Example: fmt.Sprintf(heredoc.Doc(`
-			$ %s account aws create"
+			$ %s account aws create
 		`), constants.ExecutableName),
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			client, err := f.GetSpacedClient()
