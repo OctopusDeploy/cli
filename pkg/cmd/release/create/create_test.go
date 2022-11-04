@@ -1193,12 +1193,10 @@ func TestReleaseCreate_AutomationMode(t *testing.T) {
 
 	depProcess := fixtures.NewDeploymentProcessForProject(space1.ID, cacProjectID)
 
-	conversionState := projects.NewConversionState(false)
 	protectedBranchNamePatterns := []string{}
 	cacProject := fixtures.NewProject(space1.ID, cacProjectID, "CaC Project", "Lifecycles-1", "ProjectGroups-1", depProcess.ID)
 	cacProject.PersistenceSettings = projects.NewGitPersistenceSettings(
 		".octopus",
-		conversionState,
 		credentials.NewAnonymous(),
 		"main",
 		protectedBranchNamePatterns,
