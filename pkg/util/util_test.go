@@ -376,3 +376,16 @@ func TestMapCollectionWithLookups(t *testing.T) {
 		assert.Nil(t, results)
 	})
 }
+
+func TestEmpty_Nil(t *testing.T) {
+	var empty []string = nil
+	assert.True(t, util.Empty(empty))
+}
+
+func TestEmpty_ZeroItems(t *testing.T) {
+	assert.True(t, util.Empty([]string{}))
+}
+
+func TestEmpty_SomeItems(t *testing.T) {
+	assert.False(t, util.Empty([]string{"value"}))
+}
