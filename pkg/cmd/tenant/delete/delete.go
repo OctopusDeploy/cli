@@ -2,13 +2,14 @@ package delete
 
 import (
 	"fmt"
+
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/OctopusDeploy/cli/pkg/question"
 	"github.com/OctopusDeploy/cli/pkg/question/selectors"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/tenants"
 	"github.com/spf13/cobra"
 )
 
@@ -20,18 +21,18 @@ type DeleteOptions struct {
 	*question.ConfirmFlags
 }
 
-func NewCmdList(f factory.Factory) *cobra.Command {
+func NewCmdDelete(f factory.Factory) *cobra.Command {
 	confirmFlags := question.NewConfirmFlags()
 	cmd := &cobra.Command{
-		Use:     "delete {<name> | <id> | <slug>}",
-		Short:   "Delete projects in Octopus Deploy",
-		Long:    "Delete projects in Octopus Deploy",
+		Use:     "delete {<name> | <id>}",
+		Short:   "Delete tenant in Octopus Deploy",
+		Long:    "Delete tenant in Octopus Deploy",
 		Aliases: []string{"del", "rm", "remove"},
 		Example: fmt.Sprintf(heredoc.Doc(`
-			$ %s project delete
-			$ %s project rm
+			$ %s tenant delete
+			$ %s tenant rm
 		`), constants.ExecutableName, constants.ExecutableName),
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(_ *cobra.Command, args []string) error {
 			client, err := f.GetSpacedClient()
 			if err != nil {
 				return err
@@ -53,7 +54,7 @@ func NewCmdList(f factory.Factory) *cobra.Command {
 		},
 	}
 
-	question.RegisterConfirmDeletionFlag(cmd, &confirmFlags.Confirm.Value, "project")
+	question.RegisterConfirmDeletionFlag(cmd, &confirmFlags.Confirm.Value, "tenant")
 
 	return cmd
 }
@@ -66,18 +67,18 @@ func deleteRun(opts *DeleteOptions) error {
 	}
 
 	if opts.IdOrName == "" {
-		return fmt.Errorf("project identifier is required but was not provided")
+		return fmt.Errorf("tenant identifier is required but was not provided")
 	}
 
-	itemToDelete, err := opts.Client.Projects.GetByIdentifier(opts.IdOrName)
+	itemToDelete, err := opts.Client.Tenants.GetByIdentifier(opts.IdOrName)
 	if err != nil {
 		return err
 	}
 
-	if opts.ConfirmFlags.Confirm.Value {
+	if opts.Confirm.Value {
 		return delete(opts.Client, itemToDelete)
 	} else {
-		return question.DeleteWithConfirmation(opts.Ask, "project", itemToDelete.Name, itemToDelete.ID, func() error {
+		return question.DeleteWithConfirmation(opts.Ask, "tenant", itemToDelete.Name, itemToDelete.ID, func() error {
 			return delete(opts.Client, itemToDelete)
 		})
 	}
@@ -85,11 +86,15 @@ func deleteRun(opts *DeleteOptions) error {
 
 func PromptMissing(opts *DeleteOptions) error {
 	if opts.IdOrName == "" {
-		existingProjects, err := opts.Client.Projects.GetAll()
+		existingTenants, err := opts.Client.Tenants.GetAll()
 		if err != nil {
 			return err
 		}
-		itemToDelete, err := selectors.ByNameOrID(opts.Ask, existingProjects, "Select the project you wish to delete:")
+		itemToDelete, err := selectors.Select(opts.Ask, "Select the tenant you wish to delete:", func() ([]*tenants.Tenant, error) {
+			return existingTenants, nil
+		}, func(item *tenants.Tenant) string {
+			return item.Name
+		})
 		if err != nil {
 			return err
 		}
@@ -99,6 +104,6 @@ func PromptMissing(opts *DeleteOptions) error {
 	return nil
 }
 
-func delete(client *client.Client, project *projects.Project) error {
-	return client.Projects.DeleteByID(project.GetID())
+func delete(client *client.Client, tenant *tenants.Tenant) error {
+	return client.Tenants.DeleteByID(tenant.GetID())
 }

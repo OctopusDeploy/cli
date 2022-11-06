@@ -21,7 +21,6 @@ var spinner = &testutil.FakeSpinner{}
 var rootResource = testutil.NewRootResource()
 
 func TestAskProjectGroup_WithProvidedName(t *testing.T) {
-
 	value, _, err := projectCreate.AskProjectGroups(nil, "FooBar", nil, nil)
 	assert.NoError(t, err)
 	assert.Equal(t, "FooBar", value)
