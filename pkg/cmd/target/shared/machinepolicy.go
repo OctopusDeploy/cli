@@ -2,6 +2,7 @@ package shared
 
 import (
 	"github.com/OctopusDeploy/cli/pkg/cmd"
+	"github.com/OctopusDeploy/cli/pkg/question/selectors"
 	"github.com/OctopusDeploy/cli/pkg/util/flag"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/machines"
@@ -40,6 +41,19 @@ func NewCreateTargetMachinePolicyFlags() *CreateTargetMachinePolicyFlags {
 
 func RegisterCreateTargetMachinePolicyFlags(cmd *cobra.Command, machinePolicyFlags *CreateTargetMachinePolicyFlags) {
 	cmd.Flags().StringVar(&machinePolicyFlags.MachinePolicy.Value, machinePolicyFlags.MachinePolicy.Name, "", "The machine policy for ")
+}
+
+func PromptForMachinePolicy(opts *CreateTargetMachinePolicyOptions, flags *CreateTargetMachinePolicyFlags) error {
+	if flags.MachinePolicy.Value == "" {
+		selectedOption, err := selectors.Select(opts.Ask, "Select the machine policy to use", opts.GetAllMachinePoliciesCallback, func(p *machines.MachinePolicy) string { return p.Name })
+		if err != nil {
+			return err
+		}
+
+		flags.MachinePolicy.Value = selectedOption.Name
+	}
+
+	return nil
 }
 
 func getAllMachinePolicies(client client.Client) ([]*machines.MachinePolicy, error) {

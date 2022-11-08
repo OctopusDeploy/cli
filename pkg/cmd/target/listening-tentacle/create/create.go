@@ -11,7 +11,6 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/executionscommon"
 	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/OctopusDeploy/cli/pkg/question"
-	"github.com/OctopusDeploy/cli/pkg/question/selectors"
 	"github.com/OctopusDeploy/cli/pkg/util"
 	"github.com/OctopusDeploy/cli/pkg/util/flag"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/environments"
@@ -179,15 +178,11 @@ func PromptMissing(opts *CreateOptions) error {
 		}
 	}
 
-	if opts.MachinePolicy.Value == "" {
-		selectedOption, err := selectors.Select(opts.Ask, "Select the machine policy to use", opts.GetAllMachinePoliciesCallback, func(p *machines.MachinePolicy) string { return p.Name })
-		if err != nil {
-			return err
-		}
-
-		opts.MachinePolicy.Value = selectedOption.Name
+	err = shared.PromptForMachinePolicy(opts.CreateTargetMachinePolicyOptions, opts.CreateTargetMachinePolicyFlags)
+	if err != nil {
+		return err
 	}
-
+	
 	err = shared.PromptForProxy(opts.CreateTargetProxyOptions, opts.CreateTargetProxyFlags)
 	if err != nil {
 		return err
