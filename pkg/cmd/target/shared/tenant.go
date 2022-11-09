@@ -10,10 +10,13 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/util"
 	"github.com/OctopusDeploy/cli/pkg/util/flag"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/core"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/machines"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/tagsets"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/tenants"
 	"github.com/spf13/cobra"
 	"sort"
+	"strings"
 )
 
 const (
@@ -162,4 +165,39 @@ func getAllTags(client client.Client) ([]*tagsets.Tag, error) {
 	}
 
 	return tags, nil
+}
+
+func ConfigureTenant(target *machines.DeploymentTarget, flags *CreateTargetTenantFlags, opts *CreateTargetTenantOptions) error {
+	target.TenantedDeploymentMode = core.TenantedDeploymentMode(flags.TenantedDeploymentMode.Value)
+	target.TenantTags = flags.TenantTags.Value
+
+	allTenants, err := opts.GetAllTenantsCallback()
+	if err != nil {
+		return err
+	}
+
+	nameLookup := make(map[string]*tenants.Tenant, len(allTenants))
+	idLookup := make(map[string]*tenants.Tenant, len(allTenants))
+
+	for _, tenant := range allTenants {
+		nameLookup[strings.ToLower(tenant.Name)] = tenant
+		idLookup[strings.ToLower(tenant.GetID())] = tenant
+	}
+
+	for _, tenantNameOrId := range flags.Tenants.Value {
+		nameOrId := strings.ToLower(tenantNameOrId)
+		t := nameLookup[nameOrId]
+		if t != nil {
+			target.TenantIDs = append(target.TenantIDs, t.GetID())
+		} else {
+			t = idLookup[nameOrId]
+			if t != nil {
+				target.TenantIDs = append(target.TenantIDs, t.GetID())
+			} else {
+				return fmt.Errorf("Cannot find tenant '%s'", tenantNameOrId)
+			}
+		}
+	}
+	return nil
+
 }

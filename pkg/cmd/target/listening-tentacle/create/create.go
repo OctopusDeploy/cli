@@ -141,6 +141,10 @@ func createRun(opts *CreateOptions) error {
 	}
 
 	deploymentTarget := machines.NewDeploymentTarget(opts.Name.Value, endpoint, environmentIds, shared.DistinctRoles(opts.Roles.Value))
+	err = shared.ConfigureTenant(deploymentTarget, opts.CreateTargetTenantFlags, opts.CreateTargetTenantOptions)
+	if err != nil {
+		return err
+	}
 
 	_, err = opts.Client.Machines.Add(deploymentTarget)
 	if err != nil {
