@@ -32,15 +32,19 @@ type CreateFlags struct {
 	Thumbprint *flag.Flag[string]
 	URL        *flag.Flag[string]
 	*shared.CreateTargetProxyFlags
-	*shared.CreateTargetCommonFlags
+	*shared.CreateTargetEnvironmentFlags
+	*shared.CreateTargetRoleFlags
 	*shared.CreateTargetMachinePolicyFlags
+	*shared.CreateTargetTenantFlags
 }
 
 type CreateOptions struct {
 	*CreateFlags
 	*shared.CreateTargetProxyOptions
-	*shared.CreateTargetCommonOptions
+	*shared.CreateTargetEnvironmentOptions
+	*shared.CreateTargetRoleOptions
 	*shared.CreateTargetMachinePolicyOptions
+	*shared.CreateTargetTenantOptions
 	*cmd.Dependencies
 }
 
@@ -49,7 +53,7 @@ func NewCreateFlags() *CreateFlags {
 		Name:                           flag.New[string](FlagName, false),
 		Thumbprint:                     flag.New[string](FlagThumbprint, true),
 		URL:                            flag.New[string](FlagUrl, false),
-		CreateTargetCommonFlags:        shared.NewCreateTargetCommonFlags(),
+		CreateTargetRoleFlags:          shared.NewCreateTargetRoleFlags(),
 		CreateTargetProxyFlags:         shared.NewCreateTargetProxyFlags(),
 		CreateTargetMachinePolicyFlags: shared.NewCreateTargetMachinePolicyFlags(),
 	}
@@ -59,9 +63,11 @@ func NewCreateOptions(createFlags *CreateFlags, dependencies *cmd.Dependencies) 
 	return &CreateOptions{
 		CreateFlags:                      createFlags,
 		Dependencies:                     dependencies,
-		CreateTargetCommonOptions:        shared.NewCreateTargetCommonOptions(dependencies),
+		CreateTargetRoleOptions:          shared.NewCreateTargetRoleOptions(dependencies),
 		CreateTargetProxyOptions:         shared.NewCreateTargetProxyOptions(dependencies),
 		CreateTargetMachinePolicyOptions: shared.NewCreateTargetMachinePolicyOptions(dependencies),
+		CreateTargetEnvironmentOptions:   shared.NewCreateTargetEnvironmentOptions(dependencies),
+		CreateTargetTenantOptions:        shared.NewCreateTargetTenantOptions(dependencies),
 	}
 }
 
@@ -86,9 +92,11 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 	flags.StringVarP(&createFlags.Name.Value, createFlags.Name.Name, "n", "", "A short, memorable, unique name for this Listening Tentacle.")
 	flags.StringVar(&createFlags.Thumbprint.Value, createFlags.Thumbprint.Name, "", "The X509 certificate thumbprint that securely identifies the Tentacle.")
 	flags.StringVar(&createFlags.URL.Value, createFlags.URL.Name, "", "The network address at which the Tentacle can be reached.")
-	shared.RegisterCreateTargetCommonFlags(cmd, createFlags.CreateTargetCommonFlags)
+	shared.RegisterCreateTargetEnvironmentFlags(cmd, createFlags.CreateTargetEnvironmentFlags)
+	shared.RegisterCreateTargetRoleFlags(cmd, createFlags.CreateTargetRoleFlags)
 	shared.RegisterCreateTargetProxyFlags(cmd, createFlags.CreateTargetProxyFlags)
 	shared.RegisterCreateTargetMachinePolicyFlags(cmd, createFlags.CreateTargetMachinePolicyFlags)
+	shared.RegisterCreateTargetTenantFlags(cmd, createFlags.CreateTargetTenantFlags)
 
 	return cmd
 }
@@ -152,7 +160,12 @@ func PromptMissing(opts *CreateOptions) error {
 		return err
 	}
 
-	err = shared.PromptRolesAndEnvironments(opts.CreateTargetCommonOptions, opts.CreateTargetCommonFlags)
+	err = shared.PromptForEnvironments(opts.CreateTargetEnvironmentOptions, opts.CreateTargetEnvironmentFlags)
+	if err != nil {
+		return err
+	}
+
+	err = shared.PromptForRoles(opts.CreateTargetRoleOptions, opts.CreateTargetRoleFlags)
 	if err != nil {
 		return err
 	}
@@ -182,13 +195,13 @@ func PromptMissing(opts *CreateOptions) error {
 	if err != nil {
 		return err
 	}
-	
+
 	err = shared.PromptForProxy(opts.CreateTargetProxyOptions, opts.CreateTargetProxyFlags)
 	if err != nil {
 		return err
 	}
 
-	err = shared.PromptForTenant(opts.CreateTargetCommonOptions, opts.CreateTargetCommonFlags)
+	err = shared.PromptForTenant(opts.CreateTargetTenantOptions, opts.CreateTargetTenantFlags)
 	if err != nil {
 		return err
 	}
