@@ -160,7 +160,7 @@ func PromptForTenant(opts *CreateTargetCommonOptions, flags *CreateTargetCommonF
 				opts.Ask,
 				"Select tenants this deployment target should be associated with",
 				combinedList,
-				func(item string) string { return item }, true)
+				func(item string) string { return item }, false)
 		}
 
 		if err != nil {
