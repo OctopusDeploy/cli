@@ -16,7 +16,6 @@ import (
 	octopusApiClient "github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/core"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/environments"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/resources"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -36,6 +35,9 @@ func TestAWSAccountCreatePromptMissing(t *testing.T) {
 
 	opts := &create.CreateOptions{
 		CreateFlags: create.NewCreateFlags(),
+		GetAllEnvironmentsCallback: func() ([]*environments.Environment, error) {
+			return []*environments.Environment{env}, nil
+		},
 	}
 
 	errReceiver := testutil.GoBegin(func() error {
@@ -72,10 +74,6 @@ func TestAWSAccountCreatePromptMissing(t *testing.T) {
 		Message: "Secret Key",
 		Help:    "The AWS secret key to use when authenticating against Amazon Web Services.",
 	}).AnswerWith("testpassword124")
-
-	api.ExpectRequest(t, "GET", "/api/Spaces-1/environments").RespondWith(resources.Resources[*environments.Environment]{
-		Items: []*environments.Environment{env}},
-	)
 
 	_ = qa.ExpectQuestion(t, &survey.MultiSelect{
 		Message: "Choose the environments that are allowed to use this account.\nIf nothing is selected, the account can be used for deployments to any environment.",

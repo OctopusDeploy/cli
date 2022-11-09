@@ -17,7 +17,6 @@ import (
 	octopusApiClient "github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/core"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/environments"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/resources"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -37,6 +36,9 @@ func TestGCPAccountCreatePromptMissing(t *testing.T) {
 
 	opts := &create.CreateOptions{
 		CreateFlags: create.NewCreateFlags(),
+		GetAllEnvironmentsCallback: func() ([]*environments.Environment, error) {
+			return []*environments.Environment{env}, nil
+		},
 	}
 
 	opts.KeyFileData = []byte{1, 1}
@@ -75,10 +77,6 @@ func TestGCPAccountCreatePromptMissing(t *testing.T) {
 		Message: "Passphrase",
 		Help:    "The passphrase for the private key, if required.",
 	}).AnswerWith("password123")
-
-	api.ExpectRequest(t, "GET", "/api/Spaces-1/environments").RespondWith(resources.Resources[*environments.Environment]{
-		Items: []*environments.Environment{env}},
-	)
 
 	_ = qa.ExpectQuestion(t, &survey.MultiSelect{
 		Message: "Choose the environments that are allowed to use this account.\nIf nothing is selected, the account can be used for deployments to any environment.",
