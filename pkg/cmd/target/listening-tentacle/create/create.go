@@ -56,6 +56,8 @@ func NewCreateFlags() *CreateFlags {
 		CreateTargetRoleFlags:          shared.NewCreateTargetRoleFlags(),
 		CreateTargetProxyFlags:         shared.NewCreateTargetProxyFlags(),
 		CreateTargetMachinePolicyFlags: shared.NewCreateTargetMachinePolicyFlags(),
+		CreateTargetEnvironmentFlags:   shared.NewCreateTargetEnvironmentFlags(),
+		CreateTargetTenantFlags:        shared.NewCreateTargetTenantFlags(),
 	}
 }
 
