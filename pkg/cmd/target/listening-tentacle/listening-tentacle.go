@@ -13,8 +13,8 @@ func NewCmdListeningTentacle(f factory.Factory) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "listening-tentacle <command>",
 		Short:   "Manage listening tentacle deployment targets",
-		Long:    `Work with Octopus Deploy listening tentacle deployment targets.`,
-		Example: fmt.Sprintf("$ %s deployment-target listening-tenatacl list", constants.ExecutableName),
+		Long:    "Work with Octopus Deploy listening tentacle deployment targets.",
+		Example: fmt.Sprintf("$ %s deployment-target listening-tenatacle list", constants.ExecutableName),
 	}
 
 	//cmd.AddCommand(cmdList.NewCmdList(f))
