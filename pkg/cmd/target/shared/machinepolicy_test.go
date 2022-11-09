@@ -9,7 +9,7 @@ import (
 	"testing"
 )
 
-func TestFlagSupplied_ShouldNotPrompt(t *testing.T) {
+func TestMachinePolicyFlagSupplied_ShouldNotPrompt(t *testing.T) {
 	pa := []*testutil.PA{}
 
 	asker, checkRemainingPrompts := testutil.NewMockAsker(t, pa)

@@ -14,10 +14,9 @@ type GetAllProxiesCallback func() ([]*proxies.Proxy, error)
 
 func PromptForProxy(opts *CreateTargetProxyOptions, flags *CreateTargetProxyFlags) error {
 	if flags.Proxy.Value == "" {
-		var directConnection bool
+		directConnection := true
 		opts.Ask(&survey.Confirm{
 			Message: "Should the connection to the tentacle be direct?",
-			Default: true,
 		}, &directConnection)
 		if !directConnection {
 			selectedOption, err := selectors.Select(opts.Ask, "Select the proxy to use", opts.GetAllProxiesCallback, func(p *proxies.Proxy) string { return p.GetName() })
