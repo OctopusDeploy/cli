@@ -46,6 +46,7 @@ type CreateTargetCommonOptions struct {
 
 	GetAllTagsCallback
 	GetAllRolesCallback
+	selectors.GetAllEnvironmentsCallback
 	sharedTenants.GetAllTenantsCallback
 }
 
@@ -60,6 +61,9 @@ func NewCreateTargetCommonOptions(dependencies *cmd.Dependencies) *CreateTargetC
 		},
 		GetAllRolesCallback: func() ([]string, error) {
 			return getAllMachineRoles(*dependencies.Client)
+		},
+		GetAllEnvironmentsCallback: func() ([]*environments.Environment, error) {
+			return selectors.GetAllEnvironments(*dependencies.Client)
 		},
 	}
 }
@@ -84,12 +88,12 @@ func RegisterCreateTargetCommonFlags(cmd *cobra.Command, commonFlags *CreateTarg
 
 func PromptRolesAndEnvironments(opts *CreateTargetCommonOptions, flags *CreateTargetCommonFlags) error {
 	if util.Empty(flags.Environments.Value) {
-		envs, err := selectors.EnvironmentsMultiSelect(opts.Ask, opts.Client,
+		envs, err := selectors.EnvironmentsMultiSelect(opts.Ask, opts.GetAllEnvironmentsCallback,
 			"Choose at least one environment for the deployment target.\n", true)
 		if err != nil {
 			return err
 		}
-		flags.Environments.Value = util.SliceTransform(envs, func(e *environments.Environment) string { return e.ID })
+		flags.Environments.Value = util.SliceTransform(envs, func(e *environments.Environment) string { return e.Name })
 	}
 
 	if util.Empty(flags.Roles.Value) {

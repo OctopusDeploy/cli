@@ -8,7 +8,9 @@ import (
 	"strings"
 )
 
-func EnvironmentSelect(ask question.Asker, client *client.Client, message string) (*environments.Environment, error) {
+type GetAllEnvironmentsCallback func() ([]*environments.Environment, error)
+
+func GetAllEnvironments(client client.Client) ([]*environments.Environment, error) {
 	envResources, err := client.Environments.Get(environments.EnvironmentsQuery{})
 	if err != nil {
 		return nil, err
@@ -17,6 +19,16 @@ func EnvironmentSelect(ask question.Asker, client *client.Client, message string
 	if err != nil {
 		return nil, err
 	}
+
+	return allEnvs, nil
+}
+
+func EnvironmentSelect(ask question.Asker, getAllEnvironmentsCallback GetAllEnvironmentsCallback, message string) (*environments.Environment, error) {
+	allEnvs, err := getAllEnvironmentsCallback()
+	if err != nil {
+		return nil, err
+	}
+
 	return question.SelectMap(ask, message, allEnvs, func(item *environments.Environment) string {
 		return item.Name
 	})
@@ -43,12 +55,8 @@ func FindEnvironment(octopus *client.Client, environmentName string) (*environme
 	return nil, fmt.Errorf("no environment found with name of %s", environmentName)
 }
 
-func EnvironmentsMultiSelect(ask question.Asker, client *client.Client, message string, required bool) ([]*environments.Environment, error) {
-	envResources, err := client.Environments.Get(environments.EnvironmentsQuery{})
-	if err != nil {
-		return nil, err
-	}
-	allEnvs, err := envResources.GetAllPages(client.Environments.GetClient())
+func EnvironmentsMultiSelect(ask question.Asker, getAllEnvironmentsCallback GetAllEnvironmentsCallback, message string, required bool) ([]*environments.Environment, error) {
+	allEnvs, err := getAllEnvironmentsCallback()
 	if err != nil {
 		return nil, err
 	}

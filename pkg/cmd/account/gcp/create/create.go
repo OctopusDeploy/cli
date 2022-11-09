@@ -44,6 +44,7 @@ type CreateOptions struct {
 	KeyFileData []byte
 
 	NoPrompt bool
+	selectors.GetAllEnvironmentsCallback
 }
 
 func NewCreateFlags() *CreateFlags {
@@ -73,6 +74,9 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 			client, err := f.GetSpacedClient()
 			if err != nil {
 				return err
+			}
+			opts.GetAllEnvironmentsCallback = func() ([]*environments.Environment, error) {
+				return selectors.GetAllEnvironments(*client)
 			}
 			opts.CmdPath = cmd.CommandPath()
 			opts.Octopus = client
@@ -198,7 +202,7 @@ func PromptMissing(opts *CreateOptions) error {
 	}
 
 	if opts.Environments.Value == nil {
-		envs, err := selectors.EnvironmentsMultiSelect(opts.Ask, opts.Octopus,
+		envs, err := selectors.EnvironmentsMultiSelect(opts.Ask, opts.GetAllEnvironmentsCallback,
 			"Choose the environments that are allowed to use this account.\n"+
 				output.Dim("If nothing is selected, the account can be used for deployments to any environment."), false)
 		if err != nil {
