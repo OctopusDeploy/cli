@@ -86,8 +86,12 @@ func viewRun(opts *ViewOptions) error {
 	if len(tenant.TenantTags) > 0 {
 		fmt.Fprintf(opts.out, "Tags: ")
 	}
-	for _, tag := range tenant.TenantTags {
-		fmt.Fprintf(opts.out, "%s, ", tag)
+	for i, tag := range tenant.TenantTags {
+		suffix := ", "
+		if i == len(tenant.TenantTags)-1 {
+			suffix = ""
+		}
+		fmt.Fprintf(opts.out, "%s%s", tag, suffix)
 	}
 	if len(tenant.TenantTags) > 0 {
 		fmt.Fprintf(opts.out, "\n")

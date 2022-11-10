@@ -37,8 +37,8 @@ func NewCmdTag(f factory.Factory) *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "tag",
-		Short: "Tag a tenant in Octopus Deploy",
-		Long:  "Tag a tenant in Octopus Deploy.",
+		Short: "Override tags for a tenant in Octopus Deploy",
+		Long:  "Override tags for a tenant in Octopus Deploy.",
 		Example: fmt.Sprintf(heredoc.Doc(`
 			$ %s tenant tag Tenant-1
 		`), constants.ExecutableName),
@@ -51,7 +51,7 @@ func NewCmdTag(f factory.Factory) *cobra.Command {
 
 	flags := cmd.Flags()
 	flags.StringArrayVarP(&createFlags.Tag.Value, createFlags.Tag.Name, "t", []string{}, "Tag to apply to tenant, must use canonical name: <tag_set>/<tag_name>")
-	flags.StringVar(&createFlags.Tenant.Value, createFlags.Tenant.Name, "", "Name or ID you wish to update")
+	flags.StringVar(&createFlags.Tenant.Value, createFlags.Tenant.Name, "", "Name or ID of the tenant you wish to update")
 
 	return cmd
 }
