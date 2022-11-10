@@ -36,6 +36,7 @@ type CreateFlags struct {
 	*shared.CreateTargetRoleFlags
 	*shared.CreateTargetMachinePolicyFlags
 	*shared.CreateTargetTenantFlags
+	*shared.WebFlags
 }
 
 type CreateOptions struct {
@@ -58,6 +59,7 @@ func NewCreateFlags() *CreateFlags {
 		CreateTargetMachinePolicyFlags: shared.NewCreateTargetMachinePolicyFlags(),
 		CreateTargetEnvironmentFlags:   shared.NewCreateTargetEnvironmentFlags(),
 		CreateTargetTenantFlags:        shared.NewCreateTargetTenantFlags(),
+		WebFlags:                       shared.NewWebFlags(),
 	}
 }
 
@@ -99,6 +101,7 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 	shared.RegisterCreateTargetProxyFlags(cmd, createFlags.CreateTargetProxyFlags)
 	shared.RegisterCreateTargetMachinePolicyFlags(cmd, createFlags.CreateTargetMachinePolicyFlags)
 	shared.RegisterCreateTargetTenantFlags(cmd, createFlags.CreateTargetTenantFlags)
+	shared.RegisterWebFlag(cmd, createFlags.WebFlags)
 
 	return cmd
 }
@@ -161,6 +164,8 @@ func createRun(opts *CreateOptions) error {
 		autoCmd := flag.GenerateAutomationCmd(opts.CmdPath, opts.Name, opts.URL, opts.Thumbprint, opts.Environments, opts.Roles, opts.Proxy, opts.MachinePolicy, opts.TenantedDeploymentMode, opts.Tenants, opts.TenantTags)
 		fmt.Fprintf(opts.Out, "\nAutomation Command: %s\n", autoCmd)
 	}
+
+	shared.DoWeb(createdTarget, opts.Dependencies, opts.WebFlags, "listening tentacle")
 
 	return nil
 }
