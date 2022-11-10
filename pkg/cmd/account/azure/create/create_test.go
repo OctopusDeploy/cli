@@ -16,7 +16,6 @@ import (
 	octopusApiClient "github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/core"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/environments"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/resources"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 )
@@ -37,6 +36,9 @@ func TestAzureAccountCreatePromptMissing(t *testing.T) {
 
 	opts := &create.CreateOptions{
 		CreateFlags: create.NewCreateFlags(),
+		GetAllEnvironmentsCallback: func() ([]*environments.Environment, error) {
+			return []*environments.Environment{env}, nil
+		},
 	}
 
 	errReceiver := testutil.GoBegin(func() error {
@@ -88,10 +90,6 @@ func TestAzureAccountCreatePromptMissing(t *testing.T) {
 		Message: "Configure isolated Azure Environment connection.",
 		Default: false,
 	}).AnswerWith(false)
-
-	api.ExpectRequest(t, "GET", "/api/Spaces-1/environments").RespondWith(resources.Resources[*environments.Environment]{
-		Items: []*environments.Environment{env}},
-	)
 
 	_ = qa.ExpectQuestion(t, &survey.MultiSelect{
 		Message: "Choose the environments that are allowed to use this account.\nIf nothing is selected, the account can be used for deployments to any environment.",

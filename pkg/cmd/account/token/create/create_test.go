@@ -16,7 +16,6 @@ import (
 	octopusApiClient "github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/core"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/environments"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/resources"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -36,6 +35,9 @@ func TestTokenAccountCreatePromptMissing(t *testing.T) {
 
 	opts := &create.CreateOptions{
 		CreateFlags: create.NewCreateFlags(),
+		GetAllEnvironmentsCallback: func() ([]*environments.Environment, error) {
+			return []*environments.Environment{env}, nil
+		},
 	}
 
 	errReceiver := testutil.GoBegin(func() error {
@@ -67,10 +69,6 @@ func TestTokenAccountCreatePromptMissing(t *testing.T) {
 		Message: "Token",
 		Help:    "The password to use to when authenticating against the remote host.",
 	}).AnswerWith("token123")
-
-	api.ExpectRequest(t, "GET", "/api/Spaces-1/environments").RespondWith(resources.Resources[*environments.Environment]{
-		Items: []*environments.Environment{env}},
-	)
 
 	_ = qa.ExpectQuestion(t, &survey.MultiSelect{
 		Message: "Choose the environments that are allowed to use this account.\nIf nothing is selected, the account can be used for deployments to any environment.",

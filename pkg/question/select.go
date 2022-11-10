@@ -28,6 +28,19 @@ func MultiSelectMap[T any](ask Asker, message string, items []T, getKey func(ite
 	return selected, nil
 }
 
+func MultiSelectWithAddMap(ask Asker, message string, items []string, required bool) ([]string, error) {
+	askOpts := func(options *survey.AskOptions) error { return nil }
+	if required {
+		askOpts = survey.WithValidator(survey.Required)
+	}
+
+	var selectedKeys []string
+	if err := ask(&surveyext.MultiSelectWithAdd{Message: message, Options: items}, &selectedKeys, askOpts); err != nil {
+		return nil, err
+	}
+	return selectedKeys, nil
+}
+
 func SelectMap[T any](ask Asker, message string, items []T, getKey func(item T) string) (T, error) {
 	optionMap, options := MakeItemMapAndOptions(items, getKey)
 	var selectedValue T

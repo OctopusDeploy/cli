@@ -3,6 +3,7 @@ package testutil
 import (
 	"errors"
 	"fmt"
+	"github.com/OctopusDeploy/cli/pkg/surveyext"
 	"testing"
 
 	"github.com/AlecAivazis/survey/v2"
@@ -61,11 +62,33 @@ func NewMultiSelectPrompt(prompt string, help string, options []string, response
 	}
 }
 
+func NewMultiSelectWithAddPrompt(prompt string, help string, options []string, responses []string) *PA {
+	return &PA{
+		Prompt: &surveyext.MultiSelectWithAdd{
+			Message: prompt,
+			Options: options,
+			Help:    help,
+		},
+		Answer: responses,
+	}
+}
+
 func NewConfirmPrompt(prompt string, help string, response any) *PA {
 	return &PA{
 		Prompt: &survey.Confirm{
 			Message: prompt,
 			Help:    help,
+		},
+		Answer: response,
+	}
+}
+
+func NewConfirmPromptWithDefault(prompt string, help string, response any, defaultResponse bool) *PA {
+	return &PA{
+		Prompt: &survey.Confirm{
+			Message: prompt,
+			Help:    help,
+			Default: defaultResponse,
 		},
 		Answer: response,
 	}
