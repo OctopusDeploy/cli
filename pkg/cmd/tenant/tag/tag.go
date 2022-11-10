@@ -51,7 +51,7 @@ func NewCmdTag(f factory.Factory) *cobra.Command {
 
 	flags := cmd.Flags()
 	flags.StringArrayVarP(&createFlags.Tag.Value, createFlags.Tag.Name, "t", []string{}, "Tag to apply to tenant, must use canonical name: <tag_set>/<tag_name>")
-	flags.StringVar(&createFlags.Tenant.Value, createFlags.Tenant.Name, "", "Name or ID of tenant you wish to update")
+	flags.StringVar(&createFlags.Tenant.Value, createFlags.Tenant.Name, "", "Name or ID of the tenant you wish to update")
 
 	return cmd
 }
