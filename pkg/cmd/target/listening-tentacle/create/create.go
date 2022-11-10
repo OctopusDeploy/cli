@@ -141,12 +141,17 @@ func createRun(opts *CreateOptions) error {
 	}
 
 	deploymentTarget := machines.NewDeploymentTarget(opts.Name.Value, endpoint, environmentIds, shared.DistinctRoles(opts.Roles.Value))
+	machinePolicy, err := shared.FindMachinePolicy(opts.GetAllMachinePoliciesCallback, opts.MachinePolicy.Value)
+	if err != nil {
+		return err
+	}
+	deploymentTarget.MachinePolicyID = machinePolicy.GetID()
 	err = shared.ConfigureTenant(deploymentTarget, opts.CreateTargetTenantFlags, opts.CreateTargetTenantOptions)
 	if err != nil {
 		return err
 	}
 
-	_, err = opts.Client.Machines.Add(deploymentTarget)
+	createdTarget, err := opts.Client.Machines.Add(deploymentTarget)
 	if err != nil {
 		return err
 	}

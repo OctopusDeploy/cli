@@ -1,12 +1,14 @@
 package shared
 
 import (
+	"fmt"
 	"github.com/OctopusDeploy/cli/pkg/cmd"
 	"github.com/OctopusDeploy/cli/pkg/question/selectors"
 	"github.com/OctopusDeploy/cli/pkg/util/flag"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/machines"
 	"github.com/spf13/cobra"
+	"strings"
 )
 
 const (
@@ -63,4 +65,19 @@ func getAllMachinePolicies(client client.Client) ([]*machines.MachinePolicy, err
 	}
 
 	return res, nil
+}
+
+func FindMachinePolicy(getAllMachinePoliciesCallback GetAllMachinePoliciesCallback, nameOrId string) (*machines.MachinePolicy, error) {
+	allPolicies, err := getAllMachinePoliciesCallback()
+	if err != nil {
+		return nil, err
+	}
+
+	for _, p := range allPolicies {
+		if strings.EqualFold(p.GetID(), nameOrId) || strings.EqualFold(p.Name, nameOrId) {
+			return p, nil
+		}
+	}
+
+	return nil, fmt.Errorf("cannot find machine policy '%s'", nameOrId)
 }
