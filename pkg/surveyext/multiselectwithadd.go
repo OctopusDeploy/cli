@@ -73,7 +73,7 @@ var MultiSelectQuestionTemplate = `
 {{- color "default+hb"}}{{ .Message }}{{ .FilterMessage }}{{color "reset"}}
 {{- if .ShowAnswer}}{{color "cyan"}} {{.Answer}}{{color "reset"}}{{"\n"}}
 {{- else }}
-	{{- "  "}}{{- color "cyan"}}[Use arrows to move, space to select, <right> to all, <left> to none, type to add new entry{{- if and .Help (not .ShowHelp)}}, {{ .Config.HelpInput }} for more help{{end}}]{{color "reset"}}
+	{{- "  "}}{{- color "cyan"}}[Type to filter, enter to add a new entry, use arrows to move, <right> to select, <left> to deselect{{- if and .Help (not .ShowHelp)}}, {{ .Config.HelpInput }} for more help{{end}}]{{color "reset"}}
   {{- "\n"}}
   {{- range $ix, $option := .PageEntries}}
     {{- template "option" $.IterateOption $ix $option}}
@@ -138,22 +138,34 @@ func (m *MultiSelectWithAdd) OnChange(key rune, config *survey.PromptConfig) {
 		m.filter += string(key)
 		m.VimMode = false
 	} else if key == terminal.KeyArrowRight {
-		for _, v := range options {
-			m.checked[v.Index] = true
-		}
+		selectedOpt := options[m.selectedIndex]
+		m.checked[selectedOpt.Index] = true
+
 		if !config.KeepFilter {
 			m.filter = ""
 		}
 	} else if key == terminal.KeyArrowLeft {
-		for _, v := range options {
-			m.checked[v.Index] = false
-		}
+		selectedOpt := options[m.selectedIndex]
+		m.checked[selectedOpt.Index] = false
+
 		if !config.KeepFilter {
 			m.filter = ""
 		}
 	} else if (key == '\r' || key == '\n') && m.filter != "" {
-		m.Options = append(m.Options, strings.TrimSpace(m.FilterMessage))
-		m.checked[len(m.Options)-1] = true
+		newItem := strings.TrimSpace(m.FilterMessage)
+		idx := -1
+		for i, o := range m.Options {
+			if strings.EqualFold(o, newItem) {
+				idx = i
+			}
+		}
+
+		if idx > -1 {
+			m.checked[idx] = true
+		} else {
+			m.Options = append(m.Options, newItem)
+			m.checked[len(m.Options)-1] = true
+		}
 		m.filter = ""
 	}
 
