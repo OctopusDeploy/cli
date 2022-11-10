@@ -83,6 +83,17 @@ func NewConfirmPrompt(prompt string, help string, response any) *PA {
 	}
 }
 
+func NewConfirmPromptWithDefault(prompt string, help string, response any, defaultResponse bool) *PA {
+	return &PA{
+		Prompt: &survey.Confirm{
+			Message: prompt,
+			Help:    help,
+			Default: defaultResponse,
+		},
+		Answer: response,
+	}
+}
+
 func NewMockAsker(t *testing.T, pa []*PA) (question.Asker, CheckRemaining) {
 	expectedQuestionIndex := 0
 

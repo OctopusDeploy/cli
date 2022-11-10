@@ -27,7 +27,7 @@ func TestProxyFlagSupplied_ShouldNotPrompt(t *testing.T) {
 
 func TestNoProxyFlag_ShouldPrompt(t *testing.T) {
 	pa := []*testutil.PA{
-		testutil.NewConfirmPrompt("Should the connection to the tentacle be direct?", "", false),
+		testutil.NewConfirmPromptWithDefault("Should the connection to the tentacle be direct?", "", false, true),
 		testutil.NewSelectPrompt("Select the proxy to use", "", []string{"Proxy 1", "Proxy 2"}, "Proxy 2"),
 	}
 
@@ -49,12 +49,18 @@ func TestNoProxyFlag_ShouldPrompt(t *testing.T) {
 
 func TestNoProxyFlag_DirectConnection(t *testing.T) {
 	pa := []*testutil.PA{
-		testutil.NewConfirmPrompt("Should the connection to the tentacle be direct?", "", true),
+		testutil.NewConfirmPromptWithDefault("Should the connection to the tentacle be direct?", "", true, true),
 	}
 
 	asker, checkRemainingPrompts := testutil.NewMockAsker(t, pa)
 	flags := shared.NewCreateTargetProxyFlags()
 	opts := shared.NewCreateTargetProxyOptions(&cmd.Dependencies{Ask: asker})
+	opts.GetAllProxiesCallback = func() ([]*proxies.Proxy, error) {
+		return []*proxies.Proxy{
+			proxies.NewProxy("Proxy 1", "example.com", "user", core.NewSensitiveValue("password")),
+			proxies.NewProxy("Proxy 2", "example2.com", "user", core.NewSensitiveValue("password")),
+		}, nil
+	}
 
 	err := shared.PromptForProxy(opts, flags)
 	checkRemainingPrompts()
