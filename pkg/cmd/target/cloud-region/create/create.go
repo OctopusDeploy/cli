@@ -26,6 +26,7 @@ type CreateFlags struct {
 	*shared.CreateTargetRoleFlags
 	*shared.CreateTargetWorkerPoolFlags
 	*shared.CreateTargetTenantFlags
+	*shared.WebFlags
 }
 
 type CreateOptions struct {
@@ -44,6 +45,7 @@ func NewCreateFlags() *CreateFlags {
 		CreateTargetEnvironmentFlags: shared.NewCreateTargetEnvironmentFlags(),
 		CreateTargetRoleFlags:        shared.NewCreateTargetRoleFlags(),
 		CreateTargetTenantFlags:      shared.NewCreateTargetTenantFlags(),
+		WebFlags:                     shared.NewWebFlags(),
 	}
 }
 
@@ -81,6 +83,7 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 	shared.RegisterCreateTargetRoleFlags(cmd, createFlags.CreateTargetRoleFlags)
 	shared.RegisterCreateTargetWorkerPoolFlags(cmd, createFlags.CreateTargetWorkerPoolFlags)
 	shared.RegisterCreateTargetTenantFlags(cmd, createFlags.CreateTargetTenantFlags)
+	shared.RegisterWebFlag(cmd, createFlags.WebFlags)
 
 	return cmd
 }
@@ -113,7 +116,7 @@ func createRun(opts *CreateOptions) error {
 		return err
 	}
 
-	_, err = opts.Client.Machines.Add(target)
+	createdTarget, err := opts.Client.Machines.Add(target)
 	if err != nil {
 		return err
 	}
@@ -122,6 +125,8 @@ func createRun(opts *CreateOptions) error {
 		autoCmd := flag.GenerateAutomationCmd(opts.CmdPath, opts.Name, opts.WorkerPool, opts.Environments, opts.Roles, opts.TenantedDeploymentMode, opts.Tenants, opts.TenantTags)
 		fmt.Fprintf(opts.Out, "\nAutomation Command: %s\n", autoCmd)
 	}
+
+	shared.DoWeb(createdTarget, opts.Dependencies, opts.WebFlags, "cloud region")
 
 	return nil
 }
