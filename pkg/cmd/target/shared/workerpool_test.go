@@ -24,7 +24,7 @@ func TestPromptForWorkerPool_FlagsSupplied(t *testing.T) {
 
 func TestPromptForWorkerPool_NoFlagsSupplied(t *testing.T) {
 	pa := []*testutil.PA{
-		testutil.NewConfirmPrompt("Will this worker use the default worker pool?", "", false),
+		testutil.NewConfirmPromptWithDefault("Will this worker use the default worker pool?", "", false, true),
 		testutil.NewSelectPrompt("Select the worker pool to use", "", []string{"Groundskeeper", "Swim instructor"}, "Groundskeeper"),
 	}
 
@@ -45,7 +45,7 @@ func TestPromptForWorkerPool_NoFlagsSupplied(t *testing.T) {
 
 func TestPromptForWorkerPool_UseDefault(t *testing.T) {
 	pa := []*testutil.PA{
-		testutil.NewConfirmPrompt("Will this worker use the default worker pool?", "", true),
+		testutil.NewConfirmPromptWithDefault("Will this worker use the default worker pool?", "", true, true),
 	}
 
 	asker, checkRemainingPrompts := testutil.NewMockAsker(t, pa)

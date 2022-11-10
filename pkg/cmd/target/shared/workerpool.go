@@ -50,6 +50,7 @@ func PromptForWorkerPool(opts *CreateTargetWorkerPoolOptions, flags *CreateTarge
 		useDefaultPool := true
 		opts.Ask(&survey.Confirm{
 			Message: "Will this worker use the default worker pool?",
+			Default: true,
 		}, &useDefaultPool)
 		if !useDefaultPool {
 			selectedPool, err := selectors.Select[workerpools.IWorkerPool](
