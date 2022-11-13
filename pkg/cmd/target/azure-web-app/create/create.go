@@ -61,7 +61,6 @@ type CreateOptions struct {
 }
 
 func NewCreateFlags() *CreateFlags {
-
 	return &CreateFlags{
 		Name:                         flag.New[string](FlagName, false),
 		Account:                      flag.New[string](FlagAccount, false),
@@ -189,38 +188,14 @@ func PromptMissing(opts *CreateOptions) error {
 		return err
 	}
 
-	var account *accounts.AzureServicePrincipalAccount
-	if opts.Account.Value == "" {
-		selectedAccount, err := selectors.Select(
-			opts.Ask,
-			"Select the worker pool to use",
-			opts.GetAllAzureAccounts,
-			func(p *accounts.AzureServicePrincipalAccount) string {
-				return (*p).GetName()
-			})
-		if err != nil {
-			return err
-		}
-		opts.Account.Value = selectedAccount.Name
-		account = selectedAccount
-	}
-
-	webapp, err := PromptForWebApp(opts, account)
+	account, err := PromptForAccount(opts)
 	if err != nil {
 		return err
 	}
 
-	if opts.Slot.Value == "" {
-		slots, err := opts.GetAllAzureWebAppSlots(account, webapp)
-		if err != nil {
-			return err
-		}
-
-		selectedSlot, err := selectors.Select(opts.Ask, "Select the Azure Web App slot", func() ([]*azure.AzureWebAppSlot, error) { return slots, nil }, func(slot *azure.AzureWebAppSlot) string { return slot.Name })
-		if err != nil {
-			return err
-		}
-		opts.Slot.Value = selectedSlot.Name
+	err = PromptForWebApp(opts, account)
+	if err != nil {
+		return err
 	}
 
 	err = shared.PromptForWorkerPool(opts.CreateTargetWorkerPoolOptions, opts.CreateTargetWorkerPoolFlags)
@@ -236,18 +211,45 @@ func PromptMissing(opts *CreateOptions) error {
 	return nil
 }
 
-func PromptForWebApp(opts *CreateOptions, account *accounts.AzureServicePrincipalAccount) (*azure.AzureWebApp, error) {
-	webapps, err := opts.GetAllAzureWebApps(account)
-	if err != nil {
-		return nil, err
+func PromptForAccount(opts *CreateOptions) (*accounts.AzureServicePrincipalAccount, error) {
+	var account *accounts.AzureServicePrincipalAccount
+	if opts.Account.Value == "" {
+		selectedAccount, err := selectors.Select(
+			opts.Ask,
+			"Select the Azure Account to use",
+			opts.GetAllAzureAccounts,
+			func(p *accounts.AzureServicePrincipalAccount) string {
+				return (*p).GetName()
+			})
+		if err != nil {
+			return nil, err
+		}
+		account = selectedAccount
+	} else {
+		a, err := getAzureAccount(opts)
+		if err != nil {
+			return nil, err
+		}
+		account = a
 	}
 
+	opts.Account.Value = account.Name
+	return account, nil
+}
+
+func PromptForWebApp(opts *CreateOptions, account *accounts.AzureServicePrincipalAccount) error {
+	webapps, err := opts.GetAllAzureWebApps(account)
+	if err != nil {
+		return err
+	}
+
+	var webapp *azure.AzureWebApp
 	if opts.WebApp.Value == "" || opts.ResourceGroup.Value == "" {
 		if account == nil {
 			var err error
 			account, err = getAzureAccount(opts)
 			if err != nil {
-				return nil, err
+				return err
 			}
 		}
 
@@ -268,24 +270,42 @@ func PromptForWebApp(opts *CreateOptions, account *accounts.AzureServicePrincipa
 			func() ([]*azure.AzureWebApp, error) { return webapps, nil },
 			func(a *azure.AzureWebApp) string { return a.Name })
 		if err != nil {
-			return nil, err
+			return err
 		}
 
-		opts.Account.Value = account.Name
-		opts.WebApp.Value = selectedWebApp.Name
-		opts.ResourceGroup.Value = selectedWebApp.ResourceGroup
-		return selectedWebApp, nil
+		webapp = selectedWebApp
+	} else {
+		matchedApps := util.SliceFilter(webapps, func(a *azure.AzureWebApp) bool {
+			return strings.EqualFold(a.Name, opts.WebApp.Value) && strings.EqualFold(a.ResourceGroup, opts.ResourceGroup.Value)
+		})
+
+		if len(matchedApps) != 1 {
+			return errors.New("could not find matching Azure Web App")
+		}
+
+		webapp = matchedApps[0]
 	}
 
-	matchedApps := util.SliceFilter(webapps, func(a *azure.AzureWebApp) bool {
-		return strings.EqualFold(a.Name, opts.WebApp.Value) && strings.EqualFold(a.ResourceGroup, opts.ResourceGroup.Value) && strings.EqualFold(a.Region, opts.Region.Value)
-	})
+	opts.WebApp.Value = webapp.Name
+	opts.ResourceGroup.Value = webapp.ResourceGroup
 
-	if len(matchedApps) != 1 {
-		return nil, errors.New("could not find matching Azure Web App")
+	if opts.Slot.Value == "" {
+		slots, err := opts.GetAllAzureWebAppSlots(account, webapp)
+		if err != nil {
+			return err
+		}
+
+		if util.Any(slots) {
+			selectedSlot, err := selectors.Select(opts.Ask, "Select the Azure Web App slot", func() ([]*azure.AzureWebAppSlot, error) { return slots, nil }, func(slot *azure.AzureWebAppSlot) string { return slot.Name })
+			if err != nil {
+				return err
+			}
+
+			opts.Slot.Value = selectedSlot.Name
+		}
 	}
 
-	return matchedApps[0], nil
+	return nil
 }
 
 func getAllAzureWebAppSlots(client client.Client, spAccount *accounts.AzureServicePrincipalAccount, webapp *azure.AzureWebApp) ([]*azure.AzureWebAppSlot, error) {
