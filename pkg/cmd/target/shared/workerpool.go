@@ -49,7 +49,7 @@ func PromptForWorkerPool(opts *CreateTargetWorkerPoolOptions, flags *CreateTarge
 	if flags.WorkerPool.Value == "" {
 		useDefaultPool := true
 		opts.Ask(&survey.Confirm{
-			Message: "Will this worker use the default worker pool?",
+			Message: "Will this deployment target use the default worker pool?",
 			Default: true,
 		}, &useDefaultPool)
 		if !useDefaultPool {
