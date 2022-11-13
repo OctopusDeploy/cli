@@ -216,7 +216,7 @@ func PromptForAccount(opts *CreateOptions) (*accounts.AzureServicePrincipalAccou
 	if opts.Account.Value == "" {
 		selectedAccount, err := selectors.Select(
 			opts.Ask,
-			"Select the Azure Account to use",
+			"Select the Azure Account to use\n",
 			opts.GetAllAzureAccounts,
 			func(p *accounts.AzureServicePrincipalAccount) string {
 				return (*p).GetName()
@@ -266,7 +266,7 @@ func PromptForWebApp(opts *CreateOptions, account *accounts.AzureServicePrincipa
 
 		selectedWebApp, err := selectors.Select(
 			opts.Ask,
-			"Select the Azure Web App",
+			"Select the Azure Web App\n",
 			func() ([]*azure.AzureWebApp, error) { return webapps, nil },
 			func(a *azure.AzureWebApp) string { return a.Name })
 		if err != nil {
@@ -296,7 +296,7 @@ func PromptForWebApp(opts *CreateOptions, account *accounts.AzureServicePrincipa
 		}
 
 		if util.Any(slots) {
-			selectedSlot, err := selectors.Select(opts.Ask, "Select the Azure Web App slot", func() ([]*azure.AzureWebAppSlot, error) { return slots, nil }, func(slot *azure.AzureWebAppSlot) string { return slot.Name })
+			selectedSlot, err := selectors.Select(opts.Ask, "Select the Azure Web App slot\n", func() ([]*azure.AzureWebAppSlot, error) { return slots, nil }, func(slot *azure.AzureWebAppSlot) string { return slot.Name })
 			if err != nil {
 				return err
 			}
