@@ -14,7 +14,7 @@ import (
 
 const FlagWorkerPool = "worker-pool"
 
-type GetAllWorkerPoolsCallback func() ([]workerpools.IWorkerPool, error)
+type GetAllWorkerPoolsCallback func() ([]*workerpools.WorkerPoolListResult, error)
 
 type CreateTargetWorkerPoolFlags struct {
 	WorkerPool *flag.Flag[string]
@@ -34,7 +34,7 @@ func NewCreateTargetWorkerPoolFlags() *CreateTargetWorkerPoolFlags {
 func NewCreateTargetWorkerPoolOptions(dependencies *cmd.Dependencies) *CreateTargetWorkerPoolOptions {
 	return &CreateTargetWorkerPoolOptions{
 		Dependencies: dependencies,
-		GetAllWorkerPoolsCallback: func() ([]workerpools.IWorkerPool, error) {
+		GetAllWorkerPoolsCallback: func() ([]*workerpools.WorkerPoolListResult, error) {
 			return getAllWorkerPools(dependencies.Client)
 		},
 	}
@@ -59,13 +59,13 @@ func PromptForWorkerPool(opts *CreateTargetWorkerPoolOptions, flags *CreateTarge
 				opts.Ask,
 				"Select the worker pool to use",
 				opts.GetAllWorkerPoolsCallback,
-				func(p workerpools.IWorkerPool) string {
-					return p.GetName()
+				func(p *workerpools.WorkerPoolListResult) string {
+					return p.Name
 				})
 			if err != nil {
 				return err
 			}
-			flags.WorkerPool.Value = selectedPool.GetName()
+			flags.WorkerPool.Value = selectedPool.Name
 		}
 	}
 
@@ -80,15 +80,15 @@ func FindWorkerPoolId(getAllWorkerPools GetAllWorkerPoolsCallback, nameOrId stri
 
 	for _, p := range pools {
 		pool := p
-		if strings.EqualFold(nameOrId, pool.GetID()) || strings.EqualFold(nameOrId, pool.GetName()) {
-			return pool.GetID(), nil
+		if strings.EqualFold(nameOrId, pool.ID) || strings.EqualFold(nameOrId, pool.Name) {
+			return pool.ID, nil
 		}
 	}
 
 	return "", fmt.Errorf("cannot find worker pool '%s'", nameOrId)
 }
 
-func getAllWorkerPools(client *client.Client) ([]workerpools.IWorkerPool, error) {
+func getAllWorkerPools(client *client.Client) ([]*workerpools.WorkerPoolListResult, error) {
 	res, err := client.WorkerPools.GetAll()
 	if err != nil {
 		return nil, err
