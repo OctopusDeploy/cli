@@ -32,18 +32,10 @@ func TestPromptForWorkerPool_NoFlagsSupplied(t *testing.T) {
 	flags := shared.NewCreateTargetWorkerPoolFlags()
 
 	opts := shared.NewCreateTargetWorkerPoolOptions(&cmd.Dependencies{Ask: asker})
-	opts.GetAllWorkerPoolsCallback = func() ([]*workerpools.WorkerPoolListResult, error) {
-		poolWorker1 := &workerpools.WorkerPoolListResult{
-			ID:             "WorkerPools-1",
-			Name:           "Groundskeeper",
-			WorkerPoolType: workerpools.WorkerPoolTypeStatic,
-		}
-		poolWorker2 := &workerpools.WorkerPoolListResult{
-			ID:             "WorkerPools-2",
-			Name:           "Swim instructor",
-			WorkerPoolType: workerpools.WorkerPoolTypeDynamic,
-		}
-		return []*workerpools.WorkerPoolListResult{poolWorker1, poolWorker2}, nil
+	opts.GetAllWorkerPoolsCallback = func() ([]workerpools.IWorkerPool, error) {
+		var staticPool workerpools.IWorkerPool = workerpools.NewStaticWorkerPool("Groundskeeper")
+		var dynamicPool workerpools.IWorkerPool = workerpools.NewDynamicWorkerPool("Swim instructor", workerpools.WorkerTypeUWindowsDefault)
+		return []workerpools.IWorkerPool{staticPool, dynamicPool}, nil
 	}
 	err := shared.PromptForWorkerPool(opts, flags)
 	checkRemainingPrompts()
