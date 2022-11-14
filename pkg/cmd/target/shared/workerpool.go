@@ -12,9 +12,6 @@ import (
 	"strings"
 )
 
-type accountList struct {
-}
-
 const FlagWorkerPool = "worker-pool"
 
 type GetAllWorkerPoolsCallback func() ([]*workerpools.WorkerPoolListResult, error)
@@ -38,7 +35,7 @@ func NewCreateTargetWorkerPoolOptions(dependencies *cmd.Dependencies) *CreateTar
 	return &CreateTargetWorkerPoolOptions{
 		Dependencies: dependencies,
 		GetAllWorkerPoolsCallback: func() ([]*workerpools.WorkerPoolListResult, error) {
-			return getAllWorkerPools(*dependencies.Client)
+			return getAllWorkerPools(dependencies.Client)
 		},
 	}
 }
@@ -50,10 +47,13 @@ func RegisterCreateTargetWorkerPoolFlags(cmd *cobra.Command, flags *CreateTarget
 func PromptForWorkerPool(opts *CreateTargetWorkerPoolOptions, flags *CreateTargetWorkerPoolFlags) error {
 	if flags.WorkerPool.Value == "" {
 		useDefaultPool := true
-		opts.Ask(&survey.Confirm{
+		err := opts.Ask(&survey.Confirm{
 			Message: "Will this worker use the default worker pool?",
 			Default: true,
 		}, &useDefaultPool)
+		if err != nil {
+			return err
+		}
 		if !useDefaultPool {
 			selectedPool, err := selectors.Select(
 				opts.Ask,
@@ -85,10 +85,10 @@ func FindWorkerPoolId(getAllWorkerPools GetAllWorkerPoolsCallback, nameOrId stri
 		}
 	}
 
-	return "", fmt.Errorf("Cannot find worker pool '%s'", nameOrId)
+	return "", fmt.Errorf("cannot find worker pool '%s'", nameOrId)
 }
 
-func getAllWorkerPools(client client.Client) ([]*workerpools.WorkerPoolListResult, error) {
+func getAllWorkerPools(client *client.Client) ([]*workerpools.WorkerPoolListResult, error) {
 	res, err := client.WorkerPools.GetAll()
 	if err != nil {
 		return nil, err
