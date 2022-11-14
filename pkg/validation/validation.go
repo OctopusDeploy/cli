@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"reflect"
+	"strconv"
 
 	"github.com/AlecAivazis/survey/v2"
 	uuid "github.com/google/uuid"
@@ -54,8 +55,18 @@ func IsExistingFile(val interface{}) error {
 			return fmt.Errorf("\"%s\" is a directory, the path must be a file", str)
 		}
 	} else {
-		return fmt.Errorf("cannont check value on response of type %v", reflect.TypeOf(val).Name())
+		return fmt.Errorf("cannot check value on response of type %v", reflect.TypeOf(val).Name())
 	}
 	// path is real file
+	return nil
+}
+
+func IsNumber(val interface{}) error {
+	if str, ok := val.(string); ok {
+		if _, err := strconv.Atoi(str); err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
