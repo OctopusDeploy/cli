@@ -5,7 +5,6 @@ import (
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/OctopusDeploy/cli/pkg/cmd"
 	"github.com/OctopusDeploy/cli/pkg/question/selectors"
-	"github.com/OctopusDeploy/cli/pkg/util"
 	"github.com/OctopusDeploy/cli/pkg/util/flag"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/workerpools"
@@ -13,9 +12,12 @@ import (
 	"strings"
 )
 
+type accountList struct {
+}
+
 const FlagWorkerPool = "worker-pool"
 
-type GetAllWorkerPoolsCallback func() ([]*workerpools.IWorkerPool, error)
+type GetAllWorkerPoolsCallback func() ([]*workerpools.WorkerPoolListResult, error)
 
 type CreateTargetWorkerPoolFlags struct {
 	WorkerPool *flag.Flag[string]
@@ -35,7 +37,7 @@ func NewCreateTargetWorkerPoolFlags() *CreateTargetWorkerPoolFlags {
 func NewCreateTargetWorkerPoolOptions(dependencies *cmd.Dependencies) *CreateTargetWorkerPoolOptions {
 	return &CreateTargetWorkerPoolOptions{
 		Dependencies: dependencies,
-		GetAllWorkerPoolsCallback: func() ([]*workerpools.IWorkerPool, error) {
+		GetAllWorkerPoolsCallback: func() ([]*workerpools.WorkerPoolListResult, error) {
 			return getAllWorkerPools(*dependencies.Client)
 		},
 	}
@@ -53,17 +55,17 @@ func PromptForWorkerPool(opts *CreateTargetWorkerPoolOptions, flags *CreateTarge
 			Default: true,
 		}, &useDefaultPool)
 		if !useDefaultPool {
-			selectedPool, err := selectors.Select[workerpools.IWorkerPool](
+			selectedPool, err := selectors.Select(
 				opts.Ask,
 				"Select the worker pool to use",
 				opts.GetAllWorkerPoolsCallback,
-				func(p *workerpools.IWorkerPool) string {
-					return (*p).GetName()
+				func(p *workerpools.WorkerPoolListResult) string {
+					return p.Name
 				})
 			if err != nil {
 				return err
 			}
-			flags.WorkerPool.Value = (*selectedPool).GetName()
+			flags.WorkerPool.Value = selectedPool.Name
 		}
 	}
 
@@ -77,24 +79,20 @@ func FindWorkerPoolId(getAllWorkerPools GetAllWorkerPoolsCallback, nameOrId stri
 	}
 
 	for _, p := range pools {
-		pool := (*p)
-		if strings.EqualFold(nameOrId, pool.GetID()) || strings.EqualFold(nameOrId, pool.GetName()) {
-			return pool.GetID(), nil
+		pool := p
+		if strings.EqualFold(nameOrId, pool.ID) || strings.EqualFold(nameOrId, pool.Name) {
+			return pool.ID, nil
 		}
 	}
 
 	return "", fmt.Errorf("Cannot find worker pool '%s'", nameOrId)
 }
 
-func getAllWorkerPools(client client.Client) ([]*workerpools.IWorkerPool, error) {
+func getAllWorkerPools(client client.Client) ([]*workerpools.WorkerPoolListResult, error) {
 	res, err := client.WorkerPools.GetAll()
 	if err != nil {
 		return nil, err
 	}
 
-	var pools []*workerpools.IWorkerPool
-	pools = util.SliceTransform(res, func(p workerpools.IWorkerPool) *workerpools.IWorkerPool {
-		return &p
-	})
-	return pools, nil
+	return res, nil
 }
