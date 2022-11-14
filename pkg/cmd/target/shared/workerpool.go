@@ -42,7 +42,7 @@ func NewCreateTargetWorkerPoolOptions(dependencies *cmd.Dependencies) *CreateTar
 }
 
 func RegisterCreateTargetWorkerPoolFlags(cmd *cobra.Command, flags *CreateTargetWorkerPoolFlags) {
-	cmd.Flags().StringVar(&flags.WorkerPool.Value, flags.WorkerPool.Name, "", "")
+	cmd.Flags().StringVar(&flags.WorkerPool.Value, flags.WorkerPool.Name, "", "The worker pool for the deployment target, only required if not using the default worker pool")
 }
 
 func PromptForWorkerPool(opts *CreateTargetWorkerPoolOptions, flags *CreateTargetWorkerPoolFlags) error {
