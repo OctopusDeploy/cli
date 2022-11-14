@@ -42,7 +42,7 @@ func NewCreateTargetMachinePolicyFlags() *CreateTargetMachinePolicyFlags {
 }
 
 func RegisterCreateTargetMachinePolicyFlags(cmd *cobra.Command, machinePolicyFlags *CreateTargetMachinePolicyFlags) {
-	cmd.Flags().StringVar(&machinePolicyFlags.MachinePolicy.Value, machinePolicyFlags.MachinePolicy.Name, "", "The machine policy for ")
+	cmd.Flags().StringVar(&machinePolicyFlags.MachinePolicy.Value, machinePolicyFlags.MachinePolicy.Name, "", "The machine policy for the deployment target to use, only required if not using the Default Machine Policy")
 }
 
 func PromptForMachinePolicy(opts *CreateTargetMachinePolicyOptions, flags *CreateTargetMachinePolicyFlags) error {

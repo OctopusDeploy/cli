@@ -48,10 +48,11 @@ func SelectOptions[T any](ask question.Asker, questionText string, itemsCallback
 	return Select(ask, questionText, callback, func(option *SelectOption[T]) string { return option.Display })
 }
 
-func Select[T any](ask question.Asker, questionText string, itemsCallback func() ([]*T, error), getKey func(item *T) string) (*T, error) {
+func Select[T any](ask question.Asker, questionText string, itemsCallback func() ([]T, error), getKey func(item T) string) (T, error) {
 	items, err := itemsCallback()
 	if err != nil {
-		return nil, err
+		var item T
+		return item, err
 	}
 	if len(items) == 1 {
 		return items[0], nil
@@ -62,10 +63,11 @@ func Select[T any](ask question.Asker, questionText string, itemsCallback func()
 
 // SelectOrNew is the same as Select but show a create new option at the bottom of the list
 // When create new is selected the returned bool will be true
-func SelectOrNew[T any](ask question.Asker, questionText string, itemsCallback func() ([]*T, error), getKey func(item *T) string) (*T, bool, error) {
+func SelectOrNew[T any](ask question.Asker, questionText string, itemsCallback func() ([]T, error), getKey func(item T) string) (T, bool, error) {
 	items, err := itemsCallback()
 	if err != nil {
-		return nil, false, err
+		var item T
+		return item, false, err
 	}
 	return question.SelectMapWithNew(ask, questionText, items, getKey)
 }
