@@ -1,7 +1,6 @@
 package create
 
 import (
-	"errors"
 	"fmt"
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/MakeNowJust/heredoc/v2"
@@ -15,10 +14,8 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/util/flag"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/environments"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/machines"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/proxies"
 	"github.com/spf13/cobra"
 	"net/url"
-	"strings"
 )
 
 const (
@@ -126,19 +123,9 @@ func createRun(opts *CreateOptions) error {
 
 	endpoint := machines.NewListeningTentacleEndpoint(url, opts.Thumbprint.Value)
 	if opts.Proxy.Value != "" {
-		allProxy, err := opts.Client.Proxies.GetAll()
+		proxy, err := shared.FindProxy(opts.CreateTargetProxyOptions, opts.CreateTargetProxyFlags)
 		if err != nil {
 			return err
-		}
-		var proxy *proxies.Proxy
-		for _, p := range allProxy {
-			if strings.EqualFold(p.GetID(), opts.Proxy.Value) || strings.EqualFold(p.GetName(), opts.Proxy.Value) {
-				proxy = p
-				break
-			}
-		}
-		if proxy == nil {
-			return errors.New(fmt.Sprintf("Cannot find proxy '%s'", opts.Proxy.Value))
 		}
 		endpoint.ProxyID = proxy.GetID()
 	}
