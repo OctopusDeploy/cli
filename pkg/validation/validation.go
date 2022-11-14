@@ -2,12 +2,10 @@ package validation
 
 import (
 	"fmt"
-	"os"
-	"reflect"
-	"strconv"
-
 	"github.com/AlecAivazis/survey/v2"
 	uuid "github.com/google/uuid"
+	"os"
+	"reflect"
 )
 
 // NotEquals requires that the string does not equal any of the specified values
@@ -58,15 +56,5 @@ func IsExistingFile(val interface{}) error {
 		return fmt.Errorf("cannot check value on response of type %v", reflect.TypeOf(val).Name())
 	}
 	// path is real file
-	return nil
-}
-
-func IsNumber(val interface{}) error {
-	if str, ok := val.(string); ok {
-		if _, err := strconv.Atoi(str); err != nil {
-			return err
-		}
-	}
-
 	return nil
 }
