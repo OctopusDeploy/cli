@@ -13,7 +13,7 @@ func NewCmdSsh(f factory.Factory) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "ssh <command>",
 		Short:   "Manage SSH deployment targets",
-		Long:    "Work with Octopus Deploy ssh deployment targets.",
+		Long:    "Work with SSH deployment targets in Octopus Deploy.",
 		Example: fmt.Sprintf("$ %s deployment-target ssh create", constants.ExecutableName),
 	}
 
