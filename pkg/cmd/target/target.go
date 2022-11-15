@@ -2,6 +2,7 @@ package target
 
 import (
 	"fmt"
+	cmdAzureWebApp "github.com/OctopusDeploy/cli/pkg/cmd/target/azure-web-app"
 	cmdCloudRegion "github.com/OctopusDeploy/cli/pkg/cmd/target/cloud-region"
 	cmdListeningTentacle "github.com/OctopusDeploy/cli/pkg/cmd/target/listening-tentacle"
 	"github.com/OctopusDeploy/cli/pkg/constants"
@@ -23,6 +24,7 @@ func NewCmdDeploymentTarget(f factory.Factory) *cobra.Command {
 
 	cmd.AddCommand(cmdListeningTentacle.NewCmdListeningTentacle(f))
 	cmd.AddCommand(cmdCloudRegion.NewCmdCloudRegion(f))
+	cmd.AddCommand(cmdAzureWebApp.NewCmdAzureWebApp(f))
 
 	return cmd
 }
