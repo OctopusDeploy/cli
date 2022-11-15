@@ -12,7 +12,7 @@ func NewCmdAzureWebApp(f factory.Factory) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "azure-web-app <command>",
 		Short:   "Manage Azure Web App deployment targets",
-		Long:    "Work with Octopus Deploy listening tentacle deployment targets.",
+		Long:    "Work with Azure Web App deployment targets in Octopus Deploy.",
 		Example: fmt.Sprintf("$ %s deployment-target listening-tenatacle list", constants.ExecutableName),
 	}
 
