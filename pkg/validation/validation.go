@@ -2,11 +2,10 @@ package validation
 
 import (
 	"fmt"
-	"os"
-	"reflect"
-
 	"github.com/AlecAivazis/survey/v2"
 	uuid "github.com/google/uuid"
+	"os"
+	"reflect"
 )
 
 // NotEquals requires that the string does not equal any of the specified values
@@ -54,7 +53,7 @@ func IsExistingFile(val interface{}) error {
 			return fmt.Errorf("\"%s\" is a directory, the path must be a file", str)
 		}
 	} else {
-		return fmt.Errorf("cannont check value on response of type %v", reflect.TypeOf(val).Name())
+		return fmt.Errorf("cannot check value on response of type %v", reflect.TypeOf(val).Name())
 	}
 	// path is real file
 	return nil

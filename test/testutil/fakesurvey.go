@@ -30,6 +30,17 @@ func NewInputPrompt(prompt string, help string, response string) *PA {
 	}
 }
 
+func NewInputPromptWithDefault(prompt string, help string, def string, response string) *PA {
+	return &PA{
+		Prompt: &survey.Input{
+			Message: prompt,
+			Help:    help,
+			Default: def,
+		},
+		Answer: response,
+	}
+}
+
 func NewPasswordPrompt(prompt string, help string, response string) *PA {
 	return &PA{
 		Prompt: &survey.Password{

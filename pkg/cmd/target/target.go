@@ -6,6 +6,7 @@ import (
 	cmdCloudRegion "github.com/OctopusDeploy/cli/pkg/cmd/target/cloud-region"
 	cmdDelete "github.com/OctopusDeploy/cli/pkg/cmd/target/delete"
 	cmdListeningTentacle "github.com/OctopusDeploy/cli/pkg/cmd/target/listening-tentacle"
+	cmdSsh "github.com/OctopusDeploy/cli/pkg/cmd/target/ssh"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/constants/annotations"
 	"github.com/OctopusDeploy/cli/pkg/factory"
@@ -24,6 +25,7 @@ func NewCmdDeploymentTarget(f factory.Factory) *cobra.Command {
 	}
 
 	cmd.AddCommand(cmdListeningTentacle.NewCmdListeningTentacle(f))
+	cmd.AddCommand(cmdSsh.NewCmdSsh(f))
 	cmd.AddCommand(cmdCloudRegion.NewCmdCloudRegion(f))
 	cmd.AddCommand(cmdDelete.NewCmdDelete(f))
 	cmd.AddCommand(cmdAzureWebApp.NewCmdAzureWebApp(f))
