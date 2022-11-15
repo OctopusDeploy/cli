@@ -161,7 +161,7 @@ func createRun(opts *CreateOptions) error {
 		return err
 	}
 
-	fmt.Fprintf(opts.Out, "Successfully created listening tenatcle '%s'.\n", deploymentTarget.Name)
+	fmt.Fprintf(opts.Out, "Successfully created Azure web app '%s'.\n", deploymentTarget.Name)
 	if !opts.NoPrompt {
 		autoCmd := flag.GenerateAutomationCmd(opts.CmdPath, opts.Name, opts.Account, opts.WebApp, opts.ResourceGroup, opts.Slot, opts.Environments, opts.Roles, opts.TenantedDeploymentMode, opts.Tenants, opts.TenantTags)
 		fmt.Fprintf(opts.Out, "\nAutomation Command: %s\n", autoCmd)
