@@ -13,7 +13,6 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/question/selectors"
 	"github.com/OctopusDeploy/cli/pkg/util"
 	"github.com/OctopusDeploy/cli/pkg/util/flag"
-	"github.com/OctopusDeploy/cli/pkg/validation"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/accounts"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/environments"
@@ -233,37 +232,9 @@ func PromptMissing(opts *CreateOptions) error {
 		return err
 	}
 
-	if opts.HostName.Value == "" {
-		if err := opts.Ask(&survey.Input{
-			Message: "Host",
-			Help:    "The hostname or IP address at which the deployment target can be reached.",
-		}, &opts.HostName.Value, survey.WithValidator(survey.Required)); err != nil {
-			return err
-		}
-	}
-
-	port := "22"
-	if opts.Port.Value == 0 {
-		if err := opts.Ask(&survey.Input{
-			Message: "Port",
-			Help:    "Port number to connect over SSH to the deployment target. Default is 22",
-			Default: port,
-		}, &port, survey.WithValidator(validation.IsNumber)); err != nil {
-			return err
-		}
-	}
-	opts.Port.Value, err = strconv.Atoi(port)
+	err = PromptForEndpoint(opts)
 	if err != nil {
 		return err
-	}
-
-	if opts.Fingerprint.Value == "" {
-		if err := opts.Ask(&survey.Input{
-			Message: "Host fingerprint",
-			Help:    "The host fingerprint of the SSH deployment target.",
-		}, &opts.Fingerprint.Value, survey.WithValidator(survey.Required)); err != nil {
-			return err
-		}
 	}
 
 	err = shared.PromptForProxy(opts.CreateTargetProxyOptions, opts.CreateTargetProxyFlags)
@@ -284,6 +255,48 @@ func PromptMissing(opts *CreateOptions) error {
 	return nil
 }
 
+func PromptForEndpoint(opts *CreateOptions) error {
+	if opts.HostName.Value == "" {
+		if err := opts.Ask(&survey.Input{
+			Message: "Host",
+			Help:    "The hostname or IP address at which the deployment target can be reached.",
+		}, &opts.HostName.Value, survey.WithValidator(survey.Required)); err != nil {
+			return err
+		}
+	}
+
+	if opts.Port.Value == 0 {
+		var port string
+		if err := opts.Ask(&survey.Input{
+			Message: "Port",
+			Help:    "Port number to connect over SSH to the deployment target. Default is 22",
+		}, &port); err != nil {
+			return err
+		}
+
+		if port == "" {
+			port = "22"
+		}
+
+		if p, err := strconv.Atoi(port); err == nil {
+			opts.Port.Value = p
+		} else {
+			return err
+		}
+	}
+
+	if opts.Fingerprint.Value == "" {
+		if err := opts.Ask(&survey.Input{
+			Message: "Host fingerprint",
+			Help:    "The host fingerprint of the SSH deployment target.",
+		}, &opts.Fingerprint.Value, survey.WithValidator(survey.Required)); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 func PromptForDotNetConfig(opts *CreateOptions) error {
 	if opts.Runtime.Value == "" {
 		selectedRuntime, err := selectors.SelectOptions(opts.Ask, "Select the target runtime\n", getTargetRuntimeOptions)
@@ -295,11 +308,11 @@ func PromptForDotNetConfig(opts *CreateOptions) error {
 
 	if opts.Runtime.Value == SelfContainedCalamari {
 		if opts.Platform.Value == "" {
-			selectedRuntime, err := selectors.SelectOptions(opts.Ask, "Select the target platform\n", getTargetPlatformOptions)
+			selectedPlatform, err := selectors.SelectOptions(opts.Ask, "Select the target platform\n", getTargetPlatformOptions)
 			if err != nil {
 				return err
 			}
-			opts.Runtime.Value = selectedRuntime.Value
+			opts.Platform.Value = selectedPlatform.Value
 		}
 	}
 
@@ -378,9 +391,9 @@ func getTargetRuntimeOptions() []*selectors.SelectOption[string] {
 
 func getTargetPlatformOptions() []*selectors.SelectOption[string] {
 	return []*selectors.SelectOption[string]{
-		{Display: "Linux X64", Value: LinuxX64},
+		{Display: "Linux x64", Value: LinuxX64},
 		{Display: "Linux ARM64", Value: LinuxArm64},
 		{Display: "Linux ARM", Value: LinuxArm},
-		{Display: "OSX X64", Value: OsxX64},
+		{Display: "OSX x64", Value: OsxX64},
 	}
 }
