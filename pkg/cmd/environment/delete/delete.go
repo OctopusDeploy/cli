@@ -58,7 +58,7 @@ func NewCmdDelete(f factory.Factory) *cobra.Command {
 			}
 
 			if !skipConfirmation { // TODO NO_PROMPT env var or whatever we do there
-				return question.DeleteWithConfirmation(f.Ask, "space", itemToDelete.Name, itemToDelete.GetID(), func() error {
+				return question.DeleteWithConfirmation(f.Ask, "environment", itemToDelete.Name, itemToDelete.GetID(), func() error {
 					return delete(client, itemToDelete)
 				})
 			}
