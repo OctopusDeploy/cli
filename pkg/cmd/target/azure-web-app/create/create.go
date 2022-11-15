@@ -114,7 +114,7 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 
 	flags := cmd.Flags()
 	flags.StringVarP(&createFlags.Name.Value, createFlags.Name.Name, "n", "", "A short, memorable, unique name for this Azure Web App.")
-	flags.StringVar(&createFlags.Account.Value, createFlags.Account.Name, "", "The name or id of the Azure Service Principal account")
+	flags.StringVar(&createFlags.Account.Value, createFlags.Account.Name, "", "The name or ID of the Azure Service Principal account")
 	flags.StringVar(&createFlags.ResourceGroup.Value, createFlags.ResourceGroup.Name, "", "The resource group of the Azure Web App")
 	flags.StringVar(&createFlags.WebApp.Value, createFlags.WebApp.Name, "", "The name of the Azure Web App for this deployment target")
 	flags.StringVar(&createFlags.Slot.Value, createFlags.Slot.Name, "", "The name of the Azure Web App Slot for this deployment target")
