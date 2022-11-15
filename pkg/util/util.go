@@ -160,3 +160,7 @@ func MapCollectionWithLookups[T any, TResult any](
 func Empty[T any](items []T) bool {
 	return items == nil || len(items) == 0
 }
+
+func Any[T any](items []T) bool {
+	return !Empty(items)
+}
