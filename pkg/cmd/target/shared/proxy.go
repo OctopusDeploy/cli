@@ -1,6 +1,7 @@
 package shared
 
 import (
+	"fmt"
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/OctopusDeploy/cli/pkg/cmd"
 	"github.com/OctopusDeploy/cli/pkg/question/selectors"
@@ -8,6 +9,7 @@ import (
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/proxies"
 	"github.com/spf13/cobra"
+	"strings"
 )
 
 type GetAllProxiesCallback func() ([]*proxies.Proxy, error)
@@ -56,6 +58,24 @@ func NewCreateTargetProxyOptions(dependencies *cmd.Dependencies) *CreateTargetPr
 
 func RegisterCreateTargetProxyFlags(cmd *cobra.Command, proxyFlags *CreateTargetProxyFlags) {
 	cmd.Flags().StringVar(&proxyFlags.Proxy.Value, FlagProxy, "", "Select whether to use a proxy to connect to this Tentacle. If omitted, will connect directly.")
+}
+
+func FindProxy(opts *CreateTargetProxyOptions, flags *CreateTargetProxyFlags) (*proxies.Proxy, error) {
+	allProxy, err := opts.Client.Proxies.GetAll()
+	if err != nil {
+		return nil, err
+	}
+	var proxy *proxies.Proxy
+	for _, p := range allProxy {
+		if strings.EqualFold(p.GetID(), flags.Proxy.Value) || strings.EqualFold(p.GetName(), flags.Proxy.Value) {
+			proxy = p
+			break
+		}
+	}
+	if proxy == nil {
+		return nil, fmt.Errorf("cannot find proxy '%s'", flags.Proxy.Value)
+	}
+	return proxy, nil
 }
 
 func getAllProxies(client client.Client) ([]*proxies.Proxy, error) {

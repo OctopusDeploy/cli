@@ -83,6 +83,10 @@ func GenerateAutomationCmd(cmdPath string, flags ...Generatable) string {
 			if value {
 				autoCmd += fmt.Sprintf(" --%s", flag.GetName())
 			}
+		case int:
+			if value != 0 {
+				autoCmd += fmt.Sprintf(" --%s %d", flag.GetName(), value)
+			}
 		default:
 			err := fmt.Errorf("can not generate automation cmd for unsupported flag type: %T", flag)
 			panic(err)
