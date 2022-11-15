@@ -42,8 +42,8 @@ func TestPromptForWebApp_FlagsSupplied(t *testing.T) {
 
 func TestPromptForWebApp_NoFlagsSupplied(t *testing.T) {
 	pa := []*testutil.PA{
-		testutil.NewSelectPrompt("Select the Azure Web App", "", []string{"website", "website 2"}, "website"),
-		testutil.NewSelectPrompt("Select the Azure Web App slot", "", []string{"production", "test"}, "test"),
+		testutil.NewSelectPrompt("Select the Azure Web App\n", "", []string{"website", "website 2"}, "website"),
+		testutil.NewSelectPrompt("Select the Azure Web App slot\n", "", []string{"production", "test"}, "test"),
 	}
 
 	asker, checkRemainingPrompts := testutil.NewMockAsker(t, pa)
@@ -139,7 +139,7 @@ func TestPromptForAccount_FlagSupplied(t *testing.T) {
 
 func TestPromptForAccount_NoFlagSupplied(t *testing.T) {
 	pa := []*testutil.PA{
-		testutil.NewSelectPrompt("Select the Azure Account to use", "", []string{"Azure account 1", "Azure account the second"}, "Azure account the second"),
+		testutil.NewSelectPrompt("Select the Azure Account to use\n", "", []string{"Azure account 1", "Azure account the second"}, "Azure account the second"),
 	}
 
 	asker, checkRemainingPrompts := testutil.NewMockAsker(t, pa)
