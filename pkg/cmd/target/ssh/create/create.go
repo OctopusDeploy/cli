@@ -108,7 +108,7 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "create",
-		Short: "Create a ssh deployment target",
+		Short: "Create a SSH deployment target",
 		Long:  "Create a ssh deployment target in Octopus Deploy",
 		Example: fmt.Sprintf(heredoc.Doc(`
 			$ %s deployment-target ssh create
