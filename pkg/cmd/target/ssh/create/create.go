@@ -166,8 +166,6 @@ func createRun(opts *CreateOptions) error {
 
 	if opts.Runtime.Value == SelfContainedCalamari {
 		endpoint.DotNetCorePlatform = opts.Platform.Value
-	} else {
-		endpoint.DotNetCorePlatform = ""
 	}
 
 	if opts.Proxy.Value != "" {
