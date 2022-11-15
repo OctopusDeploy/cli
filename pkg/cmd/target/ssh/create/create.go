@@ -121,7 +121,7 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 	}
 
 	flags := cmd.Flags()
-	flags.StringVarP(&createFlags.Name.Value, createFlags.Name.Name, "n", "", "A short, memorable, unique name for this Deployment Target.")
+	flags.StringVarP(&createFlags.Name.Value, createFlags.Name.Name, "n", "", "A short, memorable, unique name for this deployment target.")
 	flags.StringVar(&createFlags.Account.Value, createFlags.Account.Name, "", "The name or ID of the SSH key pair or username/password account")
 	flags.StringVar(&createFlags.HostName.Value, createFlags.HostName.Name, "", "The hostname or IP address of the deployment target to connect to.")
 	flags.StringVar(&createFlags.Fingerprint.Value, createFlags.Fingerprint.Name, "", "The host fingerprint of the deployment target.")
