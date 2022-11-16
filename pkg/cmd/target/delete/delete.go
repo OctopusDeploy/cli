@@ -17,13 +17,13 @@ import (
 
 type DeleteOptions struct {
 	*cmd.Dependencies
-	*shared.GetAllTargetsOptions
+	*shared.GetTargetsOptions
 }
 
 func NewDeleteOptions(dependencies *cmd.Dependencies) *DeleteOptions {
 	return &DeleteOptions{
-		Dependencies:         dependencies,
-		GetAllTargetsOptions: shared.NewGetAllTargetsOptions(dependencies),
+		Dependencies:      dependencies,
+		GetTargetsOptions: shared.NewGetTargetsOptionsForAllTargets(dependencies),
 	}
 }
 
@@ -48,7 +48,7 @@ func NewCmdDelete(f factory.Factory) *cobra.Command {
 
 			idOrName := args[0]
 			opts := NewDeleteOptions(deps)
-			targets, err := opts.GetAllTargetsCallback()
+			targets, err := opts.GetTargetsCallback()
 			if err != nil {
 				return err
 			}
@@ -81,7 +81,7 @@ func NewCmdDelete(f factory.Factory) *cobra.Command {
 }
 
 func deleteRun(opts *DeleteOptions) error {
-	itemToDelete, err := selectors.Select(opts.Ask, "Select the deployment target you wish to delete:", opts.GetAllTargetsCallback, func(target *machines.DeploymentTarget) string { return target.Name })
+	itemToDelete, err := selectors.Select(opts.Ask, "Select the deployment target you wish to delete:", opts.GetTargetsCallback, func(target *machines.DeploymentTarget) string { return target.Name })
 	if err != nil {
 		return err
 	}
