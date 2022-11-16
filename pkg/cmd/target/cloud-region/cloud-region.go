@@ -3,6 +3,7 @@ package cloud_region
 import (
 	"fmt"
 	cmdCreate "github.com/OctopusDeploy/cli/pkg/cmd/target/cloud-region/create"
+	cmdList "github.com/OctopusDeploy/cli/pkg/cmd/target/cloud-region/list"
 	cmdView "github.com/OctopusDeploy/cli/pkg/cmd/target/cloud-region/view"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/factory"
@@ -18,6 +19,7 @@ func NewCmdCloudRegion(f factory.Factory) *cobra.Command {
 	}
 
 	cmd.AddCommand(cmdCreate.NewCmdCreate(f))
+	cmd.AddCommand(cmdList.NewCmdList(f))
 	cmd.AddCommand(cmdView.NewCmdView(f))
 	return cmd
 }
