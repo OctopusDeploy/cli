@@ -25,7 +25,7 @@ func NewCmdView(f factory.Factory) *cobra.Command {
 		`), constants.ExecutableName, constants.ExecutableName),
 		RunE: func(c *cobra.Command, args []string) error {
 			opts := shared.NewViewOptions(flags, cmd.NewDependencies(f, c), args)
-			return viewRun(opts)
+			return ViewRun(opts)
 		},
 	}
 
@@ -34,7 +34,7 @@ func NewCmdView(f factory.Factory) *cobra.Command {
 	return cmd
 }
 
-func viewRun(opts *shared.ViewOptions) error {
+func ViewRun(opts *shared.ViewOptions) error {
 	var target, err = opts.Client.Machines.GetByIdentifier(opts.IdOrName)
 	if err != nil {
 		return err
