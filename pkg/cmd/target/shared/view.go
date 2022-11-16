@@ -71,6 +71,28 @@ func ViewRun(opts *ViewOptions, target *machines.DeploymentTarget) error {
 	return nil
 }
 
+func ViewProxy(opts *ViewOptions, proxyID string) error {
+	if proxyID != "" {
+		proxy, err := opts.Client.Proxies.GetById(proxyID)
+		if err != nil {
+			return err
+		}
+		fmt.Fprintf(opts.Out, "Proxy: %s\n", proxy.GetName())
+	} else {
+		fmt.Println("No proxy configured")
+	}
+	return nil
+}
+
+func ViewAccount(opts *ViewOptions, accountID string) error {
+	account, err := opts.Client.Accounts.GetByID(accountID)
+	if err != nil {
+		return err
+	}
+	fmt.Fprintf(opts.Out, "Account: %s\n", account.GetName())
+	return nil
+}
+
 func getHealthStatus(target *machines.DeploymentTarget) string {
 	switch target.HealthStatus {
 	case "Healthy":

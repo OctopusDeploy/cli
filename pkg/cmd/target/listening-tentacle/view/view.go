@@ -47,14 +47,9 @@ func viewRun(opts *shared.ViewOptions) error {
 	endpoint := target.Endpoint.(*machines.ListeningTentacleEndpoint)
 	fmt.Fprintf(opts.Out, "URI: %s\n", endpoint.URI)
 	fmt.Fprintf(opts.Out, "Tentacle version: %s\n", endpoint.TentacleVersionDetails.Version)
-	if endpoint.ProxyID != "" {
-		proxy, err := opts.Client.Proxies.GetById(endpoint.ProxyID)
-		if err != nil {
-			return err
-		}
-		fmt.Fprintf(opts.Out, "Proxy: %s\n", proxy.GetName())
-	} else {
-		fmt.Println("No proxy configured")
+	err = shared.ViewProxy(opts, endpoint.ProxyID)
+	if err != nil {
+		return err
 	}
 
 	fmt.Println()

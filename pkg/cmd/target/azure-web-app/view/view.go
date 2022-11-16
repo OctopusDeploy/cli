@@ -46,14 +46,13 @@ func viewRun(opts *shared.ViewOptions) error {
 	}
 
 	endpoint := target.Endpoint.(*machines.AzureWebAppEndpoint)
-	account, err := opts.Client.Accounts.GetByID(endpoint.AccountID)
+	err = shared.ViewAccount(opts, endpoint.AccountID)
 	if err != nil {
 		return err
 	}
-	fmt.Fprintf(opts.Out, "Account: %s\n", account.GetName())
 	fmt.Fprintf(opts.Out, "Web App: %s\n", getWebAppDisplay(endpoint))
 
-	fmt.Fprintf(opts.Out, "\n")
+	fmt.Println()
 	shared.DoWeb(target, opts.Dependencies, opts.WebFlags, "Azure Web App")
 	return nil
 }
