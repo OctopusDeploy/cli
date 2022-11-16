@@ -21,7 +21,7 @@ func NewCmdView(f factory.Factory) *cobra.Command {
 		Short: "View an Azure Web App deployment target in an instance of Octopus Deploy",
 		Long:  "View an Azure Web App deployment target in an instance of Octopus Deploy.",
 		Example: fmt.Sprintf(heredoc.Doc(`
-			$ %s deployment-target azure-web-app view ''
+			$ %s deployment-target azure-web-app view 'Shop Api'
 			$ %s deployment-target azure-web-app view Machines-100
 		`), constants.ExecutableName, constants.ExecutableName),
 		RunE: func(c *cobra.Command, args []string) error {
@@ -45,7 +45,6 @@ func viewRun(opts *shared.ViewOptions) error {
 		return err
 	}
 
-	// endpoint stuff
 	endpoint := target.Endpoint.(*machines.AzureWebAppEndpoint)
 	account, err := opts.Client.Accounts.GetByID(endpoint.AccountID)
 	if err != nil {
