@@ -39,7 +39,9 @@ func NewCmdList(f factory.Factory) *cobra.Command {
 		Long:  "List deployment targets in an instance of Octopus Deploy.",
 		Example: fmt.Sprintf(heredoc.Doc(`
 			$ %s deployment-target list
+			$ %s deployment-target ls
 		`), constants.ExecutableName),
+		Aliases: []string{"ls"},
 		RunE: func(c *cobra.Command, args []string) error {
 			return ListRun(NewListOptions(cmd.NewDependencies(f, c), c, machines.MachinesQuery{}))
 		},
