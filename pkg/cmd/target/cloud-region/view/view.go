@@ -16,8 +16,8 @@ func NewCmdView(f factory.Factory) *cobra.Command {
 	cmd := &cobra.Command{
 		Args:  usage.ExactArgs(1),
 		Use:   "view {<name> | <id>}",
-		Short: "View an Cloud Region deployment target in an instance of Octopus Deploy",
-		Long:  "View an Cloud Region deployment target in an instance of Octopus Deploy.",
+		Short: "View a Cloud Region deployment target in an instance of Octopus Deploy",
+		Long:  "View a Cloud Region deployment target in an instance of Octopus Deploy.",
 		Example: fmt.Sprintf(heredoc.Doc(`
 			$ %s deployment-target cloud-region view 'EU'
 			$ %s deployment-target cloud-region view Machines-100

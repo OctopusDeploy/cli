@@ -17,8 +17,8 @@ func NewCmdView(f factory.Factory) *cobra.Command {
 	cmd := &cobra.Command{
 		Args:  usage.ExactArgs(1),
 		Use:   "view {<name> | <id>}",
-		Short: "View an Listening Tentacle deployment target in an instance of Octopus Deploy",
-		Long:  "View an Listening Tentacle deployment target in an instance of Octopus Deploy.",
+		Short: "View a Listening Tentacle deployment target in an instance of Octopus Deploy",
+		Long:  "View a Listening Tentacle deployment target in an instance of Octopus Deploy.",
 		Example: fmt.Sprintf(heredoc.Doc(`
 			$ %s deployment-target listening-tentacle view 'EU'
 			$ %s deployment-target listening-tentacle view Machines-100
