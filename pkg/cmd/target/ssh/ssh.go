@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	cmdCreate "github.com/OctopusDeploy/cli/pkg/cmd/target/ssh/create"
+	cmdView "github.com/OctopusDeploy/cli/pkg/cmd/target/ssh/view"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/spf13/cobra"
@@ -18,5 +19,6 @@ func NewCmdSsh(f factory.Factory) *cobra.Command {
 	}
 
 	cmd.AddCommand(cmdCreate.NewCmdCreate(f))
+	cmd.AddCommand(cmdView.NewCmdView(f))
 	return cmd
 }
