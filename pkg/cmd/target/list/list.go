@@ -7,6 +7,7 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/cmd/target/shared"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/factory"
+	"github.com/OctopusDeploy/cli/pkg/machinescommon"
 	"github.com/OctopusDeploy/cli/pkg/output"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/machines"
 	"github.com/spf13/cobra"
@@ -81,7 +82,7 @@ func ListRun(opts *ListOptions) error {
 			return TargetAsJson{
 				Id:           item.GetID(),
 				Name:         item.Name,
-				Type:         shared.CommunicationStyleToDeploymentTargetTypeMap[item.Endpoint.GetCommunicationStyle()],
+				Type:         machinescommon.CommunicationStyleToDeploymentTargetTypeMap[item.Endpoint.GetCommunicationStyle()],
 				Roles:        item.Roles,
 				Environments: environments,
 				Tenants:      tenants,
@@ -93,7 +94,7 @@ func ListRun(opts *ListOptions) error {
 			Row: func(item *machines.DeploymentTarget) []string {
 				environmentNames := resolveValues(item.EnvironmentIDs, environmentMap)
 				tenantNames := resolveValues(item.TenantIDs, tenantMap)
-				return []string{output.Bold(item.Name), shared.CommunicationStyleToDescriptionMap[item.Endpoint.GetCommunicationStyle()], formatAsList(item.Roles), formatAsList(environmentNames), formatAsList(tenantNames), formatAsList(item.TenantTags)}
+				return []string{output.Bold(item.Name), machinescommon.CommunicationStyleToDescriptionMap[item.Endpoint.GetCommunicationStyle()], formatAsList(item.Roles), formatAsList(environmentNames), formatAsList(tenantNames), formatAsList(item.TenantTags)}
 			},
 		},
 		Basic: func(item *machines.DeploymentTarget) string {

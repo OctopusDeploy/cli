@@ -1,4 +1,4 @@
-package shared
+package machinescommon
 
 var CommunicationStyleToDescriptionMap = map[string]string{
 	"TentaclePassive":           "Listening Tentacle",
