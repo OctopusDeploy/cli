@@ -18,7 +18,9 @@ func NewCmdList(f factory.Factory) *cobra.Command {
 		Long:  "List Cloud Region deployment targets in an instance of Octopus Deploy.",
 		Example: fmt.Sprintf(heredoc.Doc(`
 			$ %s deployment-target cloud-region list
+			$ %s deployment-target cloud-region ls
 		`), constants.ExecutableName),
+		Aliases: []string{"ls"},
 		RunE: func(c *cobra.Command, args []string) error {
 			dependencies := cmd.NewDependencies(f, c)
 			options := list.NewListOptions(dependencies, c, machines.MachinesQuery{DeploymentTargetTypes: []string{"CloudRegion"}})
