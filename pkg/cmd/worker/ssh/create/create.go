@@ -5,10 +5,10 @@ import (
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/cmd"
-	"github.com/OctopusDeploy/cli/pkg/cmd/target/shared"
-	workerShared "github.com/OctopusDeploy/cli/pkg/cmd/worker/shared"
+	"github.com/OctopusDeploy/cli/pkg/cmd/worker/shared"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/factory"
+	"github.com/OctopusDeploy/cli/pkg/machinescommon"
 	"github.com/OctopusDeploy/cli/pkg/question"
 	"github.com/OctopusDeploy/cli/pkg/question/selectors"
 	"github.com/OctopusDeploy/cli/pkg/util/flag"
@@ -48,18 +48,18 @@ type CreateFlags struct {
 	Account     *flag.Flag[string]
 	Runtime     *flag.Flag[string]
 	Platform    *flag.Flag[string]
-	*shared.CreateTargetProxyFlags
-	*shared.CreateTargetMachinePolicyFlags
-	*workerShared.WorkerPoolFlags
-	*shared.WebFlags
+	*machinescommon.CreateTargetProxyFlags
+	*machinescommon.CreateTargetMachinePolicyFlags
+	*shared.WorkerPoolFlags
+	*machinescommon.WebFlags
 }
 
 type CreateOptions struct {
 	*CreateFlags
 	GetAllAccountsForSshTarget
-	*shared.CreateTargetProxyOptions
-	*shared.CreateTargetMachinePolicyOptions
-	*workerShared.WorkerPoolOptions
+	*machinescommon.CreateTargetProxyOptions
+	*machinescommon.CreateTargetMachinePolicyOptions
+	*shared.WorkerPoolOptions
 	*cmd.Dependencies
 }
 
@@ -72,10 +72,10 @@ func NewCreateFlags() *CreateFlags {
 		Port:                           flag.New[int](FlagPort, false),
 		Runtime:                        flag.New[string](FlagRuntime, false),
 		Platform:                       flag.New[string](FlagPlatform, false),
-		CreateTargetProxyFlags:         shared.NewCreateTargetProxyFlags(),
-		CreateTargetMachinePolicyFlags: shared.NewCreateTargetMachinePolicyFlags(),
-		WorkerPoolFlags:                workerShared.NewWorkerPoolFlags(),
-		WebFlags:                       shared.NewWebFlags(),
+		CreateTargetProxyFlags:         machinescommon.NewCreateTargetProxyFlags(),
+		CreateTargetMachinePolicyFlags: machinescommon.NewCreateTargetMachinePolicyFlags(),
+		WorkerPoolFlags:                shared.NewWorkerPoolFlags(),
+		WebFlags:                       machinescommon.NewWebFlags(),
 	}
 }
 
@@ -83,9 +83,9 @@ func NewCreateOptions(createFlags *CreateFlags, dependencies *cmd.Dependencies) 
 	return &CreateOptions{
 		CreateFlags:                      createFlags,
 		Dependencies:                     dependencies,
-		CreateTargetProxyOptions:         shared.NewCreateTargetProxyOptions(dependencies),
-		CreateTargetMachinePolicyOptions: shared.NewCreateTargetMachinePolicyOptions(dependencies),
-		WorkerPoolOptions:                workerShared.NewWorkerPoolOptionsForCreateWorker(dependencies),
+		CreateTargetProxyOptions:         machinescommon.NewCreateTargetProxyOptions(dependencies),
+		CreateTargetMachinePolicyOptions: machinescommon.NewCreateTargetMachinePolicyOptions(dependencies),
+		WorkerPoolOptions:                shared.NewWorkerPoolOptions(dependencies),
 
 		GetAllAccountsForSshTarget: func() ([]accounts.IAccount, error) {
 			return getAllAccountsForSshTarget(dependencies.Client)
@@ -119,10 +119,10 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 	flags.StringVar(&createFlags.Runtime.Value, createFlags.Runtime.Name, "", fmt.Sprintf("The runtime to use to run Calamari on the worker. Options are '%s' or '%s'", SelfContainedCalamari, MonoCalamari))
 	flags.StringVar(&createFlags.Platform.Value, createFlags.Platform.Name, "", fmt.Sprintf("The platform to use for the %s Calamari. Options are '%s', '%s', '%s' or '%s'", SelfContainedCalamari, LinuxX64, LinuxArm64, LinuxArm, OsxX64))
 
-	shared.RegisterCreateTargetProxyFlags(cmd, createFlags.CreateTargetProxyFlags)
-	shared.RegisterCreateTargetMachinePolicyFlags(cmd, createFlags.CreateTargetMachinePolicyFlags)
-	workerShared.RegisterCreateWorkerWorkerPoolFlags(cmd, createFlags.WorkerPoolFlags)
-	shared.RegisterWebFlag(cmd, createFlags.WebFlags)
+	machinescommon.RegisterCreateTargetProxyFlags(cmd, createFlags.CreateTargetProxyFlags)
+	machinescommon.RegisterCreateTargetMachinePolicyFlags(cmd, createFlags.CreateTargetMachinePolicyFlags)
+	shared.RegisterCreateWorkerWorkerPoolFlags(cmd, createFlags.WorkerPoolFlags)
+	machinescommon.RegisterWebFlag(cmd, createFlags.WebFlags)
 
 	return cmd
 }
@@ -151,21 +151,21 @@ func createRun(opts *CreateOptions) error {
 	}
 
 	if opts.Proxy.Value != "" {
-		proxy, err := shared.FindProxy(opts.CreateTargetProxyOptions, opts.CreateTargetProxyFlags)
+		proxy, err := machinescommon.FindProxy(opts.CreateTargetProxyOptions, opts.CreateTargetProxyFlags)
 		if err != nil {
 			return err
 		}
 		endpoint.ProxyID = proxy.GetID()
 	}
 
-	workerPoolIds, err := workerShared.FindWorkerPoolIds(opts.WorkerPoolOptions, opts.WorkerPoolFlags)
+	workerPoolIds, err := shared.FindWorkerPoolIds(opts.WorkerPoolOptions, opts.WorkerPoolFlags)
 	if err != nil {
 		return err
 	}
 
 	worker := machines.NewWorker(opts.Name.Value, endpoint)
 	worker.WorkerPoolIDs = workerPoolIds
-	machinePolicy, err := shared.FindMachinePolicy(opts.GetAllMachinePoliciesCallback, opts.MachinePolicy.Value)
+	machinePolicy, err := machinescommon.FindMachinePolicy(opts.GetAllMachinePoliciesCallback, opts.MachinePolicy.Value)
 	if err != nil {
 		return err
 	}
@@ -182,7 +182,7 @@ func createRun(opts *CreateOptions) error {
 		fmt.Fprintf(opts.Out, "\nAutomation Command: %s\n", autoCmd)
 	}
 
-	shared.DoWebForWorkers(createdWorker, opts.Dependencies, opts.WebFlags, "ssh")
+	machinescommon.DoWebForWorkers(createdWorker, opts.Dependencies, opts.WebFlags, "ssh")
 
 	return nil
 }
@@ -193,12 +193,12 @@ func PromptMissing(opts *CreateOptions) error {
 		return err
 	}
 
-	err = workerShared.PromptForWorkerPools(opts.WorkerPoolOptions, opts.WorkerPoolFlags)
+	err = shared.PromptForWorkerPools(opts.WorkerPoolOptions, opts.WorkerPoolFlags)
 	if err != nil {
 		return err
 	}
 
-	err = shared.PromptForMachinePolicy(opts.CreateTargetMachinePolicyOptions, opts.CreateTargetMachinePolicyFlags)
+	err = machinescommon.PromptForMachinePolicy(opts.CreateTargetMachinePolicyOptions, opts.CreateTargetMachinePolicyFlags)
 	if err != nil {
 		return err
 	}
@@ -213,7 +213,7 @@ func PromptMissing(opts *CreateOptions) error {
 		return err
 	}
 
-	err = shared.PromptForProxy(opts.CreateTargetProxyOptions, opts.CreateTargetProxyFlags)
+	err = machinescommon.PromptForProxy(opts.CreateTargetProxyOptions, opts.CreateTargetProxyFlags)
 	if err != nil {
 		return err
 	}

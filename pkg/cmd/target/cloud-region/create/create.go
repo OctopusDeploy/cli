@@ -8,6 +8,7 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/executionscommon"
 	"github.com/OctopusDeploy/cli/pkg/factory"
+	"github.com/OctopusDeploy/cli/pkg/machinescommon"
 	"github.com/OctopusDeploy/cli/pkg/question"
 	"github.com/OctopusDeploy/cli/pkg/util"
 	"github.com/OctopusDeploy/cli/pkg/util/flag"
@@ -26,7 +27,7 @@ type CreateFlags struct {
 	*shared.CreateTargetRoleFlags
 	*shared.WorkerPoolFlags
 	*shared.CreateTargetTenantFlags
-	*shared.WebFlags
+	*machinescommon.WebFlags
 }
 
 type CreateOptions struct {
@@ -45,7 +46,7 @@ func NewCreateFlags() *CreateFlags {
 		CreateTargetEnvironmentFlags: shared.NewCreateTargetEnvironmentFlags(),
 		CreateTargetRoleFlags:        shared.NewCreateTargetRoleFlags(),
 		CreateTargetTenantFlags:      shared.NewCreateTargetTenantFlags(),
-		WebFlags:                     shared.NewWebFlags(),
+		WebFlags:                     machinescommon.NewWebFlags(),
 	}
 }
 
@@ -83,7 +84,7 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 	shared.RegisterCreateTargetRoleFlags(cmd, createFlags.CreateTargetRoleFlags)
 	shared.RegisterCreateTargetWorkerPoolFlags(cmd, createFlags.WorkerPoolFlags)
 	shared.RegisterCreateTargetTenantFlags(cmd, createFlags.CreateTargetTenantFlags)
-	shared.RegisterWebFlag(cmd, createFlags.WebFlags)
+	machinescommon.RegisterWebFlag(cmd, createFlags.WebFlags)
 
 	return cmd
 }
@@ -126,7 +127,7 @@ func createRun(opts *CreateOptions) error {
 		fmt.Fprintf(opts.Out, "\nAutomation Command: %s\n", autoCmd)
 	}
 
-	shared.DoWebForTargets(createdTarget, opts.Dependencies, opts.WebFlags, "cloud region")
+	machinescommon.DoWebForTargets(createdTarget, opts.Dependencies, opts.WebFlags, "cloud region")
 
 	return nil
 }

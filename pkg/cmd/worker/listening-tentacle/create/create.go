@@ -5,10 +5,10 @@ import (
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/cmd"
-	targetShared "github.com/OctopusDeploy/cli/pkg/cmd/target/shared"
-	workerShared "github.com/OctopusDeploy/cli/pkg/cmd/worker/shared"
+	"github.com/OctopusDeploy/cli/pkg/cmd/worker/shared"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/factory"
+	"github.com/OctopusDeploy/cli/pkg/machinescommon"
 	"github.com/OctopusDeploy/cli/pkg/question"
 	"github.com/OctopusDeploy/cli/pkg/util/flag"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/machines"
@@ -26,17 +26,17 @@ type CreateFlags struct {
 	Name       *flag.Flag[string]
 	Thumbprint *flag.Flag[string]
 	URL        *flag.Flag[string]
-	*targetShared.CreateTargetProxyFlags
-	*targetShared.CreateTargetMachinePolicyFlags
-	*workerShared.WorkerPoolFlags
-	*targetShared.WebFlags
+	*machinescommon.CreateTargetProxyFlags
+	*machinescommon.CreateTargetMachinePolicyFlags
+	*shared.WorkerPoolFlags
+	*machinescommon.WebFlags
 }
 
 type CreateOptions struct {
 	*CreateFlags
-	*targetShared.CreateTargetProxyOptions
-	*targetShared.CreateTargetMachinePolicyOptions
-	*workerShared.WorkerPoolOptions
+	*machinescommon.CreateTargetProxyOptions
+	*machinescommon.CreateTargetMachinePolicyOptions
+	*shared.WorkerPoolOptions
 	*cmd.Dependencies
 }
 
@@ -45,10 +45,10 @@ func NewCreateFlags() *CreateFlags {
 		Name:                           flag.New[string](FlagName, false),
 		Thumbprint:                     flag.New[string](FlagThumbprint, true),
 		URL:                            flag.New[string](FlagUrl, false),
-		CreateTargetProxyFlags:         targetShared.NewCreateTargetProxyFlags(),
-		CreateTargetMachinePolicyFlags: targetShared.NewCreateTargetMachinePolicyFlags(),
-		WorkerPoolFlags:                workerShared.NewWorkerPoolFlags(),
-		WebFlags:                       targetShared.NewWebFlags(),
+		CreateTargetProxyFlags:         machinescommon.NewCreateTargetProxyFlags(),
+		CreateTargetMachinePolicyFlags: machinescommon.NewCreateTargetMachinePolicyFlags(),
+		WorkerPoolFlags:                shared.NewWorkerPoolFlags(),
+		WebFlags:                       machinescommon.NewWebFlags(),
 	}
 }
 
@@ -56,9 +56,9 @@ func NewCreateOptions(createFlags *CreateFlags, dependencies *cmd.Dependencies) 
 	return &CreateOptions{
 		CreateFlags:                      createFlags,
 		Dependencies:                     dependencies,
-		CreateTargetProxyOptions:         targetShared.NewCreateTargetProxyOptions(dependencies),
-		CreateTargetMachinePolicyOptions: targetShared.NewCreateTargetMachinePolicyOptions(dependencies),
-		WorkerPoolOptions:                workerShared.NewWorkerPoolOptionsForCreateWorker(dependencies),
+		CreateTargetProxyOptions:         machinescommon.NewCreateTargetProxyOptions(dependencies),
+		CreateTargetMachinePolicyOptions: machinescommon.NewCreateTargetMachinePolicyOptions(dependencies),
+		WorkerPoolOptions:                shared.NewWorkerPoolOptions(dependencies),
 	}
 }
 
@@ -83,10 +83,10 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 	flags.StringVarP(&createFlags.Name.Value, createFlags.Name.Name, "n", "", "A short, memorable, unique name for this Listening Tentacle worker.")
 	flags.StringVar(&createFlags.Thumbprint.Value, createFlags.Thumbprint.Name, "", "The X509 certificate thumbprint that securely identifies the Tentacle.")
 	flags.StringVar(&createFlags.URL.Value, createFlags.URL.Name, "", "The network address at which the Tentacle can be reached.")
-	targetShared.RegisterCreateTargetProxyFlags(cmd, createFlags.CreateTargetProxyFlags)
-	targetShared.RegisterCreateTargetMachinePolicyFlags(cmd, createFlags.CreateTargetMachinePolicyFlags)
-	workerShared.RegisterCreateWorkerWorkerPoolFlags(cmd, createFlags.WorkerPoolFlags)
-	targetShared.RegisterWebFlag(cmd, createFlags.WebFlags)
+	machinescommon.RegisterCreateTargetProxyFlags(cmd, createFlags.CreateTargetProxyFlags)
+	machinescommon.RegisterCreateTargetMachinePolicyFlags(cmd, createFlags.CreateTargetMachinePolicyFlags)
+	shared.RegisterCreateWorkerWorkerPoolFlags(cmd, createFlags.WorkerPoolFlags)
+	machinescommon.RegisterWebFlag(cmd, createFlags.WebFlags)
 
 	return cmd
 }
@@ -105,21 +105,21 @@ func createRun(opts *CreateOptions) error {
 
 	endpoint := machines.NewListeningTentacleEndpoint(url, opts.Thumbprint.Value)
 	if opts.Proxy.Value != "" {
-		proxy, err := targetShared.FindProxy(opts.CreateTargetProxyOptions, opts.CreateTargetProxyFlags)
+		proxy, err := machinescommon.FindProxy(opts.CreateTargetProxyOptions, opts.CreateTargetProxyFlags)
 		if err != nil {
 			return err
 		}
 		endpoint.ProxyID = proxy.GetID()
 	}
 
-	workerPoolIds, err := workerShared.FindWorkerPoolIds(opts.WorkerPoolOptions, opts.WorkerPoolFlags)
+	workerPoolIds, err := shared.FindWorkerPoolIds(opts.WorkerPoolOptions, opts.WorkerPoolFlags)
 	if err != nil {
 		return err
 	}
 
 	worker := machines.NewWorker(opts.Name.Value, endpoint)
 	worker.WorkerPoolIDs = workerPoolIds
-	machinePolicy, err := targetShared.FindMachinePolicy(opts.GetAllMachinePoliciesCallback, opts.MachinePolicy.Value)
+	machinePolicy, err := machinescommon.FindMachinePolicy(opts.GetAllMachinePoliciesCallback, opts.MachinePolicy.Value)
 	if err != nil {
 		return err
 	}
@@ -136,7 +136,7 @@ func createRun(opts *CreateOptions) error {
 		fmt.Fprintf(opts.Out, "\nAutomation Command: %s\n", autoCmd)
 	}
 
-	targetShared.DoWebForWorkers(createdWorker, opts.Dependencies, opts.WebFlags, "listening tentacle worker")
+	machinescommon.DoWebForWorkers(createdWorker, opts.Dependencies, opts.WebFlags, "listening tentacle worker")
 
 	return nil
 }
@@ -147,12 +147,12 @@ func PromptMissing(opts *CreateOptions) error {
 		return err
 	}
 
-	err = workerShared.PromptForWorkerPools(opts.WorkerPoolOptions, opts.WorkerPoolFlags)
+	err = shared.PromptForWorkerPools(opts.WorkerPoolOptions, opts.WorkerPoolFlags)
 	if err != nil {
 		return err
 	}
 
-	err = targetShared.PromptForMachinePolicy(opts.CreateTargetMachinePolicyOptions, opts.CreateTargetMachinePolicyFlags)
+	err = machinescommon.PromptForMachinePolicy(opts.CreateTargetMachinePolicyOptions, opts.CreateTargetMachinePolicyFlags)
 	if err != nil {
 		return err
 	}
@@ -178,7 +178,7 @@ func PromptMissing(opts *CreateOptions) error {
 		}
 	}
 
-	err = targetShared.PromptForProxy(opts.CreateTargetProxyOptions, opts.CreateTargetProxyFlags)
+	err = machinescommon.PromptForProxy(opts.CreateTargetProxyOptions, opts.CreateTargetProxyFlags)
 	if err != nil {
 		return err
 	}

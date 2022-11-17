@@ -1,9 +1,10 @@
-package shared
+package machinescommon
 
 import (
 	"fmt"
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/OctopusDeploy/cli/pkg/cmd"
+	"github.com/OctopusDeploy/cli/pkg/cmd/target/shared"
 	"github.com/OctopusDeploy/cli/pkg/question/selectors"
 	"github.com/OctopusDeploy/cli/pkg/util/flag"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
@@ -43,7 +44,7 @@ type CreateTargetProxyOptions struct {
 
 func NewCreateTargetProxyFlags() *CreateTargetProxyFlags {
 	return &CreateTargetProxyFlags{
-		Proxy: flag.New[string](FlagProxy, false),
+		Proxy: flag.New[string](shared.FlagProxy, false),
 	}
 }
 
@@ -57,7 +58,7 @@ func NewCreateTargetProxyOptions(dependencies *cmd.Dependencies) *CreateTargetPr
 }
 
 func RegisterCreateTargetProxyFlags(cmd *cobra.Command, proxyFlags *CreateTargetProxyFlags) {
-	cmd.Flags().StringVar(&proxyFlags.Proxy.Value, FlagProxy, "", "Select whether to use a proxy to connect to this Tentacle. If omitted, will connect directly.")
+	cmd.Flags().StringVar(&proxyFlags.Proxy.Value, shared.FlagProxy, "", "Select whether to use a proxy to connect to this Tentacle. If omitted, will connect directly.")
 }
 
 func FindProxy(opts *CreateTargetProxyOptions, flags *CreateTargetProxyFlags) (*proxies.Proxy, error) {

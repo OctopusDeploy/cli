@@ -9,6 +9,7 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/executionscommon"
 	"github.com/OctopusDeploy/cli/pkg/factory"
+	"github.com/OctopusDeploy/cli/pkg/machinescommon"
 	"github.com/OctopusDeploy/cli/pkg/question"
 	"github.com/OctopusDeploy/cli/pkg/util"
 	"github.com/OctopusDeploy/cli/pkg/util/flag"
@@ -28,20 +29,20 @@ type CreateFlags struct {
 	Name       *flag.Flag[string]
 	Thumbprint *flag.Flag[string]
 	URL        *flag.Flag[string]
-	*shared.CreateTargetProxyFlags
+	*machinescommon.CreateTargetProxyFlags
 	*shared.CreateTargetEnvironmentFlags
 	*shared.CreateTargetRoleFlags
-	*shared.CreateTargetMachinePolicyFlags
+	*machinescommon.CreateTargetMachinePolicyFlags
 	*shared.CreateTargetTenantFlags
-	*shared.WebFlags
+	*machinescommon.WebFlags
 }
 
 type CreateOptions struct {
 	*CreateFlags
-	*shared.CreateTargetProxyOptions
+	*machinescommon.CreateTargetProxyOptions
 	*shared.CreateTargetEnvironmentOptions
 	*shared.CreateTargetRoleOptions
-	*shared.CreateTargetMachinePolicyOptions
+	*machinescommon.CreateTargetMachinePolicyOptions
 	*shared.CreateTargetTenantOptions
 	*cmd.Dependencies
 }
@@ -52,11 +53,11 @@ func NewCreateFlags() *CreateFlags {
 		Thumbprint:                     flag.New[string](FlagThumbprint, true),
 		URL:                            flag.New[string](FlagUrl, false),
 		CreateTargetRoleFlags:          shared.NewCreateTargetRoleFlags(),
-		CreateTargetProxyFlags:         shared.NewCreateTargetProxyFlags(),
-		CreateTargetMachinePolicyFlags: shared.NewCreateTargetMachinePolicyFlags(),
+		CreateTargetProxyFlags:         machinescommon.NewCreateTargetProxyFlags(),
+		CreateTargetMachinePolicyFlags: machinescommon.NewCreateTargetMachinePolicyFlags(),
 		CreateTargetEnvironmentFlags:   shared.NewCreateTargetEnvironmentFlags(),
 		CreateTargetTenantFlags:        shared.NewCreateTargetTenantFlags(),
-		WebFlags:                       shared.NewWebFlags(),
+		WebFlags:                       machinescommon.NewWebFlags(),
 	}
 }
 
@@ -65,8 +66,8 @@ func NewCreateOptions(createFlags *CreateFlags, dependencies *cmd.Dependencies) 
 		CreateFlags:                      createFlags,
 		Dependencies:                     dependencies,
 		CreateTargetRoleOptions:          shared.NewCreateTargetRoleOptions(dependencies),
-		CreateTargetProxyOptions:         shared.NewCreateTargetProxyOptions(dependencies),
-		CreateTargetMachinePolicyOptions: shared.NewCreateTargetMachinePolicyOptions(dependencies),
+		CreateTargetProxyOptions:         machinescommon.NewCreateTargetProxyOptions(dependencies),
+		CreateTargetMachinePolicyOptions: machinescommon.NewCreateTargetMachinePolicyOptions(dependencies),
 		CreateTargetEnvironmentOptions:   shared.NewCreateTargetEnvironmentOptions(dependencies),
 		CreateTargetTenantOptions:        shared.NewCreateTargetTenantOptions(dependencies),
 	}
@@ -95,10 +96,10 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 	flags.StringVar(&createFlags.URL.Value, createFlags.URL.Name, "", "The network address at which the Tentacle can be reached.")
 	shared.RegisterCreateTargetEnvironmentFlags(cmd, createFlags.CreateTargetEnvironmentFlags)
 	shared.RegisterCreateTargetRoleFlags(cmd, createFlags.CreateTargetRoleFlags)
-	shared.RegisterCreateTargetProxyFlags(cmd, createFlags.CreateTargetProxyFlags)
-	shared.RegisterCreateTargetMachinePolicyFlags(cmd, createFlags.CreateTargetMachinePolicyFlags)
+	machinescommon.RegisterCreateTargetProxyFlags(cmd, createFlags.CreateTargetProxyFlags)
+	machinescommon.RegisterCreateTargetMachinePolicyFlags(cmd, createFlags.CreateTargetMachinePolicyFlags)
 	shared.RegisterCreateTargetTenantFlags(cmd, createFlags.CreateTargetTenantFlags)
-	shared.RegisterWebFlag(cmd, createFlags.WebFlags)
+	machinescommon.RegisterWebFlag(cmd, createFlags.WebFlags)
 
 	return cmd
 }
@@ -123,7 +124,7 @@ func createRun(opts *CreateOptions) error {
 
 	endpoint := machines.NewListeningTentacleEndpoint(url, opts.Thumbprint.Value)
 	if opts.Proxy.Value != "" {
-		proxy, err := shared.FindProxy(opts.CreateTargetProxyOptions, opts.CreateTargetProxyFlags)
+		proxy, err := machinescommon.FindProxy(opts.CreateTargetProxyOptions, opts.CreateTargetProxyFlags)
 		if err != nil {
 			return err
 		}
@@ -131,7 +132,7 @@ func createRun(opts *CreateOptions) error {
 	}
 
 	deploymentTarget := machines.NewDeploymentTarget(opts.Name.Value, endpoint, environmentIds, shared.DistinctRoles(opts.Roles.Value))
-	machinePolicy, err := shared.FindMachinePolicy(opts.GetAllMachinePoliciesCallback, opts.MachinePolicy.Value)
+	machinePolicy, err := machinescommon.FindMachinePolicy(opts.GetAllMachinePoliciesCallback, opts.MachinePolicy.Value)
 	if err != nil {
 		return err
 	}
@@ -152,7 +153,7 @@ func createRun(opts *CreateOptions) error {
 		fmt.Fprintf(opts.Out, "\nAutomation Command: %s\n", autoCmd)
 	}
 
-	shared.DoWebForTargets(createdTarget, opts.Dependencies, opts.WebFlags, "listening tentacle")
+	machinescommon.DoWebForTargets(createdTarget, opts.Dependencies, opts.WebFlags, "listening tentacle")
 
 	return nil
 }
@@ -194,12 +195,12 @@ func PromptMissing(opts *CreateOptions) error {
 		}
 	}
 
-	err = shared.PromptForMachinePolicy(opts.CreateTargetMachinePolicyOptions, opts.CreateTargetMachinePolicyFlags)
+	err = machinescommon.PromptForMachinePolicy(opts.CreateTargetMachinePolicyOptions, opts.CreateTargetMachinePolicyFlags)
 	if err != nil {
 		return err
 	}
 
-	err = shared.PromptForProxy(opts.CreateTargetProxyOptions, opts.CreateTargetProxyFlags)
+	err = machinescommon.PromptForProxy(opts.CreateTargetProxyOptions, opts.CreateTargetProxyFlags)
 	if err != nil {
 		return err
 	}
