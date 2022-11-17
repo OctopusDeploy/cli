@@ -4,7 +4,6 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/cmd"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/machines"
-	"math"
 )
 
 type GetWorkersCallback func() ([]*machines.Worker, error)
@@ -13,10 +12,10 @@ type GetWorkersOptions struct {
 	GetWorkersCallback
 }
 
-func NewGetWorkersOptions(dependencies *cmd.Dependencies, query machines.WorkersQuery) *GetWorkersOptions {
+func NewGetWorkersOptions(dependencies *cmd.Dependencies, filter func(*machines.Worker) bool) *GetWorkersOptions {
 	return &GetWorkersOptions{
 		GetWorkersCallback: func() ([]*machines.Worker, error) {
-			return GetAllWorkers(*dependencies.Client, query)
+			return GetWorkers(*dependencies.Client, filter)
 		},
 	}
 }
@@ -24,17 +23,28 @@ func NewGetWorkersOptions(dependencies *cmd.Dependencies, query machines.Workers
 func NewGetWorkersOptionsForAllWorkers(dependencies *cmd.Dependencies) *GetWorkersOptions {
 	return &GetWorkersOptions{
 		GetWorkersCallback: func() ([]*machines.Worker, error) {
-			return GetAllWorkers(*dependencies.Client, machines.WorkersQuery{})
+			return GetWorkers(*dependencies.Client, nil)
 		},
 	}
 }
 
-func GetAllWorkers(client client.Client, query machines.WorkersQuery) ([]*machines.Worker, error) {
-	query.Skip = 0
-	query.Take = math.MaxInt32
-	res, err := client.Workers.Get(query)
+func GetWorkers(client client.Client, filter func(*machines.Worker) bool) ([]*machines.Worker, error) {
+	allWorkers, err := client.Workers.GetAll()
 	if err != nil {
 		return nil, err
 	}
-	return res.Items, nil
+
+	if filter == nil {
+		return allWorkers, nil
+	}
+
+	var workers []*machines.Worker
+	for _, w := range allWorkers {
+		filterResult := filter(w)
+		if filterResult {
+			workers = append(workers, w)
+		}
+	}
+
+	return workers, nil
 }

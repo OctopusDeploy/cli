@@ -25,11 +25,11 @@ type Entity struct {
 	Name string `json:"Name"`
 }
 
-func NewListOptions(dependencies *cmd.Dependencies, command *cobra.Command, query machines.WorkersQuery) *ListOptions {
+func NewListOptions(dependencies *cmd.Dependencies, command *cobra.Command, filter func(*machines.Worker) bool) *ListOptions {
 	return &ListOptions{
 		Command:           command,
 		Dependencies:      dependencies,
-		GetWorkersOptions: shared.NewGetWorkersOptionsForAllWorkers(dependencies),
+		GetWorkersOptions: shared.NewGetWorkersOptions(dependencies, filter),
 	}
 }
 
@@ -43,7 +43,7 @@ func NewCmdList(f factory.Factory) *cobra.Command {
 			$ %s workers list
 		`), constants.ExecutableName),
 		RunE: func(c *cobra.Command, args []string) error {
-			return ListRun(NewListOptions(cmd.NewDependencies(f, c), c, machines.WorkersQuery{}))
+			return ListRun(NewListOptions(cmd.NewDependencies(f, c), c, nil))
 		},
 	}
 
