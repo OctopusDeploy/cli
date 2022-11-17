@@ -24,7 +24,7 @@ type CreateFlags struct {
 	Name *flag.Flag[string]
 	*shared.CreateTargetEnvironmentFlags
 	*shared.CreateTargetRoleFlags
-	*shared.CreateTargetWorkerPoolFlags
+	*shared.WorkerPoolFlags
 	*shared.CreateTargetTenantFlags
 	*shared.WebFlags
 }
@@ -33,7 +33,7 @@ type CreateOptions struct {
 	*CreateFlags
 	*shared.CreateTargetEnvironmentOptions
 	*shared.CreateTargetRoleOptions
-	*shared.CreateTargetWorkerPoolOptions
+	*shared.WorkerPoolOptions
 	*shared.CreateTargetTenantOptions
 	*cmd.Dependencies
 }
@@ -41,7 +41,7 @@ type CreateOptions struct {
 func NewCreateFlags() *CreateFlags {
 	return &CreateFlags{
 		Name:                         flag.New[string](FlagName, false),
-		CreateTargetWorkerPoolFlags:  shared.NewCreateTargetWorkerPoolFlags(),
+		WorkerPoolFlags:              shared.NewWorkerPoolFlags(),
 		CreateTargetEnvironmentFlags: shared.NewCreateTargetEnvironmentFlags(),
 		CreateTargetRoleFlags:        shared.NewCreateTargetRoleFlags(),
 		CreateTargetTenantFlags:      shared.NewCreateTargetTenantFlags(),
@@ -53,7 +53,7 @@ func NewCreateOptions(createFlags *CreateFlags, dependencies *cmd.Dependencies) 
 	return &CreateOptions{
 		CreateFlags:                    createFlags,
 		Dependencies:                   dependencies,
-		CreateTargetWorkerPoolOptions:  shared.NewCreateTargetWorkerPoolOptions(dependencies),
+		WorkerPoolOptions:              shared.NewWorkerPoolOptionsForCreateTarget(dependencies),
 		CreateTargetEnvironmentOptions: shared.NewCreateTargetEnvironmentOptions(dependencies),
 		CreateTargetRoleOptions:        shared.NewCreateTargetRoleOptions(dependencies),
 		CreateTargetTenantOptions:      shared.NewCreateTargetTenantOptions(dependencies),
@@ -81,7 +81,7 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 	flags.StringVarP(&createFlags.Name.Value, createFlags.Name.Name, "n", "", "A short, memorable, unique name for this Cloud Region.")
 	shared.RegisterCreateTargetEnvironmentFlags(cmd, createFlags.CreateTargetEnvironmentFlags)
 	shared.RegisterCreateTargetRoleFlags(cmd, createFlags.CreateTargetRoleFlags)
-	shared.RegisterCreateTargetWorkerPoolFlags(cmd, createFlags.CreateTargetWorkerPoolFlags)
+	shared.RegisterCreateTargetWorkerPoolFlags(cmd, createFlags.WorkerPoolFlags)
 	shared.RegisterCreateTargetTenantFlags(cmd, createFlags.CreateTargetTenantFlags)
 	shared.RegisterWebFlag(cmd, createFlags.WebFlags)
 
@@ -126,7 +126,7 @@ func createRun(opts *CreateOptions) error {
 		fmt.Fprintf(opts.Out, "\nAutomation Command: %s\n", autoCmd)
 	}
 
-	shared.DoWeb(createdTarget, opts.Dependencies, opts.WebFlags, "cloud region")
+	shared.DoWebForTargets(createdTarget, opts.Dependencies, opts.WebFlags, "cloud region")
 
 	return nil
 }
@@ -147,7 +147,7 @@ func PromptMissing(opts *CreateOptions) error {
 		return err
 	}
 
-	err = shared.PromptForWorkerPool(opts.CreateTargetWorkerPoolOptions, opts.CreateTargetWorkerPoolFlags)
+	err = shared.PromptForWorkerPool(opts.WorkerPoolOptions, opts.WorkerPoolFlags)
 	if err != nil {
 		return err
 	}

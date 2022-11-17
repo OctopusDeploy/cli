@@ -6,16 +6,14 @@ import (
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/cmd"
 	"github.com/OctopusDeploy/cli/pkg/cmd/target/shared"
+	workerShared "github.com/OctopusDeploy/cli/pkg/cmd/worker/shared"
 	"github.com/OctopusDeploy/cli/pkg/constants"
-	"github.com/OctopusDeploy/cli/pkg/executionscommon"
 	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/OctopusDeploy/cli/pkg/question"
 	"github.com/OctopusDeploy/cli/pkg/question/selectors"
-	"github.com/OctopusDeploy/cli/pkg/util"
 	"github.com/OctopusDeploy/cli/pkg/util/flag"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/accounts"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/environments"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/machines"
 	"github.com/spf13/cobra"
 	"strconv"
@@ -51,10 +49,8 @@ type CreateFlags struct {
 	Runtime     *flag.Flag[string]
 	Platform    *flag.Flag[string]
 	*shared.CreateTargetProxyFlags
-	*shared.CreateTargetEnvironmentFlags
-	*shared.CreateTargetRoleFlags
 	*shared.CreateTargetMachinePolicyFlags
-	*shared.CreateTargetTenantFlags
+	*workerShared.WorkerPoolFlags
 	*shared.WebFlags
 }
 
@@ -62,10 +58,8 @@ type CreateOptions struct {
 	*CreateFlags
 	GetAllAccountsForSshTarget
 	*shared.CreateTargetProxyOptions
-	*shared.CreateTargetEnvironmentOptions
-	*shared.CreateTargetRoleOptions
 	*shared.CreateTargetMachinePolicyOptions
-	*shared.CreateTargetTenantOptions
+	*workerShared.WorkerPoolOptions
 	*cmd.Dependencies
 }
 
@@ -78,11 +72,9 @@ func NewCreateFlags() *CreateFlags {
 		Port:                           flag.New[int](FlagPort, false),
 		Runtime:                        flag.New[string](FlagRuntime, false),
 		Platform:                       flag.New[string](FlagPlatform, false),
-		CreateTargetRoleFlags:          shared.NewCreateTargetRoleFlags(),
 		CreateTargetProxyFlags:         shared.NewCreateTargetProxyFlags(),
 		CreateTargetMachinePolicyFlags: shared.NewCreateTargetMachinePolicyFlags(),
-		CreateTargetEnvironmentFlags:   shared.NewCreateTargetEnvironmentFlags(),
-		CreateTargetTenantFlags:        shared.NewCreateTargetTenantFlags(),
+		WorkerPoolFlags:                workerShared.NewWorkerPoolFlags(),
 		WebFlags:                       shared.NewWebFlags(),
 	}
 }
@@ -91,11 +83,9 @@ func NewCreateOptions(createFlags *CreateFlags, dependencies *cmd.Dependencies) 
 	return &CreateOptions{
 		CreateFlags:                      createFlags,
 		Dependencies:                     dependencies,
-		CreateTargetRoleOptions:          shared.NewCreateTargetRoleOptions(dependencies),
 		CreateTargetProxyOptions:         shared.NewCreateTargetProxyOptions(dependencies),
 		CreateTargetMachinePolicyOptions: shared.NewCreateTargetMachinePolicyOptions(dependencies),
-		CreateTargetEnvironmentOptions:   shared.NewCreateTargetEnvironmentOptions(dependencies),
-		CreateTargetTenantOptions:        shared.NewCreateTargetTenantOptions(dependencies),
+		WorkerPoolOptions:                workerShared.NewWorkerPoolOptionsForCreateWorker(dependencies),
 
 		GetAllAccountsForSshTarget: func() ([]accounts.IAccount, error) {
 			return getAllAccountsForSshTarget(dependencies.Client)
@@ -108,10 +98,10 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "create",
-		Short: "Create a SSH deployment target",
-		Long:  "Create a SSH deployment target in Octopus Deploy",
+		Short: "Create a SSH worker",
+		Long:  "Create a SSH worker in Octopus Deploy",
 		Example: fmt.Sprintf(heredoc.Doc(`
-			$ %s deployment-target ssh create
+			$ %s worker ssh create
 		`), constants.ExecutableName),
 		RunE: func(c *cobra.Command, _ []string) error {
 			opts := NewCreateOptions(createFlags, cmd.NewDependencies(f, c))
@@ -121,19 +111,17 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 	}
 
 	flags := cmd.Flags()
-	flags.StringVarP(&createFlags.Name.Value, createFlags.Name.Name, "n", "", "A short, memorable, unique name for this deployment target.")
+	flags.StringVarP(&createFlags.Name.Value, createFlags.Name.Name, "n", "", "A short, memorable, unique name for this worker.")
 	flags.StringVar(&createFlags.Account.Value, createFlags.Account.Name, "", "The name or ID of the SSH key pair or username/password account")
-	flags.StringVar(&createFlags.HostName.Value, createFlags.HostName.Name, "", "The hostname or IP address of the deployment target to connect to.")
-	flags.StringVar(&createFlags.Fingerprint.Value, createFlags.Fingerprint.Name, "", "The host fingerprint of the deployment target.")
-	flags.IntVar(&createFlags.Port.Value, createFlags.Port.Name, 0, "The port to connect to the deployment target on.")
-	flags.StringVar(&createFlags.Runtime.Value, createFlags.Runtime.Name, "", fmt.Sprintf("The runtime to use to run Calamari on the deployment target. Options are '%s' or '%s'", SelfContainedCalamari, MonoCalamari))
+	flags.StringVar(&createFlags.HostName.Value, createFlags.HostName.Name, "", "The hostname or IP address of the worker to connect to.")
+	flags.StringVar(&createFlags.Fingerprint.Value, createFlags.Fingerprint.Name, "", "The host fingerprint of the worker.")
+	flags.IntVar(&createFlags.Port.Value, createFlags.Port.Name, 0, "The port to connect to the worker on.")
+	flags.StringVar(&createFlags.Runtime.Value, createFlags.Runtime.Name, "", fmt.Sprintf("The runtime to use to run Calamari on the worker. Options are '%s' or '%s'", SelfContainedCalamari, MonoCalamari))
 	flags.StringVar(&createFlags.Platform.Value, createFlags.Platform.Name, "", fmt.Sprintf("The platform to use for the %s Calamari. Options are '%s', '%s', '%s' or '%s'", SelfContainedCalamari, LinuxX64, LinuxArm64, LinuxArm, OsxX64))
 
-	shared.RegisterCreateTargetEnvironmentFlags(cmd, createFlags.CreateTargetEnvironmentFlags)
-	shared.RegisterCreateTargetRoleFlags(cmd, createFlags.CreateTargetRoleFlags)
 	shared.RegisterCreateTargetProxyFlags(cmd, createFlags.CreateTargetProxyFlags)
 	shared.RegisterCreateTargetMachinePolicyFlags(cmd, createFlags.CreateTargetMachinePolicyFlags)
-	shared.RegisterCreateTargetTenantFlags(cmd, createFlags.CreateTargetTenantFlags)
+	workerShared.RegisterCreateWorkerWorkerPoolFlags(cmd, createFlags.WorkerPoolFlags)
 	shared.RegisterWebFlag(cmd, createFlags.WebFlags)
 
 	return cmd
@@ -145,12 +133,6 @@ func createRun(opts *CreateOptions) error {
 			return err
 		}
 	}
-
-	envs, err := executionscommon.FindEnvironments(opts.Client, opts.Environments.Value)
-	if err != nil {
-		return err
-	}
-	environmentIds := util.SliceTransform(envs, func(e *environments.Environment) string { return e.ID })
 
 	account, err := getAccount(opts)
 	if err != nil {
@@ -176,30 +158,31 @@ func createRun(opts *CreateOptions) error {
 		endpoint.ProxyID = proxy.GetID()
 	}
 
-	deploymentTarget := machines.NewDeploymentTarget(opts.Name.Value, endpoint, environmentIds, shared.DistinctRoles(opts.Roles.Value))
+	workerPoolIds, err := workerShared.FindWorkerPoolIds(opts.WorkerPoolOptions, opts.WorkerPoolFlags)
+	if err != nil {
+		return err
+	}
+
+	worker := machines.NewWorker(opts.Name.Value, endpoint)
+	worker.WorkerPoolIDs = workerPoolIds
 	machinePolicy, err := shared.FindMachinePolicy(opts.GetAllMachinePoliciesCallback, opts.MachinePolicy.Value)
 	if err != nil {
 		return err
 	}
-	deploymentTarget.MachinePolicyID = machinePolicy.GetID()
+	worker.MachinePolicyID = machinePolicy.GetID()
 
-	err = shared.ConfigureTenant(deploymentTarget, opts.CreateTargetTenantFlags, opts.CreateTargetTenantOptions)
+	createdWorker, err := opts.Client.Workers.Add(worker)
 	if err != nil {
 		return err
 	}
 
-	createdTarget, err := opts.Client.Machines.Add(deploymentTarget)
-	if err != nil {
-		return err
-	}
-
-	fmt.Fprintf(opts.Out, "Successfully created SSH deployment target '%s'.\n", deploymentTarget.Name)
+	fmt.Fprintf(opts.Out, "Successfully created SSH worker '%s'.\n", createdWorker.Name)
 	if !opts.NoPrompt {
-		autoCmd := flag.GenerateAutomationCmd(opts.CmdPath, opts.Name, opts.HostName, opts.Port, opts.Fingerprint, opts.Runtime, opts.Platform, opts.Environments, opts.Roles, opts.Account, opts.Proxy, opts.MachinePolicy, opts.TenantedDeploymentMode, opts.Tenants, opts.TenantTags)
+		autoCmd := flag.GenerateAutomationCmd(opts.CmdPath, opts.Name, opts.HostName, opts.Port, opts.Fingerprint, opts.Runtime, opts.Platform, opts.WorkerPools, opts.Account, opts.Proxy, opts.MachinePolicy)
 		fmt.Fprintf(opts.Out, "\nAutomation Command: %s\n", autoCmd)
 	}
 
-	shared.DoWebForTargets(createdTarget, opts.Dependencies, opts.WebFlags, "ssh")
+	shared.DoWebForWorkers(createdWorker, opts.Dependencies, opts.WebFlags, "ssh")
 
 	return nil
 }
@@ -210,12 +193,7 @@ func PromptMissing(opts *CreateOptions) error {
 		return err
 	}
 
-	err = shared.PromptForEnvironments(opts.CreateTargetEnvironmentOptions, opts.CreateTargetEnvironmentFlags)
-	if err != nil {
-		return err
-	}
-
-	err = shared.PromptForRoles(opts.CreateTargetRoleOptions, opts.CreateTargetRoleFlags)
+	err = workerShared.PromptForWorkerPools(opts.WorkerPoolOptions, opts.WorkerPoolFlags)
 	if err != nil {
 		return err
 	}
@@ -241,11 +219,6 @@ func PromptMissing(opts *CreateOptions) error {
 	}
 
 	err = PromptForDotNetConfig(opts)
-	if err != nil {
-		return err
-	}
-
-	err = shared.PromptForTenant(opts.CreateTargetTenantOptions, opts.CreateTargetTenantFlags)
 	if err != nil {
 		return err
 	}

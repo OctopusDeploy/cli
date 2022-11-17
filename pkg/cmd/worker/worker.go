@@ -3,6 +3,8 @@ package worker
 import (
 	"fmt"
 	"github.com/MakeNowJust/heredoc/v2"
+	listeningTentacle "github.com/OctopusDeploy/cli/pkg/cmd/worker/listening-tentacle"
+	ssh "github.com/OctopusDeploy/cli/pkg/cmd/worker/ssh"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/constants/annotations"
 	"github.com/OctopusDeploy/cli/pkg/factory"
@@ -22,6 +24,9 @@ func NewCmdWorker(f factory.Factory) *cobra.Command {
 			annotations.IsCore: "true",
 		},
 	}
+
+	cmd.AddCommand(listeningTentacle.NewCmdListeningTentacle(f))
+	cmd.AddCommand(ssh.NewCmdSsh(f))
 
 	return cmd
 }

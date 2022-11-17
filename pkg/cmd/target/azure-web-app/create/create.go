@@ -43,7 +43,7 @@ type CreateFlags struct {
 	*shared.CreateTargetEnvironmentFlags
 	*shared.CreateTargetRoleFlags
 	*shared.CreateTargetTenantFlags
-	*shared.CreateTargetWorkerPoolFlags
+	*shared.WorkerPoolFlags
 	*shared.WebFlags
 }
 
@@ -52,7 +52,7 @@ type CreateOptions struct {
 	*shared.CreateTargetEnvironmentOptions
 	*shared.CreateTargetRoleOptions
 	*shared.CreateTargetTenantOptions
-	*shared.CreateTargetWorkerPoolOptions
+	*shared.WorkerPoolOptions
 	*cmd.Dependencies
 
 	GetAllAzureAccounts
@@ -70,7 +70,7 @@ func NewCreateFlags() *CreateFlags {
 		CreateTargetRoleFlags:        shared.NewCreateTargetRoleFlags(),
 		CreateTargetEnvironmentFlags: shared.NewCreateTargetEnvironmentFlags(),
 		CreateTargetTenantFlags:      shared.NewCreateTargetTenantFlags(),
-		CreateTargetWorkerPoolFlags:  shared.NewCreateTargetWorkerPoolFlags(),
+		WorkerPoolFlags:              shared.NewWorkerPoolFlags(),
 		WebFlags:                     shared.NewWebFlags(),
 	}
 }
@@ -82,7 +82,7 @@ func NewCreateOptions(createFlags *CreateFlags, dependencies *cmd.Dependencies) 
 		CreateTargetRoleOptions:        shared.NewCreateTargetRoleOptions(dependencies),
 		CreateTargetEnvironmentOptions: shared.NewCreateTargetEnvironmentOptions(dependencies),
 		CreateTargetTenantOptions:      shared.NewCreateTargetTenantOptions(dependencies),
-		CreateTargetWorkerPoolOptions:  shared.NewCreateTargetWorkerPoolOptions(dependencies),
+		WorkerPoolOptions:              shared.NewWorkerPoolOptionsForCreateTarget(dependencies),
 		GetAllAzureAccounts: func() ([]*accounts.AzureServicePrincipalAccount, error) {
 			return getAllAzureAccounts(*dependencies.Client)
 		},
@@ -121,7 +121,7 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 	shared.RegisterCreateTargetEnvironmentFlags(cmd, createFlags.CreateTargetEnvironmentFlags)
 	shared.RegisterCreateTargetRoleFlags(cmd, createFlags.CreateTargetRoleFlags)
 	shared.RegisterCreateTargetTenantFlags(cmd, createFlags.CreateTargetTenantFlags)
-	shared.RegisterCreateTargetWorkerPoolFlags(cmd, createFlags.CreateTargetWorkerPoolFlags)
+	shared.RegisterCreateTargetWorkerPoolFlags(cmd, createFlags.WorkerPoolFlags)
 	shared.RegisterWebFlag(cmd, createFlags.WebFlags)
 	return cmd
 }
@@ -167,7 +167,7 @@ func createRun(opts *CreateOptions) error {
 		fmt.Fprintf(opts.Out, "\nAutomation Command: %s\n", autoCmd)
 	}
 
-	shared.DoWeb(createdTarget, opts.Dependencies, opts.WebFlags, "Azure web app")
+	shared.DoWebForTargets(createdTarget, opts.Dependencies, opts.WebFlags, "Azure web app")
 
 	return nil
 }
@@ -198,7 +198,7 @@ func PromptMissing(opts *CreateOptions) error {
 		return err
 	}
 
-	err = shared.PromptForWorkerPool(opts.CreateTargetWorkerPoolOptions, opts.CreateTargetWorkerPoolFlags)
+	err = shared.PromptForWorkerPool(opts.WorkerPoolOptions, opts.WorkerPoolFlags)
 	if err != nil {
 		return err
 	}

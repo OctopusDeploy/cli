@@ -152,7 +152,7 @@ func createRun(opts *CreateOptions) error {
 		fmt.Fprintf(opts.Out, "\nAutomation Command: %s\n", autoCmd)
 	}
 
-	shared.DoWeb(createdTarget, opts.Dependencies, opts.WebFlags, "listening tentacle")
+	shared.DoWebForTargets(createdTarget, opts.Dependencies, opts.WebFlags, "listening tentacle")
 
 	return nil
 }
