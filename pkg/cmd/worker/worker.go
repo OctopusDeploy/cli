@@ -8,6 +8,7 @@ import (
 	listeningTentacle "github.com/OctopusDeploy/cli/pkg/cmd/worker/listening-tentacle"
 	pollingTentacle "github.com/OctopusDeploy/cli/pkg/cmd/worker/polling-tentacle"
 	"github.com/OctopusDeploy/cli/pkg/cmd/worker/ssh"
+	cmdView "github.com/OctopusDeploy/cli/pkg/cmd/worker/view"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/constants/annotations"
 	"github.com/OctopusDeploy/cli/pkg/factory"
@@ -33,6 +34,7 @@ func NewCmdWorker(f factory.Factory) *cobra.Command {
 	cmd.AddCommand(ssh.NewCmdSsh(f))
 	cmd.AddCommand(cmdList.NewCmdList(f))
 	cmd.AddCommand(cmdDelete.NewCmdDelete(f))
+	cmd.AddCommand(cmdView.NewCmdView(f))
 
 	return cmd
 }
