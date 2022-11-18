@@ -7,15 +7,20 @@ import (
 )
 
 type GetWorkersCallback func() ([]*machines.Worker, error)
+type GetWorkerCallback func(identifer string) (*machines.Worker, error)
 
 type GetWorkersOptions struct {
 	GetWorkersCallback
+	GetWorkerCallback
 }
 
 func NewGetWorkersOptions(dependencies *cmd.Dependencies, filter func(*machines.Worker) bool) *GetWorkersOptions {
 	return &GetWorkersOptions{
 		GetWorkersCallback: func() ([]*machines.Worker, error) {
 			return GetWorkers(*dependencies.Client, filter)
+		},
+		GetWorkerCallback: func(identifier string) (*machines.Worker, error) {
+			return GetWorker(*dependencies.Client, identifier)
 		},
 	}
 }
@@ -47,4 +52,13 @@ func GetWorkers(client client.Client, filter func(*machines.Worker) bool) ([]*ma
 	}
 
 	return workers, nil
+}
+
+func GetWorker(client client.Client, identifier string) (*machines.Worker, error) {
+	worker, err := client.Workers.GetByIdentifier(identifier)
+	if err != nil {
+		return nil, err
+	}
+
+	return worker, nil
 }
