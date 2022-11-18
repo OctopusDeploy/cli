@@ -35,24 +35,21 @@ func NewCmdView(f factory.Factory) *cobra.Command {
 }
 
 func ViewRun(opts *shared.ViewOptions) error {
-	var target, err = opts.Client.Machines.GetByIdentifier(opts.IdOrName)
-	if err != nil {
-		return err
-	}
-	err = shared.ViewRun(opts, target)
-	if err != nil {
-		return err
-	}
+	return shared.ViewRun(opts, contributeEndpoint, "Listening Tentacle")
+}
 
-	endpoint := target.Endpoint.(*machines.ListeningTentacleEndpoint)
-	fmt.Fprintf(opts.Out, "URI: %s\n", endpoint.URI)
-	fmt.Fprintf(opts.Out, "Tentacle version: %s\n", endpoint.TentacleVersionDetails.Version)
-	err = shared.ViewProxy(opts, endpoint.ProxyID)
-	if err != nil {
-		return err
-	}
+func contributeEndpoint(opts *shared.ViewOptions, targetEndpoint machines.IEndpoint) ([]*shared.DataRow, error) {
+	data := []*shared.DataRow{}
 
-	fmt.Println()
-	shared.DoWeb(target, opts.Dependencies, opts.WebFlags, "Listening Tentacle")
-	return nil
+	endpoint := targetEndpoint.(*machines.ListeningTentacleEndpoint)
+	data = append(data, shared.NewDataRow("URI", endpoint.URI.String()))
+	data = append(data, shared.NewDataRow("Tentacle version", endpoint.TentacleVersionDetails.Version))
+
+	proxyData, err := shared.ContributeProxy(opts, endpoint.ProxyID)
+	if err != nil {
+		return nil, err
+	}
+	data = append(data, proxyData...)
+
+	return data, nil
 }

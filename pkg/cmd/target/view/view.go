@@ -51,17 +51,17 @@ func ViewRun(opts *shared.ViewOptions) error {
 	case "Ssh":
 		return ssh.ViewRun(opts)
 	case "OfflineDrop":
-		return shared.ViewRun(opts, target)
+		return shared.ViewRun(opts, nil, "Offline Drop Folder")
 	case "AzureWebApp":
 		return azureWebApp.ViewRun(opts)
 	case "AzureCloudService":
-		return shared.ViewRun(opts, target)
+		return shared.ViewRun(opts, nil, "Azure Cloud Service")
 	case "AzureServiceFabricCluster":
-		return shared.ViewRun(opts, target)
+		return shared.ViewRun(opts, nil, "Azure Service Fabric Cluster")
 	case "Kubernetes":
-		return shared.ViewRun(opts, target)
+		return shared.ViewRun(opts, nil, "Kubernetes Cluster")
 	case "StepPackage":
-		return shared.ViewRun(opts, target)
+		return shared.ViewRun(opts, nil, "Step Package")
 	default:
 		return fmt.Errorf("unsupported deployment target '%s'", target.Endpoint.GetCommunicationStyle())
 	}

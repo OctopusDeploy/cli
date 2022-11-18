@@ -36,25 +36,20 @@ func NewCmdView(f factory.Factory) *cobra.Command {
 }
 
 func ViewRun(opts *shared.ViewOptions) error {
-	var target, err = opts.Client.Machines.GetByIdentifier(opts.IdOrName)
+	return shared.ViewRun(opts, contributeEndpoint, "Azure Web App")
+}
+
+func contributeEndpoint(opts *shared.ViewOptions, targetEndpoint machines.IEndpoint) ([]*shared.DataRow, error) {
+	data := []*shared.DataRow{}
+	endpoint := targetEndpoint.(*machines.AzureWebAppEndpoint)
+	accountRows, err := shared.ContributeAccount(opts, endpoint.AccountID)
 	if err != nil {
-		return err
-	}
-	err = shared.ViewRun(opts, target)
-	if err != nil {
-		return err
+		return nil, err
 	}
 
-	endpoint := target.Endpoint.(*machines.AzureWebAppEndpoint)
-	err = shared.ViewAccount(opts, endpoint.AccountID)
-	if err != nil {
-		return err
-	}
-	fmt.Fprintf(opts.Out, "Web App: %s\n", getWebAppDisplay(endpoint))
-
-	fmt.Println()
-	shared.DoWeb(target, opts.Dependencies, opts.WebFlags, "Azure Web App")
-	return nil
+	data = append(data, accountRows...)
+	data = append(data, shared.NewDataRow("Web App", getWebAppDisplay(endpoint)))
+	return data, nil
 }
 
 func getWebAppDisplay(endpoint *machines.AzureWebAppEndpoint) string {

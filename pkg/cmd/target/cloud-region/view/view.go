@@ -34,16 +34,5 @@ func NewCmdView(f factory.Factory) *cobra.Command {
 }
 
 func ViewRun(opts *shared.ViewOptions) error {
-	var target, err = opts.Client.Machines.GetByIdentifier(opts.IdOrName)
-	if err != nil {
-		return err
-	}
-	err = shared.ViewRun(opts, target)
-	if err != nil {
-		return err
-	}
-
-	fmt.Fprintf(opts.Out, "\n")
-	shared.DoWeb(target, opts.Dependencies, opts.WebFlags, "Cloud Region")
-	return nil
+	return shared.ViewRun(opts, nil, "Cloud Region")
 }

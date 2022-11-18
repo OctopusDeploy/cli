@@ -10,7 +10,6 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/usage"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/machines"
 	"github.com/spf13/cobra"
-	"strings"
 )
 
 func NewCmdView(f factory.Factory) *cobra.Command {
@@ -36,32 +35,28 @@ func NewCmdView(f factory.Factory) *cobra.Command {
 }
 
 func ViewRun(opts *shared.ViewOptions) error {
-	var target, err = opts.Client.Machines.GetByIdentifier(opts.IdOrName)
+	return shared.ViewRun(opts, contributeEndpoint, "SSH")
+}
+
+func contributeEndpoint(opts *shared.ViewOptions, targetEndpoint machines.IEndpoint) ([]*shared.DataRow, error) {
+	data := []*shared.DataRow{}
+	endpoint := targetEndpoint.(*machines.SSHEndpoint)
+
+	data = append(data, shared.NewDataRow("URI", endpoint.URI.String()))
+	data = append(data, shared.NewDataRow("Runtime architecture", getRuntimeArchitecture(endpoint)))
+	accountRows, err := shared.ContributeAccount(opts, endpoint.AccountID)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	err = shared.ViewRun(opts, target)
+	data = append(data, accountRows...)
+
+	proxy, err := shared.ContributeProxy(opts, endpoint.ProxyID)
+	data = append(data, proxy...)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	endpoint := target.Endpoint.(*machines.SSHEndpoint)
-	fmt.Fprintf(opts.Out, "URI: %s\n", endpoint.URI)
-	err = shared.ViewAccount(opts, endpoint.AccountID)
-	if err != nil {
-		return err
-	}
-
-	err = shared.ViewProxy(opts, endpoint.ProxyID)
-	if err != nil {
-		return err
-	}
-
-	fmt.Fprintf(opts.Out, "Runtime architecture: %s\n", getRuntimeArchitecture(endpoint))
-
-	fmt.Fprintf(opts.Out, "\n")
-	shared.DoWeb(target, opts.Dependencies, opts.WebFlags, "SSH")
-	return nil
+	return data, nil
 }
 
 func getRuntimeArchitecture(endpoint *machines.SSHEndpoint) string {
@@ -70,14 +65,4 @@ func getRuntimeArchitecture(endpoint *machines.SSHEndpoint) string {
 	}
 
 	return endpoint.DotNetCorePlatform
-}
-
-func getWebAppDisplay(endpoint *machines.AzureWebAppEndpoint) string {
-	builder := &strings.Builder{}
-	builder.WriteString(endpoint.WebAppName)
-	if endpoint.WebAppSlotName != "" {
-		builder.WriteString(fmt.Sprintf("/%s", endpoint.WebAppSlotName))
-	}
-
-	return builder.String()
 }

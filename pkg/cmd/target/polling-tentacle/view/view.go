@@ -35,20 +35,15 @@ func NewCmdView(f factory.Factory) *cobra.Command {
 }
 
 func ViewRun(opts *shared.ViewOptions) error {
-	var target, err = opts.Client.Machines.GetByIdentifier(opts.IdOrName)
-	if err != nil {
-		return err
-	}
-	err = shared.ViewRun(opts, target)
-	if err != nil {
-		return err
-	}
+	return shared.ViewRun(opts, contributeEndpoint, "Polling Tentacle")
+}
 
-	endpoint := target.Endpoint.(*machines.PollingTentacleEndpoint)
-	fmt.Fprintf(opts.Out, "URI: %s\n", endpoint.URI)
-	fmt.Fprintf(opts.Out, "Tentacle version: %s\n", endpoint.TentacleVersionDetails.Version)
+func contributeEndpoint(opts *shared.ViewOptions, targetEndpoint machines.IEndpoint) ([]*shared.DataRow, error) {
+	data := []*shared.DataRow{}
 
-	fmt.Println()
-	shared.DoWeb(target, opts.Dependencies, opts.WebFlags, "Polling Tentacle")
-	return nil
+	endpoint := targetEndpoint.(*machines.PollingTentacleEndpoint)
+	data = append(data, shared.NewDataRow("URI", endpoint.URI.String()))
+	data = append(data, shared.NewDataRow("Tentacle version", endpoint.TentacleVersionDetails.Version))
+
+	return data, nil
 }

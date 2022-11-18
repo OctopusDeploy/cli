@@ -9,6 +9,20 @@ import (
 	"strings"
 )
 
+type DataRow struct {
+	Name  string
+	Value string
+}
+
+func NewDataRow(name string, value string) *DataRow {
+	return &DataRow{
+		Name:  name,
+		Value: value,
+	}
+}
+
+type ContributeEndpointCallback func(opts *ViewOptions, endpoint machines.IEndpoint) ([]*DataRow, error)
+
 type ViewFlags struct {
 	*WebFlags
 }
@@ -26,6 +40,7 @@ func NewViewFlags() *ViewFlags {
 }
 
 func NewViewOptions(viewFlags *ViewFlags, dependencies *cmd.Dependencies, args []string) *ViewOptions {
+
 	return &ViewOptions{
 		ViewFlags:    viewFlags,
 		Dependencies: dependencies,
@@ -33,12 +48,27 @@ func NewViewOptions(viewFlags *ViewFlags, dependencies *cmd.Dependencies, args [
 	}
 }
 
-func ViewRun(opts *ViewOptions, target *machines.DeploymentTarget) error {
-	fmt.Fprintf(opts.Out, "%s %s\n", output.Bold(target.Name), output.Dimf("(%s)", target.GetID()))
+func ViewRun(opts *ViewOptions, contributeEndpoint ContributeEndpointCallback, description string) error {
+	var target, err = opts.Client.Machines.GetByIdentifier(opts.IdOrName)
+	if err != nil {
+		return err
+	}
 
-	healthStatus := getHealthStatus(target)
-	fmt.Fprintf(opts.Out, "Health status: %s\n", healthStatus)
-	fmt.Fprintf(opts.Out, "Current status: %s\n", target.StatusSummary)
+	data := []*DataRow{}
+
+	data = append(data, NewDataRow("Name", fmt.Sprintf("%s %s", output.Bold(target.Name), output.Dimf("(%s)", target.GetID()))))
+	data = append(data, NewDataRow("Health status", getHealthStatus(target)))
+	data = append(data, NewDataRow("Current status", target.StatusSummary))
+
+	if contributeEndpoint != nil {
+		newRows, err := contributeEndpoint(opts, target.Endpoint)
+		if err != nil {
+			return err
+		}
+		for _, r := range newRows {
+			data = append(data, r)
+		}
+	}
 
 	environmentMap, err := GetEnvironmentMap(opts)
 	if err != nil {
@@ -46,9 +76,8 @@ func ViewRun(opts *ViewOptions, target *machines.DeploymentTarget) error {
 	}
 	environmentNames := resolveValues(target.EnvironmentIDs, environmentMap)
 
-	fmt.Fprintf(opts.Out, "Environments: %s\n", formatAsList(environmentNames))
-
-	fmt.Fprintf(opts.Out, "Roles: %s\n", formatAsList(target.Roles))
+	data = append(data, NewDataRow("Environments", formatAsList(environmentNames)))
+	data = append(data, NewDataRow("Roles", formatAsList(target.Roles)))
 
 	if !util.Empty(target.TenantIDs) {
 		tenantMap, err := GetTenantMap(opts)
@@ -57,40 +86,49 @@ func ViewRun(opts *ViewOptions, target *machines.DeploymentTarget) error {
 		}
 
 		tenantNames := resolveValues(target.TenantIDs, tenantMap)
-		fmt.Fprintf(opts.Out, "Tenants: %s\n", formatAsList(tenantNames))
+		data = append(data, NewDataRow("Tenants", formatAsList(tenantNames)))
 	} else {
-		fmt.Fprintln(opts.Out, "Target is not scoped to any tenants")
+		data = append(data, NewDataRow("Tenants", "None"))
 	}
 
 	if !util.Empty(target.TenantTags) {
-		fmt.Fprintf(opts.Out, "Tenant Tags: %s\n", formatAsList(target.TenantTags))
+		data = append(data, NewDataRow("Tenant Tags", formatAsList(target.TenantTags)))
 	} else {
-		fmt.Fprintln(opts.Out, "Target is not scoped to any tenant tags")
+		data = append(data, NewDataRow("Tenant Tags", "None"))
 	}
+
+	t := output.NewTable(opts.Out)
+	for _, row := range data {
+		t.AddRow(row.Name, row.Value)
+	}
+	t.Print()
+
+	fmt.Fprintf(opts.Out, "\n")
+	DoWeb(target, opts.Dependencies, opts.WebFlags, description)
+	return nil
 
 	return nil
 }
 
-func ViewProxy(opts *ViewOptions, proxyID string) error {
+func ContributeProxy(opts *ViewOptions, proxyID string) ([]*DataRow, error) {
 	if proxyID != "" {
 		proxy, err := opts.Client.Proxies.GetById(proxyID)
 		if err != nil {
-			return err
+			return nil, err
 		}
-		fmt.Fprintf(opts.Out, "Proxy: %s\n", proxy.GetName())
-	} else {
-		fmt.Println("No proxy configured")
+		return []*DataRow{NewDataRow("Proxy", proxy.GetName())}, nil
 	}
-	return nil
+
+	return []*DataRow{NewDataRow("Proxy", "None")}, nil
 }
 
-func ViewAccount(opts *ViewOptions, accountID string) error {
+func ContributeAccount(opts *ViewOptions, accountID string) ([]*DataRow, error) {
 	account, err := opts.Client.Accounts.GetByID(accountID)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	fmt.Fprintf(opts.Out, "Account: %s\n", account.GetName())
-	return nil
+	data := []*DataRow{NewDataRow("Account", account.GetName())}
+	return data, nil
 }
 
 func getHealthStatus(target *machines.DeploymentTarget) string {
