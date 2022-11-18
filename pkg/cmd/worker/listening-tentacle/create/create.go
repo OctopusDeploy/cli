@@ -160,7 +160,7 @@ func PromptMissing(opts *CreateOptions) error {
 	if opts.Thumbprint.Value == "" {
 		if err := opts.Ask(&survey.Input{
 			Message: "Thumbprint",
-			Help:    "The X509 certificate thumbprint that securely identifies the Tentacle.",
+			Help:    "The X509 certificate thumbprint that securely identifies the Listening Tentacle.",
 		}, &opts.Thumbprint.Value, survey.WithValidator(survey.ComposeValidators(
 			survey.MinLength(40),
 			survey.MaxLength(40),
