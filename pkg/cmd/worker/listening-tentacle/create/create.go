@@ -130,6 +130,7 @@ func createRun(opts *CreateOptions) error {
 		return err
 	}
 
+
 	fmt.Fprintf(opts.Out, "Successfully created Listening Tentacle worker '%s'.\n", worker.Name)
 	if !opts.NoPrompt {
 		autoCmd := flag.GenerateAutomationCmd(opts.CmdPath, opts.Name, opts.URL, opts.Thumbprint, opts.Proxy, opts.MachinePolicy, opts.WorkerPools)

@@ -21,7 +21,6 @@ import (
 
 const (
 	FlagTenantedDeployment = "tenanted-mode"
-	FlagProxy              = "proxy"
 	FlagTenant             = "tenant"
 	FlagTenantTag          = "tenant-tag"
 
