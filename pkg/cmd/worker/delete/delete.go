@@ -15,6 +15,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
+const resourceDescription = "worker"
+
 type DeleteOptions struct {
 	*cmd.Dependencies
 	*shared.GetWorkersOptions
@@ -29,6 +31,7 @@ func NewDeleteOptions(dependencies *cmd.Dependencies) *DeleteOptions {
 
 func NewCmdDelete(f factory.Factory) *cobra.Command {
 	var skipConfirmation bool
+
 	cmd := &cobra.Command{
 		Use:     "delete {<name> | <id>}",
 		Short:   "Delete a worker in an instance of Octopus Deploy",
@@ -58,7 +61,7 @@ func NewCmdDelete(f factory.Factory) *cobra.Command {
 			}
 
 			if !skipConfirmation { // TODO NO_PROMPT env var or whatever we do there
-				return question.DeleteWithConfirmation(f.Ask, "deployment target", worker.Name, worker.GetID(), func() error {
+				return question.DeleteWithConfirmation(f.Ask, resourceDescription, worker.Name, worker.GetID(), func() error {
 					return delete(opts.Client, worker)
 				})
 			}
@@ -67,18 +70,18 @@ func NewCmdDelete(f factory.Factory) *cobra.Command {
 		},
 	}
 
-	question.RegisterConfirmDeletionFlag(cmd, &skipConfirmation, "deployment target")
+	question.RegisterConfirmDeletionFlag(cmd, &skipConfirmation, resourceDescription)
 
 	return cmd
 }
 
 func deleteRun(opts *DeleteOptions) error {
-	worker, err := selectors.Select(opts.Ask, "Select the worker you wish to delete:", opts.GetWorkersCallback, func(target *machines.Worker) string { return target.Name })
+	worker, err := selectors.Select(opts.Ask, "Select the worker you wish to delete:", opts.GetWorkersCallback, func(worker *machines.Worker) string { return worker.Name })
 	if err != nil {
 		return err
 	}
 
-	return question.DeleteWithConfirmation(opts.Ask, "worker", worker.Name, worker.GetID(), func() error {
+	return question.DeleteWithConfirmation(opts.Ask, resourceDescription, worker.Name, worker.GetID(), func() error {
 		return delete(opts.Client, worker)
 	})
 }

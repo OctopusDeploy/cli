@@ -15,6 +15,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
+const resourceDescription = "deployment target"
+
 type DeleteOptions struct {
 	*cmd.Dependencies
 	*shared.GetTargetsOptions
@@ -66,7 +68,7 @@ func NewCmdDelete(f factory.Factory) *cobra.Command {
 			}
 
 			if !skipConfirmation { // TODO NO_PROMPT env var or whatever we do there
-				return question.DeleteWithConfirmation(f.Ask, "deployment target", itemToDelete.Name, itemToDelete.GetID(), func() error {
+				return question.DeleteWithConfirmation(f.Ask, resourceDescription, itemToDelete.Name, itemToDelete.GetID(), func() error {
 					return delete(opts.Client, itemToDelete)
 				})
 			}
@@ -75,7 +77,7 @@ func NewCmdDelete(f factory.Factory) *cobra.Command {
 		},
 	}
 
-	question.RegisterConfirmDeletionFlag(cmd, &skipConfirmation, "deployment target")
+	question.RegisterConfirmDeletionFlag(cmd, &skipConfirmation, resourceDescription)
 
 	return cmd
 }
@@ -86,7 +88,7 @@ func deleteRun(opts *DeleteOptions) error {
 		return err
 	}
 
-	return question.DeleteWithConfirmation(opts.Ask, "deployment target", itemToDelete.Name, itemToDelete.GetID(), func() error {
+	return question.DeleteWithConfirmation(opts.Ask, resourceDescription, itemToDelete.Name, itemToDelete.GetID(), func() error {
 		return delete(opts.Client, itemToDelete)
 	})
 }
