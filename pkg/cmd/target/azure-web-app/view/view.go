@@ -7,6 +7,7 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/cmd/target/shared"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/factory"
+	"github.com/OctopusDeploy/cli/pkg/machinescommon"
 	"github.com/OctopusDeploy/cli/pkg/usage"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/machines"
 	"github.com/spf13/cobra"
@@ -30,7 +31,7 @@ func NewCmdView(f factory.Factory) *cobra.Command {
 		},
 	}
 
-	shared.RegisterWebFlag(cmd, flags.WebFlags)
+	machinescommon.RegisterWebFlag(cmd, flags.WebFlags)
 
 	return cmd
 }

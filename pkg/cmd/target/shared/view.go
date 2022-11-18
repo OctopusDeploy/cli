@@ -3,6 +3,7 @@ package shared
 import (
 	"fmt"
 	"github.com/OctopusDeploy/cli/pkg/cmd"
+	"github.com/OctopusDeploy/cli/pkg/machinescommon"
 	"github.com/OctopusDeploy/cli/pkg/output"
 	"github.com/OctopusDeploy/cli/pkg/util"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/machines"
@@ -24,7 +25,7 @@ func NewDataRow(name string, value string) *DataRow {
 type ContributeEndpointCallback func(opts *ViewOptions, endpoint machines.IEndpoint) ([]*DataRow, error)
 
 type ViewFlags struct {
-	*WebFlags
+	*machinescommon.WebFlags
 }
 
 type ViewOptions struct {
@@ -35,12 +36,11 @@ type ViewOptions struct {
 
 func NewViewFlags() *ViewFlags {
 	return &ViewFlags{
-		WebFlags: NewWebFlags(),
+		WebFlags: machinescommon.NewWebFlags(),
 	}
 }
 
 func NewViewOptions(viewFlags *ViewFlags, dependencies *cmd.Dependencies, args []string) *ViewOptions {
-
 	return &ViewOptions{
 		ViewFlags:    viewFlags,
 		Dependencies: dependencies,
@@ -104,7 +104,7 @@ func ViewRun(opts *ViewOptions, contributeEndpoint ContributeEndpointCallback, d
 	t.Print()
 
 	fmt.Fprintf(opts.Out, "\n")
-	DoWeb(target, opts.Dependencies, opts.WebFlags, description)
+	machinescommon.DoWebForTargets(target, opts.Dependencies, opts.WebFlags, description)
 	return nil
 
 	return nil
