@@ -30,7 +30,7 @@ func NewWorkerPoolFlags() *WorkerPoolFlags {
 }
 
 func RegisterCreateWorkerWorkerPoolFlags(cmd *cobra.Command, flags *WorkerPoolFlags) {
-	cmd.Flags().StringSliceVar(&flags.WorkerPools.Value, flags.WorkerPools.Name, []string{}, "The worker pools which the worker will be a member of")
+	cmd.Flags().StringSliceVar(&flags.WorkerPools.Value, flags.WorkerPools.Name, []string{}, "The pools of which the worker will be a member.")
 }
 
 func NewWorkerPoolOptions(dependencies *cmd.Dependencies) *WorkerPoolOptions {
@@ -82,7 +82,7 @@ func PromptForWorkerPools(opts *WorkerPoolOptions, flags *WorkerPoolFlags) error
 		if err != nil {
 			return err
 		}
-		selectedPools, err := question.MultiSelectMap(opts.Ask, "Select the worker pools to assign the worker to", allWorkerPools, func(pool *workerpools.WorkerPoolListResult) string { return pool.Name }, true)
+		selectedPools, err := question.MultiSelectMap(opts.Ask, "Select the worker pools to assign to the worker", allWorkerPools, func(pool *workerpools.WorkerPoolListResult) string { return pool.Name }, true)
 		if err != nil {
 			return err
 		}
