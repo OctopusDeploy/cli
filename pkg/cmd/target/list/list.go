@@ -67,12 +67,12 @@ func ListRun(opts *ListOptions) error {
 		TenantTags   []string `json:"TenantTags"`
 	}
 
-	environmentMap, err := GetEnvironmentMap(opts, err)
+	environmentMap, err := GetEnvironmentMap(opts)
 	if err != nil {
 		return err
 	}
 
-	tenantMap, err := GetTenantMap(opts, err)
+	tenantMap, err := GetTenantMap(opts)
 	if err != nil {
 		return err
 	}
@@ -122,7 +122,7 @@ func resolveEntities(keys []string, lookup map[string]string) []Entity {
 	return entities
 }
 
-func GetEnvironmentMap(opts *ListOptions, err error) (map[string]string, error) {
+func GetEnvironmentMap(opts *ListOptions) (map[string]string, error) {
 	environmentMap := make(map[string]string)
 	allEnvs, err := opts.Client.Environments.GetAll()
 	if err != nil {
@@ -134,7 +134,7 @@ func GetEnvironmentMap(opts *ListOptions, err error) (map[string]string, error) 
 	return environmentMap, nil
 }
 
-func GetTenantMap(opts *ListOptions, err error) (map[string]string, error) {
+func GetTenantMap(opts *ListOptions) (map[string]string, error) {
 	tenantMap := make(map[string]string)
 	allEnvs, err := opts.Client.Tenants.GetAll()
 	if err != nil {

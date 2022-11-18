@@ -16,7 +16,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func NewCmdList(f factory.Factory) *cobra.Command {
+func NewCmdView(f factory.Factory) *cobra.Command {
 	flags := shared.NewViewFlags()
 	cmd := &cobra.Command{
 		Use:   "view",

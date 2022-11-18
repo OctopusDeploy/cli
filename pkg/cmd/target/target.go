@@ -35,7 +35,7 @@ func NewCmdDeploymentTarget(f factory.Factory) *cobra.Command {
 	cmd.AddCommand(cmdAzureWebApp.NewCmdAzureWebApp(f))
 	cmd.AddCommand(cmdDelete.NewCmdDelete(f))
 	cmd.AddCommand(cmdList.NewCmdList(f))
-	cmd.AddCommand(cmdView.NewCmdList(f))
+	cmd.AddCommand(cmdView.NewCmdView(f))
 
 	return cmd
 }

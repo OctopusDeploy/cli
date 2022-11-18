@@ -63,7 +63,7 @@ func ListRun(opts *ListOptions) error {
 		WorkerPools []Entity `json:"WorkerPools"`
 	}
 
-	workerPoolMap, err := GetWorkerPoolMap(opts, err)
+	workerPoolMap, err := GetWorkerPoolMap(opts)
 	if err != nil {
 		return err
 	}
@@ -108,7 +108,7 @@ func resolveEntities(keys []string, lookup map[string]string) []Entity {
 	return entities
 }
 
-func GetWorkerPoolMap(opts *ListOptions, err error) (map[string]string, error) {
+func GetWorkerPoolMap(opts *ListOptions) (map[string]string, error) {
 	workerPoolMap := make(map[string]string)
 	allEnvs, err := opts.Client.WorkerPools.GetAll()
 	if err != nil {
