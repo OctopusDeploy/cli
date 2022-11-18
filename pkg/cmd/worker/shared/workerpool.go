@@ -30,7 +30,7 @@ func NewWorkerPoolFlags() *WorkerPoolFlags {
 }
 
 func RegisterCreateWorkerWorkerPoolFlags(cmd *cobra.Command, flags *WorkerPoolFlags) {
-	cmd.Flags().StringSliceVar(&flags.WorkerPools.Value, flags.WorkerPools.Name, []string{}, "The worker pools which the worker will be a member of")
+	cmd.Flags().StringSliceVar(&flags.WorkerPools.Value, flags.WorkerPools.Name, []string{}, "The pools of which the worker will be a member.")
 }
 
 func NewWorkerPoolOptions(dependencies *cmd.Dependencies) *WorkerPoolOptions {
