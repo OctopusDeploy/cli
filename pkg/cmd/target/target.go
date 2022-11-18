@@ -8,8 +8,8 @@ import (
 	cmdList "github.com/OctopusDeploy/cli/pkg/cmd/target/list"
 	cmdListeningTentacle "github.com/OctopusDeploy/cli/pkg/cmd/target/listening-tentacle"
 	cmdPollingTentacle "github.com/OctopusDeploy/cli/pkg/cmd/target/polling-tentacle"
-
 	cmdSsh "github.com/OctopusDeploy/cli/pkg/cmd/target/ssh"
+	cmdView "github.com/OctopusDeploy/cli/pkg/cmd/target/view"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/constants/annotations"
 	"github.com/OctopusDeploy/cli/pkg/factory"
@@ -35,6 +35,7 @@ func NewCmdDeploymentTarget(f factory.Factory) *cobra.Command {
 	cmd.AddCommand(cmdAzureWebApp.NewCmdAzureWebApp(f))
 	cmd.AddCommand(cmdDelete.NewCmdDelete(f))
 	cmd.AddCommand(cmdList.NewCmdList(f))
+	cmd.AddCommand(cmdView.NewCmdList(f))
 
 	return cmd
 }

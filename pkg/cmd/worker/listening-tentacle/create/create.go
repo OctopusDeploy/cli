@@ -82,7 +82,7 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 	flags := cmd.Flags()
 	flags.StringVarP(&createFlags.Name.Value, createFlags.Name.Name, "n", "", "A short, memorable, unique name for this Listening Tentacle worker.")
 	flags.StringVar(&createFlags.Thumbprint.Value, createFlags.Thumbprint.Name, "", "The X509 certificate thumbprint that securely identifies the Tentacle.")
-	flags.StringVar(&createFlags.URL.Value, createFlags.URL.Name, "", "The network address at which the Tentacle can be reached.")
+	flags.StringVar(&createFlags.URL.Value, createFlags.URL.Name, "", "The network address at which the Listening Tentacle can be reached.")
 	machinescommon.RegisterCreateTargetProxyFlags(cmd, createFlags.CreateTargetProxyFlags)
 	machinescommon.RegisterCreateTargetMachinePolicyFlags(cmd, createFlags.CreateTargetMachinePolicyFlags)
 	shared.RegisterCreateWorkerWorkerPoolFlags(cmd, createFlags.WorkerPoolFlags)
@@ -130,7 +130,8 @@ func createRun(opts *CreateOptions) error {
 		return err
 	}
 
-	fmt.Fprintf(opts.Out, "Successfully created listening tentcle worker '%s'.\n", worker.Name)
+
+	fmt.Fprintf(opts.Out, "Successfully created Listening Tentacle worker '%s'.\n", worker.Name)
 	if !opts.NoPrompt {
 		autoCmd := flag.GenerateAutomationCmd(opts.CmdPath, opts.Name, opts.URL, opts.Thumbprint, opts.Proxy, opts.MachinePolicy, opts.WorkerPools)
 		fmt.Fprintf(opts.Out, "\nAutomation Command: %s\n", autoCmd)
@@ -160,7 +161,7 @@ func PromptMissing(opts *CreateOptions) error {
 	if opts.Thumbprint.Value == "" {
 		if err := opts.Ask(&survey.Input{
 			Message: "Thumbprint",
-			Help:    "The X509 certificate thumbprint that securely identifies the Tentacle.",
+			Help:    "The X509 certificate thumbprint that securely identifies the Listening Tentacle.",
 		}, &opts.Thumbprint.Value, survey.WithValidator(survey.ComposeValidators(
 			survey.MinLength(40),
 			survey.MaxLength(40),
@@ -172,7 +173,7 @@ func PromptMissing(opts *CreateOptions) error {
 	if opts.URL.Value == "" {
 		if err := opts.Ask(&survey.Input{
 			Message: "URL",
-			Help:    "The network address at which the Tentacle can be reached.",
+			Help:    "The network address at which the Listening Tentacle can be reached.",
 		}, &opts.URL.Value, survey.WithValidator(survey.Required)); err != nil {
 			return err
 		}
