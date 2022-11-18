@@ -21,8 +21,8 @@ func NewCmdView(f factory.Factory) *cobra.Command {
 		Short: "View a Listening Tentacle worker in an instance of Octopus Deploy",
 		Long:  "View a Listening Tentacle worker in an instance of Octopus Deploy.",
 		Example: fmt.Sprintf(heredoc.Doc(`
-			$ %s worker worker view 'WindowsWorker'
-			$ %s worker worker view Machines-100
+			$ %s worker listening-tentacle view 'WindowsWorker'
+			$ %s worker listening-tentacle view Machines-100
 		`), constants.ExecutableName, constants.ExecutableName),
 		RunE: func(c *cobra.Command, args []string) error {
 			opts := shared.NewViewOptions(flags, cmd.NewDependencies(f, c), args)
