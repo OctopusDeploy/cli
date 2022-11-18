@@ -172,7 +172,7 @@ func PromptMissing(opts *CreateOptions) error {
 	if opts.URL.Value == "" {
 		if err := opts.Ask(&survey.Input{
 			Message: "URL",
-			Help:    "The network address at which the Tentacle can be reached.",
+			Help:    "The network address at which the Listening Tentacle can be reached.",
 		}, &opts.URL.Value, survey.WithValidator(survey.Required)); err != nil {
 			return err
 		}
