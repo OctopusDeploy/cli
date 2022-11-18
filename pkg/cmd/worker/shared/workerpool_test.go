@@ -24,7 +24,7 @@ func TestPromptForWorkerPool_FlagsSupplied(t *testing.T) {
 
 func TestPromptForWorkerPool_NoFlagsSupplied(t *testing.T) {
 	pa := []*testutil.PA{
-		testutil.NewMultiSelectPrompt("Select the worker pools to assign the worker to", "", []string{"Groundskeeper", "Swim instructor"}, []string{"Groundskeeper", "Swim instructor"}),
+		testutil.NewMultiSelectPrompt("Select the worker pools to assign to the worker", "", []string{"Groundskeeper", "Swim instructor"}, []string{"Groundskeeper", "Swim instructor"}),
 	}
 
 	asker, checkRemainingPrompts := testutil.NewMockAsker(t, pa)
