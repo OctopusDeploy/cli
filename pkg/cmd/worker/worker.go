@@ -15,7 +15,7 @@ func NewCmdWorker(f factory.Factory) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "worker <command>",
 		Short: "Manage workers",
-		Long:  `Work with Octopus Deploy workers.`,
+		Long:  `Manage workers in Octopus Deploy.`,
 		Example: fmt.Sprintf(heredoc.Doc(`
 			$ %s worker list
 			$ %s tenant ls
