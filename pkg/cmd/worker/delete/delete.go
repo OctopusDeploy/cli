@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/cmd"
-	"github.com/OctopusDeploy/cli/pkg/cmd/target/shared"
+	"github.com/OctopusDeploy/cli/pkg/cmd/worker/shared"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/OctopusDeploy/cli/pkg/question"
@@ -15,30 +15,31 @@ import (
 	"github.com/spf13/cobra"
 )
 
-const resourceDescription = "deployment target"
+const resourceDescription = "worker"
 
 type DeleteOptions struct {
 	*cmd.Dependencies
-	*shared.GetTargetsOptions
+	*shared.GetWorkersOptions
 }
 
 func NewDeleteOptions(dependencies *cmd.Dependencies) *DeleteOptions {
 	return &DeleteOptions{
 		Dependencies:      dependencies,
-		GetTargetsOptions: shared.NewGetTargetsOptionsForAllTargets(dependencies),
+		GetWorkersOptions: shared.NewGetWorkersOptions(dependencies, nil),
 	}
 }
 
 func NewCmdDelete(f factory.Factory) *cobra.Command {
 	var skipConfirmation bool
+
 	cmd := &cobra.Command{
 		Use:     "delete {<name> | <id>}",
-		Short:   "Delete a deployment target in an instance of Octopus Deploy",
-		Long:    "Delete a deployment target in an instance of Octopus Deploy",
+		Short:   "Delete a worker in an instance of Octopus Deploy",
+		Long:    "Delete a worker in an instance of Octopus Deploy",
 		Aliases: []string{"del", "rm", "remove"},
 		Example: fmt.Sprintf(heredoc.Doc(`
-			$ %s deployment-target delete
-			$ %s deployment-target rm
+			$ %s worker delete
+			$ %s worker rm
 		`), constants.ExecutableName, constants.ExecutableName),
 		RunE: func(c *cobra.Command, args []string) error {
 			deps := cmd.NewDependencies(f, c)
@@ -50,30 +51,22 @@ func NewCmdDelete(f factory.Factory) *cobra.Command {
 
 			idOrName := args[0]
 			opts := NewDeleteOptions(deps)
-			targets, err := opts.GetTargetsCallback()
+			worker, err := opts.GetWorkerCallback(idOrName)
 			if err != nil {
 				return err
 			}
 
-			var itemToDelete *machines.DeploymentTarget
-			for _, item := range targets {
-				if item.Name == idOrName || item.ID == idOrName {
-					itemToDelete = item
-					break
-				}
-			}
-
-			if itemToDelete == nil {
-				return fmt.Errorf("cannot find a deployment target with name or ID of '%s'", idOrName)
+			if worker == nil {
+				return fmt.Errorf("cannot find a worker with name or ID of '%s'", idOrName)
 			}
 
 			if !skipConfirmation { // TODO NO_PROMPT env var or whatever we do there
-				return question.DeleteWithConfirmation(f.Ask, resourceDescription, itemToDelete.Name, itemToDelete.GetID(), func() error {
-					return delete(opts.Client, itemToDelete)
+				return question.DeleteWithConfirmation(f.Ask, resourceDescription, worker.Name, worker.GetID(), func() error {
+					return delete(opts.Client, worker)
 				})
 			}
 
-			return delete(opts.Client, itemToDelete)
+			return delete(opts.Client, worker)
 		},
 	}
 
@@ -83,16 +76,16 @@ func NewCmdDelete(f factory.Factory) *cobra.Command {
 }
 
 func deleteRun(opts *DeleteOptions) error {
-	itemToDelete, err := selectors.Select(opts.Ask, "Select the deployment target you wish to delete:", opts.GetTargetsCallback, func(target *machines.DeploymentTarget) string { return target.Name })
+	worker, err := selectors.Select(opts.Ask, "Select the worker you wish to delete:", opts.GetWorkersCallback, func(worker *machines.Worker) string { return worker.Name })
 	if err != nil {
 		return err
 	}
 
-	return question.DeleteWithConfirmation(opts.Ask, resourceDescription, itemToDelete.Name, itemToDelete.GetID(), func() error {
-		return delete(opts.Client, itemToDelete)
+	return question.DeleteWithConfirmation(opts.Ask, resourceDescription, worker.Name, worker.GetID(), func() error {
+		return delete(opts.Client, worker)
 	})
 }
 
-func delete(client *client.Client, itemToDelete *machines.DeploymentTarget) error {
-	return client.Machines.DeleteByID(itemToDelete.GetID())
+func delete(client *client.Client, itemToDelete *machines.Worker) error {
+	return client.Workers.DeleteByID(itemToDelete.GetID())
 }
