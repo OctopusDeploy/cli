@@ -18,7 +18,7 @@ func NewCmdWorker(f factory.Factory) *cobra.Command {
 		Long:  `Manage workers in Octopus Deploy.`,
 		Example: fmt.Sprintf(heredoc.Doc(`
 			$ %s worker list
-			$ %s tenant ls
+			$ %s worker ls
 		`), constants.ExecutableName, constants.ExecutableName),
 		Annotations: map[string]string{
 			annotations.IsCore: "true",
