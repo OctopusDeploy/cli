@@ -82,7 +82,7 @@ func PromptForWorkerPools(opts *WorkerPoolOptions, flags *WorkerPoolFlags) error
 		if err != nil {
 			return err
 		}
-		selectedPools, err := question.MultiSelectMap(opts.Ask, "Select the worker pools to assign the worker to", allWorkerPools, func(pool *workerpools.WorkerPoolListResult) string { return pool.Name }, true)
+		selectedPools, err := question.MultiSelectMap(opts.Ask, "Select the worker pools to assign to the worker", allWorkerPools, func(pool *workerpools.WorkerPoolListResult) string { return pool.Name }, true)
 		if err != nil {
 			return err
 		}
