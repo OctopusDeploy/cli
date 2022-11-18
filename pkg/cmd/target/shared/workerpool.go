@@ -16,23 +16,24 @@ const FlagWorkerPool = "worker-pool"
 
 type GetAllWorkerPoolsCallback func() ([]*workerpools.WorkerPoolListResult, error)
 
-type CreateTargetWorkerPoolFlags struct {
+type WorkerPoolFlags struct {
 	WorkerPool *flag.Flag[string]
 }
 
-type CreateTargetWorkerPoolOptions struct {
+type WorkerPoolOptions struct {
 	*cmd.Dependencies
 	GetAllWorkerPoolsCallback
 }
 
-func NewCreateTargetWorkerPoolFlags() *CreateTargetWorkerPoolFlags {
-	return &CreateTargetWorkerPoolFlags{
+func NewWorkerPoolFlags() *WorkerPoolFlags {
+	return &WorkerPoolFlags{
 		WorkerPool: flag.New[string](FlagWorkerPool, false),
 	}
+
 }
 
-func NewCreateTargetWorkerPoolOptions(dependencies *cmd.Dependencies) *CreateTargetWorkerPoolOptions {
-	return &CreateTargetWorkerPoolOptions{
+func NewWorkerPoolOptionsForCreateTarget(dependencies *cmd.Dependencies) *WorkerPoolOptions {
+	return &WorkerPoolOptions{
 		Dependencies: dependencies,
 		GetAllWorkerPoolsCallback: func() ([]*workerpools.WorkerPoolListResult, error) {
 			return getAllWorkerPools(dependencies.Client)
@@ -40,11 +41,11 @@ func NewCreateTargetWorkerPoolOptions(dependencies *cmd.Dependencies) *CreateTar
 	}
 }
 
-func RegisterCreateTargetWorkerPoolFlags(cmd *cobra.Command, flags *CreateTargetWorkerPoolFlags) {
+func RegisterCreateTargetWorkerPoolFlags(cmd *cobra.Command, flags *WorkerPoolFlags) {
 	cmd.Flags().StringVar(&flags.WorkerPool.Value, flags.WorkerPool.Name, "", "The worker pool for the deployment target, only required if not using the default worker pool")
 }
 
-func PromptForWorkerPool(opts *CreateTargetWorkerPoolOptions, flags *CreateTargetWorkerPoolFlags) error {
+func PromptForWorkerPool(opts *WorkerPoolOptions, flags *WorkerPoolFlags) error {
 	if flags.WorkerPool.Value == "" {
 		useDefaultPool := true
 		err := opts.Ask(&survey.Confirm{
@@ -66,6 +67,9 @@ func PromptForWorkerPool(opts *CreateTargetWorkerPoolOptions, flags *CreateTarge
 				return err
 			}
 			flags.WorkerPool.Value = selectedPool.Name
+			if err != nil {
+				return err
+			}
 		}
 	}
 

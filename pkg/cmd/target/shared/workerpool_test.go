@@ -13,10 +13,10 @@ func TestPromptForWorkerPool_FlagsSupplied(t *testing.T) {
 	pa := []*testutil.PA{}
 
 	asker, checkRemainingPrompts := testutil.NewMockAsker(t, pa)
-	flags := shared.NewCreateTargetWorkerPoolFlags()
+	flags := shared.NewWorkerPoolFlags()
 	flags.WorkerPool.Value = "Head lifeguard"
 
-	opts := shared.NewCreateTargetWorkerPoolOptions(&cmd.Dependencies{Ask: asker})
+	opts := shared.NewWorkerPoolOptionsForCreateTarget(&cmd.Dependencies{Ask: asker})
 	err := shared.PromptForWorkerPool(opts, flags)
 	checkRemainingPrompts()
 	assert.NoError(t, err)
@@ -29,9 +29,9 @@ func TestPromptForWorkerPool_NoFlagsSupplied(t *testing.T) {
 	}
 
 	asker, checkRemainingPrompts := testutil.NewMockAsker(t, pa)
-	flags := shared.NewCreateTargetWorkerPoolFlags()
+	flags := shared.NewWorkerPoolFlags()
 
-	opts := shared.NewCreateTargetWorkerPoolOptions(&cmd.Dependencies{Ask: asker})
+	opts := shared.NewWorkerPoolOptionsForCreateTarget(&cmd.Dependencies{Ask: asker})
 	opts.GetAllWorkerPoolsCallback = func() ([]*workerpools.WorkerPoolListResult, error) {
 		poolWorker1 := &workerpools.WorkerPoolListResult{
 			ID:             "WorkerPools-1",
@@ -57,9 +57,9 @@ func TestPromptForWorkerPool_UseDefault(t *testing.T) {
 	}
 
 	asker, checkRemainingPrompts := testutil.NewMockAsker(t, pa)
-	flags := shared.NewCreateTargetWorkerPoolFlags()
+	flags := shared.NewWorkerPoolFlags()
 
-	opts := shared.NewCreateTargetWorkerPoolOptions(&cmd.Dependencies{Ask: asker})
+	opts := shared.NewWorkerPoolOptionsForCreateTarget(&cmd.Dependencies{Ask: asker})
 
 	err := shared.PromptForWorkerPool(opts, flags)
 	checkRemainingPrompts()
