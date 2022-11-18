@@ -12,6 +12,7 @@ import (
 	ssh "github.com/OctopusDeploy/cli/pkg/cmd/target/ssh/view"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/factory"
+	"github.com/OctopusDeploy/cli/pkg/machinescommon"
 	"github.com/spf13/cobra"
 )
 
@@ -30,7 +31,7 @@ func NewCmdList(f factory.Factory) *cobra.Command {
 		},
 	}
 
-	shared.RegisterWebFlag(cmd, flags.WebFlags)
+	machinescommon.RegisterWebFlag(cmd, flags.WebFlags)
 
 	return cmd
 }
