@@ -63,7 +63,7 @@ func run(args []string) error {
 	cmd.DisableAutoGenTag = true
 	cmd.InitDefaultHelpCmd()
 
-	if err := os.MkdirAll(*dir, 0755); err != nil {
+	if err := os.MkdirAll(*dir, 0644); err != nil {
 		return err
 	}
 
