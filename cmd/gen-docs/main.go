@@ -2,10 +2,11 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"os"
-	"path"
 	"path/filepath"
 	"strings"
+	"text/template"
 	"time"
 
 	"github.com/AlecAivazis/survey/v2"
@@ -15,9 +16,15 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/OctopusDeploy/cli/pkg/question"
 	"github.com/briandowns/spinner"
+	"github.com/spf13/cobra"
 	"github.com/spf13/cobra/doc"
 	"github.com/spf13/pflag"
 )
+
+type TemplateInformation struct {
+	Title   string
+	Command *cobra.Command
+}
 
 func main() {
 	if err := run(os.Args); err != nil {
@@ -25,14 +32,6 @@ func main() {
 		os.Exit(1)
 	}
 }
-
-const fmTemplate = `---
-date: %s
-title: "%s"
-slug: %s
-url: %s
----
-`
 
 func run(args []string) error {
 	flags := pflag.NewFlagSet("", pflag.ContinueOnError)
@@ -61,27 +60,15 @@ func run(args []string) error {
 	f := factory.New(clientFactory, askProvider, s, buildVersion)
 
 	cmd := root.NewCmdRoot(f, clientFactory, askProvider)
+	cmd.DisableAutoGenTag = true
 	cmd.InitDefaultHelpCmd()
 
 	if err := os.MkdirAll(*dir, 0755); err != nil {
 		return err
 	}
 
-	filePrepender := func(filename string) string {
-		now := time.Now().Format(time.RFC3339)
-		name := filepath.Base(filename)
-		base := strings.TrimSuffix(name, path.Ext(name))
-		url := "/commands/" + strings.ToLower(base) + "/"
-		return fmt.Sprintf(fmTemplate, now, strings.Replace(base, "_", " ", -1), base, url)
-	}
-
-	linkHandler := func(name string) string {
-		base := strings.TrimSuffix(name, path.Ext(name))
-		return "/commands/" + strings.ToLower(base) + "/"
-	}
-
 	if *website {
-		if err := doc.GenMarkdownTreeCustom(cmd, *dir, filePrepender, linkHandler); err != nil {
+		if err := GenMarkdownTreeCustom(cmd, *dir); err != nil {
 			return err
 		}
 	}
@@ -99,3 +86,49 @@ func run(args []string) error {
 
 	return nil
 }
+
+func GenMarkdownCustom(cmd *cobra.Command, w io.Writer, info TemplateInformation) error {
+	cmd.InitDefaultHelpCmd()
+	cmd.InitDefaultHelpFlag()
+
+	t := template.Must(template.New("documentation-template").Parse(documentationTemplate))
+	return t.Execute(w, info)
+}
+
+func GenMarkdownTreeCustom(cmd *cobra.Command, dir string) error {
+	for _, c := range cmd.Commands() {
+		if !c.IsAvailableCommand() || c.IsAdditionalHelpTopicCommand() {
+			continue
+		}
+		if err := GenMarkdownTreeCustom(c, dir); err != nil {
+			return err
+		}
+	}
+
+	basename := strings.ReplaceAll(cmd.CommandPath(), " ", "_") + ".md"
+	filename := filepath.Join(dir, basename)
+	f, err := os.Create(filename)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	info := TemplateInformation{
+		Title:   cmd.CommandPath(),
+		Command: cmd,
+	}
+
+	if err := GenMarkdownCustom(cmd, f, info); err != nil {
+		return err
+	}
+	return nil
+}
+
+const documentationTemplate = `---
+title: {{.Title}}
+description: {{.Command.Long}}
+position:
+---
+
+{{.Command.Long}}
+`
