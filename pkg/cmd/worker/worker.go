@@ -1,7 +1,6 @@
 package worker
 
 import (
-	"fmt"
 	"github.com/MakeNowJust/heredoc/v2"
 	cmdDelete "github.com/OctopusDeploy/cli/pkg/cmd/worker/delete"
 	cmdList "github.com/OctopusDeploy/cli/pkg/cmd/worker/list"
@@ -19,11 +18,11 @@ func NewCmdWorker(f factory.Factory) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "worker <command>",
 		Short: "Manage workers",
-		Long:  `Manage workers in Octopus Deploy.`,
-		Example: fmt.Sprintf(heredoc.Doc(`
-			$ %s worker list
-			$ %s worker ls
-		`), constants.ExecutableName, constants.ExecutableName),
+		Long:  "Manage workers in Octopus Deploy",
+		Example: heredoc.Docf(`
+			$ %[1]s worker list
+			$ %[1]s worker ls
+		`, constants.ExecutableName),
 		Annotations: map[string]string{
 			annotations.IsCore: "true",
 		},

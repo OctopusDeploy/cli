@@ -3,6 +3,7 @@ package disconnect
 import (
 	"errors"
 	"fmt"
+
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/cmd"
@@ -65,12 +66,12 @@ func NewCmdDisconnect(f factory.Factory) *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "disconnect",
-		Short: "Disconnect a tenant from a project in Octopus Deploy",
-		Long:  "Disconnect a tenant from a project in Octopus Deploy.",
-		Example: fmt.Sprintf(heredoc.Doc(`
-			$ %s tenant disconnect
-			$ %s tenant disconnect --tenant "Test Tenant" --project "Deploy web site" --confirm
-		`), constants.ExecutableName, constants.ExecutableName),
+		Short: "Disconnect a tenant from a project",
+		Long:  "Disconnect a tenant from a project in Octopus Deploy",
+		Example: heredoc.Docf(`
+			$ %[1]s tenant disconnect
+			$ %[1]s tenant disconnect --tenant "Test Tenant" --project "Deploy web site" --confirm
+		`, constants.ExecutableName),
 		RunE: func(c *cobra.Command, args []string) error {
 			opts := NewDisconnectOptions(disconnectFlags, cmd.NewDependencies(f, c))
 			return DisconnectRun(opts)
@@ -175,7 +176,7 @@ func PromptForProject(opts *DisconnectOptions, selectedTenant *tenants.Tenant) (
 			return nil, errors.New("Not currently connected to any projects")
 		case 1:
 			var projectId string
-			for i, _ := range selectedTenant.ProjectEnvironments {
+			for i := range selectedTenant.ProjectEnvironments {
 				projectId = i
 			}
 			selectedProject, err = opts.GetProjectCallback(projectId)
@@ -207,7 +208,7 @@ func PromptForProject(opts *DisconnectOptions, selectedTenant *tenants.Tenant) (
 
 func getCurrentlyConnectedProjects(tenant *tenants.Tenant, getProjectCallback shared.GetProjectCallback) ([]*projects.Project, error) {
 	var projects []*projects.Project
-	for projectId, _ := range tenant.ProjectEnvironments {
+	for projectId := range tenant.ProjectEnvironments {
 		project, err := getProjectCallback(projectId)
 		if err != nil {
 			return nil, err

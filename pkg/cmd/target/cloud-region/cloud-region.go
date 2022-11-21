@@ -1,7 +1,7 @@
 package cloud_region
 
 import (
-	"fmt"
+	"github.com/MakeNowJust/heredoc/v2"
 	cmdCreate "github.com/OctopusDeploy/cli/pkg/cmd/target/cloud-region/create"
 	cmdList "github.com/OctopusDeploy/cli/pkg/cmd/target/cloud-region/list"
 	cmdView "github.com/OctopusDeploy/cli/pkg/cmd/target/cloud-region/view"
@@ -13,9 +13,9 @@ import (
 func NewCmdCloudRegion(f factory.Factory) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "cloud-region <command>",
-		Short:   "Manage cloud region deployment targets",
-		Long:    "Work with Octopus Deploy cloud region deployment targets.",
-		Example: fmt.Sprintf("$ %s deployment-target cloud-region list", constants.ExecutableName),
+		Short:   "Manage Cloud Region deployment targets",
+		Long:    "Manage Cloud Region deployment targets in Octopus Deploy",
+		Example: heredoc.Docf("$ %s deployment-target cloud-region list", constants.ExecutableName),
 	}
 
 	cmd.AddCommand(cmdCreate.NewCmdCreate(f))

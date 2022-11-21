@@ -3,8 +3,10 @@ package delete
 import (
 	"errors"
 	"fmt"
+
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/MakeNowJust/heredoc/v2"
+	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/OctopusDeploy/cli/pkg/output"
 	"github.com/OctopusDeploy/cli/pkg/question"
@@ -39,13 +41,13 @@ func NewCmdDelete(f factory.Factory) *cobra.Command {
 	cmdFlags := NewFlags()
 	cmd := &cobra.Command{
 		Use:   "delete",
-		Short: "Delete a release in Octopus Deploy",
-		Long:  "Delete a release in Octopus Deploy.",
-		Example: heredoc.Doc(`
-			$ octopus release delete myProject 2.0
-			$ octopus release delete --project myProject --version 2.0
-			$ octopus release rm "Other Project" -v 2.0
-		`),
+		Short: "Delete a release",
+		Long:  "Delete a release in Octopus Deploy",
+		Example: heredoc.Docf(`
+			$ %[1]s release delete myProject 2.0
+			$ %[1]s release delete --project myProject --version 2.0
+			$ %[1]s release rm "Other Project" -v 2.0
+		`, constants.ExecutableName),
 		Aliases: []string{"del", "rm"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return deleteRun(cmd, f, cmdFlags, args)

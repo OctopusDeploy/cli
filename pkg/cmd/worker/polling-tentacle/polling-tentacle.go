@@ -13,8 +13,8 @@ import (
 func NewCmdPollingTentacle(f factory.Factory) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "polling-tentacle <command>",
-		Short:   "Manage polling tentacle workers",
-		Long:    "Work with Octopus Deploy polling tentacle workers.",
+		Short:   "Manage Polling Tentacle workers",
+		Long:    "Manage Polling Tentacle workers in Octopus Deploy",
 		Example: fmt.Sprintf("$ %s worker polling-tentacle list", constants.ExecutableName),
 	}
 

@@ -2,6 +2,7 @@ package list
 
 import (
 	"errors"
+
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/factory"
@@ -38,13 +39,13 @@ func NewCmdList(f factory.Factory) *cobra.Command {
 	listFlags := NewListFlags()
 	cmd := &cobra.Command{
 		Use:   "list",
-		Short: "List releases in Octopus Deploy",
-		Long:  "List releases in Octopus Deploy.",
-		Example: heredoc.Doc(`
-			$ octopus release list myProject
-			$ octopus release ls "Other Project"
-			$ octopus release list --project myProject
-		`),
+		Short: "List releases",
+		Long:  "List releases in Octopus Deploy",
+		Example: heredoc.Docf(`
+			$ %[1]s release list myProject
+			$ %[1]s release ls "Other Project"
+			$ %[1]s release list --project myProject
+		`, constants.ExecutableName),
 		Aliases: []string{"ls"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) > 0 && listFlags.Project.Value == "" {

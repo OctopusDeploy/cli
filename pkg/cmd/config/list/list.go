@@ -18,9 +18,9 @@ func NewCmdList(_ factory.Factory) *cobra.Command {
 		Use:   "list",
 		Short: "List values from config file",
 		Long:  "List values from config file.",
-		Example: fmt.Sprintf(heredoc.Doc(`
+		Example: heredoc.Docf(`
 			$ %s config list"
-		`), constants.ExecutableName),
+		`, constants.ExecutableName),
 		Aliases: []string{"ls"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return listRun(cmd)

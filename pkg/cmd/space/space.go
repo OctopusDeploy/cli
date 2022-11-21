@@ -1,8 +1,6 @@
 package space
 
 import (
-	"fmt"
-
 	"github.com/MakeNowJust/heredoc/v2"
 	cmdCreate "github.com/OctopusDeploy/cli/pkg/cmd/space/create"
 	cmdDelete "github.com/OctopusDeploy/cli/pkg/cmd/space/delete"
@@ -18,11 +16,11 @@ func NewCmdSpace(f factory.Factory) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "space <command>",
 		Short: "Manage spaces",
-		Long:  `Work with Octopus Deploy spaces.`,
-		Example: fmt.Sprintf(heredoc.Doc(`
-			$ %s space list
-			$ %s space view
-		`), constants.ExecutableName, constants.ExecutableName),
+		Long:  "Manage spaces in Octopus Deploy",
+		Example: heredoc.Docf(`
+			$ %[1]s space list
+			$ %[1]s space view
+		`, constants.ExecutableName),
 		Annotations: map[string]string{
 			annotations.IsConfiguration: "true",
 		},

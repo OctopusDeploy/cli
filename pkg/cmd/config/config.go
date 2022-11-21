@@ -13,7 +13,7 @@ func NewCmdConfig(f factory.Factory) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "config <command>",
 		Short: "Manage CLI config file",
-		Long:  `Manage the CLI config file`,
+		Long:  "Manage the CLI config file",
 		Annotations: map[string]string{
 			annotations.IsConfiguration: "true",
 		},

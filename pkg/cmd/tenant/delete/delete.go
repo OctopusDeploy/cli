@@ -25,13 +25,13 @@ func NewCmdDelete(f factory.Factory) *cobra.Command {
 	confirmFlags := question.NewConfirmFlags()
 	cmd := &cobra.Command{
 		Use:     "delete {<name> | <id>}",
-		Short:   "Delete tenant in Octopus Deploy",
-		Long:    "Delete tenant in Octopus Deploy",
+		Short:   "Delete a tenant",
+		Long:    "Delete a tenant in Octopus Deploy",
 		Aliases: []string{"del", "rm", "remove"},
-		Example: fmt.Sprintf(heredoc.Doc(`
-			$ %s tenant delete
-			$ %s tenant rm
-		`), constants.ExecutableName, constants.ExecutableName),
+		Example: heredoc.Docf(`
+			$ %[1]s tenant delete
+			$ %[1]s tenant rm
+		`, constants.ExecutableName),
 		RunE: func(_ *cobra.Command, args []string) error {
 			client, err := f.GetSpacedClient()
 			if err != nil {

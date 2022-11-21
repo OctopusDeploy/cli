@@ -1,8 +1,7 @@
 package listening_tentacle
 
 import (
-	"fmt"
-
+	"github.com/MakeNowJust/heredoc/v2"
 	cmdCreate "github.com/OctopusDeploy/cli/pkg/cmd/target/listening-tentacle/create"
 	cmdList "github.com/OctopusDeploy/cli/pkg/cmd/target/listening-tentacle/list"
 	cmdView "github.com/OctopusDeploy/cli/pkg/cmd/target/listening-tentacle/view"
@@ -14,9 +13,9 @@ import (
 func NewCmdListeningTentacle(f factory.Factory) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "listening-tentacle <command>",
-		Short:   "Manage listening tentacle deployment targets",
-		Long:    "Work with Octopus Deploy listening tentacle deployment targets.",
-		Example: fmt.Sprintf("$ %s deployment-target listening-tentacle list", constants.ExecutableName),
+		Short:   "Manage Listening Tentacle deployment targets",
+		Long:    "Manage Listening Tentacle deployment targets in Octopus Deploy",
+		Example: heredoc.Docf("$ %s deployment-target listening-tentacle list", constants.ExecutableName),
 	}
 
 	cmd.AddCommand(cmdList.NewCmdList(f))

@@ -4,6 +4,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
+	"os"
+	"regexp"
+	"sort"
+	"strings"
+
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/cmd/release/list"
@@ -24,11 +30,6 @@ import (
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/releases"
 	"github.com/spf13/cobra"
-	"io"
-	"os"
-	"regexp"
-	"sort"
-	"strings"
 )
 
 const (
@@ -142,15 +143,14 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "create",
-		Short: "Creates a release in Octopus Deploy",
-		Long:  "Creates a release in Octopus Deploy.",
-		Example: heredoc.Doc(`
-			$ octopus release create --project MyProject --channel Beta --version 1.2.3
-			$ octopus release create -p MyProject -c Beta -v 1.2.3
-
-			$ octopus release create -p MyProject -c default --package "utils:1.2.3" --package "utils:InstallOnly:5.6.7"
-			$ octopus release create -p MyProject -c Beta --no-prompt
-		`),
+		Short: "Create a release",
+		Long:  "Create a release in Octopus Deploy",
+		Example: heredoc.Docf(`
+			$ %[1]s release create --project MyProject --channel Beta --version 1.2.3
+			$ %[1]s release create -p MyProject -c Beta -v 1.2.3
+			$ %[1]s release create -p MyProject -c default --package "utils:1.2.3" --package "utils:InstallOnly:5.6.7"
+			$ %[1]s release create -p MyProject -c Beta --no-prompt
+		`, constants.ExecutableName),
 		RunE: func(cmd *cobra.Command, args []string) error { return createRun(cmd, f, createFlags) },
 	}
 

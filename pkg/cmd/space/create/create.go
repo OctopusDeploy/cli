@@ -3,11 +3,12 @@ package create
 import (
 	"errors"
 	"fmt"
+	"strings"
+
 	"github.com/OctopusDeploy/cli/pkg/cmd"
 	"github.com/OctopusDeploy/cli/pkg/cmd/tenant/shared"
 	"github.com/OctopusDeploy/cli/pkg/util"
 	"github.com/OctopusDeploy/cli/pkg/util/flag"
-	"strings"
 
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/MakeNowJust/heredoc/v2"
@@ -71,12 +72,11 @@ func NewCreateFlags() *CreateFlags {
 func NewCmdCreate(f factory.Factory) *cobra.Command {
 	createFlags := NewCreateFlags()
 	cmd := &cobra.Command{
-		Use:   "create",
-		Short: "Creates a space in an instance of Octopus Deploy",
-		Long:  "Creates a space in an instance of Octopus Deploy.",
-		Example: fmt.Sprintf(heredoc.Doc(`
-			$ %s space create"
-		`), constants.ExecutableName),
+		Use:     "create",
+		Short:   "Create a space",
+		Long:    "Create a space in Octopus Deploy",
+		Example: heredoc.Docf("$ %s space create", constants.ExecutableName),
+		Aliases: []string{"new"},
 		RunE: func(c *cobra.Command, args []string) error {
 			opts := NewCreateOptions(f, createFlags, cmd.NewSystemDependencies(f, c))
 

@@ -1,7 +1,6 @@
 package projectgroup
 
 import (
-	"fmt"
 	"github.com/MakeNowJust/heredoc/v2"
 	createCmd "github.com/OctopusDeploy/cli/pkg/cmd/projectgroup/create"
 	deleteCmd "github.com/OctopusDeploy/cli/pkg/cmd/projectgroup/delete"
@@ -17,11 +16,11 @@ func NewCmdProjectGroup(f factory.Factory) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "project-group <command>",
 		Short: "Manage project groups",
-		Long:  `Work with Octopus Deploy project groups.`,
-		Example: fmt.Sprintf(heredoc.Doc(`
-			$ %s project-group list
-			$ %s project-group ls
-		`), constants.ExecutableName, constants.ExecutableName),
+		Long:  "Manage project groups in Octopus Deploy",
+		Example: heredoc.Docf(`
+			$ %[1]s project-group list
+			$ %[1]s project-group ls
+		`, constants.ExecutableName),
 		Annotations: map[string]string{
 			annotations.IsCore: "true",
 		},

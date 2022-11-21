@@ -79,13 +79,13 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "create",
-		Short: "Creates a new project in Octopus Deploy",
-		Long:  "Creates a new project in Octopus Deploy.",
-		Example: fmt.Sprintf(heredoc.Doc(`
-			$ %s project create
-			$ %s project create --process-vcs
-			$ %s project create --name 'Deploy web app' --lifecycle 'Default Lifecycle' --group 'Default Project Group'
-		`), constants.ExecutableName, constants.ExecutableName, constants.ExecutableName),
+		Short: "Create a project",
+		Long:  "Create a project in Octopus Deploy",
+		Example: heredoc.Docf(`
+			$ %[1]s project create
+			$ %[1]s project create --process-vcs
+			$ %[1]s project create --name 'Deploy web app' --lifecycle 'Default Lifecycle' --group 'Default Project Group'
+		`, constants.ExecutableName),
 		RunE: func(c *cobra.Command, _ []string) error {
 			opts := NewCreateOptions(createFlags, cmd.NewDependencies(f, c))
 
@@ -199,7 +199,7 @@ func PromptForConfigAsCode(opts *CreateOptions, getGitCredentialsCallback GetAll
 
 	if opts.ConfigAsCode.Value {
 		if opts.GitStorage.Value == "" {
-			selectedOption, err := selectors.SelectOptions[string](opts.Ask, "Select where to store the Git credentials", getGitStorageOptions)
+			selectedOption, err := selectors.SelectOptions(opts.Ask, "Select where to store the Git credentials", getGitStorageOptions)
 
 			if err != nil {
 				return err

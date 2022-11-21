@@ -2,6 +2,8 @@ package create
 
 import (
 	"fmt"
+
+	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/question"
 
 	"github.com/AlecAivazis/survey/v2"
@@ -70,12 +72,11 @@ func NewCreateFlags() *CreateFlags {
 func NewCmdCreate(f factory.Factory) *cobra.Command {
 	optFlags := NewCreateFlags()
 	cmd := &cobra.Command{
-		Use:   "create",
-		Short: "Creates a new project group in Octopus Deploy",
-		Long:  "Creates a new project group in Octopus Deploy.",
-		Example: heredoc.Doc(`
-			$ octopus project-group create
-		`),
+		Use:     "create",
+		Short:   "Create a project group",
+		Long:    "Create a project group in Octopus Deploy",
+		Example: heredoc.Docf("$ %s project-group create", constants.ExecutableName),
+		Aliases: []string{"new"},
 		RunE: func(c *cobra.Command, _ []string) error {
 			opts := NewCreateOptions(optFlags, cmd.NewDependencies(f, c))
 

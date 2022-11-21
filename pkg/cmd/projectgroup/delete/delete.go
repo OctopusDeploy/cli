@@ -1,7 +1,6 @@
 package delete
 
 import (
-	"fmt"
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/factory"
@@ -24,13 +23,13 @@ func NewCmdList(f factory.Factory) *cobra.Command {
 	confirmFlags := question.NewConfirmFlags()
 	cmd := &cobra.Command{
 		Use:     "delete {<name> | <id>}",
-		Short:   "Delete project groups in Octopus Deploy",
-		Long:    "Delete project groups in Octopus Deploy",
+		Short:   "Delete a project group",
+		Long:    "Delete a project group in Octopus Deploy",
 		Aliases: []string{"del", "rm", "remove"},
-		Example: fmt.Sprintf(heredoc.Doc(`
-			$ %s project-group delete
-			$ %s project-group rm
-		`), constants.ExecutableName, constants.ExecutableName),
+		Example: heredoc.Docf(`
+			$ %[1]s project-group delete
+			$ %[1]s project-group rm
+		`, constants.ExecutableName),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			client, err := f.GetSpacedClient()
 			if err != nil {

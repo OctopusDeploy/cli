@@ -3,15 +3,17 @@ package versions
 import (
 	"errors"
 	"fmt"
+	"math"
+	"time"
+
 	"github.com/MakeNowJust/heredoc/v2"
+	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/OctopusDeploy/cli/pkg/output"
 	"github.com/OctopusDeploy/cli/pkg/util/flag"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/feeds"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/packages"
 	"github.com/spf13/cobra"
-	"math"
-	"time"
 )
 
 const (
@@ -42,11 +44,11 @@ func NewCmdVersions(f factory.Factory) *cobra.Command {
 		Use:   "versions",
 		Short: "List versions of a package",
 		Long:  "List versions of a package.",
-		Example: heredoc.Doc(`
-			$ octopus package versions --package SomePackage
-			$ octopus package versions SomePackage --filter beta --limit 5
-			$ octopus package show SomePackage -n 2
-		`),
+		Example: heredoc.Docf(`
+			$ %[1]s package versions --package SomePackage
+			$ %[1]s package versions SomePackage --filter beta --limit 5
+			$ %[1]s package show SomePackage -n 2
+		`, constants.ExecutableName),
 		Aliases: []string{"show"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) > 0 && versionsFlags.Package.Value == "" {

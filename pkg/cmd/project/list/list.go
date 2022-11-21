@@ -1,7 +1,6 @@
 package list
 
 import (
-	"fmt"
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/factory"
@@ -13,12 +12,12 @@ import (
 func NewCmdList(f factory.Factory) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "list",
-		Short: "List projects in Octopus Deploy",
+		Short: "List projects",
 		Long:  "List projects in Octopus Deploy",
-		Example: fmt.Sprintf(heredoc.Doc(`
-			$ %s project list
-			$ %s project ls
-		`), constants.ExecutableName, constants.ExecutableName),
+		Example: heredoc.Docf(`
+			$ %[1]s project list
+			$ %[1]s project ls
+		`, constants.ExecutableName),
 		Aliases: []string{"ls"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return listRun(cmd, f)

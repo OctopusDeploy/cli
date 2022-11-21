@@ -2,6 +2,7 @@ package view
 
 import (
 	"fmt"
+
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/cmd"
 	listeningTentacle "github.com/OctopusDeploy/cli/pkg/cmd/worker/listening-tentacle/view"
@@ -11,19 +12,21 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/OctopusDeploy/cli/pkg/machinescommon"
+	"github.com/OctopusDeploy/cli/pkg/usage"
 	"github.com/spf13/cobra"
 )
 
 func NewCmdView(f factory.Factory) *cobra.Command {
 	flags := shared.NewViewFlags()
 	cmd := &cobra.Command{
-		Use:   "view",
-		Short: "View a worker in an instance of Octopus Deploy",
-		Long:  "View a worker in an instance of Octopus Deploy.",
-		Example: fmt.Sprintf(heredoc.Doc(`
-			$ %s worker view Machines-100
-			$ %s worker view 'worker'
-		`), constants.ExecutableName),
+		Args:  usage.ExactArgs(1),
+		Use:   "view {<name> | <id>}",
+		Short: "View a worker",
+		Long:  "View a worker in Octopus Deploy",
+		Example: heredoc.Docf(`
+			$ %[1]s worker view Machines-100
+			$ %[1]s worker view 'worker'
+		`, constants.ExecutableName),
 		RunE: func(c *cobra.Command, args []string) error {
 			return ViewRun(shared.NewViewOptions(flags, cmd.NewDependencies(f, c), args))
 		},
@@ -47,9 +50,7 @@ func ViewRun(opts *shared.ViewOptions) error {
 		return pollingTentacle.ViewRun(opts)
 	case "Ssh":
 		return ssh.ViewRun(opts)
-	default:
-		return fmt.Errorf("unsupported worker '%s'", worker.Endpoint.GetCommunicationStyle())
 	}
 
-	return nil
+	return fmt.Errorf("unsupported worker '%s'", worker.Endpoint.GetCommunicationStyle())
 }

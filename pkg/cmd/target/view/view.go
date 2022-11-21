@@ -2,6 +2,7 @@ package view
 
 import (
 	"fmt"
+
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/cmd"
 	azureWebApp "github.com/OctopusDeploy/cli/pkg/cmd/target/azure-web-app/view"
@@ -13,19 +14,21 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/OctopusDeploy/cli/pkg/machinescommon"
+	"github.com/OctopusDeploy/cli/pkg/usage"
 	"github.com/spf13/cobra"
 )
 
 func NewCmdView(f factory.Factory) *cobra.Command {
 	flags := shared.NewViewFlags()
 	cmd := &cobra.Command{
-		Use:   "view",
-		Short: "View a deployment target in an instance of Octopus Deploy",
-		Long:  "View a deployment target in an instance of Octopus Deploy.",
-		Example: fmt.Sprintf(heredoc.Doc(`
-			$ %s deployment-target view Machines-100
-			$ %s deployment-target view 'web-server'
-		`), constants.ExecutableName),
+		Args:  usage.ExactArgs(1),
+		Use:   "view {<name> | <id>}",
+		Short: "View a deployment target",
+		Long:  "View a deployment target in Octopus Deploy",
+		Example: heredoc.Docf(`
+			$ %[1]s deployment-target view Machines-100
+			$ %[1]s deployment-target view 'web-server'
+		`, constants.ExecutableName),
 		RunE: func(c *cobra.Command, args []string) error {
 			return ViewRun(shared.NewViewOptions(flags, cmd.NewDependencies(f, c), args))
 		},
@@ -63,9 +66,7 @@ func ViewRun(opts *shared.ViewOptions) error {
 		return shared.ViewRun(opts, nil, "Kubernetes Cluster")
 	case "StepPackage":
 		return shared.ViewRun(opts, nil, "Step Package")
-	default:
-		return fmt.Errorf("unsupported deployment target '%s'", target.Endpoint.GetCommunicationStyle())
 	}
 
-	return nil
+	return fmt.Errorf("unsupported deployment target '%s'", target.Endpoint.GetCommunicationStyle())
 }

@@ -1,7 +1,6 @@
 package list
 
 import (
-	"fmt"
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/cmd"
 	"github.com/OctopusDeploy/cli/pkg/cmd/worker/list"
@@ -14,12 +13,12 @@ import (
 func NewCmdList(f factory.Factory) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "list",
-		Short:   "List Listening Tentacle workers in an instance of Octopus Deploy",
-		Long:    "List Listening Tentacle workers in an instance of Octopus Deploy.",
+		Short:   "List Listening Tentacle workers",
+		Long:    "List Listening Tentacle workers in Octopus Deploy",
 		Aliases: []string{"ls"},
-		Example: fmt.Sprintf(heredoc.Doc(`
+		Example: heredoc.Docf(`
 			$ %s worker listening-tentacle list
-		`), constants.ExecutableName),
+		`, constants.ExecutableName),
 		RunE: func(c *cobra.Command, args []string) error {
 			dependencies := cmd.NewDependencies(f, c)
 			options := list.NewListOptions(dependencies, c, func(worker *machines.Worker) bool {

@@ -1,7 +1,6 @@
 package list
 
 import (
-	"fmt"
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/factory"
@@ -19,12 +18,12 @@ type ProjectGroupAsJson struct {
 func NewCmdList(f factory.Factory) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "list",
-		Short: "List project groups in Octopus Deploy",
+		Short: "List project groups",
 		Long:  "List project groups in Octopus Deploy",
-		Example: fmt.Sprintf(heredoc.Doc(`
-			$ %s project-group list
-			$ %s project-group ls
-		`), constants.ExecutableName, constants.ExecutableName),
+		Example: heredoc.Docf(`
+			$ %[1]s project-group list
+			$ %[1]s project-group ls
+		`, constants.ExecutableName),
 		Aliases: []string{"ls"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return listRun(cmd, f)

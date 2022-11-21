@@ -63,12 +63,11 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 	descriptionFilePath := ""
 
 	cmd := &cobra.Command{
-		Use:   "create",
-		Short: "Creates an aws account",
-		Long:  "Creates an aws account in an instance of Octopus Deploy.",
-		Example: fmt.Sprintf(heredoc.Doc(`
-			$ %s account aws create
-		`), constants.ExecutableName),
+		Use:     "create",
+		Short:   "Create an AWS account",
+		Long:    "Create an AWS account in Octopus Deploy",
+		Example: heredoc.Docf("$ %s account aws create", constants.ExecutableName),
+		Aliases: []string{"new"},
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			client, err := f.GetSpacedClient()
 			if err != nil {

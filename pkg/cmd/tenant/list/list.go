@@ -1,7 +1,6 @@
 package list
 
 import (
-	"fmt"
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/factory"
@@ -19,12 +18,12 @@ type TenantAsJson struct {
 func NewCmdList(f factory.Factory) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "list",
-		Short: "List tenants in Octopus Deploy",
-		Long:  "List tenants in Octopus Deploy.",
-		Example: fmt.Sprintf(heredoc.Doc(`
-			$ %s tenant list
-			$ %s tenant ls
-		`), constants.ExecutableName, constants.ExecutableName),
+		Short: "List tenants",
+		Long:  "List tenants in Octopus Deploy",
+		Example: heredoc.Docf(`
+			$ %[1]s tenant list
+			$ %[1]s tenant ls
+		`, constants.ExecutableName),
 		Aliases: []string{"ls"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return listRun(cmd, f)

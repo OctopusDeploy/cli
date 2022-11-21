@@ -14,7 +14,7 @@ func NewCmdToken(f factory.Factory) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "token <command>",
 		Short:   "Manage Token accounts",
-		Long:    `Work with Octopus Deploy Token accounts.`,
+		Long:    "Manage Token accounts in Octopus Deploy",
 		Example: fmt.Sprintf("$ %s account token list", constants.ExecutableName),
 	}
 

@@ -86,6 +86,7 @@ Download and extract the archive file for your platform from the latest release 
 The archive file simply contains a compressed version of the `octopus` binary. If you would like to add it to your `PATH` then you must do this yourself.
 
 #### Any platform - go install
+
 If you have the go development tools installed, you can run
 
 ```shell
@@ -271,15 +272,14 @@ We would implement a `func NewCmdCreate(f factory.Factory) *cobra.Command` funct
 the command structure, parameters, flags, etc, and link it in with the parent code in `account.go`
 
 Example:
+
 ```go
 func NewCmdCreate(f factory.Factory) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "create",
-		Short: "Creates an account in an instance of Octopus Deploy",
-		Long:  "Creates an account in an instance of Octopus Deploy.",
-		Example: fmt.Sprintf(heredoc.Doc(`
-			$ %s account create"
-		`), constants.ExecutableName),
+		Short: "Create an account",
+		Long:  "Create an account in Octopus Deploy",
+		Example: heredoc.Docf("$ %s account create", constants.ExecutableName),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return nil // TODO
 		},
@@ -293,6 +293,7 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 #### 2. Create a `Task` which encapsulates the command arguments
 
 in the `executor` package, create a new string constant, and struct to carry the options for your command
+
 ```go
 const TaskTypeCreateAccount = "createAccount"
 
