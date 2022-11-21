@@ -2,6 +2,7 @@ package create
 
 import (
 	"fmt"
+
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/cmd"
 	"github.com/OctopusDeploy/cli/pkg/cmd/target/shared"
@@ -65,12 +66,11 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 	createFlags := NewCreateFlags()
 
 	cmd := &cobra.Command{
-		Use:   "create",
-		Short: "Create a cloud region deployment target",
-		Long:  "Create a cloud region deployment target in Octopus Deploy",
-		Example: fmt.Sprintf(heredoc.Doc(`
-			$ %s deployment-target cloud-region create
-		`), constants.ExecutableName),
+		Use:     "create",
+		Short:   "Create a Cloud Region deployment target",
+		Long:    "Create a Cloud Region deployment target in Octopus Deploy",
+		Example: heredoc.Docf("$ %s deployment-target cloud-region create", constants.ExecutableName),
+		Aliases: []string{"new"},
 		RunE: func(c *cobra.Command, _ []string) error {
 			opts := NewCreateOptions(createFlags, cmd.NewDependencies(f, c))
 

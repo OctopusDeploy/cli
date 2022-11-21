@@ -1,13 +1,15 @@
 package list
 
 import (
+	"math"
+
 	"github.com/MakeNowJust/heredoc/v2"
+	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/OctopusDeploy/cli/pkg/output"
 	"github.com/OctopusDeploy/cli/pkg/util/flag"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/packages"
 	"github.com/spf13/cobra"
-	"math"
 )
 
 const (
@@ -32,16 +34,15 @@ func NewCmdList(f factory.Factory) *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "list",
-		Short: "List packages in Octopus Deploy",
-		Long:  "List packages in Octopus Deploy.",
-		Example: heredoc.Doc(`
-			$ octopus package list
-			$ octopus package list --limit 50 --filter SomePackage
-			$ octopus package ls -n 30 -q SomePackage
-		`),
+		Short: "List packages",
+		Long:  "List packages in Octopus Deploy",
+		Example: heredoc.Docf(`
+			$ %[1]s package list
+			$ %[1]s package list --limit 50 --filter SomePackage
+			$ %[1]s package ls -n 30 -q SomePackage
+		`, constants.ExecutableName),
 		Aliases: []string{"ls"},
 		RunE: func(cmd *cobra.Command, args []string) error {
-
 			return listRun(cmd, f, listFlags)
 		},
 	}

@@ -18,13 +18,13 @@ func NewCmdDelete(f factory.Factory) *cobra.Command {
 	var skipConfirmation bool
 	cmd := &cobra.Command{
 		Use:     "delete {<name> | <id>}",
-		Short:   "Delete an account in an instance of Octopus Deploy",
-		Long:    "Delete an account in an instance of Octopus Deploy.",
+		Short:   "Delete an account",
+		Long:    "Delete an account in Octopus Deploy",
 		Aliases: []string{"del", "rm", "remove"},
-		Example: fmt.Sprintf(heredoc.Doc(`
-			$ %s account delete
-			$ %s account rm
-		`), constants.ExecutableName, constants.ExecutableName),
+		Example: heredoc.Docf(`
+			$ %[1]s account delete
+			$ %[1]s account rm
+		`, constants.ExecutableName),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) == 0 {
 				return deleteRun(f, cmd.OutOrStdout())

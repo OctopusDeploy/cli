@@ -4,6 +4,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
+	"os"
+	"path/filepath"
+	"strings"
+
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/constants/annotations"
@@ -14,10 +19,6 @@ import (
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/packages"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/spaces"
 	"github.com/spf13/cobra"
-	"io"
-	"os"
-	"path/filepath"
-	"strings"
 )
 
 const (
@@ -57,12 +58,12 @@ func NewCmdUpload(f factory.Factory) *cobra.Command {
 		Long:    "upload one or more packages to Octopus Deploy. Glob patterns are supported.",
 		Aliases: []string{"push"},
 		Example: heredoc.Docf(`
-				$ %s package upload --package SomePackage.1.0.0.zip
-				$ %s package upload SomePackage.1.0.0.tar.gz --overwrite-mode overwrite
-				$ %s package push SomePackage.1.0.0.zip	
-				$ %s package upload bin/**/*.zip --continue-on-error
-				$ %s package upload PkgA.1.0.0.zip PkgB.2.0.0.tar.gz PkgC.1.0.0.nupkg
-				`, constants.ExecutableName, constants.ExecutableName, constants.ExecutableName, constants.ExecutableName, constants.ExecutableName),
+			$ %[1]s package upload --package SomePackage.1.0.0.zip
+			$ %[1]s package upload SomePackage.1.0.0.tar.gz --overwrite-mode overwrite
+			$ %[1]s package push SomePackage.1.0.0.zip	
+			$ %[1]s package upload bin/**/*.zip --continue-on-error
+			$ %[1]s package upload PkgA.1.0.0.zip PkgB.2.0.0.tar.gz PkgC.1.0.0.nupkg
+		`, constants.ExecutableName),
 		Annotations: map[string]string{annotations.IsCore: "true"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// any bare args are assumed to be packages to upload

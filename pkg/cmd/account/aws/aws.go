@@ -1,8 +1,7 @@
 package aws
 
 import (
-	"fmt"
-
+	"github.com/MakeNowJust/heredoc/v2"
 	cmdCreate "github.com/OctopusDeploy/cli/pkg/cmd/account/aws/create"
 	cmdList "github.com/OctopusDeploy/cli/pkg/cmd/account/aws/list"
 	"github.com/OctopusDeploy/cli/pkg/constants"
@@ -14,8 +13,8 @@ func NewCmdAws(f factory.Factory) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "aws <command>",
 		Short:   "Manage AWS accounts",
-		Long:    `Work with Octopus Deploy aws accounts.`,
-		Example: fmt.Sprintf("$ %s account aws list", constants.ExecutableName),
+		Long:    "Manage AWS accounts in Octopus Deploy",
+		Example: heredoc.Docf("$ %s account aws list", constants.ExecutableName),
 	}
 
 	cmd.AddCommand(cmdList.NewCmdList(f))

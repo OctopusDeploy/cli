@@ -37,12 +37,11 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 	createFlags := NewCreateFlags()
 
 	cmd := &cobra.Command{
-		Use:   "create",
-		Short: "Creates a new tenant in Octopus Deploy",
-		Long:  "Creates a new tenant in Octopus Deploy.",
-		Example: fmt.Sprintf(heredoc.Doc(`
-			$ %s tenant create
-		`), constants.ExecutableName),
+		Use:     "create",
+		Short:   "Create a tenant",
+		Long:    "Create a tenant in Octopus Deploy",
+		Example: heredoc.Docf("$ %s tenant create", constants.ExecutableName),
+		Aliases: []string{"new"},
 		RunE: func(c *cobra.Command, _ []string) error {
 			opts := NewCreateOptions(createFlags, cmd.NewDependencies(f, c))
 

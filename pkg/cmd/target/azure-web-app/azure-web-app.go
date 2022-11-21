@@ -2,6 +2,7 @@ package azure_web_app
 
 import (
 	"fmt"
+
 	cmdCreate "github.com/OctopusDeploy/cli/pkg/cmd/target/azure-web-app/create"
 	cmdList "github.com/OctopusDeploy/cli/pkg/cmd/target/azure-web-app/list"
 	cmdView "github.com/OctopusDeploy/cli/pkg/cmd/target/azure-web-app/view"
@@ -14,7 +15,7 @@ func NewCmdAzureWebApp(f factory.Factory) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "azure-web-app <command>",
 		Short:   "Manage Azure Web App deployment targets",
-		Long:    "Work with Azure Web App deployment targets in Octopus Deploy.",
+		Long:    "Manage Azure Web App deployment targets in Octopus Deploy",
 		Example: fmt.Sprintf("$ %s deployment-target azure-web-app list", constants.ExecutableName),
 	}
 

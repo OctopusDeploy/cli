@@ -1,7 +1,8 @@
 package list
 
 import (
-	"fmt"
+	"strings"
+
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/cmd"
 	"github.com/OctopusDeploy/cli/pkg/cmd/target/shared"
@@ -11,7 +12,6 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/output"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/machines"
 	"github.com/spf13/cobra"
-	"strings"
 )
 
 type ListOptions struct {
@@ -36,12 +36,12 @@ func NewListOptions(dependencies *cmd.Dependencies, command *cobra.Command, quer
 func NewCmdList(f factory.Factory) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "list",
-		Short: "List deployment targets in an instance of Octopus Deploy",
-		Long:  "List deployment targets in an instance of Octopus Deploy.",
-		Example: fmt.Sprintf(heredoc.Doc(`
-			$ %s deployment-target list
-			$ %s deployment-target ls
-		`), constants.ExecutableName),
+		Short: "List deployment targets",
+		Long:  "List deployment targets in Octopus Deploy",
+		Example: heredoc.Docf(`
+			$ %[1]s deployment-target list
+			$ %[1]s deployment-target ls
+		`, constants.ExecutableName),
 		Aliases: []string{"ls"},
 		RunE: func(c *cobra.Command, args []string) error {
 			return ListRun(NewListOptions(cmd.NewDependencies(f, c), c, machines.MachinesQuery{}))

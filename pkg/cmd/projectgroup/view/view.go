@@ -2,6 +2,8 @@ package view
 
 import (
 	"fmt"
+	"io"
+
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/factory"
@@ -11,7 +13,6 @@ import (
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
 	"github.com/pkg/browser"
 	"github.com/spf13/cobra"
-	"io"
 )
 
 const (
@@ -41,12 +42,12 @@ func NewCmdView(f factory.Factory) *cobra.Command {
 	cmd := &cobra.Command{
 		Args:  usage.ExactArgs(1),
 		Use:   "view {<name> | <id> | <slug>}",
-		Short: "View a project-group in an instance of Octopus Deploy",
-		Long:  "View a project-group in an instance of Octopus Deploy",
-		Example: fmt.Sprintf(heredoc.Doc(`
-			$ %s project-group view 'Default Project Group'
-			$ %s project-group view ProjectGroups-9000
-		`), constants.ExecutableName, constants.ExecutableName),
+		Short: "View a project group",
+		Long:  "View a project group in Octopus Deploy",
+		Example: heredoc.Docf(`
+			$ %[1]s project-group view 'Default Project Group'
+			$ %[1]s project-group view ProjectGroups-9000
+		`, constants.ExecutableName),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			client, err := f.GetSpacedClient()
 			if err != nil {

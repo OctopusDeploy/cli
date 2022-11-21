@@ -4,6 +4,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
+	"strings"
+	"time"
+
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/constants"
@@ -27,9 +31,6 @@ import (
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/spaces"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/variables"
 	"github.com/spf13/cobra"
-	"io"
-	"strings"
-	"time"
 )
 
 const (
@@ -124,15 +125,15 @@ func NewCmdDeploy(f factory.Factory) *cobra.Command {
 	deployFlags := NewDeployFlags()
 	cmd := &cobra.Command{
 		Use:   "deploy",
-		Short: "Deploy releases in Octopus Deploy",
-		Long:  "Deploy releases in Octopus Deploy.",
-		Example: heredoc.Doc(`
-			$ octopus release deploy  # fully interactive
-			$ octopus release deploy --project MyProject --version 1.0 --environment Dev
-			$ octopus release deploy --project MyProject --version 1.0 --tenant-tag Regions/East --tenant-tag Regions/South
-			$ octopus release deploy -p MyProject --version 1.0 -e Dev --skip InstallStep --variable VarName:VarValue
-			$ octopus release deploy -p MyProject --version 1.0 -e Dev --force-package-download --guided-failure true -f basic
-		`),
+		Short: "Deploy releases",
+		Long:  "Deploy releases in Octopus Deploy",
+		Example: heredoc.Docf(`
+			$ %[1]s release deploy  # fully interactive
+			$ %[1]s release deploy --project MyProject --version 1.0 --environment Dev
+			$ %[1]s release deploy --project MyProject --version 1.0 --tenant-tag Regions/East --tenant-tag Regions/South
+			$ %[1]s release deploy -p MyProject --version 1.0 -e Dev --skip InstallStep --variable VarName:VarValue
+			$ %[1]s release deploy -p MyProject --version 1.0 -e Dev --force-package-download --guided-failure true -f basic
+		`, constants.ExecutableName),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) > 0 && deployFlags.Project.Value == "" {
 				deployFlags.Project.Value = args[0]

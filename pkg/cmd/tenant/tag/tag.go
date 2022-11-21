@@ -36,12 +36,10 @@ func NewCmdTag(f factory.Factory) *cobra.Command {
 	createFlags := NewTagFlags()
 
 	cmd := &cobra.Command{
-		Use:   "tag",
-		Short: "Override tags for a tenant in Octopus Deploy",
-		Long:  "Override tags for a tenant in Octopus Deploy.",
-		Example: fmt.Sprintf(heredoc.Doc(`
-			$ %s tenant tag Tenant-1
-		`), constants.ExecutableName),
+		Use:     "tag",
+		Short:   "Override tags for a tenant",
+		Long:    "Override tags for a tenant in Octopus Deploy",
+		Example: heredoc.Docf("$ %s tenant tag Tenant-1", constants.ExecutableName),
 		RunE: func(c *cobra.Command, _ []string) error {
 			opts := NewTagOptions(createFlags, cmd.NewDependencies(f, c))
 

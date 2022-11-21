@@ -2,6 +2,7 @@ package list
 
 import (
 	"github.com/MakeNowJust/heredoc/v2"
+	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/OctopusDeploy/cli/pkg/output"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/accounts"
@@ -11,12 +12,10 @@ import (
 
 func NewCmdList(f factory.Factory) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List ssh accounts",
-		Long:  "List SSH Key Pair accounts in an instance of Octopus Deploy.",
-		Example: heredoc.Doc(`
-			$ octopus account ssh list"
-		`),
+		Use:     "list",
+		Short:   "List SSH Key Pair accounts",
+		Long:    "List SSH Key Pair accounts in Octopus Deploy",
+		Example: heredoc.Docf("$ %s account ssh list", constants.ExecutableName),
 		Aliases: []string{"ls"},
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			client, err := f.GetSpacedClient()

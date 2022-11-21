@@ -3,6 +3,8 @@ package create
 import (
 	"errors"
 	"fmt"
+	"strings"
+
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/cmd"
 	"github.com/OctopusDeploy/cli/pkg/cmd/target/shared"
@@ -20,7 +22,6 @@ import (
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/environments"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/machines"
 	"github.com/spf13/cobra"
-	"strings"
 )
 
 type GetAllAzureAccounts func() ([]*accounts.AzureServicePrincipalAccount, error)
@@ -100,12 +101,11 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 	createFlags := NewCreateFlags()
 
 	cmd := &cobra.Command{
-		Use:   "create",
-		Short: "Create an Azure Web App deployment target",
-		Long:  "Create an Azure Web App deployment target in Octopus Deploy",
-		Example: fmt.Sprintf(heredoc.Doc(`
-			$ %s deployment-target azure-web-app create
-	`), constants.ExecutableName),
+		Use:     "create",
+		Short:   "Create an Azure Web App deployment target",
+		Long:    "Create an Azure Web App deployment target in Octopus Deploy",
+		Example: heredoc.Docf("$ %s deployment-target azure-web-app create", constants.ExecutableName),
+		Aliases: []string{"new"},
 		RunE: func(c *cobra.Command, _ []string) error {
 			opts := NewCreateOptions(createFlags, cmd.NewDependencies(f, c))
 

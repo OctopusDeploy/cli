@@ -1,8 +1,7 @@
 package ssh
 
 import (
-	"fmt"
-
+	"github.com/MakeNowJust/heredoc/v2"
 	cmdCreate "github.com/OctopusDeploy/cli/pkg/cmd/account/ssh/create"
 	cmdList "github.com/OctopusDeploy/cli/pkg/cmd/account/ssh/list"
 	"github.com/OctopusDeploy/cli/pkg/constants"
@@ -13,9 +12,9 @@ import (
 func NewCmdSsh(f factory.Factory) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "ssh <command>",
-		Short:   "Manage SSH accounts",
-		Long:    `Work with Octopus Deploy SSH Key Pair accounts.`,
-		Example: fmt.Sprintf("$ %s account ssh list", constants.ExecutableName),
+		Short:   "Manage SSH Key Pair accounts",
+		Long:    "Manage SSH Key Pair accounts in Octopus Deploy",
+		Example: heredoc.Docf("$ %s account ssh list", constants.ExecutableName),
 	}
 
 	cmd.AddCommand(cmdList.NewCmdList(f))

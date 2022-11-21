@@ -2,10 +2,11 @@ package create
 
 import (
 	"fmt"
-	"github.com/OctopusDeploy/cli/pkg/util"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/environments"
 	"io"
 	"os"
+
+	"github.com/OctopusDeploy/cli/pkg/util"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/environments"
 
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/MakeNowJust/heredoc/v2"
@@ -60,12 +61,11 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 	descriptionFilePath := ""
 
 	cmd := &cobra.Command{
-		Use:   "create",
-		Short: "Creates a token account",
-		Long:  "Creates a Token Account in an instance of Octopus Deploy.",
-		Example: fmt.Sprintf(heredoc.Doc(`
-			$ %s account token create"
-		`), constants.ExecutableName),
+		Use:     "create",
+		Short:   "Create a Token account",
+		Long:    "Create a Token account in Octopus Deploy",
+		Example: heredoc.Docf("$ %s account token create", constants.ExecutableName),
+		Aliases: []string{"new"},
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			octopus, err := f.GetSpacedClient()
 			if err != nil {

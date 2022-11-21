@@ -2,6 +2,8 @@ package create
 
 import (
 	"fmt"
+	"net/url"
+
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/cmd"
@@ -13,7 +15,6 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/util/flag"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/machines"
 	"github.com/spf13/cobra"
-	"net/url"
 )
 
 const (
@@ -69,9 +70,9 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 		Use:   "create",
 		Short: "Create a listening tentacle worker",
 		Long:  "Create a listening tentacle worker in Octopus Deploy",
-		Example: fmt.Sprintf(heredoc.Doc(`
+		Example: heredoc.Docf(`
 			$ %s worker listening-tentacle create
-		`), constants.ExecutableName),
+		`, constants.ExecutableName),
 		RunE: func(c *cobra.Command, _ []string) error {
 			opts := NewCreateOptions(createFlags, cmd.NewDependencies(f, c))
 
@@ -129,7 +130,6 @@ func createRun(opts *CreateOptions) error {
 	if err != nil {
 		return err
 	}
-
 
 	fmt.Fprintf(opts.Out, "Successfully created Listening Tentacle worker '%s'.\n", worker.Name)
 	if !opts.NoPrompt {

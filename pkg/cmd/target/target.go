@@ -1,7 +1,7 @@
 package target
 
 import (
-	"fmt"
+	"github.com/MakeNowJust/heredoc/v2"
 	cmdAzureWebApp "github.com/OctopusDeploy/cli/pkg/cmd/target/azure-web-app"
 	cmdCloudRegion "github.com/OctopusDeploy/cli/pkg/cmd/target/cloud-region"
 	cmdDelete "github.com/OctopusDeploy/cli/pkg/cmd/target/delete"
@@ -20,8 +20,8 @@ func NewCmdDeploymentTarget(f factory.Factory) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "deployment-target <command>",
 		Short:   "Manage deployment targets",
-		Long:    `Work with Octopus Deploy deployment targets.`,
-		Example: fmt.Sprintf("$ %s deployment-target list", constants.ExecutableName),
+		Long:    "Manage deployment targets in Octopus Deploy",
+		Example: heredoc.Docf("$ %s deployment-target list", constants.ExecutableName),
 		Annotations: map[string]string{
 			annotations.IsInfrastructure: "true",
 		},

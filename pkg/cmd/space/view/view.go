@@ -30,12 +30,12 @@ func NewCmdView(f factory.Factory) *cobra.Command {
 	cmd := &cobra.Command{
 		Args:  usage.ExactArgs(1),
 		Use:   "view {<name> | <id>}",
-		Short: "View a space in an instance of Octopus Deploy",
-		Long:  "View a space in an instance of Octopus Deploy.",
-		Example: fmt.Sprintf(heredoc.Doc(`
-			$ %s space view Spaces-9000
-			$ %s space view Integrations
-		`), constants.ExecutableName, constants.ExecutableName),
+		Short: "View a space",
+		Long:  "View a space in Octopus Deploy",
+		Example: heredoc.Docf(`
+			$ %[1]s space view Spaces-9000
+			$ %[1]s space view Integrations
+		`, constants.ExecutableName),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			client, err := f.GetSystemClient()
 			if err != nil {

@@ -1,8 +1,7 @@
 package release
 
 import (
-	"fmt"
-
+	"github.com/MakeNowJust/heredoc/v2"
 	cmdCreate "github.com/OctopusDeploy/cli/pkg/cmd/release/create"
 	cmdDelete "github.com/OctopusDeploy/cli/pkg/cmd/release/delete"
 	cmdDeploy "github.com/OctopusDeploy/cli/pkg/cmd/release/deploy"
@@ -17,8 +16,8 @@ func NewCmdRelease(f factory.Factory) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "release <command>",
 		Short:   "Manage releases",
-		Long:    `Work with Octopus Deploy releases.`,
-		Example: fmt.Sprintf("$ %s release list", constants.ExecutableName),
+		Long:    "Manage releases in Octopus Deploy",
+		Example: heredoc.Docf("$ %s release list", constants.ExecutableName),
 		Annotations: map[string]string{
 			annotations.IsCore: "true",
 		},

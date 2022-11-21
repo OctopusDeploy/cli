@@ -2,6 +2,7 @@ package delete
 
 import (
 	"fmt"
+
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/cmd"
 	"github.com/OctopusDeploy/cli/pkg/cmd/target/shared"
@@ -33,13 +34,13 @@ func NewCmdDelete(f factory.Factory) *cobra.Command {
 	var skipConfirmation bool
 	cmd := &cobra.Command{
 		Use:     "delete {<name> | <id>}",
-		Short:   "Delete a deployment target in an instance of Octopus Deploy",
-		Long:    "Delete a deployment target in an instance of Octopus Deploy",
+		Short:   "Delete a deployment target",
+		Long:    "Delete a deployment target in Octopus Deploy",
 		Aliases: []string{"del", "rm", "remove"},
-		Example: fmt.Sprintf(heredoc.Doc(`
-			$ %s deployment-target delete
-			$ %s deployment-target rm
-		`), constants.ExecutableName, constants.ExecutableName),
+		Example: heredoc.Docf(`
+			$ %[1]s deployment-target delete
+			$ %[1]s deployment-target rm
+		`, constants.ExecutableName),
 		RunE: func(c *cobra.Command, args []string) error {
 			deps := cmd.NewDependencies(f, c)
 

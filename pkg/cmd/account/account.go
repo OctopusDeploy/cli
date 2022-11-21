@@ -1,8 +1,7 @@
 package account
 
 import (
-	"fmt"
-
+	"github.com/MakeNowJust/heredoc/v2"
 	cmdAWS "github.com/OctopusDeploy/cli/pkg/cmd/account/aws"
 	cmdAzure "github.com/OctopusDeploy/cli/pkg/cmd/account/azure"
 	cmdCreate "github.com/OctopusDeploy/cli/pkg/cmd/account/create"
@@ -22,8 +21,8 @@ func NewCmdAccount(f factory.Factory) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "account <command>",
 		Short:   "Manage accounts",
-		Long:    `Work with Octopus Deploy accounts.`,
-		Example: fmt.Sprintf("$ %s account list", constants.ExecutableName),
+		Long:    "Manage accounts in Octopus Deploy",
+		Example: heredoc.Docf("$ %s account list", constants.ExecutableName),
 		Annotations: map[string]string{
 			annotations.IsInfrastructure: "true",
 		},

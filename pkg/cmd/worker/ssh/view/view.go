@@ -1,7 +1,6 @@
 package view
 
 import (
-	"fmt"
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/cmd"
 	"github.com/OctopusDeploy/cli/pkg/cmd/worker/shared"
@@ -18,12 +17,12 @@ func NewCmdView(f factory.Factory) *cobra.Command {
 	cmd := &cobra.Command{
 		Args:  usage.ExactArgs(1),
 		Use:   "view {<name> | <id>}",
-		Short: "View a SSH worker in an instance of Octopus Deploy",
-		Long:  "View a SSH worker in an instance of Octopus Deploy.",
-		Example: fmt.Sprintf(heredoc.Doc(`
-			$ %s worker ssh view 'linux-worker'
-			$ %s worker ssh view Machines-100
-		`), constants.ExecutableName, constants.ExecutableName),
+		Short: "View a SSH worker",
+		Long:  "View a SSH worker in Octopus Deploy",
+		Example: heredoc.Docf(`
+			$ %[1]s worker ssh view 'linux-worker'
+			$ %[1]s worker ssh view Machines-100
+		`, constants.ExecutableName),
 		RunE: func(c *cobra.Command, args []string) error {
 			opts := shared.NewViewOptions(flags, cmd.NewDependencies(f, c), args)
 			return ViewRun(opts)

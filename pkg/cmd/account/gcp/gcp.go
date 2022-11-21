@@ -1,8 +1,7 @@
 package gcp
 
 import (
-	"fmt"
-
+	"github.com/MakeNowJust/heredoc/v2"
 	cmdCreate "github.com/OctopusDeploy/cli/pkg/cmd/account/gcp/create"
 	cmdList "github.com/OctopusDeploy/cli/pkg/cmd/account/gcp/list"
 	"github.com/OctopusDeploy/cli/pkg/constants"
@@ -13,9 +12,9 @@ import (
 func NewCmdGcp(f factory.Factory) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "gcp <command>",
-		Short:   "Manage GCP accounts",
-		Long:    `Work with Octopus Deploy Google Cloud accounts.`,
-		Example: fmt.Sprintf("$ %s account gcp list", constants.ExecutableName),
+		Short:   "Manage Google Cloud accounts",
+		Long:    "Manage Google Cloud accounts in Octopus Deploy",
+		Example: heredoc.Docf("$ %s account gcp list", constants.ExecutableName),
 	}
 
 	cmd.AddCommand(cmdList.NewCmdList(f))

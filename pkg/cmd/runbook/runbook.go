@@ -13,12 +13,12 @@ import (
 func NewCmdRunbook(f factory.Factory) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "runbook <command>",
-		Short: "Manage/run runbooks",
-		Long:  `Work with Octopus Deploy runbooks.`,
+		Short: "Manage runbooks",
+		Long:  "Manage runbooks in Octopus Deploy",
 		Example: heredoc.Docf(`
-			$ %s runbook list
-			$ %s runbook run
-			`, constants.ExecutableName, constants.ExecutableName),
+			$ %[1]s runbook list
+			$ %[1]s runbook run
+		`, constants.ExecutableName),
 		Annotations: map[string]string{
 			annotations.IsCore: "true",
 		},

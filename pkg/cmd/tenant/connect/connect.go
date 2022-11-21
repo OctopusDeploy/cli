@@ -3,6 +3,7 @@ package connect
 import (
 	"errors"
 	"fmt"
+
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/cmd"
@@ -83,12 +84,12 @@ func NewCmdConnect(f factory.Factory) *cobra.Command {
 	connectFlags := NewConnectFlags()
 	cmd := &cobra.Command{
 		Use:   "connect",
-		Short: "Connect a tenant to a project in Octopus Deploy",
+		Short: "Connect a tenant to a project",
 		Long:  "Connect a tenant to a project in Octopus Deploy",
-		Example: fmt.Sprintf(heredoc.Doc(`
-			$ %s tenant connect
-			$ %s tenant connect --tenant "Bobs Wood Shop" --project "Deploy web site" --environment "Production"
-		`), constants.ExecutableName, constants.ExecutableName),
+		Example: heredoc.Docf(`
+			$ %[1]s tenant connect
+			$ %[1]s tenant connect --tenant "Bobs Wood Shop" --project "Deploy web site" --environment "Production"
+		`, constants.ExecutableName),
 		RunE: func(c *cobra.Command, args []string) error {
 			opts := NewConnectOptions(connectFlags, cmd.NewDependencies(f, c))
 

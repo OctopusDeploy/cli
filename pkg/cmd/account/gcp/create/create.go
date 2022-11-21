@@ -3,10 +3,11 @@ package create
 import (
 	b64 "encoding/base64"
 	"fmt"
-	"github.com/OctopusDeploy/cli/pkg/util"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/environments"
 	"io"
 	"os"
+
+	"github.com/OctopusDeploy/cli/pkg/util"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/environments"
 
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/MakeNowJust/heredoc/v2"
@@ -64,12 +65,11 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 	descriptionFilePath := ""
 
 	cmd := &cobra.Command{
-		Use:   "create",
-		Short: "Creates a gcp account",
-		Long:  "Creates a Google Cloud Account in an instance of Octopus Deploy.",
-		Example: fmt.Sprintf(heredoc.Doc(`
-			$ %s account gcp create"
-		`), constants.ExecutableName),
+		Use:     "create",
+		Short:   "Create a Google Cloud account",
+		Long:    "Create a Google Cloud account in Octopus Deploy",
+		Example: heredoc.Docf("$ %s account gcp create", constants.ExecutableName),
+		Aliases: []string{"new"},
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			client, err := f.GetSpacedClient()
 			if err != nil {

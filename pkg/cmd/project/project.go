@@ -1,7 +1,6 @@
 package project
 
 import (
-	"fmt"
 	"github.com/MakeNowJust/heredoc/v2"
 	cmdConnect "github.com/OctopusDeploy/cli/pkg/cmd/project/connect"
 	cmdCreate "github.com/OctopusDeploy/cli/pkg/cmd/project/create"
@@ -20,11 +19,11 @@ func NewCmdProject(f factory.Factory) *cobra.Command {
 		Use:     "project <command>",
 		Aliases: []string{"proj"},
 		Short:   "Manage projects",
-		Long:    `Work with Octopus Deploy projects.`,
-		Example: fmt.Sprintf(heredoc.Doc(`
-			$ %s project list
-			$ %s project ls
-		`), constants.ExecutableName, constants.ExecutableName),
+		Long:    "Manage projects in Octopus Deploy",
+		Example: heredoc.Docf(`
+			$ %[1]s project list
+			$ %[1]s project ls
+		`, constants.ExecutableName),
 		Annotations: map[string]string{
 			annotations.IsCore: "true",
 		},

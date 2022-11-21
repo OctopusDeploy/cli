@@ -117,11 +117,11 @@ func NewCmdRun(f factory.Factory) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "run",
 		Short: "Run runbooks in Octopus Deploy",
-		Long:  "Run runbooks in Octopus Deploy.",
-		Example: heredoc.Doc(`
-			$ octopus runbook run  # fully interactive
-			$ octopus runbook run --project MyProject ... TODO
-		`),
+		Long:  "Run runbooks in Octopus Deploy",
+		Example: heredoc.Docf(`
+			$ %[1]s runbook run  # fully interactive
+			$ %[1]s runbook run --project MyProject ... TODO
+		`, constants.ExecutableName),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) > 0 && runFlags.Project.Value == "" {
 				runFlags.Project.Value = args[0]

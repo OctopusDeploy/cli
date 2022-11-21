@@ -1,8 +1,7 @@
 package polling_tentacle
 
 import (
-	"fmt"
-
+	"github.com/MakeNowJust/heredoc/v2"
 	cmdList "github.com/OctopusDeploy/cli/pkg/cmd/target/polling-tentacle/list"
 	cmdView "github.com/OctopusDeploy/cli/pkg/cmd/target/polling-tentacle/view"
 	"github.com/OctopusDeploy/cli/pkg/constants"
@@ -13,9 +12,9 @@ import (
 func NewCmdPollingTentacle(f factory.Factory) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "polling-tentacle <command>",
-		Short:   "Manage polling tentacle deployment targets",
-		Long:    "Work with Octopus Deploy polling tentacle deployment targets.",
-		Example: fmt.Sprintf("$ %s deployment-target polling-tenatacle list", constants.ExecutableName),
+		Short:   "Manage Polling Tentacle deployment targets",
+		Long:    "Manage Polling Tentacle deployment targets in Octopus Deploy",
+		Example: heredoc.Docf("$ %s deployment-target polling-tenatacle list", constants.ExecutableName),
 	}
 
 	cmd.AddCommand(cmdList.NewCmdList(f))

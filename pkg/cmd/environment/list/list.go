@@ -1,7 +1,6 @@
 package list
 
 import (
-	"fmt"
 	"strconv"
 
 	"github.com/MakeNowJust/heredoc/v2"
@@ -15,12 +14,12 @@ import (
 func NewCmdList(f factory.Factory) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "list",
-		Short: "List environments in an instance of Octopus Deploy",
-		Long:  "List environments in an instance of Octopus Deploy.",
-		Example: fmt.Sprintf(heredoc.Doc(`
-			$ %s environment list
-			$ %s environment ls"
-		`), constants.ExecutableName),
+		Short: "List environments",
+		Long:  "List environments in Octopus Deploy",
+		Example: heredoc.Docf(`
+			$ %[1]s environment list
+			$ %[1]s environment ls"
+		`, constants.ExecutableName),
 		Aliases: []string{"ls"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			client, err := f.GetSpacedClient()

@@ -2,10 +2,11 @@ package create
 
 import (
 	"fmt"
-	"github.com/OctopusDeploy/cli/pkg/util"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/environments"
 	"io"
 	"os"
+
+	"github.com/OctopusDeploy/cli/pkg/util"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/environments"
 
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/MakeNowJust/heredoc/v2"
@@ -63,11 +64,11 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "create",
-		Short: "Creates a username/password account",
-		Long:  "Creates a Username and Password Account in an instance of Octopus Deploy.",
-		Example: fmt.Sprintf(heredoc.Doc(`
+		Short: "Create a Username/Password account",
+		Long:  "Create a Username/Password account in Octopus Deploy",
+		Example: heredoc.Docf(`
 			$ %s account username create"
-		`), constants.ExecutableName),
+		`, constants.ExecutableName),
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			octopus, err := f.GetSpacedClient()
 			if err != nil {

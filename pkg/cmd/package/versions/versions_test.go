@@ -2,6 +2,9 @@ package versions_test
 
 import (
 	"bytes"
+	"testing"
+	"time"
+
 	"github.com/MakeNowJust/heredoc/v2"
 	cmdRoot "github.com/OctopusDeploy/cli/pkg/cmd/root"
 	"github.com/OctopusDeploy/cli/test/fixtures"
@@ -11,8 +14,6 @@ import (
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/resources"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
-	"testing"
-	"time"
 )
 
 var rootResource = testutil.NewRootResource()
