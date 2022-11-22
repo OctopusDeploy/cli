@@ -64,14 +64,14 @@ func NewCmdRoot(f factory.Factory, clientFactory apiclient.ClientFactory, askPro
 
 	cmdPFlags := cmd.PersistentFlags()
 
-	cmdPFlags.BoolP(constants.FlagHelp, "h", false, "Show help for command")
+	cmdPFlags.BoolP(constants.FlagHelp, "h", false, "Show help for a command")
 	cmd.SetHelpFunc(rootHelpFunc)
-	cmdPFlags.StringP(constants.FlagSpace, "s", "", "Set Space")
+	cmdPFlags.StringP(constants.FlagSpace, "s", "", "Specify the space for operations")
 
 	// remember if you read FlagOutputFormat you also need to check FlagOutputFormatLegacy
-	cmdPFlags.StringP(constants.FlagOutputFormat, "f", "", "Output Format (Valid values are 'json', 'table', 'basic'. Defaults to table)")
+	cmdPFlags.StringP(constants.FlagOutputFormat, "f", constants.OutputFormatTable, `Specify the output format for a command ("json", "table", or "basic")`)
 
-	cmdPFlags.BoolP(constants.FlagNoPrompt, "", false, "disable prompting in interactive mode")
+	cmdPFlags.BoolP(constants.FlagNoPrompt, "", false, "Disable prompting in interactive mode")
 
 	// Legacy flags brought across from the .NET CLI.
 	// Consumers of these flags will have to explicitly check for them as well as the new
@@ -104,7 +104,7 @@ func NewCmdRoot(f factory.Factory, clientFactory apiclient.ClientFactory, askPro
 		if noPrompt := viper.GetBool(constants.ConfigNoPrompt); noPrompt {
 			askProvider.DisableInteractive()
 			if v, _ := cmdPFlags.GetString(constants.FlagOutputFormat); v == "" {
-				cmdPFlags.Set(constants.FlagOutputFormat, "basic")
+				cmdPFlags.Set(constants.FlagOutputFormat, constants.OutputFormatBasic)
 			}
 		}
 
