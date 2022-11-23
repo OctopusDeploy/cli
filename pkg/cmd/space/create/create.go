@@ -3,6 +3,7 @@ package create
 import (
 	"errors"
 	"fmt"
+	"github.com/OctopusDeploy/cli/pkg/apiclient"
 	"strings"
 
 	"github.com/OctopusDeploy/cli/pkg/cmd"
@@ -45,8 +46,9 @@ type CreateOptions struct {
 	GetAllUsersCallback  shared.GetAllUsersCallback
 }
 
-func NewCreateOptions(f factory.Factory, flags *CreateFlags, dependencies *cmd.Dependencies) *CreateOptions {
-	client, err := f.GetSystemClient()
+func NewCreateOptions(f factory.Factory, flags *CreateFlags, c *cobra.Command) *CreateOptions {
+	dependencies := cmd.NewDependencies(f, c)
+	client, err := f.GetSystemClient(apiclient.NewRequester(c))
 	dependencies.Client = client // override the default space client
 	if err != nil {
 		panic(err)
@@ -78,7 +80,7 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 		Example: heredoc.Docf("$ %s space create", constants.ExecutableName),
 		Aliases: []string{"new"},
 		RunE: func(c *cobra.Command, args []string) error {
-			opts := NewCreateOptions(f, createFlags, cmd.NewSystemDependencies(f, c))
+			opts := NewCreateOptions(f, createFlags, c)
 
 			return createRun(opts)
 		},

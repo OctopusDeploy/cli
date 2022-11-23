@@ -21,11 +21,11 @@ import (
 type ClientFactory interface {
 	// GetSpacedClient returns an Octopus api Client instance which is bound to the Space
 	// specified in the OCTOPUS_SPACE environment variable, or the command line. It should be the default
-	GetSpacedClient() (*octopusApiClient.Client, error)
+	GetSpacedClient(requester Requester) (*octopusApiClient.Client, error)
 
 	// GetSystemClient returns an Octopus api Client instance which isn't bound to any Space.
 	// Use it for things that live outside of a space, such as Teams, or Spaces themselves
-	GetSystemClient() (*octopusApiClient.Client, error)
+	GetSystemClient(requester Requester) (*octopusApiClient.Client, error)
 
 	// GetActiveSpace returns the currently selected space.
 	// Note this is lazily populated when you call GetSpacedClient;
@@ -158,14 +158,14 @@ func (c *Client) SetSpaceNameOrId(spaceNameOrId string) {
 	c.SpaceNameOrID = spaceNameOrId
 }
 
-func (c *Client) GetSpacedClient() (*octopusApiClient.Client, error) {
+func (c *Client) GetSpacedClient(requester Requester) (*octopusApiClient.Client, error) {
 	if c.SpaceScopedClient != nil {
 		return c.SpaceScopedClient, nil
 	}
 
 	// logic here is a bit fiddly:
 	// We could have been given either a space name, or a space ID, so we need to use the SystemClient to go look it up.
-	systemClient, err := c.GetSystemClient()
+	systemClient, err := c.GetSystemClient(requester)
 	if err != nil {
 		return nil, err
 	}
@@ -238,7 +238,7 @@ func (c *Client) GetSpacedClient() (*octopusApiClient.Client, error) {
 		foundSpaceID = foundSpace.ID
 	}
 
-	scopedClient, err := octopusApiClient.NewClient(c.HttpClient, c.ApiUrl, c.ApiKey, foundSpaceID)
+	scopedClient, err := octopusApiClient.NewClient(c.HttpClient, c.ApiUrl, c.ApiKey, foundSpaceID, requester.GetRequester())
 	if err != nil {
 		return nil, err
 	}
@@ -248,7 +248,7 @@ func (c *Client) GetSpacedClient() (*octopusApiClient.Client, error) {
 	return scopedClient, nil
 }
 
-func (c *Client) GetSystemClient() (*octopusApiClient.Client, error) {
+func (c *Client) GetSystemClient(requester Requester) (*octopusApiClient.Client, error) {
 	// Internal quirks of the go-octopusdeploy API SDK:
 	// A space-scoped client can do System level things perfectly well, but the inverse is not true.
 	// Essentially:
@@ -265,7 +265,7 @@ func (c *Client) GetSystemClient() (*octopusApiClient.Client, error) {
 		return c.SystemClient, nil
 	}
 
-	systemClient, err := octopusApiClient.NewClient(c.HttpClient, c.ApiUrl, c.ApiKey, "") // deliberate empty string for space here
+	systemClient, err := octopusApiClient.NewClient(c.HttpClient, c.ApiUrl, c.ApiKey, "", requester.GetRequester()) // deliberate empty string for space here
 	if err != nil {
 		return nil, err
 	}
@@ -281,11 +281,11 @@ func NewStubClientFactory() ClientFactory {
 
 type stubClientFactory struct{}
 
-func (s *stubClientFactory) GetSpacedClient() (*octopusApiClient.Client, error) {
+func (s *stubClientFactory) GetSpacedClient(requester Requester) (*octopusApiClient.Client, error) {
 	return nil, errors.New("app is not configured correctly")
 }
 
-func (s *stubClientFactory) GetSystemClient() (*octopusApiClient.Client, error) {
+func (s *stubClientFactory) GetSystemClient(requester Requester) (*octopusApiClient.Client, error) {
 	return nil, errors.New("app is not configured correctly")
 }
 

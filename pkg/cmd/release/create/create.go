@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/OctopusDeploy/cli/pkg/apiclient"
 	"io"
 	"os"
 	"regexp"
@@ -222,7 +223,7 @@ func createRun(cmd *cobra.Command, f factory.Factory, flags *CreateFlags) error 
 		options.ReleaseNotes = string(fileContents)
 	}
 
-	octopus, err := f.GetSpacedClient()
+	octopus, err := f.GetSpacedClient(apiclient.NewRequester(cmd))
 	if err != nil {
 		return err
 	}

@@ -2,6 +2,7 @@ package list
 
 import (
 	"errors"
+	"github.com/OctopusDeploy/cli/pkg/apiclient"
 	"math"
 
 	"github.com/MakeNowJust/heredoc/v2"
@@ -80,7 +81,7 @@ func listRun(cmd *cobra.Command, f factory.Factory, flags *ListFlags) error {
 	filter := flags.Filter.Value
 	projectNameOrID := flags.Project.Value
 
-	octopus, err := f.GetSpacedClient()
+	octopus, err := f.GetSpacedClient(apiclient.NewRequester(cmd))
 	if err != nil {
 		return err
 	}

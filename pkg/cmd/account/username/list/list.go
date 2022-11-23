@@ -2,6 +2,7 @@ package list
 
 import (
 	"github.com/MakeNowJust/heredoc/v2"
+	"github.com/OctopusDeploy/cli/pkg/apiclient"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/OctopusDeploy/cli/pkg/output"
@@ -20,7 +21,7 @@ func NewCmdList(f factory.Factory) *cobra.Command {
 		`, constants.ExecutableName),
 		Aliases: []string{"ls"},
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			client, err := f.GetSpacedClient()
+			client, err := f.GetSpacedClient(apiclient.NewRequester(cmd))
 			if err != nil {
 				return err
 			}

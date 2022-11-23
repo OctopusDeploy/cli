@@ -2,6 +2,7 @@ package view
 
 import (
 	"fmt"
+	"github.com/OctopusDeploy/cli/pkg/apiclient"
 	"io"
 	"strings"
 
@@ -37,7 +38,7 @@ func NewCmdView(f factory.Factory) *cobra.Command {
 			$ %[1]s space view Integrations
 		`, constants.ExecutableName),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			client, err := f.GetSystemClient()
+			client, err := f.GetSystemClient(apiclient.NewRequester(cmd))
 			if err != nil {
 				return err
 			}

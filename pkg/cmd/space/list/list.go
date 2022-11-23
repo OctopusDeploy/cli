@@ -2,6 +2,7 @@ package list
 
 import (
 	"github.com/MakeNowJust/heredoc/v2"
+	"github.com/OctopusDeploy/cli/pkg/apiclient"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/OctopusDeploy/cli/pkg/output"
@@ -25,7 +26,7 @@ func NewCmdList(f factory.Factory) *cobra.Command {
 }
 
 func listRun(f factory.Factory, cmd *cobra.Command) error {
-	client, err := f.GetSystemClient()
+	client, err := f.GetSystemClient(apiclient.NewRequester(cmd))
 	if err != nil {
 		return err
 	}
