@@ -3,6 +3,8 @@ package disconnect
 import (
 	"errors"
 	"fmt"
+	"sort"
+	"strings"
 
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/MakeNowJust/heredoc/v2"
@@ -215,7 +217,10 @@ func getCurrentlyConnectedProjects(tenant *tenants.Tenant, getProjectCallback sh
 		}
 		projects = append(projects, project)
 	}
-
+	sort.SliceStable(projects, func(i int, j int) bool {
+		res := strings.Compare(projects[i].Name, projects[j].Name)
+		return res == -1
+	})
 	return projects, nil
 }
 
