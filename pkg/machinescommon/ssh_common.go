@@ -99,7 +99,7 @@ func PromptForSshEndpoint(opts *SshCommonOptions, flags *SshCommonFlags, entityT
 		}
 
 		if port == "" {
-			port = "22"
+			port = fmt.Sprintf("%d", DefaultPort)
 		}
 
 		if p, err := strconv.Atoi(port); err == nil {

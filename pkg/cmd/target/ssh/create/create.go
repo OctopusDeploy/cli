@@ -94,9 +94,9 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 	flags.StringVarP(&createFlags.Name.Value, createFlags.Name.Name, "n", "", "A short, memorable, unique name for this deployment target.")
 
 	shared.RegisterCreateTargetEnvironmentFlags(cmd, createFlags.CreateTargetEnvironmentFlags)
-	machinescommon.RegisterSshCommonFlags(cmd, createFlags.SshCommonFlags, "deployment target")
+	machinescommon.RegisterSshCommonFlags(cmd, createFlags.SshCommonFlags, "SSH target")
 	shared.RegisterCreateTargetRoleFlags(cmd, createFlags.CreateTargetRoleFlags)
-	machinescommon.RegisterCreateTargetProxyFlags(cmd, createFlags.CreateTargetProxyFlags)
+	machinescommon.RegisterCreateTargetProxyFlags(cmd, createFlags.CreateTargetProxyFlags, "SSH target")
 	machinescommon.RegisterCreateTargetMachinePolicyFlags(cmd, createFlags.CreateTargetMachinePolicyFlags)
 	shared.RegisterCreateTargetTenantFlags(cmd, createFlags.CreateTargetTenantFlags)
 	machinescommon.RegisterWebFlag(cmd, createFlags.WebFlags)
@@ -195,17 +195,17 @@ func PromptMissing(opts *CreateOptions) error {
 		return err
 	}
 
-	err = machinescommon.PromptForSshEndpoint(opts.SshCommonOptions, opts.SshCommonFlags, "deployment target")
+	err = machinescommon.PromptForSshEndpoint(opts.SshCommonOptions, opts.SshCommonFlags, "SSH target")
 	if err != nil {
 		return err
 	}
 
-	err = machinescommon.PromptForProxy(opts.CreateTargetProxyOptions, opts.CreateTargetProxyFlags)
+	err = machinescommon.PromptForProxy(opts.CreateTargetProxyOptions, opts.CreateTargetProxyFlags, "SSH target")
 	if err != nil {
 		return err
 	}
 
-	err = machinescommon.PromptForDotNetConfig(opts.SshCommonOptions, opts.SshCommonFlags, "deployment target")
+	err = machinescommon.PromptForDotNetConfig(opts.SshCommonOptions, opts.SshCommonFlags, "SSH target")
 	if err != nil {
 		return err
 	}

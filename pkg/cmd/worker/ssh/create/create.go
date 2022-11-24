@@ -76,7 +76,7 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 	flags := cmd.Flags()
 	flags.StringVarP(&createFlags.Name.Value, createFlags.Name.Name, "n", "", "A short, memorable, unique name for this worker.")
 	machinescommon.RegisterSshCommonFlags(cmd, createFlags.SshCommonFlags, "worker")
-	machinescommon.RegisterCreateTargetProxyFlags(cmd, createFlags.CreateTargetProxyFlags)
+	machinescommon.RegisterCreateTargetProxyFlags(cmd, createFlags.CreateTargetProxyFlags, "SSH worker")
 	machinescommon.RegisterCreateTargetMachinePolicyFlags(cmd, createFlags.CreateTargetMachinePolicyFlags)
 	shared.RegisterCreateWorkerWorkerPoolFlags(cmd, createFlags.WorkerPoolFlags)
 	machinescommon.RegisterWebFlag(cmd, createFlags.WebFlags)
@@ -170,7 +170,7 @@ func PromptMissing(opts *CreateOptions) error {
 		return err
 	}
 
-	err = machinescommon.PromptForProxy(opts.CreateTargetProxyOptions, opts.CreateTargetProxyFlags)
+	err = machinescommon.PromptForProxy(opts.CreateTargetProxyOptions, opts.CreateTargetProxyFlags, "SSH worker")
 	if err != nil {
 		return err
 	}
