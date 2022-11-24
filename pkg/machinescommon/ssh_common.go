@@ -82,7 +82,7 @@ func PromptForSshEndpoint(opts *SshCommonOptions, flags *SshCommonFlags, entityT
 	if flags.HostName.Value == "" {
 		if err := opts.Ask(&survey.Input{
 			Message: "Host",
-			Help:    fmt.Sprintf("The hostname or IP address at which the %s  can be reached.", entityType),
+			Help:    fmt.Sprintf("The hostname or IP address at which the %s can be reached.", entityType),
 		}, &flags.HostName.Value, survey.WithValidator(survey.Required)); err != nil {
 			return err
 		}
