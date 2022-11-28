@@ -1,0 +1,81 @@
+name: 'Generate Docs'
+on:
+  workflow_dispatch:
+env:
+  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+jobs:
+  generate-docs:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Calculate branch name
+        id: branch-name
+        run: echo "BRANCH_NAME=enh-cliupdate-octopus-$(date +'%Y%m%d-%H%M%S')" >> $GITHUB_ENV
+
+      - name: Checkout CLI
+        uses: actions/checkout@v3
+        with:
+          path: ./cli
+
+      - name: Checkout docs
+        uses: actions/checkout@v3
+        with:
+          repository: benPearce1/docs
+          path: ./docs
+          token: ${{ secrets.GITHUB_TOKEN }}
+          persist-credentials: true
+
+      - name: Set up Go
+        uses: actions/setup-go@v3
+        with:
+          go-version: 1.19
+
+      - name: Generate cli docs
+        working-directory: ./cli
+        run: go run cmd/gen-docs/main.go --website --doc-path ../docs/docs/octopus-rest-api/cli
+
+#      - name: Commit
+#        working-directory: docs
+#        run: |
+#          git status
+#          echo "# committing"
+#          pushd docs/octopus-rest-api/cli
+#          git add .
+#          popd
+#          git commit -m 'Update cli docs for octopus(go)'
+#          git status
+#          echo "# pushing"
+#          git push --repo https://${GITHUB_TOKEN}@github.com/benPearce1/docs.git --set-upstream origin $BRANCH_NAME
+#
+
+      - name: Configure git
+        working-directory: ./docs
+        run: |
+          git config user.email 'benpearce@yahoo.com'
+          git config user.name benPearce1
+
+      - name: Commit
+        uses: EndBug/add-and-commit@v9
+        with:
+          message: 'Update cli docs for octopus(go)'
+          committer_name: benPearce1
+          cwd: ./docs
+          add: docs/octopus-rest-api/cli
+          new-branch: ${{ env.BRANCH_NAME }}
+          push: true
+
+      - name: status
+        working-directory: ./docs
+        run: | 
+          echo $BRANCH_NAME
+          git status
+
+#      - name: Create PR
+#        uses: peter-evans/create-pull-request@v4
+#        with:
+#          body: |
+#            An automated update of the command line docs for octopus cli
+#            Created by GitHub Action `generate-docs`
+#          draft: false
+#          delete-branch: true
+#          branch: ${{ env.BRANCH_NAME }}
+#          path: docs
