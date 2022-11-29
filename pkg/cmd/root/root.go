@@ -16,6 +16,7 @@ import (
 	tenantCmd "github.com/OctopusDeploy/cli/pkg/cmd/tenant"
 	"github.com/OctopusDeploy/cli/pkg/cmd/version"
 	workerCmd "github.com/OctopusDeploy/cli/pkg/cmd/worker"
+	workerPoolCmd "github.com/OctopusDeploy/cli/pkg/cmd/workerpool"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/OctopusDeploy/cli/pkg/question"
@@ -43,6 +44,7 @@ func NewCmdRoot(f factory.Factory, clientFactory apiclient.ClientFactory, askPro
 	cmd.AddCommand(packageCmd.NewCmdPackage(f))
 	cmd.AddCommand(deploymentTargetCmd.NewCmdDeploymentTarget(f))
 	cmd.AddCommand(workerCmd.NewCmdWorker(f))
+	cmd.AddCommand(workerPoolCmd.NewCmdWorkerPool(f))
 
 	// core
 	cmd.AddCommand(projectGroupCmd.NewCmdProjectGroup(f))

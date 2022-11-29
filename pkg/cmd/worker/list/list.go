@@ -1,6 +1,7 @@
 package list
 
 import (
+	"github.com/OctopusDeploy/cli/pkg/cmd/model"
 	"strings"
 
 	"github.com/MakeNowJust/heredoc/v2"
@@ -18,11 +19,6 @@ type ListOptions struct {
 	*cobra.Command
 	*cmd.Dependencies
 	*shared.GetWorkersOptions
-}
-
-type Entity struct {
-	Id   string `json:"Id"`
-	Name string `json:"Name"`
 }
 
 func NewListOptions(dependencies *cmd.Dependencies, command *cobra.Command, filter func(*machines.Worker) bool) *ListOptions {
@@ -55,10 +51,10 @@ func ListRun(opts *ListOptions) error {
 	}
 
 	type TargetAsJson struct {
-		Id          string   `json:"Id"`
-		Name        string   `json:"Name"`
-		Type        string   `json:"Type"`
-		WorkerPools []Entity `json:"WorkerPools"`
+		Id          string         `json:"Id"`
+		Name        string         `json:"Name"`
+		Type        string         `json:"Type"`
+		WorkerPools []model.Entity `json:"WorkerPools"`
 	}
 
 	workerPoolMap, err := GetWorkerPoolMap(opts)
@@ -97,10 +93,10 @@ func resolveValues(keys []string, lookup map[string]string) []string {
 	return values
 }
 
-func resolveEntities(keys []string, lookup map[string]string) []Entity {
-	var entities []Entity
+func resolveEntities(keys []string, lookup map[string]string) []model.Entity {
+	var entities []model.Entity
 	for _, k := range keys {
-		entities = append(entities, Entity{Id: k, Name: lookup[k]})
+		entities = append(entities, model.Entity{Id: k, Name: lookup[k]})
 	}
 
 	return entities
