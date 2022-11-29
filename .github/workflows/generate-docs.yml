@@ -21,9 +21,6 @@ jobs:
         with:
           repository: OctopusDeploy/docs
           path: docs
-          token: ${{ env.DOCS_TOKEN }}
-          username: octobob
-          persist-credentials: true
 
       - name: Setup docs repo
         working-directory: docs
