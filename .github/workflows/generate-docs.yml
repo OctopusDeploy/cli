@@ -10,3 +10,56 @@ jobs:
       - name: Calculate branch name
         id: branch-name
         run: echo "BRANCH_NAME=enh-cliupdate-octopus-$(date +'%Y%m%d-%H%M%S')" >> $GITHUB_ENV
+
+      - name: Checkout CLI
+        uses: actions/checkout@v3
+        with:
+          path: cli
+
+      - name: Checkout docs
+        uses: actions/checkout@v3
+        with:
+          repository: OctopusDeploy/docs
+          path: docs
+          token: ${{ env.DOCS_TOKEN }}
+          username: ${{ env.GH_USERNAME }}
+          persist-credentials: true
+
+      - name: Setup docs repo
+        working-directory: docs
+        run: |
+          git config user.email '$GH_USEREMAIL'
+          git config user.name $GH_USERNAME
+          git checkout master
+          git checkout -b $BRANCH_NAME
+          git status
+
+      - name: Set up Go
+        uses: actions/setup-go@v3
+        with:
+          go-version: 1.19
+
+      - name: Generate cli docs
+        working-directory: cli
+        run: go run cmd/gen-docs/main.go --website --doc-path ../docs/docs/octopus-rest-api/cli
+
+      - name: Commit
+        uses: EndBug/add-and-commit@v9
+        with:
+          message: 'Update cli docs for octopus(go)'
+          author_name: Bob
+          author_email: bob@octopus.com
+          committer_name: bob
+          cwd: docs
+          add: docs/octopus-rest-api/cli
+          push: false
+
+      - run: git push --repo https://octobob:$DOCS_TOKEN@github.com/OctopusDeploy/docs.git --set-upstream origin $BRANCH_NAME
+        working-directory: docs
+
+      - name: Create PR
+        run: |
+          echo $BRANCH_NAME
+          curl -X POST -H "Accept: application/vnd.github+json" -H "Authorization: Bearer $DOCS_TOKEN" \
+          https://api.github.com/repos/OctopusDeploy/docs/pulls \
+          -d '{"title":"update go-cli docs","body":"Please pull these awesome changes in!","head":"'$BRANCH_NAME'","base":"master"}'
