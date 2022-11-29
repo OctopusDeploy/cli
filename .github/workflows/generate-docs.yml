@@ -1,0 +1,12 @@
+name: 'Generate Docs'
+on:
+  workflow_dispatch:
+env:
+  DOCS_TOKEN: ${{ secrets.DOCS_TOKEN }}
+jobs:
+  generate-docs:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Calculate branch name
+        id: branch-name
+        run: echo "BRANCH_NAME=enh-cliupdate-octopus-$(date +'%Y%m%d-%H%M%S')" >> $GITHUB_ENV
