@@ -238,7 +238,7 @@ func (c *Client) GetSpacedClient(requester Requester) (*octopusApiClient.Client,
 		foundSpaceID = foundSpace.ID
 	}
 
-	scopedClient, err := octopusApiClient.NewClient(c.HttpClient, c.ApiUrl, c.ApiKey, foundSpaceID, requester.GetRequester())
+	scopedClient, err := octopusApiClient.NewClientForTool(c.HttpClient, c.ApiUrl, c.ApiKey, foundSpaceID, requester.GetRequester())
 	if err != nil {
 		return nil, err
 	}
@@ -265,7 +265,7 @@ func (c *Client) GetSystemClient(requester Requester) (*octopusApiClient.Client,
 		return c.SystemClient, nil
 	}
 
-	systemClient, err := octopusApiClient.NewClient(c.HttpClient, c.ApiUrl, c.ApiKey, "", requester.GetRequester()) // deliberate empty string for space here
+	systemClient, err := octopusApiClient.NewClientForTool(c.HttpClient, c.ApiUrl, c.ApiKey, "", requester.GetRequester()) // deliberate empty string for space here
 	if err != nil {
 		return nil, err
 	}
