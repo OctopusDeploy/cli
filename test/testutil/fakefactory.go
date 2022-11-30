@@ -53,7 +53,7 @@ func (f *MockFactory) GetSystemClient() (*octopusApiClient.Client, error) {
 	serverUrl, _ := url.Parse(serverUrl)
 
 	if f.SystemClient == nil {
-		octopus, err := octopusApiClient.NewClient(NewMockHttpClientWithTransport(f.api), serverUrl, placeholderApiKey, "", "test")
+		octopus, err := octopusApiClient.NewClient(NewMockHttpClientWithTransport(f.api), serverUrl, placeholderApiKey, "")
 		if err != nil {
 			return nil, err
 		}
@@ -67,7 +67,7 @@ func (f *MockFactory) GetSpacedClient() (*octopusApiClient.Client, error) {
 	}
 	serverUrl, _ := url.Parse(serverUrl)
 	if f.SpaceScopedClient == nil {
-		octopus, err := octopusApiClient.NewClient(NewMockHttpClientWithTransport(f.api), serverUrl, placeholderApiKey, f.CurrentSpace.ID, "test")
+		octopus, err := octopusApiClient.NewClient(NewMockHttpClientWithTransport(f.api), serverUrl, placeholderApiKey, f.CurrentSpace.ID)
 		if err != nil {
 			return nil, err
 		}
