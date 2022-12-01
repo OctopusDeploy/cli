@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/user"
 	"path/filepath"
+	"sort"
 	"strings"
 	"text/template"
 	"time"
@@ -22,8 +24,28 @@ import (
 )
 
 type TemplateInformation struct {
-	Title   string
-	Command *cobra.Command
+	Title    string
+	Command  *cobra.Command
+	Filename string
+	Position int
+}
+
+type Pages []*TemplateInformation
+
+type PageCollection struct {
+	Pages *Pages
+}
+
+func (p *Pages) Len() int {
+	return len(*p)
+}
+
+func (p *Pages) Less(i, j int) bool {
+	return (*p)[i].Position < (*p)[j].Position
+}
+
+func (p *Pages) Swap(i, j int) {
+	(*p)[i], (*p)[j] = (*p)[j], (*p)[i]
 }
 
 func main() {
@@ -63,14 +85,41 @@ func run(args []string) error {
 	cmd.DisableAutoGenTag = true
 	cmd.InitDefaultHelpCmd()
 
-	if err := os.MkdirAll(*dir, 0644); err != nil {
+	if strings.HasPrefix(*dir, "~/") {
+		usr, _ := user.Current()
+		home := usr.HomeDir
+		*dir = filepath.Join(home, (*dir)[2:])
+	}
+
+	if _, err := os.Stat(*dir); !os.IsNotExist(err) {
+		err := RemoveContents(*dir)
+		if err != nil {
+			return err
+		}
+	}
+
+	if err := os.MkdirAll(*dir, 0755); err != nil {
 		return err
 	}
 
 	if *website {
-		if err := GenMarkdownTreeCustom(cmd, *dir); err != nil {
+		position := 0
+		pageCollection := &PageCollection{Pages: &Pages{}}
+		if err := GenMarkdownTreeCustom(cmd, *dir, &position, pageCollection); err != nil {
 			return err
 		}
+
+		filename := filepath.Join(*dir, "index.md")
+		f, err := os.Create(filename)
+
+		if err != nil {
+			return err
+		}
+		defer f.Close()
+		t := template.Must(template.New("index-template").Parse(indexTemplate))
+		sort.Sort(pageCollection.Pages)
+		t.Execute(f, pageCollection)
+		return nil
 	}
 
 	header := &doc.GenManHeader{
@@ -95,18 +144,24 @@ func GenMarkdownCustom(cmd *cobra.Command, w io.Writer, info TemplateInformation
 	return t.Execute(w, info)
 }
 
-func GenMarkdownTreeCustom(cmd *cobra.Command, dir string) error {
+func GenMarkdownTreeCustom(cmd *cobra.Command, dir string, positionCounter *int, pageCollection *PageCollection) error {
+	myPosition := *positionCounter
 	for _, c := range cmd.Commands() {
 		if !c.IsAvailableCommand() || c.IsAdditionalHelpTopicCommand() {
 			continue
 		}
-		if err := GenMarkdownTreeCustom(c, dir); err != nil {
+
+		*positionCounter++
+
+		if err := GenMarkdownTreeCustom(c, dir, positionCounter, pageCollection); err != nil {
 			return err
 		}
+
 	}
 
 	basename := strings.ReplaceAll(cmd.CommandPath(), " ", "_") + ".md"
 	filename := filepath.Join(dir, basename)
+
 	f, err := os.Create(filename)
 	if err != nil {
 		return err
@@ -114,9 +169,13 @@ func GenMarkdownTreeCustom(cmd *cobra.Command, dir string) error {
 	defer f.Close()
 
 	info := TemplateInformation{
-		Title:   cmd.CommandPath(),
-		Command: cmd,
+		Title:    cmd.CommandPath(),
+		Command:  cmd,
+		Position: myPosition,
+		Filename: basename,
 	}
+
+	*pageCollection.Pages = append(*pageCollection.Pages, &info)
 
 	if err := GenMarkdownCustom(cmd, f, info); err != nil {
 		return err
@@ -124,15 +183,34 @@ func GenMarkdownTreeCustom(cmd *cobra.Command, dir string) error {
 	return nil
 }
 
+func RemoveContents(dir string) error {
+	d, err := os.Open(dir)
+	if err != nil {
+		return err
+	}
+	defer d.Close()
+	names, err := d.Readdirnames(-1)
+	if err != nil {
+		return err
+	}
+	for _, name := range names {
+		err = os.RemoveAll(filepath.Join(dir, name))
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 const documentationTemplate = `---
 title: {{.Title}}
 description: {{.Command.Short}}
-position:
+position: {{.Position}}
 ---
 
 {{.Command.Long}}
 
-` + "```text" + `{{define "T1"}}Usage:{{if .Runnable}}
+` + "\n```text" + `{{define "T1"}}Usage:{{if .Runnable}}
   {{.UseLine}}{{end}}{{if .HasAvailableSubCommands}}
   {{.CommandPath}} [command]{{end}}{{if gt (len .Aliases) 0}}
 
@@ -158,19 +236,30 @@ Additional help topics:{{range .Commands}}{{if .IsAdditionalHelpTopicCommand}}
   {{.CommandPath .CommandPathPadding}} {{.Short}}{{end}}{{end}}{{end}}{{if .HasAvailableSubCommands}}
 
 Use "{{.CommandPath}} [command] --help" for more information about a command.{{end}}{{end}}
-{{template "T1" .Command}}` + "```" + `
+{{template "T1" .Command}}` + "\n```\n" + `
 {{- if .Command.Example }}
 
 ## Examples
 
 !include <samples-instance>
 
-` + "```text" + `
+` + "\n```text" + `
 {{ .Command.Example }}
-` + "```" + `
+` + "\n```\n" + `
 {{- end }}
 
 ## Learn more
 
 - [Octopus CLI](/docs/octopus-rest-api/octopus-cli/index.md)
 - [Creating API keys](/docs/octopus-rest-api/how-to-create-an-api-key.md)`
+
+const indexTemplate = `---
+title: CLI
+description: The all-new Octopus CLI
+position: 100
+hideInThisSectionHeader: true
+---
+
+{{range .Pages}}{{.Title}} - **[{{.Command.Name}}]({{.Filename}})**: {{.Command.Short}}
+{{end}}
+`
