@@ -3,6 +3,7 @@ package testutil
 import (
 	"errors"
 	"github.com/AlecAivazis/survey/v2"
+	"github.com/OctopusDeploy/cli/pkg/apiclient"
 	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/OctopusDeploy/cli/pkg/question"
 	octopusApiClient "github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
@@ -49,7 +50,7 @@ type MockFactory struct {
 const serverUrl = "http://server"
 const placeholderApiKey = "API-XXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
 
-func (f *MockFactory) GetSystemClient() (*octopusApiClient.Client, error) {
+func (f *MockFactory) GetSystemClient(requester apiclient.Requester) (*octopusApiClient.Client, error) {
 	serverUrl, _ := url.Parse(serverUrl)
 
 	if f.SystemClient == nil {
@@ -61,7 +62,7 @@ func (f *MockFactory) GetSystemClient() (*octopusApiClient.Client, error) {
 	}
 	return f.SystemClient, nil
 }
-func (f *MockFactory) GetSpacedClient() (*octopusApiClient.Client, error) {
+func (f *MockFactory) GetSpacedClient(requester apiclient.Requester) (*octopusApiClient.Client, error) {
 	if f.CurrentSpace == nil {
 		return nil, errors.New("can't get space-scoped client from MockFactory while CurrentSpace is nil")
 	}
