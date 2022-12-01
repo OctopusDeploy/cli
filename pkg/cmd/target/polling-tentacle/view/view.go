@@ -7,6 +7,7 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/OctopusDeploy/cli/pkg/machinescommon"
+	"github.com/OctopusDeploy/cli/pkg/output"
 	"github.com/OctopusDeploy/cli/pkg/usage"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/machines"
 	"github.com/spf13/cobra"
@@ -38,12 +39,12 @@ func ViewRun(opts *shared.ViewOptions) error {
 	return shared.ViewRun(opts, contributeEndpoint, "Polling Tentacle")
 }
 
-func contributeEndpoint(opts *shared.ViewOptions, targetEndpoint machines.IEndpoint) ([]*shared.DataRow, error) {
-	data := []*shared.DataRow{}
+func contributeEndpoint(opts *shared.ViewOptions, targetEndpoint machines.IEndpoint) ([]*output.DataRow, error) {
+	data := []*output.DataRow{}
 
 	endpoint := targetEndpoint.(*machines.PollingTentacleEndpoint)
-	data = append(data, shared.NewDataRow("URI", endpoint.URI.String()))
-	data = append(data, shared.NewDataRow("Tentacle version", endpoint.TentacleVersionDetails.Version))
+	data = append(data, output.NewDataRow("URI", endpoint.URI.String()))
+	data = append(data, output.NewDataRow("Tentacle version", endpoint.TentacleVersionDetails.Version))
 
 	return data, nil
 }

@@ -2,6 +2,7 @@ package view
 
 import (
 	"fmt"
+	"github.com/OctopusDeploy/cli/pkg/output"
 	"strings"
 
 	"github.com/MakeNowJust/heredoc/v2"
@@ -41,8 +42,8 @@ func ViewRun(opts *shared.ViewOptions) error {
 	return shared.ViewRun(opts, contributeEndpoint, "Azure Web App")
 }
 
-func contributeEndpoint(opts *shared.ViewOptions, targetEndpoint machines.IEndpoint) ([]*shared.DataRow, error) {
-	data := []*shared.DataRow{}
+func contributeEndpoint(opts *shared.ViewOptions, targetEndpoint machines.IEndpoint) ([]*output.DataRow, error) {
+	data := []*output.DataRow{}
 	endpoint := targetEndpoint.(*machines.AzureWebAppEndpoint)
 	accountRows, err := shared.ContributeAccount(opts, endpoint.AccountID)
 	if err != nil {
@@ -50,7 +51,7 @@ func contributeEndpoint(opts *shared.ViewOptions, targetEndpoint machines.IEndpo
 	}
 
 	data = append(data, accountRows...)
-	data = append(data, shared.NewDataRow("Web App", getWebAppDisplay(endpoint)))
+	data = append(data, output.NewDataRow("Web App", getWebAppDisplay(endpoint)))
 	return data, nil
 }
 
