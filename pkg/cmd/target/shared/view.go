@@ -7,7 +7,6 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/output"
 	"github.com/OctopusDeploy/cli/pkg/util"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/machines"
-	"strings"
 )
 
 type DataRow struct {
@@ -76,8 +75,8 @@ func ViewRun(opts *ViewOptions, contributeEndpoint ContributeEndpointCallback, d
 	}
 	environmentNames := resolveValues(target.EnvironmentIDs, environmentMap)
 
-	data = append(data, NewDataRow("Environments", formatAsList(environmentNames)))
-	data = append(data, NewDataRow("Roles", formatAsList(target.Roles)))
+	data = append(data, NewDataRow("Environments", output.FormatAsList(environmentNames)))
+	data = append(data, NewDataRow("Roles", output.FormatAsList(target.Roles)))
 
 	if !util.Empty(target.TenantIDs) {
 		tenantMap, err := GetTenantMap(opts)
@@ -86,13 +85,13 @@ func ViewRun(opts *ViewOptions, contributeEndpoint ContributeEndpointCallback, d
 		}
 
 		tenantNames := resolveValues(target.TenantIDs, tenantMap)
-		data = append(data, NewDataRow("Tenants", formatAsList(tenantNames)))
+		data = append(data, NewDataRow("Tenants", output.FormatAsList(tenantNames)))
 	} else {
 		data = append(data, NewDataRow("Tenants", "None"))
 	}
 
 	if !util.Empty(target.TenantTags) {
-		data = append(data, NewDataRow("Tenant Tags", formatAsList(target.TenantTags)))
+		data = append(data, NewDataRow("Tenant Tags", output.FormatAsList(target.TenantTags)))
 	} else {
 		data = append(data, NewDataRow("Tenant Tags", "None"))
 	}
@@ -164,10 +163,6 @@ func GetTenantMap(opts *ViewOptions) (map[string]string, error) {
 		tenantMap[e.GetID()] = e.Name
 	}
 	return tenantMap, nil
-}
-
-func formatAsList(items []string) string {
-	return strings.Join(items, ", ")
 }
 
 func resolveValues(keys []string, lookup map[string]string) []string {

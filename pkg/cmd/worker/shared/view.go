@@ -7,7 +7,6 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/machinescommon"
 	"github.com/OctopusDeploy/cli/pkg/output"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/machines"
-	"strings"
 )
 
 type ContributeEndpointCallback func(opts *ViewOptions, endpoint machines.IEndpoint) ([]*shared.DataRow, error)
@@ -50,7 +49,7 @@ func ViewRun(opts *ViewOptions, contributeEndpoint ContributeEndpointCallback, d
 
 	workerPoolMap, err := GetWorkerPoolMap(opts)
 	workerPoolNames := resolveValues(worker.WorkerPoolIDs, workerPoolMap)
-	data = append(data, shared.NewDataRow("Worker Pools", formatAsList(workerPoolNames)))
+	data = append(data, shared.NewDataRow("Worker Pools", output.FormatAsList(workerPoolNames)))
 
 	if contributeEndpoint != nil {
 		newRows, err := contributeEndpoint(opts, worker.Endpoint)
@@ -118,10 +117,6 @@ func GetWorkerPoolMap(opts *ViewOptions) (map[string]string, error) {
 		workerPoolMap[e.ID] = e.Name
 	}
 	return workerPoolMap, nil
-}
-
-func formatAsList(items []string) string {
-	return strings.Join(items, ", ")
 }
 
 func resolveValues(keys []string, lookup map[string]string) []string {

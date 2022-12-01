@@ -1,11 +1,9 @@
 package list
 
 import (
-	"github.com/OctopusDeploy/cli/pkg/cmd/model"
-	"strings"
-
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/cmd"
+	"github.com/OctopusDeploy/cli/pkg/cmd/model"
 	"github.com/OctopusDeploy/cli/pkg/cmd/worker/shared"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/factory"
@@ -76,7 +74,7 @@ func ListRun(opts *ListOptions) error {
 			Header: []string{"NAME", "TYPE", "WORKER POOLS"},
 			Row: func(item *machines.Worker) []string {
 				poolNames := resolveValues(item.WorkerPoolIDs, workerPoolMap)
-				return []string{output.Bold(item.Name), machinescommon.CommunicationStyleToDescriptionMap[item.Endpoint.GetCommunicationStyle()], formatAsList(poolNames)}
+				return []string{output.Bold(item.Name), machinescommon.CommunicationStyleToDescriptionMap[item.Endpoint.GetCommunicationStyle()], output.FormatAsList(poolNames)}
 			},
 		},
 		Basic: func(item *machines.Worker) string {
@@ -112,8 +110,4 @@ func GetWorkerPoolMap(opts *ListOptions) (map[string]string, error) {
 		workerPoolMap[e.ID] = e.Name
 	}
 	return workerPoolMap, nil
-}
-
-func formatAsList(items []string) string {
-	return strings.Join(items, ",")
 }
