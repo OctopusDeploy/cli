@@ -3,25 +3,14 @@ package shared
 import (
 	"fmt"
 	"github.com/OctopusDeploy/cli/pkg/cmd"
+	"github.com/OctopusDeploy/cli/pkg/cmd/shared"
 	"github.com/OctopusDeploy/cli/pkg/machinescommon"
 	"github.com/OctopusDeploy/cli/pkg/output"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/machines"
 	"strings"
 )
 
-type DataRow struct {
-	Name  string
-	Value string
-}
-
-func NewDataRow(name string, value string) *DataRow {
-	return &DataRow{
-		Name:  name,
-		Value: value,
-	}
-}
-
-type ContributeEndpointCallback func(opts *ViewOptions, endpoint machines.IEndpoint) ([]*DataRow, error)
+type ContributeEndpointCallback func(opts *ViewOptions, endpoint machines.IEndpoint) ([]*shared.DataRow, error)
 
 type ViewFlags struct {
 	*machinescommon.WebFlags
@@ -53,15 +42,15 @@ func ViewRun(opts *ViewOptions, contributeEndpoint ContributeEndpointCallback, d
 		return err
 	}
 
-	data := []*DataRow{}
+	data := []*shared.DataRow{}
 
-	data = append(data, NewDataRow("Name", fmt.Sprintf("%s %s", output.Bold(worker.Name), output.Dimf("(%s)", worker.GetID()))))
-	data = append(data, NewDataRow("Health status", getHealthStatus(worker)))
-	data = append(data, NewDataRow("Current status", worker.StatusSummary))
+	data = append(data, shared.NewDataRow("Name", fmt.Sprintf("%s %s", output.Bold(worker.Name), output.Dimf("(%s)", worker.GetID()))))
+	data = append(data, shared.NewDataRow("Health status", getHealthStatus(worker)))
+	data = append(data, shared.NewDataRow("Current status", worker.StatusSummary))
 
 	workerPoolMap, err := GetWorkerPoolMap(opts)
 	workerPoolNames := resolveValues(worker.WorkerPoolIDs, workerPoolMap)
-	data = append(data, NewDataRow("Worker Pools", formatAsList(workerPoolNames)))
+	data = append(data, shared.NewDataRow("Worker Pools", formatAsList(workerPoolNames)))
 
 	if contributeEndpoint != nil {
 		newRows, err := contributeEndpoint(opts, worker.Endpoint)
@@ -86,24 +75,24 @@ func ViewRun(opts *ViewOptions, contributeEndpoint ContributeEndpointCallback, d
 	return nil
 }
 
-func ContributeProxy(opts *ViewOptions, proxyID string) ([]*DataRow, error) {
+func ContributeProxy(opts *ViewOptions, proxyID string) ([]*shared.DataRow, error) {
 	if proxyID != "" {
 		proxy, err := opts.Client.Proxies.GetById(proxyID)
 		if err != nil {
 			return nil, err
 		}
-		return []*DataRow{NewDataRow("Proxy", proxy.GetName())}, nil
+		return []*shared.DataRow{shared.NewDataRow("Proxy", proxy.GetName())}, nil
 	}
 
-	return []*DataRow{NewDataRow("Proxy", "None")}, nil
+	return []*shared.DataRow{shared.NewDataRow("Proxy", "None")}, nil
 }
 
-func ContributeAccount(opts *ViewOptions, accountID string) ([]*DataRow, error) {
+func ContributeAccount(opts *ViewOptions, accountID string) ([]*shared.DataRow, error) {
 	account, err := opts.Client.Accounts.GetByID(accountID)
 	if err != nil {
 		return nil, err
 	}
-	data := []*DataRow{NewDataRow("Account", account.GetName())}
+	data := []*shared.DataRow{shared.NewDataRow("Account", account.GetName())}
 	return data, nil
 }
 
