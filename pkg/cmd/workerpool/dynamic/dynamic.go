@@ -13,7 +13,7 @@ func NewCmdSsh(f factory.Factory) *cobra.Command {
 		Use:     "dynamic <command>",
 		Short:   "Manage dynamic worker pools",
 		Long:    "Manage dynamic worker pools in Octopus Deploy",
-		Example: heredoc.Docf("$ %s worker-pool dynamaic view", constants.ExecutableName),
+		Example: heredoc.Docf("$ %s worker-pool dynamic view", constants.ExecutableName),
 	}
 
 	cmd.AddCommand(cmdView.NewCmdView(f))
