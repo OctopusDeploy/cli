@@ -250,16 +250,27 @@ Use "{{.CommandPath}} [command] --help" for more information about a command.{{e
 
 ## Learn more
 
-- [Octopus CLI](/docs/octopus-rest-api/octopus-cli/index.md)
+- [Octopus CLI](/docs/octopus-rest-api/cli/index.md)
 - [Creating API keys](/docs/octopus-rest-api/how-to-create-an-api-key.md)`
 
 const indexTemplate = `---
 title: CLI
 description: The all-new Octopus CLI
 position: 100
-hideInThisSectionHeader: true
+hideInThisSection: true
 ---
 
-{{range .Pages}}{{.Title}} - **[{{.Command.Name}}]({{.Filename}})**: {{.Command.Short}}
-{{end}}
-`
+The Octopus CLI is a command line tool that builds on top of the [Octopus Deploy REST API](/docs/octopus-rest-api/index.md). With the Octopus CLI you can push your application packages for deployment as either Zip or NuGet packages, and manage your environments, deployments, projects, and workers.
+
+The Octopus CLI can be used on Windows, Mac, Linux and Docker. For installation options and direct downloads, visit the [CLI Readme](https://github.com/OctopusDeploy/cli/blob/main/README.md).
+
+:::hint
+The Octopus CLI is built and maintained by the Octopus Deploy team, but it is also open source. You can [view the Octopus CLI project on GitHub](https://github.com/OctopusDeploy/cli), which leans heavily on the [go-octopusdeploy library](https://github.com/OctopusDeploy/go-octopusdeploy).
+:::
+
+## Commands {#octopusCommandLine-Commands}
+
+` + "\n`octopus` supports the following commands:\n" +
+	`
+{{range .Pages}}
+- **[{{.Title}}]({{.Filename}})**:  {{.Command.Short}}.{{end}}`
