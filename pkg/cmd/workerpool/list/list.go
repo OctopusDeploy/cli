@@ -31,7 +31,7 @@ func NewCmdList(f factory.Factory) *cobra.Command {
 		Short:   "List worker pools",
 		Long:    "List worker pools in Octopus Deploy",
 		Aliases: []string{"ls"},
-		Example: heredoc.Docf("$ %s worker list", constants.ExecutableName),
+		Example: heredoc.Docf("$ %s worker-pool list", constants.ExecutableName),
 		RunE: func(c *cobra.Command, args []string) error {
 			return ListRun(NewListOptions(cmd.NewDependencies(f, c), c))
 		},
