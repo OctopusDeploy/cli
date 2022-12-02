@@ -7,6 +7,7 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/OctopusDeploy/cli/pkg/machinescommon"
+	"github.com/OctopusDeploy/cli/pkg/output"
 	"github.com/OctopusDeploy/cli/pkg/usage"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/machines"
 	"github.com/spf13/cobra"
@@ -38,12 +39,12 @@ func ViewRun(opts *shared.ViewOptions) error {
 	return shared.ViewRun(opts, contributeEndpoint, "SSH")
 }
 
-func contributeEndpoint(opts *shared.ViewOptions, targetEndpoint machines.IEndpoint) ([]*shared.DataRow, error) {
-	data := []*shared.DataRow{}
+func contributeEndpoint(opts *shared.ViewOptions, targetEndpoint machines.IEndpoint) ([]*output.DataRow, error) {
+	data := []*output.DataRow{}
 	endpoint := targetEndpoint.(*machines.SSHEndpoint)
 
-	data = append(data, shared.NewDataRow("URI", endpoint.URI.String()))
-	data = append(data, shared.NewDataRow("Runtime architecture", getRuntimeArchitecture(endpoint)))
+	data = append(data, output.NewDataRow("URI", endpoint.URI.String()))
+	data = append(data, output.NewDataRow("Runtime architecture", getRuntimeArchitecture(endpoint)))
 	accountRows, err := shared.ContributeAccount(opts, endpoint.AccountID)
 	if err != nil {
 		return nil, err
