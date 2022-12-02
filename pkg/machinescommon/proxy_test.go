@@ -19,7 +19,7 @@ func TestProxyFlagSupplied_ShouldNotPrompt(t *testing.T) {
 
 	opts := machinescommon.NewCreateTargetProxyOptions(&cmd.Dependencies{Ask: asker})
 
-	err := machinescommon.PromptForProxy(opts, flags)
+	err := machinescommon.PromptForProxy(opts, flags, "")
 	checkRemainingPrompts()
 
 	assert.NoError(t, err)
@@ -41,7 +41,7 @@ func TestNoProxyFlag_ShouldPrompt(t *testing.T) {
 		}, nil
 	}
 
-	err := machinescommon.PromptForProxy(opts, flags)
+	err := machinescommon.PromptForProxy(opts, flags, "tentacle")
 	checkRemainingPrompts()
 	assert.NoError(t, err)
 	assert.Equal(t, "Proxy 2", flags.Proxy.Value)
@@ -62,7 +62,7 @@ func TestNoProxyFlag_DirectConnection(t *testing.T) {
 		}, nil
 	}
 
-	err := machinescommon.PromptForProxy(opts, flags)
+	err := machinescommon.PromptForProxy(opts, flags, "tentacle")
 	checkRemainingPrompts()
 	assert.NoError(t, err)
 	assert.Empty(t, flags.Proxy.Value)

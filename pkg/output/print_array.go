@@ -99,7 +99,7 @@ func PrintArray[T any](items []T, cmd *cobra.Command, mappers Mappers[T]) error 
 
 	default:
 		return usage.NewUsageError(
-			fmt.Sprintf("unsupported outputFormat %s. Valid values are 'json', 'table', 'basic'. Defaults to table", outputFormat),
+			fmt.Sprintf("unsupported output format %s. Valid values are 'json', 'table', 'basic'. Defaults to table", outputFormat),
 			cmd)
 	}
 	return nil

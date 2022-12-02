@@ -16,11 +16,11 @@ const FlagProxy = "proxy"
 
 type GetAllProxiesCallback func() ([]*proxies.Proxy, error)
 
-func PromptForProxy(opts *CreateTargetProxyOptions, flags *CreateTargetProxyFlags) error {
+func PromptForProxy(opts *CreateTargetProxyOptions, flags *CreateTargetProxyFlags, description string) error {
 	if flags.Proxy.Value == "" {
 		directConnection := true
 		opts.Ask(&survey.Confirm{
-			Message: "Should the connection to the tentacle be direct?",
+			Message: fmt.Sprintf("Should the connection to the %s be direct?", description),
 			Default: true,
 		}, &directConnection)
 		if !directConnection {
@@ -58,8 +58,8 @@ func NewCreateTargetProxyOptions(dependencies *cmd.Dependencies) *CreateTargetPr
 	}
 }
 
-func RegisterCreateTargetProxyFlags(cmd *cobra.Command, proxyFlags *CreateTargetProxyFlags) {
-	cmd.Flags().StringVar(&proxyFlags.Proxy.Value, FlagProxy, "", "Select whether to use a proxy to connect to this Tentacle. If omitted, will connect directly.")
+func RegisterCreateTargetProxyFlags(cmd *cobra.Command, proxyFlags *CreateTargetProxyFlags, description string) {
+	cmd.Flags().StringVar(&proxyFlags.Proxy.Value, FlagProxy, "", fmt.Sprintf("Select whether to use a proxy to connect to this %s. If omitted, will connect directly.", description))
 }
 
 func FindProxy(opts *CreateTargetProxyOptions, flags *CreateTargetProxyFlags) (*proxies.Proxy, error) {

@@ -17,6 +17,18 @@ const (
 	defaultWidth  = 99999 // when running inside a script or CI system or something, we never want to truncate table output
 )
 
+type DataRow struct {
+	Name  string
+	Value string
+}
+
+func NewDataRow(name string, value string) *DataRow {
+	return &DataRow{
+		Name:  name,
+		Value: value,
+	}
+}
+
 type Table interface {
 	AddRow(...string)
 	Print() error
@@ -26,6 +38,14 @@ type table struct {
 	out      io.Writer
 	maxWidth int
 	rows     [][]string
+}
+
+func PrintRows(rows []*DataRow, w io.Writer) {
+	t := NewTable(w)
+	for _, row := range rows {
+		t.AddRow(row.Name, row.Value)
+	}
+	t.Print()
 }
 
 func NewTable(writer io.Writer) Table {

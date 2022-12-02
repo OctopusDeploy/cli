@@ -1,10 +1,9 @@
 package list
 
 import (
-	"strings"
-
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/cmd"
+	"github.com/OctopusDeploy/cli/pkg/cmd/model"
 	"github.com/OctopusDeploy/cli/pkg/cmd/worker/shared"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/factory"
@@ -18,11 +17,6 @@ type ListOptions struct {
 	*cobra.Command
 	*cmd.Dependencies
 	*shared.GetWorkersOptions
-}
-
-type Entity struct {
-	Id   string `json:"Id"`
-	Name string `json:"Name"`
 }
 
 func NewListOptions(dependencies *cmd.Dependencies, command *cobra.Command, filter func(*machines.Worker) bool) *ListOptions {
@@ -55,10 +49,10 @@ func ListRun(opts *ListOptions) error {
 	}
 
 	type TargetAsJson struct {
-		Id          string   `json:"Id"`
-		Name        string   `json:"Name"`
-		Type        string   `json:"Type"`
-		WorkerPools []Entity `json:"WorkerPools"`
+		Id          string         `json:"Id"`
+		Name        string         `json:"Name"`
+		Type        string         `json:"Type"`
+		WorkerPools []model.Entity `json:"WorkerPools"`
 	}
 
 	workerPoolMap, err := GetWorkerPoolMap(opts)
@@ -80,7 +74,7 @@ func ListRun(opts *ListOptions) error {
 			Header: []string{"NAME", "TYPE", "WORKER POOLS"},
 			Row: func(item *machines.Worker) []string {
 				poolNames := resolveValues(item.WorkerPoolIDs, workerPoolMap)
-				return []string{output.Bold(item.Name), machinescommon.CommunicationStyleToDescriptionMap[item.Endpoint.GetCommunicationStyle()], formatAsList(poolNames)}
+				return []string{output.Bold(item.Name), machinescommon.CommunicationStyleToDescriptionMap[item.Endpoint.GetCommunicationStyle()], output.FormatAsList(poolNames)}
 			},
 		},
 		Basic: func(item *machines.Worker) string {
@@ -97,10 +91,10 @@ func resolveValues(keys []string, lookup map[string]string) []string {
 	return values
 }
 
-func resolveEntities(keys []string, lookup map[string]string) []Entity {
-	var entities []Entity
+func resolveEntities(keys []string, lookup map[string]string) []model.Entity {
+	var entities []model.Entity
 	for _, k := range keys {
-		entities = append(entities, Entity{Id: k, Name: lookup[k]})
+		entities = append(entities, model.Entity{Id: k, Name: lookup[k]})
 	}
 
 	return entities
@@ -116,8 +110,4 @@ func GetWorkerPoolMap(opts *ListOptions) (map[string]string, error) {
 		workerPoolMap[e.ID] = e.Name
 	}
 	return workerPoolMap, nil
-}
-
-func formatAsList(items []string) string {
-	return strings.Join(items, ",")
 }
