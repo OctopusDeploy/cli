@@ -6,6 +6,7 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/output"
 	"github.com/OctopusDeploy/cli/pkg/util/flag"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/machines"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/workerpools"
 	"github.com/pkg/browser"
 	"github.com/spf13/cobra"
 	"io"
@@ -37,6 +38,11 @@ func DoWebForTargets(target *machines.DeploymentTarget, dependencies *cmd.Depend
 func DoWebForWorkers(worker *machines.Worker, dependencies *cmd.Dependencies, flags *WebFlags, description string) {
 	url := fmt.Sprintf("%s/app#/%s/infrastructure/workers/%s", dependencies.Host, dependencies.Space.GetID(), worker.GetID())
 	doWeb(url, description, dependencies.Out, flags)
+}
+
+func DoWebForWorkerPools(workerPool workerpools.IWorkerPool, dependencies cmd.Dependencies, flags *WebFlags) {
+	url := fmt.Sprintf("%s/app#/%s/infrastructure/workerpools/%s", dependencies.Host, dependencies.Space.GetID(), workerPool.GetID())
+	doWeb(url, "Worker Pool", dependencies.Out, flags)
 }
 
 func doWeb(url string, description string, out io.Writer, flags *WebFlags) {

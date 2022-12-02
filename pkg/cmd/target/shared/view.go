@@ -7,22 +7,9 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/output"
 	"github.com/OctopusDeploy/cli/pkg/util"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/machines"
-	"strings"
 )
 
-type DataRow struct {
-	Name  string
-	Value string
-}
-
-func NewDataRow(name string, value string) *DataRow {
-	return &DataRow{
-		Name:  name,
-		Value: value,
-	}
-}
-
-type ContributeEndpointCallback func(opts *ViewOptions, endpoint machines.IEndpoint) ([]*DataRow, error)
+type ContributeEndpointCallback func(opts *ViewOptions, endpoint machines.IEndpoint) ([]*output.DataRow, error)
 
 type ViewFlags struct {
 	*machinescommon.WebFlags
@@ -54,11 +41,11 @@ func ViewRun(opts *ViewOptions, contributeEndpoint ContributeEndpointCallback, d
 		return err
 	}
 
-	data := []*DataRow{}
+	data := []*output.DataRow{}
 
-	data = append(data, NewDataRow("Name", fmt.Sprintf("%s %s", output.Bold(target.Name), output.Dimf("(%s)", target.GetID()))))
-	data = append(data, NewDataRow("Health status", getHealthStatus(target)))
-	data = append(data, NewDataRow("Current status", target.StatusSummary))
+	data = append(data, output.NewDataRow("Name", fmt.Sprintf("%s %s", output.Bold(target.Name), output.Dimf("(%s)", target.GetID()))))
+	data = append(data, output.NewDataRow("Health status", getHealthStatus(target)))
+	data = append(data, output.NewDataRow("Current status", target.StatusSummary))
 
 	if contributeEndpoint != nil {
 		newRows, err := contributeEndpoint(opts, target.Endpoint)
@@ -76,8 +63,8 @@ func ViewRun(opts *ViewOptions, contributeEndpoint ContributeEndpointCallback, d
 	}
 	environmentNames := resolveValues(target.EnvironmentIDs, environmentMap)
 
-	data = append(data, NewDataRow("Environments", formatAsList(environmentNames)))
-	data = append(data, NewDataRow("Roles", formatAsList(target.Roles)))
+	data = append(data, output.NewDataRow("Environments", output.FormatAsList(environmentNames)))
+	data = append(data, output.NewDataRow("Roles", output.FormatAsList(target.Roles)))
 
 	if !util.Empty(target.TenantIDs) {
 		tenantMap, err := GetTenantMap(opts)
@@ -86,15 +73,15 @@ func ViewRun(opts *ViewOptions, contributeEndpoint ContributeEndpointCallback, d
 		}
 
 		tenantNames := resolveValues(target.TenantIDs, tenantMap)
-		data = append(data, NewDataRow("Tenants", formatAsList(tenantNames)))
+		data = append(data, output.NewDataRow("Tenants", output.FormatAsList(tenantNames)))
 	} else {
-		data = append(data, NewDataRow("Tenants", "None"))
+		data = append(data, output.NewDataRow("Tenants", "None"))
 	}
 
 	if !util.Empty(target.TenantTags) {
-		data = append(data, NewDataRow("Tenant Tags", formatAsList(target.TenantTags)))
+		data = append(data, output.NewDataRow("Tenant Tags", output.FormatAsList(target.TenantTags)))
 	} else {
-		data = append(data, NewDataRow("Tenant Tags", "None"))
+		data = append(data, output.NewDataRow("Tenant Tags", "None"))
 	}
 
 	t := output.NewTable(opts.Out)
@@ -110,24 +97,24 @@ func ViewRun(opts *ViewOptions, contributeEndpoint ContributeEndpointCallback, d
 	return nil
 }
 
-func ContributeProxy(opts *ViewOptions, proxyID string) ([]*DataRow, error) {
+func ContributeProxy(opts *ViewOptions, proxyID string) ([]*output.DataRow, error) {
 	if proxyID != "" {
 		proxy, err := opts.Client.Proxies.GetById(proxyID)
 		if err != nil {
 			return nil, err
 		}
-		return []*DataRow{NewDataRow("Proxy", proxy.GetName())}, nil
+		return []*output.DataRow{output.NewDataRow("Proxy", proxy.GetName())}, nil
 	}
 
-	return []*DataRow{NewDataRow("Proxy", "None")}, nil
+	return []*output.DataRow{output.NewDataRow("Proxy", "None")}, nil
 }
 
-func ContributeAccount(opts *ViewOptions, accountID string) ([]*DataRow, error) {
+func ContributeAccount(opts *ViewOptions, accountID string) ([]*output.DataRow, error) {
 	account, err := opts.Client.Accounts.GetByID(accountID)
 	if err != nil {
 		return nil, err
 	}
-	data := []*DataRow{NewDataRow("Account", account.GetName())}
+	data := []*output.DataRow{output.NewDataRow("Account", account.GetName())}
 	return data, nil
 }
 
@@ -164,10 +151,6 @@ func GetTenantMap(opts *ViewOptions) (map[string]string, error) {
 		tenantMap[e.GetID()] = e.Name
 	}
 	return tenantMap, nil
-}
-
-func formatAsList(items []string) string {
-	return strings.Join(items, ", ")
 }
 
 func resolveValues(keys []string, lookup map[string]string) []string {

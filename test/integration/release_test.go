@@ -260,11 +260,12 @@ func TestReleaseListAndDelete(t *testing.T) {
 			return
 		}
 		assert.Equal(t, heredoc.Doc(`
-			5.0
-			4.0
-			3.0
-			2.0
-			1.0
+    VERSION  CHANNEL
+    5.0      Default
+    4.0      Default
+    3.0      Default
+    2.0      Default
+    1.0      Default
 			`), stdOut)
 		assert.Equal(t, "", stdErr)
 	})
