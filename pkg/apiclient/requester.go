@@ -2,9 +2,9 @@ package apiclient
 
 import (
 	"fmt"
+	version "github.com/OctopusDeploy/cli"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/spf13/cobra"
-	"runtime/debug"
 	"strings"
 )
 
@@ -28,16 +28,7 @@ func NewRequester(c *cobra.Command) *RequesterContext {
 func (r *FakeRequesterContext) GetRequester() string { return "octopus/0.0.0" }
 
 func (r *RequesterContext) GetRequester() string {
-	version := "0.0.0"
-	if info, ok := debug.ReadBuildInfo(); ok {
-		for _, dep := range info.Deps {
-			if dep.Path == "github.com/OctopusDeploy/cli" {
-				if dep.Version != "" {
-					version = dep.Version
-				}
-			}
-		}
-	}
+	version := strings.TrimSpace(version.Version)
 
 	if r.cmd == nil {
 		if version == "" {
