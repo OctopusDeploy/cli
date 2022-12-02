@@ -10,6 +10,8 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/machinescommon"
 	"github.com/OctopusDeploy/cli/pkg/output"
 	"github.com/OctopusDeploy/cli/pkg/usage"
+	"github.com/OctopusDeploy/cli/pkg/util"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/machines"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/workerpools"
 	"github.com/spf13/cobra"
 )
@@ -47,6 +49,14 @@ func contributeDetails(opts *shared.ViewOptions, workerPool workerpools.IWorkerP
 
 	data := []*output.DataRow{}
 	data = append(data, output.NewDataRow("Total workers", fmt.Sprintf("%d", len(workers))))
+	data = append(data, output.NewDataRow("Disabled workers", output.Dimf("%d", len(util.SliceFilter(workers, func(w *machines.Worker) bool { return w.IsDisabled })))))
+	data = append(data, output.NewDataRow("Healthy workers", output.Greenf("%d", len(util.SliceFilter(workers, func(w *machines.Worker) bool { return w.HealthStatus == "Healthy" })))))
+	data = append(data, output.NewDataRow("Has Warnings workers", output.Yellowf("%d", len(util.SliceFilter(workers, func(w *machines.Worker) bool { return w.HealthStatus == "HasWarnings" })))))
+	data = append(data, output.NewDataRow("Unhealthy workers", output.Redf("%d", len(util.SliceFilter(workers, func(w *machines.Worker) bool { return w.HealthStatus == "Unhealthy" })))))
+	data = append(data, output.NewDataRow("Unavailable workers", output.Redf("%d", len(util.SliceFilter(workers, func(w *machines.Worker) bool { return w.HealthStatus == "Unavailable" })))))
+	data = append(data, output.NewDataRow("SSH workers", fmt.Sprintf("%d", len(util.SliceFilter(workers, func(w *machines.Worker) bool { return w.Endpoint.GetCommunicationStyle() == "Ssh" })))))
+	data = append(data, output.NewDataRow("Listening Tentacle workers", fmt.Sprintf("%d", len(util.SliceFilter(workers, func(w *machines.Worker) bool { return w.Endpoint.GetCommunicationStyle() == "TentaclePassive" })))))
+	data = append(data, output.NewDataRow("Polling Tentacle workers", fmt.Sprintf("%d", len(util.SliceFilter(workers, func(w *machines.Worker) bool { return w.Endpoint.GetCommunicationStyle() == "TentacleActive" })))))
 
 	return data, nil
 
