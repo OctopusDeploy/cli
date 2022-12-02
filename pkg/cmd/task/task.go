@@ -10,8 +10,8 @@ import (
 func NewCmdTask(f factory.Factory) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "task <command>",
-		Short: "Manage Tasks",
-		Long:  "Manage Tasks in Octopus Deploy",
+		Short: "Manage tasks",
+		Long:  "Manage tasks in Octopus Deploy",
 		Annotations: map[string]string{
 			annotations.IsCore: "true",
 		},

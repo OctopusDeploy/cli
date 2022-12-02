@@ -1,5 +1,44 @@
 # Changelog
 
+## [0.6.0](https://github.com/OctopusDeploy/cli/compare/v0.5.0...v0.6.0) (2022-11-23)
+
+
+### Features
+
+* create azure web app target ([20d66b3](https://github.com/OctopusDeploy/cli/commit/20d66b32518685d49aff1ec9558c39d370ab4831))
+* create cloud region deployment target ([#137](https://github.com/OctopusDeploy/cli/issues/137)) ([672fd7f](https://github.com/OctopusDeploy/cli/commit/672fd7f027d6fab1a122e107f0f00943acd5ce12))
+* create listening tentacle ([#136](https://github.com/OctopusDeploy/cli/issues/136)) ([51ff9ec](https://github.com/OctopusDeploy/cli/commit/51ff9eccf8e9b51d3a92b5293656dc3ab2721935))
+* create ssh deployment target ([a169d2e](https://github.com/OctopusDeploy/cli/commit/a169d2e0e898bfcf2cf2e749c002aa9ba9779269))
+* deployment-target azure-web-app view ([fc639b4](https://github.com/OctopusDeploy/cli/commit/fc639b4b5d3a82538f26e0d90ac47939e8d3c200))
+* deployment-target cloud-region view ([fc639b4](https://github.com/OctopusDeploy/cli/commit/fc639b4b5d3a82538f26e0d90ac47939e8d3c200))
+* deployment-target listening-tentacle view ([fc639b4](https://github.com/OctopusDeploy/cli/commit/fc639b4b5d3a82538f26e0d90ac47939e8d3c200))
+* deployment-target polling-tentacle view ([fc639b4](https://github.com/OctopusDeploy/cli/commit/fc639b4b5d3a82538f26e0d90ac47939e8d3c200))
+* deployment-target ssh view ([fc639b4](https://github.com/OctopusDeploy/cli/commit/fc639b4b5d3a82538f26e0d90ac47939e8d3c200))
+* deployment-target view ([fc639b4](https://github.com/OctopusDeploy/cli/commit/fc639b4b5d3a82538f26e0d90ac47939e8d3c200))
+* deployment-target view ([fc639b4](https://github.com/OctopusDeploy/cli/commit/fc639b4b5d3a82538f26e0d90ac47939e8d3c200))
+* target delete ([0d81e00](https://github.com/OctopusDeploy/cli/commit/0d81e003a7860fb565cd1c3db1f2879f96d4619c))
+* target list  ([4ab66c2](https://github.com/OctopusDeploy/cli/commit/4ab66c2f8234f1e8cf77005a173b50287705c65a))
+* tenant create, delete, tag ([8f70286](https://github.com/OctopusDeploy/cli/commit/8f702868e507c02a95fa26e89b02410fd25e0a24))
+* tenant view ([7b2f7bd](https://github.com/OctopusDeploy/cli/commit/7b2f7bda5773ec54160f82ed6a6dfc8774ed2cac))
+* worker delete ([#147](https://github.com/OctopusDeploy/cli/issues/147)) ([11c838c](https://github.com/OctopusDeploy/cli/commit/11c838cea45c4a02d7df7d092f81ec0b70a99bf0))
+* worker list  ([b075cab](https://github.com/OctopusDeploy/cli/commit/b075cab4a1e6b03a1dce90af031aa8642045afb4))
+* worker listening-tentacle create ([85f95db](https://github.com/OctopusDeploy/cli/commit/85f95dba761a40955e63ad65269a98081aaa5f6b))
+* worker listening-tentacle create ([85f95db](https://github.com/OctopusDeploy/cli/commit/85f95dba761a40955e63ad65269a98081aaa5f6b))
+* worker listening-tentacle list ([b075cab](https://github.com/OctopusDeploy/cli/commit/b075cab4a1e6b03a1dce90af031aa8642045afb4))
+* worker listening-tentacle view ([c251e1c](https://github.com/OctopusDeploy/cli/commit/c251e1c192ec2106de165ab4e26986d77d8d5422))
+* worker polling-tentacle list ([b075cab](https://github.com/OctopusDeploy/cli/commit/b075cab4a1e6b03a1dce90af031aa8642045afb4))
+* worker polling-tentacle view ([c251e1c](https://github.com/OctopusDeploy/cli/commit/c251e1c192ec2106de165ab4e26986d77d8d5422))
+* worker ssh create ([85f95db](https://github.com/OctopusDeploy/cli/commit/85f95dba761a40955e63ad65269a98081aaa5f6b))
+* worker ssh list ([b075cab](https://github.com/OctopusDeploy/cli/commit/b075cab4a1e6b03a1dce90af031aa8642045afb4))
+* worker ssh view ([c251e1c](https://github.com/OctopusDeploy/cli/commit/c251e1c192ec2106de165ab4e26986d77d8d5422))
+* worker view ([c251e1c](https://github.com/OctopusDeploy/cli/commit/c251e1c192ec2106de165ab4e26986d77d8d5422))
+* worker view ([#148](https://github.com/OctopusDeploy/cli/issues/148)) ([c251e1c](https://github.com/OctopusDeploy/cli/commit/c251e1c192ec2106de165ab4e26986d77d8d5422))
+
+
+### Bug Fixes
+
+* deployment-target list alias ([4bb2086](https://github.com/OctopusDeploy/cli/commit/4bb2086468e3931dde7156dce0bfdc9f259aaa8b))
+
 ## [0.5.0](https://github.com/OctopusDeploy/cli/compare/v0.4.0...v0.5.0) (2022-10-31)
 
 

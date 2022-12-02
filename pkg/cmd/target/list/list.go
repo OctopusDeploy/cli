@@ -1,8 +1,6 @@
 package list
 
 import (
-	"strings"
-
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/cmd"
 	"github.com/OctopusDeploy/cli/pkg/cmd/target/shared"
@@ -96,7 +94,7 @@ func ListRun(opts *ListOptions) error {
 			Row: func(item *machines.DeploymentTarget) []string {
 				environmentNames := resolveValues(item.EnvironmentIDs, environmentMap)
 				tenantNames := resolveValues(item.TenantIDs, tenantMap)
-				return []string{output.Bold(item.Name), machinescommon.CommunicationStyleToDescriptionMap[item.Endpoint.GetCommunicationStyle()], formatAsList(item.Roles), formatAsList(environmentNames), formatAsList(tenantNames), formatAsList(item.TenantTags)}
+				return []string{output.Bold(item.Name), machinescommon.CommunicationStyleToDescriptionMap[item.Endpoint.GetCommunicationStyle()], output.FormatAsList(item.Roles), output.FormatAsList(environmentNames), output.FormatAsList(tenantNames), output.FormatAsList(item.TenantTags)}
 			},
 		},
 		Basic: func(item *machines.DeploymentTarget) string {
@@ -144,8 +142,4 @@ func GetTenantMap(opts *ListOptions) (map[string]string, error) {
 		tenantMap[e.GetID()] = e.Name
 	}
 	return tenantMap, nil
-}
-
-func formatAsList(items []string) string {
-	return strings.Join(items, ",")
 }

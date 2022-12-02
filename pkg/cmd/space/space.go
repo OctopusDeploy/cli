@@ -19,7 +19,7 @@ func NewCmdSpace(f factory.Factory) *cobra.Command {
 		Long:  "Manage spaces in Octopus Deploy",
 		Example: heredoc.Docf(`
 			$ %[1]s space list
-			$ %[1]s space view
+			$ %[1]s space view Spaces-302
 		`, constants.ExecutableName),
 		Annotations: map[string]string{
 			annotations.IsConfiguration: "true",

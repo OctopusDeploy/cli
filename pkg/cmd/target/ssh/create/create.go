@@ -2,10 +2,6 @@ package create
 
 import (
 	"fmt"
-	"strconv"
-	"strings"
-
-	"github.com/AlecAivazis/survey/v2"
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/cmd"
 	"github.com/OctopusDeploy/cli/pkg/cmd/target/shared"
@@ -14,11 +10,9 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/OctopusDeploy/cli/pkg/machinescommon"
 	"github.com/OctopusDeploy/cli/pkg/question"
-	"github.com/OctopusDeploy/cli/pkg/question/selectors"
 	"github.com/OctopusDeploy/cli/pkg/util"
 	"github.com/OctopusDeploy/cli/pkg/util/flag"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/accounts"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/environments"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/machines"
 	"github.com/spf13/cobra"
@@ -27,42 +21,25 @@ import (
 type GetAllAccountsForSshTarget func() ([]accounts.IAccount, error)
 
 const (
-	FlagName        = "name"
-	FlagFingerprint = "fingerprint"
-	FlagHost        = "host"
-	FlagPort        = "port"
-	FlagAccount     = "account"
-	FlagRuntime     = "runtime"
-	FlagPlatform    = "platform"
-
-	SelfContainedCalamari = "self-contained"
-	MonoCalamari          = "mono"
-
-	LinuxX64   = "linux-x64"
-	LinuxArm64 = "linux-arm64"
-	LinuxArm   = "linux-arm"
-	OsxX64     = "osx-x64"
+	FlagName = "name"
 )
 
 type CreateFlags struct {
-	Name        *flag.Flag[string]
-	Fingerprint *flag.Flag[string]
-	HostName    *flag.Flag[string]
-	Port        *flag.Flag[int]
-	Account     *flag.Flag[string]
-	Runtime     *flag.Flag[string]
-	Platform    *flag.Flag[string]
+	Name *flag.Flag[string]
+
 	*machinescommon.CreateTargetProxyFlags
 	*shared.CreateTargetEnvironmentFlags
 	*shared.CreateTargetRoleFlags
 	*machinescommon.CreateTargetMachinePolicyFlags
 	*shared.CreateTargetTenantFlags
 	*machinescommon.WebFlags
+	*machinescommon.SshCommonFlags
 }
 
 type CreateOptions struct {
 	*CreateFlags
 	GetAllAccountsForSshTarget
+	*machinescommon.SshCommonOptions
 	*machinescommon.CreateTargetProxyOptions
 	*shared.CreateTargetEnvironmentOptions
 	*shared.CreateTargetRoleOptions
@@ -74,12 +51,7 @@ type CreateOptions struct {
 func NewCreateFlags() *CreateFlags {
 	return &CreateFlags{
 		Name:                           flag.New[string](FlagName, false),
-		Account:                        flag.New[string](FlagAccount, false),
-		Fingerprint:                    flag.New[string](FlagFingerprint, true),
-		HostName:                       flag.New[string](FlagHost, false),
-		Port:                           flag.New[int](FlagPort, false),
-		Runtime:                        flag.New[string](FlagRuntime, false),
-		Platform:                       flag.New[string](FlagPlatform, false),
+		SshCommonFlags:                 machinescommon.NewSshCommonFlags(),
 		CreateTargetRoleFlags:          shared.NewCreateTargetRoleFlags(),
 		CreateTargetProxyFlags:         machinescommon.NewCreateTargetProxyFlags(),
 		CreateTargetMachinePolicyFlags: machinescommon.NewCreateTargetMachinePolicyFlags(),
@@ -93,15 +65,12 @@ func NewCreateOptions(createFlags *CreateFlags, dependencies *cmd.Dependencies) 
 	return &CreateOptions{
 		CreateFlags:                      createFlags,
 		Dependencies:                     dependencies,
+		SshCommonOptions:                 machinescommon.NewSshCommonOpts(dependencies),
 		CreateTargetRoleOptions:          shared.NewCreateTargetRoleOptions(dependencies),
 		CreateTargetProxyOptions:         machinescommon.NewCreateTargetProxyOptions(dependencies),
 		CreateTargetMachinePolicyOptions: machinescommon.NewCreateTargetMachinePolicyOptions(dependencies),
 		CreateTargetEnvironmentOptions:   shared.NewCreateTargetEnvironmentOptions(dependencies),
 		CreateTargetTenantOptions:        shared.NewCreateTargetTenantOptions(dependencies),
-
-		GetAllAccountsForSshTarget: func() ([]accounts.IAccount, error) {
-			return getAllAccountsForSshTarget(dependencies.Client)
-		},
 	}
 }
 
@@ -123,16 +92,11 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 
 	flags := cmd.Flags()
 	flags.StringVarP(&createFlags.Name.Value, createFlags.Name.Name, "n", "", "A short, memorable, unique name for this deployment target.")
-	flags.StringVar(&createFlags.Account.Value, createFlags.Account.Name, "", "The name or ID of the SSH key pair or username/password account")
-	flags.StringVar(&createFlags.HostName.Value, createFlags.HostName.Name, "", "The hostname or IP address of the deployment target to connect to.")
-	flags.StringVar(&createFlags.Fingerprint.Value, createFlags.Fingerprint.Name, "", "The host fingerprint of the deployment target.")
-	flags.IntVar(&createFlags.Port.Value, createFlags.Port.Name, 0, "The port to connect to the deployment target on.")
-	flags.StringVar(&createFlags.Runtime.Value, createFlags.Runtime.Name, "", fmt.Sprintf("The runtime to use to run Calamari on the deployment target. Options are '%s' or '%s'", SelfContainedCalamari, MonoCalamari))
-	flags.StringVar(&createFlags.Platform.Value, createFlags.Platform.Name, "", fmt.Sprintf("The platform to use for the %s Calamari. Options are '%s', '%s', '%s' or '%s'", SelfContainedCalamari, LinuxX64, LinuxArm64, LinuxArm, OsxX64))
 
 	shared.RegisterCreateTargetEnvironmentFlags(cmd, createFlags.CreateTargetEnvironmentFlags)
+	machinescommon.RegisterSshCommonFlags(cmd, createFlags.SshCommonFlags, "SSH target")
 	shared.RegisterCreateTargetRoleFlags(cmd, createFlags.CreateTargetRoleFlags)
-	machinescommon.RegisterCreateTargetProxyFlags(cmd, createFlags.CreateTargetProxyFlags)
+	machinescommon.RegisterCreateTargetProxyFlags(cmd, createFlags.CreateTargetProxyFlags, "SSH target")
 	machinescommon.RegisterCreateTargetMachinePolicyFlags(cmd, createFlags.CreateTargetMachinePolicyFlags)
 	shared.RegisterCreateTargetTenantFlags(cmd, createFlags.CreateTargetTenantFlags)
 	machinescommon.RegisterWebFlag(cmd, createFlags.WebFlags)
@@ -153,7 +117,7 @@ func createRun(opts *CreateOptions) error {
 	}
 	environmentIds := util.SliceTransform(envs, func(e *environments.Environment) string { return e.ID })
 
-	account, err := getAccount(opts)
+	account, err := machinescommon.GetSshAccount(opts.SshCommonOptions, opts.SshCommonFlags)
 	if err != nil {
 		return err
 	}
@@ -165,7 +129,7 @@ func createRun(opts *CreateOptions) error {
 	endpoint := machines.NewSSHEndpoint(opts.HostName.Value, port, opts.Fingerprint.Value)
 	endpoint.AccountID = account.GetID()
 
-	if opts.Runtime.Value == SelfContainedCalamari {
+	if opts.Runtime.Value == machinescommon.SelfContainedCalamari {
 		endpoint.DotNetCorePlatform = opts.Platform.Value
 	}
 
@@ -226,22 +190,22 @@ func PromptMissing(opts *CreateOptions) error {
 		return err
 	}
 
-	err = PromptForAccount(opts)
+	err = machinescommon.PromptForSshAccount(opts.SshCommonOptions, opts.SshCommonFlags)
 	if err != nil {
 		return err
 	}
 
-	err = PromptForEndpoint(opts)
+	err = machinescommon.PromptForSshEndpoint(opts.SshCommonOptions, opts.SshCommonFlags, "SSH target")
 	if err != nil {
 		return err
 	}
 
-	err = machinescommon.PromptForProxy(opts.CreateTargetProxyOptions, opts.CreateTargetProxyFlags)
+	err = machinescommon.PromptForProxy(opts.CreateTargetProxyOptions, opts.CreateTargetProxyFlags, "SSH target")
 	if err != nil {
 		return err
 	}
 
-	err = PromptForDotNetConfig(opts)
+	err = machinescommon.PromptForDotNetConfig(opts.SshCommonOptions, opts.SshCommonFlags, "SSH target")
 	if err != nil {
 		return err
 	}
@@ -252,147 +216,4 @@ func PromptMissing(opts *CreateOptions) error {
 	}
 
 	return nil
-}
-
-func PromptForEndpoint(opts *CreateOptions) error {
-	if opts.HostName.Value == "" {
-		if err := opts.Ask(&survey.Input{
-			Message: "Host",
-			Help:    "The hostname or IP address at which the deployment target can be reached.",
-		}, &opts.HostName.Value, survey.WithValidator(survey.Required)); err != nil {
-			return err
-		}
-	}
-
-	if opts.Port.Value == 0 {
-		var port string
-		if err := opts.Ask(&survey.Input{
-			Message: "Port",
-			Help:    "Port number to connect over SSH to the deployment target. Default is 22",
-		}, &port); err != nil {
-			return err
-		}
-
-		if port == "" {
-			port = "22"
-		}
-
-		if p, err := strconv.Atoi(port); err == nil {
-			opts.Port.Value = p
-		} else {
-			return err
-		}
-	}
-
-	if opts.Fingerprint.Value == "" {
-		if err := opts.Ask(&survey.Input{
-			Message: "Host fingerprint",
-			Help:    "The host fingerprint of the SSH deployment target.",
-		}, &opts.Fingerprint.Value, survey.WithValidator(survey.Required)); err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-func PromptForDotNetConfig(opts *CreateOptions) error {
-	if opts.Runtime.Value == "" {
-		selectedRuntime, err := selectors.SelectOptions(opts.Ask, "Select the target runtime\n", getTargetRuntimeOptions)
-		if err != nil {
-			return err
-		}
-		opts.Runtime.Value = selectedRuntime.Value
-	}
-
-	if opts.Runtime.Value == SelfContainedCalamari {
-		if opts.Platform.Value == "" {
-			selectedPlatform, err := selectors.SelectOptions(opts.Ask, "Select the target platform\n", getTargetPlatformOptions)
-			if err != nil {
-				return err
-			}
-			opts.Platform.Value = selectedPlatform.Value
-		}
-	}
-
-	return nil
-}
-
-func PromptForAccount(opts *CreateOptions) error {
-	var account accounts.IAccount
-	if opts.Account.Value == "" {
-		selectedAccount, err := selectors.Select(
-			opts.Ask,
-			"Select the account to use\n",
-			opts.GetAllAccountsForSshTarget,
-			func(a accounts.IAccount) string {
-				return a.GetName()
-			})
-		if err != nil {
-			return err
-		}
-		account = selectedAccount
-	} else {
-		a, err := getAccount(opts)
-		if err != nil {
-			return err
-		}
-		account = a
-	}
-
-	opts.Account.Value = account.GetName()
-	return nil
-}
-
-func getAllAccountsForSshTarget(client *client.Client) ([]accounts.IAccount, error) {
-	allAccounts, err := client.Accounts.GetAll()
-	if err != nil {
-		return nil, err
-	}
-
-	var accounts []accounts.IAccount
-	for _, a := range allAccounts {
-		if canBeUsedForSSH(a) {
-			accounts = append(accounts, a)
-		}
-	}
-
-	return accounts, nil
-}
-
-func canBeUsedForSSH(account accounts.IAccount) bool {
-	accountType := account.GetAccountType()
-	return accountType == accounts.AccountTypeSSHKeyPair || accountType == accounts.AccountTypeUsernamePassword
-}
-
-func getAccount(opts *CreateOptions) (accounts.IAccount, error) {
-	idOrName := opts.Account.Value
-	allAccounts, err := opts.GetAllAccountsForSshTarget()
-	if err != nil {
-		return nil, err
-	}
-
-	for _, a := range allAccounts {
-		if strings.EqualFold(a.GetID(), idOrName) || strings.EqualFold(a.GetName(), idOrName) {
-			return a, nil
-		}
-	}
-
-	return nil, fmt.Errorf("cannot find account %s", idOrName)
-}
-
-func getTargetRuntimeOptions() []*selectors.SelectOption[string] {
-	return []*selectors.SelectOption[string]{
-		{Display: "Self-contained Calamari", Value: SelfContainedCalamari},
-		{Display: "Calamari on Mono", Value: MonoCalamari},
-	}
-}
-
-func getTargetPlatformOptions() []*selectors.SelectOption[string] {
-	return []*selectors.SelectOption[string]{
-		{Display: "Linux x64", Value: LinuxX64},
-		{Display: "Linux ARM64", Value: LinuxArm64},
-		{Display: "Linux ARM", Value: LinuxArm},
-		{Display: "OSX x64", Value: OsxX64},
-	}
 }
