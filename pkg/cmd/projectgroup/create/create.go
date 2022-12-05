@@ -6,7 +6,6 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/question"
 
-	"github.com/AlecAivazis/survey/v2"
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/cmd"
 	"github.com/OctopusDeploy/cli/pkg/factory"
@@ -117,15 +116,7 @@ func PromptMissing(opts *CreateOptions) error {
 	}
 
 	question.AskName(opts.Ask, messagePrefix, "project group", &opts.Name.Value)
-
-	if opts.Description.Value == "" {
-		if err := opts.Ask(&survey.Input{
-			Message: messagePrefix + "Description",
-			Help:    "A short, memorable, description for this project group.",
-		}, &opts.Description.Value); err != nil {
-			return err
-		}
-	}
+	question.AskDescription(opts.Ask, messagePrefix, "project group", &opts.Description.Value)
 
 	return nil
 }

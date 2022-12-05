@@ -89,12 +89,7 @@ func PromptMissing(opts *CreateOptions) ([]cmd.Dependable, error) {
 	nestedOpts := []cmd.Dependable{}
 
 	question.AskName(opts.Ask, "", "tenant", &opts.Name.Value)
-
-	if err := opts.Ask(&survey.Input{
-		Message: "Description",
-	}, &opts.Description.Value); err != nil {
-		return nestedOpts, err
-	}
+	question.AskDescription(opts.Ask, "", "tenant", &opts.Description.Value)
 
 	tags, err := AskTags(opts.Ask, opts.Tag.Value, opts.GetAllTagsCallback)
 	if err != nil {

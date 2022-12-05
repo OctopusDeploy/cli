@@ -217,13 +217,9 @@ func PromptMissing(opts *CreateOptions) error {
 		}
 	}
 
-	if opts.Description.Value == "" {
-		if err := opts.Ask(&survey.Input{
-			Message: "Description",
-			Help:    "A short, memorable, description for this space.",
-		}, &opts.Description.Value); err != nil {
-			return err
-		}
+	err = question.AskDescription(opts.Ask, "", "space", &opts.Description.Value)
+	if err != nil {
+		return err
 	}
 
 	if len(opts.Teams.Value) == 0 {

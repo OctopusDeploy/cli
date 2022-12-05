@@ -40,7 +40,7 @@ func DoWebForWorkers(worker *machines.Worker, dependencies *cmd.Dependencies, fl
 	doWeb(url, description, dependencies.Out, flags)
 }
 
-func DoWebForWorkerPools(workerPool workerpools.IWorkerPool, dependencies cmd.Dependencies, flags *WebFlags) {
+func DoWebForWorkerPools(workerPool workerpools.IWorkerPool, dependencies *cmd.Dependencies, flags *WebFlags) {
 	url := fmt.Sprintf("%s/app#/%s/infrastructure/workerpools/%s", dependencies.Host, dependencies.Space.GetID(), workerPool.GetID())
 	doWeb(url, "Worker Pool", dependencies.Out, flags)
 }
