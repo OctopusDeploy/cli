@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/OctopusDeploy/cli/pkg/apiclient"
 	"io"
 	"os"
 	"path/filepath"
@@ -109,7 +110,7 @@ func uploadRun(cmd *cobra.Command, f factory.Factory, flags *UploadFlags) error 
 	}
 
 	// package upload doesn't have interactive mode, so we don't care about the question.asker
-	octopus, err := f.GetSpacedClient()
+	octopus, err := f.GetSpacedClient(apiclient.NewRequester(cmd))
 	if err != nil {
 		return err
 	}

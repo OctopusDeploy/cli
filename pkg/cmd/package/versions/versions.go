@@ -3,6 +3,7 @@ package versions
 import (
 	"errors"
 	"fmt"
+	"github.com/OctopusDeploy/cli/pkg/apiclient"
 	"math"
 	"time"
 
@@ -82,7 +83,7 @@ func versionsRun(cmd *cobra.Command, f factory.Factory, flags *VersionsFlags) er
 		return errors.New("package must be specified")
 	}
 
-	octopus, err := f.GetSpacedClient()
+	octopus, err := f.GetSpacedClient(apiclient.NewRequester(cmd))
 	if err != nil {
 		return err
 	}

@@ -2,6 +2,7 @@ package create
 
 import (
 	"fmt"
+	"github.com/OctopusDeploy/cli/pkg/apiclient"
 	"io"
 	"os"
 
@@ -69,7 +70,7 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 		Example: heredoc.Docf("$ %s account aws create", constants.ExecutableName),
 		Aliases: []string{"new"},
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			client, err := f.GetSpacedClient()
+			client, err := f.GetSpacedClient(apiclient.NewRequester(cmd))
 			if err != nil {
 				return err
 			}

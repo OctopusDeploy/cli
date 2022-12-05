@@ -3,6 +3,7 @@ package create
 import (
 	b64 "encoding/base64"
 	"fmt"
+	"github.com/OctopusDeploy/cli/pkg/apiclient"
 	"io"
 	"os"
 
@@ -75,7 +76,7 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 		Example: heredoc.Docf("$ %s account ssh create", constants.ExecutableName),
 		Aliases: []string{"new"},
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			octopus, err := f.GetSpacedClient()
+			octopus, err := f.GetSpacedClient(apiclient.NewRequester(cmd))
 			if err != nil {
 				return err
 			}

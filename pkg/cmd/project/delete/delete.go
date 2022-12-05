@@ -2,6 +2,7 @@ package delete
 
 import (
 	"fmt"
+	"github.com/OctopusDeploy/cli/pkg/apiclient"
 
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/constants"
@@ -33,7 +34,7 @@ func NewCmdList(f factory.Factory) *cobra.Command {
 			$ %[1]s project rm
 		`, constants.ExecutableName),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			client, err := f.GetSpacedClient()
+			client, err := f.GetSpacedClient(apiclient.NewRequester(cmd))
 			if err != nil {
 				return err
 			}

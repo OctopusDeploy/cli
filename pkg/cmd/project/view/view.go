@@ -2,6 +2,7 @@ package view
 
 import (
 	"fmt"
+	"github.com/OctopusDeploy/cli/pkg/apiclient"
 	"io"
 
 	"github.com/MakeNowJust/heredoc/v2"
@@ -51,7 +52,7 @@ func NewCmdView(f factory.Factory) *cobra.Command {
 			$ %[1]s project view deploy-web-app
 		`, constants.ExecutableName),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			client, err := f.GetSpacedClient()
+			client, err := f.GetSpacedClient(apiclient.NewRequester(cmd))
 			if err != nil {
 				return err
 			}

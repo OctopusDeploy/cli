@@ -2,9 +2,8 @@ package delete
 
 import (
 	"fmt"
-	"io"
-
 	"github.com/MakeNowJust/heredoc/v2"
+	"github.com/OctopusDeploy/cli/pkg/apiclient"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/OctopusDeploy/cli/pkg/question"
@@ -28,12 +27,12 @@ func NewCmdDelete(f factory.Factory) *cobra.Command {
 		`, constants.ExecutableName),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) == 0 {
-				return deleteRun(f, cmd.OutOrStdout())
+				return deleteRun(f, cmd)
 			}
 
 			itemIDOrName := args[0]
 
-			client, err := f.GetSystemClient()
+			client, err := f.GetSystemClient(apiclient.NewRequester(cmd))
 			if err != nil {
 				return err
 			}
@@ -61,8 +60,8 @@ func NewCmdDelete(f factory.Factory) *cobra.Command {
 	return cmd
 }
 
-func deleteRun(f factory.Factory, w io.Writer) error {
-	client, err := f.GetSystemClient()
+func deleteRun(f factory.Factory, cmd *cobra.Command) error {
+	client, err := f.GetSystemClient(apiclient.NewRequester(cmd))
 	if err != nil {
 		return err
 	}

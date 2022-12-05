@@ -2,10 +2,9 @@ package create
 
 import (
 	"fmt"
-	"io"
-
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/MakeNowJust/heredoc/v2"
+	"github.com/OctopusDeploy/cli/pkg/apiclient"
 	awsCreate "github.com/OctopusDeploy/cli/pkg/cmd/account/aws/create"
 	azureCreate "github.com/OctopusDeploy/cli/pkg/cmd/account/azure/create"
 	gcpCreate "github.com/OctopusDeploy/cli/pkg/cmd/account/gcp/create"
@@ -25,15 +24,16 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 		Example: heredoc.Docf("$ %s account create", constants.ExecutableName),
 		Aliases: []string{"new"},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return createRun(f, cmd.OutOrStdout())
+			return createRun(f, cmd)
 		},
 	}
 
 	return cmd
 }
 
-func createRun(f factory.Factory, w io.Writer) error {
-	client, err := f.GetSpacedClient()
+func createRun(f factory.Factory, cmd *cobra.Command) error {
+	client, err := f.GetSpacedClient(apiclient.NewRequester(cmd))
+	w := cmd.OutOrStderr()
 	if err != nil {
 		return err
 	}

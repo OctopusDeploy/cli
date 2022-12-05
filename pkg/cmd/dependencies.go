@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"github.com/OctopusDeploy/cli/pkg/apiclient"
 	"io"
 
 	"github.com/OctopusDeploy/cli/pkg/factory"
@@ -27,7 +28,7 @@ type Dependencies struct {
 }
 
 func NewDependencies(f factory.Factory, cmd *cobra.Command) *Dependencies {
-	client, err := f.GetSpacedClient()
+	client, err := f.GetSpacedClient(apiclient.NewRequester(cmd))
 	if err != nil {
 		panic(err)
 	}
@@ -36,7 +37,7 @@ func NewDependencies(f factory.Factory, cmd *cobra.Command) *Dependencies {
 }
 
 func NewSystemDependencies(f factory.Factory, cmd *cobra.Command) *Dependencies {
-	client, err := f.GetSystemClient()
+	client, err := f.GetSystemClient(apiclient.NewRequester(cmd))
 	if err != nil {
 		panic(err)
 	}

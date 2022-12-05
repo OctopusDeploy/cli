@@ -3,6 +3,7 @@ package delete
 import (
 	"errors"
 	"fmt"
+	"github.com/OctopusDeploy/cli/pkg/apiclient"
 
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/MakeNowJust/heredoc/v2"
@@ -79,7 +80,7 @@ func deleteRun(cmd *cobra.Command, f factory.Factory, flags *Flags, args []strin
 	}
 
 	// now off we go
-	octopus, err := f.GetSpacedClient()
+	octopus, err := f.GetSpacedClient(apiclient.NewRequester(cmd))
 	if err != nil {
 		return err
 	}

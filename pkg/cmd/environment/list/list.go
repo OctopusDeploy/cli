@@ -1,6 +1,7 @@
 package list
 
 import (
+	"github.com/OctopusDeploy/cli/pkg/apiclient"
 	"strconv"
 
 	"github.com/MakeNowJust/heredoc/v2"
@@ -22,7 +23,7 @@ func NewCmdList(f factory.Factory) *cobra.Command {
 		`, constants.ExecutableName),
 		Aliases: []string{"ls"},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			client, err := f.GetSpacedClient()
+			client, err := f.GetSpacedClient(apiclient.NewRequester(cmd))
 			if err != nil {
 				return err
 			}
