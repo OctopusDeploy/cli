@@ -2,6 +2,7 @@ package workerpool
 
 import (
 	"github.com/MakeNowJust/heredoc/v2"
+	deleteCmd "github.com/OctopusDeploy/cli/pkg/cmd/workerpool/delete"
 	dynamicCmd "github.com/OctopusDeploy/cli/pkg/cmd/workerpool/dynamic"
 	listCmd "github.com/OctopusDeploy/cli/pkg/cmd/workerpool/list"
 	staticCmd "github.com/OctopusDeploy/cli/pkg/cmd/workerpool/static"
@@ -26,6 +27,7 @@ func NewCmdWorkerPool(f factory.Factory) *cobra.Command {
 		},
 	}
 
+	cmd.AddCommand(deleteCmd.NewCmdDelete(f))
 	cmd.AddCommand(listCmd.NewCmdList(f))
 	cmd.AddCommand(viewCmd.NewCmdView(f))
 	cmd.AddCommand(staticCmd.NewCmdStatic(f))
