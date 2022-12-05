@@ -46,6 +46,8 @@ github.com/Netflix/go-expect v0.0.0-20220104043353-73e0943537d2 h1:+vx7roKuyA63n
 github.com/Netflix/go-expect v0.0.0-20220104043353-73e0943537d2/go.mod h1:HBCaDeC1lPdgDeDbhX8XFpy1jqjK0IBG8W5K+xYqA0w=
 github.com/OctopusDeploy/go-octopusdeploy/v2 v2.17.2 h1:29EpraoIbRAykWYgMijE6t5H0i13HVhPR9mYSBlYmDg=
 github.com/OctopusDeploy/go-octopusdeploy/v2 v2.17.2/go.mod h1:2j9rwRfb5qUs9PEJ3W331W84kRaNge5bed4D7JR1ruU=
+github.com/OctopusDeploy/go-octopusdeploy/v2 v2.17.4 h1:HPAw9bmV1zjzH1os1+9WDTmm/umCAA76c7gmrDR1EDY=
+github.com/OctopusDeploy/go-octopusdeploy/v2 v2.17.4/go.mod h1:MTB3eZu7dEMk/a5ncYfkY0EMtwAQV/PzrGT+Sek+ujY=
 github.com/briandowns/spinner v1.19.0 h1:s8aq38H+Qju89yhp89b4iIiMzMm8YN3p6vGpwyh/a8E=
 github.com/briandowns/spinner v1.19.0/go.mod h1:mQak9GHqbspjC/5iUx3qMlIho8xBS/ppAL/hX5SmPJU=
 github.com/census-instrumentation/opencensus-proto v0.2.1/go.mod h1:f6KPmirojxKA12rnyqOA5BBL4O983OfeGPqjHWSTneU=

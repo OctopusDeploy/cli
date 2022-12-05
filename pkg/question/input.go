@@ -61,3 +61,16 @@ func AskName(ask Asker, messagePrefix string, resourceDescription string, value 
 	}
 	return nil
 }
+
+func AskDescription(ask Asker, messagePrefix string, resourceDescription string, value *string) error {
+	if *value == "" {
+		if err := ask(&survey.Input{
+			Message: messagePrefix + "Description",
+			Help:    fmt.Sprintf("A short, memorable, description for this %s.", resourceDescription),
+		}, value); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
