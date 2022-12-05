@@ -25,9 +25,8 @@ func TestPromptMissing_FlagsSupplied(t *testing.T) {
 
 func TestPromptMissing_ShouldPrompt(t *testing.T) {
 	pa := []*testutil.PA{
-		testutil.NewInputPrompt("Name", "A short, memorable, unique name for this Dynamic Worker Pool.", "name"),
-		testutil.NewInputPrompt("Description", "A short, memorable, description for this Dynamic Worker Pool.", "description"),
-		testutil.NewSelectPrompt("Select the worker type to use", "", []string{"Ubuntu (UbuntuDefault)", "Windows (WindowsDefault)"}, "Windows (WindowsDefault)"),
+		testutil.NewInputPrompt("Name", "A short, memorable, unique name for this Static Worker Pool.", "name"),
+		testutil.NewInputPrompt("Description", "A short, memorable, description for this Static Worker Pool.", "description"),
 	}
 
 	asker, checkRemainingPrompts := testutil.NewMockAsker(t, pa)
