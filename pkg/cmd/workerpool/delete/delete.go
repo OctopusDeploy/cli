@@ -58,7 +58,7 @@ func NewCmdDelete(f factory.Factory) *cobra.Command {
 			}
 
 			if workerpool == nil {
-				return fmt.Errorf("cannot find a worker with name or ID of '%s'", idOrName)
+				return fmt.Errorf("cannot find a worker pool with name or ID of '%s'", idOrName)
 			}
 
 			if !skipConfirmation { // TODO NO_PROMPT env var or whatever we do there
