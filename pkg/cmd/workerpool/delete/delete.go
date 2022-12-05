@@ -77,7 +77,7 @@ func NewCmdDelete(f factory.Factory) *cobra.Command {
 }
 
 func deleteRun(opts *DeleteOptions) error {
-	workerpool, err := selectors.Select(opts.Ask, "Select the worker you wish to delete:", opts.GetWorkerPoolsCallback, func(pool *workerpools.WorkerPoolListResult) string { return pool.Name })
+	workerpool, err := selectors.Select(opts.Ask, "Select the worker pool you wish to delete:", opts.GetWorkerPoolsCallback, func(pool *workerpools.WorkerPoolListResult) string { return pool.Name })
 	if err != nil {
 		return err
 	}
