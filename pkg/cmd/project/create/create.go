@@ -2,7 +2,6 @@ package create
 
 import (
 	"fmt"
-
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/cmd"
@@ -30,6 +29,8 @@ const (
 	FlagGitCredentialStorage    = "git-credential-store"
 	FlagGitInitialCommitMessage = "git-initial-commit"
 	FlagGitBasePath             = "git-base-path"
+	FlagDefaultBranchProtected  = "git-protected-default-branch"
+	FlagInitialCommitBranch     = "git-initial-commit-branch"
 
 	DefaultGitCommitMessage = "Initial commit of deployment process"
 	DefaultBasePath         = ".octopus/"
@@ -46,31 +47,35 @@ type CreateFlags struct {
 	Lifecycle    *flag.Flag[string]
 	ConfigAsCode *flag.Flag[bool]
 
-	GitUrl                  *flag.Flag[string]
-	GitBranch               *flag.Flag[string]
-	GitCredentials          *flag.Flag[string]
-	GitUsername             *flag.Flag[string]
-	GitPassword             *flag.Flag[string]
-	GitStorage              *flag.Flag[string]
-	GitInitialCommitMessage *flag.Flag[string]
-	GitBasePath             *flag.Flag[string]
+	GitUrl                    *flag.Flag[string]
+	GitBranch                 *flag.Flag[string]
+	GitCredentials            *flag.Flag[string]
+	GitUsername               *flag.Flag[string]
+	GitPassword               *flag.Flag[string]
+	GitStorage                *flag.Flag[string]
+	GitInitialCommitMessage   *flag.Flag[string]
+	GitDefaultBranchProtected *flag.Flag[bool]
+	GitInitialCommitBranch    *flag.Flag[string]
+	GitBasePath               *flag.Flag[string]
 }
 
 func NewCreateFlags() *CreateFlags {
 	return &CreateFlags{
-		Group:                   flag.New[string](FlagGroup, false),
-		Name:                    flag.New[string](FlagName, false),
-		Description:             flag.New[string](FlagDescription, false),
-		Lifecycle:               flag.New[string](FlagLifecycle, false),
-		ConfigAsCode:            flag.New[bool](FlagConfigAsCode, false),
-		GitStorage:              flag.New[string](FlagGitCredentialStorage, false),
-		GitUrl:                  flag.New[string](FlagGitUrl, false),
-		GitBranch:               flag.New[string](FlagGitBranch, false),
-		GitInitialCommitMessage: flag.New[string](FlagGitInitialCommitMessage, false),
-		GitCredentials:          flag.New[string](FlagGitLibraryCredentials, false),
-		GitUsername:             flag.New[string](FlagGitUsername, false),
-		GitPassword:             flag.New[string](FlagGitPassword, true),
-		GitBasePath:             flag.New[string](FlagGitBasePath, false),
+		Group:                     flag.New[string](FlagGroup, false),
+		Name:                      flag.New[string](FlagName, false),
+		Description:               flag.New[string](FlagDescription, false),
+		Lifecycle:                 flag.New[string](FlagLifecycle, false),
+		ConfigAsCode:              flag.New[bool](FlagConfigAsCode, false),
+		GitStorage:                flag.New[string](FlagGitCredentialStorage, false),
+		GitUrl:                    flag.New[string](FlagGitUrl, false),
+		GitBranch:                 flag.New[string](FlagGitBranch, false),
+		GitInitialCommitMessage:   flag.New[string](FlagGitInitialCommitMessage, false),
+		GitCredentials:            flag.New[string](FlagGitLibraryCredentials, false),
+		GitDefaultBranchProtected: flag.New[bool](FlagDefaultBranchProtected, false),
+		GitInitialCommitBranch:    flag.New[string](FlagInitialCommitBranch, false),
+		GitUsername:               flag.New[string](FlagGitUsername, false),
+		GitPassword:               flag.New[string](FlagGitPassword, true),
+		GitBasePath:               flag.New[string](FlagGitBasePath, false),
 	}
 }
 
@@ -108,6 +113,9 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 	flags.StringVar(&createFlags.GitStorage.Value, createFlags.GitStorage.Name, "", "The location to store the supplied Git credentials. Options are library or project. Default is library")
 	flags.StringVar(&createFlags.GitInitialCommitMessage.Value, createFlags.GitInitialCommitMessage.Name, "", "The initial commit message for configuring Config As Code.")
 	flags.StringVar(&createFlags.GitBasePath.Value, createFlags.GitBasePath.Name, "", fmt.Sprintf("The directory where Octopus should store the project files in the repository. Default is '%s'", DefaultBasePath))
+	flags.BoolVar(&createFlags.GitDefaultBranchProtected.Value, createFlags.GitDefaultBranchProtected.Name, false, "Protect the default branch from having Config As Code settings committed directly.")
+	flags.StringVar(&createFlags.GitInitialCommitBranch.Value, createFlags.GitInitialCommitBranch.Name, "", fmt.Sprintf("The branch to initially commit Config As Code settings. Only required if '%s' is supplied.", createFlags.GitDefaultBranchProtected.Name))
+
 	flags.SortFlags = false
 
 	return cmd
@@ -223,6 +231,7 @@ func PromptForConfigAsCode(opts *CreateOptions, getGitCredentialsCallback GetAll
 			if err := opts.Ask(&survey.Input{
 				Message: "Git repository base path",
 				Help:    fmt.Sprintf("The path in the repository where Config As Code settings are stored. Default value is '%s'.", DefaultBasePath),
+				Default: DefaultBasePath,
 			}, &opts.GitBasePath.Value, survey.WithValidator(survey.ComposeValidators(
 				survey.MaxLength(200),
 			))); err != nil {
@@ -234,7 +243,28 @@ func PromptForConfigAsCode(opts *CreateOptions, getGitCredentialsCallback GetAll
 			if err := opts.Ask(&survey.Input{
 				Message: "Git branch",
 				Help:    fmt.Sprintf("The default branch to use. Default value is '%s'.", DefaultBranch),
+				Default: DefaultBranch,
 			}, &opts.GitBranch.Value, survey.WithValidator(survey.ComposeValidators(
+				survey.MaxLength(200),
+			))); err != nil {
+				return err
+			}
+		}
+
+		if !opts.GitDefaultBranchProtected.Value {
+			opts.Ask(&survey.Confirm{
+				Message: fmt.Sprintf("Is the '%s' branch protected?", opts.GitBranch.Value),
+				Help:    "If the default branch is protected, you may not have permission to push to it.",
+				Default: false,
+			}, &opts.GitDefaultBranchProtected.Value)
+		}
+
+		if opts.GitDefaultBranchProtected.Value && opts.GitInitialCommitBranch.Value == "" {
+			if err := opts.Ask(&survey.Input{
+				Message: "Initial commit branch name",
+				Help:    "The branch where the Config As Code settings will be initially committed",
+			}, &opts.GitInitialCommitBranch.Value, survey.WithValidator(survey.ComposeValidators(
+				survey.Required,
 				survey.MaxLength(200),
 			))); err != nil {
 				return err
@@ -245,6 +275,7 @@ func PromptForConfigAsCode(opts *CreateOptions, getGitCredentialsCallback GetAll
 			if err := opts.Ask(&survey.Input{
 				Message: "Initial Git commit message",
 				Help:    fmt.Sprintf("The commit message used in initializing. Default value is '%s'.", DefaultGitCommitMessage),
+				Default: DefaultGitCommitMessage,
 			}, &opts.GitInitialCommitMessage.Value, survey.WithValidator(survey.ComposeValidators(
 				survey.MaxLength(50),
 			))); err != nil {

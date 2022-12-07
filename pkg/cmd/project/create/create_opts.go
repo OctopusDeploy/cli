@@ -87,18 +87,25 @@ func (co *CreateOptions) Commit() error {
 		return err
 	}
 
+	_, err = fmt.Fprintf(co.Out, "\nSuccessfully created project '%s' (%s), with lifecycle '%s' in project group '%s'.\n", createdProject.Name, createdProject.Slug, co.Lifecycle.Value, co.Group.Value)
+	if err != nil {
+		return err
+	}
+
 	if co.ConfigAsCode.Value {
 		gitPersistenceSettings, err := co.buildGitPersistenceSettings()
 		if err != nil {
 			return err
 		}
 
-		_, err = co.Client.Projects.ConvertToVcs(createdProject, getInitialCommitMessage(co), gitPersistenceSettings)
-	}
-
-	_, err = fmt.Fprintf(co.Out, "\nSuccessfully created project %s (%s), with lifecycle %s in project group %s.\n", createdProject.Name, createdProject.Slug, co.Lifecycle.Value, co.Group.Value)
-	if err != nil {
-		return err
+		_, err = co.Client.Projects.ConvertToVcs(createdProject, co.GitInitialCommitMessage.Value, co.GitInitialCommitBranch.Value, gitPersistenceSettings)
+		if err != nil {
+			return err
+		}
+		_, err = fmt.Fprintf(co.Out, "Successfully configured Config as Code on '%s'\n", createdProject.GetName())
+		if err != nil {
+			return err
+		}
 	}
 
 	link := output.Bluef("%s/app#/%s/projects/%s", co.Host, co.Space.GetID(), createdProject.GetID())
@@ -126,7 +133,7 @@ func (co *CreateOptions) buildGitPersistenceSettings() (projects.GitPersistenceS
 		return nil, err
 	}
 
-	vcs := projects.NewGitPersistenceSettings(getBasePath(co), credentials, getGitBranch(co), []string{}, url)
+	vcs := projects.NewGitPersistenceSettings(getBasePath(co), credentials, getGitBranch(co), co.GitDefaultBranchProtected.Value, []string{}, url)
 	return vcs, nil
 }
 
@@ -161,17 +168,9 @@ func getBasePath(opts *CreateOptions) string {
 	return opts.GitBasePath.Value
 }
 
-func getInitialCommitMessage(opts *CreateOptions) string {
-	if opts.GitInitialCommitMessage.Value == "" {
-		return DefaultGitCommitMessage
-	}
-
-	return opts.GitInitialCommitMessage.Value
-}
-
 func (co *CreateOptions) GenerateAutomationCmd() {
 	if !co.NoPrompt {
-		autoCmd := flag.GenerateAutomationCmd(co.CmdPath, co.Name, co.Description, co.Group, co.Lifecycle, co.ConfigAsCode, co.GitStorage, co.GitBasePath, co.GitUrl, co.GitBranch, co.GitInitialCommitMessage, co.GitCredentials, co.GitUsername, co.GitPassword)
+		autoCmd := flag.GenerateAutomationCmd(co.CmdPath, co.Name, co.Description, co.Group, co.Lifecycle, co.ConfigAsCode, co.GitStorage, co.GitBasePath, co.GitUrl, co.GitBranch, co.GitInitialCommitMessage, co.GitCredentials, co.GitUsername, co.GitPassword, co.GitInitialCommitBranch, co.GitDefaultBranchProtected)
 		fmt.Fprintf(co.Out, "%s\n", autoCmd)
 	}
 }
