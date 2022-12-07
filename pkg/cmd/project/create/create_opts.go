@@ -133,7 +133,7 @@ func (co *CreateOptions) buildGitPersistenceSettings() (projects.GitPersistenceS
 		return nil, err
 	}
 
-	vcs := projects.NewGitPersistenceSettings(getBasePath(co), credentials, getGitBranch(co), co.GitDefaultBranchProtected.Value, []string{}, url)
+	vcs := projects.NewGitPersistenceSettings(co.GitBasePath.Value, credentials, co.GitBranch.Value, co.GitDefaultBranchProtected.Value, co.GitProtectedBranchPatterns.Value, url)
 	return vcs, nil
 }
 
@@ -152,25 +152,9 @@ func (co *CreateOptions) buildProjectGitVersionControlSettings() (credentials.Gi
 	return credentials, nil
 }
 
-func getGitBranch(opts *CreateOptions) string {
-	if opts.GitBranch.Value == "" {
-		return "main"
-	}
-
-	return opts.GitBranch.Value
-}
-
-func getBasePath(opts *CreateOptions) string {
-	if opts.GitBasePath.Value == "" {
-		return DefaultBasePath
-	}
-
-	return opts.GitBasePath.Value
-}
-
 func (co *CreateOptions) GenerateAutomationCmd() {
 	if !co.NoPrompt {
-		autoCmd := flag.GenerateAutomationCmd(co.CmdPath, co.Name, co.Description, co.Group, co.Lifecycle, co.ConfigAsCode, co.GitStorage, co.GitBasePath, co.GitUrl, co.GitBranch, co.GitInitialCommitMessage, co.GitCredentials, co.GitUsername, co.GitPassword, co.GitInitialCommitBranch, co.GitDefaultBranchProtected)
+		autoCmd := flag.GenerateAutomationCmd(co.CmdPath, co.Name, co.Description, co.Group, co.Lifecycle, co.ConfigAsCode, co.GitStorage, co.GitBasePath, co.GitUrl, co.GitBranch, co.GitInitialCommitMessage, co.GitCredentials, co.GitUsername, co.GitPassword, co.GitInitialCommitBranch, co.GitDefaultBranchProtected, co.GitProtectedBranchPatterns)
 		fmt.Fprintf(co.Out, "%s\n", autoCmd)
 	}
 }
