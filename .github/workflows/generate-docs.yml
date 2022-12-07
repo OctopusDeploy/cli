@@ -58,4 +58,4 @@ jobs:
         run: |
           curl -X POST -H "Accept: application/vnd.github+json" -H "Authorization: Bearer $DOCS_TOKEN" \
           https://api.github.com/repos/OctopusDeploy/docs/pulls \
-          -d '{"title":"update go-cli docs","body":"Please pull these awesome changes in!","head":"'$BRANCH_NAME'","base":"master"}'
+          -d '{"title":"update go-cli docs","body":"An automated update of the command line docs for octopus CLI\nCreated by GitHub Actions [Generate Docs](https://github.com/OctopusDeploy/cli/actions/workflows/generate-docs.yml)","head":"'$BRANCH_NAME'","base":"master"}'
