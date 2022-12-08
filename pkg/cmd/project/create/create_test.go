@@ -108,9 +108,12 @@ func TestPromptForConfigAsCode_UsingCacWithProjectStorage(t *testing.T) {
 		testutil.NewConfirmPrompt("Would you like to use Config as Code?", "", true),
 		testutil.NewSelectPrompt("Select where to store the Git credentials", "", []string{"Library", "Project"}, "Project"),
 		testutil.NewInputPrompt("Git URL", "The URL of the Git repository to store configuration.", "https://github.com/blah.git"),
-		testutil.NewInputPrompt("Git repository base path", "The path in the repository where Config As Code settings are stored. Default value is '.octopus/'.", "./octopus/project"),
-		testutil.NewInputPrompt("Git branch", "The default branch to use. Default value is 'main'.", "main"),
-		testutil.NewInputPrompt("Initial Git commit message", "The commit message used in initializing. Default value is 'Initial commit of deployment process'.", "init message"),
+		testutil.NewInputPromptWithDefault("Git repository base path", "The path in the repository where Config As Code settings are stored. Default value is '.octopus/'.", ".octopus/", "./octopus/project"),
+		testutil.NewInputPromptWithDefault("Git branch", "The default branch to use. Default value is 'main'.", "main", "main"),
+		testutil.NewConfirmPromptWithDefault("Is the 'main' branch protected?", "If the default branch is protected, you may not have permission to push to it.", false, false),
+		testutil.NewInputPrompt("Enter a protected branch pattern (enter blank to end)", "This setting only applies within Octopus and will not affect your protected branches in Git. Use wildcard syntax to specify the range of branches to include. Multiple patterns can be supplied", "test"),
+		testutil.NewInputPrompt("Enter a protected branch pattern (enter blank to end)", "This setting only applies within Octopus and will not affect your protected branches in Git. Use wildcard syntax to specify the range of branches to include. Multiple patterns can be supplied", ""),
+		testutil.NewInputPromptWithDefault("Initial Git commit message", "The commit message used in initializing. Default value is 'Initial commit of deployment process'.", "Initial commit of deployment process", "init message"),
 		testutil.NewInputPrompt("Git username", "The Git username.", "user1"),
 		testutil.NewPasswordPrompt("Git password", "The Git password.", "password"),
 	}
@@ -128,7 +131,9 @@ func TestPromptForConfigAsCode_UsingCacWithProjectStorage(t *testing.T) {
 	assert.Equal(t, "https://github.com/blah.git", opts.GitUrl.Value)
 	assert.Equal(t, "./octopus/project", opts.GitBasePath.Value)
 	assert.Equal(t, "main", opts.GitBranch.Value)
+	assert.False(t, opts.GitDefaultBranchProtected.Value)
 	assert.Equal(t, "init message", opts.GitInitialCommitMessage.Value)
+	assert.Equal(t, []string{"test"}, opts.GitProtectedBranchPatterns.Value)
 	assert.Equal(t, "user1", opts.GitUsername.Value)
 	assert.Equal(t, "password", opts.GitPassword.Value)
 }
@@ -138,9 +143,11 @@ func TestPromptForConfigAsCode_UsingCacWithLibraryStorage(t *testing.T) {
 		testutil.NewConfirmPrompt("Would you like to use Config as Code?", "", true),
 		testutil.NewSelectPrompt("Select where to store the Git credentials", "", []string{"Library", "Project"}, "Library"),
 		testutil.NewInputPrompt("Git URL", "The URL of the Git repository to store configuration.", "https://github.com/blah.git"),
-		testutil.NewInputPrompt("Git repository base path", "The path in the repository where Config As Code settings are stored. Default value is '.octopus/'.", "./octopus/project"),
-		testutil.NewInputPrompt("Git branch", "The default branch to use. Default value is 'main'.", "main"),
-		testutil.NewInputPrompt("Initial Git commit message", "The commit message used in initializing. Default value is 'Initial commit of deployment process'.", "init message"),
+		testutil.NewInputPromptWithDefault("Git repository base path", "The path in the repository where Config As Code settings are stored. Default value is '.octopus/'.", ".octopus/", "./octopus/project"),
+		testutil.NewInputPromptWithDefault("Git branch", "The default branch to use. Default value is 'main'.", "main", "main"),
+		testutil.NewConfirmPromptWithDefault("Is the 'main' branch protected?", "If the default branch is protected, you may not have permission to push to it.", false, false),
+		testutil.NewInputPrompt("Enter a protected branch pattern (enter blank to end)", "This setting only applies within Octopus and will not affect your protected branches in Git. Use wildcard syntax to specify the range of branches to include. Multiple patterns can be supplied", ""),
+		testutil.NewInputPromptWithDefault("Initial Git commit message", "The commit message used in initializing. Default value is 'Initial commit of deployment process'.", "Initial commit of deployment process", "init message"),
 		testutil.NewSelectPrompt("Select which Git credentials to use", "", []string{"Git Creds 1", "Git Creds 2"}, "Git Creds 2"),
 	}
 
@@ -178,13 +185,27 @@ func TestPromptForConfigAsCode_UsingCacWithBranchProtection(t *testing.T) {
 		testutil.NewConfirmPrompt("Would you like to use Config as Code?", "", true),
 		testutil.NewSelectPrompt("Select where to store the Git credentials", "", []string{"Library", "Project"}, "Library"),
 		testutil.NewInputPrompt("Git URL", "The URL of the Git repository to store configuration.", "https://github.com/blah.git"),
-		testutil.NewInputPrompt("Git repository base path", "The path in the repository where Config As Code settings are stored. Default value is '.octopus/'.", "./octopus/project"),
+		testutil.NewInputPromptWithDefault("Git repository base path", "The path in the repository where Config As Code settings are stored. Default value is '.octopus/'.", ".octopus/", "./octopus/project"),
 		testutil.NewInputPromptWithDefault("Git branch", "The default branch to use. Default value is 'main'.", "main", "main"),
 		testutil.NewConfirmPromptWithDefault("Is the 'main' branch protected?", "If the default branch is protected, you may not have permission to push to it.", true, false),
-		testutil.NewInputPrompt("Initial commit branch", "The branch where the Config As Code settings will be initially committed", "initial-commit"),
-		testutil.NewInputPrompt("Initial Git commit message", "The commit message used in initializing. Default value is 'Initial commit of deployment process'.", "init message"),
+		testutil.NewInputPrompt("Initial commit branch name", "The branch where the Config As Code settings will be initially committed", "initial-branch"),
+		testutil.NewInputPrompt("Enter a protected branch pattern (enter blank to end)", "This setting only applies within Octopus and will not affect your protected branches in Git. Use wildcard syntax to specify the range of branches to include. Multiple patterns can be supplied", "test"),
+		testutil.NewInputPrompt("Enter a protected branch pattern (enter blank to end)", "This setting only applies within Octopus and will not affect your protected branches in Git. Use wildcard syntax to specify the range of branches to include. Multiple patterns can be supplied", ""),
+		testutil.NewInputPromptWithDefault("Initial Git commit message", "The commit message used in initializing. Default value is 'Initial commit of deployment process'.", "Initial commit of deployment process", "init message"),
 		testutil.NewSelectPrompt("Select which Git credentials to use", "", []string{"Git Creds 1", "Git Creds 2"}, "Git Creds 2"),
 	}
+
+	//pa := []*testutil.PA{
+	//	testutil.NewConfirmPrompt("Would you like to use Config as Code?", "", true),
+	//	testutil.NewSelectPrompt("Select where to store the Git credentials", "", []string{"Library", "Project"}, "Library"),
+	//	testutil.NewInputPrompt("Git URL", "The URL of the Git repository to store configuration.", "https://github.com/blah.git"),
+	//	testutil.NewInputPrompt("Git repository base path", "The path in the repository where Config As Code settings are stored. Default value is '.octopus/'.", "./octopus/project"),
+	//	testutil.NewInputPromptWithDefault("Git branch", "The default branch to use. Default value is 'main'.", "main", "main"),
+	//	testutil.NewConfirmPromptWithDefault("Is the 'main' branch protected?", "If the default branch is protected, you may not have permission to push to it.", true, false),
+	//	testutil.NewInputPrompt("Initial commit branch", "The branch where the Config As Code settings will be initially committed", "initial-commit"),
+	//	testutil.NewInputPrompt("Initial Git commit message", "The commit message used in initializing. Default value is 'Initial commit of deployment process'.", "init message"),
+	//	testutil.NewSelectPrompt("Select which Git credentials to use", "", []string{"Git Creds 1", "Git Creds 2"}, "Git Creds 2"),
+	//}
 
 	asker, checkRemainingPrompts := testutil.NewMockAsker(t, pa)
 
@@ -212,7 +233,7 @@ func TestPromptForConfigAsCode_UsingCacWithBranchProtection(t *testing.T) {
 	assert.Equal(t, "init message", opts.GitInitialCommitMessage.Value)
 	assert.Equal(t, "Git Creds 2", opts.GitCredentials.Value)
 	assert.True(t, opts.GitDefaultBranchProtected.Value)
-	assert.Equal(t, "initial-commit", opts.GitInitialCommitBranch.Value)
+	assert.Equal(t, "initial-branch", opts.GitInitialCommitBranch.Value)
 
 	assert.True(t, gitCredsCallbackWasCalled)
 	assert.Empty(t, opts.GitUsername.Value)
