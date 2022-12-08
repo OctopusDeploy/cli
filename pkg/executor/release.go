@@ -163,6 +163,9 @@ func releaseDeploy(octopus *client.Client, space *spaces.Space, input any) error
 	isTenanted := len(params.Tenants) > 0 || len(params.TenantTags) > 0
 
 	if isTenanted {
+		if len(params.Environments) > 1 {
+			return fmt.Errorf("tenanted deployments can only specify one environment")
+		}
 		tenantedCommand := deployments.NewCreateDeploymentTenantedCommandV1(space.ID, params.ProjectName)
 		tenantedCommand.ReleaseVersion = params.ReleaseVersion
 		tenantedCommand.EnvironmentName = params.Environments[0]
