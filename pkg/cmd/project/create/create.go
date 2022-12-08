@@ -9,6 +9,7 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/OctopusDeploy/cli/pkg/question"
 	"github.com/OctopusDeploy/cli/pkg/question/selectors"
+	"github.com/OctopusDeploy/cli/pkg/util"
 	"github.com/OctopusDeploy/cli/pkg/util/flag"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/credentials"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projectgroups"
@@ -272,6 +273,23 @@ func PromptForConfigAsCode(opts *CreateOptions, getGitCredentialsCallback GetAll
 				survey.MaxLength(200),
 			))); err != nil {
 				return err
+			}
+		}
+
+		if util.Empty(opts.GitProtectedBranchPatterns.Value) {
+			for {
+				var pattern string
+				if err := opts.Ask(&survey.Input{
+					Message: "Enter a protected branch pattern (enter blank to end)",
+					Help:    "This setting only applies within Octopus and will not affect your protected branches in Git. Use wildcard syntax to specify the range of branches to include. Multiple patterns can be supplied",
+				}, &pattern, survey.WithValidator(survey.MaxLength(200))); err != nil {
+					return err
+				}
+
+				if pattern == "" {
+					break
+				}
+				opts.GitProtectedBranchPatterns.Value = append(opts.GitProtectedBranchPatterns.Value, pattern)
 			}
 		}
 
