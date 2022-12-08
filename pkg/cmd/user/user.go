@@ -2,6 +2,7 @@ package user
 
 import (
 	"github.com/MakeNowJust/heredoc/v2"
+	cmdDelete "github.com/OctopusDeploy/cli/pkg/cmd/user/delete"
 	cmdList "github.com/OctopusDeploy/cli/pkg/cmd/user/list"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/constants/annotations"
@@ -24,6 +25,7 @@ func NewCmdUser(f factory.Factory) *cobra.Command {
 	}
 
 	cmd.AddCommand(cmdList.NewCmdList(f))
+	cmd.AddCommand(cmdDelete.NewCmdDelete(f))
 
 	return cmd
 }
