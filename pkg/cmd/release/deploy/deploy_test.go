@@ -125,7 +125,7 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 		}
 		api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
 
-		api.ExpectRequest(t, "GET", "/api/Spaces-1/projects?clonedFromProjectId=&partialName="+url.QueryEscape(options.ProjectName)).
+		api.ExpectRequest(t, "GET", "/api/Spaces-1/projects?partialName="+url.QueryEscape(options.ProjectName)).
 			RespondWith(resources.Resources[*projects.Project]{
 				Items: []*projects.Project{fireProject},
 			})
@@ -238,7 +238,8 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 
 			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
 
-			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects?clonedFromProjectId=&partialName=fire+project").
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/fire project").RespondWithStatus(404, "NotFound", nil)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects?partialName=fire+project").
 				RespondWith(resources.Resources[*projects.Project]{
 					Items: []*projects.Project{fireProject},
 				})
@@ -296,7 +297,8 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 
 			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
 
-			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects?clonedFromProjectId=&partialName=fire+project").
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/fire project").RespondWithStatus(404, "NotFound", nil)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects?partialName=fire+project").
 				RespondWith(resources.Resources[*projects.Project]{
 					Items: []*projects.Project{fireProject},
 				})
@@ -358,7 +360,8 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 
 			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
 
-			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects?clonedFromProjectId=&partialName=fire+project").
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/fire project").RespondWithStatus(404, "NotFound", nil)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects?partialName=fire+project").
 				RespondWith(resources.Resources[*projects.Project]{
 					Items: []*projects.Project{fireProjectTenanted},
 				})
@@ -451,7 +454,8 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 
 			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
 
-			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects?clonedFromProjectId=&partialName=fire+project").
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/fire project").RespondWithStatus(404, "NotFound", nil)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects?partialName=fire+project").
 				RespondWith(resources.Resources[*projects.Project]{
 					Items: []*projects.Project{fireProjectMaybeTenanted},
 				})
@@ -548,7 +552,8 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 
 			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
 
-			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects?clonedFromProjectId=&partialName=fire+project").
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/fire project").RespondWithStatus(404, "NotFound", nil)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects?partialName=fire+project").
 				RespondWith(resources.Resources[*projects.Project]{
 					Items: []*projects.Project{fireProjectMaybeTenanted},
 				})
@@ -734,7 +739,7 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 
 			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
 
-			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects?clonedFromProjectId=&partialName="+url.QueryEscape(options.ProjectName)).
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects?partialName="+url.QueryEscape(options.ProjectName)).
 				RespondWith(resources.Resources[*projects.Project]{
 					Items: []*projects.Project{fireProject},
 				})
@@ -1142,7 +1147,8 @@ func TestDeployCreate_AutomationMode(t *testing.T) {
 			})
 
 			// now it's going to try and look up the project/version to generate the web URL
-			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects?clonedFromProjectId=&partialName=Fire+Project").RespondWith(resources.Resources[*projects.Project]{
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/Fire Project").RespondWithStatus(404, "NotFound", nil)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects?partialName=Fire+Project").RespondWith(resources.Resources[*projects.Project]{
 				Items: []*projects.Project{fireProject},
 			})
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+fireProjectID+"/releases/1.0").RespondWith(release10)
@@ -1248,7 +1254,8 @@ func TestDeployCreate_AutomationMode(t *testing.T) {
 			})
 
 			// now it's going to try and look up the project/version to generate the web URL
-			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects?clonedFromProjectId=&partialName=Fire+Project").RespondWith(resources.Resources[*projects.Project]{
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/Fire Project").RespondWithStatus(404, "NotFound", nil)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects?partialName=Fire+Project").RespondWith(resources.Resources[*projects.Project]{
 				Items: []*projects.Project{fireProject},
 			})
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+fireProjectID+"/releases/1.0").RespondWith(release10)
@@ -1295,7 +1302,8 @@ func TestDeployCreate_AutomationMode(t *testing.T) {
 			})
 
 			// now it's going to try and look up the project/version to generate the web URL
-			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects?clonedFromProjectId=&partialName=Fire+Project").RespondWith(resources.Resources[*projects.Project]{
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/Fire Project").RespondWithStatus(404, "NotFound", nil)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects?partialName=Fire+Project").RespondWith(resources.Resources[*projects.Project]{
 				Items: []*projects.Project{fireProject},
 			})
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+fireProjectID+"/releases/1.0").RespondWith(release10)
@@ -1529,7 +1537,8 @@ func TestDeployCreate_GenerationOfAutomationCommand_MasksSensitiveVariables(t *t
 	api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
 	api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
 
-	api.ExpectRequest(t, "GET", "/api/Spaces-1/projects?clonedFromProjectId=&partialName=fire+project").
+	api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/fire project").RespondWithStatus(404, "NotFound", nil)
+	api.ExpectRequest(t, "GET", "/api/Spaces-1/projects?partialName=fire+project").
 		RespondWith(resources.Resources[*projects.Project]{
 			Items: []*projects.Project{fireProject},
 		})

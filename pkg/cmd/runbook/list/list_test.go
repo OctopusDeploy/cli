@@ -97,8 +97,8 @@ func TestRunbookList(t *testing.T) {
 			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
 			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
 
-			// there's no nice executions API to do lookups using name-or-id-or-slug, we need to search from the CLI
-			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects?clonedFromProjectId=&partialName=Fire+Project").
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/Fire Project").RespondWithStatus(404, "NotFound", nil)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects?partialName=Fire+Project").
 				RespondWith(resources.Resources[*projects.Project]{
 					Items: []*projects.Project{fireProject},
 				})
@@ -128,8 +128,8 @@ func TestRunbookList(t *testing.T) {
 			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
 			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
 
-			// there's no nice executions API to do lookups using name-or-id-or-slug, we need to search from the CLI
-			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects?clonedFromProjectId=&partialName=Fire+Project").
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/Fire Project").RespondWithStatus(404, "NotFound", nil)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects?partialName=Fire+Project").
 				RespondWith(resources.Resources[*projects.Project]{
 					Items: []*projects.Project{fireProject},
 				})
@@ -159,8 +159,8 @@ func TestRunbookList(t *testing.T) {
 			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
 			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
 
-			// there's no nice executions API to do lookups using name-or-id-or-slug, we need to search from the CLI
-			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects?clonedFromProjectId=&partialName=Fire+Project").
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/Fire Project").RespondWithStatus(404, "NotFound", nil)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects?partialName=Fire+Project").
 				RespondWith(resources.Resources[*projects.Project]{
 					Items: []*projects.Project{fireProject},
 				})
@@ -190,8 +190,8 @@ func TestRunbookList(t *testing.T) {
 			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
 			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
 
-			// there's no nice executions API to do lookups using name-or-id-or-slug, we need to search from the CLI
-			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects?clonedFromProjectId=&partialName=Fire+Project").
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/Fire Project").RespondWithStatus(404, "NotFound", nil)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects?partialName=Fire+Project").
 				RespondWith(resources.Resources[*projects.Project]{
 					Items: []*projects.Project{fireProject},
 				})
@@ -219,7 +219,8 @@ func TestRunbookList(t *testing.T) {
 			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
 			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
 
-			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects?clonedFromProjectId=&partialName=Fire+Project").
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/Fire Project").RespondWithStatus(404, "NotFound", nil)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects?partialName=Fire+Project").
 				RespondWith(resources.Resources[*projects.Project]{
 					Items: []*projects.Project{fireProject},
 				})
@@ -261,7 +262,8 @@ func TestRunbookList(t *testing.T) {
 			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
 			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
 
-			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects?clonedFromProjectId=&partialName=Fire+Project").
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/Fire Project").RespondWithStatus(404, "NotFound", nil)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects?partialName=Fire+Project").
 				RespondWith(resources.Resources[*projects.Project]{
 					Items: []*projects.Project{fireProject},
 				})
@@ -290,7 +292,8 @@ func TestRunbookList(t *testing.T) {
 			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
 			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
 
-			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects?clonedFromProjectId=&partialName=Fire+Project").
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/Fire Project").RespondWithStatus(404, "NotFound", nil)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects?partialName=Fire+Project").
 				RespondWith(resources.Resources[*projects.Project]{
 					Items: []*projects.Project{fireProject},
 				})
