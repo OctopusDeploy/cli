@@ -125,6 +125,7 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 		}
 		api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
 
+		api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+options.ProjectName).RespondWithStatus(404, "NotFound", nil)
 		api.ExpectRequest(t, "GET", "/api/Spaces-1/projects?partialName="+url.QueryEscape(options.ProjectName)).
 			RespondWith(resources.Resources[*projects.Project]{
 				Items: []*projects.Project{fireProject},
@@ -460,12 +461,12 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 					Items: []*projects.Project{fireProjectMaybeTenanted},
 				})
 
-			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+fireProjectID+"/releases/"+release19.Version).RespondWith(release19)
-
 			_ = qa.ExpectQuestion(t, &survey.Select{
 				Message: "Select Tenanted or Untenanted deployment",
 				Options: []string{"Tenanted", "Untenanted"},
 			}).AnswerWith("Tenanted")
+
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+fireProjectID+"/releases/"+release19.Version).RespondWith(release19)
 
 			// find environments via progression
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/releases/"+release19.ID+"/progression").RespondWith(&releases.LifecycleProgression{
@@ -558,12 +559,12 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 					Items: []*projects.Project{fireProjectMaybeTenanted},
 				})
 
-			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+fireProjectID+"/releases/"+release19.Version).RespondWith(release19)
-
 			_ = qa.ExpectQuestion(t, &survey.Select{
 				Message: "Select Tenanted or Untenanted deployment",
 				Options: []string{"Tenanted", "Untenanted"},
 			}).AnswerWith("Untenanted")
+
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+fireProjectID+"/releases/"+release19.Version).RespondWith(release19)
 
 			// find environments via progression
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/releases/"+release19.ID+"/progression").RespondWith(&releases.LifecycleProgression{
@@ -739,6 +740,7 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 
 			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
 
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+options.ProjectName).RespondWithStatus(404, "NotFound", nil)
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects?partialName="+url.QueryEscape(options.ProjectName)).
 				RespondWith(resources.Resources[*projects.Project]{
 					Items: []*projects.Project{fireProject},
