@@ -166,7 +166,7 @@ func PromptMissing(opts *ConvertOptions) error {
 		if err != nil {
 			return err
 		}
-		project, err := question.SelectMap(opts.Ask, "You have not specified a Project. Please select one:", allProjects, func(p *projects.Project) string { return p.GetName() })
+		project, err := question.SelectMap(opts.Ask, "You have not specified a project. Please select one:", allProjects, func(p *projects.Project) string { return p.GetName() })
 		if err != nil {
 			return nil
 		}
