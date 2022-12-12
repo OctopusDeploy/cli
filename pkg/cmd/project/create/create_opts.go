@@ -2,43 +2,40 @@ package create
 
 import (
 	"fmt"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/credentials"
-	"net/url"
-	"strings"
-
 	"github.com/OctopusDeploy/cli/pkg/cmd"
+	projectConvert "github.com/OctopusDeploy/cli/pkg/cmd/project/convert"
 	projectGroupCreate "github.com/OctopusDeploy/cli/pkg/cmd/projectgroup/create"
 	"github.com/OctopusDeploy/cli/pkg/output"
 	"github.com/OctopusDeploy/cli/pkg/util/flag"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/core"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projectgroups"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
 )
 
 type CreateProjectGroupCallback func() (string, cmd.Dependable, error)
+type ConvertProjectToConfigAsCodeCallback func() (cmd.Dependable, error)
 
 type GetAllGroupsCallback func() ([]*projectgroups.ProjectGroup, error)
-
-type GetAllGitCredentialsCallback func() ([]*credentials.Resource, error)
 
 type CreateOptions struct {
 	*CreateFlags
 	*cmd.Dependencies
-	GetAllGroupsCallback         GetAllGroupsCallback
-	CreateProjectGroupCallback   CreateProjectGroupCallback
-	GetAllGitCredentialsCallback GetAllGitCredentialsCallback
+	*projectConvert.ConvertOptions
+	GetAllGroupsCallback       GetAllGroupsCallback
+	CreateProjectGroupCallback CreateProjectGroupCallback
+	ConvertProjectCallback     ConvertProjectToConfigAsCodeCallback
 }
 
 func NewCreateOptions(createFlags *CreateFlags, dependencies *cmd.Dependencies) *CreateOptions {
+	convertOptions := projectConvert.NewConvertOptions(createFlags.ProjectConvertFlags, dependencies)
 	return &CreateOptions{
-		CreateFlags:                createFlags,
-		Dependencies:               dependencies,
+		CreateFlags:  createFlags,
+		Dependencies: dependencies,
+
+		ConvertOptions:             convertOptions,
 		GetAllGroupsCallback:       func() ([]*projectgroups.ProjectGroup, error) { return getAllGroups(*dependencies.Client) },
 		CreateProjectGroupCallback: func() (string, cmd.Dependable, error) { return createProjectGroupCallback(dependencies) },
-		GetAllGitCredentialsCallback: func() ([]*credentials.Resource, error) {
-			return createGetAllGitCredentialsCallback(*dependencies.Client)
-		},
+		ConvertProjectCallback:     func() (cmd.Dependable, error) { return convertProjectCallback(convertOptions) },
 	}
 }
 
@@ -60,12 +57,11 @@ func createProjectGroupCallback(dependencies *cmd.Dependencies) (string, cmd.Dep
 	return returnValue, projectGroupCreateOpts, nil
 }
 
-func createGetAllGitCredentialsCallback(client client.Client) ([]*credentials.Resource, error) {
-	res, err := client.GitCredentials.Get(credentials.Query{})
-	if err != nil {
-		return nil, err
-	}
-	return res.Items, nil
+func convertProjectCallback(opts *projectConvert.ConvertOptions) (cmd.Dependable, error) {
+	flags := opts.ConvertFlags
+	deps := cmd.NewDependenciesFromExisting(opts.Dependencies, "octopus project convert")
+	convertOpts := projectConvert.NewConvertOptions(flags, deps)
+	return projectConvert.PromptForConfigAsCode(convertOpts)
 }
 
 func (co *CreateOptions) Commit() error {
@@ -92,69 +88,15 @@ func (co *CreateOptions) Commit() error {
 		return err
 	}
 
-	if co.ConfigAsCode.Value {
-		gitPersistenceSettings, err := co.buildGitPersistenceSettings()
-		if err != nil {
-			return err
-		}
-
-		_, err = co.Client.Projects.ConvertToVcs(createdProject, co.GitInitialCommitMessage.Value, co.GitInitialCommitBranch.Value, gitPersistenceSettings)
-		if err != nil {
-			return err
-		}
-		_, err = fmt.Fprintf(co.Out, "Successfully configured Config as Code on '%s'\n", createdProject.GetName())
-		if err != nil {
-			return err
-		}
-	}
-
 	link := output.Bluef("%s/app#/%s/projects/%s", co.Host, co.Space.GetID(), createdProject.GetID())
 	fmt.Fprintf(co.Out, "View this project on Octopus Deploy: %s\n", link)
 
 	return nil
 }
 
-func (co *CreateOptions) buildGitPersistenceSettings() (projects.GitPersistenceSettings, error) {
-	var credentials credentials.GitCredential
-	var err error
-	if strings.EqualFold(co.GitStorage.Value, GitStorageLibrary) {
-		credentials, err = co.buildLibraryGitVersionControlSettings()
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		credentials, err = co.buildProjectGitVersionControlSettings()
-		if err != nil {
-			return nil, err
-		}
-	}
-	url, err := url.Parse(co.GitUrl.Value)
-	if err != nil {
-		return nil, err
-	}
-
-	vcs := projects.NewGitPersistenceSettings(co.GitBasePath.Value, credentials, co.GitBranch.Value, co.GitDefaultBranchProtected.Value, co.GitProtectedBranchPatterns.Value, url)
-	return vcs, nil
-}
-
-func (co *CreateOptions) buildLibraryGitVersionControlSettings() (credentials.GitCredential, error) {
-	creds, err := co.Client.GitCredentials.GetByIDOrName(co.GitCredentials.Value)
-	if err != nil {
-		return nil, err
-	}
-
-	credentials := credentials.NewReference(creds.GetID())
-	return credentials, nil
-}
-
-func (co *CreateOptions) buildProjectGitVersionControlSettings() (credentials.GitCredential, error) {
-	credentials := credentials.NewUsernamePassword(co.GitUsername.Value, core.NewSensitiveValue(co.GitPassword.Value))
-	return credentials, nil
-}
-
 func (co *CreateOptions) GenerateAutomationCmd() {
 	if !co.NoPrompt {
-		autoCmd := flag.GenerateAutomationCmd(co.CmdPath, co.Name, co.Description, co.Group, co.Lifecycle, co.ConfigAsCode, co.GitStorage, co.GitBasePath, co.GitUrl, co.GitBranch, co.GitInitialCommitMessage, co.GitCredentials, co.GitUsername, co.GitPassword, co.GitInitialCommitBranch, co.GitDefaultBranchProtected, co.GitProtectedBranchPatterns)
+		autoCmd := flag.GenerateAutomationCmd(co.CmdPath, co.Name, co.Description, co.Group, co.Lifecycle, co.ConfigAsCode)
 		fmt.Fprintf(co.Out, "%s\n", autoCmd)
 	}
 }
