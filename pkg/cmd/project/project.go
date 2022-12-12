@@ -3,6 +3,7 @@ package project
 import (
 	"github.com/MakeNowJust/heredoc/v2"
 	cmdConnect "github.com/OctopusDeploy/cli/pkg/cmd/project/connect"
+	cmdConvert "github.com/OctopusDeploy/cli/pkg/cmd/project/convert"
 	cmdCreate "github.com/OctopusDeploy/cli/pkg/cmd/project/create"
 	cmdDelete "github.com/OctopusDeploy/cli/pkg/cmd/project/delete"
 	cmdDisconnect "github.com/OctopusDeploy/cli/pkg/cmd/project/disconnect"
@@ -35,6 +36,7 @@ func NewCmdProject(f factory.Factory) *cobra.Command {
 	cmd.AddCommand(cmdDelete.NewCmdList(f))
 	cmd.AddCommand(cmdConnect.NewCmdConnect(f))
 	cmd.AddCommand(cmdDisconnect.NewCmdDisconnect(f))
+	cmd.AddCommand(cmdConvert.NewCmdConvert(f))
 
 	return cmd
 }

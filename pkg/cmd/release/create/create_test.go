@@ -129,7 +129,7 @@ func TestReleaseCreate_AskQuestions_RegularProject(t *testing.T) {
 
 			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
 
-			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects?clonedFromProjectId=&partialName=fire+project").
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects?partialName=fire+project").
 				RespondWith(resources.Resources[*projects.Project]{
 					Items: []*projects.Project{fireProject},
 				})
@@ -170,7 +170,7 @@ func TestReleaseCreate_AskQuestions_RegularProject(t *testing.T) {
 
 			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
 
-			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects?clonedFromProjectId=&partialName=fire+project").
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects?partialName=fire+project").
 				RespondWith(resources.Resources[*projects.Project]{
 					Items: []*projects.Project{fireProject},
 				})
@@ -259,7 +259,7 @@ func TestReleaseCreate_AskQuestions_RegularProject(t *testing.T) {
 				},
 			}
 
-			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects?clonedFromProjectId=&partialName=fire+project").
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects?partialName=fire+project").
 				RespondWith(resources.Resources[*projects.Project]{
 					Items: []*projects.Project{&fireProject2},
 				})
@@ -368,7 +368,7 @@ func TestReleaseCreate_AskQuestions_RegularProject(t *testing.T) {
 				},
 			}
 
-			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects?clonedFromProjectId=&partialName=fire+project").
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects?partialName=fire+project").
 				RespondWith(resources.Resources[*projects.Project]{
 					Items: []*projects.Project{&fireProject2},
 				})
@@ -1199,6 +1199,7 @@ func TestReleaseCreate_AutomationMode(t *testing.T) {
 		".octopus",
 		credentials.NewAnonymous(),
 		"main",
+		false,
 		protectedBranchNamePatterns,
 		fakeRepoUrl,
 	)

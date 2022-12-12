@@ -2,41 +2,25 @@ package create
 
 import (
 	"fmt"
-
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/cmd"
+	"github.com/OctopusDeploy/cli/pkg/cmd/project/convert"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/OctopusDeploy/cli/pkg/question"
 	"github.com/OctopusDeploy/cli/pkg/question/selectors"
 	"github.com/OctopusDeploy/cli/pkg/util/flag"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/credentials"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projectgroups"
 	"github.com/spf13/cobra"
 )
 
 const (
-	FlagGroup                   = "group"
-	FlagName                    = "name"
-	FlagDescription             = "description"
-	FlagLifecycle               = "lifecycle"
-	FlagConfigAsCode            = "process-vcs"
-	FlagGitUrl                  = "git-url"
-	FlagGitBranch               = "git-branch"
-	FlagGitLibraryCredentials   = "git-credentials"
-	FlagGitUsername             = "git-username"
-	FlagGitPassword             = "git-password"
-	FlagGitCredentialStorage    = "git-credential-store"
-	FlagGitInitialCommitMessage = "git-initial-commit"
-	FlagGitBasePath             = "git-base-path"
-
-	DefaultGitCommitMessage = "Initial commit of deployment process"
-	DefaultBasePath         = ".octopus/"
-	DefaultBranch           = "main"
-
-	GitStorageProject = "project"
-	GitStorageLibrary = "library"
+	FlagGroup        = "group"
+	FlagName         = "name"
+	FlagDescription  = "description"
+	FlagLifecycle    = "lifecycle"
+	FlagConfigAsCode = "process-vcs"
 )
 
 type CreateFlags struct {
@@ -46,31 +30,17 @@ type CreateFlags struct {
 	Lifecycle    *flag.Flag[string]
 	ConfigAsCode *flag.Flag[bool]
 
-	GitUrl                  *flag.Flag[string]
-	GitBranch               *flag.Flag[string]
-	GitCredentials          *flag.Flag[string]
-	GitUsername             *flag.Flag[string]
-	GitPassword             *flag.Flag[string]
-	GitStorage              *flag.Flag[string]
-	GitInitialCommitMessage *flag.Flag[string]
-	GitBasePath             *flag.Flag[string]
+	ProjectConvertFlags *convert.ConvertFlags
 }
 
 func NewCreateFlags() *CreateFlags {
 	return &CreateFlags{
-		Group:                   flag.New[string](FlagGroup, false),
-		Name:                    flag.New[string](FlagName, false),
-		Description:             flag.New[string](FlagDescription, false),
-		Lifecycle:               flag.New[string](FlagLifecycle, false),
-		ConfigAsCode:            flag.New[bool](FlagConfigAsCode, false),
-		GitStorage:              flag.New[string](FlagGitCredentialStorage, false),
-		GitUrl:                  flag.New[string](FlagGitUrl, false),
-		GitBranch:               flag.New[string](FlagGitBranch, false),
-		GitInitialCommitMessage: flag.New[string](FlagGitInitialCommitMessage, false),
-		GitCredentials:          flag.New[string](FlagGitLibraryCredentials, false),
-		GitUsername:             flag.New[string](FlagGitUsername, false),
-		GitPassword:             flag.New[string](FlagGitPassword, true),
-		GitBasePath:             flag.New[string](FlagGitBasePath, false),
+		Group:               flag.New[string](FlagGroup, false),
+		Name:                flag.New[string](FlagName, false),
+		Description:         flag.New[string](FlagDescription, false),
+		Lifecycle:           flag.New[string](FlagLifecycle, false),
+		ConfigAsCode:        flag.New[bool](FlagConfigAsCode, false),
+		ProjectConvertFlags: convert.NewConvertFlags(),
 	}
 }
 
@@ -99,15 +69,7 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 	flags.StringVarP(&createFlags.Group.Value, createFlags.Group.Name, "g", "", "Project group of the project")
 	flags.StringVarP(&createFlags.Lifecycle.Value, createFlags.Lifecycle.Name, "l", "", "Lifecycle of the project")
 	flags.BoolVar(&createFlags.ConfigAsCode.Value, createFlags.ConfigAsCode.Name, false, "Use Config As Code for the project")
-
-	flags.StringVar(&createFlags.GitUrl.Value, createFlags.GitUrl.Name, "", "Url of the Git repository for storing project configuration")
-	flags.StringVar(&createFlags.GitBranch.Value, createFlags.GitBranch.Name, "", fmt.Sprintf("The default branch to use for Config As Code. Default is '%s'.", DefaultBranch))
-	flags.StringVar(&createFlags.GitCredentials.Value, createFlags.GitCredentials.Name, "", "The Id or name of the Git credentials stored in Octopus")
-	flags.StringVar(&createFlags.GitUsername.Value, createFlags.GitUsername.Name, "", "The username to authenticate with Git")
-	flags.StringVar(&createFlags.GitPassword.Value, createFlags.GitPassword.Name, "", "The password to authenticate with Git")
-	flags.StringVar(&createFlags.GitStorage.Value, createFlags.GitStorage.Name, "", "The location to store the supplied Git credentials. Options are library or project. Default is library")
-	flags.StringVar(&createFlags.GitInitialCommitMessage.Value, createFlags.GitInitialCommitMessage.Name, "", "The initial commit message for configuring Config As Code.")
-	flags.StringVar(&createFlags.GitBasePath.Value, createFlags.GitBasePath.Name, "", fmt.Sprintf("The directory where Octopus should store the project files in the repository. Default is '%s'", DefaultBasePath))
+	convert.RegisterCacFlags(flags, createFlags.ProjectConvertFlags)
 	flags.SortFlags = false
 
 	return cmd
@@ -163,12 +125,17 @@ func PromptMissing(opts *CreateOptions) ([]cmd.Dependable, error) {
 		nestedOpts = append(nestedOpts, projectGroupOpt)
 	}
 
-	err = PromptForConfigAsCode(opts, opts.GetAllGitCredentialsCallback)
+	nestedOpts = append(nestedOpts, opts)
+
+	configAsCodeOpts, err := PromptForConfigAsCode(opts)
+	opts.ConvertOptions.Project.Value = opts.Name.Value
 	if err != nil {
 		return nil, err
 	}
+	if configAsCodeOpts != nil {
+		nestedOpts = append(nestedOpts, configAsCodeOpts)
+	}
 
-	nestedOpts = append(nestedOpts, opts)
 	return nestedOpts, nil
 }
 
@@ -189,7 +156,7 @@ func AskProjectGroups(ask question.Asker, value string, getAllGroupsCallback Get
 
 }
 
-func PromptForConfigAsCode(opts *CreateOptions, getGitCredentialsCallback GetAllGitCredentialsCallback) error {
+func PromptForConfigAsCode(opts *CreateOptions) (cmd.Dependable, error) {
 	if !opts.ConfigAsCode.Value {
 		opts.Ask(&survey.Confirm{
 			Message: "Would you like to use Config as Code?",
@@ -198,118 +165,8 @@ func PromptForConfigAsCode(opts *CreateOptions, getGitCredentialsCallback GetAll
 	}
 
 	if opts.ConfigAsCode.Value {
-		if opts.GitStorage.Value == "" {
-			selectedOption, err := selectors.SelectOptions(opts.Ask, "Select where to store the Git credentials", getGitStorageOptions)
-
-			if err != nil {
-				return err
-			}
-			opts.GitStorage.Value = selectedOption.Value
-		}
-
-		if opts.GitUrl.Value == "" {
-			if err := opts.Ask(&survey.Input{
-				Message: "Git URL",
-				Help:    "The URL of the Git repository to store configuration.",
-			}, &opts.GitUrl.Value, survey.WithValidator(survey.ComposeValidators(
-				survey.MaxLength(200),
-				survey.Required,
-			))); err != nil {
-				return err
-			}
-		}
-
-		if opts.GitBasePath.Value == "" {
-			if err := opts.Ask(&survey.Input{
-				Message: "Git repository base path",
-				Help:    fmt.Sprintf("The path in the repository where Config As Code settings are stored. Default value is '%s'.", DefaultBasePath),
-			}, &opts.GitBasePath.Value, survey.WithValidator(survey.ComposeValidators(
-				survey.MaxLength(200),
-			))); err != nil {
-				return err
-			}
-		}
-
-		if opts.GitBranch.Value == "" {
-			if err := opts.Ask(&survey.Input{
-				Message: "Git branch",
-				Help:    fmt.Sprintf("The default branch to use. Default value is '%s'.", DefaultBranch),
-			}, &opts.GitBranch.Value, survey.WithValidator(survey.ComposeValidators(
-				survey.MaxLength(200),
-			))); err != nil {
-				return err
-			}
-		}
-
-		if opts.GitInitialCommitMessage.Value == "" {
-			if err := opts.Ask(&survey.Input{
-				Message: "Initial Git commit message",
-				Help:    fmt.Sprintf("The commit message used in initializing. Default value is '%s'.", DefaultGitCommitMessage),
-			}, &opts.GitInitialCommitMessage.Value, survey.WithValidator(survey.ComposeValidators(
-				survey.MaxLength(50),
-			))); err != nil {
-				return err
-			}
-		}
-
-		if opts.GitStorage.Value == GitStorageLibrary {
-			err := promptLibraryGitCredentials(opts, getGitCredentialsCallback)
-			if err != nil {
-				return err
-			}
-		} else {
-			err := promptProjectGitCredentials(opts)
-			if err != nil {
-				return err
-			}
-		}
+		return opts.ConvertProjectCallback()
 	}
 
-	return nil
-}
-
-func promptProjectGitCredentials(opts *CreateOptions) error {
-	if opts.GitUsername.Value == "" {
-		if err := opts.Ask(&survey.Input{
-			Message: "Git username",
-			Help:    "The Git username.",
-		}, &opts.GitUsername.Value, survey.WithValidator(survey.ComposeValidators(
-			survey.MaxLength(200),
-			survey.Required,
-		))); err != nil {
-			return err
-		}
-	}
-
-	if opts.GitPassword.Value == "" {
-		if err := opts.Ask(&survey.Password{
-			Message: "Git password",
-			Help:    "The Git password.",
-		}, &opts.GitPassword.Value, survey.WithValidator(survey.ComposeValidators(
-			survey.MaxLength(200),
-			survey.Required,
-		))); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func promptLibraryGitCredentials(opts *CreateOptions, gitCredentialsCallback GetAllGitCredentialsCallback) error {
-	if opts.GitCredentials.Value == "" {
-		selectedOption, err := selectors.Select(opts.Ask, "Select which Git credentials to use", gitCredentialsCallback, func(resource *credentials.Resource) string { return resource.Name })
-
-		if err != nil {
-			return err
-		}
-		opts.GitCredentials.Value = selectedOption.GetName()
-	}
-	return nil
-}
-
-func getGitStorageOptions() []*selectors.SelectOption[string] {
-	return []*selectors.SelectOption[string]{
-		{Display: "Library", Value: GitStorageLibrary},
-		{Display: "Project", Value: GitStorageProject},
-	}
+	return nil, nil
 }

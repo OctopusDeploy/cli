@@ -44,7 +44,7 @@ func TestReleaseDelete(t *testing.T) {
 		api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
 		api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
 
-		api.ExpectRequest(t, "GET", "/api/Spaces-1/projects?clonedFromProjectId=&partialName=Fire+Project").
+		api.ExpectRequest(t, "GET", "/api/Spaces-1/projects?partialName=Fire+Project").
 			RespondWith(resources.Resources[*projects.Project]{
 				Items: []*projects.Project{fireProject},
 			})
@@ -187,7 +187,7 @@ func TestReleaseDelete(t *testing.T) {
 			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
 			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
 
-			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects?clonedFromProjectId=&partialName=Fire+Project").
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects?partialName=Fire+Project").
 				RespondWith(resources.Resources[*projects.Project]{
 					Items: []*projects.Project{fireProject},
 				})
@@ -223,7 +223,7 @@ func TestReleaseDelete(t *testing.T) {
 			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
 			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
 
-			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects?clonedFromProjectId=&partialName=Fire+Project").
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects?partialName=Fire+Project").
 				RespondWith(resources.Resources[*projects.Project]{
 					Items: []*projects.Project{fireProject},
 				})
@@ -259,7 +259,7 @@ func TestReleaseDelete(t *testing.T) {
 			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
 			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
 
-			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects?clonedFromProjectId=&partialName=Fire+Project").
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects?partialName=Fire+Project").
 				RespondWith(resources.Resources[*projects.Project]{
 					Items: []*projects.Project{fireProject},
 				})
@@ -368,7 +368,7 @@ func TestReleaseDelete(t *testing.T) {
 			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
 			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
 
-			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects?clonedFromProjectId=&partialName=Fire+Project").
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects?partialName=Fire+Project").
 				RespondWith(resources.Resources[*projects.Project]{
 					Items: []*projects.Project{fireProject},
 				})
