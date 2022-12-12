@@ -14,6 +14,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// TODO this command has no tests and doesn't follow the same patterns as our newer commands
 func NewCmdDelete(f factory.Factory) *cobra.Command {
 	var alreadyConfirmed bool
 	cmd := &cobra.Command{
@@ -32,12 +33,12 @@ func NewCmdDelete(f factory.Factory) *cobra.Command {
 
 			itemIDOrName := args[0]
 
-			client, err := f.GetSystemClient(apiclient.NewRequester(cmd))
+			octopus, err := f.GetSystemClient(apiclient.NewRequester(cmd))
 			if err != nil {
 				return err
 			}
-			// TODO go to the server and lookup the space id/name and how many projects it has
-			itemToDelete, err := client.Spaces.GetByIDOrName(itemIDOrName)
+			// TODO slugs
+			itemToDelete, err := octopus.Spaces.GetByIDOrName(itemIDOrName)
 			if err != nil { // could be services.itemNotFound if they typed it wrong.
 				if err == services.ErrItemNotFound {
 					return fmt.Errorf("cannot find a space with name or ID of '%s'", itemIDOrName)
@@ -45,13 +46,15 @@ func NewCmdDelete(f factory.Factory) *cobra.Command {
 				return err
 			}
 
-			if !alreadyConfirmed { // TODO NO_PROMPT env var or whatever we do there
+			if alreadyConfirmed {
+				return stopQueueAndDelete(octopus, itemToDelete)
+			} else {
+				// TODO handle NO_PROMPT or CI mode. Should we require everyone to explicitly --confirm in CI mode or should we just go delete it?
+				// feels like being explicit would be better
 				return question.DeleteWithConfirmation(f.Ask, "space", itemToDelete.Name, itemToDelete.ID, func() error {
-					return delete(client, itemToDelete)
+					return stopQueueAndDelete(octopus, itemToDelete)
 				})
 			}
-
-			return nil
 		},
 	}
 
@@ -61,12 +64,12 @@ func NewCmdDelete(f factory.Factory) *cobra.Command {
 }
 
 func deleteRun(f factory.Factory, cmd *cobra.Command) error {
-	client, err := f.GetSystemClient(apiclient.NewRequester(cmd))
+	octopus, err := f.GetSystemClient(apiclient.NewRequester(cmd))
 	if err != nil {
 		return err
 	}
 
-	existingSpaces, err := client.Spaces.GetAll()
+	existingSpaces, err := octopus.Spaces.GetAll()
 	if err != nil {
 		return err
 	}
@@ -77,11 +80,11 @@ func deleteRun(f factory.Factory, cmd *cobra.Command) error {
 	}
 
 	return question.DeleteWithConfirmation(f.Ask, "space", itemToDelete.Name, itemToDelete.ID, func() error {
-		return delete(client, itemToDelete)
+		return stopQueueAndDelete(octopus, itemToDelete)
 	})
 }
 
-func delete(client *client.Client, spaceToDelete *spaces.Space) error {
+func stopQueueAndDelete(client *client.Client, spaceToDelete *spaces.Space) error {
 	if !spaceToDelete.TaskQueueStopped {
 		spaceToDelete.TaskQueueStopped = true
 		if _, err := client.Spaces.Update(spaceToDelete); err != nil {
