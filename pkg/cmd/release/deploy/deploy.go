@@ -373,6 +373,16 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 	}
 	options.ProjectName = selectedProject.Name
 
+	isTenanted, err := determineIsTenanted(selectedProject, asker)
+	if err != nil {
+		return err
+	}
+
+	err = validateDeployment(isTenanted, options.Environments)
+	if err != nil {
+		return err
+	}
+
 	// select release
 
 	var selectedRelease *releases.Release
@@ -395,11 +405,6 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 	}
 	options.ReleaseVersion = selectedRelease.Version
 	options.ReleaseID = selectedRelease.ID
-	if err != nil {
-		return err
-	}
-
-	isTenanted, err := determineIsTenanted(selectedProject, asker)
 	if err != nil {
 		return err
 	}
@@ -585,6 +590,14 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 		}
 	}
 	// DONE
+	return nil
+}
+
+func validateDeployment(isTenanted bool, environments []string) error {
+	if isTenanted && len(environments) > 1 {
+		return fmt.Errorf("tenanted deployments can only specify one environment")
+	}
+
 	return nil
 }
 
