@@ -861,7 +861,7 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 
 	var selectedChannel *channels.Channel
 	if options.ChannelName == "" {
-		selectedChannel, err = selectors.Channel(octopus, asker, "Select the channel in which the release will be created", selectedProject)
+		selectedChannel, err = selectors.Channel(octopus, asker, stdout, "Select the channel in which the release will be created", selectedProject)
 		if err != nil {
 			return err
 		}
