@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.7.0](https://github.com/OctopusDeploy/cli/compare/v0.6.0...v0.7.0) (2022-12-13)
+
+
+### Features
+
+* `worker-pool dynamic view` ([b2cd68c](https://github.com/OctopusDeploy/cli/commit/b2cd68cae80cc913875674c0dbc84dd9ec54c84b))
+* `worker-pool static view` ([b2cd68c](https://github.com/OctopusDeploy/cli/commit/b2cd68cae80cc913875674c0dbc84dd9ec54c84b))
+* basic `user list` and `user delete` ([74fdc7e](https://github.com/OctopusDeploy/cli/commit/74fdc7e0a811dcc6444d2fd48df3cbb661e87503))
+* convert existing project to Config As Code ([2788964](https://github.com/OctopusDeploy/cli/commit/2788964e8f5aa799d16b6259118adec7f4228f7a))
+* worker-pool delete ([#161](https://github.com/OctopusDeploy/cli/issues/161)) ([bb11b10](https://github.com/OctopusDeploy/cli/commit/bb11b105fea2d6253c67077e51a2a2657be6afd7))
+* worker-pool list ([#158](https://github.com/OctopusDeploy/cli/issues/158)) ([b2cd68c](https://github.com/OctopusDeploy/cli/commit/b2cd68cae80cc913875674c0dbc84dd9ec54c84b))
+* workerpool static create ([#162](https://github.com/OctopusDeploy/cli/issues/162)) ([3f3b66c](https://github.com/OctopusDeploy/cli/commit/3f3b66cf8ca59e5707ab85f5dddbd4b171a00f70))
+
+
+### Bug Fixes
+
+* skip prompt if only a single channel ([#172](https://github.com/OctopusDeploy/cli/issues/172)) ([01e3cbb](https://github.com/OctopusDeploy/cli/commit/01e3cbb7f1b15eafe5793e5bd2920d31774b4537))
+* validate environments for tenanted deployments ([#168](https://github.com/OctopusDeploy/cli/issues/168)) ([c4f7cb9](https://github.com/OctopusDeploy/cli/commit/c4f7cb904723ee198549eb21e62c93575514e215))
+* version shortcut on release create ([#171](https://github.com/OctopusDeploy/cli/issues/171)) ([9183324](https://github.com/OctopusDeploy/cli/commit/918332406f2efed3014edbdad64f60727e04d704))
+
 ## [0.6.0](https://github.com/OctopusDeploy/cli/compare/v0.5.0...v0.6.0) (2022-11-23)
 
 
