@@ -11,6 +11,9 @@ import (
 
 func Channel(octopus *octopusApiClient.Client, ask question.Asker, questionText string, project *projects.Project) (*channels.Channel, error) {
 	existingChannels, err := octopus.Projects.GetChannels(project)
+	if len(existingChannels) == 1 {
+		return existingChannels[0], nil
+	}
 	if err != nil {
 		return nil, err
 	}
