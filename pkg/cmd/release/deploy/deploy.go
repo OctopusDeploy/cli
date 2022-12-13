@@ -388,7 +388,7 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 	var selectedRelease *releases.Release
 	if options.ReleaseVersion == "" {
 		// first we want to ask them to pick a channel just to narrow down the search space for releases (not sent to server)
-		selectedChannel, err := selectors.Channel(octopus, asker, "Select channel", selectedProject)
+		selectedChannel, err := selectors.Channel(octopus, asker, stdout, "Select channel", selectedProject)
 		if err != nil {
 			return err
 		}
