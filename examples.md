@@ -39,3 +39,12 @@ environment="Test"
 echo "Deploying '$projectName' version $version to '$environment" for '$tenantName'"
 octopus release deploy --project "$projectName" --version $version --environment "$environment" --tenant "$tenantName" --no-prompt | octopus task wait
 ```
+
+# Bulk adding tenants to project
+
+```
+filename="tenant-list.txt"
+while read t; do
+    octopus tenant connect --tenant "$t" --project 'New Awesome Project' --environment 'Test' --environment 'Production' --enable-tenant-deployments --no-prompt
+done < "$filename"
+```
