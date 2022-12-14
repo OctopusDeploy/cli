@@ -73,16 +73,3 @@ func getAllMachineRoles(client client.Client) ([]string, error) {
 	}
 	return roles, nil
 }
-
-func DistinctRoles(roles []string) []string {
-	rolesMap := make(map[string]bool)
-	result := []string{}
-	for _, r := range roles {
-		if _, ok := rolesMap[r]; !ok {
-			rolesMap[r] = true
-			result = append(result, r)
-		}
-	}
-
-	return result
-}
