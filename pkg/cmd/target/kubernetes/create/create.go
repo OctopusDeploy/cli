@@ -151,6 +151,7 @@ type CreateFlags struct {
 	*shared.CreateTargetEnvironmentFlags
 	*shared.CreateTargetRoleFlags
 	*shared.WorkerPoolFlags
+	*shared.CreateTargetTenantFlags
 	*machinescommon.WebFlags
 }
 
@@ -166,6 +167,7 @@ type CreateOptions struct {
 	*shared.CreateTargetEnvironmentOptions
 	*shared.CreateTargetRoleOptions
 	*shared.WorkerPoolOptions
+	*shared.CreateTargetTenantOptions
 	*cmd.Dependencies
 }
 
@@ -217,6 +219,7 @@ func NewCreateFlags() *CreateFlags {
 		CreateTargetEnvironmentFlags: shared.NewCreateTargetEnvironmentFlags(),
 		WebFlags:                     machinescommon.NewWebFlags(),
 		WorkerPoolFlags:              shared.NewWorkerPoolFlags(),
+		CreateTargetTenantFlags:      shared.NewCreateTargetTenantFlags(),
 	}
 }
 
@@ -233,6 +236,7 @@ func NewCreateOptions(createFlags *CreateFlags, dependencies *cmd.Dependencies) 
 		GetAWSAccountsCallback:              CreateGetAccountsCallback(dependencies.Client, accounts.AccountTypeAmazonWebServicesAccount),
 		GetCertificatesCallback:             CreateGetCertificatesCallback(dependencies.Client),
 		GetFeedsCallback:                    CreateGetFeedsCallback(dependencies.Client),
+		CreateTargetTenantOptions:           shared.NewCreateTargetTenantOptions(dependencies),
 	}
 }
 
@@ -298,6 +302,7 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 	flags.StringVar(&createFlags.ImageFlags.Value, createFlags.ImageFlags.Name, "", "The image (including the tag) to use from the container registery")
 
 	shared.RegisterCreateTargetEnvironmentFlags(cmd, createFlags.CreateTargetEnvironmentFlags)
+	shared.RegisterCreateTargetTenantFlags(cmd, createFlags.CreateTargetTenantFlags)
 	shared.RegisterCreateTargetRoleFlags(cmd, createFlags.CreateTargetRoleFlags)
 	machinescommon.RegisterWebFlag(cmd, createFlags.WebFlags)
 
@@ -373,6 +378,11 @@ func PromptMissing(opts *CreateOptions) error {
 	}
 
 	err = PromptForHealthCheck(opts)
+	if err != nil {
+		return err
+	}
+
+	err = shared.PromptForTenant(opts.CreateTargetTenantOptions, opts.CreateTargetTenantFlags)
 	if err != nil {
 		return err
 	}
