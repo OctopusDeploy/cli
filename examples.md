@@ -42,9 +42,19 @@ octopus release deploy --project "$projectName" --version $version --environment
 
 # Bulk adding tenants to project
 
+From a static list:
+
 ```
 filename="tenant-list.txt"
 while read t; do
     octopus tenant connect --tenant "$t" --project 'New Awesome Project' --environment 'Test' --environment 'Production' --enable-tenant-deployments --no-prompt
 done < "$filename"
+```
+
+From list filtered by tag:
+
+```
+./octopus tenant list -f json | jq --raw-output '.[] | select (.TenantTags[]? | contains("Importance/VIP")) | .Name' | while read t; do
+  ~/git/cli/cmd/octopus/octopus tenant connect --tenant $t --project 'New Awesome Project' --environment 'Test' --environment 'Prod' --enable-tenant-deployments --no-prompt
+done
 ```
