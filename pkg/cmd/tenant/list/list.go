@@ -20,11 +20,8 @@ type ProjectEnvironment struct {
 }
 
 type TenantAsJson struct {
-	Id                  string               `json:"Id"`
-	Name                string               `json:"Name"`
-	Description         string               `json:"Description"`
-	Tags                []string             `json:"Tags"`
-	ProjectEnvironments []ProjectEnvironment `json:"ProjectEnvironments"`
+	*tenants.Tenant
+	ProjectEnvironments []ProjectEnvironment
 }
 
 func NewCmdList(f factory.Factory) *cobra.Command {
@@ -81,10 +78,7 @@ func listRun(cmd *cobra.Command, f factory.Factory) error {
 			}
 
 			return TenantAsJson{
-				Id:                  t.GetID(),
-				Name:                t.Name,
-				Description:         t.Description,
-				Tags:                t.TenantTags,
+				Tenant:              t,
 				ProjectEnvironments: projectEnvironments,
 			}
 		},
