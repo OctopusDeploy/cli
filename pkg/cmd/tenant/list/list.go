@@ -6,14 +6,22 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/OctopusDeploy/cli/pkg/output"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/tenants"
 	"github.com/spf13/cobra"
 )
 
+type ProjectEnvironment struct {
+	Project      output.IdAndName   `json:"Project"`
+	Environments []output.IdAndName `json:"Environments"`
+}
+
 type TenantAsJson struct {
-	Id          string `json:"Id"`
-	Name        string `json:"Name"`
-	Description string `json:"Description"`
+	Id                  string               `json:"Id"`
+	Name                string               `json:"Name"`
+	Description         string               `json:"Description"`
+	Tags                []string             `json:"Tags"`
+	ProjectEnvironments []ProjectEnvironment `json:"ProjectEnvironments"`
 }
 
 func NewCmdList(f factory.Factory) *cobra.Command {
@@ -45,22 +53,78 @@ func listRun(cmd *cobra.Command, f factory.Factory) error {
 		return err
 	}
 
+	environmentMap, err := getEnvironmentMap(client)
+	if err != nil {
+		return err
+	}
+
+	projectMap, err := getProjectMap(client)
+	if err != nil {
+		return err
+	}
+
 	return output.PrintArray(allTenants, cmd, output.Mappers[*tenants.Tenant]{
 		Json: func(t *tenants.Tenant) any {
+			projectEnvironments := []ProjectEnvironment{}
+
+			for p := range t.ProjectEnvironments {
+				projectEntity := output.IdAndName{Id: p, Name: projectMap[p]}
+				environments, err := resolveEntities(t.ProjectEnvironments[p], environmentMap)
+				if err != nil {
+					return err
+				}
+				projectEnvironments = append(projectEnvironments, ProjectEnvironment{Project: projectEntity, Environments: environments})
+			}
+
 			return TenantAsJson{
-				Id:          t.GetID(),
-				Name:        t.Name,
-				Description: t.Description,
+				Id:                  t.GetID(),
+				Name:                t.Name,
+				Description:         t.Description,
+				Tags:                t.TenantTags,
+				ProjectEnvironments: projectEnvironments,
 			}
 		},
 		Table: output.TableDefinition[*tenants.Tenant]{
-			Header: []string{"NAME", "DESCRIPTION", "ID"},
+			Header: []string{"NAME", "DESCRIPTION", "ID", "TAGS"},
 			Row: func(t *tenants.Tenant) []string {
-				return []string{output.Bold(t.Name), t.Description, t.GetID()}
+				return []string{output.Bold(t.Name), t.Description, output.Dim(t.GetID()), output.FormatAsList(t.TenantTags)}
 			},
 		},
 		Basic: func(t *tenants.Tenant) string {
 			return t.Name
 		},
 	})
+}
+
+func resolveEntities(keys []string, lookup map[string]string) ([]output.IdAndName, error) {
+	var entities []output.IdAndName
+	for _, k := range keys {
+		entities = append(entities, output.IdAndName{Id: k, Name: lookup[k]})
+	}
+
+	return entities, nil
+}
+
+func getEnvironmentMap(client *client.Client) (map[string]string, error) {
+	environmentMap := make(map[string]string)
+	allEnvs, err := client.Environments.GetAll()
+	if err != nil {
+		return nil, err
+	}
+	for _, e := range allEnvs {
+		environmentMap[e.GetID()] = e.GetName()
+	}
+	return environmentMap, nil
+}
+
+func getProjectMap(client *client.Client) (map[string]string, error) {
+	projectMap := make(map[string]string)
+	allEnvs, err := client.Projects.GetAll()
+	if err != nil {
+		return nil, err
+	}
+	for _, e := range allEnvs {
+		projectMap[e.GetID()] = e.GetName()
+	}
+	return projectMap, nil
 }
