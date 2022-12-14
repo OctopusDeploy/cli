@@ -323,7 +323,7 @@ func createRun(opts *CreateOptions) error {
 	}
 	endpoint := machines.NewKubernetesEndpoint(kubernetesUrl)
 
-	deploymentTarget := machines.NewDeploymentTarget(opts.Name.Value, endpoint, environmentIds, shared.DistinctRoles(opts.Roles.Value))
+	deploymentTarget := machines.NewDeploymentTarget(opts.Name.Value, endpoint, environmentIds, opts.Roles.Value)
 
 	createdTarget, err := opts.Client.Machines.Add(deploymentTarget)
 	if err != nil {
