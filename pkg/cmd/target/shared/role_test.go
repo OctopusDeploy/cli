@@ -8,16 +8,6 @@ import (
 	"testing"
 )
 
-func TestDistinctRoles_EmptyList(t *testing.T) {
-	result := shared.DistinctRoles([]string{})
-	assert.Empty(t, result)
-}
-
-func TestDistinctRoles_DuplicateValues(t *testing.T) {
-	result := shared.DistinctRoles([]string{"a", "b", "a"})
-	assert.Equal(t, []string{"a", "b"}, result)
-}
-
 func TestPromptRoles_FlagsSupplied(t *testing.T) {
 	pa := []*testutil.PA{}
 

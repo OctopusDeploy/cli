@@ -164,3 +164,16 @@ func Empty[T any](items []T) bool {
 func Any[T any](items []T) bool {
 	return !Empty(items)
 }
+
+func DistinctStrings(items []string) []string {
+	itemsMap := make(map[string]bool)
+	result := []string{}
+	for _, r := range items {
+		if _, ok := itemsMap[r]; !ok {
+			itemsMap[r] = true
+			result = append(result, r)
+		}
+	}
+
+	return result
+}

@@ -111,7 +111,7 @@ func createRun(opts *CreateOptions) error {
 		endpoint.DefaultWorkerPoolID = workerPoolId
 	}
 
-	target := machines.NewDeploymentTarget(opts.Name.Value, endpoint, environmentIds, shared.DistinctRoles(opts.Roles.Value))
+	target := machines.NewDeploymentTarget(opts.Name.Value, endpoint, environmentIds, util.DistinctStrings(opts.Roles.Value))
 	err = shared.ConfigureTenant(target, opts.CreateTargetTenantFlags, opts.CreateTargetTenantOptions)
 	if err != nil {
 		return err
