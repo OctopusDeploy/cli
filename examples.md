@@ -23,19 +23,19 @@ echo "Creating new deployment target, $targetName"
 octopus deployment-target azure-web-app create --name '$targetName'  --web-app $webappName --resource-group ClinicWebAppResourceGroup --tenanted-mode=tenanted --tenant '$tenantName' --environment 'Test'  --account AzureAccount --role vet-clinic-web-app --no-prompt
 
 echo "Waiting for '$targetName' to be healthy"
-status=`./octopus deployment-target view "$targetName" | grep 'Health status'`
+status=`octopus deployment-target view "$targetName" | grep 'Health status'`
 while true; do
     echo $status
     if [[ $status =~ 'Healthy' ]]; then
         break
     fi
     sleep 1
-    status=`./octopus deployment-target view "$targetName" | grep 'Health status'`
+    status=`octopus deployment-target view "$targetName" | grep 'Health status'`
 done
 
-version="1.0.1"
+version='1.0.1'
 projectName='Vet Clinic Web App'
-environment="Test"
+environment='Test'
 echo "Deploying '$projectName' version $version to '$environment" for '$tenantName'"
 octopus release deploy --project "$projectName" --version $version --environment "$environment" --tenant "$tenantName" --no-prompt | octopus task wait
 ```
@@ -54,7 +54,7 @@ done < "$filename"
 From list filtered by tag:
 
 ```
-./octopus tenant list -f json | jq --raw-output '.[] | select (.TenantTags[]? | contains("Importance/VIP")) | .Name' | while read t; do
-  ~/git/cli/cmd/octopus/octopus tenant connect --tenant $t --project 'New Awesome Project' --environment 'Test' --environment 'Prod' --enable-tenant-deployments --no-prompt
+octopus tenant list -f json | jq --raw-output '.[] | select (.TenantTags[]? | contains("Importance/VIP")) | .Name' | while read t; do
+  octopus tenant connect --tenant $t --project 'New Awesome Project' --environment 'Test' --environment 'Prod' --enable-tenant-deployments --no-prompt
 done
 ```
