@@ -6,7 +6,10 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/OctopusDeploy/cli/pkg/output"
+	"github.com/OctopusDeploy/cli/pkg/util"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/environments"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/tenants"
 	"github.com/spf13/cobra"
 )
@@ -53,18 +56,19 @@ func listRun(cmd *cobra.Command, f factory.Factory) error {
 		return err
 	}
 
-	environmentMap, err := getEnvironmentMap(client)
+	environmentMap, err := getEnvironmentMap(client, allTenants)
 	if err != nil {
 		return err
 	}
 
-	projectMap, err := getProjectMap(client)
+	projectMap, err := getProjectMap(client, allTenants)
 	if err != nil {
 		return err
 	}
 
 	return output.PrintArray(allTenants, cmd, output.Mappers[*tenants.Tenant]{
 		Json: func(t *tenants.Tenant) any {
+
 			projectEnvironments := []ProjectEnvironment{}
 
 			for p := range t.ProjectEnvironments {
@@ -105,9 +109,26 @@ func resolveEntities(keys []string, lookup map[string]string) ([]output.IdAndNam
 	return entities, nil
 }
 
-func getEnvironmentMap(client *client.Client) (map[string]string, error) {
+func getEnvironmentMap(client *client.Client, tenants []*tenants.Tenant) (map[string]string, error) {
+	var environmentIds []string
+	for _, t := range tenants {
+		for p := range t.ProjectEnvironments {
+			environmentIds = append(environmentIds, t.ProjectEnvironments[p]...)
+		}
+	}
+
+	environmentIds = util.DistinctStrings(environmentIds)
+
 	environmentMap := make(map[string]string)
-	allEnvs, err := client.Environments.GetAll()
+	queryResult, err := client.Environments.Get(environments.EnvironmentsQuery{IDs: environmentIds})
+	if err != nil {
+		return nil, err
+	}
+	allEnvs, err := queryResult.GetAllPages(client.Environments.GetClient())
+	if err != nil {
+		return nil, err
+	}
+
 	if err != nil {
 		return nil, err
 	}
@@ -117,13 +138,22 @@ func getEnvironmentMap(client *client.Client) (map[string]string, error) {
 	return environmentMap, nil
 }
 
-func getProjectMap(client *client.Client) (map[string]string, error) {
+func getProjectMap(client *client.Client, tenants []*tenants.Tenant) (map[string]string, error) {
+	var projectIds []string
+	for _, t := range tenants {
+		for p := range t.ProjectEnvironments {
+			projectIds = append(projectIds, p)
+		}
+	}
+	projectIds = util.DistinctStrings(projectIds)
+
 	projectMap := make(map[string]string)
-	allEnvs, err := client.Projects.GetAll()
+	queryResult, err := client.Projects.Get(projects.ProjectsQuery{IDs: projectIds})
+	allProjects, err := queryResult.GetAllPages(client.Projects.GetClient())
 	if err != nil {
 		return nil, err
 	}
-	for _, e := range allEnvs {
+	for _, e := range allProjects {
 		projectMap[e.GetID()] = e.GetName()
 	}
 	return projectMap, nil

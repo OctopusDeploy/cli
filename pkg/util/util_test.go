@@ -389,3 +389,13 @@ func TestEmpty_ZeroItems(t *testing.T) {
 func TestEmpty_SomeItems(t *testing.T) {
 	assert.False(t, util.Empty([]string{"value"}))
 }
+
+func TestDistinctStrings_EmptyList(t *testing.T) {
+	result := util.DistinctStrings([]string{})
+	assert.Empty(t, result)
+}
+
+func TestDistinctStrings_DuplicateValues(t *testing.T) {
+	result := util.DistinctStrings([]string{"a", "b", "a"})
+	assert.Equal(t, []string{"a", "b"}, result)
+}
