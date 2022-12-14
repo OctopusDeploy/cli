@@ -77,6 +77,7 @@ func listRun(cmd *cobra.Command, f factory.Factory) error {
 				projectEnvironments = append(projectEnvironments, ProjectEnvironment{Project: projectEntity, Environments: environments})
 			}
 
+			t.Links = nil // ensure the links collection is not serialised
 			return TenantAsJson{
 				Tenant:              t,
 				ProjectEnvironments: projectEnvironments,
