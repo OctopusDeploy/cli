@@ -7,6 +7,7 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/cmd"
 	azureWebApp "github.com/OctopusDeploy/cli/pkg/cmd/target/azure-web-app/view"
 	cloudRegion "github.com/OctopusDeploy/cli/pkg/cmd/target/cloud-region/view"
+	k8s "github.com/OctopusDeploy/cli/pkg/cmd/target/kubernetes/view"
 	listeningTentacle "github.com/OctopusDeploy/cli/pkg/cmd/target/listening-tentacle/view"
 	pollingTentacle "github.com/OctopusDeploy/cli/pkg/cmd/target/polling-tentacle/view"
 	"github.com/OctopusDeploy/cli/pkg/cmd/target/shared"
@@ -63,7 +64,7 @@ func ViewRun(opts *shared.ViewOptions) error {
 	case "AzureServiceFabricCluster":
 		return shared.ViewRun(opts, nil, "Azure Service Fabric Cluster")
 	case "Kubernetes":
-		return shared.ViewRun(opts, nil, "Kubernetes Cluster")
+		return k8s.ViewRun(opts)
 	case "StepPackage":
 		return shared.ViewRun(opts, nil, "Step Package")
 	}

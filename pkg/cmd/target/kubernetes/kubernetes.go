@@ -15,7 +15,8 @@ func NewCmdKubernetes(f factory.Factory) *cobra.Command {
 		Use:     "kubernetes <command>",
 		Short:   "Manage Kubernetes deployment targets",
 		Long:    "Manage Kubernetes deployment targets in Octopus Deploy",
-		Example: heredoc.Docf("$ %s deployment-target Kubernetes create", constants.ExecutableName),
+		Example: heredoc.Docf("$ %s deployment-target kubernetes create", constants.ExecutableName),
+		Aliases: []string{"k8s"},
 	}
 
 	cmd.AddCommand(cmdCreate.NewCmdCreate(f))
