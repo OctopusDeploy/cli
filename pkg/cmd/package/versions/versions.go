@@ -63,7 +63,7 @@ func NewCmdVersions(f factory.Factory) *cobra.Command {
 	flags := cmd.Flags()
 	flags.StringVarP(&versionsFlags.Package.Value, versionsFlags.Package.Name, "", "", "package ID to show versions for. required.")
 	flags.StringVarP(&versionsFlags.Filter.Value, versionsFlags.Filter.Name, "q", "", "filter packages to match only ones that contain the given string")
-	flags.Int32VarP(&versionsFlags.Limit.Value, versionsFlags.Limit.Name, "n", 0, "limit the maximum number of results that will be returned")
+	flags.Int32Var(&versionsFlags.Limit.Value, versionsFlags.Limit.Name, 0, "limit the maximum number of results that will be returned")
 	flags.SortFlags = false
 	return cmd
 }
