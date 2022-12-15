@@ -2,9 +2,8 @@ package list
 
 import (
 	"errors"
-	"github.com/OctopusDeploy/cli/pkg/apiclient"
-
 	"github.com/MakeNowJust/heredoc/v2"
+	"github.com/OctopusDeploy/cli/pkg/apiclient"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/OctopusDeploy/cli/pkg/output"
@@ -15,6 +14,7 @@ import (
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/releases"
 	"github.com/spf13/cobra"
+	"time"
 )
 
 const (
@@ -32,8 +32,10 @@ func NewListFlags() *ListFlags {
 }
 
 type ReleaseViewModel struct {
-	Channel string
-	Version string
+	ReleaseNotes string
+	Assembled    time.Time
+	Channel      string
+	Version      string
 }
 
 func NewCmdList(f factory.Factory) *cobra.Command {
@@ -114,9 +116,12 @@ func listRun(cmd *cobra.Command, f factory.Factory, flags *ListFlags) error {
 			return []string{item.ChannelID}
 		},
 		func(item *releases.Release, lookup []string) ReleaseViewModel { // result producer
+			item.Links = nil
 			return ReleaseViewModel{
-				Channel: lookup[0],
-				Version: item.Version}
+				Assembled: item.Assembled,
+				Channel:   lookup[0],
+				Version:   item.Version,
+			}
 		},
 		// lookup for channel names
 		func(keys []string) ([]string, error) {
@@ -142,9 +147,9 @@ func listRun(cmd *cobra.Command, f factory.Factory, flags *ListFlags) error {
 			return item
 		},
 		Table: output.TableDefinition[ReleaseViewModel]{
-			Header: []string{"VERSION", "CHANNEL"},
+			Header: []string{"VERSION", "CHANNEL", "CREATED"},
 			Row: func(item ReleaseViewModel) []string {
-				return []string{item.Version, item.Channel}
+				return []string{item.Version, item.Channel, item.Assembled.Format(time.RFC1123Z)}
 			}},
 		Basic: func(item ReleaseViewModel) string {
 			return item.Version
