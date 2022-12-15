@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/url"
 	"strconv"
+	"strings"
 
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/MakeNowJust/heredoc/v2"
@@ -65,8 +66,6 @@ const (
 	FlagKubernetesNamespace  = "namespace"
 	FlagCertificate          = "certificate"
 	FlagCertificateFilePath  = "certificate-path"
-
-	FlagWorkerPool = "worker-pool"
 
 	FlagHealthCheckContainerRegistry = "docker-container-registry"
 	FlagHealthCheckTags              = "docker-image-flags"
@@ -150,6 +149,7 @@ type CreateFlags struct {
 
 	*shared.CreateTargetEnvironmentFlags
 	*shared.CreateTargetRoleFlags
+	*machinescommon.CreateTargetMachinePolicyFlags
 	*shared.WorkerPoolFlags
 	*shared.CreateTargetTenantFlags
 	*machinescommon.WebFlags
@@ -168,6 +168,7 @@ type CreateOptions struct {
 	*shared.CreateTargetRoleOptions
 	*shared.WorkerPoolOptions
 	*shared.CreateTargetTenantOptions
+	*machinescommon.CreateTargetMachinePolicyOptions
 	*cmd.Dependencies
 }
 
@@ -215,11 +216,12 @@ func NewCreateFlags() *CreateFlags {
 		ContainerRegistry: flag.New[string](FlagHealthCheckContainerRegistry, false),
 		ImageFlags:        flag.New[string](FlagHealthCheckTags, false),
 
-		CreateTargetRoleFlags:        shared.NewCreateTargetRoleFlags(),
-		CreateTargetEnvironmentFlags: shared.NewCreateTargetEnvironmentFlags(),
-		WebFlags:                     machinescommon.NewWebFlags(),
-		WorkerPoolFlags:              shared.NewWorkerPoolFlags(),
-		CreateTargetTenantFlags:      shared.NewCreateTargetTenantFlags(),
+		CreateTargetRoleFlags:          shared.NewCreateTargetRoleFlags(),
+		CreateTargetEnvironmentFlags:   shared.NewCreateTargetEnvironmentFlags(),
+		WebFlags:                       machinescommon.NewWebFlags(),
+		WorkerPoolFlags:                shared.NewWorkerPoolFlags(),
+		CreateTargetTenantFlags:        shared.NewCreateTargetTenantFlags(),
+		CreateTargetMachinePolicyFlags: machinescommon.NewCreateTargetMachinePolicyFlags(),
 	}
 }
 
@@ -237,6 +239,8 @@ func NewCreateOptions(createFlags *CreateFlags, dependencies *cmd.Dependencies) 
 		GetCertificatesCallback:             CreateGetCertificatesCallback(dependencies.Client),
 		GetFeedsCallback:                    CreateGetFeedsCallback(dependencies.Client),
 		CreateTargetTenantOptions:           shared.NewCreateTargetTenantOptions(dependencies),
+		CreateTargetMachinePolicyOptions:    machinescommon.NewCreateTargetMachinePolicyOptions(dependencies),
+		WorkerPoolOptions:                   shared.NewWorkerPoolOptionsForCreateTarget(dependencies),
 	}
 }
 
@@ -295,13 +299,13 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 	flags.StringVar(&createFlags.KubernetesNamespace.Value, createFlags.KubernetesNamespace.Name, "", "Kubernetes Namespace.")
 	flags.StringVar(&createFlags.Certificate.Value, createFlags.Certificate.Name, "", "Name of Certificate in Octopus Deploy.")
 	flags.StringVar(&createFlags.CertificateFilePath.Value, createFlags.CertificateFilePath.Name, "", "The path to the CA certificate of the cluster. The default value usually is: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt")
-	flags.StringVar(&createFlags.WorkerPool.Value, createFlags.WorkerPool.Name, "", "Name of Worker Pool.")
 
 	flags.StringVar(&createFlags.ContainerRegistry.Value, createFlags.ContainerRegistry.Name, "", "The feed of the docker container registery to use if running health check in a container on the worker")
 
 	flags.StringVar(&createFlags.ImageFlags.Value, createFlags.ImageFlags.Name, "", "The image (including the tag) to use from the container registery")
 
 	shared.RegisterCreateTargetEnvironmentFlags(cmd, createFlags.CreateTargetEnvironmentFlags)
+	shared.RegisterCreateTargetWorkerPoolFlags(cmd, createFlags.WorkerPoolFlags)
 	shared.RegisterCreateTargetTenantFlags(cmd, createFlags.CreateTargetTenantFlags)
 	shared.RegisterCreateTargetRoleFlags(cmd, createFlags.CreateTargetRoleFlags)
 	machinescommon.RegisterWebFlag(cmd, createFlags.WebFlags)
@@ -316,6 +320,10 @@ func createRun(opts *CreateOptions) error {
 		}
 	}
 
+	return opts.Commit()
+}
+
+func (opts *CreateOptions) Commit() error {
 	envs, err := executionscommon.FindEnvironments(opts.Client, opts.Environments.Value)
 	if err != nil {
 		return err
@@ -326,9 +334,128 @@ func createRun(opts *CreateOptions) error {
 	if err != nil {
 		return err
 	}
-	endpoint := machines.NewKubernetesEndpoint(kubernetesUrl)
 
-	deploymentTarget := machines.NewDeploymentTarget(opts.Name.Value, endpoint, environmentIds, opts.Roles.Value)
+	endpoint := machines.NewKubernetesEndpoint(kubernetesUrl)
+	endpoint.Namespace = opts.KubernetesNamespace.Value
+	endpoint.SkipTLSVerification = opts.SkipTLSVerification.Value
+
+	if opts.WorkerPool.Value != "" {
+		workerPoolId, err := shared.FindWorkerPoolId(opts.GetAllWorkerPoolsCallback, opts.WorkerPool.Value)
+		if err != nil {
+			return err
+		}
+		endpoint.DefaultWorkerPoolID = workerPoolId
+	}
+
+	if opts.Certificate.Value != "" {
+		certID, err := QualifyCertificate(opts.Client, opts.Certificate.Value)
+		if err != nil {
+			return err
+		}
+		endpoint.ClusterCertificate = certID
+	}
+
+	if opts.CertificateFilePath.Value != "" {
+		endpoint.ClusterCertificatePath = opts.CertificateFilePath.Value
+	}
+
+	if opts.AuthenticationType.Value == AuthTypeUsernameAndPassword ||
+		opts.AuthenticationType.Value == AuthTypeToken {
+		auth := machines.NewKubernetesStandardAuthentication("")
+		accountID, err := QualifyAccount(opts.Client, opts.Account.Value)
+		if err != nil {
+			return err
+		}
+		auth.AccountID = accountID
+		endpoint.Authentication = auth
+	}
+
+	if opts.AuthenticationType.Value == AuthTypeAzureServicePrincipal {
+		auth := machines.NewKubernetesAzureAuthentication()
+		accountID, err := QualifyAccount(opts.Client, opts.Account.Value)
+		if err != nil {
+			return err
+		}
+		auth.AccountID = accountID
+		auth.ClusterName = opts.AKSClusterName.Value
+		auth.ClusterResourceGroup = opts.AKSResourceGroupName.Value
+		auth.AdminLogin = opts.UseAdminCredentials.Value
+		endpoint.Authentication = auth
+	}
+
+	if opts.AuthenticationType.Value == AuthTypeAWSAccount {
+		auth := machines.NewKubernetesAwsAuthentication()
+		if !opts.UseServiceRole.Value {
+			accountID, err := QualifyAccount(opts.Client, opts.Account.Value)
+			if err != nil {
+				return err
+			}
+			auth.AccountID = accountID
+		}
+		if opts.AssumeServiceRole.Value {
+			auth.AssumeRole = opts.AssumeServiceRole.Value
+			auth.AssumedRoleARN = opts.AssumedRoleARN.Value
+			auth.AssumedRoleSession = opts.AssumedRoleSessionName.Value
+			auth.AssumeRoleSessionDuration = opts.AssumedRoleSessionDuration.Value
+			auth.AssumeRoleExternalID = opts.AssumedRoleExternalID.Value
+		}
+		auth.ClusterName = opts.EKSClusterName.Value
+		endpoint.Authentication = auth
+	}
+
+	if opts.AuthenticationType.Value == AuthTypeGoogleCloud {
+		auth := machines.NewKubernetesGcpAuthentication()
+		if !opts.UseVMServiceAccount.Value {
+			auth.UseVmServiceAccount = opts.UseVMServiceAccount.Value
+			accountID, err := QualifyAccount(opts.Client, opts.Account.Value)
+			if err != nil {
+				return err
+			}
+			auth.AccountID = accountID
+		}
+		if opts.ImpersonateServiceAccount.Value {
+			auth.ImpersonateServiceAccount = opts.ImpersonateServiceAccount.Value
+			auth.ServiceAccountEmails = opts.ServiceAccountEmails.Value
+		}
+		auth.ClusterName = opts.GKEClusterName.Value
+		auth.Project = opts.Project.Value
+		if opts.Region.Value != "" {
+			auth.Region = opts.Region.Value
+		}
+		if opts.Zone.Value != "" {
+			auth.Zone = opts.Zone.Value
+		}
+		endpoint.Authentication = auth
+	}
+
+	if opts.AuthenticationType.Value == AuthTypeClientCertificate {
+		auth := machines.NewKubernetesCertificateAuthentication()
+		certificateID, err := QualifyCertificate(opts.Client, opts.ClientCertificate.Value)
+		if err != nil {
+			return err
+		}
+		auth.ClientCertificate = certificateID
+		endpoint.Authentication = auth
+	}
+
+	if opts.AuthenticationType.Value == AuthTypePodServiceAccount {
+		auth := machines.NewKubernetesPodAuthentication()
+		auth.TokenPath = opts.TokenFilePath.Value
+		endpoint.Authentication = auth
+	}
+
+	deploymentTarget := machines.NewDeploymentTarget(opts.Name.Value, endpoint, environmentIds, util.DistinctStrings(opts.Roles.Value))
+
+	machinePolicy, err := machinescommon.FindDefaultMachinePolicy(opts.GetAllMachinePoliciesCallback)
+	if err != nil {
+		return err
+	}
+	deploymentTarget.MachinePolicyID = machinePolicy.GetID()
+
+	err = shared.ConfigureTenant(deploymentTarget, opts.CreateTargetTenantFlags, opts.CreateTargetTenantOptions)
+	if err != nil {
+		return err
+	}
 
 	createdTarget, err := opts.Client.Machines.Add(deploymentTarget)
 	if err != nil {
@@ -337,12 +464,61 @@ func createRun(opts *CreateOptions) error {
 
 	fmt.Fprintf(opts.Out, "Successfully created Kubernetes deployment target '%s'.\n", deploymentTarget.Name)
 	if !opts.NoPrompt {
-		autoCmd := flag.GenerateAutomationCmd(opts.CmdPath, opts.Name, opts.Environments, opts.Roles)
+		autoCmd := flag.GenerateAutomationCmd(
+			opts.CmdPath,
+			opts.Name,
+			opts.AuthenticationType,
+			opts.Account,
+
+			// Azure Service Principal
+			opts.AKSClusterName,
+			opts.AKSResourceGroupName,
+			opts.UseAdminCredentials,
+
+			// AWS Account
+			opts.UseServiceRole,
+			opts.AssumeServiceRole,
+			opts.AssumedRoleARN,
+			opts.AssumedRoleSessionName,
+			opts.AssumedRoleSessionDuration,
+			opts.AssumedRoleExternalID,
+			opts.EKSClusterName,
+
+			// Google Cloud Account
+			opts.UseVMServiceAccount,
+			opts.ImpersonateServiceAccount,
+			opts.ServiceAccountEmails,
+			opts.GKEClusterName,
+			opts.Project,
+			opts.ClusterType,
+			opts.Zone,
+			opts.Region,
+
+			opts.ClientCertificate,
+
+			// Pod Service Account
+			opts.TokenFilePath,
+
+			opts.SkipTLSVerification,
+			opts.KubernetesClusterURL,
+			opts.KubernetesNamespace,
+			opts.Certificate,
+			opts.CertificateFilePath,
+
+			opts.ContainerRegistry,
+			opts.ImageFlags,
+
+			opts.Environments,
+			opts.Roles,
+			opts.TenantedDeploymentMode,
+			opts.Tenants,
+			opts.TenantTags,
+			opts.WorkerPool,
+		)
 		fmt.Fprintf(opts.Out, "\nAutomation Command: %s\n", autoCmd)
 	}
 
-	machinescommon.DoWebForTargets(createdTarget, opts.Dependencies, opts.WebFlags, "ssh")
-
+	machinescommon.DoWebForTargets(createdTarget, opts.Dependencies, opts.WebFlags, "kubernetes")
 	return nil
 }
 
@@ -641,6 +817,7 @@ func PromptAWS(opts *CreateOptions) error {
 			// Note: this could provide better UX with custom number validator
 			err := opts.Ask(&survey.Input{
 				Message: "Assumed Role Session Duration (In Seconds)",
+				Default: "3600",
 			}, &duration)
 			if err != nil {
 				return err
@@ -654,7 +831,7 @@ func PromptAWS(opts *CreateOptions) error {
 		if opts.AssumedRoleExternalID.Value == "" {
 			err := opts.Ask(&survey.Input{
 				Message: "Assumed Role External ID",
-			}, opts.AssumedRoleExternalID.Value)
+			}, &opts.AssumedRoleExternalID.Value)
 			if err != nil {
 				return err
 			}
@@ -683,6 +860,31 @@ func PromptPodService(opts *CreateOptions) error {
 			return err
 		}
 	}
+
+	url, err := PromptClusterURL(opts.Ask, opts.KubernetesClusterURL.Value)
+	if err != nil {
+		return err
+	}
+	opts.KubernetesClusterURL.Value = url
+
+	cert, err := PromptCertificatePath(opts.Ask, opts.CertificateFilePath.Value)
+	if err != nil {
+		return err
+	}
+	opts.CertificateFilePath.Value = cert
+
+	skipTLS, err := PromptSkipTLS(opts.Ask, opts.SkipTLSVerification.Value)
+	if err != nil {
+		return err
+	}
+	opts.SkipTLSVerification.Value = skipTLS
+
+	namespace, err := PromptKubernetesNamespace(opts.Ask, opts.KubernetesNamespace.Value)
+	if err != nil {
+		return err
+	}
+	opts.KubernetesNamespace.Value = namespace
+
 	return PromptKubernetesDetails(opts)
 }
 
@@ -750,7 +952,7 @@ func PromptClusterURL(ask question.Asker, url string) (string, error) {
 }
 
 func PromptSkipTLS(ask question.Asker, skipTLS bool) (bool, error) {
-	if !skipTLS {
+	if skipTLS {
 		return skipTLS, nil
 	}
 	err := ask(&survey.Confirm{
@@ -782,6 +984,16 @@ func PromptCertificate(ask question.Asker, cert string, GetCerts GetCertificates
 		return "", err
 	}
 	return certificate.Name, nil
+}
+
+func PromptCertificatePath(ask question.Asker, certificatePath string) (string, error) {
+	if certificatePath != "" {
+		return certificatePath, nil
+	}
+	err := ask(&survey.Input{
+		Message: "Kubernetes Certificate File Path",
+	}, &certificatePath)
+	return certificatePath, err
 }
 
 func PromptForHealthCheck(opts *CreateOptions) error {
@@ -834,6 +1046,60 @@ func QualifyAuthType(authType string) (string, error) {
 		return AuthTypePodServiceAccount, nil
 	}
 	return "", fmt.Errorf("auth type '%s' is not supported", authType)
+}
+
+func QualifyAccount(octopus *client.Client, account string) (string, error) {
+	accs, err := octopus.Accounts.Get(accounts.AccountsQuery{
+		PartialName: account,
+	})
+	if err != nil {
+		return "", err
+	}
+
+	allMatchAccs, err := accs.GetAllPages(octopus.Sling())
+	if err != nil {
+		return "", err
+	}
+
+	accountID := ""
+	for i := range allMatchAccs {
+		if strings.EqualFold(allMatchAccs[i].GetName(), account) {
+			accountID = allMatchAccs[i].GetID()
+			break
+		}
+	}
+	if accountID == "" {
+		return "", fmt.Errorf("could not qualify ID for the account '%s'", account)
+	}
+
+	return accountID, nil
+}
+
+func QualifyCertificate(octopus *client.Client, certificate string) (string, error) {
+	accs, err := octopus.Certificates.Get(certificates.CertificatesQuery{
+		PartialName: certificate,
+	})
+	if err != nil {
+		return "", err
+	}
+
+	allMatchCerts, err := accs.GetAllPages(octopus.Sling())
+	if err != nil {
+		return "", err
+	}
+
+	accountID := ""
+	for i := range allMatchCerts {
+		if strings.EqualFold(allMatchCerts[i].Name, certificate) {
+			accountID = allMatchCerts[i].GetID()
+			break
+		}
+	}
+	if accountID == "" {
+		return "", fmt.Errorf("could not qualify ID for the certificate '%s'", certificate)
+	}
+
+	return accountID, nil
 }
 
 type GetAccountsCallback = func() ([]accounts.IAccount, error)

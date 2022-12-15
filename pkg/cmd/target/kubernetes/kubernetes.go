@@ -2,6 +2,7 @@ package kubernetes
 
 import (
 	"github.com/MakeNowJust/heredoc/v2"
+	cmdCreate "github.com/OctopusDeploy/cli/pkg/cmd/target/kubernetes/create"
 	cmdList "github.com/OctopusDeploy/cli/pkg/cmd/target/kubernetes/list"
 	cmdView "github.com/OctopusDeploy/cli/pkg/cmd/target/kubernetes/view"
 	"github.com/OctopusDeploy/cli/pkg/constants"
@@ -17,6 +18,7 @@ func NewCmdKubernetes(f factory.Factory) *cobra.Command {
 		Example: heredoc.Docf("$ %s deployment-target Kubernetes create", constants.ExecutableName),
 	}
 
+	cmd.AddCommand(cmdCreate.NewCmdCreate(f))
 	cmd.AddCommand(cmdList.NewCmdList(f))
 	cmd.AddCommand(cmdView.NewCmdView(f))
 
