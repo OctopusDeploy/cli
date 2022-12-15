@@ -67,3 +67,23 @@ octopus package list -f basic | while read p; do
     octopus package versions --package $p
     echo '\n'
 done
+```
+
+# List the names of machines with a specific role
+```
+octopus deployment-target list -f json | jq --raw-output | select (.Roles[]? | contains("web server")) | .Name'
+```
+
+# Register an SSH endpoint
+```
+localIp=$(ifconfig eth0 | grep 'inet addr:' | cut -d: -f2 | awk '{ print $1}')
+fingerprint=$(ssh-keygen -E md5 -lf /etc/ssh/ssh_host_rsa_key.pub | cut -d' ' -f2 | cut -d: -f2- | awk '{ print $1}')
+monoExists=$(command -v mono)
+if [ $monoExists ] 
+then
+  octopus deployment-target ssh create --account "TheAccount" --name "MySshTargetName" --host $localIp --fingerprint $fingerprint--role linux --runtime mono --no-prompt
+else
+  octopus deployment-target ssh create --account "TheAccount" --name "MySshTargetName" --host $localIp --fingerprint $fingerprint--role linux --runtime self-contained --platform linux-x64 --no-prompt
+fi
+```
+
