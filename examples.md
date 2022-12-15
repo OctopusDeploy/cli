@@ -58,3 +58,12 @@ octopus tenant list -f json | jq --raw-output '.[] | select (.TenantTags[]? | co
   octopus tenant connect --tenant $t --project 'New Awesome Project' --environment 'Test' --environment 'Prod' --enable-tenant-deployments --no-prompt
 done
 ```
+
+# List all versions of all packages
+
+```
+octopus package list -f basic | while read p; do
+    echo $p
+    octopus package versions --package $p
+    echo '\n'
+done
