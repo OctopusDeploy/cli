@@ -70,16 +70,18 @@ done
 ```
 
 # List the names of machines with a specific role
+
 ```
 octopus deployment-target list -f json | jq --raw-output | select (.Roles[]? | contains("web server")) | .Name'
 ```
 
 # Register an SSH endpoint
+
 ```
 localIp=$(ifconfig eth0 | grep 'inet addr:' | cut -d: -f2 | awk '{ print $1}')
 fingerprint=$(ssh-keygen -E md5 -lf /etc/ssh/ssh_host_rsa_key.pub | cut -d' ' -f2 | cut -d: -f2- | awk '{ print $1}')
 monoExists=$(command -v mono)
-if [ $monoExists ] 
+if [ $monoExists ]
 then
   octopus deployment-target ssh create --account "TheAccount" --name "MySshTargetName" --host $localIp --fingerprint $fingerprint--role linux --runtime mono --no-prompt
 else
@@ -87,3 +89,11 @@ else
 fi
 ```
 
+# Bulk deleting releases by created date
+
+```
+octopus release list -f json -p schedule-script | jq --arg date '2022-12-06T02:00' --raw-output '.[] | select(.Assembled | . <= $date) | .Version' | while read t; do
+  octopus release delete --project schedule-script --version $t --no-prompt
+done
+
+```
