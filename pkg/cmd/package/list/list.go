@@ -49,7 +49,7 @@ func NewCmdList(f factory.Factory) *cobra.Command {
 	}
 
 	flags := cmd.Flags()
-	flags.Int32VarP(&listFlags.Limit.Value, listFlags.Limit.Name, "n", 0, "limit the maximum number of results that will be returned")
+	flags.Int32Var(&listFlags.Limit.Value, listFlags.Limit.Name, 0, "limit the maximum number of results that will be returned")
 	flags.StringVarP(&listFlags.Filter.Value, listFlags.Filter.Name, "q", "", "filter packages to match only ones that contain the given string")
 	return cmd
 }

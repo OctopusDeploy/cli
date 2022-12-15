@@ -162,7 +162,7 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 	flags.StringVarP(&createFlags.GitRef.Value, createFlags.GitRef.Name, "r", "", "Git Reference e.g. refs/heads/main. Only relevant for config-as-code projects")
 	flags.StringVarP(&createFlags.GitCommit.Value, createFlags.GitCommit.Name, "", "", "Git Commit Hash; Specify this in addition to Git Reference if you want to reference a commit other than the latest for that branch/tag.")
 	flags.StringVarP(&createFlags.PackageVersion.Value, createFlags.PackageVersion.Name, "", "", "Default version to use for all Packages")
-	flags.StringVarP(&createFlags.ReleaseNotes.Value, createFlags.ReleaseNotes.Name, "n", "", "Release notes to attach")
+	flags.StringVar(&createFlags.ReleaseNotes.Value, createFlags.ReleaseNotes.Name, "", "Release notes to attach")
 	flags.StringVarP(&createFlags.ReleaseNotesFile.Value, createFlags.ReleaseNotesFile.Name, "", "", "Release notes to attach (from file)")
 	flags.StringVarP(&createFlags.Version.Value, createFlags.Version.Name, "v", "", "Override the Release Version")
 	flags.BoolVarP(&createFlags.IgnoreExisting.Value, createFlags.IgnoreExisting.Name, "x", false, "If a release with the same version exists, do nothing instead of failing.")
