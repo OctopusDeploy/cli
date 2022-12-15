@@ -285,7 +285,7 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 	flags.StringVar(&createFlags.ServiceAccountEmails.Value, createFlags.ServiceAccountEmails.Name, "", "Service Account Email.")
 	flags.StringVar(&createFlags.GKEClusterName.Value, createFlags.GKEClusterName.Name, "", "GKE Cluster Name.")
 	flags.StringVar(&createFlags.Project.Value, createFlags.Project.Name, "", "Project.")
-	flags.StringVar(&createFlags.ClusterType.Value, createFlags.ClusterType.Value, "", "Cluster Type.")
+	flags.StringVar(&createFlags.ClusterType.Value, createFlags.ClusterType.Name, "", "Cluster Type.")
 	flags.StringVar(&createFlags.Zone.Value, createFlags.Zone.Name, "", "Zone.")
 	flags.StringVar(&createFlags.Region.Value, createFlags.Region.Name, "", "Region.")
 
