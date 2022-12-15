@@ -91,9 +91,12 @@ fi
 
 # Bulk deleting releases by created date
 
+This example will delete all releases created before 2AM 6 Dec 2022 UTC
+`jq` Source: [Sebs IT Blog](https://megamorf.gitlab.io/cheat-sheets/jq/#select-item-in-time-range)
+
 ```
-octopus release list -f json -p schedule-script | jq --arg date '2022-12-06T02:00' --raw-output '.[] | select(.Assembled | . <= $date) | .Version' | while read t; do
-  octopus release delete --project schedule-script --version $t --no-prompt
+octopus release list -f json -p schedule-script | jq --arg date '2022-12-06T02:00' --raw-output '.[] | select(.Assembled | . < $date) | .Version' | while read t; do
+  octopus release delete --project 'New Awesome Project' --version $t --no-prompt
 done
 
 ```
