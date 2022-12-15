@@ -1642,7 +1642,7 @@ func TestReleaseCreate_AutomationMode(t *testing.T) {
 					"--git-commit", "6ef5e8c83cdcd4933bbeaeb458dc99902ad831ca",
 					"--version", "1.0.2", // no short form for version; or it wouldn't align with release deploy where -v is variable
 					"-c", "BetaChannel",
-					"-n", "Here are some **release notes**.",
+					"--release-notes", "Here are some **release notes**.",
 				})
 				return rootCmd.ExecuteC()
 			})
