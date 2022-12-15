@@ -336,9 +336,6 @@ The unit tests for [release list](https://github.com/OctopusDeploy/cli/blob/main
 
 Return back to your new command's go file (`account/create.go` in this example)
 
-**TODO!** At this point in the development cycle, the exact patterns and conventions around interactive mode questioning
-are not yet well defined. We will update the README to be more prescriptive as the situation changes.
-
 At a high level, you should create a function which encapsulates the interactive question/answer session, and returns
 your `TaskOptions` structure, which you then pass to `ProcessTasks`
 
