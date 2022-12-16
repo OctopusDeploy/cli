@@ -220,6 +220,18 @@ func PromptForConfigAsCode(opts *ConvertOptions) (cmd.Dependable, error) {
 		opts.GitStorage.Value = selectedOption.Value
 	}
 
+	if opts.GitStorage.Value == GitStorageLibrary {
+		err := promptLibraryGitCredentials(opts, opts.GetAllGitCredentialsCallback)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		err := promptProjectGitCredentials(opts)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	if opts.GitUrl.Value == "" {
 		if err := opts.Ask(&survey.Input{
 			Message: "Git URL",
@@ -301,18 +313,6 @@ func PromptForConfigAsCode(opts *ConvertOptions) (cmd.Dependable, error) {
 		}, &opts.GitInitialCommitMessage.Value, survey.WithValidator(survey.ComposeValidators(
 			survey.MaxLength(50),
 		))); err != nil {
-			return nil, err
-		}
-	}
-
-	if opts.GitStorage.Value == GitStorageLibrary {
-		err := promptLibraryGitCredentials(opts, opts.GetAllGitCredentialsCallback)
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		err := promptProjectGitCredentials(opts)
-		if err != nil {
 			return nil, err
 		}
 	}
