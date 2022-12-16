@@ -35,31 +35,31 @@ const (
 	// Azure Service Principal
 	FlagAKSClusterName       = "aks-cluster-name"
 	FlagAKSResourceGroupName = "aks-resource-group-name"
-	FlagUseAdminCredentials  = "use-admin-credentials"
+	FlagUseAdminCredentials  = "aks-use-admin-credentials"
 
 	// AWS Account
-	FlagUseServiceRole             = "use-service-role"
-	FlagAssumeServiceRole          = "assume-service-role"
-	FlagAssumedRoleARN             = "assumed-role-arn"
-	FlagAssumedRoleSessionName     = "assumed-role-session-name"
-	FlagAssumedRoleSessionDuration = "assumed-role-session-duration"
-	FlagAssumedRoleExternalID      = "assumed-role-external-id"
+	FlagUseServiceRole             = "eks-use-service-role"
+	FlagAssumeServiceRole          = "eks-assume-service-role"
+	FlagAssumedRoleARN             = "eks-assumed-role-arn"
+	FlagAssumedRoleSessionName     = "eks-assumed-role-session-name"
+	FlagAssumedRoleSessionDuration = "eks-assumed-role-session-duration"
+	FlagAssumedRoleExternalID      = "eks-assumed-role-external-id"
 	FlagEKSClusterName             = "eks-cluster-name"
 
 	// Google Cloud Account
-	FlagUseVMServiceAccount       = "use-vm-service-account"
-	FlagImpersonateServiceAccount = "impersonate-service-account"
-	FlagServiceAccountEmails      = "service-account-emails"
+	FlagUseVMServiceAccount       = "gke-use-vm-service-account"
+	FlagImpersonateServiceAccount = "gke-impersonate-service-account"
+	FlagServiceAccountEmails      = "gke-service-account-emails"
 	FlagGKEClusterName            = "gke-cluster-name"
-	FlagProject                   = "project"
-	FlagClusterType               = "cluster-type"
-	FlagZone                      = "zone"
-	FlagRegion                    = "region"
+	FlagProject                   = "gke-project"
+	FlagClusterType               = "gke-cluster-type"
+	FlagZone                      = "gke-zone"
+	FlagRegion                    = "gke-region"
 
 	FlagClientCertificate = "client-certificate"
 
 	// Pod Service Account
-	FlagTokenFilePath = "token-path"
+	FlagTokenFilePath = "pod-token-path"
 
 	FlagSkipTLSVerification  = "skip-tls-verification"
 	FlagKubernetesClusterURL = "cluster-url"
@@ -275,7 +275,9 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 	flags.BoolVar(&createFlags.AssumeServiceRole.Value, createFlags.AssumeServiceRole.Name, false, "Assume a different AWS service role.")
 	flags.StringVar(&createFlags.AssumedRoleARN.Value, createFlags.AssumedRoleARN.Name, "", "ARN of assumed AWS service role.")
 	flags.StringVar(&createFlags.AssumedRoleSessionName.Value, createFlags.AssumedRoleSessionName.Name, "", "Session name of assumed AWS service role.")
-	flags.IntVar(&createFlags.AssumedRoleSessionDuration.Value, createFlags.AssumedRoleSessionDuration.Name, 3600, "AWS assumed role session duration in seconds. (defaults to 3600 seconds, 1 hour)")
+	// Durations default is set on the struct sent to server, not here.
+	// This is to prevent the auto cmd generator from showing this flag when not explicitly set.
+	flags.IntVar(&createFlags.AssumedRoleSessionDuration.Value, createFlags.AssumedRoleSessionDuration.Name, 0, "AWS assumed role session duration in seconds. (defaults to 3600 seconds, 1 hour)")
 	flags.StringVar(&createFlags.AssumedRoleExternalID.Value, createFlags.AssumedRoleExternalID.Name, "", "AWS assumed role external ID.")
 	flags.StringVar(&createFlags.EKSClusterName.Value, createFlags.EKSClusterName.Name, "", "AWS EKS Cluster Name")
 
@@ -396,6 +398,9 @@ func (opts *CreateOptions) Commit() error {
 			auth.AssumeRole = opts.AssumeServiceRole.Value
 			auth.AssumedRoleARN = opts.AssumedRoleARN.Value
 			auth.AssumedRoleSession = opts.AssumedRoleSessionName.Value
+			if opts.AssumedRoleSessionDuration.Value == 0 {
+				opts.AssumedRoleSessionDuration.Value = 3600
+			}
 			auth.AssumeRoleSessionDuration = opts.AssumedRoleSessionDuration.Value
 			auth.AssumeRoleExternalID = opts.AssumedRoleExternalID.Value
 		}
@@ -705,7 +710,7 @@ func PromptGCP(opts *CreateOptions) error {
 	if opts.GKEClusterName.Value == "" {
 		err := opts.Ask(&survey.Input{
 			Message: "GKE Cluster Name",
-		}, &opts.ServiceAccountEmails.Value)
+		}, &opts.GKEClusterName.Value)
 		if err != nil {
 			return err
 		}
@@ -812,7 +817,7 @@ func PromptAWS(opts *CreateOptions) error {
 			}
 		}
 
-		if opts.AssumedRoleSessionDuration.Value == 3600 {
+		if opts.AssumedRoleSessionDuration.Value == 0 {
 			duration := ""
 			// Note: this could provide better UX with custom number validator
 			err := opts.Ask(&survey.Input{
