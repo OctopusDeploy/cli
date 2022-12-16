@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.7.1](https://github.com/OctopusDeploy/cli/compare/v0.7.0...v0.7.1) (2022-12-16)
+
+
+### Bug Fixes
+
+* expand tenant view output ([#174](https://github.com/OctopusDeploy/cli/issues/174)) ([7e3efce](https://github.com/OctopusDeploy/cli/commit/7e3efce9f7bc5acf8a24a906404b3c7b32209c58))
+* extended release output ([#179](https://github.com/OctopusDeploy/cli/issues/179)) ([80e1200](https://github.com/OctopusDeploy/cli/commit/80e120078c807baa451b887a6e736acdbfe20dce))
+
 ## [0.7.0](https://github.com/OctopusDeploy/cli/compare/v0.6.0...v0.7.0) (2022-12-13)
 
 
