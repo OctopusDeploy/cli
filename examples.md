@@ -72,7 +72,7 @@ done
 # List the names of machines with a specific role
 
 ```
-octopus deployment-target list -f json | jq --raw-output | select (.Roles[]? | contains("web server")) | .Name'
+octopus deployment-target list -f json | jq --raw-output '.[] | select (.Roles[]? | contains("web server")) | .Name'
 ```
 
 # Register an SSH endpoint
