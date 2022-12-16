@@ -129,7 +129,6 @@ type CreateFlags struct {
 	ServiceAccountEmails      *flag.Flag[string]
 	GKEClusterName            *flag.Flag[string]
 	Project                   *flag.Flag[string]
-	ClusterType               *flag.Flag[string]
 	Zone                      *flag.Flag[string]
 	Region                    *flag.Flag[string]
 
@@ -198,7 +197,6 @@ func NewCreateFlags() *CreateFlags {
 		ServiceAccountEmails:      flag.New[string](FlagServiceAccountEmails, false),
 		GKEClusterName:            flag.New[string](FlagGKEClusterName, false),
 		Project:                   flag.New[string](FlagProject, false),
-		ClusterType:               flag.New[string](FlagClusterType, false),
 		Zone:                      flag.New[string](FlagZone, false),
 		Region:                    flag.New[string](FlagRegion, false),
 
@@ -286,10 +284,9 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 	flags.BoolVar(&createFlags.ImpersonateServiceAccount.Value, createFlags.ImpersonateServiceAccount.Name, false, "Impersonate service accounts.")
 	flags.StringVar(&createFlags.ServiceAccountEmails.Value, createFlags.ServiceAccountEmails.Name, "", "Service Account Email.")
 	flags.StringVar(&createFlags.GKEClusterName.Value, createFlags.GKEClusterName.Name, "", "GKE Cluster Name.")
-	flags.StringVar(&createFlags.Project.Value, createFlags.Project.Name, "", "Project.")
-	flags.StringVar(&createFlags.ClusterType.Value, createFlags.ClusterType.Name, "", "Cluster Type.")
-	flags.StringVar(&createFlags.Zone.Value, createFlags.Zone.Name, "", "Zone.")
-	flags.StringVar(&createFlags.Region.Value, createFlags.Region.Name, "", "Region.")
+	flags.StringVar(&createFlags.Project.Value, createFlags.Project.Name, "", "GKE Project.")
+	flags.StringVar(&createFlags.Zone.Value, createFlags.Zone.Name, "", "GKE Zone.")
+	flags.StringVar(&createFlags.Region.Value, createFlags.Region.Name, "", "GKE Region.")
 
 	// Pod Service Account
 	flags.StringVar(&createFlags.TokenFilePath.Value, createFlags.TokenFilePath.Name, "", "The path to the token of the pod service account. The default value usually is: /var/run/secrets/kubernetes.io/serviceaccount/token")
@@ -495,7 +492,6 @@ func (opts *CreateOptions) Commit() error {
 			opts.ServiceAccountEmails,
 			opts.GKEClusterName,
 			opts.Project,
-			opts.ClusterType,
 			opts.Zone,
 			opts.Region,
 
