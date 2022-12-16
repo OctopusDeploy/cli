@@ -1381,7 +1381,7 @@ func TestReleaseCreate_AutomationMode(t *testing.T) {
 			_, err := testutil.ReceivePair(cmdReceiver)
 			assert.Nil(t, err)
 
-			assert.Equal(t, "{\"Channel\":\"Alpha channel\",\"Version\":\"1.2.3\"}\n", stdOut.String())
+			assert.Equal(t, "{\"ReleaseNotes\":\"\",\"Assembled\":\"0001-01-01T00:00:00Z\",\"Channel\":\"Alpha channel\",\"Version\":\"1.2.3\"}\n", stdOut.String())
 			assert.Equal(t, "", stdErr.String())
 		}},
 

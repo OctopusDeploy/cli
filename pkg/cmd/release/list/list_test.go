@@ -15,6 +15,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"testing"
+	"time"
 )
 
 var rootResource = testutil.NewRootResource()
@@ -87,11 +88,11 @@ func TestReleaseList(t *testing.T) {
 			assert.Nil(t, err)
 
 			assert.Equal(t, heredoc.Doc(`
-				VERSION    CHANNEL
-				2.1        Default Channel
-				2.0        Default Channel
-				2.0-beta2  Beta Channel
-				2.0-beta1  Beta Channel
+				VERSION    CHANNEL          CREATED
+				2.1        Default Channel  Mon, 01 Jan 0001 00:00:00 +0000
+				2.0        Default Channel  Mon, 01 Jan 0001 00:00:00 +0000
+				2.0-beta2  Beta Channel     Mon, 01 Jan 0001 00:00:00 +0000
+				2.0-beta1  Beta Channel     Mon, 01 Jan 0001 00:00:00 +0000
 				`), stdOut.String())
 			assert.Equal(t, "", stdErr.String())
 		}},
@@ -131,11 +132,11 @@ func TestReleaseList(t *testing.T) {
 			assert.Nil(t, err)
 
 			assert.Equal(t, heredoc.Doc(`
-				VERSION    CHANNEL
-				2.1        Default Channel
-				2.0        Default Channel
-				2.0-beta2  Beta Channel
-				2.0-beta1  Beta Channel
+				VERSION    CHANNEL          CREATED
+				2.1        Default Channel  Mon, 01 Jan 0001 00:00:00 +0000
+				2.0        Default Channel  Mon, 01 Jan 0001 00:00:00 +0000
+				2.0-beta2  Beta Channel     Mon, 01 Jan 0001 00:00:00 +0000
+				2.0-beta1  Beta Channel     Mon, 01 Jan 0001 00:00:00 +0000
 				`), stdOut.String())
 			assert.Equal(t, "", stdErr.String())
 		}},
@@ -167,8 +168,8 @@ func TestReleaseList(t *testing.T) {
 			assert.Nil(t, err)
 
 			assert.Equal(t, heredoc.Doc(`
-				VERSION  CHANNEL
-				2.1      Default Channel
+				VERSION  CHANNEL          CREATED
+				2.1      Default Channel  Mon, 01 Jan 0001 00:00:00 +0000
 				`), stdOut.String())
 			assert.Equal(t, "", stdErr.String())
 		}},
@@ -200,8 +201,8 @@ func TestReleaseList(t *testing.T) {
 			assert.Nil(t, err)
 
 			assert.Equal(t, heredoc.Doc(`
-				VERSION  CHANNEL
-				2.1      Default Channel
+				VERSION  CHANNEL          CREATED
+				2.1      Default Channel  Mon, 01 Jan 0001 00:00:00 +0000
 				`), stdOut.String())
 			assert.Equal(t, "", stdErr.String())
 		}},
@@ -232,15 +233,20 @@ func TestReleaseList(t *testing.T) {
 			assert.Nil(t, err)
 
 			type x struct {
-				Channel string
-				Version string
+				Assembled    time.Time
+				Channel      string
+				Version      string
+				ReleaseNotes string
 			}
 			parsedStdout, err := testutil.ParseJsonStrict[[]x](stdOut)
 			assert.Nil(t, err)
 
+			expectedTime, _ := time.Parse(time.RFC1123Z, "Mon, 01 Jan 0001 00:00:00")
 			assert.Equal(t, []x{{
-				Channel: defaultChannel.Name,
-				Version: "2.1",
+				Channel:      defaultChannel.Name,
+				Version:      "2.1",
+				ReleaseNotes: "",
+				Assembled:    expectedTime,
 			}}, parsedStdout)
 			assert.Equal(t, "", stdErr.String())
 		}},
