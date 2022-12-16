@@ -92,11 +92,27 @@ fi
 # Bulk deleting releases by created date
 
 This example will delete all releases created before 2AM 6 Dec 2022 UTC
-`jq` Source: [Sebs IT Blog](https://megamorf.gitlab.io/cheat-sheets/jq/#select-item-in-time-range)
+`jq` source: [Sebs IT Blog](https://megamorf.gitlab.io/cheat-sheets/jq/#select-item-in-time-range)
 
 ```
 octopus release list -f json -p schedule-script | jq --arg date '2022-12-06T02:00' --raw-output '.[] | select(.Assembled | . < $date) | .Version' | while read t; do
   octopus release delete --project 'New Awesome Project' --version $t --no-prompt
 done
-
 ```
+
+# Create a project with Config as Code enabled
+```
+octopus project create --name 'Project 54' --group 'Default Project Group' --lifecycle 'Default Lifecycle' --no-prompt
+octopus project convert --project 'Project 54' \
+  --git-credential-store 'library' \
+  --git-base-path '.octopus' \
+  --git-url 'https://github.com/user/project-54-cac.git' \
+  --git-branch 'main' \
+  --git-initial-commit 'Initial commit of deployment process' \
+  --git-credentials 'git-creds' \
+  --git-initial-commit-branch 'initial-project-54' \
+  --git-protected-default-branch \
+  --no-prompt
+```
+
+An existing project can be converted to Config As Code using the `convert` command
