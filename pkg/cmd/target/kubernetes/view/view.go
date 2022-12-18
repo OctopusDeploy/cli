@@ -42,7 +42,7 @@ func contributeEndpoint(_ *shared.ViewOptions, targetEndpoint machines.IEndpoint
 	data := []*output.DataRow{}
 	endpoint := targetEndpoint.(*machines.KubernetesEndpoint)
 
-	data = append(data, output.NewDataRow("Kubernetes Cluster URL", endpoint.ClusterURL.String()))
+	data = append(data, output.NewDataRow("Authentication Type", endpoint.Authentication.GetAuthenticationType()))
 
 	return data, nil
 }

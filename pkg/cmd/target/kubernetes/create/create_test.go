@@ -55,7 +55,7 @@ func TestAuthType_UsernamePassword(t *testing.T) {
 	checkRemainingPrompts()
 
 	assert.Equal(t, testAccountNames[0], opts.Account.Value)
-	assertK8sStandaredDetials(t, flags)
+	assertK8sStandaredDetails(t, flags)
 }
 
 func TestAuthType_Token(t *testing.T) {
@@ -73,7 +73,7 @@ func TestAuthType_Token(t *testing.T) {
 
 	checkRemainingPrompts()
 	assert.Equal(t, testAccountNames[0], opts.Account.Value)
-	assertK8sStandaredDetials(t, flags)
+	assertK8sStandaredDetails(t, flags)
 }
 
 func TestAuthType_Azure(t *testing.T) {
@@ -174,7 +174,7 @@ func TestAuthType_AWS(t *testing.T) {
 	assert.Equal(t, 3600, opts.AssumedRoleSessionDuration.Value)
 	assert.Equal(t, "extern id", opts.AssumedRoleExternalID.Value)
 	assert.Equal(t, "eks cluster", opts.EKSClusterName.Value)
-	assertK8sStandaredDetials(t, flags)
+	assertK8sStandaredDetails(t, flags)
 }
 
 func getAccount() ([]accounts.IAccount, error) {
@@ -200,7 +200,7 @@ func getK8sStandaredDetailsPA() []*testutil.PA {
 	}
 }
 
-func assertK8sStandaredDetials(t *testing.T, flags *k8s.CreateFlags) {
+func assertK8sStandaredDetails(t *testing.T, flags *k8s.CreateFlags) {
 	assert.Equal(t, "https://octopus.com", flags.KubernetesClusterURL.Value)
 	assert.Equal(t, testCertNames[1], flags.Certificate.Value)
 	assert.Equal(t, false, flags.SkipTLSVerification.Value)
