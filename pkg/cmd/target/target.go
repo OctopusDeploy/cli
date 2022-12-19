@@ -5,6 +5,7 @@ import (
 	cmdAzureWebApp "github.com/OctopusDeploy/cli/pkg/cmd/target/azure-web-app"
 	cmdCloudRegion "github.com/OctopusDeploy/cli/pkg/cmd/target/cloud-region"
 	cmdDelete "github.com/OctopusDeploy/cli/pkg/cmd/target/delete"
+	cmdKubernetes "github.com/OctopusDeploy/cli/pkg/cmd/target/kubernetes"
 	cmdList "github.com/OctopusDeploy/cli/pkg/cmd/target/list"
 	cmdListeningTentacle "github.com/OctopusDeploy/cli/pkg/cmd/target/listening-tentacle"
 	cmdPollingTentacle "github.com/OctopusDeploy/cli/pkg/cmd/target/polling-tentacle"
@@ -23,7 +24,7 @@ func NewCmdDeploymentTarget(f factory.Factory) *cobra.Command {
 		Long:    "Manage deployment targets in Octopus Deploy",
 		Example: heredoc.Docf("$ %s deployment-target list", constants.ExecutableName),
 		Annotations: map[string]string{
-			annotations.IsInfrastructure: "true",
+			annotations.IsCore: "true",
 		},
 	}
 
@@ -31,8 +32,8 @@ func NewCmdDeploymentTarget(f factory.Factory) *cobra.Command {
 	cmd.AddCommand(cmdPollingTentacle.NewCmdPollingTentacle(f))
 	cmd.AddCommand(cmdSsh.NewCmdSsh(f))
 	cmd.AddCommand(cmdCloudRegion.NewCmdCloudRegion(f))
-	cmd.AddCommand(cmdDelete.NewCmdDelete(f))
 	cmd.AddCommand(cmdAzureWebApp.NewCmdAzureWebApp(f))
+	cmd.AddCommand(cmdKubernetes.NewCmdKubernetes(f))
 	cmd.AddCommand(cmdDelete.NewCmdDelete(f))
 	cmd.AddCommand(cmdList.NewCmdList(f))
 	cmd.AddCommand(cmdView.NewCmdView(f))

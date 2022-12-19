@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.8.1](https://github.com/OctopusDeploy/cli/compare/v0.8.0...v0.8.1) (2022-12-19)
+
+
+### Bug Fixes
+
+* updated dependencies ([d009065](https://github.com/OctopusDeploy/cli/commit/d009065b22f48d922f02126e6cf908fe8372bd40))
+
+## [0.8.0](https://github.com/OctopusDeploy/cli/compare/v0.7.1...v0.8.0) (2022-12-19)
+
+
+### Features
+
+* kubernetes deployment target ([#178](https://github.com/OctopusDeploy/cli/issues/178)) ([6e25759](https://github.com/OctopusDeploy/cli/commit/6e257593b4f08c354249a9faa4ba9549c2136787))
+
 ## [0.7.1](https://github.com/OctopusDeploy/cli/compare/v0.7.0...v0.7.1) (2022-12-16)
 
 

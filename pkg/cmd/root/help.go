@@ -18,7 +18,7 @@ func isRootCmd(cmd *cobra.Command) bool {
 }
 
 func rootHelpFunc(cmd *cobra.Command, _ []string) {
-	namePadding := 12
+	namePadding := calculatePadding(cmd)
 	coreCmds := []string{}
 	configurationCmds := []string{}
 	libraryCmds := []string{}
@@ -116,6 +116,17 @@ func rootHelpFunc(cmd *cobra.Command, _ []string) {
 		}
 		fmt.Fprintln(out)
 	}
+}
+
+func calculatePadding(cmd *cobra.Command) int {
+	namePadding:= 12
+	for _, c := range cmd.Commands() {
+		if len(c.Name()) > namePadding {
+			namePadding = len(c.Name()) + 2
+		}
+	}
+
+	return namePadding
 }
 
 func rpad(s string, padding int) string {
