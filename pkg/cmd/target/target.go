@@ -32,7 +32,6 @@ func NewCmdDeploymentTarget(f factory.Factory) *cobra.Command {
 	cmd.AddCommand(cmdPollingTentacle.NewCmdPollingTentacle(f))
 	cmd.AddCommand(cmdSsh.NewCmdSsh(f))
 	cmd.AddCommand(cmdCloudRegion.NewCmdCloudRegion(f))
-	cmd.AddCommand(cmdDelete.NewCmdDelete(f))
 	cmd.AddCommand(cmdAzureWebApp.NewCmdAzureWebApp(f))
 	cmd.AddCommand(cmdKubernetes.NewCmdKubernetes(f))
 	cmd.AddCommand(cmdDelete.NewCmdDelete(f))
