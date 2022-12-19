@@ -81,3 +81,18 @@ func FindMachinePolicy(getAllMachinePoliciesCallback GetAllMachinePoliciesCallba
 
 	return nil, fmt.Errorf("cannot find machine policy '%s'", nameOrId)
 }
+
+func FindDefaultMachinePolicy(getAllMachinePoliciesCallback GetAllMachinePoliciesCallback) (*machines.MachinePolicy, error) {
+	allPolicies, err := getAllMachinePoliciesCallback()
+	if err != nil {
+		return nil, err
+	}
+
+	for _, p := range allPolicies {
+		if p.IsDefault {
+			return p, nil
+		}
+	}
+
+	return nil, fmt.Errorf("cannot find default machine policy")
+}
