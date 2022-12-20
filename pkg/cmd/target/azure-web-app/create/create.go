@@ -150,7 +150,7 @@ func createRun(opts *CreateOptions) error {
 	endpoint.WebAppName = opts.WebApp.Value
 	endpoint.ResourceGroupName = opts.ResourceGroup.Value
 	endpoint.WebAppSlotName = opts.Slot.Value
-	deploymentTarget := machines.NewDeploymentTarget(opts.Name.Value, endpoint, environmentIds, util.DistinctStrings(opts.Roles.Value))
+	deploymentTarget := machines.NewDeploymentTarget(opts.Name.Value, endpoint, environmentIds, util.SliceDistinct(opts.Roles.Value))
 
 	err = shared.ConfigureTenant(deploymentTarget, opts.CreateTargetTenantFlags, opts.CreateTargetTenantOptions)
 	if err != nil {

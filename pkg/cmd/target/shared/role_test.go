@@ -3,10 +3,21 @@ package shared_test
 import (
 	"github.com/OctopusDeploy/cli/pkg/cmd"
 	"github.com/OctopusDeploy/cli/pkg/cmd/target/shared"
+	"github.com/OctopusDeploy/cli/pkg/util"
 	"github.com/OctopusDeploy/cli/test/testutil"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
+
+func TestDistinctRoles_EmptyList(t *testing.T) {
+	result := util.SliceDistinct([]string{})
+	assert.Empty(t, result)
+}
+
+func TestDistinctRoles_DuplicateValues(t *testing.T) {
+	result := util.SliceDistinct([]string{"a", "b", "a"})
+	assert.Equal(t, []string{"a", "b"}, result)
+}
 
 func TestPromptRoles_FlagsSupplied(t *testing.T) {
 	pa := []*testutil.PA{}
