@@ -5,6 +5,7 @@ on:
   schedule:
     # Daily 5am australian/brisbane time (7pm UTC)
     - cron: '0 19 * * *'
+  push:
 env:
   SA_PASSWORD: ${{ secrets.DB_IMAGE_SA_PASSWORD }}
   ADMIN_API_KEY: ${{ secrets.OD_IMAGE_ADMIN_API_KEY }}

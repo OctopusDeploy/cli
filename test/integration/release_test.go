@@ -2,7 +2,6 @@ package integration_test
 
 import (
 	"fmt"
-	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/test/integration"
 	"github.com/OctopusDeploy/cli/test/testutil"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/channels"
@@ -251,22 +250,6 @@ func TestReleaseListAndDelete(t *testing.T) {
 			{Channel: "Default", Version: "2.0"},
 			{Channel: "Default", Version: "1.0"},
 		}, parsed)
-		assert.Equal(t, "", stdErr)
-	})
-
-	t.Run("list releases - default", func(t *testing.T) {
-		stdOut, stdErr, err := integration.RunCli(space1ID, "release", "list", "--project", project.Name)
-		if !testutil.AssertSuccess(t, err, stdOut, stdErr) {
-			return
-		}
-		assert.Equal(t, heredoc.Doc(`
-    VERSION  CHANNEL
-    5.0      Default
-    4.0      Default
-    3.0      Default
-    2.0      Default
-    1.0      Default
-			`), stdOut)
 		assert.Equal(t, "", stdErr)
 	})
 
