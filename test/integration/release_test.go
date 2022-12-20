@@ -230,29 +230,6 @@ func TestReleaseListAndDelete(t *testing.T) {
 		assert.Equal(t, "", stdErr)
 	})
 
-	t.Run("list releases - json", func(t *testing.T) {
-		stdOut, stdErr, err := integration.RunCli(space1ID, "release", "list", "--project", project.Name, "--output-format", "json")
-		if !testutil.AssertSuccess(t, err, stdOut, stdErr) {
-			return
-		}
-
-		type x struct {
-			Channel string
-			Version string
-		}
-
-		parsed, err := testutil.ParseJsonStrict[[]x](strings.NewReader(stdOut))
-		assert.Nil(t, err)
-		assert.Equal(t, []x{
-			{Channel: "Default", Version: "5.0"},
-			{Channel: "Default", Version: "4.0"},
-			{Channel: "Default", Version: "3.0"},
-			{Channel: "Default", Version: "2.0"},
-			{Channel: "Default", Version: "1.0"},
-		}, parsed)
-		assert.Equal(t, "", stdErr)
-	})
-
 	t.Run("delete release", func(t *testing.T) {
 		createReleaseCmd.ReleaseVersion = "DeleteMe5.0"
 		createResponse, err := releases.CreateReleaseV1(apiClient, createReleaseCmd)
