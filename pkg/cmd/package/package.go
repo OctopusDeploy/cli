@@ -2,10 +2,11 @@ package _package
 
 import (
 	"fmt"
-
 	cmdList "github.com/OctopusDeploy/cli/pkg/cmd/package/list"
+	cmdNuget "github.com/OctopusDeploy/cli/pkg/cmd/package/nuget"
 	cmdUpload "github.com/OctopusDeploy/cli/pkg/cmd/package/upload"
 	cmdVersions "github.com/OctopusDeploy/cli/pkg/cmd/package/versions"
+	cmdZip "github.com/OctopusDeploy/cli/pkg/cmd/package/zip"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/constants/annotations"
 	"github.com/OctopusDeploy/cli/pkg/factory"
@@ -26,5 +27,7 @@ func NewCmdPackage(f factory.Factory) *cobra.Command {
 	cmd.AddCommand(cmdUpload.NewCmdUpload(f))
 	cmd.AddCommand(cmdList.NewCmdList(f))
 	cmd.AddCommand(cmdVersions.NewCmdVersions(f))
+	cmd.AddCommand(cmdNuget.NewCmdPackageNuget(f))
+	cmd.AddCommand(cmdZip.NewCmdPackageZip(f))
 	return cmd
 }
