@@ -75,9 +75,9 @@ func NewCmdClone(f factory.Factory) *cobra.Command {
 	}
 
 	flags := cmd.Flags()
-	flags.StringVarP(&cloneFlags.Name.Value, cloneFlags.Name.Name, "n", "", "Name or Id of the new tenant")
+	flags.StringVarP(&cloneFlags.Name.Value, cloneFlags.Name.Name, "n", "", "Name of the new tenant")
 	flags.StringVarP(&cloneFlags.Description.Value, cloneFlags.Description.Name, "d", "", "Description of the new tenant")
-	flags.StringVar(&cloneFlags.SourceTenant.Value, cloneFlags.SourceTenant.Name, "", "Name or Id of the source tenant")
+	flags.StringVar(&cloneFlags.SourceTenant.Value, cloneFlags.SourceTenant.Name, "", "Name of the source tenant")
 	return cmd
 }
 
@@ -94,7 +94,9 @@ func cloneRun(opts *CloneOptions) error {
 	}
 
 	clonedTenant, err := opts.Client.Tenants.Clone(tenant, tenants.TenantCloneRequest{Name: opts.Name.Value, Description: opts.Description.Value})
-if err != nil { return err }
+	if err != nil {
+		return err
+	}
 
 	fmt.Fprintf(opts.Out, "Successfully cloned tenant '%s' to '%s'.\n", tenant.Name, clonedTenant.Name)
 	if !opts.NoPrompt {
