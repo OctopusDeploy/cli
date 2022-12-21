@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.9.0](https://github.com/OctopusDeploy/cli/compare/v0.8.1...v0.9.0) (2022-12-21)
+
+
+### Features
+
+* clone tenant ([#184](https://github.com/OctopusDeploy/cli/issues/184)) ([9bc3b6d](https://github.com/OctopusDeploy/cli/commit/9bc3b6d702f69b9c2359d3cf65ade0fa241c0689))
+
 ## [0.8.1](https://github.com/OctopusDeploy/cli/compare/v0.8.0...v0.8.1) (2022-12-19)
 
 
