@@ -4,6 +4,7 @@ import (
 	"github.com/MakeNowJust/heredoc/v2"
 	cmdList "github.com/OctopusDeploy/cli/pkg/cmd/project/variables/list"
 	cmdSet "github.com/OctopusDeploy/cli/pkg/cmd/project/variables/set"
+	cmdView "github.com/OctopusDeploy/cli/pkg/cmd/project/variables/view"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/constants/annotations"
 	"github.com/OctopusDeploy/cli/pkg/factory"
@@ -26,6 +27,7 @@ func NewCmdVariables(f factory.Factory) *cobra.Command {
 
 	cmd.AddCommand(cmdSet.NewSetCmd(f))
 	cmd.AddCommand(cmdList.NewCmdList(f))
+	cmd.AddCommand(cmdView.NewCmdView(f))
 
 	return cmd
 }
