@@ -167,7 +167,7 @@ func Any[T any](items []T) bool {
 
 func SliceDistinct[T comparable](slice []T) []T {
 	inResult := make(map[T]bool)
-	result := []T{}
+	var result []T
 	for _, str := range slice {
 		if _, ok := inResult[str]; !ok {
 			inResult[str] = true

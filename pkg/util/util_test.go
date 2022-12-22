@@ -391,7 +391,7 @@ func TestEmpty_SomeItems(t *testing.T) {
 }
 
 func TestDistinct_Empty(t *testing.T) {
-	assert.Equal(t, []string{}, util.SliceDistinct([]string{}))
+	assert.Equal(t, []string(nil), util.SliceDistinct([]string{}))
 }
 
 func TestDistinct_WithoutDuplicateItems(t *testing.T) {
