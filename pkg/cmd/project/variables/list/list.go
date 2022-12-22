@@ -10,6 +10,7 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/output"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/variables"
 	"github.com/spf13/cobra"
+	"sort"
 	"strconv"
 )
 
@@ -55,9 +56,14 @@ func listRun(cmd *cobra.Command, f factory.Factory, id string) error {
 		return err
 	}
 
+	allVariables := vars.Variables
+	sort.SliceStable(allVariables, func(i, j int) bool {
+		return allVariables[i].Name < allVariables[j].Name
+	})
+
 	return output.PrintArray(vars.Variables, cmd, output.Mappers[*variables.Variable]{
 		Json: func(v *variables.Variable) any {
-			enhancedScope, err := scopes.ToScopeValues(v, vars)
+			enhancedScope, err := scopes.ToScopeValues(v, vars.ScopeValues)
 			if err != nil {
 				return err
 			}
