@@ -68,7 +68,7 @@ func NewPackageCreateOptions(f factory.Factory, flags *PackageCreateFlags, cmd *
 	}
 }
 
-func PromptMissing(opts *PackageCreateOptions) error {
+func PackageCreatePromptMissing(opts *PackageCreateOptions) error {
 	if opts.Id.Value == "" {
 		if err := opts.Ask(&survey.Input{
 			Message: "Id",
@@ -91,7 +91,7 @@ func PromptMissing(opts *PackageCreateOptions) error {
 		}
 	}
 
-	if opts.BasePath.Value == "." {
+	if opts.BasePath.Value == "" {
 		if err := opts.Ask(&survey.Input{
 			Message: "Base Path",
 			Help:    "Root folder containing the contents to zip; defaults to current directory.",
@@ -100,7 +100,7 @@ func PromptMissing(opts *PackageCreateOptions) error {
 		}
 	}
 
-	if opts.OutFolder.Value == "." {
+	if opts.OutFolder.Value == "" {
 		if err := opts.Ask(&survey.Input{
 			Message: "Out Folder",
 			Help:    "Folder into which the zip file will be written; defaults to the current directory",
@@ -114,7 +114,7 @@ func PromptMissing(opts *PackageCreateOptions) error {
 			var pattern string
 			if err := opts.Ask(&survey.Input{
 				Message: "Include patterns",
-				Help:    "Add a file pattern to include, relative to the base path e.g. /bin/*.dll; defaults to \"**\"",
+				Help:    "Add a file pattern to include, relative to the base path e.g. /bin/*.dll; defaults to \"**\".",
 			}, &pattern); err != nil {
 				return err
 			}
@@ -137,6 +137,20 @@ func PromptMissing(opts *PackageCreateOptions) error {
 			return err
 		}
 		opts.Verbose.Value = result
+	}
+
+	if !opts.Overwrite.Value {
+		result, err := question.SelectMap(opts.Ask, "Overwrite", []bool{true, false}, func(b bool) string {
+			if b {
+				return "True"
+			} else {
+				return "False"
+			}
+		})
+		if err != nil {
+			return err
+		}
+		opts.Overwrite.Value = result
 	}
 
 	return nil

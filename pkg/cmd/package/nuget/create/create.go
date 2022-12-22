@@ -2,6 +2,7 @@ package create
 
 import (
 	"errors"
+	"github.com/AlecAivazis/survey/v2"
 	"github.com/MakeNowJust/heredoc/v2"
 	pack "github.com/OctopusDeploy/cli/pkg/cmd/package/support"
 	"github.com/OctopusDeploy/cli/pkg/constants"
@@ -71,8 +72,8 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 	flags := cmd.Flags()
 	flags.StringVar(&createFlags.Id.Value, createFlags.Id.Name, "", "The ID of the package")
 	flags.StringVarP(&createFlags.Version.Value, createFlags.Version.Name, "v", "", "The version of the package; must be a valid SemVer; defaults to a timestamp-based version")
-	flags.StringVar(&createFlags.BasePath.Value, createFlags.BasePath.Name, ".", "Root folder containing the contents to zip")
-	flags.StringVar(&createFlags.OutFolder.Value, createFlags.OutFolder.Name, ".", "Folder into which the zip file will be written")
+	flags.StringVar(&createFlags.BasePath.Value, createFlags.BasePath.Name, "", "Root folder containing the contents to zip")
+	flags.StringVar(&createFlags.OutFolder.Value, createFlags.OutFolder.Name, "", "Folder into which the zip file will be written")
 	flags.StringSliceVar(&createFlags.Include.Value, createFlags.Include.Name, []string{}, "Add a file pattern to include, relative to the base path e.g. /bin/*.dll; defaults to \"**\"")
 	flags.BoolVar(&createFlags.Verbose.Value, createFlags.Verbose.Name, false, "Verbose output")
 	flags.BoolVar(&createFlags.Overwrite.Value, createFlags.Overwrite.Name, false, "Allow an existing package file of the same ID/version to be overwritten")
@@ -86,12 +87,35 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 	return cmd
 }
 
+func PromptMissing(opts *NuPkgCreateOptions) error {
+	if len(opts.Author.Value) == 0 {
+		for {
+			var author string
+			if err := opts.Ask(&survey.Input{
+				Message: "Author/s",
+				Help:    "Add author/s to the package metadata; defaults to the current user.",
+			}, &author); err != nil {
+				return err
+			}
+			if author == "" {
+				break
+			}
+			opts.Author.Value = append(opts.Author.Value, author)
+		}
+	}
+
+	return nil
+}
+
 func createRun(opts *NuPkgCreateOptions) error {
-	//if !opts.NoPrompt {
-	//	if err := PromptMissing(opts); err != nil {
-	//		return err
-	//	}
-	//}
+	if !opts.NoPrompt {
+		if err := pack.PackageCreatePromptMissing(opts.PackageCreateOptions); err != nil {
+			return err
+		}
+		if err := PromptMissing(opts); err != nil {
+			return err
+		}
+	}
 
 	packOpts := opts.PackageCreateOptions
 
@@ -99,20 +123,13 @@ func createRun(opts *NuPkgCreateOptions) error {
 		return errors.New("must supply a package ID")
 	}
 
-	if packOpts.Version.Value == "" {
-		packOpts.Version.Value = pack.BuildTimestampSemVer(time.Now())
-	}
-
-	if util.Empty(opts.Author.Value) {
-		currentUser, err := user.Current()
-		if err != nil {
-			return err
-		}
-		opts.Author.Value = append(opts.Author.Value, currentUser.Name)
+	err := applyDefaultsToUnspecifiedOptions(opts)
+	if err != nil {
+		return err
 	}
 
 	nuspecFilePath := filepath.Join(packOpts.BasePath.Value, packOpts.Id.Value+".nuspec")
-	err := GenerateNuSpec(opts, nuspecFilePath)
+	err = GenerateNuSpec(opts, nuspecFilePath)
 	if err != nil {
 		return err
 	}
@@ -128,6 +145,34 @@ func createRun(opts *NuPkgCreateOptions) error {
 	}
 
 	return os.Remove(nuspecFilePath)
+}
+
+func applyDefaultsToUnspecifiedOptions(opts *NuPkgCreateOptions) error {
+	if opts.Version.Value == "" {
+		opts.Version.Value = pack.BuildTimestampSemVer(time.Now())
+	}
+
+	if opts.BasePath.Value == "" {
+		opts.BasePath.Value = "."
+	}
+
+	if opts.OutFolder.Value == "" {
+		opts.OutFolder.Value = "."
+	}
+
+	if len(opts.Include.Value) == 0 {
+		opts.Include.Value = []string{"**"}
+	}
+
+	if util.Empty(opts.Author.Value) {
+		currentUser, err := user.Current()
+		if err != nil {
+			return err
+		}
+		opts.Author.Value = append(opts.Author.Value, currentUser.Name)
+	}
+
+	return nil
 }
 
 func GenerateNuSpec(opts *NuPkgCreateOptions, filePath string) error {
