@@ -4,6 +4,7 @@ import (
 	"archive/zip"
 	"errors"
 	"fmt"
+	"github.com/AlecAivazis/survey/v2"
 	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/OctopusDeploy/cli/pkg/question"
 	"github.com/OctopusDeploy/cli/pkg/util"
@@ -67,6 +68,80 @@ func NewPackageCreateOptions(f factory.Factory, flags *PackageCreateFlags, cmd *
 	}
 }
 
+func PromptMissing(opts *PackageCreateOptions) error {
+	if opts.Id.Value == "" {
+		if err := opts.Ask(&survey.Input{
+			Message: "Id",
+			Help:    "The ID of the package.",
+		}, &opts.Id.Value, survey.WithValidator(survey.ComposeValidators(
+			survey.Required,
+			survey.MaxLength(200),
+			survey.MinLength(1),
+		))); err != nil {
+			return err
+		}
+	}
+
+	if opts.Version.Value == "" {
+		if err := opts.Ask(&survey.Input{
+			Message: "Version",
+			Help:    "The version of the package; must be a valid SemVer; defaults to a timestamp-based version.",
+		}, &opts.Version.Value); err != nil {
+			return err
+		}
+	}
+
+	if opts.BasePath.Value == "." {
+		if err := opts.Ask(&survey.Input{
+			Message: "Base Path",
+			Help:    "Root folder containing the contents to zip; defaults to current directory.",
+		}, &opts.BasePath.Value); err != nil {
+			return err
+		}
+	}
+
+	if opts.OutFolder.Value == "." {
+		if err := opts.Ask(&survey.Input{
+			Message: "Out Folder",
+			Help:    "Folder into which the zip file will be written; defaults to the current directory",
+		}, &opts.OutFolder.Value); err != nil {
+			return err
+		}
+	}
+
+	if len(opts.Include.Value) == 0 {
+		for {
+			var pattern string
+			if err := opts.Ask(&survey.Input{
+				Message: "Include patterns",
+				Help:    "Add a file pattern to include, relative to the base path e.g. /bin/*.dll; defaults to \"**\"",
+			}, &pattern); err != nil {
+				return err
+			}
+			if pattern == "" {
+				break
+			}
+			opts.Include.Value = append(opts.Include.Value, pattern)
+		}
+	}
+
+	if !opts.Verbose.Value {
+		result, err := question.SelectMap(opts.Ask, "Verbose", []bool{true, false}, func(b bool) string {
+			if b {
+				return "True"
+			} else {
+				return "False"
+			}
+		})
+		if err != nil {
+			return err
+		}
+		opts.Verbose.Value = result
+	}
+
+	return nil
+}
+
 func VerboseOut(isVerbose bool, messageTemplate string, messageArgs ...any) {
 	if isVerbose {
 		fmt.Printf(messageTemplate, messageArgs...)
@@ -90,13 +165,13 @@ func BuildPackage(opts *PackageCreateOptions, outFileName string) error {
 	}
 
 	_, err = os.Stat(outFilePath)
-	if !opts.Overwrite.Value && err == nil { // if not overwrite and package archive already exists
+	if !opts.Overwrite.Value && err == nil {
 		return errors.New(fmt.Sprintf("package with name '%s' already exists ...aborting", outFileName))
 	}
 
 	VerboseOut(opts.Verbose.Value, "Saving \"%s\" to \"%s\"...\nAdding files from \"%s\" matching pattern/s \"%s\"\n", outPath, outFileName, outPath, strings.Join(opts.Include.Value, ", "))
 
-	filePaths, err := getUniqueMatchingFilePaths(opts.BasePath.Value, opts.Include.Value)
+	filePaths, err := getDistinctPatternMatches(opts.BasePath.Value, opts.Include.Value)
 	if err != nil {
 		return err
 	}
@@ -105,21 +180,26 @@ func BuildPackage(opts *PackageCreateOptions, outFileName string) error {
 		return errors.New("no files identified to package")
 	}
 
-	zipFile, zipCreateErr := os.Create(outFilePath)
-	if zipCreateErr != nil {
-		return zipCreateErr
+	return buildArchive(outFilePath, opts.BasePath.Value, filePaths, opts.Verbose.Value)
+}
+
+func buildArchive(outFilePath string, basePath string, filesToArchive []string, isVerbose bool) error {
+	_, outFile := filepath.Split(outFilePath)
+	zipFile, err := os.Create(outFilePath)
+	if err != nil {
+		return err
 	}
 	defer zipFile.Close()
 
 	writer := zip.NewWriter(zipFile)
 	defer writer.Close()
 
-	for _, path := range filePaths {
-		if path == outFileName || path == "." {
+	for _, path := range filesToArchive {
+		if path == outFile || path == "." {
 			continue
 		}
 
-		fullPath := filepath.Join(opts.BasePath.Value, path)
+		fullPath := filepath.Join(basePath, path)
 		fileInfo, err := os.Stat(fullPath)
 		if err != nil {
 			return err
@@ -152,7 +232,7 @@ func BuildPackage(opts *PackageCreateOptions, outFileName string) error {
 
 		_, err = io.Copy(headerWriter, f)
 		if err == nil {
-			VerboseOut(opts.Verbose.Value, "Added file: %s\n", path)
+			VerboseOut(isVerbose, "Added file: %s\n", path)
 		} else {
 			return err
 		}
@@ -166,7 +246,7 @@ func BuildPackage(opts *PackageCreateOptions, outFileName string) error {
 	return nil
 }
 
-func getUniqueMatchingFilePaths(basePath string, patterns []string) ([]string, error) {
+func getDistinctPatternMatches(basePath string, patterns []string) ([]string, error) {
 	fileSys := os.DirFS(filepath.Clean(basePath))
 	var filePaths []string
 

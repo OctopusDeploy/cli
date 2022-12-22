@@ -31,7 +31,7 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 	flags.StringVarP(&createFlags.Version.Value, createFlags.Version.Name, "v", "", "The version of the package; must be a valid SemVer; defaults to a timestamp-based version")
 	flags.StringVar(&createFlags.BasePath.Value, createFlags.BasePath.Name, ".", "Root folder containing the contents to zip")
 	flags.StringVar(&createFlags.OutFolder.Value, createFlags.OutFolder.Name, ".", "Folder into which the zip file will be written")
-	flags.StringSliceVar(&createFlags.Include.Value, createFlags.Include.Name, []string{"**"}, "Add a file pattern to include, relative to the base path e.g. /bin/*.dll")
+	flags.StringSliceVar(&createFlags.Include.Value, createFlags.Include.Name, []string{}, "Add a file pattern to include, relative to the base path e.g. /bin/*.dll; defaults to \"**\"")
 	flags.BoolVar(&createFlags.Verbose.Value, createFlags.Verbose.Name, false, "Verbose output")
 	flags.BoolVar(&createFlags.Overwrite.Value, createFlags.Overwrite.Name, false, "Allow an existing package file of the same ID/version to be overwritten")
 	flags.SortFlags = false
@@ -40,11 +40,11 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 }
 
 func createRun(opts *pack.PackageCreateOptions) error {
-	//if !opts.NoPrompt {
-	//	if err := PromptMissing(opts); err != nil {
-	//		return err
-	//	}
-	//}
+	if !opts.NoPrompt {
+		if err := pack.PromptMissing(opts); err != nil {
+			return err
+		}
+	}
 
 	if opts.Id.Value == "" {
 		return errors.New("must supply a package ID")
@@ -52,6 +52,10 @@ func createRun(opts *pack.PackageCreateOptions) error {
 
 	if opts.Version.Value == "" {
 		opts.Version.Value = pack.BuildTimestampSemVer(time.Now())
+	}
+
+	if len(opts.Include.Value) == 0 {
+		opts.Include.Value = []string{"**"}
 	}
 
 	pack.VerboseOut(opts.Verbose.Value, "Packing \"%s\" version \"%s\"...\n", opts.Id.Value, opts.Version.Value)

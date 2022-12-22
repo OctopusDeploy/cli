@@ -6,9 +6,11 @@ import (
 	pack "github.com/OctopusDeploy/cli/pkg/cmd/package/support"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/factory"
+	"github.com/OctopusDeploy/cli/pkg/util"
 	"github.com/OctopusDeploy/cli/pkg/util/flag"
 	"github.com/spf13/cobra"
 	"os"
+	"os/user"
 	"path/filepath"
 	"strings"
 	"time"
@@ -71,7 +73,7 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 	flags.StringVarP(&createFlags.Version.Value, createFlags.Version.Name, "v", "", "The version of the package; must be a valid SemVer; defaults to a timestamp-based version")
 	flags.StringVar(&createFlags.BasePath.Value, createFlags.BasePath.Name, ".", "Root folder containing the contents to zip")
 	flags.StringVar(&createFlags.OutFolder.Value, createFlags.OutFolder.Name, ".", "Folder into which the zip file will be written")
-	flags.StringSliceVar(&createFlags.Include.Value, createFlags.Include.Name, []string{"**"}, "Add a file pattern to include, relative to the base path e.g. /bin/*.dll")
+	flags.StringSliceVar(&createFlags.Include.Value, createFlags.Include.Name, []string{}, "Add a file pattern to include, relative to the base path e.g. /bin/*.dll; defaults to \"**\"")
 	flags.BoolVar(&createFlags.Verbose.Value, createFlags.Verbose.Name, false, "Verbose output")
 	flags.BoolVar(&createFlags.Overwrite.Value, createFlags.Overwrite.Name, false, "Allow an existing package file of the same ID/version to be overwritten")
 	flags.StringSliceVar(&createFlags.Author.Value, createFlags.Author.Name, []string{}, "Add author/s to the package metadata; defaults to the current user")
@@ -99,6 +101,14 @@ func createRun(opts *NuPkgCreateOptions) error {
 
 	if packOpts.Version.Value == "" {
 		packOpts.Version.Value = pack.BuildTimestampSemVer(time.Now())
+	}
+
+	if util.Empty(opts.Author.Value) {
+		currentUser, err := user.Current()
+		if err != nil {
+			return err
+		}
+		opts.Author.Value = append(opts.Author.Value, currentUser.Name)
 	}
 
 	nuspecFilePath := filepath.Join(packOpts.BasePath.Value, packOpts.Id.Value+".nuspec")

@@ -6,6 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 	"time"
 )
@@ -36,9 +37,11 @@ func TestBuildOutFileName(t *testing.T) {
 
 func TestPanicImmediately(t *testing.T) {
 	basePath := setupForArchive(t)
-	defer t.Cleanup(func() {
-		cleanUpTemp(basePath)
-	})
+	if runtime.GOOS == "windows" { // See line 63
+		defer t.Cleanup(func() {
+			cleanUpTemp(basePath)
+		})
+	}
 
 	newPath := filepath.Join(basePath, "test.txt")
 	_, err := os.Stat(newPath)
@@ -56,11 +59,11 @@ func setupForArchive(t *testing.T) string {
 }
 
 // TODO Test and potentially remove manual clean-up when go version >= 1.20.0
-// cleanUpTemp is a temporary solution to https://github.com/golang/go/issues/51442.
+// cleanUpTemp is a temporary solution for windows to https://github.com/golang/go/issues/51442.
 func cleanUpTemp(tempDir string) {
 	err := errors.New("init not nil")
 	for err != nil {
-		time.Sleep(time.Millisecond * 500)
+		time.Sleep(time.Millisecond * 10)
 		err = os.RemoveAll(tempDir)
 	}
 }
