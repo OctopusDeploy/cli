@@ -55,7 +55,7 @@ type Client struct {
 	// Octopus API Client scoped to the current space. nullable, lazily created by Get()
 	SpaceScopedClient *octopusApiClient.Client
 
-	// the Server URL, obtained from OCTOPUS_HOST
+	// the Server URL, obtained from OCTOPUS_URL
 	ApiUrl *url.URL
 	// the Octopus API Key, obtained from OCTOPUS_API_KEY
 	ApiKey string
@@ -104,7 +104,7 @@ func NewClientFactory(httpClient *http.Client, host string, apiKey string, space
 // NewClientFactoryFromConfig Creates a new Client wrapper structure by reading the viper config.
 // specifies nil for the HTTP Client, so this is not for unit tests; use NewClientFactory(... instead)
 func NewClientFactoryFromConfig(ask question.AskProvider) (ClientFactory, error) {
-	host := viper.GetString(constants.ConfigHost)
+	host := viper.GetString(constants.ConfigUrl)
 	apiKey := viper.GetString(constants.ConfigApiKey)
 	spaceNameOrID := viper.GetString(constants.ConfigSpace)
 
@@ -132,7 +132,7 @@ func ValidateMandatoryEnvironment(host string, apiKey string) error {
           Alternatively you can run:
             octopus config set %s
             octopus config set %s
-    `, constants.EnvOctopusHost, constants.EnvOctopusApiKey, constants.ConfigHost, constants.ConfigApiKey)
+    `, constants.EnvOctopusUrl, constants.EnvOctopusApiKey, constants.ConfigUrl, constants.ConfigApiKey)
 		return fmt.Errorf(err)
 	}
 

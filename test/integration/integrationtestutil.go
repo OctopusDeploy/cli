@@ -153,7 +153,7 @@ func EnsureCli() (cliPath string, cliDir string, err error) {
 func createEnvForCli(space string) []string {
 	return []string{
 		"CI=1", // disable prompting
-		fmt.Sprintf("OCTOPUS_HOST=%s", os.Getenv("OCTOPUS_TEST_URL")),
+		fmt.Sprintf("OCTOPUS_URL=%s", os.Getenv("OCTOPUS_TEST_URL")),
 		fmt.Sprintf("OCTOPUS_API_KEY=%s", os.Getenv("OCTOPUS_TEST_APIKEY")),
 		fmt.Sprintf("OCTOPUS_SPACE=%s", space),
 	}

@@ -22,7 +22,7 @@ func SetupConfigFile(v *viper.Viper, configPath string) {
 }
 
 func setDefaults(v *viper.Viper) {
-	v.SetDefault(constants.ConfigHost, "")
+	v.SetDefault(constants.ConfigUrl, "")
 	v.SetDefault(constants.ConfigApiKey, "")
 	v.SetDefault(constants.ConfigSpace, "")
 	v.SetDefault(constants.ConfigNoPrompt, false)
@@ -41,7 +41,7 @@ func bindEnvironment(v *viper.Viper) error {
 	if err := v.BindEnv(constants.ConfigApiKey, constants.EnvOctopusApiKey); err != nil {
 		return err
 	}
-	if err := v.BindEnv(constants.ConfigHost, constants.EnvOctopusHost); err != nil {
+	if err := v.BindEnv(constants.ConfigUrl, constants.EnvOctopusUrl); err != nil {
 		return err
 	}
 	if err := v.BindEnv(constants.ConfigSpace, constants.EnvOctopusSpace); err != nil {

@@ -5,7 +5,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/AlecAivazis/survey/v2"
 	"github.com/OctopusDeploy/cli/pkg/config"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/factory"
@@ -86,7 +85,7 @@ func promptMissing(ask question.Asker, key string) (string, string, error) {
 		constants.ConfigApiKey,
 		constants.ConfigSpace,
 		constants.ConfigNoPrompt,
-		constants.ConfigHost,
+		constants.ConfigUrl,
 		constants.ConfigOutputFormat,
 		constants.ConfigShowOctopus,
 		constants.ConfigEditor,

@@ -28,7 +28,7 @@ const (
 
 // keys for key/value store config file
 const (
-	ConfigHost     = "Host"
+	ConfigUrl      = "Url"
 	ConfigApiKey   = "ApiKey"
 	ConfigSpace    = "Space"
 	ConfigNoPrompt = "NoPrompt"
@@ -39,7 +39,7 @@ const (
 )
 
 const (
-	EnvOctopusHost   = "OCTOPUS_HOST"
+	EnvOctopusUrl    = "OCTOPUS_URL"
 	EnvOctopusApiKey = "OCTOPUS_API_KEY"
 	EnvOctopusSpace  = "OCTOPUS_SPACE"
 	EnvEditor        = "EDITOR"
@@ -72,7 +72,6 @@ const OctopusLogo = `            &#BGGGGGGB#&
 const (
 	PromptCreateNew = "<Create New>"
 )
-
 
 // IsProgrammaticOutputFormat tells you if it is acceptable for your command to
 // print miscellaneous output to stdout, such as progress messages.

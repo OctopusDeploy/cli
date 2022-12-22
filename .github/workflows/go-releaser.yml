@@ -189,7 +189,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       OCTOPUS_API_KEY: ${{ secrets.OCTOPUS_API_KEY }}
-      OCTOPUS_HOST: ${{ secrets.OCTOPUS_URL }}  
+      OCTOPUS_URL: ${{ secrets.OCTOPUS_URL }}  
       OCTOPUS_SPACE: Integrations
 
     steps:
