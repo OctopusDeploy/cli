@@ -148,20 +148,22 @@ func createRun(opts *NuPkgCreateOptions) error {
 }
 
 func applyDefaultsToUnspecifiedOptions(opts *NuPkgCreateOptions) error {
-	if opts.Version.Value == "" {
-		opts.Version.Value = pack.BuildTimestampSemVer(time.Now())
+	packOpts := opts.PackageCreateOptions
+
+	if packOpts.Version.Value == "" {
+		packOpts.Version.Value = pack.BuildTimestampSemVer(time.Now())
 	}
 
-	if opts.BasePath.Value == "" {
-		opts.BasePath.Value = "."
+	if packOpts.BasePath.Value == "" {
+		packOpts.BasePath.Value = "."
 	}
 
-	if opts.OutFolder.Value == "" {
-		opts.OutFolder.Value = "."
+	if packOpts.OutFolder.Value == "" {
+		packOpts.OutFolder.Value = "."
 	}
 
-	if len(opts.Include.Value) == 0 {
-		opts.Include.Value = []string{"**"}
+	if len(packOpts.Include.Value) == 0 {
+		packOpts.Include.Value = []string{"**"}
 	}
 
 	if util.Empty(opts.Author.Value) {
