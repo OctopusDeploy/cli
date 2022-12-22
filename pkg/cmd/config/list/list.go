@@ -62,7 +62,7 @@ func listRun(cmd *cobra.Command) error {
 				configData.ApiKey = configFile.GetString(key)
 			case strings.ToLower(constants.ConfigEditor):
 				configData.Editor = configFile.GetString(key)
-			case strings.ToLower(constants.ConfigHost):
+			case strings.ToLower(constants.ConfigUrl):
 				configData.Host = configFile.GetString(key)
 			case strings.ToLower(constants.ConfigNoPrompt):
 				configData.NoPrompt = configFile.GetString(key)
