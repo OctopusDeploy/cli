@@ -238,7 +238,10 @@ jobs:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       if: "!contains(needs.goreleaser.outputs.version, '-')" # don't generate release notes for SNAPSHOT builds because there won't be a github release to get them from
       run: |
-        echo "name=release-notes::$(jq --raw-output '.release.body' ${{ github.event_path }} | sed 's#\r#  #g')" >> $GITHUB_OUTPUT
+        echo "::debug::${{github.event_name}}"
+        OUTPUT_FILE="release_notes.txt"
+        gh release view "${{ needs.goreleaser.outputs.tag_name }}" --jq '.body' --json 'body' | sed 's#\r#  #g' > $OUTPUT_FILE
+        echo "::set-output name=release-note-file::$OUTPUT_FILE"
 
     - uses: OctopusDeploy/create-release-action@v3
       if: "!contains(needs.goreleaser.outputs.version, '-')"
@@ -246,6 +249,6 @@ jobs:
         project: 'cli'
         # don't specify a default package version; let all the 'tool' packages pick latest and just specify our own version
         packages: octopus-cli:${{ needs.goreleaser.outputs.version }}
-        release_notes: ${{ steps.fetch-release-notes.outputs.release-notes || ''}}
+        release_notes_file: ${{ steps.fetch-release-notes.outputs.release-note-file || ''}}
         git_ref: ${{ github.event.repository.default_branch }}
         git_commit: ${{ github.event.after || github.event.pull_request.head.sha }}
