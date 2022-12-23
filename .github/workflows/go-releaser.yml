@@ -219,10 +219,6 @@ jobs:
     - name: Copy publish-apt.sh and publish-rpm.sh
       run: cp linux-package-feeds/source/publish-*.sh artifacts/
 
-    - name: Create combined zipfile package for Octopus Deploy
-      working-directory: artifacts
-      run: zip -r octopus-cli.${{ needs.goreleaser.outputs.version }}.zip .
-
     - uses: OctopusDeploy/create-zip-package-action@v3
       id: package
       with:
