@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.10.1](https://github.com/OctopusDeploy/cli/compare/v0.10.0...v0.10.1) (2022-12-23)
+
+
+### Bug Fixes
+
+* Fixes for Go Releaser, moving it to Ocotpus' v3 GitHub Actions ([#194](https://github.com/OctopusDeploy/cli/issues/194)) ([77f023b](https://github.com/OctopusDeploy/cli/commit/77f023b31f0c4b50f6d213b97a7ff3f3eea364dc))
+
 ## [0.10.0](https://github.com/OctopusDeploy/cli/compare/v0.9.0...v0.10.0) (2022-12-23)
 
 
