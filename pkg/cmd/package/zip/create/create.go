@@ -71,6 +71,6 @@ func applyDefaultsToUnspecifiedOptions(opts *pack.PackageCreateOptions) {
 	}
 
 	if len(opts.Include.Value) == 0 {
-		opts.Include.Value = []string{"**"}
+		opts.Include.Value = append(opts.Include.Value, "**")
 	}
 }
