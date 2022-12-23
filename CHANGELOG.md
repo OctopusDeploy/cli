@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.10.0](https://github.com/OctopusDeploy/cli/compare/v0.9.0...v0.10.0) (2022-12-23)
+
+
+### Features
+
+* Fixed the OCTOPUS_URL environment variable name ([#191](https://github.com/OctopusDeploy/cli/issues/191)) ([1aa1a98](https://github.com/OctopusDeploy/cli/commit/1aa1a98170b82fb536d67541d913fb825f9c075f))
+
+
+### Bug Fixes
+
+* typo in workerpool message ([#193](https://github.com/OctopusDeploy/cli/issues/193)) ([baf2a46](https://github.com/OctopusDeploy/cli/commit/baf2a46d70582b101f952703ed3605e4210dc3a6))
+
 ## [0.9.0](https://github.com/OctopusDeploy/cli/compare/v0.8.1...v0.9.0) (2022-12-21)
 
 
