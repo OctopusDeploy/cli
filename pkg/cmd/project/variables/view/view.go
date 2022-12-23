@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/apiclient"
-	"github.com/OctopusDeploy/cli/pkg/cmd/project/variables/scopes"
+	variableShared "github.com/OctopusDeploy/cli/pkg/cmd/project/variables/shared"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/OctopusDeploy/cli/pkg/output"
@@ -15,6 +15,7 @@ import (
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/variables"
 	"github.com/spf13/cobra"
 	"io"
+	"strconv"
 	"strings"
 )
 
@@ -121,7 +122,7 @@ func viewRun(opts *ViewOptions) error {
 		}
 		data = append(data, output.NewDataRow("Description", output.Dim(v.Description)))
 
-		scopeValues, err := scopes.ToScopeValues(v, allVars.ScopeValues)
+		scopeValues, err := variableShared.ToScopeValues(v, allVars.ScopeValues)
 		if err != nil {
 			return err
 		}
@@ -140,6 +141,13 @@ func viewRun(opts *ViewOptions) error {
 			}),
 			"Process scope",
 			data)
+
+		if v.Prompt != nil {
+			data = append(data, output.NewDataRow("Prompted", "true"))
+			data = append(data, output.NewDataRow("Prompt Label", v.Prompt.Label))
+			data = append(data, output.NewDataRow("Prompt Description", output.Dim(v.Prompt.Description)))
+			data = append(data, output.NewDataRow("Prompt Required", strconv.FormatBool(v.Prompt.IsRequired)))
+		}
 
 		fmt.Fprintln(opts.out)
 		output.PrintRows(data, opts.out)

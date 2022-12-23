@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/apiclient"
-	"github.com/OctopusDeploy/cli/pkg/cmd/project/variables/scopes"
+	variableShared "github.com/OctopusDeploy/cli/pkg/cmd/project/variables/shared"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/OctopusDeploy/cli/pkg/output"
@@ -63,7 +63,7 @@ func listRun(cmd *cobra.Command, f factory.Factory, id string) error {
 
 	return output.PrintArray(vars.Variables, cmd, output.Mappers[*variables.Variable]{
 		Json: func(v *variables.Variable) any {
-			enhancedScope, err := scopes.ToScopeValues(v, vars.ScopeValues)
+			enhancedScope, err := variableShared.ToScopeValues(v, vars.ScopeValues)
 			if err != nil {
 				return err
 			}
