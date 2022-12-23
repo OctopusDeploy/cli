@@ -71,7 +71,7 @@ func NewPackageCreateOptions(f factory.Factory, flags *PackageCreateFlags, cmd *
 func PackageCreatePromptMissing(opts *PackageCreateOptions) error {
 	if opts.Id.Value == "" {
 		if err := opts.Ask(&survey.Input{
-			Message: "Id",
+			Message: "Package ID",
 			Help:    "The ID of the package.",
 		}, &opts.Id.Value, survey.WithValidator(survey.ComposeValidators(
 			survey.Required,
