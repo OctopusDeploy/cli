@@ -219,17 +219,18 @@ jobs:
     - name: Copy publish-apt.sh and publish-rpm.sh
       run: cp linux-package-feeds/source/publish-*.sh artifacts/
 
-    - name: Create combined zipfile package for Octopus Deploy
-      working-directory: artifacts
-      run: zip -r octopus-cli.${{ needs.goreleaser.outputs.version }}.zip .
-
-    - uses: OctopusDeploy/install-octopus-cli-action@v1
+    - uses: OctopusDeploy/create-zip-package-action@v3
+      id: package
       with:
-        version: latest
+        package_id: octopus-cli
+        version: ${{ needs.goreleaser.outputs.version }}
+        base_path: artifacts
+        files: '**/*'
+        output_folder: .
 
-    - uses: OctopusDeploy/push-package-action@v2
+    - uses: OctopusDeploy/push-package-action@v3
       with:
-        packages: artifacts/octopus-cli.${{ needs.goreleaser.outputs.version }}.zip
+        packages: ${{ steps.package.outputs.package_file_path }}
     
     - name: Fetch Release Notes
       id: fetch-release-notes
@@ -237,17 +238,14 @@ jobs:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       if: "!contains(needs.goreleaser.outputs.version, '-')" # don't generate release notes for SNAPSHOT builds because there won't be a github release to get them from
       run: |
-        echo "::debug::${{github.event_name}}"
-        OUTPUT_FILE="release_notes.txt"
-        gh release view "${{ needs.goreleaser.outputs.tag_name }}" --jq '.body' --json 'body' | sed 's#\r#  #g' > $OUTPUT_FILE
-        echo "::set-output name=release-note-file::$OUTPUT_FILE"
+        echo "name=release-notes::$(jq --raw-output '.release.body' ${{ github.event_path }} | sed 's#\r#  #g')" >> $GITHUB_OUTPUT
 
-    - uses: OctopusDeploy/create-release-action@v2
+    - uses: OctopusDeploy/create-release-action@v3
       if: "!contains(needs.goreleaser.outputs.version, '-')"
       with:
         project: 'cli'
         # don't specify a default package version; let all the 'tool' packages pick latest and just specify our own version
         packages: octopus-cli:${{ needs.goreleaser.outputs.version }}
-        release_notes_file: ${{ steps.fetch-release-notes.outputs.release-note-file || ''}}
+        release_notes: ${{ steps.fetch-release-notes.outputs.release-notes || ''}}
         git_ref: ${{ github.event.repository.default_branch }}
         git_commit: ${{ github.event.after || github.event.pull_request.head.sha }}
