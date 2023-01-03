@@ -1203,7 +1203,6 @@ func TestReleaseCreate_AutomationMode(t *testing.T) {
 		".octopus",
 		credentials.NewAnonymous(),
 		"main",
-		false,
 		protectedBranchNamePatterns,
 		fakeRepoUrl,
 	)

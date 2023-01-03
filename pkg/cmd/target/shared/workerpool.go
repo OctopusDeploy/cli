@@ -49,7 +49,7 @@ func PromptForWorkerPool(opts *WorkerPoolOptions, flags *WorkerPoolFlags) error 
 	if flags.WorkerPool.Value == "" {
 		useDefaultPool := true
 		err := opts.Ask(&survey.Confirm{
-			Message: "Will this worker use the default worker pool?",
+			Message: "Will this target use the default worker pool?",
 			Default: true,
 		}, &useDefaultPool)
 		if err != nil {

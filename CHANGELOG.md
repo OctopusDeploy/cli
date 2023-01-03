@@ -1,5 +1,52 @@
 # Changelog
 
+## [0.10.2](https://github.com/OctopusDeploy/cli/compare/v0.10.1...v0.10.2) (2022-12-23)
+
+
+### Bug Fixes
+
+* Fixed go releaser setup to fix release notes ([#196](https://github.com/OctopusDeploy/cli/issues/196)) ([7d5f720](https://github.com/OctopusDeploy/cli/commit/7d5f72020317286479d2557a00bb5e8d56db06b8))
+
+## [0.10.1](https://github.com/OctopusDeploy/cli/compare/v0.10.0...v0.10.1) (2022-12-23)
+
+
+### Bug Fixes
+
+* Fixes for Go Releaser, moving it to Ocotpus' v3 GitHub Actions ([#194](https://github.com/OctopusDeploy/cli/issues/194)) ([77f023b](https://github.com/OctopusDeploy/cli/commit/77f023b31f0c4b50f6d213b97a7ff3f3eea364dc))
+
+## [0.10.0](https://github.com/OctopusDeploy/cli/compare/v0.9.0...v0.10.0) (2022-12-23)
+
+
+### Features
+
+* Fixed the OCTOPUS_URL environment variable name ([#191](https://github.com/OctopusDeploy/cli/issues/191)) ([1aa1a98](https://github.com/OctopusDeploy/cli/commit/1aa1a98170b82fb536d67541d913fb825f9c075f))
+
+
+### Bug Fixes
+
+* typo in workerpool message ([#193](https://github.com/OctopusDeploy/cli/issues/193)) ([baf2a46](https://github.com/OctopusDeploy/cli/commit/baf2a46d70582b101f952703ed3605e4210dc3a6))
+
+## [0.9.0](https://github.com/OctopusDeploy/cli/compare/v0.8.1...v0.9.0) (2022-12-21)
+
+
+### Features
+
+* clone tenant ([#184](https://github.com/OctopusDeploy/cli/issues/184)) ([9bc3b6d](https://github.com/OctopusDeploy/cli/commit/9bc3b6d702f69b9c2359d3cf65ade0fa241c0689))
+
+## [0.8.1](https://github.com/OctopusDeploy/cli/compare/v0.8.0...v0.8.1) (2022-12-19)
+
+
+### Bug Fixes
+
+* updated dependencies ([d009065](https://github.com/OctopusDeploy/cli/commit/d009065b22f48d922f02126e6cf908fe8372bd40))
+
+## [0.8.0](https://github.com/OctopusDeploy/cli/compare/v0.7.1...v0.8.0) (2022-12-19)
+
+
+### Features
+
+* kubernetes deployment target ([#178](https://github.com/OctopusDeploy/cli/issues/178)) ([6e25759](https://github.com/OctopusDeploy/cli/commit/6e257593b4f08c354249a9faa4ba9549c2136787))
+
 ## [0.7.1](https://github.com/OctopusDeploy/cli/compare/v0.7.0...v0.7.1) (2022-12-16)
 
 

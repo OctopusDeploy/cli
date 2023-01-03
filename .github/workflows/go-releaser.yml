@@ -189,7 +189,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       OCTOPUS_API_KEY: ${{ secrets.OCTOPUS_API_KEY }}
-      OCTOPUS_HOST: ${{ secrets.OCTOPUS_URL }}  
+      OCTOPUS_URL: ${{ secrets.OCTOPUS_URL }}  
       OCTOPUS_SPACE: Integrations
 
     steps:
@@ -219,17 +219,18 @@ jobs:
     - name: Copy publish-apt.sh and publish-rpm.sh
       run: cp linux-package-feeds/source/publish-*.sh artifacts/
 
-    - name: Create combined zipfile package for Octopus Deploy
-      working-directory: artifacts
-      run: zip -r octopus-cli.${{ needs.goreleaser.outputs.version }}.zip .
-
-    - uses: OctopusDeploy/install-octopus-cli-action@v1
+    - uses: OctopusDeploy/create-zip-package-action@v3
+      id: package
       with:
-        version: latest
+        package_id: octopus-cli
+        version: ${{ needs.goreleaser.outputs.version }}
+        base_path: artifacts
+        files: '**/*'
+        output_folder: .
 
-    - uses: OctopusDeploy/push-package-action@v2
+    - uses: OctopusDeploy/push-package-action@v3
       with:
-        packages: artifacts/octopus-cli.${{ needs.goreleaser.outputs.version }}.zip
+        packages: ${{ steps.package.outputs.package_file_path }}
     
     - name: Fetch Release Notes
       id: fetch-release-notes
@@ -242,7 +243,7 @@ jobs:
         gh release view "${{ needs.goreleaser.outputs.tag_name }}" --jq '.body' --json 'body' | sed 's#\r#  #g' > $OUTPUT_FILE
         echo "::set-output name=release-note-file::$OUTPUT_FILE"
 
-    - uses: OctopusDeploy/create-release-action@v2
+    - uses: OctopusDeploy/create-release-action@v3
       if: "!contains(needs.goreleaser.outputs.version, '-')"
       with:
         project: 'cli'

@@ -170,7 +170,7 @@ This is currently managed using environment variables which you must set before 
 **macOS/Linux:**
 
 ```shell
-export OCTOPUS_HOST="http://localhost:8050" # replace with your octopus URL
+export OCTOPUS_URL="http://localhost:8050" # replace with your octopus URL
 export OCTOPUS_API_KEY="API-XXXXXXXXXXXXXXXXXXXXXXXXXXXXX" # replace with your API key
 ./octopus space list # should list all the spaces
 ```
@@ -178,7 +178,7 @@ export OCTOPUS_API_KEY="API-XXXXXXXXXXXXXXXXXXXXXXXXXXXXX" # replace with your A
 **Windows (powershell):**
 
 ```shell
-$env:OCTOPUS_HOST="http://localhost:8050" # replace with your octopus URL
+$env:OCTOPUS_URL="http://localhost:8050" # replace with your octopus URL
 $env:OCTOPUS_API_KEY="API-XXXXXXXXXXXXXXXXXXXXXXXXXXXXX" # replace with your API key
 ./octopus.exe space list # should list all the spaces
 ```
@@ -186,7 +186,7 @@ $env:OCTOPUS_API_KEY="API-XXXXXXXXXXXXXXXXXXXXXXXXXXXXX" # replace with your API
 **Windows (cmd):**
 
 ```shell
-set OCTOPUS_HOST="http://localhost:8050" # replace with your octopus URL
+set OCTOPUS_URL="http://localhost:8050" # replace with your octopus URL
 set OCTOPUS_API_KEY="API-XXXXXXXXXXXXXXXXXXXXXXXXXXXXX" # replace with your API key
 octopus.exe space list # should list all the spaces
 ```

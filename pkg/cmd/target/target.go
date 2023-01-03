@@ -24,7 +24,7 @@ func NewCmdDeploymentTarget(f factory.Factory) *cobra.Command {
 		Long:    "Manage deployment targets in Octopus Deploy",
 		Example: heredoc.Docf("$ %s deployment-target list", constants.ExecutableName),
 		Annotations: map[string]string{
-			annotations.IsInfrastructure: "true",
+			annotations.IsCore: "true",
 		},
 	}
 
@@ -32,7 +32,6 @@ func NewCmdDeploymentTarget(f factory.Factory) *cobra.Command {
 	cmd.AddCommand(cmdPollingTentacle.NewCmdPollingTentacle(f))
 	cmd.AddCommand(cmdSsh.NewCmdSsh(f))
 	cmd.AddCommand(cmdCloudRegion.NewCmdCloudRegion(f))
-	cmd.AddCommand(cmdDelete.NewCmdDelete(f))
 	cmd.AddCommand(cmdAzureWebApp.NewCmdAzureWebApp(f))
 	cmd.AddCommand(cmdKubernetes.NewCmdKubernetes(f))
 	cmd.AddCommand(cmdDelete.NewCmdDelete(f))

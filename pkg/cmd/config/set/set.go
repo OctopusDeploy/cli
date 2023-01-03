@@ -86,7 +86,7 @@ func promptMissing(ask question.Asker, key string) (string, string, error) {
 		constants.ConfigApiKey,
 		constants.ConfigSpace,
 		constants.ConfigNoPrompt,
-		constants.ConfigHost,
+		constants.ConfigUrl,
 		constants.ConfigOutputFormat,
 		constants.ConfigShowOctopus,
 		constants.ConfigEditor,
