@@ -91,7 +91,7 @@ func TestPromptForConfigAsCode_UsingCacWithBranchProtection(t *testing.T) {
 		testutil.NewInputPrompt("Enter a protected branch pattern (enter blank to end)", "This setting only applies within Octopus and will not affect your protected branches in Git. Use wildcard syntax to specify the range of branches to include. Multiple patterns can be supplied", "test"),
 		testutil.NewInputPrompt("Enter a protected branch pattern (enter blank to end)", "This setting only applies within Octopus and will not affect your protected branches in Git. Use wildcard syntax to specify the range of branches to include. Multiple patterns can be supplied", "main"),
 		testutil.NewInputPrompt("Enter a protected branch pattern (enter blank to end)", "This setting only applies within Octopus and will not affect your protected branches in Git. Use wildcard syntax to specify the range of branches to include. Multiple patterns can be supplied", ""),
-		testutil.NewInputPrompt("Initial commit branch name", "The branch where the Config As Code settings will be initially committed", "initial-branch"),
+		testutil.NewInputPromptWithDefault("Initial commit branch name", "The branch where the Config As Code settings will be initially committed", "octopus-vcs-conversion", "initial-branch"),
 		testutil.NewInputPromptWithDefault("Initial Git commit message", "The commit message used in initializing. Default value is 'Initial commit of deployment process'.", "Initial commit of deployment process", "init message"),
 	}
 
