@@ -18,6 +18,7 @@ import (
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
+	"golang.org/x/exp/slices"
 	"net/url"
 	"strings"
 )
@@ -33,7 +34,6 @@ const (
 	FlagGitCredentialStorage    = "git-credential-store"
 	FlagGitInitialCommitMessage = "git-initial-commit"
 	FlagGitBasePath             = "git-base-path"
-	FlagDefaultBranchProtected  = "git-protected-default-branch"
 	FlagInitialCommitBranch     = "git-initial-commit-branch"
 	FlagBranchProtectionPattern = "git-protected-branch-pattern"
 
@@ -57,7 +57,6 @@ type ConvertFlags struct {
 	GitPassword                *flag.Flag[string]
 	GitStorage                 *flag.Flag[string]
 	GitInitialCommitMessage    *flag.Flag[string]
-	GitDefaultBranchProtected  *flag.Flag[bool]
 	GitInitialCommitBranch     *flag.Flag[string]
 	GitBasePath                *flag.Flag[string]
 	GitProtectedBranchPatterns *flag.Flag[[]string]
@@ -71,7 +70,6 @@ func NewConvertFlags() *ConvertFlags {
 		GitBranch:                  flag.New[string](FlagGitBranch, false),
 		GitInitialCommitMessage:    flag.New[string](FlagGitInitialCommitMessage, false),
 		GitCredentials:             flag.New[string](FlagGitLibraryCredentials, false),
-		GitDefaultBranchProtected:  flag.New[bool](FlagDefaultBranchProtected, false),
 		GitProtectedBranchPatterns: flag.New[[]string](FlagBranchProtectionPattern, false),
 		GitInitialCommitBranch:     flag.New[string](FlagInitialCommitBranch, false),
 		GitUsername:                flag.New[string](FlagGitUsername, false),
@@ -134,8 +132,7 @@ func RegisterCacFlags(flags *pflag.FlagSet, convertFlags *ConvertFlags) {
 	flags.StringVar(&convertFlags.GitStorage.Value, convertFlags.GitStorage.Name, "", "The location to store the supplied Git credentials. Options are library or project. Default is library")
 	flags.StringVar(&convertFlags.GitInitialCommitMessage.Value, convertFlags.GitInitialCommitMessage.Name, "", "The initial commit message for configuring Config As Code.")
 	flags.StringVar(&convertFlags.GitBasePath.Value, convertFlags.GitBasePath.Name, "", fmt.Sprintf("The directory where Octopus should store the project files in the repository. Default is '%s'", DefaultBasePath))
-	flags.BoolVar(&convertFlags.GitDefaultBranchProtected.Value, convertFlags.GitDefaultBranchProtected.Name, false, "Protect the default branch from having Config As Code settings committed directly.")
-	flags.StringVar(&convertFlags.GitInitialCommitBranch.Value, convertFlags.GitInitialCommitBranch.Name, "", fmt.Sprintf("The branch to initially commit Config As Code settings. Only required if '%s' is supplied.", convertFlags.GitDefaultBranchProtected.Name))
+	flags.StringVar(&convertFlags.GitInitialCommitBranch.Value, convertFlags.GitInitialCommitBranch.Name, "", fmt.Sprintf("The branch to initially commit Config As Code settings. Only required if '%s' is listed as a '%s'.", convertFlags.GitBranch.Name, convertFlags.GitProtectedBranchPatterns.Name))
 	flags.StringSliceVar(&convertFlags.GitProtectedBranchPatterns.Value, convertFlags.GitProtectedBranchPatterns.Name, []string{}, "Git branches which are protected from having Config As Code settings committed directly")
 }
 
@@ -205,7 +202,7 @@ func (co *ConvertOptions) Commit() error {
 
 func (co *ConvertOptions) GenerateAutomationCmd() {
 	if !co.NoPrompt {
-		autoCmd := flag.GenerateAutomationCmd(co.CmdPath, co.Project, co.GitStorage, co.GitBasePath, co.GitUrl, co.GitBranch, co.GitInitialCommitMessage, co.GitCredentials, co.GitUsername, co.GitPassword, co.GitInitialCommitBranch, co.GitDefaultBranchProtected, co.GitProtectedBranchPatterns)
+		autoCmd := flag.GenerateAutomationCmd(co.CmdPath, co.Project, co.GitStorage, co.GitBasePath, co.GitUrl, co.GitBranch, co.GitInitialCommitMessage, co.GitCredentials, co.GitUsername, co.GitPassword, co.GitInitialCommitBranch, co.GitProtectedBranchPatterns)
 		fmt.Fprintf(co.Out, "%s\n", autoCmd)
 	}
 }
@@ -268,26 +265,6 @@ func PromptForConfigAsCode(opts *ConvertOptions) (cmd.Dependable, error) {
 		}
 	}
 
-	if !opts.GitDefaultBranchProtected.Value {
-		opts.Ask(&survey.Confirm{
-			Message: fmt.Sprintf("Is the '%s' branch protected?", opts.GitBranch.Value),
-			Help:    "If the default branch is protected, you may not have permission to push to it.",
-			Default: false,
-		}, &opts.GitDefaultBranchProtected.Value)
-	}
-
-	if opts.GitDefaultBranchProtected.Value && opts.GitInitialCommitBranch.Value == "" {
-		if err := opts.Ask(&survey.Input{
-			Message: "Initial commit branch name",
-			Help:    "The branch where the Config As Code settings will be initially committed",
-		}, &opts.GitInitialCommitBranch.Value, survey.WithValidator(survey.ComposeValidators(
-			survey.Required,
-			survey.MaxLength(200),
-		))); err != nil {
-			return nil, err
-		}
-	}
-
 	if util.Empty(opts.GitProtectedBranchPatterns.Value) {
 		for {
 			var pattern string
@@ -302,6 +279,18 @@ func PromptForConfigAsCode(opts *ConvertOptions) (cmd.Dependable, error) {
 				break
 			}
 			opts.GitProtectedBranchPatterns.Value = append(opts.GitProtectedBranchPatterns.Value, pattern)
+		}
+	}
+
+	if slices.Contains(opts.GitProtectedBranchPatterns.Value, opts.GitBranch.Value) && opts.GitInitialCommitBranch.Value == "" {
+		if err := opts.Ask(&survey.Input{
+			Message: "Initial commit branch name",
+			Help:    "The branch where the Config As Code settings will be initially committed",
+		}, &opts.GitInitialCommitBranch.Value, survey.WithValidator(survey.ComposeValidators(
+			survey.Required,
+			survey.MaxLength(200),
+		))); err != nil {
+			return nil, err
 		}
 	}
 
@@ -393,7 +382,7 @@ func (co *ConvertOptions) buildGitPersistenceSettings() (projects.GitPersistence
 		return nil, err
 	}
 
-	vcs := projects.NewGitPersistenceSettings(co.GitBasePath.Value, credentials, co.GitBranch.Value, co.GitDefaultBranchProtected.Value, co.GitProtectedBranchPatterns.Value, url)
+	vcs := projects.NewGitPersistenceSettings(co.GitBasePath.Value, credentials, co.GitBranch.Value, co.GitProtectedBranchPatterns.Value, url)
 	return vcs, nil
 }
 
