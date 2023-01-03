@@ -446,7 +446,7 @@ func (opts *CreateOptions) Commit() error {
 		endpoint.Authentication = auth
 	}
 
-	deploymentTarget := machines.NewDeploymentTarget(opts.Name.Value, endpoint, environmentIds, util.DistinctStrings(opts.Roles.Value))
+	deploymentTarget := machines.NewDeploymentTarget(opts.Name.Value, endpoint, environmentIds, util.SliceDistinct(opts.Roles.Value))
 
 	machinePolicy, err := machinescommon.FindDefaultMachinePolicy(opts.GetAllMachinePoliciesCallback)
 	if err != nil {
