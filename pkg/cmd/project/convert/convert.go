@@ -126,14 +126,14 @@ func NewCmdConvert(f factory.Factory) *cobra.Command {
 
 func RegisterCacFlags(flags *pflag.FlagSet, convertFlags *ConvertFlags) {
 	flags.StringVar(&convertFlags.GitUrl.Value, convertFlags.GitUrl.Name, "", "Url of the Git repository for storing project configuration")
-	flags.StringVar(&convertFlags.GitBranch.Value, convertFlags.GitBranch.Name, DefaultBranch, fmt.Sprintf("The default branch to use for Config As Code. Default is '%s'.", DefaultBranch))
+	flags.StringVar(&convertFlags.GitBranch.Value, convertFlags.GitBranch.Name, "", fmt.Sprintf("The default branch to use for Config As Code. Default is '%s'.", DefaultBranch))
 	flags.StringVar(&convertFlags.GitCredentials.Value, convertFlags.GitCredentials.Name, "", "The Id or name of the Git credentials stored in Octopus")
 	flags.StringVar(&convertFlags.GitUsername.Value, convertFlags.GitUsername.Name, "", "The username to authenticate with Git")
 	flags.StringVar(&convertFlags.GitPassword.Value, convertFlags.GitPassword.Name, "", "The password to authenticate with Git")
 	flags.StringVar(&convertFlags.GitStorage.Value, convertFlags.GitStorage.Name, "", "The location to store the supplied Git credentials. Options are library or project. Default is library")
-	flags.StringVar(&convertFlags.GitInitialCommitMessage.Value, convertFlags.GitInitialCommitMessage.Name, DefaultGitCommitMessage, "The initial commit message for configuring Config As Code.")
-	flags.StringVar(&convertFlags.GitBasePath.Value, convertFlags.GitBasePath.Name, DefaultBasePath, fmt.Sprintf("The directory where Octopus should store the project files in the repository. Default is '%s'", DefaultBasePath))
-	flags.StringVar(&convertFlags.GitInitialCommitBranch.Value, convertFlags.GitInitialCommitBranch.Name, DefaultInitialCommitBranch, fmt.Sprintf("The branch to initially commit Config As Code settings. Only required if '%s' is listed as a '%s'. Default value is '%s'.", convertFlags.GitBranch.Name, convertFlags.GitProtectedBranchPatterns.Name, DefaultInitialCommitBranch))
+	flags.StringVar(&convertFlags.GitInitialCommitMessage.Value, convertFlags.GitInitialCommitMessage.Name, "", "The initial commit message for configuring Config As Code.")
+	flags.StringVar(&convertFlags.GitBasePath.Value, convertFlags.GitBasePath.Name, "", fmt.Sprintf("The directory where Octopus should store the project files in the repository. Default is '%s'", DefaultBasePath))
+	flags.StringVar(&convertFlags.GitInitialCommitBranch.Value, convertFlags.GitInitialCommitBranch.Name, "", fmt.Sprintf("The branch to initially commit Config As Code settings. Only required if '%s' is listed as a '%s'. Default value is '%s'.", convertFlags.GitBranch.Name, convertFlags.GitProtectedBranchPatterns.Name, DefaultInitialCommitBranch))
 	flags.StringSliceVar(&convertFlags.GitProtectedBranchPatterns.Value, convertFlags.GitProtectedBranchPatterns.Name, []string{}, "Git branches which are protected from having Config As Code settings committed directly")
 }
 
@@ -180,6 +180,14 @@ func PromptMissing(opts *ConvertOptions) error {
 }
 
 func (co *ConvertOptions) Commit() error {
+	co.GitBranch.Value = check(co.GitBranch.Value, DefaultBranch)
+	if isDefaultBranchProtected(co) {
+		co.GitInitialCommitBranch.Value = check(co.GitInitialCommitBranch.Value, DefaultInitialCommitBranch)
+	}
+
+	co.GitBasePath.Value = check(co.GitBasePath.Value, DefaultBasePath)
+	co.GitInitialCommitMessage.Value = check(co.GitInitialCommitMessage.Value, DefaultGitCommitMessage)
+
 	gitPersistenceSettings, err := co.buildGitPersistenceSettings()
 	if err != nil {
 		return err
@@ -189,6 +197,7 @@ func (co *ConvertOptions) Commit() error {
 	if err != nil {
 		return err
 	}
+
 	_, err = co.Client.Projects.ConvertToVcs(project, co.GitInitialCommitMessage.Value, co.GitInitialCommitBranch.Value, gitPersistenceSettings)
 	if err != nil {
 		return err
@@ -199,6 +208,14 @@ func (co *ConvertOptions) Commit() error {
 	}
 
 	return nil
+}
+
+func check(value string, defaultValue string) string {
+	if value == "" {
+		return defaultValue
+	}
+
+	return value
 }
 
 func (co *ConvertOptions) GenerateAutomationCmd() {
@@ -283,7 +300,7 @@ func PromptForConfigAsCode(opts *ConvertOptions) (cmd.Dependable, error) {
 		}
 	}
 
-	if slices.Contains(opts.GitProtectedBranchPatterns.Value, opts.GitBranch.Value) && opts.GitInitialCommitBranch.Value == "" {
+	if isDefaultBranchProtected(opts) && opts.GitInitialCommitBranch.Value == "" {
 		if err := opts.Ask(&survey.Input{
 			Message: "Initial commit branch name",
 			Help:    "The branch where the Config As Code settings will be initially committed",
@@ -309,6 +326,10 @@ func PromptForConfigAsCode(opts *ConvertOptions) (cmd.Dependable, error) {
 	}
 
 	return opts, nil
+}
+
+func isDefaultBranchProtected(opts *ConvertOptions) bool {
+	return slices.Contains(opts.GitProtectedBranchPatterns.Value, opts.GitBranch.Value)
 }
 
 func promptProjectGitCredentials(opts *ConvertOptions) error {
