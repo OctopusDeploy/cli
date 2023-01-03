@@ -180,7 +180,7 @@ func BuildPackage(opts *PackageCreateOptions, outFileName string) error {
 
 	_, err = os.Stat(outFilePath)
 	if !opts.Overwrite.Value && err == nil {
-		return errors.New(fmt.Sprintf("package with name '%s' already exists ...aborting", outFileName))
+		return fmt.Errorf("package with name '%s' already exists ...aborting", outFileName)
 	}
 
 	VerboseOut(opts.Verbose.Value, "Saving \"%s\" to \"%s\"...\nAdding files from \"%s\" matching pattern/s \"%s\"\n", outPath, outFileName, outPath, strings.Join(opts.Include.Value, ", "))
