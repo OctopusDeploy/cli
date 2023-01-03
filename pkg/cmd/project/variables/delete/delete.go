@@ -103,7 +103,7 @@ func deleteRun(opts *DeleteOptions) error {
 		})
 
 	if !util.Any(filteredVars) {
-		return fmt.Errorf("cannot find variable '%s'", opts.Name)
+		return fmt.Errorf("cannot find variable '%s'", opts.Name.Value)
 	}
 
 	if len(filteredVars) == 0 {

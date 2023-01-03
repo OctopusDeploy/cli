@@ -124,7 +124,7 @@ func NewCreateCmd(f factory.Factory) *cobra.Command {
 	flags := cmd.Flags()
 	flags.StringVarP(&createFlags.Project.Value, createFlags.Project.Name, "p", "", "The project")
 	flags.StringVarP(&createFlags.Name.Value, createFlags.Name.Name, "n", "", "The name of the variable")
-	flags.StringVarP(&createFlags.Type.Value, createFlags.Type.Name, "t", TypeText, fmt.Sprintf("The type of variable. Valid values are '%s', '%s'. Default is '%[1]'", TypeText, TypeSensitive))
+	flags.StringVarP(&createFlags.Type.Value, createFlags.Type.Name, "t", TypeText, fmt.Sprintf("The type of variable. Valid values are '%s', '%s'. Default is '%[1]s'", TypeText, TypeSensitive))
 	flags.StringVar(&createFlags.Value.Value, createFlags.Value.Name, "", "The value to set on the variable")
 
 	sharedVariable.RegisterScopeFlags(cmd, createFlags.ScopeFlags)
