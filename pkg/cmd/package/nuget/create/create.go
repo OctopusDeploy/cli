@@ -2,6 +2,13 @@ package create
 
 import (
 	"errors"
+	"fmt"
+	"os"
+	"os/user"
+	"path/filepath"
+	"strings"
+	"time"
+
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/MakeNowJust/heredoc/v2"
 	pack "github.com/OctopusDeploy/cli/pkg/cmd/package/support"
@@ -10,11 +17,6 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/util"
 	"github.com/OctopusDeploy/cli/pkg/util/flag"
 	"github.com/spf13/cobra"
-	"os"
-	"os/user"
-	"path/filepath"
-	"strings"
-	"time"
 )
 
 const (
@@ -26,7 +28,6 @@ const (
 )
 
 type NuPkgCreateFlags struct {
-	*pack.PackageCreateFlags
 	Author           *flag.Flag[[]string] // this need to be multiple and default to current user
 	Title            *flag.Flag[string]
 	Description      *flag.Flag[string]
@@ -41,17 +42,17 @@ type NuPkgCreateOptions struct {
 
 func NewNuPkgCreateFlags() *NuPkgCreateFlags {
 	return &NuPkgCreateFlags{
-		PackageCreateFlags: pack.NewPackageCreateFlags(),
-		Author:             flag.New[[]string](FlagAuthor, false),
-		Title:              flag.New[string](FlagTitle, false),
-		Description:        flag.New[string](FlagDescription, false),
-		ReleaseNotes:       flag.New[string](FlagReleaseNotes, false),
-		ReleaseNotesFile:   flag.New[string](FlagReleaseNotesFile, false),
+		Author:           flag.New[[]string](FlagAuthor, false),
+		Title:            flag.New[string](FlagTitle, false),
+		Description:      flag.New[string](FlagDescription, false),
+		ReleaseNotes:     flag.New[string](FlagReleaseNotes, false),
+		ReleaseNotesFile: flag.New[string](FlagReleaseNotesFile, false),
 	}
 }
 
 func NewCmdCreate(f factory.Factory) *cobra.Command {
 	createFlags := NewNuPkgCreateFlags()
+	packFlags := pack.NewPackageCreateFlags()
 
 	cmd := &cobra.Command{
 		Use:   "create",
@@ -60,23 +61,23 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 		Example: heredoc.Docf(`
 			$ %[1]s project nuget create --id SomePackage --version 1.0.0
 		`, constants.ExecutableName),
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(cmd *cobra.Command, _ []string) error {
 			opts := &NuPkgCreateOptions{
 				NuPkgCreateFlags:     createFlags,
-				PackageCreateOptions: pack.NewPackageCreateOptions(f, createFlags.PackageCreateFlags, cmd),
+				PackageCreateOptions: pack.NewPackageCreateOptions(f, packFlags, cmd),
 			}
 			return createRun(opts)
 		},
 	}
 
 	flags := cmd.Flags()
-	flags.StringVar(&createFlags.Id.Value, createFlags.Id.Name, "", "The ID of the package")
-	flags.StringVarP(&createFlags.Version.Value, createFlags.Version.Name, "v", "", "The version of the package; must be a valid SemVer; defaults to a timestamp-based version")
-	flags.StringVar(&createFlags.BasePath.Value, createFlags.BasePath.Name, "", "Root folder containing the contents to zip")
-	flags.StringVar(&createFlags.OutFolder.Value, createFlags.OutFolder.Name, "", "Folder into which the zip file will be written")
-	flags.StringSliceVar(&createFlags.Include.Value, createFlags.Include.Name, []string{}, "Add a file pattern to include, relative to the base path e.g. /bin/*.dll; defaults to \"**\"")
-	flags.BoolVar(&createFlags.Verbose.Value, createFlags.Verbose.Name, false, "Verbose output")
-	flags.BoolVar(&createFlags.Overwrite.Value, createFlags.Overwrite.Name, false, "Allow an existing package file of the same ID/version to be overwritten")
+	flags.StringVar(&packFlags.Id.Value, packFlags.Id.Name, "", "The ID of the package")
+	flags.StringVarP(&packFlags.Version.Value, packFlags.Version.Name, "v", "", "The version of the package; must be a valid SemVer; defaults to a timestamp-based version")
+	flags.StringVar(&packFlags.BasePath.Value, packFlags.BasePath.Name, "", "Root folder containing the contents to zip")
+	flags.StringVar(&packFlags.OutFolder.Value, packFlags.OutFolder.Name, "", "Folder into which the zip file will be written")
+	flags.StringSliceVar(&packFlags.Include.Value, packFlags.Include.Name, []string{}, "Add a file pattern to include, relative to the base path e.g. /bin/*.dll; defaults to \"**\"")
+	flags.BoolVar(&packFlags.Verbose.Value, packFlags.Verbose.Name, false, "Verbose output")
+	flags.BoolVar(&packFlags.Overwrite.Value, packFlags.Overwrite.Name, false, "Allow an existing package file of the same ID/version to be overwritten")
 	flags.StringSliceVar(&createFlags.Author.Value, createFlags.Author.Name, []string{}, "Add author/s to the package metadata; defaults to the current user")
 	flags.StringVar(&createFlags.Title.Value, createFlags.Title.Name, "", "The title of the package")
 	flags.StringVar(&createFlags.Description.Value, createFlags.Description.Name, "", "A description of the package")
@@ -98,7 +99,7 @@ func createRun(opts *NuPkgCreateOptions) error {
 
 	}
 
-	if opts.PackageCreateOptions.Id.Value == "" {
+	if opts.Id.Value == "" {
 		return errors.New("must supply a package ID")
 	}
 
@@ -107,21 +108,40 @@ func createRun(opts *NuPkgCreateOptions) error {
 		return err
 	}
 
-	var nuspecFilePath string
+	nuspecFilePath := ""
 	if shouldGenerateNuSpec(opts) {
 		nuspecFilePath, err = GenerateNuSpec(opts)
 		if err != nil {
 			return err
 		}
-		opts.PackageCreateOptions.Include.Value = append(opts.PackageCreateOptions.Include.Value, opts.PackageCreateOptions.Id.Value+".nuspec")
+		opts.Include.Value = append(opts.Include.Value, opts.Id.Value+".nuspec")
 	}
 
-	pack.VerboseOut(opts.PackageCreateOptions.Verbose.Value, "Packing \"%s\" version \"%s\"...\n", opts.PackageCreateOptions.Id.Value, opts.PackageCreateOptions.Version.Value)
-	outFilePath := pack.BuildOutFileName("nupkg", opts.PackageCreateOptions.Id.Value, opts.PackageCreateOptions.Version.Value)
+	pack.VerboseOut(opts.Verbose.Value, "Packing \"%s\" version \"%s\"...\n", opts.Id.Value, opts.Version.Value)
+	outFilePath := pack.BuildOutFileName("nupkg", opts.Id.Value, opts.Version.Value)
 
 	err = pack.BuildPackage(opts.PackageCreateOptions, outFilePath)
 	if err != nil {
 		return err
+	}
+
+	if !opts.NoPrompt {
+		autoCmd := flag.GenerateAutomationCmd(
+			opts.CmdPath,
+			opts.Author,
+			opts.Title,
+			opts.Description,
+			opts.ReleaseNotes,
+			opts.ReleaseNotesFile,
+			opts.Id,
+			opts.Version,
+			opts.BasePath,
+			opts.OutFolder,
+			opts.Include,
+			opts.Verbose,
+			opts.Overwrite,
+		)
+		fmt.Fprintf(opts.Writer, "\nAutomation Command: %s\n", autoCmd)
 	}
 
 	if nuspecFilePath != "" {
@@ -133,10 +153,11 @@ func createRun(opts *NuPkgCreateOptions) error {
 
 func PromptMissing(opts *NuPkgCreateOptions) error {
 	if len(opts.Author.Value) == 0 {
+		message := "Author"
 		for {
 			var author string
 			if err := opts.Ask(&survey.Input{
-				Message: "Author",
+				Message: message,
 				Help:    "Add an author to the package metadata; if no authors are specified the author will default to the current user.",
 			}, &author); err != nil {
 				return err
@@ -145,6 +166,7 @@ func PromptMissing(opts *NuPkgCreateOptions) error {
 				break
 			}
 			opts.Author.Value = append(opts.Author.Value, author)
+			message = message + " (leave blank to continue)"
 		}
 	}
 
@@ -188,20 +210,20 @@ func PromptMissing(opts *NuPkgCreateOptions) error {
 }
 
 func applyDefaultsToUnspecifiedPackageOptions(opts *NuPkgCreateOptions) error {
-	if opts.PackageCreateOptions.Version.Value == "" {
-		opts.PackageCreateOptions.Version.Value = pack.BuildTimestampSemVer(time.Now())
+	if opts.Version.Value == "" {
+		opts.Version.Value = pack.BuildTimestampSemVer(time.Now())
 	}
 
-	if opts.PackageCreateOptions.BasePath.Value == "" {
-		opts.PackageCreateOptions.BasePath.Value = "."
+	if opts.BasePath.Value == "" {
+		opts.BasePath.Value = "."
 	}
 
-	if opts.PackageCreateOptions.OutFolder.Value == "" {
-		opts.PackageCreateOptions.OutFolder.Value = "."
+	if opts.OutFolder.Value == "" {
+		opts.OutFolder.Value = "."
 	}
 
-	if len(opts.PackageCreateOptions.Include.Value) == 0 {
-		opts.PackageCreateOptions.Include.Value = append(opts.PackageCreateOptions.Include.Value, "**")
+	if len(opts.Include.Value) == 0 {
+		opts.Include.Value = append(opts.Include.Value, "**")
 	}
 
 	if opts.Description.Value == "" {
@@ -242,26 +264,35 @@ func shouldGenerateNuSpec(opts *NuPkgCreateOptions) bool {
 }
 
 func GenerateNuSpec(opts *NuPkgCreateOptions) (string, error) {
-	var err error
+
+	if opts.Description.Value == "" {
+		return "", errors.New("description is required when generating nuspec metadata")
+	}
+	if len(opts.Author.Value) == 0 {
+		return "", errors.New("at least one author is required when generating nuspec metadata")
+	}
+
 	releaseNotes := opts.ReleaseNotes.Value
 	if opts.ReleaseNotesFile.Value != "" {
 		if releaseNotes != "" {
 			return "", errors.New(`cannot specify both "Nuspec release notes" and "Nuspec release notes file"`)
 		}
-		releaseNotes, err = getReleaseNotesFromFile(opts.ReleaseNotesFile.Value)
+
+		notes, err := getReleaseNotesFromFile(opts.ReleaseNotesFile.Value)
+		releaseNotes = notes
 		if err != nil {
 			return "", err
 		}
 	}
 
-	filePath := filepath.Join(opts.PackageCreateOptions.BasePath.Value, opts.PackageCreateOptions.Id.Value+".nuspec")
+	filePath := filepath.Join(opts.BasePath.Value, opts.Id.Value+".nuspec")
 
 	var sb strings.Builder
 	sb.WriteString(`<?xml version="1.0" encoding="utf-8"?>` + "\n")
 	sb.WriteString(`<package xmlns="http://schemas.microsoft.com/packaging/2010/07/nuspec.xsd">` + "\n")
 	sb.WriteString("  <metadata>\n")
-	sb.WriteString("    <id>" + opts.PackageCreateOptions.Id.Value + "</id>\n")
-	sb.WriteString("    <version>" + opts.PackageCreateOptions.Version.Value + "</version>\n")
+	sb.WriteString("    <id>" + opts.Id.Value + "</id>\n")
+	sb.WriteString("    <version>" + opts.Version.Value + "</version>\n")
 	sb.WriteString("    <description>" + opts.Description.Value + "</description>\n")
 	sb.WriteString("    <authors>" + strings.Join(opts.Author.Value, ",") + "</authors>\n")
 	if releaseNotes != "" {
