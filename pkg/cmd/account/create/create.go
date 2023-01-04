@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/MakeNowJust/heredoc/v2"
-	"github.com/OctopusDeploy/cli/pkg/apiclient"
+	"github.com/OctopusDeploy/cli/pkg/cmd"
 	awsCreate "github.com/OctopusDeploy/cli/pkg/cmd/account/aws/create"
 	azureCreate "github.com/OctopusDeploy/cli/pkg/cmd/account/azure/create"
 	gcpCreate "github.com/OctopusDeploy/cli/pkg/cmd/account/gcp/create"
@@ -14,6 +14,15 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/spf13/cobra"
+)
+
+const (
+	AwsAccount              = "AWS Account"
+	AzureAccount            = "Azure Account"
+	GcpAccount              = "Google Cloud Account"
+	SshAccount              = "SSH Key Pair"
+	UsernamePasswordAccount = "Username/Password"
+	TokenAccount            = "Token"
 )
 
 func NewCmdCreate(f factory.Factory) *cobra.Command {
@@ -31,24 +40,20 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 	return cmd
 }
 
-func createRun(f factory.Factory, cmd *cobra.Command) error {
-	client, err := f.GetSpacedClient(apiclient.NewRequester(cmd))
-	w := cmd.OutOrStderr()
-	if err != nil {
-		return err
-	}
+func createRun(f factory.Factory, c *cobra.Command) error {
+	dependencies := cmd.NewDependencies(f, c)
 
 	accountTypes := []string{
-		"AWS Account",
-		"Azure Account",
-		"Google Cloud Account",
-		"SSH Key Pair",
-		"Username/Password",
-		"Token",
+		AwsAccount,
+		AzureAccount,
+		GcpAccount,
+		SshAccount,
+		UsernamePasswordAccount,
+		TokenAccount,
 	}
 
 	var accountType string
-	err = f.Ask(&survey.Select{
+	err := f.Ask(&survey.Select{
 		Help:    "The type of account being created.",
 		Message: "Account Type",
 		Options: accountTypes,
@@ -58,81 +63,33 @@ func createRun(f factory.Factory, cmd *cobra.Command) error {
 	}
 
 	switch accountType {
-	case "AWS Account":
-		opts := &awsCreate.CreateOptions{
-			Writer:      w,
-			Octopus:     client,
-			Ask:         f.Ask,
-			Space:       f.GetCurrentSpace().GetID(),
-			CreateFlags: awsCreate.NewCreateFlags(),
-			CmdPath:     fmt.Sprintf("%s account aws create", constants.ExecutableName),
-			Host:        f.GetCurrentHost(),
-		}
+	case AwsAccount:
+		opts := awsCreate.NewCreateOptions(awsCreate.NewCreateFlags(), cmd.NewDependenciesFromExisting(dependencies, fmt.Sprintf("%s account aws create", constants.ExecutableName)))
 		if err := awsCreate.CreateRun(opts); err != nil {
 			return err
 		}
-	case "Azure Account":
-		opts := &azureCreate.CreateOptions{
-			Writer:      w,
-			Octopus:     client,
-			Ask:         f.Ask,
-			Space:       f.GetCurrentSpace().GetID(),
-			CreateFlags: azureCreate.NewCreateFlags(),
-			CmdPath:     fmt.Sprintf("%s account azure create", constants.ExecutableName),
-			Host:        f.GetCurrentHost(),
-		}
+	case AzureAccount:
+		opts := azureCreate.NewCreateOptions(azureCreate.NewCreateFlags(), cmd.NewDependenciesFromExisting(dependencies, fmt.Sprintf("%s account azure create", constants.ExecutableName)))
 		if err := azureCreate.CreateRun(opts); err != nil {
 			return err
 		}
-	case "Google Cloud Account":
-		opts := &gcpCreate.CreateOptions{
-			Writer:      w,
-			Octopus:     client,
-			Ask:         f.Ask,
-			Space:       f.GetCurrentSpace().GetID(),
-			CreateFlags: gcpCreate.NewCreateFlags(),
-			CmdPath:     fmt.Sprintf("%s account gcp create", constants.ExecutableName),
-			Host:        f.GetCurrentHost(),
-		}
+	case GcpAccount:
+		opts := gcpCreate.NewCreateOptions(gcpCreate.NewCreateFlags(), cmd.NewDependenciesFromExisting(dependencies, fmt.Sprintf("%s account gcp create", constants.ExecutableName)))
 		if err := gcpCreate.CreateRun(opts); err != nil {
 			return err
 		}
-	case "SSH Key Pair":
-		opts := &sshCreate.CreateOptions{
-			Writer:      w,
-			Octopus:     client,
-			Ask:         f.Ask,
-			Space:       f.GetCurrentSpace().GetID(),
-			CreateFlags: sshCreate.NewCreateFlags(),
-			CmdPath:     fmt.Sprintf("%s account ssh create", constants.ExecutableName),
-			Host:        f.GetCurrentHost(),
-		}
+	case SshAccount:
+		opts := sshCreate.NewCreateOptions(sshCreate.NewCreateFlags(), cmd.NewDependenciesFromExisting(dependencies, fmt.Sprintf("%s account ssh create", constants.ExecutableName)))
 		if err := sshCreate.CreateRun(opts); err != nil {
 			return err
 		}
-	case "Token":
-		opts := &tokenCreate.CreateOptions{
-			Writer:      w,
-			Octopus:     client,
-			Ask:         f.Ask,
-			Space:       f.GetCurrentSpace().GetID(),
-			CreateFlags: tokenCreate.NewCreateFlags(),
-			CmdPath:     fmt.Sprintf("%s account token create", constants.ExecutableName),
-			Host:        f.GetCurrentHost(),
-		}
+	case TokenAccount:
+		opts := tokenCreate.NewCreateOptions(tokenCreate.NewCreateFlags(), cmd.NewDependenciesFromExisting(dependencies, fmt.Sprintf("%s account token create", constants.ExecutableName)))
 		if err := tokenCreate.CreateRun(opts); err != nil {
 			return err
 		}
-	case "Username/Password":
-		opts := &usernameCreate.CreateOptions{
-			Writer:      w,
-			Octopus:     client,
-			Ask:         f.Ask,
-			Space:       f.GetCurrentSpace().GetID(),
-			CreateFlags: usernameCreate.NewCreateFlags(),
-			CmdPath:     fmt.Sprintf("%s account username create", constants.ExecutableName),
-			Host:        f.GetCurrentHost(),
-		}
+	case UsernamePasswordAccount:
+		opts := usernameCreate.NewCreateOptions(usernameCreate.NewCreateFlags(), cmd.NewDependenciesFromExisting(dependencies, fmt.Sprintf("%s account username create", constants.ExecutableName)))
 		if err := usernameCreate.CreateRun(opts); err != nil {
 			return err
 		}

@@ -3,6 +3,8 @@ package create_test
 import (
 	"bytes"
 	"encoding/base64"
+	"github.com/OctopusDeploy/cli/pkg/cmd"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/spaces"
 	"net/url"
 	"testing"
 
@@ -35,7 +37,8 @@ func TestGCPAccountCreatePromptMissing(t *testing.T) {
 	out := &bytes.Buffer{}
 
 	opts := &create.CreateOptions{
-		CreateFlags: create.NewCreateFlags(),
+		CreateFlags:  create.NewCreateFlags(),
+		Dependencies: &cmd.Dependencies{},
 		GetAllEnvironmentsCallback: func() ([]*environments.Environment, error) {
 			return []*environments.Environment{env}, nil
 		},
@@ -47,8 +50,8 @@ func TestGCPAccountCreatePromptMissing(t *testing.T) {
 		defer testutil.Close(api, qa)
 		octopus, _ := octopusApiClient.NewClient(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "")
 		opts.Ask = qa.AsAsker()
-		opts.Octopus = octopus
-		opts.Writer = out
+		opts.Client = octopus
+		opts.Out = out
 		return create.PromptMissing(opts)
 	})
 
@@ -102,9 +105,11 @@ func TestGCPAccountCreateNoPrompt(t *testing.T) {
 	out := &bytes.Buffer{}
 
 	opts := &create.CreateOptions{
-		CreateFlags: create.NewCreateFlags(),
+		CreateFlags:  create.NewCreateFlags(),
+		Dependencies: &cmd.Dependencies{Space: &spaces.Space{}},
 	}
-	opts.Space = spaceID
+	opts.Space.ID = spaceID
+
 	opts.Name.Value = "testaccount"
 	opts.KeyFileData = []byte{1, 1}
 	opts.Username.Value = "username123"
@@ -114,8 +119,8 @@ func TestGCPAccountCreateNoPrompt(t *testing.T) {
 		defer testutil.Close(api, qa)
 		octopus, _ := octopusApiClient.NewClient(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "")
 		opts.Ask = qa.AsAsker()
-		opts.Octopus = octopus
-		opts.Writer = out
+		opts.Client = octopus
+		opts.Out = out
 		opts.NoPrompt = true
 		return create.CreateRun(opts)
 	})
@@ -144,6 +149,6 @@ func TestGCPAccountCreateNoPrompt(t *testing.T) {
 	`,
 		testAccount.Name,
 		output.Dimf("(%s)", testAccount.Slug),
-		output.Bluef("%s/app#/%s/infrastructure/accounts/%s", "", opts.Space, testAccount.ID),
+		output.Bluef("%s/app#/%s/infrastructure/accounts/%s", "", opts.Space.GetID(), testAccount.ID),
 	), res)
 }

@@ -26,7 +26,7 @@ func NewCreateTargetEnvironmentOptions(dependencies *cmd.Dependencies) *CreateTa
 	return &CreateTargetEnvironmentOptions{
 		Dependencies: dependencies,
 		GetAllEnvironmentsCallback: func() ([]*environments.Environment, error) {
-			return selectors.GetAllEnvironments(*dependencies.Client)
+			return selectors.GetAllEnvironments(dependencies.Client)
 		},
 	}
 }
