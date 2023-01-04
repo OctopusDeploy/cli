@@ -2,6 +2,8 @@ package create_test
 
 import (
 	"bytes"
+	"github.com/OctopusDeploy/cli/pkg/cmd"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/spaces"
 	"net/url"
 	"testing"
 
@@ -29,13 +31,14 @@ var rootResource = testutil.NewRootResource()
 func TestAzureAccountCreatePromptMissing(t *testing.T) {
 	const spaceID = "Space-1"
 	const envID = "Env-1"
-	_ = fixtures.NewSpace(spaceID, "testspace")
+	space := fixtures.NewSpace(spaceID, "testspace")
 	env := fixtures.NewEnvironment(spaceID, envID, "testenv")
 	api, qa := testutil.NewMockServerAndAsker()
 	out := &bytes.Buffer{}
 
 	opts := &create.CreateOptions{
-		CreateFlags: create.NewCreateFlags(),
+		CreateFlags:  create.NewCreateFlags(),
+		Dependencies: &cmd.Dependencies{Space: space},
 		GetAllEnvironmentsCallback: func() ([]*environments.Environment, error) {
 			return []*environments.Environment{env}, nil
 		},
@@ -45,8 +48,8 @@ func TestAzureAccountCreatePromptMissing(t *testing.T) {
 		defer testutil.Close(api, qa)
 		octopus, _ := octopusApiClient.NewClient(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "")
 		opts.Ask = qa.AsAsker()
-		opts.Octopus = octopus
-		opts.Writer = out
+		opts.Client = octopus
+		opts.Out = out
 		return create.PromptMissing(opts)
 	})
 
@@ -111,15 +114,17 @@ func TestAzureAccountCreatePromptMissing(t *testing.T) {
 func TestAzureAccountCreateNoPrompt(t *testing.T) {
 	const spaceID = "Space-1"
 	const envID = "Env-1"
-	_ = fixtures.NewSpace(spaceID, "testspace")
+	space := fixtures.NewSpace(spaceID, "testspace")
 	_ = fixtures.NewEnvironment(spaceID, envID, "testenv")
 	api, qa := testutil.NewMockServerAndAsker()
 	out := &bytes.Buffer{}
 
 	opts := &create.CreateOptions{
-		CreateFlags: create.NewCreateFlags(),
+		CreateFlags:  create.NewCreateFlags(),
+		Dependencies: &cmd.Dependencies{Space: space},
 	}
-	opts.Space = spaceID
+	opts.Space = &spaces.Space{}
+	opts.Space.ID = spaceID
 	opts.Name.Value = "testaccount"
 	opts.ApplicationPasswordKey.Value = "password123"
 	opts.SubscriptionID.Value = "d2486c05-0cac-4d54-a91e-654043036f31"
@@ -131,8 +136,8 @@ func TestAzureAccountCreateNoPrompt(t *testing.T) {
 		defer testutil.Close(api, qa)
 		octopus, _ := octopusApiClient.NewClient(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "")
 		opts.Ask = qa.AsAsker()
-		opts.Octopus = octopus
-		opts.Writer = out
+		opts.Client = octopus
+		opts.Out = out
 		opts.NoPrompt = true
 		return create.CreateRun(opts)
 	})
@@ -162,6 +167,6 @@ func TestAzureAccountCreateNoPrompt(t *testing.T) {
 	`,
 		testAccount.Name,
 		output.Dimf("(%s)", testAccount.Slug),
-		output.Bluef("%s/app#/%s/infrastructure/accounts/%s", "", opts.Space, testAccount.ID),
+		output.Bluef("%s/app#/%s/infrastructure/accounts/%s", "", opts.Space.GetID(), testAccount.ID),
 	), res)
 }
