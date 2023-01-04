@@ -74,7 +74,7 @@ func deleteRun(f factory.Factory, cmd *cobra.Command) error {
 		return err
 	}
 
-	itemToDelete, err := selectors.ByNameOrID(f.Ask, existingSpaces, "Select the space you wish to delete:")
+	itemToDelete, err := selectors.ByName(f.Ask, existingSpaces, "Select the space you wish to delete:")
 	if err != nil {
 		return err
 	}

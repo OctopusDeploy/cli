@@ -13,15 +13,14 @@ type SelectOption[T any] struct {
 	Display string
 }
 
-type NameOrID interface {
+type Nameable interface {
 	GetName() string
-	GetID() string
 }
 
-func ByNameOrID[T NameOrID](ask question.Asker, list []T, message string) (T, error) {
+func ByName[T Nameable](ask question.Asker, list []T, message string) (T, error) {
 	var selectedItem T
 	selectedItem, err := question.SelectMap(ask, message, list, func(item T) string {
-		return fmt.Sprintf("%s %s", item.GetName(), output.Dimf("(%s)", item.GetID()))
+		return item.GetName()
 	})
 	if err != nil {
 		return selectedItem, err
