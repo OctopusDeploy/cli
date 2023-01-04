@@ -150,9 +150,9 @@ func PackageCreatePromptMissing(opts *PackageCreateOptions) error {
 	return nil
 }
 
-func VerboseOut(isVerbose bool, messageTemplate string, messageArgs ...any) {
+func VerboseOut(out io.Writer, isVerbose bool, messageTemplate string, messageArgs ...any) {
 	if isVerbose {
-		fmt.Printf(messageTemplate, messageArgs...)
+		fmt.Fprintf(out, messageTemplate, messageArgs...)
 	}
 }
 
@@ -177,7 +177,7 @@ func BuildPackage(opts *PackageCreateOptions, outFileName string) error {
 		return fmt.Errorf("package with name '%s' already exists ...aborting", outFileName)
 	}
 
-	VerboseOut(opts.Verbose.Value, "Saving \"%s\" to \"%s\"...\nAdding files from \"%s\" matching pattern/s \"%s\"\n", outPath, outFileName, outPath, strings.Join(opts.Include.Value, ", "))
+	VerboseOut(opts.Writer, opts.Verbose.Value, "Saving \"%s\" to \"%s\"...\nAdding files from \"%s\" matching pattern/s \"%s\"\n", outPath, outFileName, outPath, strings.Join(opts.Include.Value, ", "))
 
 	filePaths, err := getDistinctPatternMatches(opts.BasePath.Value, opts.Include.Value)
 	if err != nil {
@@ -188,10 +188,10 @@ func BuildPackage(opts *PackageCreateOptions, outFileName string) error {
 		return errors.New("no files identified to package")
 	}
 
-	return buildArchive(outFilePath, opts.BasePath.Value, filePaths, opts.Verbose.Value)
+	return buildArchive(opts.Writer, outFilePath, opts.BasePath.Value, filePaths, opts.Verbose.Value)
 }
 
-func buildArchive(outFilePath string, basePath string, filesToArchive []string, isVerbose bool) error {
+func buildArchive(out io.Writer, outFilePath string, basePath string, filesToArchive []string, isVerbose bool) error {
 	_, outFile := filepath.Split(outFilePath)
 	zipFile, err := os.Create(outFilePath)
 	if err != nil {
@@ -240,7 +240,7 @@ func buildArchive(outFilePath string, basePath string, filesToArchive []string, 
 
 		_, err = io.Copy(headerWriter, f)
 		if err == nil {
-			VerboseOut(isVerbose, "Added file: %s\n", path)
+			VerboseOut(out, isVerbose, "Added file: %s\n", path)
 		} else {
 			return err
 		}

@@ -21,7 +21,7 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 		Short: "Create zip",
 		Long:  "Create zip package",
 		Example: heredoc.Docf(`
-			$ %[1]s project zip create --id SomePackage --version 1.0.0
+			$ %[1]s package zip create --id SomePackage --version 1.0.0
 		`, constants.ExecutableName),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			opts := pack.NewPackageCreateOptions(f, createFlags, cmd)
@@ -54,7 +54,7 @@ func createRun(opts *pack.PackageCreateOptions) error {
 	}
 	applyDefaultsToUnspecifiedOptions(opts)
 
-	pack.VerboseOut(opts.Verbose.Value, "Packing \"%s\" version \"%s\"...\n", opts.Id.Value, opts.Version.Value)
+	pack.VerboseOut(opts.Writer, opts.Verbose.Value, "Packing \"%s\" version \"%s\"...\n", opts.Id.Value, opts.Version.Value)
 
 	if !opts.NoPrompt {
 		autoCmd := flag.GenerateAutomationCmd(

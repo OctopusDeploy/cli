@@ -59,7 +59,7 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 		Short: "Create nuget",
 		Long:  "Create nuget package",
 		Example: heredoc.Docf(`
-			$ %[1]s project nuget create --id SomePackage --version 1.0.0
+			$ %[1]s package nuget create --id SomePackage --version 1.0.0
 		`, constants.ExecutableName),
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			opts := &NuPkgCreateOptions{
@@ -109,6 +109,14 @@ func createRun(opts *NuPkgCreateOptions) error {
 
 	nuspecFilePath := ""
 	if shouldGenerateNuSpec(opts) {
+		defer func() {
+			if nuspecFilePath != "" {
+				err := os.Remove(nuspecFilePath)
+				if err != nil {
+					panic(err)
+				}
+			}
+		}()
 		nuspecFilePath, err = GenerateNuSpec(opts)
 		if err != nil {
 			return err
@@ -116,7 +124,7 @@ func createRun(opts *NuPkgCreateOptions) error {
 		opts.Include.Value = append(opts.Include.Value, opts.Id.Value+".nuspec")
 	}
 
-	pack.VerboseOut(opts.Verbose.Value, "Packing \"%s\" version \"%s\"...\n", opts.Id.Value, opts.Version.Value)
+	pack.VerboseOut(opts.Writer, opts.Verbose.Value, "Packing \"%s\" version \"%s\"...\n", opts.Id.Value, opts.Version.Value)
 	outFilePath := pack.BuildOutFileName("nupkg", opts.Id.Value, opts.Version.Value)
 
 	err = pack.BuildPackage(opts.PackageCreateOptions, outFilePath)
@@ -143,29 +151,23 @@ func createRun(opts *NuPkgCreateOptions) error {
 		fmt.Fprintf(opts.Writer, "\nAutomation Command: %s\n", autoCmd)
 	}
 
-	if nuspecFilePath != "" {
-		return os.Remove(nuspecFilePath)
-	}
-
 	return nil
 }
 
 func PromptMissing(opts *NuPkgCreateOptions) error {
 	if len(opts.Author.Value) == 0 {
-		message := "Author"
 		for {
-			var author string
+			author := ""
 			if err := opts.Ask(&survey.Input{
-				Message: message,
+				Message: "Author (leave blank to continue)",
 				Help:    "Add an author to the package metadata.",
 			}, &author); err != nil {
 				return err
 			}
-			if author == "" {
+			if strings.TrimSpace(author) == "" {
 				break
 			}
 			opts.Author.Value = append(opts.Author.Value, author)
-			message = message + " (leave blank to continue)"
 		}
 	}
 

@@ -13,14 +13,14 @@ import (
 
 func TestVerboseOut_WithVerboseEnabled(t *testing.T) {
 	result := testutil.CaptureConsoleOutput(func() {
-		VerboseOut(true, "This %s a %s... %d", "is", "test", 123)
+		VerboseOut(os.Stdout, true, "This %s a %s... %d", "is", "test", 123)
 	})
 	assert.Equal(t, "This is a test... 123", result)
 }
 
 func TestVerboseOut_WithVerboseDisabled(t *testing.T) {
 	result := testutil.CaptureConsoleOutput(func() {
-		VerboseOut(false, "This %s a %s... %d", "is", "test", 123)
+		VerboseOut(os.Stdout, false, "This %s a %s... %d", "is", "test", 123)
 	})
 	assert.Equal(t, "", result)
 }
