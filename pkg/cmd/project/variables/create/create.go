@@ -69,6 +69,7 @@ type CreateOptions struct {
 	*cmd.Dependencies
 	shared.GetProjectCallback
 	shared.GetAllProjectsCallback
+	*sharedVariable.VariableCallbacks
 }
 
 func NewCreateFlags() *CreateFlags {
@@ -96,15 +97,17 @@ func NewCreateOptions(flags *CreateFlags, dependencies *cmd.Dependencies) *Creat
 			return shared.GetProject(*dependencies.Client, identifier)
 		},
 		GetAllProjectsCallback: func() ([]*projects.Project, error) { return shared.GetAllProjects(*dependencies.Client) },
+		VariableCallbacks:      sharedVariable.NewVariableCallbacks(dependencies),
 	}
 }
 
 func NewCreateCmd(f factory.Factory) *cobra.Command {
 	createFlags := NewCreateFlags()
 	cmd := &cobra.Command{
-		Use:   "create",
-		Short: "Create a variable for a project",
-		Long:  "Create a variable for a project in Octopus Deploy",
+		Use:     "create",
+		Short:   "Create a variable for a project",
+		Long:    "Create a variable for a project in Octopus Deploy",
+		Aliases: []string{"add"},
 		Example: heredoc.Docf(`
 			$ %[1]s project variable create
 			$ %[1]s project variable create --name varname --value "abc"
@@ -124,7 +127,7 @@ func NewCreateCmd(f factory.Factory) *cobra.Command {
 	flags := cmd.Flags()
 	flags.StringVarP(&createFlags.Project.Value, createFlags.Project.Name, "p", "", "The project")
 	flags.StringVarP(&createFlags.Name.Value, createFlags.Name.Name, "n", "", "The name of the variable")
-	flags.StringVarP(&createFlags.Type.Value, createFlags.Type.Name, "t", TypeText, fmt.Sprintf("The type of variable. Valid values are '%s', '%s'. Default is '%[1]s'", TypeText, TypeSensitive))
+	flags.StringVarP(&createFlags.Type.Value, createFlags.Type.Name, "t", "", fmt.Sprintf("The type of variable. Valid values are %s. Default is %s", strings.Join([]string{TypeText, TypeSensitive, TypeWorkerPool, TypeAwsAccount, TypeAzureAccount, TypeGoogleAccount, TypeCertificate}, ", "), TypeText))
 	flags.StringVar(&createFlags.Value.Value, createFlags.Value.Name, "", "The value to set on the variable")
 
 	sharedVariable.RegisterScopeFlags(cmd, createFlags.ScopeFlags)
@@ -292,7 +295,7 @@ func PromptMissing(opts *CreateOptions) error {
 
 		if !opts.PromptRequired.Value {
 			opts.Ask(&survey.Confirm{
-				Message: "Is this a prompted required?",
+				Message: "Is this the prompted variable required to have a value supplied?",
 				Default: false,
 			}, &opts.PromptRequired.Value)
 		}
@@ -304,7 +307,10 @@ func PromptMissing(opts *CreateOptions) error {
 		if err != nil {
 			return err
 		}
-		sharedVariable.PromptValue(opts.Ask, &opts.Value.Value, variableType)
+		opts.Value.Value, err = sharedVariable.PromptValue(opts.Ask, variableType, opts.VariableCallbacks)
+		if err != nil {
+			return err
+		}
 	}
 
 	projectVariables, err := opts.Client.Variables.GetAll(project.GetID())
@@ -372,6 +378,10 @@ func parseSelectOptions(opts *CreateOptions, controlType variables.ControlType) 
 }
 
 func mapVariableType(varType string) (string, error) {
+	if varType == "" {
+		varType = TypeText
+	}
+
 	switch varType {
 	case TypeText:
 		return "String", nil
