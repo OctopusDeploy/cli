@@ -82,7 +82,7 @@ func deleteRun(f factory.Factory, cmd *cobra.Command) error {
 		return err
 	}
 
-	itemToDelete, err := selectors.ByNameOrID(f.Ask, existingItems, "Select the environment you wish to delete:")
+	itemToDelete, err := selectors.ByName(f.Ask, existingItems, "Select the environment you wish to delete:")
 	if err != nil {
 		return err
 	}

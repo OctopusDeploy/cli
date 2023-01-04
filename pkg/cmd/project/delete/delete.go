@@ -91,7 +91,7 @@ func PromptMissing(opts *DeleteOptions) error {
 		if err != nil {
 			return err
 		}
-		itemToDelete, err := selectors.ByNameOrID(opts.Ask, existingProjects, "Select the project you wish to delete:")
+		itemToDelete, err := selectors.ByName(opts.Ask, existingProjects, "Select the project you wish to delete:")
 		if err != nil {
 			return err
 		}

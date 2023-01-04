@@ -83,7 +83,7 @@ func deleteRun(f factory.Factory, cmd *cobra.Command) error {
 		return err
 	}
 
-	accountToDelete, err := selectors.Account(f.Ask, existingAccounts, "Select the account you wish to delete:")
+	accountToDelete, err := selectors.ByName(f.Ask, existingAccounts, "Select the account you wish to delete:")
 	if err != nil {
 		return err
 	}
