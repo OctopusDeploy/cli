@@ -85,7 +85,7 @@ func PackageCreatePromptMissing(opts *PackageCreateOptions) error {
 	if opts.Version.Value == "" {
 		if err := opts.Ask(&survey.Input{
 			Message: "Version",
-			Help:    "The version of the package; must be a valid SemVer; defaults to a timestamp-based version.",
+			Help:    "The version of the package, must be a valid SemVer.",
 		}, &opts.Version.Value); err != nil {
 			return err
 		}
@@ -95,6 +95,7 @@ func PackageCreatePromptMissing(opts *PackageCreateOptions) error {
 		if err := opts.Ask(&survey.Input{
 			Message: "Base Path",
 			Help:    "Root folder containing the contents to zip; defaults to current directory.",
+			Default: ".",
 		}, &opts.BasePath.Value); err != nil {
 			return err
 		}
@@ -103,7 +104,8 @@ func PackageCreatePromptMissing(opts *PackageCreateOptions) error {
 	if opts.OutFolder.Value == "" {
 		if err := opts.Ask(&survey.Input{
 			Message: "Out Folder",
-			Help:    "Folder into which the zip file will be written; defaults to the current directory",
+			Help:    "Folder into which the zip file will be written; defaults to the current directory.",
+			Default: ".",
 		}, &opts.OutFolder.Value); err != nil {
 			return err
 		}
@@ -114,7 +116,7 @@ func PackageCreatePromptMissing(opts *PackageCreateOptions) error {
 			var pattern string
 			if err := opts.Ask(&survey.Input{
 				Message: "Include patterns",
-				Help:    "Add a file pattern to include, relative to the base path e.g. /bin/*.dll; defaults to \"**\".",
+				Help:    "Add a file pattern to include, relative to the base path e.g. /bin/*.dll; defaults to \"**\" no patterns provided.",
 			}, &pattern); err != nil {
 				return err
 			}
@@ -126,31 +128,23 @@ func PackageCreatePromptMissing(opts *PackageCreateOptions) error {
 	}
 
 	if !opts.Verbose.Value {
-		result, err := question.SelectMap(opts.Ask, "Verbose", []bool{true, false}, func(b bool) string {
-			if b {
-				return "True"
-			} else {
-				return "False"
-			}
-		})
+		err := opts.Ask(&survey.Confirm{
+			Message: "Verbose",
+			Default: true,
+		}, &opts.Verbose.Value)
 		if err != nil {
 			return err
 		}
-		opts.Verbose.Value = result
 	}
 
 	if !opts.Overwrite.Value {
-		result, err := question.SelectMap(opts.Ask, "Overwrite", []bool{true, false}, func(b bool) string {
-			if b {
-				return "True"
-			} else {
-				return "False"
-			}
-		})
+		err := opts.Ask(&survey.Confirm{
+			Message: "Overwrite",
+			Default: true,
+		}, &opts.Overwrite.Value)
 		if err != nil {
 			return err
 		}
-		opts.Overwrite.Value = result
 	}
 
 	return nil
@@ -167,7 +161,7 @@ func BuildTimestampSemVer(dateTime time.Time) string {
 	return fmt.Sprintf("%d.%d.%d.%d", dateTime.Year(), dateTime.Month(), dateTime.Day(), endSegment)
 }
 
-func BuildOutFileName(packageType string, id, version string) string {
+func BuildOutFileName(packageType, id, version string) string {
 	return fmt.Sprintf("%s.%s.%s", id, version, packageType)
 }
 

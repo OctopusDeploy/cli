@@ -4,8 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"os/user"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -14,6 +12,7 @@ import (
 	pack "github.com/OctopusDeploy/cli/pkg/cmd/package/support"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/factory"
+	"github.com/OctopusDeploy/cli/pkg/surveyext"
 	"github.com/OctopusDeploy/cli/pkg/util"
 	"github.com/OctopusDeploy/cli/pkg/util/flag"
 	"github.com/spf13/cobra"
@@ -72,17 +71,17 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 
 	flags := cmd.Flags()
 	flags.StringVar(&packFlags.Id.Value, packFlags.Id.Name, "", "The ID of the package")
-	flags.StringVarP(&packFlags.Version.Value, packFlags.Version.Name, "v", "", "The version of the package; must be a valid SemVer; defaults to a timestamp-based version")
-	flags.StringVar(&packFlags.BasePath.Value, packFlags.BasePath.Name, "", "Root folder containing the contents to zip")
-	flags.StringVar(&packFlags.OutFolder.Value, packFlags.OutFolder.Name, "", "Folder into which the zip file will be written")
-	flags.StringSliceVar(&packFlags.Include.Value, packFlags.Include.Name, []string{}, "Add a file pattern to include, relative to the base path e.g. /bin/*.dll; defaults to \"**\"")
-	flags.BoolVar(&packFlags.Verbose.Value, packFlags.Verbose.Name, false, "Verbose output")
-	flags.BoolVar(&packFlags.Overwrite.Value, packFlags.Overwrite.Name, false, "Allow an existing package file of the same ID/version to be overwritten")
-	flags.StringSliceVar(&createFlags.Author.Value, createFlags.Author.Name, []string{}, "Add author/s to the package metadata; defaults to the current user")
-	flags.StringVar(&createFlags.Title.Value, createFlags.Title.Name, "", "The title of the package")
-	flags.StringVar(&createFlags.Description.Value, createFlags.Description.Name, "", "A description of the package")
-	flags.StringVar(&createFlags.ReleaseNotes.Value, createFlags.ReleaseNotes.Name, "", "Release notes for this version of the package")
-	flags.StringVar(&createFlags.ReleaseNotesFile.Value, createFlags.ReleaseNotesFile.Name, "", "A file containing release notes for this version of the package")
+	flags.StringVarP(&packFlags.Version.Value, packFlags.Version.Name, "v", "", "The version of the package, must be a valid SemVer.")
+	flags.StringVar(&packFlags.BasePath.Value, packFlags.BasePath.Name, "", "Root folder containing the contents to zip.")
+	flags.StringVar(&packFlags.OutFolder.Value, packFlags.OutFolder.Name, "", "Folder into which the zip file will be written.")
+	flags.StringSliceVar(&packFlags.Include.Value, packFlags.Include.Name, []string{}, "Add a file pattern to include, relative to the base path e.g. /bin/*.dll; defaults to \"**\".")
+	flags.BoolVar(&packFlags.Verbose.Value, packFlags.Verbose.Name, false, "Verbose output.")
+	flags.BoolVar(&packFlags.Overwrite.Value, packFlags.Overwrite.Name, false, "Allow an existing package file of the same ID/version to be overwritten.")
+	flags.StringSliceVar(&createFlags.Author.Value, createFlags.Author.Name, []string{}, "Add author/s to the package metadata.")
+	flags.StringVar(&createFlags.Title.Value, createFlags.Title.Name, "", "The title of the package.")
+	flags.StringVar(&createFlags.Description.Value, createFlags.Description.Name, "", "A description of the package.")
+	flags.StringVar(&createFlags.ReleaseNotes.Value, createFlags.ReleaseNotes.Name, "", "Release notes for this version of the package.")
+	flags.StringVar(&createFlags.ReleaseNotesFile.Value, createFlags.ReleaseNotesFile.Name, "", "A file containing release notes for this version of the package.")
 	flags.SortFlags = false
 
 	return cmd
@@ -96,7 +95,6 @@ func createRun(opts *NuPkgCreateOptions) error {
 		if err := PromptMissing(opts); err != nil {
 			return err
 		}
-
 	}
 
 	if opts.Id.Value == "" {
@@ -158,7 +156,7 @@ func PromptMissing(opts *NuPkgCreateOptions) error {
 			var author string
 			if err := opts.Ask(&survey.Input{
 				Message: message,
-				Help:    "Add an author to the package metadata; if no authors are specified the author will default to the current user.",
+				Help:    "Add an author to the package metadata.",
 			}, &author); err != nil {
 				return err
 			}
@@ -182,16 +180,19 @@ func PromptMissing(opts *NuPkgCreateOptions) error {
 	if opts.Description.Value == "" {
 		if err := opts.Ask(&survey.Input{
 			Message: "Nuspec description",
-			Help:    "The description to include in the Nuspec file; defaults to \"A deployment package created from files on disk.\".",
+			Help:    "The description to include in the Nuspec file.",
 		}, &opts.Description.Value); err != nil {
 			return err
 		}
 	}
 
 	if opts.ReleaseNotes.Value == "" {
-		if err := opts.Ask(&survey.Input{
-			Message: "Nuspec release notes",
-			Help:    "The release notes to include in the Nuspec file.",
+		if err := opts.Ask(&surveyext.OctoEditor{
+			Editor: &survey.Editor{
+				Message: "Nuspec release notes",
+				Help:    "The release notes to include in the Nuspec file.",
+			},
+			Optional: true,
 		}, &opts.ReleaseNotes.Value); err != nil {
 			return err
 		}
@@ -224,18 +225,6 @@ func applyDefaultsToUnspecifiedPackageOptions(opts *NuPkgCreateOptions) error {
 
 	if len(opts.Include.Value) == 0 {
 		opts.Include.Value = append(opts.Include.Value, "**")
-	}
-
-	if opts.Description.Value == "" {
-		opts.Description.Value = "A deployment package created from files on disk."
-	}
-
-	if util.Empty(opts.Author.Value) {
-		currentUser, err := user.Current()
-		if err != nil {
-			return err
-		}
-		opts.Author.Value = append(opts.Author.Value, currentUser.Name)
 	}
 
 	return nil
