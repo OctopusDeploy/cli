@@ -80,7 +80,7 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 	flags.BoolVar(&packFlags.Overwrite.Value, packFlags.Overwrite.Name, false, "Allow an existing package file of the same ID/version to be overwritten.")
 	flags.StringSliceVar(&createFlags.Author.Value, createFlags.Author.Name, []string{}, "Add author/s to the package metadata.")
 	flags.StringVar(&createFlags.Title.Value, createFlags.Title.Name, "", "The title of the package.")
-	flags.StringVar(&createFlags.Description.Value, createFlags.Description.Name, "", "A description of the package.")
+	flags.StringVar(&createFlags.Description.Value, createFlags.Description.Name, "", "A description of the package, defaults to \"A deployment package created from files on disk.\".")
 	flags.StringVar(&createFlags.ReleaseNotes.Value, createFlags.ReleaseNotes.Name, "", "Release notes for this version of the package.")
 	flags.StringVar(&createFlags.ReleaseNotesFile.Value, createFlags.ReleaseNotesFile.Name, "", "A file containing release notes for this version of the package.")
 	flags.SortFlags = false
@@ -169,42 +169,45 @@ func PromptMissing(opts *NuPkgCreateOptions) error {
 		}
 	}
 
-	if opts.Title.Value == "" {
-		if err := opts.Ask(&survey.Input{
-			Message: "Nuspec title",
-			Help:    "The title to include in the Nuspec file.",
-		}, &opts.Title.Value); err != nil {
-			return err
+	if len(opts.Author.Value) > 0 {
+		if opts.Title.Value == "" {
+			if err := opts.Ask(&survey.Input{
+				Message: "Nuspec title",
+				Help:    "The title to include in the Nuspec file.",
+			}, &opts.Title.Value); err != nil {
+				return err
+			}
 		}
-	}
 
-	if opts.Description.Value == "" {
-		if err := opts.Ask(&survey.Input{
-			Message: "Nuspec description",
-			Help:    "The description to include in the Nuspec file.",
-		}, &opts.Description.Value); err != nil {
-			return err
+		if opts.Description.Value == "" {
+			if err := opts.Ask(&survey.Input{
+				Message: "Nuspec description",
+				Help:    "The description to include in the Nuspec file.",
+				Default: "A deployment package created from files on disk.",
+			}, &opts.Description.Value); err != nil {
+				return err
+			}
 		}
-	}
 
-	if opts.ReleaseNotes.Value == "" {
-		if err := opts.Ask(&surveyext.OctoEditor{
-			Editor: &survey.Editor{
-				Message: "Nuspec release notes",
-				Help:    "The release notes to include in the Nuspec file.",
-			},
-			Optional: true,
-		}, &opts.ReleaseNotes.Value); err != nil {
-			return err
+		if opts.ReleaseNotes.Value == "" {
+			if err := opts.Ask(&surveyext.OctoEditor{
+				Editor: &survey.Editor{
+					Message: "Nuspec release notes",
+					Help:    "The release notes to include in the Nuspec file.",
+				},
+				Optional: true,
+			}, &opts.ReleaseNotes.Value); err != nil {
+				return err
+			}
 		}
-	}
 
-	if opts.ReleaseNotesFile.Value == "" {
-		if err := opts.Ask(&survey.Input{
-			Message: "Nuspec release notes file",
-			Help:    "A path to a release notes file whose contents will be included in the Nuspec file's release notes.",
-		}, &opts.ReleaseNotesFile.Value); err != nil {
-			return err
+		if opts.ReleaseNotesFile.Value == "" {
+			if err := opts.Ask(&survey.Input{
+				Message: "Nuspec release notes file",
+				Help:    "A path to a release notes file whose contents will be included in the Nuspec file's release notes.",
+			}, &opts.ReleaseNotesFile.Value); err != nil {
+				return err
+			}
 		}
 	}
 
@@ -226,6 +229,12 @@ func applyDefaultsToUnspecifiedPackageOptions(opts *NuPkgCreateOptions) error {
 
 	if len(opts.Include.Value) == 0 {
 		opts.Include.Value = append(opts.Include.Value, "**")
+	}
+
+	if len(opts.Author.Value) > 0 {
+		if opts.Description.Value == "" {
+			opts.Description.Value = "A deployment package created from files on disk."
+		}
 	}
 
 	return nil
