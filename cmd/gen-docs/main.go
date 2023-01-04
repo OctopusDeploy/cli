@@ -159,7 +159,7 @@ func GenMarkdownTreeCustom(cmd *cobra.Command, dir string, positionCounter *int,
 
 	}
 
-	basename := strings.ReplaceAll(cmd.CommandPath(), " ", "_") + ".md"
+	basename := strings.ReplaceAll(cmd.CommandPath(), " ", "-") + ".md"
 	filename := filepath.Join(dir, basename)
 
 	f, err := os.Create(filename)
