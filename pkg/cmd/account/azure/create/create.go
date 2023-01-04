@@ -2,8 +2,7 @@ package create
 
 import (
 	"fmt"
-	"github.com/OctopusDeploy/cli/pkg/apiclient"
-	"io"
+	"github.com/OctopusDeploy/cli/pkg/cmd"
 	"os"
 	"strings"
 
@@ -16,13 +15,11 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/OctopusDeploy/cli/pkg/output"
-	"github.com/OctopusDeploy/cli/pkg/question"
 	"github.com/OctopusDeploy/cli/pkg/question/selectors"
 	"github.com/OctopusDeploy/cli/pkg/surveyext"
 	"github.com/OctopusDeploy/cli/pkg/util/flag"
 	"github.com/OctopusDeploy/cli/pkg/validation"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/accounts"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/core"
 	"github.com/google/uuid"
 	"github.com/spf13/cobra"
@@ -43,13 +40,7 @@ type CreateFlags struct {
 
 type CreateOptions struct {
 	*CreateFlags
-	Writer   io.Writer
-	Octopus  *client.Client
-	Ask      question.Asker
-	Space    string
-	NoPrompt bool
-	Host     string
-	CmdPath  string
+	*cmd.Dependencies
 	selectors.GetAllEnvironmentsCallback
 }
 
@@ -65,6 +56,16 @@ func NewCreateFlags() *CreateFlags {
 		AzureEnvironment:       flag.New[string]("azure-environment", false),
 		ADEndpointBaseUrl:      flag.New[string]("ad-endpoint-base-uri", false),
 		RMBaseUri:              flag.New[string]("resource-management-base-uri", false),
+	}
+}
+
+func NewCreateOptions(flags *CreateFlags, dependencies *cmd.Dependencies) *CreateOptions {
+	return &CreateOptions{
+		CreateFlags:  flags,
+		Dependencies: dependencies,
+		GetAllEnvironmentsCallback: func() ([]*environments.Environment, error) {
+			return selectors.GetAllEnvironments(dependencies.Client)
+		},
 	}
 }
 
@@ -88,10 +89,7 @@ var azureResourceManagementBaseUri = map[string]string{
 }
 
 func NewCmdCreate(f factory.Factory) *cobra.Command {
-	opts := &CreateOptions{
-		Ask:         f.Ask,
-		CreateFlags: NewCreateFlags(),
-	}
+	createFlags := NewCreateFlags()
 	descriptionFilePath := ""
 
 	cmd := &cobra.Command{
@@ -100,21 +98,8 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 		Long:    "Create an Azure subscription account in Octopus Deploy",
 		Example: heredoc.Docf("$ %s account azure create", constants.ExecutableName),
 		Aliases: []string{"new"},
-		RunE: func(cmd *cobra.Command, _ []string) error {
-			client, err := f.GetSpacedClient(apiclient.NewRequester(cmd))
-			if err != nil {
-				return err
-			}
-
-			opts.GetAllEnvironmentsCallback = func() ([]*environments.Environment, error) {
-				return selectors.GetAllEnvironments(*client)
-			}
-
-			opts.CmdPath = cmd.CommandPath()
-			opts.Host = f.GetCurrentHost()
-			opts.Space = f.GetCurrentSpace().GetID()
-			opts.Octopus = client
-			opts.Writer = cmd.OutOrStdout()
+		RunE: func(c *cobra.Command, _ []string) error {
+			opts := NewCreateOptions(createFlags, cmd.NewDependencies(f, c))
 			if descriptionFilePath != "" {
 				if err := validation.IsExistingFile(descriptionFilePath); err != nil {
 					return err
@@ -162,26 +147,28 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 				}
 			}
 			if opts.Environments.Value != nil {
-				opts.Environments.Value, err = helper.ResolveEnvironmentNames(opts.Environments.Value, opts.Octopus)
+				env, err := helper.ResolveEnvironmentNames(opts.Environments.Value, opts.Client)
 				if err != nil {
 					return err
 				}
+				opts.Environments.Value = env
 			}
 			return CreateRun(opts)
 		},
 	}
 
-	cmd.Flags().StringVarP(&opts.Name.Value, opts.Name.Name, "n", "", "A short, memorable, unique name for this account.")
-	cmd.Flags().StringVarP(&opts.Description.Value, opts.Description.Value, "d", "", "A summary explaining the use of the account to other users.")
-	cmd.Flags().StringVar(&opts.SubscriptionID.Value, opts.SubscriptionID.Name, "", "Your Azure subscription ID.")
-	cmd.Flags().StringVar(&opts.TenantID.Value, opts.TenantID.Name, "", "Your Azure Active Directory Tenant ID.")
-	cmd.Flags().StringVar(&opts.ApplicationID.Value, opts.ApplicationID.Name, "", "Your Azure Active Directory Application ID.")
-	cmd.Flags().StringVar(&opts.ApplicationPasswordKey.Value, opts.ApplicationPasswordKey.Name, "", "The password for the Azure Active Directory application.")
-	cmd.Flags().StringArrayVarP(&opts.Environments.Value, opts.Environments.Name, "e", nil, "The environments that are allowed to use this account")
-	cmd.Flags().StringVar(&opts.AzureEnvironment.Value, opts.AzureEnvironment.Name, "", "Set only if you are using an isolated Azure Environment. Configure isolated Azure Environment. Valid option are AzureChinaCloud, AzureChinaCloud, AzureGermanCloud or AzureUSGovernment")
-	cmd.Flags().StringVar(&opts.ADEndpointBaseUrl.Value, opts.ADEndpointBaseUrl.Name, "", "Set this only if you need to override the default Active Directory Endpoint.")
-	cmd.Flags().StringVar(&opts.RMBaseUri.Value, opts.RMBaseUri.Name, "", "Set this only if you need to override the default Resource Management Endpoint.")
-	cmd.Flags().StringVarP(&descriptionFilePath, "description-file", "D", "", "Read the description from `file`")
+	flags := cmd.Flags()
+	flags.StringVarP(&createFlags.Name.Value, createFlags.Name.Name, "n", "", "A short, memorable, unique name for this account.")
+	flags.StringVarP(&createFlags.Description.Value, createFlags.Description.Value, "d", "", "A summary explaining the use of the account to other users.")
+	flags.StringVar(&createFlags.SubscriptionID.Value, createFlags.SubscriptionID.Name, "", "Your Azure subscription ID.")
+	flags.StringVar(&createFlags.TenantID.Value, createFlags.TenantID.Name, "", "Your Azure Active Directory Tenant ID.")
+	flags.StringVar(&createFlags.ApplicationID.Value, createFlags.ApplicationID.Name, "", "Your Azure Active Directory Application ID.")
+	flags.StringVar(&createFlags.ApplicationPasswordKey.Value, createFlags.ApplicationPasswordKey.Name, "", "The password for the Azure Active Directory application.")
+	flags.StringArrayVarP(&createFlags.Environments.Value, createFlags.Environments.Name, "e", nil, "The environments that are allowed to use this account")
+	flags.StringVar(&createFlags.AzureEnvironment.Value, createFlags.AzureEnvironment.Name, "", "Set only if you are using an isolated Azure Environment. Configure isolated Azure Environment. Valid option are AzureChinaCloud, AzureChinaCloud, AzureGermanCloud or AzureUSGovernment")
+	flags.StringVar(&createFlags.ADEndpointBaseUrl.Value, createFlags.ADEndpointBaseUrl.Name, "", "Set this only if you need to override the default Active Directory Endpoint.")
+	flags.StringVar(&createFlags.RMBaseUri.Value, createFlags.RMBaseUri.Name, "", "Set this only if you need to override the default Resource Management Endpoint.")
+	flags.StringVarP(&descriptionFilePath, "description-file", "D", "", "Read the description from `file`")
 
 	return cmd
 }
@@ -220,17 +207,17 @@ func CreateRun(opts *CreateOptions) error {
 	servicePrincipalAccount.ResourceManagerEndpoint = opts.RMBaseUri.Value
 	servicePrincipalAccount.AuthenticationEndpoint = opts.ADEndpointBaseUrl.Value
 
-	createdAccount, err = opts.Octopus.Accounts.Add(servicePrincipalAccount)
+	createdAccount, err = opts.Client.Accounts.Add(servicePrincipalAccount)
 	if err != nil {
 		return err
 	}
 
-	_, err = fmt.Fprintf(opts.Writer, "Successfully created Azure account %s %s.\n", createdAccount.GetName(), output.Dimf("(%s)", createdAccount.GetSlug()))
+	_, err = fmt.Fprintf(opts.Out, "Successfully created Azure account %s %s.\n", createdAccount.GetName(), output.Dimf("(%s)", createdAccount.GetSlug()))
 	if err != nil {
 		return err
 	}
-	link := output.Bluef("%s/app#/%s/infrastructure/accounts/%s", opts.Host, opts.Space, createdAccount.GetID())
-	fmt.Fprintf(opts.Writer, "\nView this account on Octopus Deploy: %s\n", link)
+	link := output.Bluef("%s/app#/%s/infrastructure/accounts/%s", opts.Host, opts.Space.GetID(), createdAccount.GetID())
+	fmt.Fprintf(opts.Out, "\nView this account on Octopus Deploy: %s\n", link)
 	if !opts.NoPrompt {
 		autoCmd := flag.GenerateAutomationCmd(
 			opts.CmdPath,
@@ -245,7 +232,7 @@ func CreateRun(opts *CreateOptions) error {
 			opts.ADEndpointBaseUrl,
 			opts.RMBaseUri,
 		)
-		fmt.Fprintf(opts.Writer, "\nAutomation Command: %s\n", autoCmd)
+		fmt.Fprintf(opts.Out, "\nAutomation Command: %s\n", autoCmd)
 	}
 	return nil
 }

@@ -10,7 +10,7 @@ import (
 
 type GetAllEnvironmentsCallback func() ([]*environments.Environment, error)
 
-func GetAllEnvironments(client client.Client) ([]*environments.Environment, error) {
+func GetAllEnvironments(client *client.Client) ([]*environments.Environment, error) {
 	envResources, err := client.Environments.Get(environments.EnvironmentsQuery{})
 	if err != nil {
 		return nil, err
