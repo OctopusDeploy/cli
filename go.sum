@@ -46,8 +46,6 @@ github.com/Netflix/go-expect v0.0.0-20220104043353-73e0943537d2 h1:+vx7roKuyA63n
 github.com/Netflix/go-expect v0.0.0-20220104043353-73e0943537d2/go.mod h1:HBCaDeC1lPdgDeDbhX8XFpy1jqjK0IBG8W5K+xYqA0w=
 github.com/OctopusDeploy/go-octopusdeploy/v2 v2.20.0 h1:3IpsaL5PJepA/5WEhUBn7GmXS2uT4GZ0n5N/iQV6JhQ=
 github.com/OctopusDeploy/go-octopusdeploy/v2 v2.20.0/go.mod h1:++gnwUI5HaG31oDMaUXrNNjsXfmLn/zWyMmy/5GaFSA=
-github.com/OctopusDeploy/go-octopusdeploy/v2 v2.18.1 h1:Bhae8Z8vzvZus2coXQs0EKN+22tonak9nVMI1ArzvEc=
-github.com/OctopusDeploy/go-octopusdeploy/v2 v2.18.1/go.mod h1:yCrdCpNf9D60Q6zYeG7wt9XHimM0r9z0AY9auR6AjLc=
 github.com/bmatcuk/doublestar/v4 v4.4.0 h1:LmAwNwhjEbYtyVLzjcP/XeVw4nhuScHGkF/XWXnvIic=
 github.com/bmatcuk/doublestar/v4 v4.4.0/go.mod h1:xBQ8jztBU6kakFMg+8WGxn0c6z1fTSPVIjEY1Wr7jzc=
 github.com/briandowns/spinner v1.19.0 h1:s8aq38H+Qju89yhp89b4iIiMzMm8YN3p6vGpwyh/a8E=
