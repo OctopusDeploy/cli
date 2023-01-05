@@ -193,7 +193,7 @@ func createRun(opts *CreateOptions) error {
 		return err
 	}
 
-	_, err = fmt.Fprintf(opts.Out, "Successfully created variable '%s' in project '%s'\n", opts.Name.Value, project.GetName())
+	_, err = fmt.Fprintf(opts.Out, "Successfully created variable '%s' (%s) in project '%s'\n", opts.Name.Value, project.GetName())
 
 	if !opts.NoPrompt {
 		autoCmd := flag.GenerateAutomationCmd(opts.CmdPath, opts.Project, opts.Name, opts.Value, opts.Description, opts.Type, opts.EnvironmentsScopes, opts.ChannelScopes, opts.StepScopes, opts.TargetScopes, opts.TagScopes, opts.RoleScopes, opts.ProcessScopes, opts.IsPrompted, opts.PromptType, opts.PromptLabel, opts.PromptDescription, opts.PromptSelectOptions, opts.PromptRequired)
@@ -324,7 +324,10 @@ func PromptMissing(opts *CreateOptions) error {
 	}
 
 	if scope.IsEmpty() {
-		sharedVariable.PromptScopes(opts.Ask, projectVariables, opts.ScopeFlags, opts.IsPrompted.Value)
+		err = sharedVariable.PromptScopes(opts.Ask, projectVariables, opts.ScopeFlags, opts.IsPrompted.Value)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
