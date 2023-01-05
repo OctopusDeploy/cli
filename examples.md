@@ -116,3 +116,25 @@ octopus project convert --project 'Project 54' \
 ```
 
 An existing project can be converted to Config As Code using the `convert` command
+
+# View all values for a project variable
+
+```
+octopus project variables view BlueGreenTarget
+```
+
+# Set project variable prior to creating a release
+
+In this example the `Id` represents the specific value for the variable `BlueGreenTarget` that has been scoped to the production environment.
+The Id can be obtained with the `project variables view` command. 
+
+```
+value=`octopus project variables view BlueGreenTarget --project "Random Quotes" --id d8527596-6fa2-4394-94e1-07942d3d0202 | grep Value`
+if [[ $value =~ 'Blue' ]]; then
+    value="Green"
+else
+    value="Blue"
+fi
+octopus project variables update BlueGreenTarget --project "Random Quotes" --id d8527596-6fa2-4394-94e1-07942d3d0202 --name "" --value $value --no-prompt
+octopus release create --version 1.0.1 --project "Random Quotes" --no-prompt
+```
