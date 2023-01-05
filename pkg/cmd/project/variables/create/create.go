@@ -79,7 +79,7 @@ func NewCreateFlags() *CreateFlags {
 		Value:               flag.New[string](FlagValue, false),
 		Description:         flag.New[string](FlagDescription, false),
 		Type:                flag.New[string](FlagType, false),
-		ScopeFlags:          sharedVariable.NewScopeOptions(),
+		ScopeFlags:          sharedVariable.NewScopeFlags(),
 		IsPrompted:          flag.New[bool](FlagPrompt, false),
 		PromptLabel:         flag.New[string](FlagPromptLabel, false),
 		PromptDescription:   flag.New[string](FlagPromptDescription, false),
@@ -94,9 +94,9 @@ func NewCreateOptions(flags *CreateFlags, dependencies *cmd.Dependencies) *Creat
 		CreateFlags:  flags,
 		Dependencies: dependencies,
 		GetProjectCallback: func(identifier string) (*projects.Project, error) {
-			return shared.GetProject(*dependencies.Client, identifier)
+			return shared.GetProject(dependencies.Client, identifier)
 		},
-		GetAllProjectsCallback: func() ([]*projects.Project, error) { return shared.GetAllProjects(*dependencies.Client) },
+		GetAllProjectsCallback: func() ([]*projects.Project, error) { return shared.GetAllProjects(dependencies.Client) },
 		VariableCallbacks:      sharedVariable.NewVariableCallbacks(dependencies),
 	}
 }
@@ -153,7 +153,7 @@ func createRun(opts *CreateOptions) error {
 		return err
 	}
 
-	projectVariables, err := opts.Client.Variables.GetAll(project.GetID())
+	projectVariables, err := opts.GetProjectVariables(project.GetID())
 	if err != nil {
 		return err
 	}
@@ -313,7 +313,7 @@ func PromptMissing(opts *CreateOptions) error {
 		}
 	}
 
-	projectVariables, err := opts.Client.Variables.GetAll(project.GetID())
+	projectVariables, err := opts.GetProjectVariables(project.GetID())
 	if err != nil {
 		return err
 	}
@@ -335,7 +335,7 @@ func getVariableTypeOptions() []*selectors.SelectOption[string] {
 		{Display: "Text", Value: TypeText},
 		{Display: "Sensitive", Value: TypeSensitive},
 		{Display: "Certificate", Value: TypeCertificate},
-		{Display: "WorkerPool", Value: TypeWorkerPool},
+		{Display: "Worker Pool", Value: TypeWorkerPool},
 		{Display: "Azure Account", Value: TypeAzureAccount},
 		{Display: "Aws Account", Value: TypeAwsAccount},
 		{Display: "Google Account", Value: TypeGoogleAccount},

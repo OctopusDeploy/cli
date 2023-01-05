@@ -18,11 +18,15 @@ import (
 type GetAccountsByTypeCallback func(accountType accounts.AccountType) ([]accounts.IAccount, error)
 type GetAllWorkerPoolsCallback func() ([]*workerpools.WorkerPoolListResult, error)
 type GetAllCertificatesCallback func() ([]*certificates.CertificateResource, error)
+type GetProjectVariablesCallback func(projectId string) (*variables.VariableSet, error)
+type GetVariableByIdCallback func(ownerId, variableId string) (*variables.Variable, error)
 
 type VariableCallbacks struct {
-	GetAccountsByType  GetAccountsByTypeCallback
-	GetAllWorkerPools  GetAllWorkerPoolsCallback
-	GetAllCertificates GetAllCertificatesCallback
+	GetAccountsByType   GetAccountsByTypeCallback
+	GetAllWorkerPools   GetAllWorkerPoolsCallback
+	GetAllCertificates  GetAllCertificatesCallback
+	GetProjectVariables GetProjectVariablesCallback
+	GetVariableById     GetVariableByIdCallback
 }
 
 func NewVariableCallbacks(dependencies *cmd.Dependencies) *VariableCallbacks {
@@ -35,6 +39,12 @@ func NewVariableCallbacks(dependencies *cmd.Dependencies) *VariableCallbacks {
 		},
 		GetAllCertificates: func() ([]*certificates.CertificateResource, error) {
 			return getAllCertificates(dependencies.Client)
+		},
+		GetProjectVariables: func(projectId string) (*variables.VariableSet, error) {
+			return getProjectVariables(dependencies.Client, projectId)
+		},
+		GetVariableById: func(ownerId, variableId string) (*variables.Variable, error) {
+			return getVariableById(dependencies.Client, ownerId, variableId)
 		},
 	}
 }
@@ -104,70 +114,61 @@ func PromptValue(ask question.Asker, variableType string, callbacks *VariableCal
 	return "", fmt.Errorf("error getting value")
 }
 
-func PromptScopes(asker question.Asker, projectVariables variables.VariableSet, flags *ScopeFlags, isPrompted bool) error {
+func PromptScopes(asker question.Asker, projectVariables *variables.VariableSet, flags *ScopeFlags, isPrompted bool) error {
 	var err error
 	if util.Empty(flags.EnvironmentsScopes.Value) {
-		flags.EnvironmentsScopes.Value, err = PromptScope(asker, "Environment", projectVariables.ScopeValues.Environments)
+		flags.EnvironmentsScopes.Value, err = PromptScope(asker, "Environment", projectVariables.ScopeValues.Environments, nil)
 		if err != nil {
 			return err
 		}
 	}
 
-	if util.Empty(flags.ProcessScopes.Value) {
-		flags.ProcessScopes.Value, err = PromptScope(asker, "Process", ConvertProcessScopesToReference(projectVariables.ScopeValues.Processes))
-		if err != nil {
-			return err
-		}
+	flags.ProcessScopes.Value, err = PromptScope(asker, "Process", ConvertProcessScopesToReference(projectVariables.ScopeValues.Processes), nil)
+	if err != nil {
+		return err
 	}
 
 	if !isPrompted {
-		if util.Empty(flags.ChannelScopes.Value) {
-			flags.ChannelScopes.Value, err = PromptScope(asker, "Channel", projectVariables.ScopeValues.Channels)
-			if err != nil {
-				return err
-			}
+		flags.ChannelScopes.Value, err = PromptScope(asker, "Channel", projectVariables.ScopeValues.Channels, nil)
+		if err != nil {
+			return err
 		}
 
-		if util.Empty(flags.TargetScopes.Value) {
-			flags.TargetScopes.Value, err = PromptScope(asker, "Target", projectVariables.ScopeValues.Machines)
-			if err != nil {
-				return err
-			}
+		flags.TargetScopes.Value, err = PromptScope(asker, "Target", projectVariables.ScopeValues.Machines, nil)
+		if err != nil {
+			return err
 		}
 
-		if util.Empty(flags.RoleScopes.Value) {
-			flags.RoleScopes.Value, err = PromptScope(asker, "Role", projectVariables.ScopeValues.Roles)
-			if err != nil {
-				return err
-			}
+		flags.RoleScopes.Value, err = PromptScope(asker, "Role", projectVariables.ScopeValues.Roles, nil)
+		if err != nil {
+			return err
 		}
 
-		if util.Empty(flags.TagScopes.Value) {
-			flags.TagScopes.Value, err = PromptScope(asker, "Tag", projectVariables.ScopeValues.TenantTags)
-			if err != nil {
-				return err
-			}
+		flags.TagScopes.Value, err = PromptScope(asker, "Tag", projectVariables.ScopeValues.TenantTags, func(i *resources.ReferenceDataItem) string { return i.ID })
+		if err != nil {
+			return err
 		}
 
-		if util.Empty(flags.StepScopes.Value) {
-			flags.StepScopes.Value, err = PromptScope(asker, "Step", projectVariables.ScopeValues.Actions)
-			if err != nil {
-				return err
-			}
+		flags.StepScopes.Value, err = PromptScope(asker, "Step", projectVariables.ScopeValues.Actions, nil)
+		if err != nil {
+			return err
 		}
 	}
 
 	return nil
 }
 
-func PromptScope(ask question.Asker, scopeDescription string, items []*resources.ReferenceDataItem) ([]string, error) {
+func PromptScope(ask question.Asker, scopeDescription string, items []*resources.ReferenceDataItem, displaySelector func(i *resources.ReferenceDataItem) string) ([]string, error) {
+	if displaySelector == nil {
+		displaySelector = func(i *resources.ReferenceDataItem) string { return i.Name }
+	}
 	if util.Empty(items) {
 		return nil, nil
 	}
 	var selectedItems []string
 	err := ask(&survey.MultiSelect{
 		Message: fmt.Sprintf("%s scope", scopeDescription),
-		Options: util.SliceTransform(items, func(i *resources.ReferenceDataItem) string { return i.Name }),
+		Options: util.SliceTransform(items, displaySelector),
 	}, &selectedItems)
 
 	if err != nil {
@@ -220,4 +221,13 @@ func getAllWorkerPools(client *client.Client) ([]*workerpools.WorkerPoolListResu
 	}
 
 	return res, nil
+}
+
+func getProjectVariables(client *client.Client, id string) (*variables.VariableSet, error) {
+	variableSet, err := client.Variables.GetAll(id)
+	return &variableSet, err
+}
+
+func getVariableById(client *client.Client, ownerId string, variableId string) (*variables.Variable, error) {
+	return client.Variables.GetByID(ownerId, variableId)
 }

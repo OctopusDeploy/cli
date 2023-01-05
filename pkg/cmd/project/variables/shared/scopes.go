@@ -30,7 +30,7 @@ type ScopeFlags struct {
 	ProcessScopes      *flag.Flag[[]string]
 }
 
-func NewScopeOptions() *ScopeFlags {
+func NewScopeFlags() *ScopeFlags {
 	return &ScopeFlags{
 		EnvironmentsScopes: flag.New[[]string](FlagEnvironmentScope, false),
 		ChannelScopes:      flag.New[[]string](FlagChannelScope, false),
@@ -141,7 +141,7 @@ func findSingleProcessScope(scope string, scopes []*resources.ProcessReferenceDa
 	return nil, fmt.Errorf("cannot find scope value for '%s'", scope)
 }
 
-func ToVariableScope(projectVariables variables.VariableSet, opts *ScopeFlags, project *projects.Project) (*variables.VariableScope, error) {
+func ToVariableScope(projectVariables *variables.VariableSet, opts *ScopeFlags, project *projects.Project) (*variables.VariableScope, error) {
 	scope := &variables.VariableScope{}
 	var err error
 	scope.Environments, err = buildSingleScope(opts.EnvironmentsScopes.Value, projectVariables.ScopeValues.Environments)

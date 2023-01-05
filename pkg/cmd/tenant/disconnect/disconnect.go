@@ -52,13 +52,13 @@ func NewDisconnectOptions(disconnectFlags *DisconnectFlags, dependencies *cmd.De
 	return &DisconnectOptions{
 		Dependencies:           dependencies,
 		DisconnectFlags:        disconnectFlags,
-		GetAllTenantsCallback:  func() ([]*tenants.Tenant, error) { return shared.GetAllTenants(*dependencies.Client) },
-		GetAllProjectsCallback: func() ([]*projects.Project, error) { return shared.GetAllProjects(*dependencies.Client) },
+		GetAllTenantsCallback:  func() ([]*tenants.Tenant, error) { return shared.GetAllTenants(dependencies.Client) },
+		GetAllProjectsCallback: func() ([]*projects.Project, error) { return shared.GetAllProjects(dependencies.Client) },
 		GetProjectCallback: func(identifier string) (*projects.Project, error) {
-			return shared.GetProject(*dependencies.Client, identifier)
+			return shared.GetProject(dependencies.Client, identifier)
 		},
 		GetTenantCallback: func(identifier string) (*tenants.Tenant, error) {
-			return shared.GetTenant(*dependencies.Client, identifier)
+			return shared.GetTenant(dependencies.Client, identifier)
 		},
 	}
 }

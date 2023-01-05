@@ -95,9 +95,9 @@ func NewConvertOptions(flags *ConvertFlags, dependencies *cmd.Dependencies) *Con
 			return createGetAllGitCredentialsCallback(*dependencies.Client)
 		},
 		GetProjectCallback: func(identifier string) (*projects.Project, error) {
-			return shared.GetProject(*dependencies.Client, identifier)
+			return shared.GetProject(dependencies.Client, identifier)
 		},
-		GetAllProjectsCallback: func() ([]*projects.Project, error) { return shared.GetAllProjects(*dependencies.Client) },
+		GetAllProjectsCallback: func() ([]*projects.Project, error) { return shared.GetAllProjects(dependencies.Client) },
 	}
 }
 

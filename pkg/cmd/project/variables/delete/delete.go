@@ -49,7 +49,7 @@ func NewDeleteOptions(flags *DeleteFlags, dependencies *cmd.Dependencies) *Delet
 		DeleteFlags:  flags,
 		Dependencies: dependencies,
 		GetProjectCallback: func(identifier string) (*projects.Project, error) {
-			return shared.GetProject(*dependencies.Client, identifier)
+			return shared.GetProject(dependencies.Client, identifier)
 		},
 	}
 }

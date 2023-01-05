@@ -44,7 +44,7 @@ func GetAllSpaces(client client.Client) ([]*spaces.Space, error) {
 	return res, nil
 }
 
-func GetAllTenants(client client.Client) ([]*tenants.Tenant, error) {
+func GetAllTenants(client *client.Client) ([]*tenants.Tenant, error) {
 	res, err := client.Tenants.GetAll()
 	if err != nil {
 		return nil, err
@@ -53,7 +53,7 @@ func GetAllTenants(client client.Client) ([]*tenants.Tenant, error) {
 	return res, nil
 }
 
-func GetTenant(client client.Client, identifier string) (*tenants.Tenant, error) {
+func GetTenant(client *client.Client, identifier string) (*tenants.Tenant, error) {
 	res, err := client.Tenants.GetByIdentifier(identifier)
 	if err != nil {
 		return nil, err
@@ -62,7 +62,7 @@ func GetTenant(client client.Client, identifier string) (*tenants.Tenant, error)
 	return res, nil
 }
 
-func GetAllProjects(client client.Client) ([]*projects.Project, error) {
+func GetAllProjects(client *client.Client) ([]*projects.Project, error) {
 	res, err := client.Projects.GetAll()
 	if err != nil {
 		return nil, err
@@ -71,7 +71,7 @@ func GetAllProjects(client client.Client) ([]*projects.Project, error) {
 	return res, nil
 }
 
-func GetProject(client client.Client, identifier string) (*projects.Project, error) {
+func GetProject(client *client.Client, identifier string) (*projects.Project, error) {
 	res, err := client.Projects.GetByIdentifier(identifier)
 	if err != nil {
 		return nil, err

@@ -53,7 +53,7 @@ func NewUpdateFlags() *UpdateFlags {
 		Name:       flag.New[string](FlagName, false),
 		Value:      flag.New[string](FlagValue, false),
 		Unscoped:   flag.New[bool](FlagUnscoped, false),
-		ScopeFlags: sharedVariable.NewScopeOptions(),
+		ScopeFlags: sharedVariable.NewScopeFlags(),
 	}
 }
 
@@ -62,9 +62,9 @@ func NewUpdateOptions(flags *UpdateFlags, dependencies *cmd.Dependencies) *Updat
 		UpdateFlags:  flags,
 		Dependencies: dependencies,
 		GetProjectCallback: func(identifier string) (*projects.Project, error) {
-			return shared.GetProject(*dependencies.Client, identifier)
+			return shared.GetProject(dependencies.Client, identifier)
 		},
-		GetAllProjectsCallback: func() ([]*projects.Project, error) { return shared.GetAllProjects(*dependencies.Client) },
+		GetAllProjectsCallback: func() ([]*projects.Project, error) { return shared.GetAllProjects(dependencies.Client) },
 		VariableCallbacks:      sharedVariable.NewVariableCallbacks(dependencies),
 	}
 }
@@ -117,7 +117,7 @@ func updateRun(opts *UpdateOptions) error {
 		return err
 	}
 
-	projectVariables, err := opts.Client.Variables.GetAll(project.GetID())
+	projectVariables, err := opts.GetProjectVariables(project.GetID())
 	if err != nil {
 		return err
 	}
@@ -162,11 +162,11 @@ func updateRun(opts *UpdateOptions) error {
 	return nil
 }
 
-func getVariable(opts *UpdateOptions, project *projects.Project, projectVariables variables.VariableSet) (*variables.Variable, error) {
+func getVariable(opts *UpdateOptions, project *projects.Project, projectVariables *variables.VariableSet) (*variables.Variable, error) {
 	var variable *variables.Variable
 	var err error
 	if opts.Id.Value != "" {
-		variable, err = opts.Client.Variables.GetByID(project.GetID(), opts.Id.Value)
+		variable, err = opts.GetVariableById(project.GetID(), opts.Id.Value)
 		if err != nil {
 			return nil, err
 		}
@@ -191,16 +191,6 @@ func getVariable(opts *UpdateOptions, project *projects.Project, projectVariable
 	return variable, err
 }
 
-func scopesProvided(opts *UpdateOptions) bool {
-	return !(util.Empty(opts.EnvironmentsScopes.Value) ||
-		util.Empty(opts.ChannelScopes.Value) ||
-		util.Empty(opts.TagScopes.Value) ||
-		util.Empty(opts.RoleScopes.Value) ||
-		util.Empty(opts.StepScopes.Value) ||
-		util.Empty(opts.ProcessScopes.Value) ||
-		util.Empty(opts.TargetScopes.Value))
-}
-
 func PromptMissing(opts *UpdateOptions) error {
 	var project *projects.Project
 	var err error
@@ -217,7 +207,7 @@ func PromptMissing(opts *UpdateOptions) error {
 		}
 	}
 
-	projectVariables, err := opts.Client.Variables.GetAll(project.GetID())
+	projectVariables, err := opts.GetProjectVariables(project.GetID())
 	if err != nil {
 		return err
 	}
@@ -260,7 +250,7 @@ func PromptMissing(opts *UpdateOptions) error {
 			return err
 		}
 		switch selectedOption.Value {
-		case "unscoped":
+		case "unscope":
 			opts.Unscoped.Value = true
 		case "replace":
 			sharedVariable.PromptScopes(opts.Ask, projectVariables, opts.ScopeFlags, variable.Prompt != nil)
@@ -270,7 +260,7 @@ func PromptMissing(opts *UpdateOptions) error {
 	return nil
 }
 
-func promptForVariable(opts *UpdateOptions, projectVariables variables.VariableSet) (*variables.Variable, error) {
+func promptForVariable(opts *UpdateOptions, projectVariables *variables.VariableSet) (*variables.Variable, error) {
 	selectedOption, err := selectors.Select(opts.Ask, "Select the variable you wish to update", func() ([]*variables.Variable, error) { return projectVariables.Variables, nil }, func(v *variables.Variable) string { return formatVariableSelection(v) })
 
 	if err != nil {
@@ -306,4 +296,14 @@ func getScopeUpdateOptions() []*selectors.SelectOption[string] {
 		{Display: "Replace", Value: "replace"},
 		{Display: "Unscope", Value: "unscope"},
 	}
+}
+
+func scopesProvided(opts *UpdateOptions) bool {
+	return !util.Empty(opts.EnvironmentsScopes.Value) ||
+		!util.Empty(opts.ChannelScopes.Value) ||
+		!util.Empty(opts.TagScopes.Value) ||
+		!util.Empty(opts.RoleScopes.Value) ||
+		!util.Empty(opts.StepScopes.Value) ||
+		!util.Empty(opts.ProcessScopes.Value) ||
+		!util.Empty(opts.TargetScopes.Value)
 }
