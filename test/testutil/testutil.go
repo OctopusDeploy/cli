@@ -1,10 +1,12 @@
 package testutil
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"io"
 	"net/http"
+	"os"
 	"runtime/debug"
 	"testing"
 )
@@ -104,4 +106,33 @@ func ParseJsonStrict[T any](input io.Reader) (T, error) {
 	decoder := json.NewDecoder(input)
 	decoder.DisallowUnknownFields()
 	return parsedStdout, decoder.Decode(&parsedStdout)
+}
+
+// CaptureConsoleOutput borrows from `github.com/zenizh/go-capturer`. This implementation captures both stdout
+// and stderr. Consider adding the go-capturer module if more granularity is needed
+func CaptureConsoleOutput(f func()) string {
+	r, w, err := os.Pipe()
+	if err != nil {
+		panic(err)
+	}
+
+	stdout := os.Stdout
+	os.Stdout = w
+	defer func() {
+		os.Stdout = stdout
+	}()
+
+	stderr := os.Stderr
+	os.Stderr = w
+	defer func() {
+		os.Stderr = stderr
+	}()
+
+	f()
+	w.Close()
+
+	var buf bytes.Buffer
+	io.Copy(&buf, r)
+
+	return buf.String()
 }
