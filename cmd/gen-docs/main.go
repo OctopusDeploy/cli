@@ -159,7 +159,7 @@ func GenMarkdownTreeCustom(cmd *cobra.Command, dir string, positionCounter *int,
 
 	}
 
-	basename := strings.ReplaceAll(cmd.CommandPath(), " ", "_") + ".md"
+	basename := strings.ReplaceAll(cmd.CommandPath(), " ", "-") + ".md"
 	filename := filepath.Join(dir, basename)
 
 	f, err := os.Create(filename)
@@ -259,6 +259,10 @@ description: The all-new Octopus CLI
 position: 100
 hideInThisSection: true
 ---
+
+:::hint
+The new Octopus CLI is currently an EAP release
+:::
 
 The Octopus CLI is a command line tool that builds on top of the [Octopus Deploy REST API](/docs/octopus-rest-api/index.md). With the Octopus CLI you can push your application packages for deployment as either Zip or NuGet packages, and manage your environments, deployments, projects, and workers.
 

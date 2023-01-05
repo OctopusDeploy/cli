@@ -2,6 +2,7 @@ package create_test
 
 import (
 	"bytes"
+	"github.com/OctopusDeploy/cli/pkg/cmd"
 	"net/url"
 	"testing"
 
@@ -28,13 +29,14 @@ var rootResource = testutil.NewRootResource()
 func TestAWSAccountCreatePromptMissing(t *testing.T) {
 	const spaceID = "Space-1"
 	const envID = "Env-1"
-	_ = fixtures.NewSpace(spaceID, "testspace")
+	space := fixtures.NewSpace(spaceID, "testspace")
 	env := fixtures.NewEnvironment(spaceID, envID, "testenv")
 	api, qa := testutil.NewMockServerAndAsker()
 	out := &bytes.Buffer{}
 
 	opts := &create.CreateOptions{
-		CreateFlags: create.NewCreateFlags(),
+		CreateFlags:  create.NewCreateFlags(),
+		Dependencies: &cmd.Dependencies{Space: space},
 		GetAllEnvironmentsCallback: func() ([]*environments.Environment, error) {
 			return []*environments.Environment{env}, nil
 		},
@@ -44,8 +46,8 @@ func TestAWSAccountCreatePromptMissing(t *testing.T) {
 		defer testutil.Close(api, qa)
 		octopus, _ := octopusApiClient.NewClient(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "")
 		opts.Ask = qa.AsAsker()
-		opts.Octopus = octopus
-		opts.Writer = out
+		opts.Client = octopus
+		opts.Out = out
 		return create.PromptMissing(opts)
 	})
 
@@ -93,15 +95,15 @@ func TestAWSAccountCreatePromptMissing(t *testing.T) {
 func TestAWSAccountCreateNoPrompt(t *testing.T) {
 	const spaceID = "Space-1"
 	const envID = "Env-1"
-	_ = fixtures.NewSpace(spaceID, "testspace")
+	space := fixtures.NewSpace(spaceID, "testspace")
 	_ = fixtures.NewEnvironment(spaceID, envID, "testenv")
 	api, qa := testutil.NewMockServerAndAsker()
 	out := &bytes.Buffer{}
 
 	opts := &create.CreateOptions{
-		CreateFlags: create.NewCreateFlags(),
+		CreateFlags:  create.NewCreateFlags(),
+		Dependencies: &cmd.Dependencies{Space: space},
 	}
-	opts.Space = spaceID
 	opts.Name.Value = "testaccount"
 	opts.AccessKey.Value = "testaccesskey123"
 	opts.SecretKey.Value = "testsecretkey123"
@@ -110,8 +112,8 @@ func TestAWSAccountCreateNoPrompt(t *testing.T) {
 		defer testutil.Close(api, qa)
 		octopus, _ := octopusApiClient.NewClient(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "")
 		opts.Ask = qa.AsAsker()
-		opts.Octopus = octopus
-		opts.Writer = out
+		opts.Client = octopus
+		opts.Out = out
 		opts.NoPrompt = true
 		return create.CreateRun(opts)
 	})
@@ -139,6 +141,6 @@ func TestAWSAccountCreateNoPrompt(t *testing.T) {
 	`,
 		testAccount.Name,
 		output.Dimf("(%s)", testAccount.Slug),
-		output.Bluef("%s/app#/%s/infrastructure/accounts/%s", "", opts.Space, testAccount.ID),
+		output.Bluef("%s/app#/%s/infrastructure/accounts/%s", "", opts.Space.GetID(), testAccount.ID),
 	), res)
 }
