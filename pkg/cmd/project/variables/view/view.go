@@ -126,12 +126,14 @@ func viewRun(opts *ViewOptions) error {
 		if err != nil {
 			return err
 		}
-		data = addScope(scopeValues.Environments, "Environment scope", data)
-		data = addScope(scopeValues.Roles, "Role scope", data)
-		data = addScope(scopeValues.Channels, "Channel scope", data)
-		data = addScope(scopeValues.Machines, "Machine scope", data)
-		data = addScope(scopeValues.TenantTags, "Tenant tag scope", data)
-		data = addScope(scopeValues.Actions, "Step scope", data)
+		data = addScope(scopeValues.Environments, "Environment scope", data, nil)
+		data = addScope(scopeValues.Roles, "Role scope", data, nil)
+		data = addScope(scopeValues.Channels, "Channel scope", data, nil)
+		data = addScope(scopeValues.Machines, "Machine scope", data, nil)
+		data = addScope(scopeValues.TenantTags, "Tenant tag scope", data, func(item *resources.ReferenceDataItem) string {
+			return item.ID
+		})
+		data = addScope(scopeValues.Actions, "Step scope", data, nil)
 		data = addScope(
 			util.SliceTransform(scopeValues.Processes, func(item *resources.ProcessReferenceDataItem) *resources.ReferenceDataItem {
 				return &resources.ReferenceDataItem{
@@ -140,7 +142,8 @@ func viewRun(opts *ViewOptions) error {
 				}
 			}),
 			"Process scope",
-			data)
+			data,
+			nil)
 
 		if v.Prompt != nil {
 			data = append(data, output.NewDataRow("Prompted", "true"))
@@ -156,9 +159,13 @@ func viewRun(opts *ViewOptions) error {
 	return nil
 }
 
-func addScope(values []*resources.ReferenceDataItem, scopeDescription string, data []*output.DataRow) []*output.DataRow {
+func addScope(values []*resources.ReferenceDataItem, scopeDescription string, data []*output.DataRow, displaySelector func(item *resources.ReferenceDataItem) string) []*output.DataRow {
+	if displaySelector == nil {
+		displaySelector = func(item *resources.ReferenceDataItem) string { return item.Name }
+	}
+
 	if util.Any(values) {
-		data = append(data, output.NewDataRow(scopeDescription, output.FormatAsList(util.SliceTransform(values, func(item *resources.ReferenceDataItem) string { return item.Name }))))
+		data = append(data, output.NewDataRow(scopeDescription, output.FormatAsList(util.SliceTransform(values, displaySelector))))
 	}
 
 	return data
