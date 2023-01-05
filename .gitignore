@@ -20,3 +20,4 @@ dist/
 .env
 
 cmd/octopus/octopus
+cmd/gen-docs/gen-docs
