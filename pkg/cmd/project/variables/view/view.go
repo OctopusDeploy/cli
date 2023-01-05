@@ -22,9 +22,11 @@ import (
 const (
 	FlagProject = "project"
 	FlagWeb     = "web"
+	FlagId      = "id"
 )
 
 type ViewFlags struct {
+	Id      *flag.Flag[string]
 	Project *flag.Flag[string]
 	Web     *flag.Flag[bool]
 }
@@ -40,6 +42,7 @@ type ViewOptions struct {
 func NewViewFlags() *ViewFlags {
 	return &ViewFlags{
 		Project: flag.New[string](FlagProject, false),
+		Id:      flag.New[string](FlagId, false),
 		Web:     flag.New[bool](FlagWeb, false),
 	}
 }
@@ -79,6 +82,7 @@ func NewCmdView(f factory.Factory) *cobra.Command {
 
 	flags := cmd.Flags()
 	flags.StringVarP(&viewFlags.Project.Value, viewFlags.Project.Name, "p", "", "The project containing the variable")
+	flags.StringVar(&viewFlags.Id.Value, viewFlags.Id.Name, "", "The Id of the specifically scoped variable")
 	flags.BoolVarP(&viewFlags.Web.Value, viewFlags.Web.Name, "w", false, "Open in web browser")
 
 	return cmd
@@ -98,6 +102,10 @@ func viewRun(opts *ViewOptions) error {
 	filteredVars := util.SliceFilter(
 		allVars.Variables,
 		func(variable *variables.Variable) bool {
+			if opts.Id.Value != "" {
+				return strings.EqualFold(variable.Name, opts.name) && strings.EqualFold(variable.ID, opts.Id.Value)
+			}
+
 			return strings.EqualFold(variable.Name, opts.name)
 		})
 
