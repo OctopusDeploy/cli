@@ -278,7 +278,7 @@ func PromptMissing(opts *CreateOptions) error {
 					return err
 				}
 
-				if value == "" {
+				if strings.TrimSpace(value) == "" {
 					break
 				}
 
