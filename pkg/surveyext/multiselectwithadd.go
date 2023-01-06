@@ -1,7 +1,6 @@
 package surveyext
 
 import (
-	"errors"
 	"fmt"
 	"github.com/AlecAivazis/survey/v2"
 	"strings"
@@ -263,12 +262,6 @@ func (m *MultiSelectWithAdd) Prompt(config *survey.PromptConfig) (interface{}, e
 				m.checked[idx] = true
 			}
 		}
-	}
-
-	// if there are no options to render
-	if len(m.Options) == 0 {
-		// we failed
-		return "", errors.New("please provide options to select from")
 	}
 
 	// figure out the page size
