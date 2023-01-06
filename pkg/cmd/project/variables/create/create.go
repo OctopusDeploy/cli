@@ -294,10 +294,12 @@ func PromptMissing(opts *CreateOptions) error {
 		}
 
 		if !opts.PromptRequired.Value {
-			opts.Ask(&survey.Confirm{
+			if err := opts.Ask(&survey.Confirm{
 				Message: "Is this the prompted variable required to have a value supplied?",
 				Default: false,
-			}, &opts.PromptRequired.Value)
+			}, &opts.PromptRequired.Value); err != nil {
+				return err
+			}
 		}
 
 	}
