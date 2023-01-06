@@ -165,7 +165,7 @@ func PromptMissing(opts *ConnectOptions) error {
 			return tenant.Name
 		})
 		if err != nil {
-			return nil
+			return err
 		}
 
 		opts.Tenant.Value = tenant.Name
@@ -174,7 +174,7 @@ func PromptMissing(opts *ConnectOptions) error {
 	if opts.Project.Value == "" {
 		project, err := projectSelector("You have not specified a Project. Please select one:", opts.GetAllProjectsCallback, opts.Ask)
 		if err != nil {
-			return nil
+			return err
 		}
 		opts.Project.Value = project.GetName()
 	}
@@ -187,7 +187,7 @@ func PromptMissing(opts *ConnectOptions) error {
 	if opts.Environments.Value == nil || len(opts.Environments.Value) == 0 {
 		project, err := opts.GetProjectCallback(opts.Project.Value)
 		if err != nil {
-			return nil
+			return err
 		}
 		var progression *projects.Progression
 		progression, err = opts.GetProjectProgressionCallback(project)

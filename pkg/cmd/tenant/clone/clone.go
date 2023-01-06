@@ -125,7 +125,7 @@ func PromptMissing(opts *CloneOptions) error {
 			return tenant.Name
 		})
 		if err != nil {
-			return nil
+			return err
 		}
 
 		opts.SourceTenant.Value = tenant.Name
