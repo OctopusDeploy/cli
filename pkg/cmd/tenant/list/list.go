@@ -112,7 +112,7 @@ func getEnvironmentMap(client *client.Client, tenants []*tenants.Tenant) (map[st
 		}
 	}
 
-	environmentIds = util.DistinctStrings(environmentIds)
+	environmentIds = util.SliceDistinct(environmentIds)
 
 	environmentMap := make(map[string]string)
 	queryResult, err := client.Environments.Get(environments.EnvironmentsQuery{IDs: environmentIds})
@@ -140,7 +140,7 @@ func getProjectMap(client *client.Client, tenants []*tenants.Tenant) (map[string
 			projectIds = append(projectIds, p)
 		}
 	}
-	projectIds = util.DistinctStrings(projectIds)
+	projectIds = util.SliceDistinct(projectIds)
 
 	projectMap := make(map[string]string)
 	queryResult, err := client.Projects.Get(projects.ProjectsQuery{IDs: projectIds})

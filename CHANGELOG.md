@@ -1,5 +1,22 @@
 # Changelog
 
+## [1.0.0](https://github.com/OctopusDeploy/cli/compare/v0.10.2...v1.0.0) (2023-01-05)
+
+
+### ⚠ BREAKING CHANGES
+
+* package
+
+### Features
+
+* package ([088df06](https://github.com/OctopusDeploy/cli/commit/088df0673c2bf88928f2f5ce86dff46533cb0dd7))
+
+
+### Bug Fixes
+
+* null ref exception in  `account create` command ([#204](https://github.com/OctopusDeploy/cli/issues/204)) ([204f706](https://github.com/OctopusDeploy/cli/commit/204f706b48bb606fa52e7ef5223845775d344ec6))
+* remove project convert support for default protected branch  ([#199](https://github.com/OctopusDeploy/cli/issues/199)) ([05ee50a](https://github.com/OctopusDeploy/cli/commit/05ee50a9d8a7e04ea7afbf1858c3f2d5bfd909a1))
+
 ## [0.10.2](https://github.com/OctopusDeploy/cli/compare/v0.10.1...v0.10.2) (2022-12-23)
 
 

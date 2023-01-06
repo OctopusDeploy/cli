@@ -390,14 +390,18 @@ func TestEmpty_SomeItems(t *testing.T) {
 	assert.False(t, util.Empty([]string{"value"}))
 }
 
-func TestDistinctStrings_EmptyList(t *testing.T) {
-	result := util.DistinctStrings([]string{})
-	assert.Empty(t, result)
+func TestDistinct_Empty(t *testing.T) {
+	assert.Equal(t, []string(nil), util.SliceDistinct([]string{}))
 }
 
-func TestDistinctStrings_DuplicateValues(t *testing.T) {
-	result := util.DistinctStrings([]string{"a", "b", "a"})
-	assert.Equal(t, []string{"a", "b"}, result)
+func TestDistinct_WithoutDuplicateItems(t *testing.T) {
+	items := []string{"foo", "bar", "baz"}
+	assert.Equal(t, items, util.SliceDistinct(items))
+}
+
+func TestDistinct_WithDuplicateItems(t *testing.T) {
+	items := []string{"foo", "bar", "foo", "baz", "bar"}
+	assert.Equal(t, []string{"foo", "bar", "baz"}, util.SliceDistinct(items))
 }
 
 func TestRemoveIndex_Empty(t *testing.T) {
