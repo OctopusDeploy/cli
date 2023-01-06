@@ -2,6 +2,7 @@ package question
 
 import (
 	"fmt"
+	"github.com/OctopusDeploy/cli/pkg/util"
 
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/OctopusDeploy/cli/pkg/constants"
@@ -9,6 +10,9 @@ import (
 )
 
 func MultiSelectMap[T any](ask Asker, message string, items []T, getKey func(item T) string, required bool) ([]T, error) {
+	if util.Empty(items) {
+		return nil, fmt.Errorf("%s - no options available", message)
+	}
 	optionMap, options := MakeItemMapAndOptions(items, getKey)
 
 	askOpts := func(options *survey.AskOptions) error { return nil }
@@ -42,6 +46,9 @@ func MultiSelectWithAddMap(ask Asker, message string, items []string, required b
 }
 
 func SelectMap[T any](ask Asker, message string, items []T, getKey func(item T) string) (T, error) {
+	if util.Empty(items) {
+		return *new(T), fmt.Errorf("%s - no options available", message)
+	}
 	optionMap, options := MakeItemMapAndOptions(items, getKey)
 	var selectedValue T
 	var selectedKey string
