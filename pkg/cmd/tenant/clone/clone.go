@@ -49,10 +49,10 @@ func NewCloneOptions(flags *CloneFlags, dependencies *cmd.Dependencies) *CloneOp
 		CloneFlags:   flags,
 		Dependencies: dependencies,
 		GetTenantCallback: func(id string) (*tenants.Tenant, error) {
-			return shared.GetTenant(*dependencies.Client, id)
+			return shared.GetTenant(dependencies.Client, id)
 		},
 		GetAllTenantsCallback: func() ([]*tenants.Tenant, error) {
-			return shared.GetAllTenants(*dependencies.Client)
+			return shared.GetAllTenants(dependencies.Client)
 		},
 	}
 }

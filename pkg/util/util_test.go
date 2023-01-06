@@ -403,3 +403,23 @@ func TestDistinct_WithDuplicateItems(t *testing.T) {
 	items := []string{"foo", "bar", "foo", "baz", "bar"}
 	assert.Equal(t, []string{"foo", "bar", "baz"}, util.SliceDistinct(items))
 }
+
+func TestRemoveIndex_Empty(t *testing.T) {
+	result := util.RemoveIndex([]string{}, 0)
+	assert.Empty(t, result)
+}
+
+func TestRemoveIndex(t *testing.T) {
+	result := util.RemoveIndex([]string{"a", "b", "c"}, 1)
+	assert.Equal(t, []string{"a", "c"}, result)
+}
+
+func TestRemoveIndex_IndexOutOfBounds_TooHigh(t *testing.T) {
+	result := util.RemoveIndex([]string{"a", "b", "c"}, 10)
+	assert.Equal(t, []string{"a", "b", "c"}, result)
+}
+
+func TestRemoveIndex_IndexOutOfBounds_TooLow(t *testing.T) {
+	result := util.RemoveIndex([]string{"a", "b", "c"}, -1)
+	assert.Equal(t, []string{"a", "b", "c"}, result)
+}

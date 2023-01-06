@@ -51,10 +51,10 @@ func NewConnectOptions(connectFlags *ConnectFlags, dependencies *cmd.Dependencie
 	return &ConnectOptions{
 		Dependencies:           dependencies,
 		ConnectFlags:           connectFlags,
-		GetAllTenantsCallback:  func() ([]*tenants.Tenant, error) { return shared.GetAllTenants(*dependencies.Client) },
-		GetAllProjectsCallback: func() ([]*projects.Project, error) { return shared.GetAllProjects(*dependencies.Client) },
+		GetAllTenantsCallback:  func() ([]*tenants.Tenant, error) { return shared.GetAllTenants(dependencies.Client) },
+		GetAllProjectsCallback: func() ([]*projects.Project, error) { return shared.GetAllProjects(dependencies.Client) },
 		GetProjectCallback: func(identifier string) (*projects.Project, error) {
-			return shared.GetProject(*dependencies.Client, identifier)
+			return shared.GetProject(dependencies.Client, identifier)
 		},
 		GetProjectProgressionCallback: func(project *projects.Project) (*projects.Progression, error) {
 			return getProjectProgression(*dependencies.Client, project)

@@ -56,10 +56,10 @@ func NewCreateTargetTenantOptions(dependencies *cmd.Dependencies) *CreateTargetT
 	return &CreateTargetTenantOptions{
 		Dependencies: dependencies,
 		GetAllTenantsCallback: func() ([]*tenants.Tenant, error) {
-			return sharedTenants.GetAllTenants(*dependencies.Client)
+			return sharedTenants.GetAllTenants(dependencies.Client)
 		},
 		GetAllTagsCallback: func() ([]*tagsets.Tag, error) {
-			return getAllTags(*dependencies.Client)
+			return getAllTags(dependencies.Client)
 		},
 	}
 }
@@ -152,7 +152,7 @@ func getTenantDeploymentOptions() []*selectors.SelectOption[string] {
 	}
 }
 
-func getAllTags(client client.Client) ([]*tagsets.Tag, error) {
+func getAllTags(client *client.Client) ([]*tagsets.Tag, error) {
 	tagSets, err := client.TagSets.GetAll()
 	if err != nil {
 		return nil, err

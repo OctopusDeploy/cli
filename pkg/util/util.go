@@ -82,10 +82,10 @@ type MapCollectionCacheContainer struct {
 // items as it iterates the collection, and call out to lambdas to look those values up.
 // See the unit tests for examples which should clarify the use-cases for this.
 func MapCollectionWithLookups[T any, TResult any](
-	cacheContainer *MapCollectionCacheContainer, // cache for keys (typically this will store a mapping of ID->[Name, Name]).
-	collection []T, // input (e.g. list of Releases)
-	keySelector func(T) []string, // fetches the keys (e.g given a Release, returns the [ChannelID, ProjectID]
-	mapper func(T, []string) TResult, // fetches the value to lookup (e.g given a Release and the [ChannelName,ProjectName], does the mapping to return the output struct)
+	cacheContainer *MapCollectionCacheContainer,    // cache for keys (typically this will store a mapping of ID->[Name, Name]).
+	collection []T,                                 // input (e.g. list of Releases)
+	keySelector func(T) []string,                   // fetches the keys (e.g given a Release, returns the [ChannelID, ProjectID]
+	mapper func(T, []string) TResult,               // fetches the value to lookup (e.g given a Release and the [ChannelName,ProjectName], does the mapping to return the output struct)
 	runLookups ...func([]string) ([]string, error), // callbacks to go fetch values for the keys (given a list of Channel IDs, it should return the list of associated Channel Names)
 ) ([]TResult, error) {
 	// if the caller didn't specify an external cache, create an internal one.
@@ -175,4 +175,12 @@ func SliceDistinct[T comparable](slice []T) []T {
 		}
 	}
 	return result
+}
+
+func RemoveIndex[T any](s []T, index int) []T {
+	if index < 0 || index >= len(s) {
+		return s
+	}
+
+	return append(s[:index], s[index+1:]...)
 }
