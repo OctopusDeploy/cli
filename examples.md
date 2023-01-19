@@ -101,6 +101,7 @@ done
 ```
 
 # Create a project with Config as Code enabled
+
 ```
 octopus project create --name 'Project 54' --group 'Default Project Group' --lifecycle 'Default Lifecycle' --no-prompt
 octopus project convert --project 'Project 54' \
@@ -117,6 +118,21 @@ octopus project convert --project 'Project 54' \
 
 An existing project can be converted to Config As Code using the `convert` command
 
+# Deploy a release and wait for completion
+
+```
+octopus release deploy \
+  --project 'New Awesome Project' \
+  --version '0.0.4' \
+  --environment 'test' \
+  --tenant-tag 'customer type/early adopter' \
+  --no-prompt \
+  --output-format basic \
+  | octopus task wait
+```
+
+Note: the `release deploy` command requires the `--output-format basic` flag to be able to pipe the server tasks Ids to the `task wait` command.
+
 # View all values for a project variable
 
 ```
@@ -126,7 +142,7 @@ octopus project variables view BlueGreenTarget
 # Set project variable prior to creating a release
 
 In this example the `Id` represents the specific value for the variable `BlueGreenTarget` that has been scoped to the production environment.
-The Id can be obtained with the `project variables view` command. 
+The Id can be obtained with the `project variables view` command.
 
 ```
 value=`octopus project variables view BlueGreenTarget --project "Random Quotes" --id d8527596-6fa2-4394-94e1-07942d3d0202 | grep Value`
