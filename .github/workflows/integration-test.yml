@@ -1,15 +1,17 @@
-name: 'Integration tests'
+name: "Integration tests"
 on:
   workflow_dispatch:
   # no push trigger, this only runs nightly
   schedule:
     # Daily 5am australian/brisbane time (7pm UTC)
-    - cron: '0 19 * * *'
+    - cron: "0 19 * * *"
   push:
+    paths-ignore:
+      - "**.md"
 env:
   SA_PASSWORD: ${{ secrets.DB_IMAGE_SA_PASSWORD }}
   ADMIN_API_KEY: ${{ secrets.OD_IMAGE_ADMIN_API_KEY }}
-  SERVER_URL: 'http://localhost:8080'
+  SERVER_URL: "http://localhost:8080"
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -30,7 +32,7 @@ jobs:
         image: docker.packages.octopushq.com/octopusdeploy/octopusdeploy:2022.4.3812-linux
         env:
           ACCEPT_EULA: Y
-          DB_CONNECTION_STRING: 'Server=sqlserver;Database=OctopusDeploy;User Id=sa;Password=${{ env.SA_PASSWORD }};'
+          DB_CONNECTION_STRING: "Server=sqlserver;Database=OctopusDeploy;User Id=sa;Password=${{ env.SA_PASSWORD }};"
           ADMIN_API_KEY: ${{ env.ADMIN_API_KEY }}
           ENABLE_USAGE: N
           OCTOPUS_SERVER_BASE64_LICENSE: ${{ secrets.OCTOPUS_SERVER_BASE64_LICENSE }}
@@ -68,5 +70,5 @@ jobs:
         if: success() || failure()
         with:
           name: Test Results
-          path: '*-tests.xml'
+          path: "*-tests.xml"
           reporter: java-junit
