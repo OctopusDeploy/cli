@@ -1,5 +1,22 @@
 # Changelog
 
+## [1.1.0](https://github.com/OctopusDeploy/cli/compare/v1.0.0...v1.1.0) (2023-01-25)
+
+
+### Features
+
+* project variables create ([#198](https://github.com/OctopusDeploy/cli/issues/198)) ([faa3b4c](https://github.com/OctopusDeploy/cli/commit/faa3b4c46dad0167859d3e053dec9229832b9159))
+* project variables delete ([faa3b4c](https://github.com/OctopusDeploy/cli/commit/faa3b4c46dad0167859d3e053dec9229832b9159))
+* project variables list ([faa3b4c](https://github.com/OctopusDeploy/cli/commit/faa3b4c46dad0167859d3e053dec9229832b9159))
+* project variables update ([faa3b4c](https://github.com/OctopusDeploy/cli/commit/faa3b4c46dad0167859d3e053dec9229832b9159))
+* project variables view ([faa3b4c](https://github.com/OctopusDeploy/cli/commit/faa3b4c46dad0167859d3e053dec9229832b9159))
+
+
+### Bug Fixes
+
+* empty list errors ([#208](https://github.com/OctopusDeploy/cli/issues/208)) ([74cbfe2](https://github.com/OctopusDeploy/cli/commit/74cbfe2c98c2ce26153fe4c8521b0292c076acb7))
+* link convert options to create when in non-interactive mode ([#213](https://github.com/OctopusDeploy/cli/issues/213)) ([adccfd9](https://github.com/OctopusDeploy/cli/commit/adccfd9f19ae8be0332f05d067f536f89cef4e91))
+
 ## [1.0.0](https://github.com/OctopusDeploy/cli/compare/v0.10.2...v1.0.0) (2023-01-05)
 
 
