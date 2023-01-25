@@ -85,6 +85,10 @@ func createRun(opts *CreateOptions) error {
 		}
 	} else {
 		optsArray = append(optsArray, opts)
+		if opts.ConfigAsCode.Value {
+			opts.ConvertOptions.Project.Value = opts.Name.Value
+			optsArray = append(optsArray, opts.ConvertOptions)
+		}
 	}
 
 	for _, o := range optsArray {
