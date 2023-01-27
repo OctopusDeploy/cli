@@ -14,7 +14,7 @@ func NewCmdPollingTentacle(f factory.Factory) *cobra.Command {
 		Use:     "polling-tentacle <command>",
 		Short:   "Manage Polling Tentacle deployment targets",
 		Long:    "Manage Polling Tentacle deployment targets in Octopus Deploy",
-		Example: heredoc.Docf("$ %s deployment-target polling-tenatacle list", constants.ExecutableName),
+		Example: heredoc.Docf("$ %s deployment-target polling-tentacle list", constants.ExecutableName),
 	}
 
 	cmd.AddCommand(cmdList.NewCmdList(f))
