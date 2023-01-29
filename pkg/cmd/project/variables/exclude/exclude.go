@@ -111,7 +111,7 @@ func excludeRun(opts *ExcludeOptions) error {
 		}
 
 		if !util.SliceContainsAny(project.IncludedLibraryVariableSets, func(item string) bool { return item == targetVariableSet[0].ID }) {
-			fmt.Fprintf(opts.Out, output.Yellowf("'%s' is not currently, skipping\n", targetVariableSet[0].Name))
+			fmt.Fprintf(opts.Out, output.Yellowf("'%s' is not currently included, skipping\n", targetVariableSet[0].Name))
 		} else {
 			project.IncludedLibraryVariableSets = util.SliceFilter(project.IncludedLibraryVariableSets, func(id string) bool { return id != targetVariableSet[0].ID })
 			projectModified = true
@@ -126,6 +126,11 @@ func excludeRun(opts *ExcludeOptions) error {
 		}
 
 		fmt.Fprintf(opts.Out, "Successfully updated library variable sets\n")
+	}
+
+	if !opts.NoPrompt {
+		autoCmd := flag.GenerateAutomationCmd(opts.CmdPath, opts.Project, opts.VariableSets)
+		fmt.Fprintf(opts.Out, "\nAutomation Command: %s\n", autoCmd)
 	}
 
 	return nil

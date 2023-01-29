@@ -128,6 +128,11 @@ func includeRun(opts *IncludeOptions) error {
 		fmt.Fprintf(opts.Out, "Successfully updated included library variable sets\n")
 	}
 
+	if !opts.NoPrompt {
+		autoCmd := flag.GenerateAutomationCmd(opts.CmdPath, opts.Project, opts.VariableSets)
+		fmt.Fprintf(opts.Out, "\nAutomation Command: %s\n", autoCmd)
+	}
+
 	return nil
 }
 
