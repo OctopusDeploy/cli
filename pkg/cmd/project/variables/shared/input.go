@@ -20,6 +20,7 @@ type GetAllWorkerPoolsCallback func() ([]*workerpools.WorkerPoolListResult, erro
 type GetAllCertificatesCallback func() ([]*certificates.CertificateResource, error)
 type GetProjectVariablesCallback func(projectId string) (*variables.VariableSet, error)
 type GetVariableByIdCallback func(ownerId, variableId string) (*variables.Variable, error)
+type GetAllLibraryVariableSetsCallback func() ([]*variables.LibraryVariableSet, error)
 
 type VariableCallbacks struct {
 	GetAccountsByType   GetAccountsByTypeCallback
@@ -230,4 +231,13 @@ func getProjectVariables(client *client.Client, id string) (*variables.VariableS
 
 func getVariableById(client *client.Client, ownerId string, variableId string) (*variables.Variable, error) {
 	return client.Variables.GetByID(ownerId, variableId)
+}
+
+func GetAllLibraryVariableSets(client *client.Client) ([]*variables.LibraryVariableSet, error) {
+	res, err := client.LibraryVariableSets.GetAll()
+	if err != nil {
+		return nil, err
+	}
+
+	return util.SliceFilter(res, func(item *variables.LibraryVariableSet) bool { return item.ContentType == "Variables" }), nil
 }

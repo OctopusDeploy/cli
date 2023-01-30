@@ -32,6 +32,10 @@ func SliceFilter[T any](slice []T, predicate func(item T) bool) []T {
 	return results
 }
 
+func SliceExcept[T any](slice []T, predicate func(item T) bool) []T {
+	return SliceFilter(slice, func(item T) bool { return !predicate(item) })
+}
+
 // SliceContainsAny returns true if it finds an item in the slice where `predicate` returns true
 func SliceContainsAny[T comparable](slice []T, predicate func(item T) bool) bool {
 	for _, item := range slice {
