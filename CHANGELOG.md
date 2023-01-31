@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.2.0](https://github.com/OctopusDeploy/cli/compare/v1.1.0...v1.2.0) (2023-01-31)
+
+
+### Features
+
+* project variables exclude ([9e0c0b8](https://github.com/OctopusDeploy/cli/commit/9e0c0b8584b80c5bfa87915b39c5991ebe61ff51))
+* project variables include ([9e0c0b8](https://github.com/OctopusDeploy/cli/commit/9e0c0b8584b80c5bfa87915b39c5991ebe61ff51))
+
 ## [1.1.0](https://github.com/OctopusDeploy/cli/compare/v1.0.0...v1.1.0) (2023-01-25)
 
 
