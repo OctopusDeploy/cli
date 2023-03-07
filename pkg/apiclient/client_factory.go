@@ -3,6 +3,7 @@ package apiclient
 import (
 	"errors"
 	"fmt"
+	"github.com/ztrue/tracerr"
 	"net/url"
 	"strings"
 
@@ -85,7 +86,7 @@ func NewClientFactory(httpClient *http.Client, host string, apiKey string, space
 
 	hostUrl, err := url.Parse(host)
 	if err != nil {
-		return nil, err
+		return nil, tracerr.Wrap(err)
 	}
 
 	clientImpl := &Client{
@@ -108,9 +109,9 @@ func NewClientFactoryFromConfig(ask question.AskProvider) (ClientFactory, error)
 	apiKey := viper.GetString(constants.ConfigApiKey)
 	spaceNameOrID := viper.GetString(constants.ConfigSpace)
 
-	errs := ValidateMandatoryEnvironment(host, apiKey)
-	if errs != nil {
-		return nil, errs
+	err := ValidateMandatoryEnvironment(host, apiKey)
+	if err != nil {
+		return nil, tracerr.Wrap(err)
 	}
 
 	var httpClient *http.Client
@@ -167,7 +168,7 @@ func (c *Client) GetSpacedClient(requester Requester) (*octopusApiClient.Client,
 	// We could have been given either a space name, or a space ID, so we need to use the SystemClient to go look it up.
 	systemClient, err := c.GetSystemClient(requester)
 	if err != nil {
-		return nil, err
+		return nil, tracerr.Wrap(err)
 	}
 
 	// if the caller has not specified a space, prompt interactively
@@ -180,7 +181,7 @@ func (c *Client) GetSpacedClient(requester Requester) (*octopusApiClient.Client,
 
 		allSpaces, err := systemClient.Spaces.GetAll()
 		if err != nil {
-			return nil, err
+			return nil, tracerr.Wrap(err)
 		}
 
 		switch len(allSpaces) {
@@ -197,7 +198,7 @@ func (c *Client) GetSpacedClient(requester Requester) (*octopusApiClient.Client,
 				"You have not specified a Space. Please select one:", allSpaces, func(item *spaces.Space) string { return item.GetName() })
 
 			if err != nil {
-				return nil, err
+				return nil, tracerr.Wrap(err)
 			}
 			c.ActiveSpace = selectedSpace
 			c.SpaceNameOrID = selectedSpace.ID
@@ -211,7 +212,7 @@ func (c *Client) GetSpacedClient(requester Requester) (*octopusApiClient.Client,
 		// for that logic so the most pragmatic way to achieve that is to iterate the list of spaces client-side
 		allSpaces, err := systemClient.Spaces.GetAll()
 		if err != nil {
-			return nil, fmt.Errorf("cannot load spaces. Error: %v", err)
+			return nil, tracerr.Wrap(fmt.Errorf("cannot load spaces. Error: %v", err))
 		}
 
 		var foundSpace *spaces.Space = nil
@@ -240,7 +241,7 @@ func (c *Client) GetSpacedClient(requester Requester) (*octopusApiClient.Client,
 
 	scopedClient, err := octopusApiClient.NewClientForTool(c.HttpClient, c.ApiUrl, c.ApiKey, foundSpaceID, requester.GetRequester())
 	if err != nil {
-		return nil, err
+		return nil, tracerr.Wrap(err)
 	}
 	// stash for future use
 	c.SpaceScopedClient = scopedClient
@@ -267,7 +268,7 @@ func (c *Client) GetSystemClient(requester Requester) (*octopusApiClient.Client,
 
 	systemClient, err := octopusApiClient.NewClientForTool(c.HttpClient, c.ApiUrl, c.ApiKey, "", requester.GetRequester()) // deliberate empty string for space here
 	if err != nil {
-		return nil, err
+		return nil, tracerr.Wrap(err)
 	}
 	// stash for future use
 	c.SystemClient = systemClient

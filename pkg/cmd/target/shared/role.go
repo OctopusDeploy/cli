@@ -7,6 +7,7 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/util/flag"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
 	"github.com/spf13/cobra"
+	"github.com/ztrue/tracerr"
 )
 
 const (
@@ -49,12 +50,12 @@ func PromptForRoles(opts *CreateTargetRoleOptions, flags *CreateTargetRoleFlags)
 	if util.Empty(flags.Roles.Value) {
 		availableRoles, err := opts.GetAllRolesCallback()
 		if err != nil {
-			return err
+			return tracerr.Wrap(err)
 		}
 		roles, err := question.MultiSelectWithAddMap(opts.Ask, "Choose at least one role for the deployment target.\n", availableRoles, true)
 
 		if err != nil {
-			return err
+			return tracerr.Wrap(err)
 		}
 		flags.Roles.Value = roles
 	}
@@ -64,7 +65,7 @@ func PromptForRoles(opts *CreateTargetRoleOptions, flags *CreateTargetRoleFlags)
 func getAllMachineRoles(client client.Client) ([]string, error) {
 	res, err := client.MachineRoles.GetAll()
 	if err != nil {
-		return nil, err
+		return nil, tracerr.Wrap(err)
 	}
 
 	var roles []string

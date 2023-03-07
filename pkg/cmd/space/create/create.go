@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/OctopusDeploy/cli/pkg/apiclient"
+	"github.com/ztrue/tracerr"
 	"strings"
 
 	"github.com/OctopusDeploy/cli/pkg/cmd"
@@ -98,25 +99,25 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 func createRun(opts *CreateOptions) error {
 	if !opts.NoPrompt {
 		if err := PromptMissing(opts); err != nil {
-			return err
+			return tracerr.Wrap(err)
 		}
 	}
 	space := spaces.NewSpace(opts.Name.Value)
 
 	allTeams, err := opts.Client.Teams.GetAll()
 	if err != nil {
-		return err
+		return tracerr.Wrap(err)
 	}
 
 	allUsers, err := opts.Client.Users.GetAll()
 	if err != nil {
-		return err
+		return tracerr.Wrap(err)
 	}
 
 	for _, team := range opts.Teams.Value {
 		team, err := findTeam(allTeams, team)
 		if err != nil {
-			return err
+			return tracerr.Wrap(err)
 		}
 
 		space.SpaceManagersTeams = append(space.SpaceManagersTeams, team.ID)
@@ -125,7 +126,7 @@ func createRun(opts *CreateOptions) error {
 	for _, user := range opts.Users.Value {
 		user, err := findUser(allUsers, user)
 		if err != nil {
-			return err
+			return tracerr.Wrap(err)
 		}
 
 		space.SpaceManagersTeamMembers = append(space.SpaceManagersTeamMembers, user.GetID())
@@ -135,7 +136,7 @@ func createRun(opts *CreateOptions) error {
 
 	createdSpace, err := opts.Client.Spaces.Add(space)
 	if err != nil {
-		return err
+		return tracerr.Wrap(err)
 	}
 
 	fmt.Printf("%s The space, \"%s\" %s was created successfully.\n", output.Green("✔"), createdSpace.Name, output.Dimf("(%s)", createdSpace.ID))
@@ -154,7 +155,7 @@ func findTeam(allTeams []*teams.Team, identifier string) (*teams.Team, error) {
 		}
 	}
 
-	return nil, errors.New(fmt.Sprintf("Cannot find team '%s'", identifier))
+	return nil, tracerr.Wrap(errors.New(fmt.Sprintf("Cannot find team '%s'", identifier)))
 }
 
 func findUser(allUsers []*users.User, identifier string) (*users.User, error) {
@@ -164,13 +165,13 @@ func findUser(allUsers []*users.User, identifier string) (*users.User, error) {
 		}
 	}
 
-	return nil, errors.New(fmt.Sprintf("Cannot find user '%s'", identifier))
+	return nil, tracerr.Wrap(errors.New(fmt.Sprintf("Cannot find user '%s'", identifier)))
 }
 
 func selectTeams(ask question.Asker, getAllTeamsCallback shared.GetAllTeamsCallback, existingSpaces []*spaces.Space, message string) ([]*teams.Team, error) {
 	systemTeams, err := getAllTeamsCallback()
 	if err != nil {
-		return []*teams.Team{}, err
+		return []*teams.Team{}, tracerr.Wrap(err)
 	}
 
 	return question.MultiSelectMap(ask, message, systemTeams, func(team *teams.Team) string {
@@ -189,7 +190,7 @@ func selectTeams(ask question.Asker, getAllTeamsCallback shared.GetAllTeamsCallb
 func selectUsers(ask question.Asker, getAllUsersCallback shared.GetAllUsersCallback, message string) ([]*users.User, error) {
 	existingUsers, err := getAllUsersCallback()
 	if err != nil {
-		return nil, err
+		return nil, tracerr.Wrap(err)
 	}
 
 	return question.MultiSelectMap(ask, message, existingUsers, func(existingUser *users.User) string {
@@ -200,7 +201,7 @@ func selectUsers(ask question.Asker, getAllUsersCallback shared.GetAllUsersCallb
 func PromptMissing(opts *CreateOptions) error {
 	existingSpaces, err := opts.GetAllSpacesCallback()
 	if err != nil {
-		return err
+		return tracerr.Wrap(err)
 	}
 
 	spaceNames := util.SliceTransform(existingSpaces, func(s *spaces.Space) string { return s.Name })
@@ -215,19 +216,19 @@ func PromptMissing(opts *CreateOptions) error {
 			validation.NotEquals(spaceNames, "a space with this name already exists"),
 		)))
 		if err != nil {
-			return err
+			return tracerr.Wrap(err)
 		}
 	}
 
 	err = question.AskDescription(opts.Ask, "", "space", &opts.Description.Value)
 	if err != nil {
-		return err
+		return tracerr.Wrap(err)
 	}
 
 	if len(opts.Teams.Value) == 0 {
 		selectedTeams, err := selectTeams(opts.Ask, opts.GetAllTeamsCallback, existingSpaces, "Select one or more teams to manage this space:")
 		if err != nil {
-			return err
+			return tracerr.Wrap(err)
 		}
 
 		for _, team := range selectedTeams {
@@ -238,7 +239,7 @@ func PromptMissing(opts *CreateOptions) error {
 	if len(opts.Users.Value) == 0 {
 		selectedUsers, err := selectUsers(opts.Ask, opts.GetAllUsersCallback, "Select one or more users to manage this space:")
 		if err != nil {
-			return err
+			return tracerr.Wrap(err)
 		}
 
 		for _, user := range selectedUsers {

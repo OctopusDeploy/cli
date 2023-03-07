@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/OctopusDeploy/cli/pkg/apiclient"
+	"github.com/ztrue/tracerr"
 	"io"
 	"math"
 	"strings"
@@ -538,7 +539,7 @@ func askRunbookTargets(octopus *octopusApiClient.Client, asker question.Asker, s
 	for _, env := range selectedEnvironments {
 		preview, err := runbooks.GetRunbookSnapshotRunPreview(octopus, spaceID, runbookSnapshotID, env.ID, true)
 		if err != nil {
-			return nil, err
+			return nil, tracerr.Wrap(err)
 		}
 		for _, step := range preview.StepsToExecute {
 			for _, m := range step.MachineNames {
@@ -561,7 +562,7 @@ func askRunbookTargets(octopus *octopusApiClient.Client, asker question.Asker, s
 			Options: results,
 		}, &selectedDeploymentTargetNames)
 		if err != nil {
-			return nil, err
+			return nil, tracerr.Wrap(err)
 		}
 
 		return selectedDeploymentTargetNames, nil
@@ -573,7 +574,7 @@ func askRunbookTargets(octopus *octopusApiClient.Client, asker question.Asker, s
 func selectRunEnvironment(ask question.Asker, octopus *octopusApiClient.Client, space *spaces.Space, project *projects.Project, runbook *runbooks.Runbook) (*environments.Environment, error) {
 	envs, err := runbooks.ListEnvironments(octopus, space.ID, project.ID, runbook.ID)
 	if err != nil {
-		return nil, err
+		return nil, tracerr.Wrap(err)
 	}
 
 	return question.SelectMap(ask, "Select an environment", envs, func(p *environments.Environment) string {
@@ -585,7 +586,7 @@ func selectRunEnvironment(ask question.Asker, octopus *octopusApiClient.Client, 
 func selectRunEnvironments(ask question.Asker, octopus *octopusApiClient.Client, space *spaces.Space, project *projects.Project, runbook *runbooks.Runbook) ([]*environments.Environment, error) {
 	envs, err := runbooks.ListEnvironments(octopus, space.ID, project.ID, runbook.ID)
 	if err != nil {
-		return nil, err
+		return nil, tracerr.Wrap(err)
 	}
 
 	return question.MultiSelectMap(ask, "Select one or more environments", envs, func(p *environments.Environment) string {
@@ -648,11 +649,11 @@ func PrintAdvancedSummary(stdout io.Writer, options *executor.TaskOptionsRunbook
 func selectRunbook(octopus *octopusApiClient.Client, ask question.Asker, questionText string, space *spaces.Space, project *projects.Project) (*runbooks.Runbook, error) {
 	foundRunbooks, err := runbooks.List(octopus, space.ID, project.ID, "", math.MaxInt32)
 	if err != nil {
-		return nil, err
+		return nil, tracerr.Wrap(err)
 	}
 
 	if len(foundRunbooks.Items) == 0 {
-		return nil, fmt.Errorf("no runbooks found for selected project: %s", project.Name)
+		return nil, tracerr.Wrap(fmt.Errorf("no runbooks found for selected project: %s", project.Name))
 	}
 
 	return question.SelectMap(ask, questionText, foundRunbooks.Items, func(p *runbooks.Runbook) string {
@@ -664,24 +665,24 @@ func selectRunbook(octopus *octopusApiClient.Client, ask question.Asker, questio
 func findRunbook(octopus *octopusApiClient.Client, spaceID string, projectID string, runbookName string) (*runbooks.Runbook, error) {
 	result, err := runbooks.GetByName(octopus, spaceID, projectID, runbookName)
 	if result == nil && err == nil {
-		return nil, fmt.Errorf("no runbook found with Name of %s", runbookName)
+		return nil, tracerr.Wrap(fmt.Errorf("no runbook found with Name of %s", runbookName))
 	}
-	return result, err
+	return result, tracerr.Wrap(err)
 }
 
 // findRunbookSnapshot wraps the API client, such that we are always guaranteed to get a result, or error. The "successfully can't find matching name" case doesn't exist
 func findRunbookSnapshot(octopus *octopusApiClient.Client, spaceID string, projectID string, snapshotIDorName string) (*runbooks.RunbookSnapshot, error) {
 	result, err := runbooks.GetSnapshot(octopus, spaceID, projectID, snapshotIDorName)
 	if result == nil && err == nil {
-		return nil, fmt.Errorf("no snapshot found with ID or Name of %s", snapshotIDorName)
+		return nil, tracerr.Wrap(fmt.Errorf("no snapshot found with ID or Name of %s", snapshotIDorName))
 	}
-	return result, err
+	return result, tracerr.Wrap(err)
 }
 
 // findRunbookPublishedSnapshot finds the published snapshot ID. If it cannot be found, an error is returned, you'll never get nil, nil
 func findRunbookPublishedSnapshot(octopus *octopusApiClient.Client, space *spaces.Space, project *projects.Project, runbook *runbooks.Runbook) (*runbooks.RunbookSnapshot, error) {
 	if runbook.PublishedRunbookSnapshotID == "" {
-		return nil, fmt.Errorf("cannot run runbook %s, it has no published snapshot", runbook.Name)
+		return nil, tracerr.Wrap(fmt.Errorf("cannot run runbook %s, it has no published snapshot", runbook.Name))
 	}
 	return findRunbookSnapshot(octopus, space.ID, project.ID, runbook.PublishedRunbookSnapshotID)
 }

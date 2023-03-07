@@ -10,6 +10,7 @@ import (
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projectgroups"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
+	"github.com/ztrue/tracerr"
 )
 
 type CreateProjectGroupCallback func() (string, cmd.Dependable, error)
@@ -42,7 +43,7 @@ func NewCreateOptions(createFlags *CreateFlags, dependencies *cmd.Dependencies) 
 func getAllGroups(client client.Client) ([]*projectgroups.ProjectGroup, error) {
 	res, err := client.ProjectGroups.GetAll()
 	if err != nil {
-		return nil, err
+		return nil, tracerr.Wrap(err)
 	}
 	return res, nil
 }
@@ -67,12 +68,12 @@ func convertProjectCallback(opts *projectConvert.ConvertOptions) (cmd.Dependable
 func (co *CreateOptions) Commit() error {
 	lifecycle, err := co.Client.Lifecycles.GetByIDOrName(co.Lifecycle.Value)
 	if err != nil {
-		return err
+		return tracerr.Wrap(err)
 	}
 
 	projectGroup, err := co.Client.ProjectGroups.GetByIDOrName(co.Group.Value)
 	if err != nil {
-		return err
+		return tracerr.Wrap(err)
 	}
 
 	project := projects.NewProject(co.Name.Value, lifecycle.GetID(), projectGroup.GetID())
@@ -80,12 +81,12 @@ func (co *CreateOptions) Commit() error {
 
 	createdProject, err := co.Client.Projects.Add(project)
 	if err != nil {
-		return err
+		return tracerr.Wrap(err)
 	}
 
 	_, err = fmt.Fprintf(co.Out, "\nSuccessfully created project '%s' (%s), with lifecycle '%s' in project group '%s'.\n", createdProject.Name, createdProject.Slug, co.Lifecycle.Value, co.Group.Value)
 	if err != nil {
-		return err
+		return tracerr.Wrap(err)
 	}
 
 	link := output.Bluef("%s/app#/%s/projects/%s", co.Host, co.Space.GetID(), createdProject.GetID())

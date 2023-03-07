@@ -17,6 +17,7 @@ import (
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/variables"
 	"github.com/spf13/cobra"
+	"github.com/ztrue/tracerr"
 	"strings"
 )
 
@@ -168,7 +169,7 @@ func getVariable(opts *UpdateOptions, project *projects.Project, projectVariable
 	if opts.Id.Value != "" {
 		variable, err = opts.GetVariableById(project.GetID(), opts.Id.Value)
 		if err != nil {
-			return nil, err
+			return nil, tracerr.Wrap(err)
 		}
 
 		if variable == nil {
@@ -203,13 +204,13 @@ func PromptMissing(opts *UpdateOptions) error {
 	} else {
 		project, err = opts.GetProjectCallback(opts.Project.Value)
 		if err != nil {
-			return err
+			return tracerr.Wrap(err)
 		}
 	}
 
 	projectVariables, err := opts.GetProjectVariables(project.GetID())
 	if err != nil {
-		return err
+		return tracerr.Wrap(err)
 	}
 
 	var variable *variables.Variable

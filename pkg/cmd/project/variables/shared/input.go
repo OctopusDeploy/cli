@@ -13,6 +13,7 @@ import (
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/resources"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/variables"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/workerpools"
+	"github.com/ztrue/tracerr"
 )
 
 type GetAccountsByTypeCallback func(accountType accounts.AccountType) ([]accounts.IAccount, error)
@@ -173,7 +174,7 @@ func PromptScope(ask question.Asker, scopeDescription string, items []*resources
 	}, &selectedItems)
 
 	if err != nil {
-		return nil, err
+		return nil, tracerr.Wrap(err)
 	}
 
 	return selectedItems, nil
@@ -198,11 +199,11 @@ func getAccountsByType(client *client.Client, accountType accounts.AccountType) 
 		AccountType: accountType,
 	})
 	if err != nil {
-		return nil, err
+		return nil, tracerr.Wrap(err)
 	}
 	items, err := accountResources.GetAllPages(client.Accounts.GetClient())
 	if err != nil {
-		return nil, err
+		return nil, tracerr.Wrap(err)
 	}
 	return items, nil
 }
@@ -210,7 +211,7 @@ func getAccountsByType(client *client.Client, accountType accounts.AccountType) 
 func getAllCertificates(client *client.Client) ([]*certificates.CertificateResource, error) {
 	certs, err := client.Certificates.Get(certificates.CertificatesQuery{})
 	if err != nil {
-		return nil, err
+		return nil, tracerr.Wrap(err)
 	}
 	return certs.GetAllPages(client.Sling())
 }
@@ -218,7 +219,7 @@ func getAllCertificates(client *client.Client) ([]*certificates.CertificateResou
 func getAllWorkerPools(client *client.Client) ([]*workerpools.WorkerPoolListResult, error) {
 	res, err := client.WorkerPools.GetAll()
 	if err != nil {
-		return nil, err
+		return nil, tracerr.Wrap(err)
 	}
 
 	return res, nil
@@ -226,7 +227,7 @@ func getAllWorkerPools(client *client.Client) ([]*workerpools.WorkerPoolListResu
 
 func getProjectVariables(client *client.Client, id string) (*variables.VariableSet, error) {
 	variableSet, err := client.Variables.GetAll(id)
-	return &variableSet, err
+	return &variableSet, tracerr.Wrap(err)
 }
 
 func getVariableById(client *client.Client, ownerId string, variableId string) (*variables.Variable, error) {
@@ -236,7 +237,7 @@ func getVariableById(client *client.Client, ownerId string, variableId string) (
 func GetAllLibraryVariableSets(client *client.Client) ([]*variables.LibraryVariableSet, error) {
 	res, err := client.LibraryVariableSets.GetAll()
 	if err != nil {
-		return nil, err
+		return nil, tracerr.Wrap(err)
 	}
 
 	return util.SliceFilter(res, func(item *variables.LibraryVariableSet) bool { return item.ContentType == "Variables" }), nil

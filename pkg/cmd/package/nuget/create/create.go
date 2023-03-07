@@ -3,6 +3,7 @@ package create
 import (
 	"errors"
 	"fmt"
+	"github.com/ztrue/tracerr"
 	"os"
 	"path/filepath"
 	"strings"
@@ -245,12 +246,12 @@ func applyDefaultsToUnspecifiedPackageOptions(opts *NuPkgCreateOptions) error {
 func getReleaseNotesFromFile(filePath string) (string, error) {
 	_, err := os.Stat(filePath)
 	if err != nil {
-		return "", err
+		return "", tracerr.Wrap(err)
 	}
 
 	notes, err := os.ReadFile(filePath)
 	if err != nil {
-		return "", err
+		return "", tracerr.Wrap(err)
 	}
 
 	return string(notes), nil
@@ -282,7 +283,7 @@ func GenerateNuSpec(opts *NuPkgCreateOptions) (string, error) {
 		notes, err := getReleaseNotesFromFile(opts.ReleaseNotesFile.Value)
 		releaseNotes = notes
 		if err != nil {
-			return "", err
+			return "", tracerr.Wrap(err)
 		}
 	}
 
@@ -304,12 +305,12 @@ func GenerateNuSpec(opts *NuPkgCreateOptions) (string, error) {
 
 	file, err := os.Create(filePath)
 	if err != nil {
-		return "", err
+		return "", tracerr.Wrap(err)
 	}
 
 	_, err = file.WriteString(sb.String())
 	if err != nil {
-		return "", err
+		return "", tracerr.Wrap(err)
 	}
 
 	return filePath, file.Close()

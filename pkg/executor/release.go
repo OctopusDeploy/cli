@@ -7,6 +7,7 @@ import (
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/deployments"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/releases"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/spaces"
+	"github.com/ztrue/tracerr"
 	"strconv"
 	"strings"
 )
@@ -71,7 +72,7 @@ func releaseCreate(octopus *client.Client, space *spaces.Space, input any) error
 
 	createReleaseResponse, err := releases.CreateReleaseV1(octopus, createReleaseParams)
 	if err != nil {
-		return err
+		return tracerr.Wrap(err)
 	}
 
 	params.Response = createReleaseResponse
@@ -178,7 +179,7 @@ func releaseDeploy(octopus *client.Client, space *spaces.Space, input any) error
 
 		createDeploymentResponse, err := deployments.CreateDeploymentTenantedV1(octopus, tenantedCommand)
 		if err != nil {
-			return err
+			return tracerr.Wrap(err)
 		}
 		params.Response = createDeploymentResponse
 	} else {
@@ -191,7 +192,7 @@ func releaseDeploy(octopus *client.Client, space *spaces.Space, input any) error
 
 		createDeploymentResponse, err := deployments.CreateDeploymentUntenantedV1(octopus, untenantedCommand)
 		if err != nil {
-			return err
+			return tracerr.Wrap(err)
 		}
 		params.Response = createDeploymentResponse
 	}

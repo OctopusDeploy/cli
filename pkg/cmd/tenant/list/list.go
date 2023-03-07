@@ -12,6 +12,7 @@ import (
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/tenants"
 	"github.com/spf13/cobra"
+	"github.com/ztrue/tracerr"
 )
 
 type ProjectEnvironment struct {
@@ -45,22 +46,22 @@ func NewCmdList(f factory.Factory) *cobra.Command {
 func listRun(cmd *cobra.Command, f factory.Factory) error {
 	client, err := f.GetSpacedClient(apiclient.NewRequester(cmd))
 	if err != nil {
-		return err
+		return tracerr.Wrap(err)
 	}
 
 	allTenants, err := client.Tenants.GetAll()
 	if err != nil {
-		return err
+		return tracerr.Wrap(err)
 	}
 
 	environmentMap, err := getEnvironmentMap(client, allTenants)
 	if err != nil {
-		return err
+		return tracerr.Wrap(err)
 	}
 
 	projectMap, err := getProjectMap(client, allTenants)
 	if err != nil {
-		return err
+		return tracerr.Wrap(err)
 	}
 
 	return output.PrintArray(allTenants, cmd, output.Mappers[*tenants.Tenant]{
@@ -72,7 +73,7 @@ func listRun(cmd *cobra.Command, f factory.Factory) error {
 				projectEntity := output.IdAndName{Id: p, Name: projectMap[p]}
 				environments, err := resolveEntities(t.ProjectEnvironments[p], environmentMap)
 				if err != nil {
-					return err
+					return tracerr.Wrap(err)
 				}
 				projectEnvironments = append(projectEnvironments, ProjectEnvironment{Project: projectEntity, Environments: environments})
 			}
@@ -117,15 +118,15 @@ func getEnvironmentMap(client *client.Client, tenants []*tenants.Tenant) (map[st
 	environmentMap := make(map[string]string)
 	queryResult, err := client.Environments.Get(environments.EnvironmentsQuery{IDs: environmentIds})
 	if err != nil {
-		return nil, err
+		return nil, tracerr.Wrap(err)
 	}
 	allEnvs, err := queryResult.GetAllPages(client.Environments.GetClient())
 	if err != nil {
-		return nil, err
+		return nil, tracerr.Wrap(err)
 	}
 
 	if err != nil {
-		return nil, err
+		return nil, tracerr.Wrap(err)
 	}
 	for _, e := range allEnvs {
 		environmentMap[e.GetID()] = e.GetName()
@@ -146,7 +147,7 @@ func getProjectMap(client *client.Client, tenants []*tenants.Tenant) (map[string
 	queryResult, err := client.Projects.Get(projects.ProjectsQuery{IDs: projectIds})
 	allProjects, err := queryResult.GetAllPages(client.Projects.GetClient())
 	if err != nil {
-		return nil, err
+		return nil, tracerr.Wrap(err)
 	}
 	for _, e := range allProjects {
 		projectMap[e.GetID()] = e.GetName()

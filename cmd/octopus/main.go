@@ -5,8 +5,10 @@ import (
 	"fmt"
 	"github.com/AlecAivazis/survey/v2/terminal"
 	version "github.com/OctopusDeploy/cli"
+	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/briandowns/spinner"
 	"github.com/spf13/viper"
+	"github.com/ztrue/tracerr"
 	"os"
 	"strings"
 	"time"
@@ -71,8 +73,11 @@ func main() {
 	cmd.SetErr(terminal.NewAnsiStderr(os.Stderr))
 
 	if err := cmd.Execute(); err != nil {
-		cmd.PrintErr(err)
-		cmd.Println()
+		if cmd.Flag(constants.FlagDebug).Value.String() == fmt.Sprintf("%v", true) {
+			cmd.PrintErr(tracerr.Sprint(err))
+		} else {
+			cmd.PrintErr(err)
+		}
 
 		if usageError, ok := err.(*usage.UsageError); ok {
 			// if the code returns a UsageError, print the usage information

@@ -13,6 +13,7 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/util/flag"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projectgroups"
 	"github.com/spf13/cobra"
+	"github.com/ztrue/tracerr"
 )
 
 const (
@@ -81,7 +82,7 @@ func createRun(opts *CreateOptions) error {
 	if !opts.NoPrompt {
 		optsArray, err = PromptMissing(opts)
 		if err != nil {
-			return err
+			return tracerr.Wrap(err)
 		}
 	} else {
 		optsArray = append(optsArray, opts)
@@ -115,14 +116,14 @@ func PromptMissing(opts *CreateOptions) ([]cmd.Dependable, error) {
 	if opts.Lifecycle.Value == "" {
 		lc, err := selectors.Lifecycle("You have not specified a Lifecycle for this project. Please select one:", opts.Client, opts.Ask)
 		if err != nil {
-			return nil, err
+			return nil, tracerr.Wrap(err)
 		}
 		opts.Lifecycle.Value = lc.Name
 	}
 
 	value, projectGroupOpt, err := AskProjectGroups(opts.Ask, opts.Group.Value, opts.GetAllGroupsCallback, opts.CreateProjectGroupCallback)
 	if err != nil {
-		return nil, err
+		return nil, tracerr.Wrap(err)
 	}
 	opts.Group.Value = value
 	if projectGroupOpt != nil {
@@ -134,7 +135,7 @@ func PromptMissing(opts *CreateOptions) ([]cmd.Dependable, error) {
 	configAsCodeOpts, err := PromptForConfigAsCode(opts)
 	opts.ConvertOptions.Project.Value = opts.Name.Value
 	if err != nil {
-		return nil, err
+		return nil, tracerr.Wrap(err)
 	}
 	if configAsCodeOpts != nil {
 		nestedOpts = append(nestedOpts, configAsCodeOpts)
@@ -151,7 +152,7 @@ func AskProjectGroups(ask question.Asker, value string, getAllGroupsCallback Get
 		return pg.Name
 	})
 	if err != nil {
-		return "", nil, err
+		return "", nil, tracerr.Wrap(err)
 	}
 	if shouldCreateNew {
 		return createProjectGroupCallback()

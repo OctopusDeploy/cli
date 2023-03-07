@@ -1,6 +1,7 @@
 package helper
 
 import (
+	"github.com/ztrue/tracerr"
 	"strings"
 
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
@@ -18,11 +19,11 @@ loop:
 			Name: envName,
 		})
 		if err != nil {
-			return nil, err
+			return nil, tracerr.Wrap(err)
 		}
 		allMatches, err := matches.GetAllPages(octopus.Environments.GetClient())
 		if err != nil {
-			return nil, err
+			return nil, tracerr.Wrap(err)
 		}
 		for _, match := range allMatches {
 			if strings.EqualFold(envName, match.Name) {

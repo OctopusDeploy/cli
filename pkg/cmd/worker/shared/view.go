@@ -6,6 +6,7 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/machinescommon"
 	"github.com/OctopusDeploy/cli/pkg/output"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/machines"
+	"github.com/ztrue/tracerr"
 )
 
 type ContributeEndpointCallback func(opts *ViewOptions, endpoint machines.IEndpoint) ([]*output.DataRow, error)
@@ -73,7 +74,7 @@ func ContributeProxy(opts *ViewOptions, proxyID string) ([]*output.DataRow, erro
 	if proxyID != "" {
 		proxy, err := opts.Client.Proxies.GetById(proxyID)
 		if err != nil {
-			return nil, err
+			return nil, tracerr.Wrap(err)
 		}
 		return []*output.DataRow{output.NewDataRow("Proxy", proxy.GetName())}, nil
 	}
@@ -84,7 +85,7 @@ func ContributeProxy(opts *ViewOptions, proxyID string) ([]*output.DataRow, erro
 func ContributeAccount(opts *ViewOptions, accountID string) ([]*output.DataRow, error) {
 	account, err := opts.Client.Accounts.GetByID(accountID)
 	if err != nil {
-		return nil, err
+		return nil, tracerr.Wrap(err)
 	}
 	data := []*output.DataRow{output.NewDataRow("Account", account.GetName())}
 	return data, nil
@@ -106,7 +107,7 @@ func GetWorkerPoolMap(opts *ViewOptions) (map[string]string, error) {
 
 	allEnvs, err := opts.Client.WorkerPools.GetAll()
 	if err != nil {
-		return nil, err
+		return nil, tracerr.Wrap(err)
 	}
 	for _, e := range allEnvs {
 		workerPoolMap[e.ID] = e.Name

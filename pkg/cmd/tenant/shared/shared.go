@@ -7,6 +7,7 @@ import (
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/teams"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/tenants"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/users"
+	"github.com/ztrue/tracerr"
 )
 
 type GetAllSpacesCallback func() ([]*spaces.Space, error)
@@ -21,7 +22,7 @@ type GetProjectProgression func(project *projects.Project) (*projects.Progressio
 func GetAllTeams(client client.Client) ([]*teams.Team, error) {
 	res, err := client.Teams.Get(teams.TeamsQuery{IncludeSystem: true})
 	if err != nil {
-		return nil, err
+		return nil, tracerr.Wrap(err)
 	}
 	return res.Items, nil
 }
@@ -29,7 +30,7 @@ func GetAllTeams(client client.Client) ([]*teams.Team, error) {
 func GetAllUsers(client client.Client) ([]*users.User, error) {
 	res, err := client.Users.GetAll()
 	if err != nil {
-		return nil, err
+		return nil, tracerr.Wrap(err)
 	}
 
 	return res, nil
@@ -38,7 +39,7 @@ func GetAllUsers(client client.Client) ([]*users.User, error) {
 func GetAllSpaces(client client.Client) ([]*spaces.Space, error) {
 	res, err := client.Spaces.GetAll()
 	if err != nil {
-		return nil, err
+		return nil, tracerr.Wrap(err)
 	}
 
 	return res, nil
@@ -47,7 +48,7 @@ func GetAllSpaces(client client.Client) ([]*spaces.Space, error) {
 func GetAllTenants(client *client.Client) ([]*tenants.Tenant, error) {
 	res, err := client.Tenants.GetAll()
 	if err != nil {
-		return nil, err
+		return nil, tracerr.Wrap(err)
 	}
 
 	return res, nil
@@ -56,7 +57,7 @@ func GetAllTenants(client *client.Client) ([]*tenants.Tenant, error) {
 func GetTenant(client *client.Client, identifier string) (*tenants.Tenant, error) {
 	res, err := client.Tenants.GetByIdentifier(identifier)
 	if err != nil {
-		return nil, err
+		return nil, tracerr.Wrap(err)
 	}
 
 	return res, nil
@@ -65,7 +66,7 @@ func GetTenant(client *client.Client, identifier string) (*tenants.Tenant, error
 func GetAllProjects(client *client.Client) ([]*projects.Project, error) {
 	res, err := client.Projects.GetAll()
 	if err != nil {
-		return nil, err
+		return nil, tracerr.Wrap(err)
 	}
 
 	return res, nil
@@ -74,7 +75,7 @@ func GetAllProjects(client *client.Client) ([]*projects.Project, error) {
 func GetProject(client *client.Client, identifier string) (*projects.Project, error) {
 	res, err := client.Projects.GetByIdentifier(identifier)
 	if err != nil {
-		return nil, err
+		return nil, tracerr.Wrap(err)
 	}
 
 	return res, nil

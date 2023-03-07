@@ -1,5 +1,7 @@
 package util
 
+import "github.com/ztrue/tracerr"
+
 // SliceContains returns true if it finds an item in the slice that is equal to the target
 func SliceContains[T comparable](slice []T, target T) bool {
 	for _, item := range slice {
@@ -86,10 +88,10 @@ type MapCollectionCacheContainer struct {
 // items as it iterates the collection, and call out to lambdas to look those values up.
 // See the unit tests for examples which should clarify the use-cases for this.
 func MapCollectionWithLookups[T any, TResult any](
-	cacheContainer *MapCollectionCacheContainer,    // cache for keys (typically this will store a mapping of ID->[Name, Name]).
-	collection []T,                                 // input (e.g. list of Releases)
-	keySelector func(T) []string,                   // fetches the keys (e.g given a Release, returns the [ChannelID, ProjectID]
-	mapper func(T, []string) TResult,               // fetches the value to lookup (e.g given a Release and the [ChannelName,ProjectName], does the mapping to return the output struct)
+	cacheContainer *MapCollectionCacheContainer, // cache for keys (typically this will store a mapping of ID->[Name, Name]).
+	collection []T, // input (e.g. list of Releases)
+	keySelector func(T) []string, // fetches the keys (e.g given a Release, returns the [ChannelID, ProjectID]
+	mapper func(T, []string) TResult, // fetches the value to lookup (e.g given a Release and the [ChannelName,ProjectName], does the mapping to return the output struct)
 	runLookups ...func([]string) ([]string, error), // callbacks to go fetch values for the keys (given a list of Channel IDs, it should return the list of associated Channel Names)
 ) ([]TResult, error) {
 	// if the caller didn't specify an external cache, create an internal one.
@@ -134,7 +136,7 @@ func MapCollectionWithLookups[T any, TResult any](
 		if keysToLookup != nil {
 			lookedUpValues, err := runLookups[lookupIdx](keysToLookup)
 			if err != nil {
-				return nil, err
+				return nil, tracerr.Wrap(err)
 			}
 			for valueIdx, value := range lookedUpValues {
 				caches[lookupIdx][keysToLookup[valueIdx]] = value

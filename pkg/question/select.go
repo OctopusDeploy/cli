@@ -3,6 +3,7 @@ package question
 import (
 	"fmt"
 	"github.com/OctopusDeploy/cli/pkg/util"
+	"github.com/ztrue/tracerr"
 
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/OctopusDeploy/cli/pkg/constants"
@@ -22,7 +23,7 @@ func MultiSelectMap[T any](ask Asker, message string, items []T, getKey func(ite
 
 	var selectedKeys []string
 	if err := ask(&survey.MultiSelect{Message: message, Options: options}, &selectedKeys, askOpts); err != nil {
-		return nil, err
+		return nil, tracerr.Wrap(err)
 	}
 	selected := make([]T, 0)
 	for _, keyName := range selectedKeys {
@@ -40,7 +41,7 @@ func MultiSelectWithAddMap(ask Asker, message string, items []string, required b
 
 	var selectedKeys []string
 	if err := ask(&surveyext.MultiSelectWithAdd{Message: message, Options: items}, &selectedKeys, askOpts); err != nil {
-		return nil, err
+		return nil, tracerr.Wrap(err)
 	}
 	return selectedKeys, nil
 }
@@ -56,7 +57,7 @@ func SelectMap[T any](ask Asker, message string, items []T, getKey func(item T) 
 		Message: message,
 		Options: options,
 	}, &selectedKey); err != nil {
-		return selectedValue, err
+		return selectedValue, tracerr.Wrap(err)
 	}
 	selectedValue, ok := optionMap[selectedKey]
 	if !ok { // without this explict check SelectMap can return nil, nil which people don't expect

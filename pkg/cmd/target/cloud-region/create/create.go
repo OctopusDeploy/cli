@@ -2,6 +2,7 @@ package create
 
 import (
 	"fmt"
+	"github.com/ztrue/tracerr"
 
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/cmd"
@@ -98,7 +99,7 @@ func createRun(opts *CreateOptions) error {
 
 	envs, err := executionscommon.FindEnvironments(opts.Client, opts.Environments.Value)
 	if err != nil {
-		return err
+		return tracerr.Wrap(err)
 	}
 	environmentIds := util.SliceTransform(envs, func(e *environments.Environment) string { return e.ID })
 
@@ -106,7 +107,7 @@ func createRun(opts *CreateOptions) error {
 	if opts.WorkerPool.Value != "" {
 		workerPoolId, err := shared.FindWorkerPoolId(opts.GetAllWorkerPoolsCallback, opts.WorkerPool.Value)
 		if err != nil {
-			return err
+			return tracerr.Wrap(err)
 		}
 		endpoint.DefaultWorkerPoolID = workerPoolId
 	}
@@ -114,12 +115,12 @@ func createRun(opts *CreateOptions) error {
 	target := machines.NewDeploymentTarget(opts.Name.Value, endpoint, environmentIds, util.SliceDistinct(opts.Roles.Value))
 	err = shared.ConfigureTenant(target, opts.CreateTargetTenantFlags, opts.CreateTargetTenantOptions)
 	if err != nil {
-		return err
+		return tracerr.Wrap(err)
 	}
 
 	createdTarget, err := opts.Client.Machines.Add(target)
 	if err != nil {
-		return err
+		return tracerr.Wrap(err)
 	}
 	fmt.Fprintf(opts.Out, "Successfully created cloud region '%s'.\n", target.Name)
 	if !opts.NoPrompt {

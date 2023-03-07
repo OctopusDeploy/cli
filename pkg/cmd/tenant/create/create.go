@@ -2,6 +2,7 @@ package create
 
 import (
 	"fmt"
+	"github.com/ztrue/tracerr"
 
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/MakeNowJust/heredoc/v2"
@@ -63,7 +64,7 @@ func createRun(opts *CreateOptions) error {
 	if !opts.NoPrompt {
 		optsArray, err = PromptMissing(opts)
 		if err != nil {
-			return err
+			return tracerr.Wrap(err)
 		}
 	} else {
 		optsArray = append(optsArray, opts)
@@ -93,7 +94,7 @@ func PromptMissing(opts *CreateOptions) ([]cmd.Dependable, error) {
 
 	tags, err := AskTags(opts.Ask, opts.Tag.Value, opts.GetAllTagsCallback)
 	if err != nil {
-		return nil, err
+		return nil, tracerr.Wrap(err)
 	}
 	opts.Tag.Value = tags
 
@@ -107,7 +108,7 @@ func AskTags(ask question.Asker, value []string, getAllTagSetsCallback GetAllTag
 	}
 	tagSets, err := getAllTagSetsCallback()
 	if err != nil {
-		return nil, err
+		return nil, tracerr.Wrap(err)
 	}
 
 	canonicalTagName := []string{}
@@ -122,7 +123,7 @@ func AskTags(ask question.Asker, value []string, getAllTagSetsCallback GetAllTag
 		Message: "Tags",
 	}, &tags)
 	if err != nil {
-		return nil, err
+		return nil, tracerr.Wrap(err)
 	}
 	return tags, nil
 }

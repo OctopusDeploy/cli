@@ -11,6 +11,7 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/util/flag"
 	"github.com/bmatcuk/doublestar/v4"
 	"github.com/spf13/cobra"
+	"github.com/ztrue/tracerr"
 	"io"
 	"os"
 	"path/filepath"
@@ -261,7 +262,7 @@ func getDistinctPatternMatches(basePath string, patterns []string) ([]string, er
 	for _, pattern := range patterns {
 		paths, err := doublestar.Glob(fileSys, filepath.ToSlash(pattern))
 		if err != nil {
-			return nil, err
+			return nil, tracerr.Wrap(err)
 		}
 		filePaths = append(filePaths, paths...)
 	}

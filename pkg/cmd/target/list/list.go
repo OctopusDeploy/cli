@@ -10,6 +10,7 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/output"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/machines"
 	"github.com/spf13/cobra"
+	"github.com/ztrue/tracerr"
 )
 
 type ListOptions struct {
@@ -124,7 +125,7 @@ func GetEnvironmentMap(opts *ListOptions) (map[string]string, error) {
 	environmentMap := make(map[string]string)
 	allEnvs, err := opts.Client.Environments.GetAll()
 	if err != nil {
-		return nil, err
+		return nil, tracerr.Wrap(err)
 	}
 	for _, e := range allEnvs {
 		environmentMap[e.GetID()] = e.GetName()
@@ -136,7 +137,7 @@ func GetTenantMap(opts *ListOptions) (map[string]string, error) {
 	tenantMap := make(map[string]string)
 	allEnvs, err := opts.Client.Tenants.GetAll()
 	if err != nil {
-		return nil, err
+		return nil, tracerr.Wrap(err)
 	}
 	for _, e := range allEnvs {
 		tenantMap[e.GetID()] = e.Name

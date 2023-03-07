@@ -76,6 +76,7 @@ func NewCmdRoot(f factory.Factory, clientFactory apiclient.ClientFactory, askPro
 	cmdPFlags.StringP(constants.FlagOutputFormat, "f", constants.OutputFormatTable, `Specify the output format for a command ("json", "table", or "basic")`)
 
 	cmdPFlags.BoolP(constants.FlagNoPrompt, "", false, "Disable prompting in interactive mode")
+	cmdPFlags.Bool(constants.FlagDebug, false, "Debug output for troubleshooting")
 
 	// Legacy flags brought across from the .NET CLI.
 	// Consumers of these flags will have to explicitly check for them as well as the new
