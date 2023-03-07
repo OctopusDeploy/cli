@@ -78,6 +78,7 @@ func main() {
 		} else {
 			cmd.PrintErr(err)
 		}
+		cmd.Println()
 
 		if usageError, ok := err.(*usage.UsageError); ok {
 			// if the code returns a UsageError, print the usage information
