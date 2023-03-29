@@ -3,6 +3,7 @@ package variables
 import (
 	"github.com/MakeNowJust/heredoc/v2"
 	cmdList "github.com/OctopusDeploy/cli/pkg/cmd/tenant/variables/list"
+	cmdUpdate "github.com/OctopusDeploy/cli/pkg/cmd/tenant/variables/update"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/constants/annotations"
 	"github.com/OctopusDeploy/cli/pkg/factory"
@@ -27,6 +28,7 @@ func NewCmdVariables(f factory.Factory) *cobra.Command {
 	//cmd.AddCommand(cmdUpdate.NewUpdateCmd(f))
 	//cmd.AddCommand(cmdCreate.NewCreateCmd(f))
 	cmd.AddCommand(cmdList.NewCmdList(f))
+	cmd.AddCommand(cmdUpdate.NewCmdUpdate(f))
 	//cmd.AddCommand(cmdView.NewCmdView(f))
 	//cmd.AddCommand(cmdDelete.NewDeleteCmd(f))
 	//cmd.AddCommand(cmdInclude.NewIncludeVariableSetCmd(f))
