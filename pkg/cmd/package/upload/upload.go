@@ -30,7 +30,7 @@ const (
 	FlagAliasOverwriteMode = "overwritemode" // I keep forgetting the hyphen
 
 	// replace-existing deprected in the .NET CLI so not brought across
-	FlagUseDeltaCompression = "use-delta-compression" // this is not yet supported, but will be in future when we implement OctoDiff in go
+	FlagUseDeltaCompression = "use-delta-compression"
 
 	FlagContinueOnError = "continue-on-error"
 )
@@ -64,6 +64,7 @@ func NewCmdUpload(f factory.Factory) *cobra.Command {
 			$ %[1]s package push SomePackage.1.0.0.zip	
 			$ %[1]s package upload bin/**/*.zip --continue-on-error
 			$ %[1]s package upload PkgA.1.0.0.zip PkgB.2.0.0.tar.gz PkgC.1.0.0.nupkg
+			$ %[1]s package upload --package SomePackage.1.0.0.zip
 		`, constants.ExecutableName),
 		Annotations: map[string]string{annotations.IsCore: "true"},
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -79,6 +80,7 @@ func NewCmdUpload(f factory.Factory) *cobra.Command {
 	flags.StringSliceVarP(&uploadFlags.Package.Value, uploadFlags.Package.Name, "p", nil, "Package to upload, may be specified multiple times. Any arguments without flags will be treated as packages")
 	flags.StringVarP(&uploadFlags.OverwriteMode.Value, uploadFlags.OverwriteMode.Name, "", "", "Action when a package already exists. Valid values are 'fail', 'overwrite', 'ignore'. Default is 'fail'")
 	flags.BoolVarP(&uploadFlags.ContinueOnError.Value, uploadFlags.ContinueOnError.Name, "", false, "When uploading multiple packages, controls whether the CLI continues after a failed upload. Default is to abort.")
+	flags.BoolVarP(&uploadFlags.UseDeltaCompression.Value, uploadFlags.UseDeltaCompression.Name, "", true, "If true, will attempt to use delta compression when uploading. Valid values are true or false. Defaults to true.")
 	flags.SortFlags = false
 
 	flagAliases := make(map[string][]string, 1)
@@ -135,6 +137,8 @@ func uploadRun(cmd *cobra.Command, f factory.Factory, flags *UploadFlags) error 
 		return fmt.Errorf("invalid value '%s' for --overwrite-mode. Valid values are 'fail', 'ignore', 'overwrite'", overwriteMode)
 	}
 
+	useDeltaCompression := flags.UseDeltaCompression.Value
+
 	var jsonResult uploadViewModel
 	didErrorsOccur := false
 
@@ -142,7 +146,7 @@ func uploadRun(cmd *cobra.Command, f factory.Factory, flags *UploadFlags) error 
 	seenPackages := make(map[string]bool)
 	doUpload := func(path string) error {
 		if !seenPackages[path] {
-			created, err := uploadFileAtPath(octopus, space, path, resolvedOverwriteMode, cmd)
+			created, err := uploadFileAtPath(octopus, space, path, resolvedOverwriteMode, useDeltaCompression, cmd)
 			seenPackages[path] = true // whether a given package succeeds or fails, we still don't want to process it twice
 
 			if err != nil {
@@ -219,10 +223,10 @@ func uploadRun(cmd *cobra.Command, f factory.Factory, flags *UploadFlags) error 
 	return nil
 }
 
-func uploadFileAtPath(octopus newclient.Client, space *spaces.Space, path string, overwriteMode packages.OverwriteMode, cmd *cobra.Command) (bool, error) {
-	opener := func(name string) (io.ReadCloser, error) { return os.Open(name) }
+func uploadFileAtPath(octopus newclient.Client, space *spaces.Space, path string, overwriteMode packages.OverwriteMode, useDeltaCompression bool, cmd *cobra.Command) (bool, error) {
+	opener := func(name string) (io.ReadSeekCloser, error) { return os.Open(name) }
 	if cmd.Context() != nil { // allow context to override the definition of 'os.Open' for testing
-		if f, ok := cmd.Context().Value(constants.ContextKeyOsOpen).(func(string) (io.ReadCloser, error)); ok {
+		if f, ok := cmd.Context().Value(constants.ContextKeyOsOpen).(func(string) (io.ReadSeekCloser, error)); ok {
 			opener = f
 		}
 	}
@@ -234,7 +238,7 @@ func uploadFileAtPath(octopus newclient.Client, space *spaces.Space, path string
 
 	// Note: the PackageUploadResponse has a lot of information in it, but we've chosen not to do anything
 	// with it in the CLI at this time.
-	_, created, err := packages.Upload(octopus, space.ID, filepath.Base(path), fileReader, overwriteMode)
+	_, created, err := packages.UploadV2(octopus, space.ID, filepath.Base(path), fileReader, overwriteMode, useDeltaCompression)
 	_ = fileReader.Close()
 	return created, err
 }

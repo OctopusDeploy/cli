@@ -31,9 +31,9 @@ func TestPackageUpload(t *testing.T) {
 		"test.1.0.zip":  "test1-contents",
 		"other.1.1.zip": "other-contents",
 	}
-	opener := func(name string) (io.ReadCloser, error) {
+	opener := func(name string) (io.ReadSeekCloser, error) {
 		if contents, ok := files[name]; ok {
-			return io.NopCloser(strings.NewReader(contents)), nil
+			return &nopReadSeekCloser{inner: strings.NewReader(contents)}, nil
 		} else {
 			return nil, os.ErrNotExist
 		}
@@ -377,3 +377,22 @@ func TestPackageUpload(t *testing.T) {
 func crlf(text string) string {
 	return strings.ReplaceAll(text, "\n", "\r\n")
 }
+
+// no-ops the close method on an existing ReadSeeker for cases where it doesn't matter (e.g. in memory byte array)
+type nopReadSeekCloser struct {
+	inner io.ReadSeeker
+}
+
+func (c *nopReadSeekCloser) Read(p []byte) (n int, err error) {
+	return c.Read(p)
+}
+
+func (c *nopReadSeekCloser) Seek(offset int64, whence int) (int64, error) {
+	return c.Seek(offset, whence)
+}
+
+func (c *nopReadSeekCloser) Close() error {
+	return nil // deliberate do-nothing
+}
+
+var _ io.ReadSeekCloser = (*nopReadSeekCloser)(nil)
