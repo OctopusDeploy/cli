@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/MakeNowJust/heredoc/v2"
@@ -36,9 +37,11 @@ const (
 )
 
 type UploadFlags struct {
-	Package             *flag.Flag[[]string]
-	OverwriteMode       *flag.Flag[string]
-	UseDeltaCompression *flag.Flag[bool]
+	Package       *flag.Flag[[]string]
+	OverwriteMode *flag.Flag[string]
+
+	// Note string here because cobra doesn't deal with bool parsing where the default is true very well. It arses --use-delta-compression false as two seperate things; it gets defaulted to true
+	UseDeltaCompression *flag.Flag[string]
 	ContinueOnError     *flag.Flag[bool]
 }
 
@@ -46,7 +49,7 @@ func NewUploadFlags() *UploadFlags {
 	return &UploadFlags{
 		Package:             flag.New[[]string](FlagPackage, false),
 		OverwriteMode:       flag.New[string](FlagOverwriteMode, false),
-		UseDeltaCompression: flag.New[bool](FlagUseDeltaCompression, false),
+		UseDeltaCompression: flag.New[string](FlagUseDeltaCompression, false),
 		ContinueOnError:     flag.New[bool](FlagContinueOnError, false),
 	}
 }
@@ -80,7 +83,7 @@ func NewCmdUpload(f factory.Factory) *cobra.Command {
 	flags.StringSliceVarP(&uploadFlags.Package.Value, uploadFlags.Package.Name, "p", nil, "Package to upload, may be specified multiple times. Any arguments without flags will be treated as packages")
 	flags.StringVarP(&uploadFlags.OverwriteMode.Value, uploadFlags.OverwriteMode.Name, "", "", "Action when a package already exists. Valid values are 'fail', 'overwrite', 'ignore'. Default is 'fail'")
 	flags.BoolVarP(&uploadFlags.ContinueOnError.Value, uploadFlags.ContinueOnError.Name, "", false, "When uploading multiple packages, controls whether the CLI continues after a failed upload. Default is to abort.")
-	flags.BoolVarP(&uploadFlags.UseDeltaCompression.Value, uploadFlags.UseDeltaCompression.Name, "", true, "If true, will attempt to use delta compression when uploading. Valid values are true or false. Defaults to true.")
+	flags.StringVarP(&uploadFlags.UseDeltaCompression.Value, uploadFlags.UseDeltaCompression.Name, "", "true", "If true, will attempt to use delta compression when uploading. Valid values are true or false. Defaults to true.")
 	flags.SortFlags = false
 
 	flagAliases := make(map[string][]string, 1)
@@ -137,7 +140,11 @@ func uploadRun(cmd *cobra.Command, f factory.Factory, flags *UploadFlags) error 
 		return fmt.Errorf("invalid value '%s' for --overwrite-mode. Valid values are 'fail', 'ignore', 'overwrite'", overwriteMode)
 	}
 
-	useDeltaCompression := flags.UseDeltaCompression.Value
+	useDeltaCompressionStr := flags.UseDeltaCompression.Value
+	useDeltaCompression, err := strconv.ParseBool(useDeltaCompressionStr)
+	if err != nil {
+		useDeltaCompression = true
+	}
 
 	var jsonResult uploadViewModel
 	didErrorsOccur := false
