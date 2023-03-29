@@ -60,10 +60,10 @@ func TestPackageUpload(t *testing.T) {
 			assert.Equal(t, "", stdErr.String())
 		}},
 
-		{"uploads a single package", func(t *testing.T, api *testutil.MockHttpServer, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
+		{"uploads a single package (delta disabled)", func(t *testing.T, api *testutil.MockHttpServer, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
 			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
 				defer api.Close()
-				rootCmd.SetArgs([]string{"package", "upload", "test.1.0.zip"})
+				rootCmd.SetArgs([]string{"package", "upload", "test.1.0.zip", "--use-delta-compression", "false"})
 				rootCmd.SetContext(contextWithOpener)
 				return rootCmd.ExecuteC()
 			})
@@ -102,10 +102,10 @@ func TestPackageUpload(t *testing.T) {
 			assert.Equal(t, "", stdErr.String())
 		}},
 
-		{"uploads multiple packages", func(t *testing.T, api *testutil.MockHttpServer, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
+		{"uploads multiple packages (delta disabled)", func(t *testing.T, api *testutil.MockHttpServer, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
 			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
 				defer api.Close()
-				rootCmd.SetArgs([]string{"package", "upload", "-p", "test.1.0.zip", "--package", "other.1.1.zip"})
+				rootCmd.SetArgs([]string{"package", "upload", "-p", "test.1.0.zip", "--package", "other.1.1.zip", "--use-delta-compression", "false"})
 				rootCmd.SetContext(contextWithOpener)
 				return rootCmd.ExecuteC()
 			})
@@ -170,10 +170,10 @@ func TestPackageUpload(t *testing.T) {
 			assert.Equal(t, "", stdErr.String())
 		}},
 
-		{"sets overwriteMode", func(t *testing.T, api *testutil.MockHttpServer, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
+		{"sets overwriteMode (delta disabled)", func(t *testing.T, api *testutil.MockHttpServer, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
 			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
 				defer api.Close()
-				rootCmd.SetArgs([]string{"package", "upload", "test.1.0.zip", "--overwrite-mode", "overwrite"})
+				rootCmd.SetArgs([]string{"package", "upload", "test.1.0.zip", "--overwrite-mode", "overwrite", "--use-delta-compression", "false"})
 				rootCmd.SetContext(contextWithOpener)
 				return rootCmd.ExecuteC()
 			})
@@ -203,10 +203,10 @@ func TestPackageUpload(t *testing.T) {
 			assert.Equal(t, "", stdErr.String())
 		}},
 
-		{"uploads multiple packages; default behaviour of failing on first error", func(t *testing.T, api *testutil.MockHttpServer, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
+		{"uploads multiple packages; default behaviour of failing on first error (delta disabled)", func(t *testing.T, api *testutil.MockHttpServer, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
 			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
 				defer api.Close()
-				rootCmd.SetArgs([]string{"package", "upload", "-p", "test.1.0.zip", "--package", "other.1.1.zip"})
+				rootCmd.SetArgs([]string{"package", "upload", "-p", "test.1.0.zip", "--package", "other.1.1.zip", "--use-delta-compression", "false"})
 				rootCmd.SetContext(contextWithOpener)
 				return rootCmd.ExecuteC()
 			})
@@ -227,10 +227,10 @@ func TestPackageUpload(t *testing.T) {
 			assert.Equal(t, "Failed to upload package test.1.0.zip - Octopus API error: the package is not gluten-free [] \n", stdErr.String())
 		}},
 
-		{"uploads multiple packages; --continue-on-error", func(t *testing.T, api *testutil.MockHttpServer, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
+		{"uploads multiple packages; --continue-on-error (delta disabled)", func(t *testing.T, api *testutil.MockHttpServer, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
 			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
 				defer api.Close()
-				rootCmd.SetArgs([]string{"package", "upload", "-p", "test.1.0.zip", "--package", "other.1.1.zip", "--continue-on-error"})
+				rootCmd.SetArgs([]string{"package", "upload", "-p", "test.1.0.zip", "--package", "other.1.1.zip", "--continue-on-error", "--use-delta-compression", "false"})
 				rootCmd.SetContext(contextWithOpener)
 				return rootCmd.ExecuteC()
 			})
@@ -267,10 +267,10 @@ func TestPackageUpload(t *testing.T) {
 			assert.Equal(t, "Failed to upload package test.1.0.zip - Octopus API error: the package is not gluten-free [] \n", stdErr.String())
 		}},
 
-		{"uploads multiple packages; doesn't upload the same file more than once", func(t *testing.T, api *testutil.MockHttpServer, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
+		{"uploads multiple packages; doesn't upload the same file more than once (delta disabled)", func(t *testing.T, api *testutil.MockHttpServer, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
 			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
 				defer api.Close()
-				rootCmd.SetArgs([]string{"package", "upload", "-p", "test.1.0.zip", "--package", "test.1.0.zip", "test.1.0.zip"})
+				rootCmd.SetArgs([]string{"package", "upload", "-p", "test.1.0.zip", "--package", "test.1.0.zip", "test.1.0.zip", "--use-delta-compression", "false"})
 				rootCmd.SetContext(contextWithOpener)
 				return rootCmd.ExecuteC()
 			})
@@ -302,10 +302,10 @@ func TestPackageUpload(t *testing.T) {
 			assert.Equal(t, "", stdErr.String())
 		}},
 
-		{"output-format=json, uploads multiple packages; --continue-on-error", func(t *testing.T, api *testutil.MockHttpServer, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
+		{"output-format=json, uploads multiple packages; --continue-on-error (delta disabled)", func(t *testing.T, api *testutil.MockHttpServer, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
 			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
 				defer api.Close()
-				rootCmd.SetArgs([]string{"package", "upload", "-p", "test.1.0.zip", "--package", "other.1.1.zip", "--continue-on-error", "--output-format", "json"})
+				rootCmd.SetArgs([]string{"package", "upload", "-p", "test.1.0.zip", "--package", "other.1.1.zip", "--continue-on-error", "--output-format", "json", "--use-delta-compression", "false"})
 				rootCmd.SetContext(contextWithOpener)
 				return rootCmd.ExecuteC()
 			})
@@ -384,11 +384,11 @@ type nopReadSeekCloser struct {
 }
 
 func (c *nopReadSeekCloser) Read(p []byte) (n int, err error) {
-	return c.Read(p)
+	return c.inner.Read(p)
 }
 
 func (c *nopReadSeekCloser) Seek(offset int64, whence int) (int64, error) {
-	return c.Seek(offset, whence)
+	return c.inner.Seek(offset, whence)
 }
 
 func (c *nopReadSeekCloser) Close() error {
