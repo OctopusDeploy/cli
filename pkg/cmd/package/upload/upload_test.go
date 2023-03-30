@@ -357,6 +357,52 @@ func TestPackageUpload(t *testing.T) {
 			}, parsedStdout)
 			assert.Equal(t, "", stdErr.String())
 		}},
+
+		{"uploads a single package (delta enabled, no baseline so fallback to full upload)", func(t *testing.T, api *testutil.MockHttpServer, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
+			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
+				defer api.Close()
+				rootCmd.SetArgs([]string{"package", "upload", "test.1.0.zip"})
+				rootCmd.SetContext(contextWithOpener)
+				return rootCmd.ExecuteC()
+			})
+
+			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
+
+			req := api.ExpectRequest(t, "GET", "/api/Spaces-1/packages/test/1.0/delta-signature")
+			req.RespondWithStatus(404, "404 Not Found", nil)
+
+			// now it does a regular upload
+			req = api.ExpectRequest(t, "POST", "/api/Spaces-1/packages/raw?overwriteMode=FailIfExists")
+
+			buf := make([]byte, 8192)
+			bytesRead, err := req.Request.Body.Read(buf)
+
+			boundary := string(buf[2:62]) // the boundary will be random but is always in the same place/format so we can extract it
+			assert.Equal(t, crlf(heredoc.Docf(`
+			--%s
+			Content-Disposition: form-data; name="file"; filename="test.1.0.zip"
+			Content-Type: application/octet-stream
+			
+			test1-contents
+			--%s--
+			`, boundary, boundary)), string(buf[:bytesRead]))
+
+			req.RespondWithStatus(201, "201 Created", &packages.PackageUploadResponse{
+				PackageSizeBytes: len(files["test1.zip"]),
+				Hash:             "some-hash",
+				PackageId:        "test",
+				Title:            "test.1.0",
+				Version:          "1.0",
+				Resource:         *resources.NewResource(),
+			})
+
+			_, err = testutil.ReceivePair(cmdReceiver)
+			assert.Nil(t, err)
+			// http status of 200 means 'processed', we might ignored an existing file
+			assert.Equal(t, "Uploaded package test.1.0.zip\n", stdOut.String())
+			assert.Equal(t, "", stdErr.String())
+		}},
 	}
 
 	for _, test := range tests {
