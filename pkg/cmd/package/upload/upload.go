@@ -70,7 +70,8 @@ func NewCmdUpload(f factory.Factory) *cobra.Command {
 			$ %[1]s package push SomePackage.1.0.0.zip	
 			$ %[1]s package upload bin/**/*.zip --continue-on-error
 			$ %[1]s package upload PkgA.1.0.0.zip PkgB.2.0.0.tar.gz PkgC.1.0.0.nupkg
-			$ %[1]s package upload --package SomePackage.1.0.0.zip
+			$ %[1]s package upload --package SomePackage.2.0.0.zip --use-delta-compression false
+			$ %[1]s package upload SomePackage.2.0.0.zip --delta false
 		`, constants.ExecutableName),
 		Annotations: map[string]string{annotations.IsCore: "true"},
 		RunE: func(cmd *cobra.Command, args []string) error {
