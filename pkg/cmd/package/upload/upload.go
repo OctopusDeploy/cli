@@ -30,8 +30,10 @@ const (
 	FlagAliasOverwrite     = "overwrite"
 	FlagAliasOverwriteMode = "overwritemode" // I keep forgetting the hyphen
 
-	// replace-existing deprected in the .NET CLI so not brought across
 	FlagUseDeltaCompression = "use-delta-compression"
+	FlagAliasDelta          = "delta" // for less typing
+
+	// replace-existing deprected in the .NET CLI so not brought across
 
 	FlagContinueOnError = "continue-on-error"
 )
@@ -40,7 +42,8 @@ type UploadFlags struct {
 	Package       *flag.Flag[[]string]
 	OverwriteMode *flag.Flag[string]
 
-	// Note string here because cobra doesn't deal with bool parsing where the default is true very well. It arses --use-delta-compression false as two seperate things; it gets defaulted to true
+	// Note: string here because cobra doesn't handle bool(default=true) well.
+	// If this were a bool flag, and the user entered --use-delta-compression false, it would come out as true
 	UseDeltaCompression *flag.Flag[string]
 	ContinueOnError     *flag.Flag[bool]
 }
@@ -88,6 +91,7 @@ func NewCmdUpload(f factory.Factory) *cobra.Command {
 
 	flagAliases := make(map[string][]string, 1)
 	util.AddFlagAliasesString(flags, FlagOverwriteMode, flagAliases, FlagAliasOverwrite, FlagAliasOverwriteMode)
+	util.AddFlagAliasesString(flags, FlagUseDeltaCompression, flagAliases, FlagAliasDelta)
 
 	cmd.PreRunE = func(cmd *cobra.Command, args []string) error {
 		util.ApplyFlagAliases(cmd.Flags(), flagAliases)
