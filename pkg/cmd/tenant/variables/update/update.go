@@ -4,12 +4,12 @@ import (
 	"fmt"
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/cmd"
-	sharedVariable "github.com/OctopusDeploy/cli/pkg/cmd/project/variables/shared"
 	"github.com/OctopusDeploy/cli/pkg/cmd/tenant/shared"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/OctopusDeploy/cli/pkg/question/selectors"
 	"github.com/OctopusDeploy/cli/pkg/util/flag"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/actiontemplates"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/core"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
@@ -35,8 +35,6 @@ type UpdateFlags struct {
 	LibraryVariableSet *flag.Flag[string]
 	Name               *flag.Flag[string]
 	Value              *flag.Flag[string]
-
-	*sharedVariable.ScopeFlags
 }
 
 type UpdateOptions struct {
@@ -46,7 +44,7 @@ type UpdateOptions struct {
 	shared.GetAllProjectsCallback
 	shared.GetTenantCallback
 	shared.GetAllTenantsCallback
-	*sharedVariable.VariableCallbacks
+	shared.GetAllLibraryVariableSetsCallback
 }
 
 func NewUpdateFlags() *UpdateFlags {
@@ -72,6 +70,9 @@ func NewUpdateOptions(flags *UpdateFlags, dependencies *cmd.Dependencies) *Updat
 			return shared.GetTenant(dependencies.Client, identifier)
 		},
 		GetAllTenantsCallback: func() ([]*tenants.Tenant, error) { return shared.GetAllTenants(dependencies.Client) },
+		GetAllLibraryVariableSetsCallback: func() ([]*variables.LibraryVariableSet, error) {
+			return shared.GetAllLibraryVariableSets(dependencies.Client)
+		},
 	}
 }
 
@@ -105,12 +106,12 @@ func NewCmdUpdate(f factory.Factory) *cobra.Command {
 }
 
 func updateRun(opts *UpdateOptions) error {
-	//if !opts.NoPrompt {
-	//	err := PromptMissing(opts)
-	//	if err != nil {
-	//		return err
-	//	}
-	//}
+	if !opts.NoPrompt {
+		err := PromptMissing(opts)
+		if err != nil {
+			return err
+		}
+	}
 
 	tenant, err := opts.Client.Tenants.GetByIdentifier(opts.Tenant.Value)
 	if err != nil {
@@ -140,7 +141,71 @@ func updateRun(opts *UpdateOptions) error {
 	return nil
 }
 
-func updateProjectVariableValue(opts *UpdateOptions, vars *variables.TenantVariables, environmentMap map[string]string) {
+func PromptMissing(opts *UpdateOptions) error {
+	var tenant *tenants.Tenant
+	var err error
+	if opts.Tenant.Value == "" {
+		tenant, err = selectors.Select(opts.Ask, "You have not specified a source Tenant to clone from. Please select one:", opts.GetAllTenantsCallback, func(tenant *tenants.Tenant) string {
+			return tenant.Name
+		})
+		if err != nil {
+			return err
+		}
+
+		opts.Tenant.Value = tenant.Name
+	}
+
+	var variableType = ""
+	if opts.LibraryVariableSet.Value != "" {
+		variableType = "common"
+	} else if opts.Project.Value != "" {
+		variableType = "project"
+	} else {
+		selectedOption, err := selectors.SelectOptions(opts.Ask, "Which type of variable do you want to update?", getVariableTypeOptions)
+		if err != nil {
+			return err
+		}
+		variableType = selectedOption.Value
+	}
+
+	variables, err := opts.Client.Tenants.GetVariables(tenant)
+	if err != nil {
+		return err
+	}
+
+	switch variableType {
+	case "common":
+		possibleVariables := findPossibleCommonVariables(opts, variables)
+		if opts.LibraryVariableSet.Value == "" {
+			selectors.SelectOptions(opts.Ask, "You have not specified")
+		}
+	}
+
+	return nil
+}
+
+func findPossibleCommonVariables(opts *UpdateOptions, tenantVariables *variables.TenantVariables) ([]PossibleVariable) {
+	var filteredVariables []PossibleVariable
+	for _, l := range tenantVariables.LibraryVariables {
+		for _, t := range l.Templates {
+			if opts.Name.Value == "" && opts.LibraryVariableSet.Value == "" {
+				filteredVariables = append(filteredVariables, PossibleVariable{
+					Owner:        l.LibraryVariableSetName,
+					VariableName: t.Name,
+				})
+			} else if opts.Name.Value != "" && strings.EqualFold(opts.Name.Value, t.Name) || (opts.LibraryVariableSet.Value != "" && strings.EqualFold(l.LibraryVariableSetName, opts.LibraryVariableSet.Value)) {
+				filteredVariables = append(filteredVariables, PossibleVariable{
+					Owner:        l.LibraryVariableSetName,
+					VariableName: t.Name,
+				})
+			}
+		}
+	}
+
+	return filteredVariables, nil
+}
+
+func updateProjectVariableValue(opts *UpdateOptions, vars *variables.TenantVariables, environmentMap map[string]string) error {
 	var environmentId string
 	for id, environment := range environmentMap {
 		if strings.EqualFold(environment, opts.Environment.Value) {
@@ -152,22 +217,12 @@ func updateProjectVariableValue(opts *UpdateOptions, vars *variables.TenantVaria
 		if strings.EqualFold(v.ProjectName, opts.Project.Value) {
 			for _, t := range v.Templates {
 				if strings.EqualFold(t.Name, opts.Name.Value) {
-					v.Variables[environmentId][t.ID] = core.PropertyValue{
-						Value: opts.Value.Value,
+					updatedValue, err := getUpdatedValue(opts, t)
+					if err != nil {
+						return err
 					}
-				}
-			}
-		}
-	}
-}
-
-func updateCommonVariableValue(opts *UpdateOptions, vars *variables.TenantVariables) error {
-	for _, v := range vars.LibraryVariables {
-		if strings.EqualFold(v.LibraryVariableSetName, opts.LibraryVariableSet.Value) {
-			for _, t := range v.Templates {
-				if strings.EqualFold(t.Name, opts.Name.Value) {
-					v.Variables[t.ID] = core.PropertyValue{
-						Value: opts.Value.Value,
+					v.Variables[environmentId][t.ID] = core.PropertyValue{
+						Value: updatedValue,
 					}
 
 					return nil
@@ -177,6 +232,35 @@ func updateCommonVariableValue(opts *UpdateOptions, vars *variables.TenantVariab
 	}
 
 	return fmt.Errorf("unable to find requested variable")
+}
+
+func updateCommonVariableValue(opts *UpdateOptions, vars *variables.TenantVariables) error {
+	for _, v := range vars.LibraryVariables {
+		if strings.EqualFold(v.LibraryVariableSetName, opts.LibraryVariableSet.Value) {
+			for _, t := range v.Templates {
+				if strings.EqualFold(t.Name, opts.Name.Value) {
+					updatedValue, err := getUpdatedValue(opts, t)
+					if err != nil {
+						return err
+					}
+					v.Variables[t.ID] = core.PropertyValue{
+						Value: updatedValue,
+					}
+
+					return nil
+				}
+			}
+		}
+	}
+
+	return fmt.Errorf("unable to find requested variable")
+}
+
+func getUpdatedValue(opts *UpdateOptions, template *actiontemplates.ActionTemplateParameter) (string, error) {
+	switch template.DisplaySettings["Octopus.ControlType"] {
+
+	}
+	return opts.Value.Value, nil
 }
 
 func getEnvironmentMap(client *client.Client) (map[string]string, error) {
@@ -189,4 +273,17 @@ func getEnvironmentMap(client *client.Client) (map[string]string, error) {
 		environmentMap[e.GetID()] = e.GetName()
 	}
 	return environmentMap, nil
+}
+
+func getVariableTypeOptions() []*selectors.SelectOption[string] {
+	return []*selectors.SelectOption[string]{
+		{Display: "Library/Common", Value: "common"},
+		{Display: "Project", Value: "project"},
+	}
+}
+
+type PossibleVariable struct {
+	Owner        string
+	VariableName string
+	Scope        string
 }

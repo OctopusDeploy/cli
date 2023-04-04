@@ -16,7 +16,7 @@ import (
 )
 
 const (
-	LibraryVariableSetType = "Library Variable Set"
+	LibraryVariableSetType = "Library"
 	ProjectType            = "Project"
 )
 
@@ -25,6 +25,7 @@ type VariableValue struct {
 	OwnerName       string
 	Name            string
 	Value           string
+	Label           string
 	IsSensitive     bool
 	IsDefaultValue  bool
 	ScopeName       string
@@ -36,6 +37,7 @@ type VariableValueAsJson struct {
 	OwnerName      string
 	Name           string
 	Value          string
+	Label          string
 	IsSensitive    bool
 	IsDefaultValue bool
 }
@@ -134,14 +136,14 @@ func listRun(cmd *cobra.Command, f factory.Factory, id string) error {
 			}
 		},
 		Table: output.TableDefinition[*VariableValue]{
-			Header: []string{"NAME", "TYPE", "OWNER", "ENVIRONMENT", "VALUE", "SENSITIVE", "DEFAULT VALUE"},
+			Header: []string{"NAME", "LABEL", "TYPE", "OWNER", "ENVIRONMENT", "VALUE", "SENSITIVE", "DEFAULT VALUE"},
 			Row: func(item *VariableValue) []string {
 				value := item.Value
 				if item.Type == ProjectType && item.HasMissingValue {
 					value = output.Red("<missing>")
 				}
 
-				return []string{output.Bold(item.Name), item.Type, item.OwnerName, item.ScopeName, value, fmt.Sprint(item.IsSensitive), fmt.Sprint(item.IsDefaultValue)}
+				return []string{output.Bold(item.Name), item.Label, item.Type, item.OwnerName, item.ScopeName, value, fmt.Sprint(item.IsSensitive), fmt.Sprint(item.IsDefaultValue)}
 			},
 		},
 		Basic: func(item *VariableValue) string {
@@ -172,6 +174,7 @@ func unwrapCommonVariables(variables variables.LibraryVariable) []*VariableValue
 			OwnerName:      variables.LibraryVariableSetName,
 			Name:           template.Name,
 			Value:          actualValue,
+			Label:          template.Label,
 			IsSensitive:    value.IsSensitive,
 			IsDefaultValue: isDefault,
 			ScopeName:      "",
@@ -205,6 +208,7 @@ func unwrapProjectVariables(variables variables.ProjectVariable, environmentMap 
 				OwnerName:       variables.ProjectName,
 				Name:            template.Name,
 				Value:           actualValue,
+				Label:           template.Label,
 				IsSensitive:     value.IsSensitive,
 				IsDefaultValue:  isDefault,
 				ScopeName:       environmentMap[environmentId],
