@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/constants"
@@ -33,7 +34,7 @@ const (
 	FlagUseDeltaCompression = "use-delta-compression"
 	FlagAliasDelta          = "delta" // for less typing
 
-	// replace-existing deprected in the .NET CLI so not brought across
+	// "replace-existing" flag deprecated in the .NET CLI so not brought across
 
 	FlagContinueOnError = "continue-on-error"
 )
@@ -158,7 +159,10 @@ func uploadRun(cmd *cobra.Command, f factory.Factory, flags *UploadFlags) error 
 	seenPackages := make(map[string]bool)
 	doUpload := func(path string) error {
 		if !seenPackages[path] {
-			created, err := uploadFileAtPath(octopus, space, path, resolvedOverwriteMode, useDeltaCompression, cmd)
+			uploadStartTime := time.Now()
+			uploadResult, err := uploadFileAtPath(octopus, space, path, resolvedOverwriteMode, useDeltaCompression, cmd)
+			uploadDuration := time.Since(uploadStartTime)
+
 			seenPackages[path] = true // whether a given package succeeds or fails, we still don't want to process it twice
 
 			if err != nil {
@@ -191,10 +195,41 @@ func uploadRun(cmd *cobra.Command, f factory.Factory, flags *UploadFlags) error 
 				case constants.OutputFormatBasic:
 					cmd.Printf("%s\n", path)
 				default:
-					if created {
+					if uploadResult.CreatedNewFile {
 						cmd.Printf("Uploaded package %s\n", path)
 					} else {
 						cmd.Printf("Ignored existing package %s\n", path)
+					}
+
+					if uploadResult.UploadMethod == packages.UploadMethodDelta && uploadResult.UploadInfo != nil {
+						deltaInfo := uploadResult.UploadInfo
+						deltaRatio := 0.0
+						if deltaInfo.FileSize > 0 {
+							deltaRatio = float64(deltaInfo.DeltaSize) / float64(deltaInfo.FileSize) * 100
+						}
+
+						switch deltaInfo.DeltaBehaviour {
+						case packages.DeltaBehaviourNoPreviousFile:
+							cmd.Printf("    Full upload for package %s. No previous versions available\n"+
+								"    Timing: Signature %v, Upload %v\n",
+								path, roundDuration(deltaInfo.RequestSignatureDuration), roundDuration(deltaInfo.UploadDuration))
+						case packages.DeltaBehaviourNotEfficient:
+							cmd.Printf("    Full upload for package %s. Delta size was %.1f%% of full file (too large)\n"+
+								"    Timing: Signature %v, Build Delta %v, Upload %v\n",
+								path, deltaRatio,
+								roundDuration(deltaInfo.RequestSignatureDuration), roundDuration(deltaInfo.BuildDeltaDuration), roundDuration(deltaInfo.UploadDuration))
+						case packages.DeltaBehaviourUploadedDeltaFile:
+							cmd.Printf("    Delta upload for package %s.\n"+
+								"    Delta size was %.1f%% of full file, saving %d bytes\n"+
+								"    Timing: Signature %v, Build Delta %v, Upload %v\n",
+								path, deltaRatio, deltaInfo.FileSize-deltaInfo.DeltaSize,
+								roundDuration(deltaInfo.RequestSignatureDuration), roundDuration(deltaInfo.BuildDeltaDuration), roundDuration(deltaInfo.UploadDuration))
+						default:
+							break // a future unknown DeltaBehaviour will result in printing nothing, deliberately
+						}
+					} else { // delta disabled
+						cmd.Printf("    Timing: Upload %v\n", roundDuration(uploadDuration))
+
 					}
 				}
 			}
@@ -235,7 +270,21 @@ func uploadRun(cmd *cobra.Command, f factory.Factory, flags *UploadFlags) error 
 	return nil
 }
 
-func uploadFileAtPath(octopus newclient.Client, space *spaces.Space, path string, overwriteMode packages.OverwriteMode, useDeltaCompression bool, cmd *cobra.Command) (bool, error) {
+// derived from https://stackoverflow.com/a/58415564/234 by https://stackoverflow.com/users/1705598/icza
+func roundDuration(d time.Duration) time.Duration {
+	divTo2dp := time.Duration(100)
+	switch {
+	case d > time.Second:
+		d = d.Round(time.Second / divTo2dp)
+	case d > time.Millisecond:
+		d = d.Round(time.Millisecond / divTo2dp)
+	case d > time.Microsecond:
+		d = d.Round(time.Microsecond / divTo2dp)
+	}
+	return d
+}
+
+func uploadFileAtPath(octopus newclient.Client, space *spaces.Space, path string, overwriteMode packages.OverwriteMode, useDeltaCompression bool, cmd *cobra.Command) (*packages.PackageUploadResponseV2, error) {
 	opener := func(name string) (io.ReadSeekCloser, error) { return os.Open(name) }
 	if cmd.Context() != nil { // allow context to override the definition of 'os.Open' for testing
 		if f, ok := cmd.Context().Value(constants.ContextKeyOsOpen).(func(string) (io.ReadSeekCloser, error)); ok {
@@ -245,12 +294,12 @@ func uploadFileAtPath(octopus newclient.Client, space *spaces.Space, path string
 
 	fileReader, err := opener(path)
 	if err != nil {
-		return false, err
+		return nil, err
 	}
 
 	// Note: the PackageUploadResponse has a lot of information in it, but we've chosen not to do anything
 	// with it in the CLI at this time.
-	_, created, err := packages.UploadV2(octopus, space.ID, filepath.Base(path), fileReader, overwriteMode, useDeltaCompression)
+	result, err := packages.UploadV2(octopus, space.ID, filepath.Base(path), fileReader, overwriteMode, useDeltaCompression)
 	_ = fileReader.Close()
-	return created, err
+	return result, err
 }
