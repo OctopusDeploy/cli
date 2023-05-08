@@ -278,11 +278,6 @@ jobs:
             git checkout main
             git checkout -b $BRANCH_NAME
 
-        - name: Set up Go
-          uses: actions/setup-go@v3
-          with:
-            go-version: 1.19
-
         - name: Generate cli docs
           working-directory: cli
           run: curl -s https://api.github.com/repos/OctopusDeploy/cli/releases > releases.json
