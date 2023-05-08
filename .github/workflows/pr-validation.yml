@@ -4,6 +4,7 @@ on:
   push:
     paths-ignore:
       - '**.md'
+      - "releases.json"
 jobs:
   test:
     runs-on: ubuntu-latest
