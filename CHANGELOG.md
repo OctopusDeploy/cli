@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.1](https://github.com/OctopusDeploy/cli/compare/v1.2.0...v1.2.1) (2023-05-12)
+
+
+### Bug Fixes
+
+* added support for project slugs to release commands ([#230](https://github.com/OctopusDeploy/cli/issues/230)) ([851631a](https://github.com/OctopusDeploy/cli/commit/851631a0086549fc12528b72f48be9952d5a84af))
+
 ## [1.2.0](https://github.com/OctopusDeploy/cli/compare/v1.1.0...v1.2.0) (2023-01-31)
 
 
