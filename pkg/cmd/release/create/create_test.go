@@ -1239,6 +1239,7 @@ func TestReleaseCreate_AutomationMode(t *testing.T) {
 
 			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
 			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/CaC Project").RespondWith(cacProject)
 
 			req := api.ExpectRequest(t, "POST", "/api/Spaces-1/releases/create/v1")
 
@@ -1285,6 +1286,7 @@ func TestReleaseCreate_AutomationMode(t *testing.T) {
 
 			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
 			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+cacProject.GetName()).RespondWith(cacProject)
 
 			req := api.ExpectRequest(t, "POST", "/api/Spaces-1/releases/create/v1")
 
@@ -1331,6 +1333,7 @@ func TestReleaseCreate_AutomationMode(t *testing.T) {
 
 			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
 			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+cacProject.GetName()).RespondWith(cacProject)
 
 			// don't need to validate the json received by the server, we've done that already
 			api.ExpectRequest(t, "POST", "/api/Spaces-1/releases/create/v1").RespondWith(&releases.CreateReleaseResponseV1{
@@ -1362,6 +1365,7 @@ func TestReleaseCreate_AutomationMode(t *testing.T) {
 
 			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
 			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+cacProject.GetName()).RespondWith(cacProject)
 
 			// don't need to validate the json received by the server, we've done that already
 			api.ExpectRequest(t, "POST", "/api/Spaces-1/releases/create/v1").RespondWith(&releases.CreateReleaseResponseV1{
@@ -1393,6 +1397,7 @@ func TestReleaseCreate_AutomationMode(t *testing.T) {
 
 			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
 			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+cacProject.GetName()).RespondWith(cacProject)
 
 			req := api.ExpectRequest(t, "POST", "/api/Spaces-1/releases/create/v1")
 
@@ -1438,6 +1443,7 @@ func TestReleaseCreate_AutomationMode(t *testing.T) {
 
 			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
 			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+cacProject.GetName()).RespondWith(cacProject)
 
 			req := api.ExpectRequest(t, "POST", "/api/Spaces-1/releases/create/v1")
 
@@ -1513,6 +1519,7 @@ func TestReleaseCreate_AutomationMode(t *testing.T) {
 
 			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
 			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+cacProject.GetName()).RespondWith(cacProject)
 
 			req := api.ExpectRequest(t, "POST", "/api/Spaces-1/releases/create/v1")
 
@@ -1583,6 +1590,7 @@ func TestReleaseCreate_AutomationMode(t *testing.T) {
 
 			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
 			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+cacProject.GetName()).RespondWith(cacProject)
 
 			req := api.ExpectRequest(t, "POST", "/api/Spaces-1/releases/create/v1")
 
@@ -1648,6 +1656,7 @@ func TestReleaseCreate_AutomationMode(t *testing.T) {
 
 			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
 			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+cacProject.GetName()).RespondWith(cacProject)
 
 			req := api.ExpectRequest(t, "POST", "/api/Spaces-1/releases/create/v1")
 
@@ -1716,6 +1725,7 @@ func TestReleaseCreate_AutomationMode(t *testing.T) {
 
 			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
 			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+cacProject.GetName()).RespondWith(cacProject)
 
 			req := api.ExpectRequest(t, "POST", "/api/Spaces-1/releases/create/v1")
 

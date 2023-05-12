@@ -238,6 +238,7 @@ func createRun(cmd *cobra.Command, f factory.Factory, flags *CreateFlags) error 
 			// the Q&A process will have modified options;backfill into flags for generation of the automation cmd
 			resolvedFlags := NewCreateFlags()
 			// deliberately don't include resolvedFlags.PackageVersion in the automation command; it gets converted into PackageVersionSpec
+
 			resolvedFlags.Project.Value = options.ProjectName
 			resolvedFlags.PackageVersionSpec.Value = options.PackageVersionOverrides
 			resolvedFlags.Channel.Value = options.ChannelName
@@ -260,6 +261,14 @@ func createRun(cmd *cobra.Command, f factory.Factory, flags *CreateFlags) error 
 				resolvedFlags.Version,
 			)
 			cmd.Printf("\nAutomation Command: %s\n", autoCmd)
+		}
+	} else {
+		if options.ProjectName != "" {
+			project, err := selectors.FindProject(octopus, options.ProjectName)
+			if err != nil {
+				return err
+			}
+			options.ProjectName = project.GetName()
 		}
 	}
 
