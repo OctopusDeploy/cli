@@ -11,6 +11,7 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/usage"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/machines"
 	"github.com/spf13/cobra"
+	"github.com/ztrue/tracerr"
 )
 
 func NewCmdView(f factory.Factory) *cobra.Command {
@@ -47,14 +48,14 @@ func contributeEndpoint(opts *shared.ViewOptions, targetEndpoint machines.IEndpo
 	data = append(data, output.NewDataRow("Runtime architecture", getRuntimeArchitecture(endpoint)))
 	accountRows, err := shared.ContributeAccount(opts, endpoint.AccountID)
 	if err != nil {
-		return nil, err
+		return nil, tracerr.Wrap(err)
 	}
 	data = append(data, accountRows...)
 
 	proxy, err := shared.ContributeProxy(opts, endpoint.ProxyID)
 	data = append(data, proxy...)
 	if err != nil {
-		return nil, err
+		return nil, tracerr.Wrap(err)
 	}
 
 	return data, nil

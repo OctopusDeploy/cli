@@ -9,6 +9,7 @@ import (
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/proxies"
 	"github.com/spf13/cobra"
+	"github.com/ztrue/tracerr"
 	"strings"
 )
 
@@ -65,7 +66,7 @@ func RegisterCreateTargetProxyFlags(cmd *cobra.Command, proxyFlags *CreateTarget
 func FindProxy(opts *CreateTargetProxyOptions, flags *CreateTargetProxyFlags) (*proxies.Proxy, error) {
 	allProxy, err := opts.Client.Proxies.GetAll()
 	if err != nil {
-		return nil, err
+		return nil, tracerr.Wrap(err)
 	}
 	var proxy *proxies.Proxy
 	for _, p := range allProxy {
@@ -83,7 +84,7 @@ func FindProxy(opts *CreateTargetProxyOptions, flags *CreateTargetProxyFlags) (*
 func getAllProxies(client client.Client) ([]*proxies.Proxy, error) {
 	res, err := client.Proxies.GetAll()
 	if err != nil {
-		return nil, err
+		return nil, tracerr.Wrap(err)
 	}
 
 	return res, nil

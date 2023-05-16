@@ -14,6 +14,7 @@ import (
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/machines"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/workerpools"
 	"github.com/spf13/cobra"
+	"github.com/ztrue/tracerr"
 )
 
 func NewCmdView(f factory.Factory) *cobra.Command {
@@ -44,7 +45,7 @@ func ViewRun(opts *shared.ViewOptions) error {
 func contributeDetails(opts *shared.ViewOptions, workerPool workerpools.IWorkerPool) ([]*output.DataRow, error) {
 	workers, err := opts.Client.WorkerPools.GetWorkers(workerPool)
 	if err != nil {
-		return nil, err
+		return nil, tracerr.Wrap(err)
 	}
 
 	data := []*output.DataRow{}

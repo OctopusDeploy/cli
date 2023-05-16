@@ -3,6 +3,7 @@ package disconnect
 import (
 	"errors"
 	"fmt"
+	"github.com/ztrue/tracerr"
 	"sort"
 	"strings"
 
@@ -104,12 +105,12 @@ func DisconnectRun(opts *DisconnectOptions) error {
 
 	tenant, err := opts.GetTenantCallback(opts.Tenant.Value)
 	if err != nil {
-		return err
+		return tracerr.Wrap(err)
 	}
 
 	project, err := opts.GetProjectCallback(opts.Project.Value)
 	if err != nil {
-		return err
+		return tracerr.Wrap(err)
 	}
 
 	if len(tenant.ProjectEnvironments) == 0 {
@@ -123,7 +124,7 @@ func DisconnectRun(opts *DisconnectOptions) error {
 	delete(tenant.ProjectEnvironments, project.GetID())
 	tenant, err = opts.Client.Tenants.Update(tenant)
 	if err != nil {
-		return err
+		return tracerr.Wrap(err)
 	}
 
 	fmt.Fprintf(opts.Out, "Successfully disconnected '%s' from '%s'.\n", tenant.Name, project.GetName())
@@ -142,7 +143,7 @@ func PromptMissing(opts *DisconnectOptions) error {
 			return tenant.Name
 		})
 		if err != nil {
-			return err
+			return tracerr.Wrap(err)
 		}
 
 		opts.Tenant.Value = tenant.Name
@@ -150,13 +151,13 @@ func PromptMissing(opts *DisconnectOptions) error {
 	} else {
 		selectedTenant, err = opts.GetTenantCallback(opts.Tenant.Value)
 		if err != nil {
-			return err
+			return tracerr.Wrap(err)
 		}
 	}
 
 	selectedProject, err := PromptForProject(opts, selectedTenant)
 	if err != nil {
-		return err
+		return tracerr.Wrap(err)
 	}
 
 	if !opts.Confirm.Value {
@@ -175,7 +176,7 @@ func PromptForProject(opts *DisconnectOptions, selectedTenant *tenants.Tenant) (
 	if opts.Project.Value == "" {
 		switch len(selectedTenant.ProjectEnvironments) {
 		case 0:
-			return nil, errors.New("Not currently connected to any projects")
+			return nil, tracerr.Wrap(errors.New("Not currently connected to any projects"))
 		case 1:
 			var projectId string
 			for i := range selectedTenant.ProjectEnvironments {
@@ -184,16 +185,16 @@ func PromptForProject(opts *DisconnectOptions, selectedTenant *tenants.Tenant) (
 			selectedProject, err = opts.GetProjectCallback(projectId)
 			opts.Project.Value = selectedProject.GetName()
 			if err != nil {
-				return nil, err
+				return nil, tracerr.Wrap(err)
 			}
 		default:
 			currentlyConnectedProjects, err := getCurrentlyConnectedProjects(selectedTenant, opts.GetProjectCallback)
 			if err != nil {
-				return nil, err
+				return nil, tracerr.Wrap(err)
 			}
 			project, err := projectSelector("You have not specified a Project. Please select one:", func() ([]*projects.Project, error) { return currentlyConnectedProjects, nil }, opts.Ask)
 			if err != nil {
-				return nil, nil
+				return nil, tracerr.Wrap(err)
 			}
 			opts.Project.Value = project.GetName()
 			selectedProject = project
@@ -202,7 +203,7 @@ func PromptForProject(opts *DisconnectOptions, selectedTenant *tenants.Tenant) (
 	} else {
 		selectedProject, err = opts.GetProjectCallback(opts.Project.Value)
 		if err != nil {
-			return nil, err
+			return nil, tracerr.Wrap(err)
 		}
 	}
 	return selectedProject, nil
@@ -213,7 +214,7 @@ func getCurrentlyConnectedProjects(tenant *tenants.Tenant, getProjectCallback sh
 	for projectId := range tenant.ProjectEnvironments {
 		project, err := getProjectCallback(projectId)
 		if err != nil {
-			return nil, err
+			return nil, tracerr.Wrap(err)
 		}
 		projects = append(projects, project)
 	}
@@ -227,7 +228,7 @@ func getCurrentlyConnectedProjects(tenant *tenants.Tenant, getProjectCallback sh
 func projectSelector(questionText string, getAllProjectsCallback shared.GetAllProjectsCallback, ask question.Asker) (*projects.Project, error) {
 	existingProjects, err := getAllProjectsCallback()
 	if err != nil {
-		return nil, err
+		return nil, tracerr.Wrap(err)
 	}
 
 	return question.SelectMap(ask, questionText, existingProjects, func(p *projects.Project) string { return p.GetName() })

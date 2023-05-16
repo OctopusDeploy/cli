@@ -18,6 +18,7 @@ import (
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
+	"github.com/ztrue/tracerr"
 	"golang.org/x/exp/slices"
 	"net/url"
 	"strings"
@@ -162,18 +163,18 @@ func PromptMissing(opts *ConvertOptions) error {
 	if opts.Project.Value == "" {
 		allProjects, err := opts.GetAllProjectsCallback()
 		if err != nil {
-			return err
+			return tracerr.Wrap(err)
 		}
 		project, err := question.SelectMap(opts.Ask, "You have not specified a project. Please select one:", allProjects, func(p *projects.Project) string { return p.GetName() })
 		if err != nil {
-			return err
+			return tracerr.Wrap(err)
 		}
 		opts.Project.Value = project.GetName()
 	}
 
 	_, err := PromptForConfigAsCode(opts)
 	if err != nil {
-		return err
+		return tracerr.Wrap(err)
 	}
 
 	return nil
@@ -230,7 +231,7 @@ func PromptForConfigAsCode(opts *ConvertOptions) (cmd.Dependable, error) {
 		selectedOption, err := selectors.SelectOptions(opts.Ask, "Select where to store the Git credentials", getGitStorageOptions)
 
 		if err != nil {
-			return nil, err
+			return nil, tracerr.Wrap(err)
 		}
 		opts.GitStorage.Value = selectedOption.Value
 	}
@@ -238,12 +239,12 @@ func PromptForConfigAsCode(opts *ConvertOptions) (cmd.Dependable, error) {
 	if opts.GitStorage.Value == GitStorageLibrary {
 		err := promptLibraryGitCredentials(opts, opts.GetAllGitCredentialsCallback)
 		if err != nil {
-			return nil, err
+			return nil, tracerr.Wrap(err)
 		}
 	} else {
 		err := promptProjectGitCredentials(opts)
 		if err != nil {
-			return nil, err
+			return nil, tracerr.Wrap(err)
 		}
 	}
 
@@ -255,7 +256,7 @@ func PromptForConfigAsCode(opts *ConvertOptions) (cmd.Dependable, error) {
 			survey.MaxLength(200),
 			survey.Required,
 		))); err != nil {
-			return nil, err
+			return nil, tracerr.Wrap(err)
 		}
 	}
 
@@ -267,7 +268,7 @@ func PromptForConfigAsCode(opts *ConvertOptions) (cmd.Dependable, error) {
 		}, &opts.GitBasePath.Value, survey.WithValidator(survey.ComposeValidators(
 			survey.MaxLength(200),
 		))); err != nil {
-			return nil, err
+			return nil, tracerr.Wrap(err)
 		}
 	}
 
@@ -279,7 +280,7 @@ func PromptForConfigAsCode(opts *ConvertOptions) (cmd.Dependable, error) {
 		}, &opts.GitBranch.Value, survey.WithValidator(survey.ComposeValidators(
 			survey.MaxLength(200),
 		))); err != nil {
-			return nil, err
+			return nil, tracerr.Wrap(err)
 		}
 	}
 
@@ -290,7 +291,7 @@ func PromptForConfigAsCode(opts *ConvertOptions) (cmd.Dependable, error) {
 				Message: "Enter a protected branch pattern (enter blank to end)",
 				Help:    "This setting only applies within Octopus and will not affect your protected branches in Git. Use wildcard syntax to specify the range of branches to include. Multiple patterns can be supplied",
 			}, &pattern, survey.WithValidator(survey.MaxLength(200))); err != nil {
-				return nil, err
+				return nil, tracerr.Wrap(err)
 			}
 
 			if pattern == "" {
@@ -309,7 +310,7 @@ func PromptForConfigAsCode(opts *ConvertOptions) (cmd.Dependable, error) {
 			survey.Required,
 			survey.MaxLength(200),
 		))); err != nil {
-			return nil, err
+			return nil, tracerr.Wrap(err)
 		}
 	}
 
@@ -321,7 +322,7 @@ func PromptForConfigAsCode(opts *ConvertOptions) (cmd.Dependable, error) {
 		}, &opts.GitInitialCommitMessage.Value, survey.WithValidator(survey.ComposeValidators(
 			survey.MaxLength(50),
 		))); err != nil {
-			return nil, err
+			return nil, tracerr.Wrap(err)
 		}
 	}
 
@@ -341,7 +342,7 @@ func promptProjectGitCredentials(opts *ConvertOptions) error {
 			survey.MaxLength(200),
 			survey.Required,
 		))); err != nil {
-			return err
+			return tracerr.Wrap(err)
 		}
 	}
 
@@ -353,7 +354,7 @@ func promptProjectGitCredentials(opts *ConvertOptions) error {
 			survey.MaxLength(200),
 			survey.Required,
 		))); err != nil {
-			return err
+			return tracerr.Wrap(err)
 		}
 	}
 	return nil
@@ -364,7 +365,7 @@ func promptLibraryGitCredentials(opts *ConvertOptions, gitCredentialsCallback Ge
 		selectedOption, err := selectors.Select(opts.Ask, "Select which Git credentials to use", gitCredentialsCallback, func(resource *credentials.Resource) string { return resource.Name })
 
 		if err != nil {
-			return err
+			return tracerr.Wrap(err)
 		}
 		opts.GitCredentials.Value = selectedOption.GetName()
 	}
@@ -381,7 +382,7 @@ func getGitStorageOptions() []*selectors.SelectOption[string] {
 func createGetAllGitCredentialsCallback(client client.Client) ([]*credentials.Resource, error) {
 	res, err := client.GitCredentials.Get(credentials.Query{})
 	if err != nil {
-		return nil, err
+		return nil, tracerr.Wrap(err)
 	}
 	return res.Items, nil
 }
@@ -392,17 +393,17 @@ func (co *ConvertOptions) buildGitPersistenceSettings() (projects.GitPersistence
 	if strings.EqualFold(co.GitStorage.Value, GitStorageLibrary) {
 		credentials, err = co.buildLibraryGitVersionControlSettings()
 		if err != nil {
-			return nil, err
+			return nil, tracerr.Wrap(err)
 		}
 	} else {
 		credentials, err = co.buildProjectGitVersionControlSettings()
 		if err != nil {
-			return nil, err
+			return nil, tracerr.Wrap(err)
 		}
 	}
 	url, err := url.Parse(co.GitUrl.Value)
 	if err != nil {
-		return nil, err
+		return nil, tracerr.Wrap(err)
 	}
 
 	vcs := projects.NewGitPersistenceSettings(co.GitBasePath.Value, credentials, co.GitBranch.Value, co.GitProtectedBranchPatterns.Value, url)
@@ -412,7 +413,7 @@ func (co *ConvertOptions) buildGitPersistenceSettings() (projects.GitPersistence
 func (co *ConvertOptions) buildLibraryGitVersionControlSettings() (credentials.GitCredential, error) {
 	creds, err := co.Client.GitCredentials.GetByIDOrName(co.GitCredentials.Value)
 	if err != nil {
-		return nil, err
+		return nil, tracerr.Wrap(err)
 	}
 
 	credentials := credentials.NewReference(creds.GetID())

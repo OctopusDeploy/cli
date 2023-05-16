@@ -15,6 +15,7 @@ import (
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/variables"
 	"github.com/spf13/cobra"
+	"github.com/ztrue/tracerr"
 	"strings"
 )
 
@@ -85,18 +86,18 @@ func includeRun(opts *IncludeOptions) error {
 	if !opts.NoPrompt {
 		err := PromptMissing(opts)
 		if err != nil {
-			return err
+			return tracerr.Wrap(err)
 		}
 	}
 
 	project, err := opts.GetProjectCallback(opts.Project.Value)
 	if err != nil {
-		return err
+		return tracerr.Wrap(err)
 	}
 
 	libraryVariableSets, err := opts.GetAllLibraryVariableSetsCallback()
 	if err != nil {
-		return err
+		return tracerr.Wrap(err)
 	}
 
 	projectModified := false
@@ -122,7 +123,7 @@ func includeRun(opts *IncludeOptions) error {
 	if projectModified {
 		_, err = opts.Client.Projects.Update(project)
 		if err != nil {
-			return err
+			return tracerr.Wrap(err)
 		}
 
 		fmt.Fprintf(opts.Out, "Successfully updated included library variable sets\n")
@@ -142,13 +143,13 @@ func PromptMissing(opts *IncludeOptions) error {
 	if opts.Project.Value == "" {
 		project, err = projectSelector("You have not specified a Project. Please select one:", opts.GetAllProjectsCallback, opts.Ask)
 		if err != nil {
-			return nil
+			return tracerr.Wrap(err)
 		}
 		opts.Project.Value = project.GetName()
 	} else {
 		project, err = opts.GetProjectCallback(opts.Project.Value)
 		if err != nil {
-			return err
+			return tracerr.Wrap(err)
 		}
 	}
 
@@ -172,7 +173,7 @@ func PromptMissing(opts *IncludeOptions) error {
 			}, false)
 
 		if err != nil {
-			return err
+			return tracerr.Wrap(err)
 		}
 
 		if util.Empty(selectedVariableSets) {
@@ -187,7 +188,7 @@ func PromptMissing(opts *IncludeOptions) error {
 func projectSelector(questionText string, getAllProjectsCallback shared.GetAllProjectsCallback, ask question.Asker) (*projects.Project, error) {
 	existingProjects, err := getAllProjectsCallback()
 	if err != nil {
-		return nil, err
+		return nil, tracerr.Wrap(err)
 	}
 
 	return question.SelectMap(ask, questionText, existingProjects, func(p *projects.Project) string { return p.GetName() })

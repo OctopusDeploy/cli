@@ -2,6 +2,7 @@ package wait
 
 import (
 	"fmt"
+	"github.com/ztrue/tracerr"
 	"io"
 	"time"
 
@@ -68,7 +69,7 @@ func WaitRun(out io.Writer, taskIDs []string, getServerTasksCallback ServerTasks
 	}
 	tasks, err := getServerTasksCallback(taskIDs)
 	if err != nil {
-		return err
+		return tracerr.Wrap(err)
 	}
 
 	if len(tasks) == 0 {
@@ -126,12 +127,12 @@ func GetServerTasksCallback(octopus *client.Client) ServerTasksCallback {
 
 		resourceTasks, err := octopus.Tasks.Get(query)
 		if err != nil {
-			return nil, err
+			return nil, tracerr.Wrap(err)
 		}
 
 		tasks, err := resourceTasks.GetAllPages(octopus.Sling())
 		if err != nil {
-			return nil, err
+			return nil, tracerr.Wrap(err)
 		}
 
 		return tasks, nil

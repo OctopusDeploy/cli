@@ -16,6 +16,7 @@ import (
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/variables"
 	"github.com/spf13/cobra"
+	"github.com/ztrue/tracerr"
 	"strings"
 )
 
@@ -263,7 +264,7 @@ func PromptMissing(opts *CreateOptions) error {
 		if opts.PromptType.Value == "" {
 			selectedPromptType, err := selectors.SelectOptions(opts.Ask, "Select the control type of the prompted variable", getControlTypeOptions)
 			if err != nil {
-				return err
+				return tracerr.Wrap(err)
 			}
 			opts.PromptType.Value = selectedPromptType.Value
 		}
@@ -307,28 +308,28 @@ func PromptMissing(opts *CreateOptions) error {
 	if opts.Value.Value == "" {
 		variableType, err := mapVariableType(opts.Type.Value)
 		if err != nil {
-			return err
+			return tracerr.Wrap(err)
 		}
 		opts.Value.Value, err = sharedVariable.PromptValue(opts.Ask, variableType, opts.VariableCallbacks)
 		if err != nil {
-			return err
+			return tracerr.Wrap(err)
 		}
 	}
 
 	projectVariables, err := opts.GetProjectVariables(project.GetID())
 	if err != nil {
-		return err
+		return tracerr.Wrap(err)
 	}
 
 	scope, err := sharedVariable.ToVariableScope(projectVariables, opts.ScopeFlags, project)
 	if err != nil {
-		return err
+		return tracerr.Wrap(err)
 	}
 
 	if scope.IsEmpty() {
 		err = sharedVariable.PromptScopes(opts.Ask, projectVariables, opts.ScopeFlags, opts.IsPrompted.Value)
 		if err != nil {
-			return err
+			return tracerr.Wrap(err)
 		}
 	}
 
@@ -359,7 +360,7 @@ func getControlTypeOptions() []*selectors.SelectOption[string] {
 func projectSelector(questionText string, getAllProjectsCallback shared.GetAllProjectsCallback, ask question.Asker) (*projects.Project, error) {
 	existingProjects, err := getAllProjectsCallback()
 	if err != nil {
-		return nil, err
+		return nil, tracerr.Wrap(err)
 	}
 
 	return question.SelectMap(ask, questionText, existingProjects, func(p *projects.Project) string { return p.GetName() })

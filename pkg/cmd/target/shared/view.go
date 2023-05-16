@@ -7,6 +7,7 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/output"
 	"github.com/OctopusDeploy/cli/pkg/util"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/machines"
+	"github.com/ztrue/tracerr"
 )
 
 type ContributeEndpointCallback func(opts *ViewOptions, endpoint machines.IEndpoint) ([]*output.DataRow, error)
@@ -38,7 +39,7 @@ func NewViewOptions(viewFlags *ViewFlags, dependencies *cmd.Dependencies, args [
 func ViewRun(opts *ViewOptions, contributeEndpoint ContributeEndpointCallback, description string) error {
 	var target, err = opts.Client.Machines.GetByIdentifier(opts.IdOrName)
 	if err != nil {
-		return err
+		return tracerr.Wrap(err)
 	}
 
 	data := []*output.DataRow{}
@@ -50,7 +51,7 @@ func ViewRun(opts *ViewOptions, contributeEndpoint ContributeEndpointCallback, d
 	if contributeEndpoint != nil {
 		newRows, err := contributeEndpoint(opts, target.Endpoint)
 		if err != nil {
-			return err
+			return tracerr.Wrap(err)
 		}
 		for _, r := range newRows {
 			data = append(data, r)
@@ -59,7 +60,7 @@ func ViewRun(opts *ViewOptions, contributeEndpoint ContributeEndpointCallback, d
 
 	environmentMap, err := GetEnvironmentMap(opts)
 	if err != nil {
-		return err
+		return tracerr.Wrap(err)
 	}
 	environmentNames := resolveValues(target.EnvironmentIDs, environmentMap)
 
@@ -69,7 +70,7 @@ func ViewRun(opts *ViewOptions, contributeEndpoint ContributeEndpointCallback, d
 	if !util.Empty(target.TenantIDs) {
 		tenantMap, err := GetTenantMap(opts)
 		if err != nil {
-			return err
+			return tracerr.Wrap(err)
 		}
 
 		tenantNames := resolveValues(target.TenantIDs, tenantMap)
@@ -101,7 +102,7 @@ func ContributeProxy(opts *ViewOptions, proxyID string) ([]*output.DataRow, erro
 	if proxyID != "" {
 		proxy, err := opts.Client.Proxies.GetById(proxyID)
 		if err != nil {
-			return nil, err
+			return nil, tracerr.Wrap(err)
 		}
 		return []*output.DataRow{output.NewDataRow("Proxy", proxy.GetName())}, nil
 	}
@@ -112,7 +113,7 @@ func ContributeProxy(opts *ViewOptions, proxyID string) ([]*output.DataRow, erro
 func ContributeAccount(opts *ViewOptions, accountID string) ([]*output.DataRow, error) {
 	account, err := opts.Client.Accounts.GetByID(accountID)
 	if err != nil {
-		return nil, err
+		return nil, tracerr.Wrap(err)
 	}
 	data := []*output.DataRow{output.NewDataRow("Account", account.GetName())}
 	return data, nil
@@ -133,7 +134,7 @@ func GetEnvironmentMap(opts *ViewOptions) (map[string]string, error) {
 	environmentMap := make(map[string]string)
 	allEnvs, err := opts.Client.Environments.GetAll()
 	if err != nil {
-		return nil, err
+		return nil, tracerr.Wrap(err)
 	}
 	for _, e := range allEnvs {
 		environmentMap[e.GetID()] = e.GetName()
@@ -145,7 +146,7 @@ func GetTenantMap(opts *ViewOptions) (map[string]string, error) {
 	tenantMap := make(map[string]string)
 	allEnvs, err := opts.Client.Tenants.GetAll()
 	if err != nil {
-		return nil, err
+		return nil, tracerr.Wrap(err)
 	}
 	for _, e := range allEnvs {
 		tenantMap[e.GetID()] = e.Name

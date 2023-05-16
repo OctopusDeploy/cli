@@ -7,6 +7,7 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/util/flag"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/environments"
 	"github.com/spf13/cobra"
+	"github.com/ztrue/tracerr"
 )
 
 const (
@@ -46,7 +47,7 @@ func PromptForEnvironments(opts *CreateTargetEnvironmentOptions, flags *CreateTa
 		envs, err := selectors.EnvironmentsMultiSelect(opts.Ask, opts.GetAllEnvironmentsCallback,
 			"Choose at least one environment for the deployment target.\n", true)
 		if err != nil {
-			return err
+			return tracerr.Wrap(err)
 		}
 		flags.Environments.Value = util.SliceTransform(envs, func(e *environments.Environment) string { return e.Name })
 	}

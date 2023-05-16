@@ -3,6 +3,7 @@ package connect
 import (
 	"errors"
 	"fmt"
+	"github.com/ztrue/tracerr"
 
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/MakeNowJust/heredoc/v2"
@@ -65,7 +66,7 @@ func NewConnectOptions(connectFlags *ConnectFlags, dependencies *cmd.Dependencie
 func getProjectProgression(client client.Client, project *projects.Project) (*projects.Progression, error) {
 	res, err := client.Projects.GetProgression(project)
 	if err != nil {
-		return nil, err
+		return nil, tracerr.Wrap(err)
 	}
 
 	return res, nil
@@ -119,12 +120,12 @@ func ConnectRun(opts *ConnectOptions) error {
 
 	tenant, err := opts.Client.Tenants.GetByIdentifier(opts.Tenant.Value)
 	if err != nil {
-		return err
+		return tracerr.Wrap(err)
 	}
 
 	project, err := opts.Client.Projects.GetByIdentifier(opts.Project.Value)
 	if err != nil {
-		return err
+		return tracerr.Wrap(err)
 	}
 
 	if !supportsTenantedDeployments(project) {
@@ -137,7 +138,7 @@ func ConnectRun(opts *ConnectOptions) error {
 
 	environments, err := executionscommon.FindEnvironments(opts.Client, opts.Environments.Value)
 	if err != nil {
-		return err
+		return tracerr.Wrap(err)
 	}
 
 	var environmentIds []string
@@ -148,7 +149,7 @@ func ConnectRun(opts *ConnectOptions) error {
 	tenant.ProjectEnvironments[project.GetID()] = environmentIds
 	tenant, err = opts.Client.Tenants.Update(tenant)
 	if err != nil {
-		return err
+		return tracerr.Wrap(err)
 	}
 
 	fmt.Fprintf(opts.Out, "Successfully connected '%s' to '%s'.\n", tenant.Name, project.GetName())
@@ -165,7 +166,7 @@ func PromptMissing(opts *ConnectOptions) error {
 			return tenant.Name
 		})
 		if err != nil {
-			return err
+			return tracerr.Wrap(err)
 		}
 
 		opts.Tenant.Value = tenant.Name
@@ -174,20 +175,20 @@ func PromptMissing(opts *ConnectOptions) error {
 	if opts.Project.Value == "" {
 		project, err := projectSelector("You have not specified a Project. Please select one:", opts.GetAllProjectsCallback, opts.Ask)
 		if err != nil {
-			return err
+			return tracerr.Wrap(err)
 		}
 		opts.Project.Value = project.GetName()
 	}
 
 	err := PromptForEnablingTenantedDeployments(opts, opts.GetProjectCallback)
 	if err != nil {
-		return err
+		return tracerr.Wrap(err)
 	}
 
 	if opts.Environments.Value == nil || len(opts.Environments.Value) == 0 {
 		project, err := opts.GetProjectCallback(opts.Project.Value)
 		if err != nil {
-			return err
+			return tracerr.Wrap(err)
 		}
 		var progression *projects.Progression
 		progression, err = opts.GetProjectProgressionCallback(project)
@@ -209,7 +210,7 @@ func PromptForEnablingTenantedDeployments(opts *ConnectOptions, getProjectCallba
 	if !opts.EnableTenantDeployments.Value {
 		project, err := getProjectCallback(opts.Project.Value)
 		if err != nil {
-			return err
+			return tracerr.Wrap(err)
 		}
 		if !supportsTenantedDeployments(project) {
 			opts.Ask(&survey.Confirm{
@@ -233,7 +234,7 @@ func getFailureMessageForUntenantedProject(project *projects.Project) string {
 func projectSelector(questionText string, getAllProjectsCallback shared.GetAllProjectsCallback, ask question.Asker) (*projects.Project, error) {
 	existingProjects, err := getAllProjectsCallback()
 	if err != nil {
-		return nil, err
+		return nil, tracerr.Wrap(err)
 	}
 
 	return question.SelectMap(ask, questionText, existingProjects, getProjectDisplay())

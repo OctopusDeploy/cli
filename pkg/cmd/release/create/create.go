@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/OctopusDeploy/cli/pkg/apiclient"
+	"github.com/ztrue/tracerr"
 	"io"
 	"os"
 	"regexp"
@@ -231,7 +232,7 @@ func createRun(cmd *cobra.Command, f factory.Factory, flags *CreateFlags) error 
 	if f.IsPromptEnabled() {
 		err = AskQuestions(octopus, cmd.OutOrStdout(), f.Ask, options)
 		if err != nil {
-			return err
+			return tracerr.Wrap(err)
 		}
 
 		if !constants.IsProgrammaticOutputFormat(outputFormat) {
@@ -276,7 +277,7 @@ func createRun(cmd *cobra.Command, f factory.Factory, flags *CreateFlags) error 
 		executor.NewTask(executor.TaskTypeCreateRelease, options),
 	})
 	if err != nil {
-		return err
+		return tracerr.Wrap(err)
 	}
 
 	if options.Response != nil {
@@ -389,14 +390,14 @@ func BuildPackageVersionBaseline(octopus *octopusApiClient.Client, deploymentPro
 	sort.Strings(feedIds) // we need to sort them otherwise the order is indeterminate. Server doesn't care but our unit tests fail
 	foundFeeds, err := octopus.Feeds.Get(feeds.FeedsQuery{IDs: feedIds, Take: len(feedIds)})
 	if err != nil {
-		return nil, err
+		return nil, tracerr.Wrap(err)
 	}
 
 	// step 3: for each package within a feed, ask the server to select the best package version for it, applying the channel rules
 	for _, feed := range foundFeeds.Items {
 		packageRefsInFeed, ok := feedsToQuery[feed.GetID()]
 		if !ok {
-			return nil, errors.New("internal consistency error; feed ID not found in feedsToQuery") // should never happen
+			return nil, tracerr.Wrap(errors.New("internal consistency error; feed ID not found in feedsToQuery")) // should never happen
 		}
 
 		cache := make(map[feeds.SearchPackageVersionsQuery]string) // cache value is the package version
@@ -431,7 +432,7 @@ func BuildPackageVersionBaseline(octopus *octopusApiClient.Client, deploymentPro
 			} else { // uncached; ask the server
 				versions, err := octopus.Feeds.SearchFeedPackageVersions(feed, query)
 				if err != nil {
-					return nil, err
+					return nil, tracerr.Wrap(err)
 				}
 
 				switch len(versions.Items) {
@@ -454,7 +455,7 @@ func BuildPackageVersionBaseline(octopus *octopusApiClient.Client, deploymentPro
 					})
 
 				default:
-					return nil, errors.New("internal error; more than one package returned when only 1 specified")
+					return nil, tracerr.Wrap(errors.New("internal error; more than one package returned when only 1 specified"))
 				}
 			}
 		}
@@ -815,12 +816,12 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 	if options.ProjectName == "" {
 		selectedProject, err = selectors.Project("Select the project in which the release will be created", octopus, asker)
 		if err != nil {
-			return err
+			return tracerr.Wrap(err)
 		}
 	} else { // project name is already provided, fetch the object because it's needed for further questions
 		selectedProject, err = selectors.FindProject(octopus, options.ProjectName)
 		if err != nil {
-			return err
+			return tracerr.Wrap(err)
 		}
 		_, _ = fmt.Fprintf(stdout, "Project %s\n", output.Cyan(selectedProject.Name))
 	}
@@ -864,25 +865,25 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 	// we've figured out how to load the dep process; go load it
 	deploymentProcess, err := octopus.DeploymentProcesses.Get(selectedProject, gitReferenceKey)
 	if err != nil {
-		return err
+		return tracerr.Wrap(err)
 	}
 
 	var selectedChannel *channels.Channel
 	if options.ChannelName == "" {
 		selectedChannel, err = selectors.Channel(octopus, asker, stdout, "Select the channel in which the release will be created", selectedProject)
 		if err != nil {
-			return err
+			return tracerr.Wrap(err)
 		}
 	} else {
 		selectedChannel, err = selectors.FindChannel(octopus, selectedProject, options.ChannelName)
 		if err != nil {
-			return err
+			return tracerr.Wrap(err)
 		}
 		_, _ = fmt.Fprintf(stdout, "Channel %s\n", output.Cyan(selectedChannel.Name))
 	}
 	options.ChannelName = selectedChannel.Name
 	if err != nil {
-		return err
+		return tracerr.Wrap(err)
 	}
 
 	// immediately load the deployment process template
@@ -890,12 +891,12 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 	deploymentProcessTemplate, err := octopus.DeploymentProcesses.GetTemplate(deploymentProcess, selectedChannel.ID, "")
 	// don't stop the spinner, BuildPackageVersionBaseline does more networking
 	if err != nil {
-		return err
+		return tracerr.Wrap(err)
 	}
 
 	packageVersionBaseline, err := BuildPackageVersionBaseline(octopus, deploymentProcessTemplate, selectedChannel)
 	if err != nil {
-		return err
+		return tracerr.Wrap(err)
 	}
 
 	var overriddenPackageVersions []*StepPackageVersion
@@ -908,7 +909,7 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 			stdout)
 
 		if err != nil {
-			return err
+			return tracerr.Wrap(err)
 		}
 		overriddenPackageVersions = opv
 
@@ -935,7 +936,7 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 		} else {
 			deploymentSettings, err := octopus.Deployments.GetDeploymentSettings(selectedProject, gitReferenceKey)
 			if err != nil {
-				return err
+				return tracerr.Wrap(err)
 			}
 			versioningStrategy = deploymentSettings.VersioningStrategy
 		}
@@ -960,7 +961,7 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 
 			versionMetadata, err := askVersionMetadata(asker, donorPackage.PackageID, donorPackage.Version)
 			if err != nil {
-				return err
+				return tracerr.Wrap(err)
 			}
 			if versionMetadata == "" {
 				options.Version = donorPackage.Version
@@ -971,7 +972,7 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 			// we already loaded the deployment process template when we were looking for packages
 			options.Version, err = askVersion(asker, deploymentProcessTemplate.NextVersionIncrement)
 			if err != nil {
-				return err
+				return tracerr.Wrap(err)
 			}
 		}
 
@@ -1160,13 +1161,13 @@ func askReleaseNotes(ask question.Asker) (string, error) {
 func selectGitReference(octopus *octopusApiClient.Client, ask question.Asker, project *projects.Project) (*projects.GitReference, error) {
 	branches, err := octopus.Projects.GetGitBranches(project)
 	if err != nil {
-		return nil, err
+		return nil, tracerr.Wrap(err)
 	}
 
 	tags, err := octopus.Projects.GetGitTags(project)
 
 	if err != nil {
-		return nil, err
+		return nil, tracerr.Wrap(err)
 	}
 
 	allRefs := append(branches, tags...)

@@ -11,6 +11,7 @@ const (
 	FlagOutputFormat       = "output-format"
 	FlagOutputFormatLegacy = "outputFormat"
 	FlagNoPrompt           = "no-prompt"
+	FlagDebug              = "debug"
 )
 
 // flags for storing things in the go context

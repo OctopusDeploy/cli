@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/OctopusDeploy/cli/pkg/apiclient"
+	"github.com/ztrue/tracerr"
 	"io"
 	"os"
 	"path/filepath"
@@ -160,7 +161,7 @@ func uploadRun(cmd *cobra.Command, f factory.Factory, flags *UploadFlags) error 
 				}
 
 				if !continueOnError {
-					return err
+					return tracerr.Wrap(err)
 				} // else keep going to the next file.
 
 				// side-effect: If there is a single failed upload, and you specify --continue-on-error, then
@@ -192,15 +193,15 @@ func uploadRun(cmd *cobra.Command, f factory.Factory, flags *UploadFlags) error 
 		if err == nil && globMatches == nil {
 			err = doUpload(pkgString)
 			if err != nil {
-				return err
+				return tracerr.Wrap(err)
 			}
 		} else if err != nil { // invalid glob pattern
-			return err
+			return tracerr.Wrap(err)
 		} else { // glob matched at least 1 thing
 			for _, globMatch := range globMatches {
 				err = doUpload(globMatch)
 				if err != nil {
-					return err
+					return tracerr.Wrap(err)
 				}
 			}
 		}
@@ -229,12 +230,12 @@ func uploadFileAtPath(octopus newclient.Client, space *spaces.Space, path string
 
 	fileReader, err := opener(path)
 	if err != nil {
-		return false, err
+		return false, tracerr.Wrap(err)
 	}
 
 	// Note: the PackageUploadResponse has a lot of information in it, but we've chosen not to do anything
 	// with it in the CLI at this time.
 	_, created, err := packages.Upload(octopus, space.ID, filepath.Base(path), fileReader, overwriteMode)
 	_ = fileReader.Close()
-	return created, err
+	return created, tracerr.Wrap(err)
 }

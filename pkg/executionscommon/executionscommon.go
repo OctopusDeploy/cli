@@ -15,6 +15,7 @@ import (
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/environments"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/tenants"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/variables"
+	"github.com/ztrue/tracerr"
 	"sort"
 	"strconv"
 	"strings"
@@ -27,7 +28,7 @@ func findTenantsAndTags(octopus *octopusApiClient.Client, projectID string, envi
 
 	page, err := octopus.Tenants.Get(tenants.TenantsQuery{ProjectID: projectID})
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, tracerr.Wrap(err)
 	}
 	for page != nil {
 		tenantsForMyEnvironments := make([]*tenants.Tenant, 0)
@@ -51,7 +52,7 @@ func findTenantsAndTags(octopus *octopusApiClient.Client, projectID string, envi
 
 		page, err = page.GetNextPage(octopus.Tenants.GetClient())
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, tracerr.Wrap(err)
 		}
 	}
 
@@ -66,7 +67,7 @@ func AskTenantsAndTags(asker question.Asker, octopus *octopusApiClient.Client, p
 	})
 	foundTenants, foundTags, err := findTenantsAndTags(octopus, projectID, envIDs)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, tracerr.Wrap(err)
 	}
 
 	// sort because otherwise they may appear in weird order
@@ -84,7 +85,7 @@ func AskTenantsAndTags(asker question.Asker, octopus *octopusApiClient.Client, p
 			Options: combinedList,
 		}, &selection, survey.WithValidator(survey.Required))
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, tracerr.Wrap(err)
 		}
 	} else {
 		err = asker(&survey.MultiSelect{
@@ -92,7 +93,7 @@ func AskTenantsAndTags(asker question.Asker, octopus *octopusApiClient.Client, p
 			Options: combinedList,
 		}, &selection)
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, tracerr.Wrap(err)
 		}
 	}
 
@@ -124,7 +125,7 @@ func AskExcludedSteps(asker question.Asker, steps []*deployments.DeploymentStep)
 		return s.Name
 	}, false)
 	if err != nil {
-		return nil, err
+		return nil, tracerr.Wrap(err)
 	}
 	return util.SliceTransform(stepsToExclude, func(s *deployments.DeploymentStep) string {
 		return s.Name // server expects us to send a list of step names
@@ -135,7 +136,7 @@ func AskPackageDownload(asker question.Asker) (bool, error) {
 	result, err := question.SelectMap(asker, "Package download", []bool{true, false}, LookupPackageDownloadString)
 	// our question is phrased such that "Use cached packages" (the do-nothing option) is true,
 	// but we want to set the --force-package-download flag, so we need to invert the response
-	return !result, err
+	return !result, tracerr.Wrap(err)
 }
 
 func AskGuidedFailureMode(asker question.Asker) (string, error) {
@@ -188,7 +189,7 @@ func AskVariables(asker question.Asker, variableSet *variables.VariableSet, vari
 				if v.Type == "String" || v.Type == "Sensitive" {
 					responseString, err := askVariableSpecificPrompt(asker, promptMessage, v.Type, v.Value, v.Prompt.IsRequired, v.IsSensitive, v.Prompt.DisplaySettings)
 					if err != nil {
-						return nil, err
+						return nil, tracerr.Wrap(err)
 					}
 					result[v.Name] = responseString
 				}
@@ -233,14 +234,14 @@ func askVariableSpecificPrompt(asker question.Asker, message string, variableTyp
 			Message: message,
 			Default: defaultValue,
 		}, &response, askOpt)
-		return response, err
+		return response, tracerr.Wrap(err)
 
 	case variables.ControlTypeSensitive:
 		var response string
 		err := asker(&survey.Password{
 			Message: message,
 		}, &response, askOpt)
-		return response, err
+		return response, tracerr.Wrap(err)
 
 	case variables.ControlTypeMultiLineText: // not clear if the server ever does this
 		var response string
@@ -250,7 +251,7 @@ func askVariableSpecificPrompt(asker question.Asker, message string, variableTyp
 				FileName: "*.txt",
 			},
 			Optional: !isRequired}, &response)
-		return response, err
+		return response, tracerr.Wrap(err)
 
 	case variables.ControlTypeSelect:
 		if displaySettings == nil {
@@ -273,7 +274,7 @@ func askVariableSpecificPrompt(asker question.Asker, message string, variableTyp
 			Options: optionStrings,
 		}, &response, askOpt)
 		if err != nil {
-			return "", err
+			return "", tracerr.Wrap(err)
 		}
 		return reverseLookup[response], nil
 
@@ -289,7 +290,7 @@ func askVariableSpecificPrompt(asker question.Asker, message string, variableTyp
 			Default: defTrueFalse,
 			Options: []string{"True", "False"}, // Yes/No would read more nicely, but doesn't fit well with cmdline which expects True/False
 		}, &response, askOpt)
-		return response, err
+		return response, tracerr.Wrap(err)
 
 	default:
 		return "", fmt.Errorf("unhandled control type %s", displaySettings.ControlType)
@@ -403,7 +404,7 @@ func FindEnvironments(client *octopusApiClient.Client, environmentNamesOrIds []s
 	// it's probably going to be cheaper to just list out all the environments and match them client side, so we'll do that for simplicity's sake
 	allEnvs, err := client.Environments.GetAll()
 	if err != nil {
-		return nil, err
+		return nil, tracerr.Wrap(err)
 	}
 
 	nameLookup := make(map[string]*environments.Environment, len(allEnvs))
@@ -425,7 +426,7 @@ func FindEnvironments(client *octopusApiClient.Client, environmentNamesOrIds []s
 			if env != nil {
 				result = append(result, env)
 			} else {
-				return nil, fmt.Errorf("cannot find environment %s", nameOrId)
+				return nil, tracerr.Wrap(fmt.Errorf("cannot find environment %s", nameOrId))
 			}
 		}
 	}

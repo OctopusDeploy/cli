@@ -9,6 +9,7 @@ import (
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/accounts"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
 	"github.com/spf13/cobra"
+	"github.com/ztrue/tracerr"
 	"strconv"
 	"strings"
 )
@@ -84,7 +85,7 @@ func PromptForSshEndpoint(opts *SshCommonOptions, flags *SshCommonFlags, entityT
 			Message: "Host",
 			Help:    fmt.Sprintf("The hostname or IP address at which the %s can be reached.", entityType),
 		}, &flags.HostName.Value, survey.WithValidator(survey.Required)); err != nil {
-			return err
+			return tracerr.Wrap(err)
 		}
 	}
 
@@ -95,7 +96,7 @@ func PromptForSshEndpoint(opts *SshCommonOptions, flags *SshCommonFlags, entityT
 			Help:    fmt.Sprintf("Port number to connect over SSH to the %s. Default is %d", entityType, DefaultPort),
 			Default: fmt.Sprintf("%d", DefaultPort),
 		}, &port); err != nil {
-			return err
+			return tracerr.Wrap(err)
 		}
 
 		if port == "" {
@@ -105,7 +106,7 @@ func PromptForSshEndpoint(opts *SshCommonOptions, flags *SshCommonFlags, entityT
 		if p, err := strconv.Atoi(port); err == nil {
 			flags.Port.Value = p
 		} else {
-			return err
+			return tracerr.Wrap(err)
 		}
 	}
 
@@ -125,7 +126,7 @@ func PromptForDotNetConfig(opts *SshCommonOptions, flags *SshCommonFlags, entity
 	if flags.Runtime.Value == "" {
 		selectedRuntime, err := selectors.SelectOptions(opts.Ask, fmt.Sprintf("Select the %s runtime\n", entityType), getTargetRuntimeOptions)
 		if err != nil {
-			return err
+			return tracerr.Wrap(err)
 		}
 		flags.Runtime.Value = selectedRuntime.Value
 	}
@@ -134,7 +135,7 @@ func PromptForDotNetConfig(opts *SshCommonOptions, flags *SshCommonFlags, entity
 		if flags.Platform.Value == "" {
 			selectedPlatform, err := selectors.SelectOptions(opts.Ask, fmt.Sprintf("Select the %s platform\n", entityType), getTargetPlatformOptions)
 			if err != nil {
-				return err
+				return tracerr.Wrap(err)
 			}
 			flags.Platform.Value = selectedPlatform.Value
 		}
@@ -154,13 +155,13 @@ func PromptForSshAccount(opts *SshCommonOptions, flags *SshCommonFlags) error {
 				return a.GetName()
 			})
 		if err != nil {
-			return err
+			return tracerr.Wrap(err)
 		}
 		account = selectedAccount
 	} else {
 		a, err := GetSshAccount(opts, flags)
 		if err != nil {
-			return err
+			return tracerr.Wrap(err)
 		}
 		account = a
 	}
@@ -188,7 +189,7 @@ func getTargetPlatformOptions() []*selectors.SelectOption[string] {
 func getAllAccountsForSshMachine(client *client.Client) ([]accounts.IAccount, error) {
 	allAccounts, err := client.Accounts.GetAll()
 	if err != nil {
-		return nil, err
+		return nil, tracerr.Wrap(err)
 	}
 
 	var accounts []accounts.IAccount
@@ -210,7 +211,7 @@ func GetSshAccount(opts *SshCommonOptions, flags *SshCommonFlags) (accounts.IAcc
 	idOrName := flags.Account.Value
 	allAccounts, err := opts.GetAllAccountsForSshMachine()
 	if err != nil {
-		return nil, err
+		return nil, tracerr.Wrap(err)
 	}
 
 	for _, a := range allAccounts {

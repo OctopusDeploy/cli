@@ -2,6 +2,7 @@ package selectors
 
 import (
 	"github.com/OctopusDeploy/cli/pkg/question"
+	"github.com/ztrue/tracerr"
 )
 
 type SelectOption[T any] struct {
@@ -19,7 +20,7 @@ func ByName[T Nameable](ask question.Asker, list []T, message string) (T, error)
 		return item.GetName()
 	})
 	if err != nil {
-		return selectedItem, err
+		return selectedItem, tracerr.Wrap(err)
 	}
 	return selectedItem, nil
 }
@@ -36,7 +37,7 @@ func Select[T any](ask question.Asker, questionText string, itemsCallback func()
 	items, err := itemsCallback()
 	if err != nil {
 		var item T
-		return item, err
+		return item, tracerr.Wrap(err)
 	}
 	if len(items) == 1 {
 		return items[0], nil
@@ -51,7 +52,7 @@ func SelectOrNew[T any](ask question.Asker, questionText string, itemsCallback f
 	items, err := itemsCallback()
 	if err != nil {
 		var item T
-		return item, false, err
+		return item, false, tracerr.Wrap(err)
 	}
 	return question.SelectMapWithNew(ask, questionText, items, getKey)
 }
