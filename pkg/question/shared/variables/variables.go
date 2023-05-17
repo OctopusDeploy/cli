@@ -1,4 +1,4 @@
-package shared
+package variables
 
 import (
 	"fmt"
@@ -12,6 +12,19 @@ import (
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/variables"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/workerpools"
+)
+
+type VariableType string
+
+const (
+	VariableTypeString             = VariableType("String")
+	VariableTypeSensitive          = VariableType("Sensitive")
+	VariableTypeAwsAccount         = VariableType("AmazonWebServicesAccount")
+	VariableTypeAzureAccount       = VariableType("AzureAccount")
+	VariableTypeGoogleCloudAccount = VariableType("GoogleCloudAccount")
+	VariableTypeWorkerPool         = VariableType("WorkerPool")
+	VariableTypeCertificate        = VariableType("Certificate")
+	VariableTypeBoolean            = VariableType("Boolean")
 )
 
 type GetAccountsByTypeCallback func(accountType accounts.AccountType) ([]accounts.IAccount, error)
@@ -49,24 +62,24 @@ func NewVariableCallbacks(dependencies *cmd.Dependencies) *VariableCallbacks {
 	}
 }
 
-func PromptValue(ask question.Asker, variableType string, callbacks *VariableCallbacks) (string, error) {
+func PromptValue(ask question.Asker, variableType VariableType, callbacks *VariableCallbacks) (string, error) {
 	var value string
 	switch variableType {
-	case "String":
+	case VariableTypeString:
 		if err := ask(&survey.Input{
 			Message: "Value",
 		}, &value); err != nil {
 			return "", err
 		}
 		return value, nil
-	case "Sensitive":
+	case VariableTypeSensitive:
 		if err := ask(&survey.Password{
 			Message: "Value",
 		}, &value); err != nil {
 			return "", err
 		}
 		return value, nil
-	case "AmazonWebServicesAccount", "AzureAccount", "GoogleCloudAccount":
+	case VariableTypeAwsAccount, VariableTypeAzureAccount, VariableTypeGoogleCloudAccount:
 		accountType, err := mapVariableTypeToAccountType(variableType)
 		if err != nil {
 			return "", err
@@ -81,7 +94,7 @@ func PromptValue(ask question.Asker, variableType string, callbacks *VariableCal
 			return "", err
 		}
 		return selectedValue.GetName(), nil
-	case "WorkerPool":
+	case VariableTypeWorkerPool:
 		workerPools, err := callbacks.GetAllWorkerPools()
 		if err != nil {
 			return "", err
@@ -95,7 +108,7 @@ func PromptValue(ask question.Asker, variableType string, callbacks *VariableCal
 			return "", err
 		}
 		return selectedValue.Name, nil
-	case "Certificate":
+	case VariableTypeCertificate:
 		allCerts, err := callbacks.GetAllCertificates()
 		if err != nil {
 			return "", err
@@ -109,18 +122,19 @@ func PromptValue(ask question.Asker, variableType string, callbacks *VariableCal
 			return "", err
 		}
 		return selectedValue.Name, nil
+
 	}
 
 	return "", fmt.Errorf("error getting value")
 }
 
-func mapVariableTypeToAccountType(variableType string) (accounts.AccountType, error) {
+func mapVariableTypeToAccountType(variableType VariableType) (accounts.AccountType, error) {
 	switch variableType {
-	case "AmazonWebServicesAccount":
+	case VariableTypeAwsAccount:
 		return accounts.AccountTypeAmazonWebServicesAccount, nil
-	case "AzureAccount":
+	case VariableTypeAzureAccount:
 		return accounts.AccountTypeAzureServicePrincipal, nil
-	case "GoogleCloudAccount":
+	case VariableTypeGoogleCloudAccount:
 		return accounts.AccountTypeGoogleCloudPlatformAccount, nil
 	default:
 		return accounts.AccountTypeNone, fmt.Errorf("variable type '%s' is not a valid account variable type", variableType)

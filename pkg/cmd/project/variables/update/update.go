@@ -5,13 +5,14 @@ import (
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/cmd"
-	sharedVariable "github.com/OctopusDeploy/cli/pkg/cmd/project/variables/shared"
+	sharedProjectVariable "github.com/OctopusDeploy/cli/pkg/cmd/project/variables/shared"
 	"github.com/OctopusDeploy/cli/pkg/cmd/tenant/shared"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/OctopusDeploy/cli/pkg/output"
 	"github.com/OctopusDeploy/cli/pkg/question"
 	"github.com/OctopusDeploy/cli/pkg/question/selectors"
+	sharedVariable "github.com/OctopusDeploy/cli/pkg/question/shared/variables"
 	"github.com/OctopusDeploy/cli/pkg/util"
 	"github.com/OctopusDeploy/cli/pkg/util/flag"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
@@ -35,7 +36,7 @@ type UpdateFlags struct {
 	Value    *flag.Flag[string]
 	Unscoped *flag.Flag[bool]
 
-	*sharedVariable.ScopeFlags
+	*sharedProjectVariable.ScopeFlags
 }
 
 type UpdateOptions struct {
@@ -53,7 +54,7 @@ func NewUpdateFlags() *UpdateFlags {
 		Name:       flag.New[string](FlagName, false),
 		Value:      flag.New[string](FlagValue, false),
 		Unscoped:   flag.New[bool](FlagUnscoped, false),
-		ScopeFlags: sharedVariable.NewScopeFlags(),
+		ScopeFlags: sharedProjectVariable.NewScopeFlags(),
 	}
 }
 
@@ -95,7 +96,7 @@ func NewUpdateCmd(f factory.Factory) *cobra.Command {
 	flags.StringVarP(&updateFlags.Name.Value, updateFlags.Name.Name, "n", "", "The name of the variable")
 	flags.StringVar(&updateFlags.Value.Value, updateFlags.Value.Name, "", "The value to set on the variable")
 	flags.BoolVar(&updateFlags.Unscoped.Value, updateFlags.Unscoped.Name, false, "Remove all shared from the variable, cannot be used with shared")
-	sharedVariable.RegisterScopeFlags(cmd, updateFlags.ScopeFlags)
+	sharedProjectVariable.RegisterScopeFlags(cmd, updateFlags.ScopeFlags)
 
 	return cmd
 }
@@ -131,7 +132,7 @@ func updateRun(opts *UpdateOptions) error {
 		opts.Value.Secure = true
 	}
 
-	updatedScope, err := sharedVariable.ToVariableScope(projectVariables, opts.ScopeFlags, project)
+	updatedScope, err := sharedProjectVariable.ToVariableScope(projectVariables, opts.ScopeFlags, project)
 	if err != nil {
 		return err
 	}
@@ -237,7 +238,7 @@ func PromptMissing(opts *UpdateOptions) error {
 		}, &updateValue)
 
 		if updateValue {
-			opts.Value.Value, err = sharedVariable.PromptValue(opts.Ask, variable.Type, opts.VariableCallbacks)
+			opts.Value.Value, err = sharedVariable.PromptValue(opts.Ask, sharedVariable.VariableType(variable.Type), opts.VariableCallbacks)
 			if err != nil {
 				return err
 			}
@@ -253,7 +254,7 @@ func PromptMissing(opts *UpdateOptions) error {
 		case "unscope":
 			opts.Unscoped.Value = true
 		case "replace":
-			sharedVariable.PromptScopes(opts.Ask, projectVariables, opts.ScopeFlags, variable.Prompt != nil)
+			sharedProjectVariable.PromptScopes(opts.Ask, projectVariables, opts.ScopeFlags, variable.Prompt != nil)
 		}
 	}
 
