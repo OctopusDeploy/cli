@@ -9,13 +9,17 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/OctopusDeploy/cli/pkg/question/selectors"
 	sharedVariable "github.com/OctopusDeploy/cli/pkg/question/shared/variables"
+	"github.com/OctopusDeploy/cli/pkg/util"
 	"github.com/OctopusDeploy/cli/pkg/util/flag"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/accounts"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/actiontemplates"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/certificates"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/core"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/tenants"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/variables"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/workerpools"
 	"github.com/spf13/cobra"
 	"strings"
 )
@@ -44,6 +48,7 @@ type UpdateFlags struct {
 type UpdateOptions struct {
 	*UpdateFlags
 	VariableId string
+	TemplateId string
 	*cmd.Dependencies
 	shared.GetProjectCallback
 	shared.GetAllProjectsCallback
@@ -131,7 +136,7 @@ func updateRun(opts *UpdateOptions) error {
 	}
 
 	if opts.LibraryVariableSet.Value != "" {
-		err = updateCommonVariableValue(opts, vars)
+		opts.Value.Secure, err = updateCommonVariableValue(opts, vars)
 		if err != nil {
 			return err
 		}
@@ -140,7 +145,7 @@ func updateRun(opts *UpdateOptions) error {
 		if err != nil {
 			return err
 		}
-		err = updateProjectVariableValue(opts, vars, environmentMap)
+		opts.Value.Secure, err = updateProjectVariableValue(opts, vars, environmentMap)
 		if err != nil {
 			return err
 		}
@@ -212,6 +217,8 @@ func PromptMissing(opts *UpdateOptions) error {
 			opts.LibraryVariableSet.Value = selectedVariable.Owner
 			opts.Name.Value = selectedVariable.VariableName
 			opts.VariableId = selectedVariable.ID
+			opts.TemplateId = selectedVariable.TemplateID
+
 		}
 	case VariableOwnerTypeProject:
 		possibleVariables := findPossibleProjectVariables(opts, variables)
@@ -225,6 +232,7 @@ func PromptMissing(opts *UpdateOptions) error {
 			opts.Project.Value = selectedVariable.Owner
 			opts.Name.Value = selectedVariable.VariableName
 			opts.VariableId = selectedVariable.ID
+			opts.TemplateId = selectedVariable.TemplateID
 		}
 
 		if opts.Environment.Value == "" {
@@ -257,7 +265,11 @@ func PromptMissing(opts *UpdateOptions) error {
 		if err != nil {
 			return err
 		}
-		value, err := sharedVariable.PromptValue(opts.Ask, variableType, opts.VariableCallbacks)
+		template, err := findTemplateById(variables, opts.Name.Value)
+		if err != nil {
+			return err
+		}
+		value, err := sharedVariable.PromptValue(opts.Ask, variableType, opts.VariableCallbacks, template)
 		if err != nil {
 			return err
 		}
@@ -273,8 +285,20 @@ func mapVariableControlTypeToVariableType(controlType variables.ControlType) (sh
 		return sharedVariable.VariableTypeString, nil
 	case variables.ControlTypeSensitive:
 		return sharedVariable.VariableTypeSensitive, nil
-		//case variables.ControlTypeCheckbox
-		//	return sharedVariable.
+	case variables.ControlTypeCheckbox:
+		return sharedVariable.VariableTypeBoolean, nil
+	case variables.ControlTypeCertificate:
+		return sharedVariable.VariableTypeCertificate, nil
+	case variables.ControlTypeWorkerPool:
+		return sharedVariable.VariableTypeWorkerPool, nil
+	case variables.ControlTypeGoogleCloudAccount:
+		return sharedVariable.VariableTypeGoogleCloudAccount, nil
+	case variables.ControlTypeAwsAccount:
+		return sharedVariable.VariableTypeAwsAccount, nil
+	case variables.ControlTypeAzureAccount:
+		return sharedVariable.VariableTypeAzureAccount, nil
+	case variables.ControlTypeSelect:
+		return sharedVariable.VariableTypeSelect, nil
 	}
 
 	return "", fmt.Errorf("cannot map control type '%s' to variable type", controlType)
@@ -303,7 +327,7 @@ func getVariableType(opts *UpdateOptions, tenantVariables *variables.TenantVaria
 		}
 	}
 
-	return "", fmt.Errorf("cannot find variable")
+	return "", fmt.Errorf("cannot find variable '%s'", opts.Name.Value)
 }
 
 func findTemplate(templates []*actiontemplates.ActionTemplateParameter, variableName string) (*actiontemplates.ActionTemplateParameter, error) {
@@ -316,6 +340,23 @@ func findTemplate(templates []*actiontemplates.ActionTemplateParameter, variable
 	return nil, fmt.Errorf("cannot find variable called %s", variableName)
 }
 
+func findTemplateById(variables *variables.TenantVariables, templateName string) (*actiontemplates.ActionTemplateParameter, error) {
+	for _, l := range variables.LibraryVariables {
+		t, _ := findTemplate(l.Templates, templateName)
+		if t != nil {
+			return t, nil
+		}
+	}
+	for _, p := range variables.ProjectVariables {
+		t, _ := findTemplate(p.Templates, templateName)
+		if t != nil {
+			return t, nil
+		}
+	}
+
+	return nil, fmt.Errorf("cannot find template '%s'", templateName)
+}
+
 func findPossibleCommonVariables(opts *UpdateOptions, tenantVariables *variables.TenantVariables) []*PossibleVariable {
 	var filteredVariables []*PossibleVariable
 	for _, l := range tenantVariables.LibraryVariables {
@@ -324,6 +365,7 @@ func findPossibleCommonVariables(opts *UpdateOptions, tenantVariables *variables
 				filteredVariables = append(filteredVariables, &PossibleVariable{
 					Owner:        l.LibraryVariableSetName,
 					VariableName: t.Name,
+					TemplateID:   t.GetID(),
 				})
 			}
 		}
@@ -338,7 +380,7 @@ func findPossibleProjectVariables(opts *UpdateOptions, tenantVariables *variable
 		for _, t := range p.Templates {
 			if (opts.Name.Value == "" && opts.Project.Value == "") || (opts.Name.Value != "" && strings.EqualFold(opts.Name.Value, t.Name)) || (opts.LibraryVariableSet.Value != "" && strings.EqualFold(p.ProjectName, opts.Project.Value)) {
 				filteredVariables = append(filteredVariables, &PossibleVariable{
-					ID:           t.ID,
+					TemplateID:   t.ID,
 					Owner:        p.ProjectName,
 					VariableName: t.Name,
 				})
@@ -348,7 +390,7 @@ func findPossibleProjectVariables(opts *UpdateOptions, tenantVariables *variable
 
 	return filteredVariables
 }
-func updateProjectVariableValue(opts *UpdateOptions, vars *variables.TenantVariables, environmentMap map[string]string) error {
+func updateProjectVariableValue(opts *UpdateOptions, vars *variables.TenantVariables, environmentMap map[string]string) (bool, error) {
 	var environmentId string
 	for id, environment := range environmentMap {
 		if strings.EqualFold(environment, opts.Environment.Value) || strings.EqualFold(id, opts.Environment.Value) {
@@ -357,37 +399,123 @@ func updateProjectVariableValue(opts *UpdateOptions, vars *variables.TenantVaria
 	}
 	for _, v := range vars.ProjectVariables {
 		if strings.EqualFold(v.ProjectName, opts.Project.Value) {
-			for _, t := range v.Templates {
-				if strings.EqualFold(t.Name, opts.Name.Value) {
-					v.Variables[environmentId][t.ID] = core.PropertyValue{
-						Value: opts.Value.Value,
-					}
-
-					return nil
-				}
+			t, err := findTemplate(v.Templates, opts.Name.Value)
+			if err != nil {
+				return false, err
 			}
+			value, err := convertValue(opts, t)
+			if err != nil {
+				return false, err
+			}
+			v.Variables[environmentId][t.ID] = *value
+
+			return value.IsSensitive, nil
 		}
 	}
 
-	return fmt.Errorf("unable to find requested variable")
+	return false, fmt.Errorf("unable to find requested variable")
 }
 
-func updateCommonVariableValue(opts *UpdateOptions, vars *variables.TenantVariables) error {
+func updateCommonVariableValue(opts *UpdateOptions, vars *variables.TenantVariables) (bool, error) {
 	for _, v := range vars.LibraryVariables {
 		if strings.EqualFold(v.LibraryVariableSetName, opts.LibraryVariableSet.Value) {
-			for _, t := range v.Templates {
-				if strings.EqualFold(t.Name, opts.Name.Value) {
-					v.Variables[t.ID] = core.PropertyValue{
-						Value: opts.Value.Value,
-					}
-
-					return nil
-				}
+			t, err := findTemplate(v.Templates, opts.Name.Value)
+			if err != nil {
+				return false, err
 			}
+			value, err := convertValue(opts, t)
+			if err != nil {
+				return false, err
+			}
+			v.Variables[t.ID] = *value
+
+			return value.IsSensitive, nil
 		}
 	}
 
-	return fmt.Errorf("unable to find requested variable")
+	return false, fmt.Errorf("unable to find requested variable")
+}
+
+func convertValue(opts *UpdateOptions, t *actiontemplates.ActionTemplateParameter) (*core.PropertyValue, error) {
+	variableType := variables.ControlType(t.DisplaySettings["Octopus.ControlType"])
+	value := opts.Value.Value
+	var err error
+	switch variableType {
+	case variables.ControlTypeAwsAccount:
+		value, err = findAccount(opts, accounts.AccountTypeAmazonWebServicesAccount)
+	case variables.ControlTypeGoogleCloudAccount:
+		value, err = findAccount(opts, accounts.AccountTypeGoogleCloudPlatformAccount)
+	case variables.ControlTypeAzureAccount:
+		value, err = findAccount(opts, accounts.AccountTypeAzureServicePrincipal)
+	case variables.ControlTypeWorkerPool:
+		allWorkerPools, err := opts.GetAllWorkerPools()
+		if err != nil {
+			return nil, err
+		}
+		matchedWorkerPools := util.SliceFilter(allWorkerPools, func(p *workerpools.WorkerPoolListResult) bool {
+			return strings.EqualFold(p.Name, opts.Value.Value) || strings.EqualFold(p.ID, opts.Value.Value) || strings.EqualFold(p.Slug, opts.Value.Value)
+		})
+		if util.Empty(matchedWorkerPools) {
+			return nil, fmt.Errorf("cannot find worker pool '%s'", opts.Value.Value)
+		}
+		if len(matchedWorkerPools) > 1 {
+			return nil, fmt.Errorf("matched multiple worker pools")
+		}
+
+		value, err = matchedWorkerPools[0].ID, nil
+	case variables.ControlTypeCertificate:
+		allCertificates, err := opts.GetAllCertificates()
+		if err != nil {
+			return nil, err
+		}
+		matchedCertificate := util.SliceFilter(allCertificates, func(p *certificates.CertificateResource) bool {
+			return !p.IsExpired && (strings.EqualFold(p.Name, opts.Value.Value) || strings.EqualFold(p.ID, opts.Value.Value))
+		})
+		if util.Empty(matchedCertificate) {
+			return nil, fmt.Errorf("cannot find certifcate '%s'", opts.Value.Value)
+		}
+		if len(matchedCertificate) > 1 {
+			return nil, fmt.Errorf("matched multiple certificates")
+		}
+
+		value, err = matchedCertificate[0].ID, nil
+	case variables.ControlTypeSelect:
+		selectionOptions := sharedVariable.GetSelectOptions(t)
+		for _, o := range selectionOptions {
+			if strings.EqualFold(o.Display, opts.Value.Value) || strings.EqualFold(o.Value, opts.Value.Value) {
+				value, err = o.Value, nil
+				break
+			}
+		}
+
+		if value == "" {
+			err = fmt.Errorf("cannot match selection value  '%s'", opts.Value.Value)
+		}
+	case variables.ControlTypeSensitive:
+		propertyValue := core.NewPropertyValue(value, true)
+		return &propertyValue, nil
+	}
+
+	if err == nil {
+		propertyValue := core.NewPropertyValue(value, false)
+		return &propertyValue, nil
+	}
+
+	return nil, fmt.Errorf("unable to convert value to correct variable type '%s'", variableType)
+}
+
+func findAccount(opts *UpdateOptions, accountType accounts.AccountType) (string, error) {
+	accounts, err := opts.GetAccountsByType(accountType)
+	if err != nil {
+		return "", err
+	}
+	for _, a := range accounts {
+		if strings.EqualFold(a.GetName(), opts.Value.Value) || strings.EqualFold(a.GetID(), opts.Value.Value) || strings.EqualFold(a.GetSlug(), opts.Value.Value) {
+			return a.GetID(), nil
+		}
+	}
+
+	return "", fmt.Errorf("cannot find %s account with called '%s'", accountType, opts.Value.Value)
 }
 
 func getEnvironmentMap(client *client.Client) (map[string]string, error) {
@@ -411,6 +539,7 @@ func getVariableTypeOptions() []*selectors.SelectOption[string] {
 
 type PossibleVariable struct {
 	ID           string
+	TemplateID   string
 	Owner        string
 	VariableName string
 }

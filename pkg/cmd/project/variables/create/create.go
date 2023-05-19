@@ -310,7 +310,7 @@ func PromptMissing(opts *CreateOptions) error {
 		if err != nil {
 			return err
 		}
-		opts.Value.Value, err = sharedVariable.PromptValue(opts.Ask, sharedVariable.VariableType(variableType), opts.VariableCallbacks)
+		opts.Value.Value, err = sharedVariable.PromptValue(opts.Ask, sharedVariable.VariableType(variableType), opts.VariableCallbacks, nil)
 		if err != nil {
 			return err
 		}

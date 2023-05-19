@@ -238,7 +238,7 @@ func PromptMissing(opts *UpdateOptions) error {
 		}, &updateValue)
 
 		if updateValue {
-			opts.Value.Value, err = sharedVariable.PromptValue(opts.Ask, sharedVariable.VariableType(variable.Type), opts.VariableCallbacks)
+			opts.Value.Value, err = sharedVariable.PromptValue(opts.Ask, sharedVariable.VariableType(variable.Type), opts.VariableCallbacks, nil)
 			if err != nil {
 				return err
 			}

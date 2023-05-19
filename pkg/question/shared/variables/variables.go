@@ -8,10 +8,12 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/question/selectors"
 	"github.com/OctopusDeploy/cli/pkg/util"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/accounts"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/actiontemplates"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/certificates"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/variables"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/workerpools"
+	"strings"
 )
 
 type VariableType string
@@ -25,6 +27,7 @@ const (
 	VariableTypeWorkerPool         = VariableType("WorkerPool")
 	VariableTypeCertificate        = VariableType("Certificate")
 	VariableTypeBoolean            = VariableType("Boolean")
+	VariableTypeSelect             = VariableType("Select")
 )
 
 type GetAccountsByTypeCallback func(accountType accounts.AccountType) ([]accounts.IAccount, error)
@@ -62,7 +65,7 @@ func NewVariableCallbacks(dependencies *cmd.Dependencies) *VariableCallbacks {
 	}
 }
 
-func PromptValue(ask question.Asker, variableType VariableType, callbacks *VariableCallbacks) (string, error) {
+func PromptValue(ask question.Asker, variableType VariableType, callbacks *VariableCallbacks, template *actiontemplates.ActionTemplateParameter) (string, error) {
 	var value string
 	switch variableType {
 	case VariableTypeString:
@@ -122,7 +125,19 @@ func PromptValue(ask question.Asker, variableType VariableType, callbacks *Varia
 			return "", err
 		}
 		return selectedValue.Name, nil
-
+	case VariableTypeBoolean:
+		var response string
+		err := ask(&survey.Select{
+			Message: "Select value",
+			Options: []string{"True", "False"}, // Yes/No would read more nicely, but doesn't fit well with cmdline which expects True/False
+		}, &response)
+		return response, err
+	case VariableTypeSelect:
+		response, err := selectors.SelectOptions(ask, "Selection option", func() []*selectors.SelectOption[string] { return GetSelectOptions(template) })
+		if err != nil {
+			return "", err
+		}
+		return response.Value, nil
 	}
 
 	return "", fmt.Errorf("error getting value")
@@ -189,4 +204,15 @@ func GetAllLibraryVariableSets(client *client.Client) ([]*variables.LibraryVaria
 	}
 
 	return util.SliceFilter(res, func(item *variables.LibraryVariableSet) bool { return item.ContentType == "Variables" }), nil
+}
+
+func GetSelectOptions(t *actiontemplates.ActionTemplateParameter) []*selectors.SelectOption[string] {
+	var selectionOptions []*selectors.SelectOption[string]
+	options := t.DisplaySettings["Octopus.SelectOptions"]
+	for _, l := range strings.Split(options, "\n") {
+		o := strings.Split(l, "|")
+		selectionOptions = append(selectionOptions, selectors.NewSelectOption[string](o[0], o[1]))
+	}
+
+	return selectionOptions
 }
