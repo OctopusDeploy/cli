@@ -125,12 +125,12 @@ func updateRun(opts *UpdateOptions) error {
 		}
 	}
 
-	tenant, err := opts.Client.Tenants.GetByIdentifier(opts.Tenant.Value)
+	tenant, err := opts.GetTenantCallback(opts.Tenant.Value)
 	if err != nil {
 		return err
 	}
 
-	vars, err := opts.Client.Tenants.GetVariables(tenant)
+	vars, err := opts.GetTenantVariables(tenant)
 	if err != nil {
 		return err
 	}
@@ -179,7 +179,7 @@ func PromptMissing(opts *UpdateOptions) error {
 
 		opts.Tenant.Value = tenant.Name
 	} else {
-		tenant, err = opts.Client.Tenants.GetByIdentifier(opts.Tenant.Value)
+		tenant, err = opts.GetTenantCallback(opts.Tenant.Value)
 		if err != nil {
 			return err
 		}
@@ -198,7 +198,7 @@ func PromptMissing(opts *UpdateOptions) error {
 		variableType = selectedOption.Value
 	}
 
-	variables, err := opts.Client.Tenants.GetVariables(tenant)
+	variables, err := opts.GetTenantVariables(tenant)
 	if err != nil {
 		return err
 	}

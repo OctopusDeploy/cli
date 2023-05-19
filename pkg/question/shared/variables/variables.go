@@ -11,6 +11,7 @@ import (
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/actiontemplates"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/certificates"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/tenants"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/variables"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/workerpools"
 	"strings"
@@ -34,6 +35,7 @@ type GetAccountsByTypeCallback func(accountType accounts.AccountType) ([]account
 type GetAllWorkerPoolsCallback func() ([]*workerpools.WorkerPoolListResult, error)
 type GetAllCertificatesCallback func() ([]*certificates.CertificateResource, error)
 type GetProjectVariablesCallback func(projectId string) (*variables.VariableSet, error)
+type GetTenantVariablesCallback func(tenant *tenants.Tenant) (*variables.TenantVariables, error)
 type GetVariableByIdCallback func(ownerId, variableId string) (*variables.Variable, error)
 type GetAllLibraryVariableSetsCallback func() ([]*variables.LibraryVariableSet, error)
 
@@ -43,6 +45,7 @@ type VariableCallbacks struct {
 	GetAllCertificates  GetAllCertificatesCallback
 	GetProjectVariables GetProjectVariablesCallback
 	GetVariableById     GetVariableByIdCallback
+	GetTenantVariables  GetTenantVariablesCallback
 }
 
 func NewVariableCallbacks(dependencies *cmd.Dependencies) *VariableCallbacks {
@@ -58,6 +61,9 @@ func NewVariableCallbacks(dependencies *cmd.Dependencies) *VariableCallbacks {
 		},
 		GetProjectVariables: func(projectId string) (*variables.VariableSet, error) {
 			return getProjectVariables(dependencies.Client, projectId)
+		},
+		GetTenantVariables: func(tenant *tenants.Tenant) (*variables.TenantVariables, error) {
+			return getTenantVariables(dependencies.Client, tenant)
 		},
 		GetVariableById: func(ownerId, variableId string) (*variables.Variable, error) {
 			return getVariableById(dependencies.Client, ownerId, variableId)
@@ -191,6 +197,11 @@ func getAllWorkerPools(client *client.Client) ([]*workerpools.WorkerPoolListResu
 func getProjectVariables(client *client.Client, id string) (*variables.VariableSet, error) {
 	variableSet, err := client.Variables.GetAll(id)
 	return &variableSet, err
+}
+
+func getTenantVariables(client *client.Client, tenant *tenants.Tenant) (*variables.TenantVariables, error) {
+	tenantVariables, err := client.Tenants.GetVariables(tenant)
+	return tenantVariables, err
 }
 
 func getVariableById(client *client.Client, ownerId string, variableId string) (*variables.Variable, error) {
