@@ -156,7 +156,7 @@ func updateRun(opts *UpdateOptions) error {
 		return err
 	}
 
-	_, err = fmt.Fprintf(opts.Out, "Successfully updated variable '%s' in for tenant '%s'\n", opts.Name.Value, tenant.Name)
+	_, err = fmt.Fprintf(opts.Out, "Successfully updated variable '%s' for tenant '%s'\n", opts.Name.Value, tenant.Name)
 
 	if !opts.NoPrompt {
 		autoCmd := flag.GenerateAutomationCmd(opts.CmdPath, opts.Tenant, opts.Name, opts.Value, opts.Project, opts.LibraryVariableSet, opts.Environment)
@@ -205,56 +205,26 @@ func PromptMissing(opts *UpdateOptions) error {
 
 	switch variableType {
 	case VariableOwnerTypeCommon:
-		possibleVariables := findPossibleCommonVariables(opts, variables)
-
 		if opts.LibraryVariableSet.Value == "" || opts.Name.Value == "" {
-			selectedVariable, err := selectors.Select(opts.Ask, "You have not specified a variable", func() ([]*PossibleVariable, error) { return possibleVariables, nil }, func(variable *PossibleVariable) string {
-				return fmt.Sprintf("%s / %s", variable.Owner, variable.VariableName)
-			})
+			selectedVariable, err := PromptForVariable(opts, variables, findPossibleCommonVariables)
 			if err != nil {
 				return err
 			}
 			opts.LibraryVariableSet.Value = selectedVariable.Owner
-			opts.Name.Value = selectedVariable.VariableName
-			opts.VariableId = selectedVariable.ID
-			opts.TemplateId = selectedVariable.TemplateID
 
 		}
 	case VariableOwnerTypeProject:
-		possibleVariables := findPossibleProjectVariables(opts, variables)
 		if opts.Project.Value == "" || opts.Name.Value == "" {
-			selectedVariable, err := selectors.Select(opts.Ask, "You have not specified a variable", func() ([]*PossibleVariable, error) { return possibleVariables, nil }, func(variable *PossibleVariable) string {
-				return fmt.Sprintf("%s / %s", variable.Owner, variable.VariableName)
-			})
+			selectedVariable, err := PromptForVariable(opts, variables, findPossibleProjectVariables)
 			if err != nil {
 				return err
 			}
 			opts.Project.Value = selectedVariable.Owner
-			opts.Name.Value = selectedVariable.VariableName
-			opts.VariableId = selectedVariable.ID
-			opts.TemplateId = selectedVariable.TemplateID
 		}
 
-		if opts.Environment.Value == "" {
-			var environmentSelections []*selectors.SelectOption[string]
-			environmentMap, err := getEnvironmentMap(opts.Client)
-			if err != nil {
-				return err
-			}
-
-			for _, p := range variables.ProjectVariables {
-				if strings.EqualFold(p.ProjectName, opts.Project.Value) {
-					for k, _ := range p.Variables {
-						environmentSelections = append(environmentSelections, selectors.NewSelectOption[string](environmentMap[k], environmentMap[k]))
-					}
-				}
-			}
-
-			selectedEnvironment, err := selectors.SelectOptions(opts.Ask, "You have not specified an environment", func() []*selectors.SelectOption[string] { return environmentSelections })
-			if err != nil {
-				return err
-			}
-			opts.Environment.Value = selectedEnvironment.Value
+		err = PromptForEnvironment(opts, variables)
+		if err != nil {
+			return err
 		}
 	}
 
@@ -277,6 +247,46 @@ func PromptMissing(opts *UpdateOptions) error {
 	}
 
 	return nil
+}
+
+func PromptForEnvironment(opts *UpdateOptions, variables *variables.TenantVariables) error {
+	if opts.Environment.Value == "" {
+		var environmentSelections []*selectors.SelectOption[string]
+		environmentMap, err := getEnvironmentMap(opts.Client)
+		if err != nil {
+			return err
+		}
+
+		for _, p := range variables.ProjectVariables {
+			if strings.EqualFold(p.ProjectName, opts.Project.Value) {
+				for k, _ := range p.Variables {
+					environmentSelections = append(environmentSelections, selectors.NewSelectOption[string](environmentMap[k], environmentMap[k]))
+				}
+			}
+		}
+
+		selectedEnvironment, err := selectors.SelectOptions(opts.Ask, "You have not specified an environment", func() []*selectors.SelectOption[string] { return environmentSelections })
+		if err != nil {
+			return err
+		}
+		opts.Environment.Value = selectedEnvironment.Value
+	}
+	return nil
+}
+
+func PromptForVariable(opts *UpdateOptions, tenantVariables *variables.TenantVariables, variableFilter func(opts *UpdateOptions, tenantVariables *variables.TenantVariables) []*PossibleVariable) (*PossibleVariable, error) {
+	possibleVariables := variableFilter(opts, tenantVariables)
+	selectedVariable, err := selectors.Select(opts.Ask, "You have not specified a variable", func() ([]*PossibleVariable, error) { return possibleVariables, nil }, func(variable *PossibleVariable) string {
+		return fmt.Sprintf("%s / %s", variable.Owner, variable.VariableName)
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	opts.Name.Value = selectedVariable.VariableName
+	opts.VariableId = selectedVariable.ID
+	opts.TemplateId = selectedVariable.TemplateID
+	return selectedVariable, nil
 }
 
 func mapVariableControlTypeToVariableType(controlType variables.ControlType) (sharedVariable.VariableType, error) {
