@@ -104,15 +104,15 @@ func listRun(cmd *cobra.Command, f factory.Factory, id string) error {
 		return err
 	}
 
+	missingVariables, err := client.Tenants.GetMissingVariables(variables.MissingVariablesQuery{TenantID: vars.TenantID})
 	var allVariableValues []*VariableValue
 	for _, element := range vars.LibraryVariables {
-		variableValues := unwrapCommonVariables(element)
+		variableValues := unwrapCommonVariables(element, (*missingVariables)[0].MissingVariables)
 		for _, v := range variableValues {
 			allVariableValues = append(allVariableValues, v)
 		}
 	}
 
-	missingVariables, err := client.Tenants.GetMissingVariables(variables.MissingVariablesQuery{TenantID: vars.TenantID})
 	if err != nil {
 		return err
 	}
@@ -139,7 +139,7 @@ func listRun(cmd *cobra.Command, f factory.Factory, id string) error {
 			Header: []string{"NAME", "LABEL", "TYPE", "OWNER", "ENVIRONMENT", "VALUE", "SENSITIVE", "DEFAULT VALUE"},
 			Row: func(item *VariableValue) []string {
 				value := item.Value
-				if item.Type == ProjectType && item.HasMissingValue {
+				if item.HasMissingValue {
 					value = output.Red("<missing>")
 				}
 
@@ -154,30 +154,23 @@ func listRun(cmd *cobra.Command, f factory.Factory, id string) error {
 	return nil
 }
 
-func unwrapCommonVariables(variables variables.LibraryVariable) []*VariableValue {
+func unwrapCommonVariables(variables variables.LibraryVariable, missingVariables []variables.MissingVariable) []*VariableValue {
 	var results []*VariableValue = nil
 	for _, template := range variables.Templates {
 		value, isDefault := getVariableValue(template, variables.Variables)
-		var actualValue string
-		if value.IsSensitive {
-			if value.SensitiveValue.HasValue {
-				actualValue = "***"
-			} else {
-				actualValue = ""
-			}
-		} else {
-			actualValue = value.Value
-		}
+		hasMissingValue := hasMissingCommonValue(missingVariables, variables.LibraryVariableSetID, template.ID)
+		actualValue := getDisplayValue(value)
 
 		results = append(results, &VariableValue{
-			Type:           LibraryVariableSetType,
-			OwnerName:      variables.LibraryVariableSetName,
-			Name:           template.Name,
-			Value:          actualValue,
-			Label:          template.Label,
-			IsSensitive:    value.IsSensitive,
-			IsDefaultValue: isDefault,
-			ScopeName:      "",
+			Type:            LibraryVariableSetType,
+			OwnerName:       variables.LibraryVariableSetName,
+			Name:            template.Name,
+			Value:           actualValue,
+			Label:           template.Label,
+			IsSensitive:     value.IsSensitive,
+			IsDefaultValue:  isDefault,
+			HasMissingValue: hasMissingValue,
+			ScopeName:       "",
 		})
 	}
 
@@ -189,25 +182,14 @@ func unwrapProjectVariables(variables variables.ProjectVariable, environmentMap 
 	for _, template := range variables.Templates {
 		for environmentId, environmentVariables := range variables.Variables {
 			value, isDefault := getVariableValue(template, environmentVariables)
-
-			hasMissingValue := hasMissingValue(missingVariables, variables.ProjectID, environmentId, template.ID)
-
-			var actualValue string
-			if value.IsSensitive {
-				if value.SensitiveValue.HasValue {
-					actualValue = "***"
-				} else {
-					actualValue = ""
-				}
-			} else {
-				actualValue = value.Value
-			}
+			hasMissingValue := hasMissingProjectValue(missingVariables, variables.ProjectID, environmentId, template.ID)
+			displayValue := getDisplayValue(value)
 
 			results = append(results, &VariableValue{
 				Type:            ProjectType,
 				OwnerName:       variables.ProjectName,
 				Name:            template.Name,
-				Value:           actualValue,
+				Value:           displayValue,
 				Label:           template.Label,
 				IsSensitive:     value.IsSensitive,
 				IsDefaultValue:  isDefault,
@@ -220,7 +202,7 @@ func unwrapProjectVariables(variables variables.ProjectVariable, environmentMap 
 	return results
 }
 
-func hasMissingValue(missingVariables []variables.MissingVariable, projectID string, environmentID string, templateID string) bool {
+func hasMissingProjectValue(missingVariables []variables.MissingVariable, projectID string, environmentID string, templateID string) bool {
 	for _, v := range missingVariables {
 		if v.ProjectID == projectID && v.EnvironmentID == environmentID && v.VariableTemplateID == templateID {
 			return true
@@ -228,7 +210,15 @@ func hasMissingValue(missingVariables []variables.MissingVariable, projectID str
 	}
 
 	return false
+}
 
+func hasMissingCommonValue(missingVariables []variables.MissingVariable, libraryVariableSetId string, templateId string) bool {
+	for _, v := range missingVariables {
+		if v.LibraryVariableSetID == v.LibraryVariableSetID && v.VariableTemplateID == templateId {
+			return true
+		}
+	}
+	return false
 }
 
 func getVariableValue(template *actiontemplates.ActionTemplateParameter, values map[string]core.PropertyValue) (*core.PropertyValue, bool) {
@@ -249,4 +239,18 @@ func getEnvironmentMap(client *client.Client) (map[string]string, error) {
 		environmentMap[e.GetID()] = e.GetName()
 	}
 	return environmentMap, nil
+}
+
+func getDisplayValue(value *core.PropertyValue) string {
+	var actualValue string
+	if value.IsSensitive {
+		if value.SensitiveValue.HasValue {
+			actualValue = "***"
+		} else {
+			actualValue = ""
+		}
+	} else {
+		actualValue = value.Value
+	}
+	return actualValue
 }
