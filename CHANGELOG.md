@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.2](https://github.com/OctopusDeploy/cli/compare/v1.2.1...v1.2.2) (2023-05-21)
+
+
+### Bug Fixes
+
+* fixed incorrect example ([#234](https://github.com/OctopusDeploy/cli/issues/234)) ([969ef1b](https://github.com/OctopusDeploy/cli/commit/969ef1b17cad755c8f7a5087c358e97cac8bad86))
+
 ## [1.2.1](https://github.com/OctopusDeploy/cli/compare/v1.2.0...v1.2.1) (2023-05-12)
 
 
