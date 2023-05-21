@@ -104,10 +104,15 @@ func listRun(cmd *cobra.Command, f factory.Factory, id string) error {
 		return err
 	}
 
-	missingVariables, err := client.Tenants.GetMissingVariables(variables.MissingVariablesQuery{TenantID: vars.TenantID})
+	missingVariablesResponse, err := client.Tenants.GetMissingVariables(variables.MissingVariablesQuery{TenantID: vars.TenantID})
+	var missingVariables []variables.MissingVariable
+	if len(*missingVariablesResponse) > 0 {
+		missingVariables = (*missingVariablesResponse)[0].MissingVariables
+	}
 	var allVariableValues []*VariableValue
 	for _, element := range vars.LibraryVariables {
-		variableValues := unwrapCommonVariables(element, (*missingVariables)[0].MissingVariables)
+
+		variableValues := unwrapCommonVariables(element, missingVariables)
 		for _, v := range variableValues {
 			allVariableValues = append(allVariableValues, v)
 		}
@@ -121,7 +126,7 @@ func listRun(cmd *cobra.Command, f factory.Factory, id string) error {
 		return err
 	}
 	for _, element := range vars.ProjectVariables {
-		variableValues := unwrapProjectVariables(element, environmentMap, (*missingVariables)[0].MissingVariables)
+		variableValues := unwrapProjectVariables(element, environmentMap, missingVariables)
 		for _, v := range variableValues {
 			allVariableValues = append(allVariableValues, v)
 		}
