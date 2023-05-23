@@ -1,12 +1,14 @@
 package shared
 
 import (
+	"github.com/OctopusDeploy/cli/pkg/util"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/spaces"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/teams"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/tenants"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/users"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/variables"
 )
 
 type GetAllSpacesCallback func() ([]*spaces.Space, error)
@@ -17,6 +19,7 @@ type GetTenantCallback func(identifier string) (*tenants.Tenant, error)
 type GetAllProjectsCallback func() ([]*projects.Project, error)
 type GetProjectCallback func(identifier string) (*projects.Project, error)
 type GetProjectProgression func(project *projects.Project) (*projects.Progression, error)
+type GetAllLibraryVariableSetsCallback func() ([]*variables.LibraryVariableSet, error)
 
 func GetAllTeams(client client.Client) ([]*teams.Team, error) {
 	res, err := client.Teams.Get(teams.TeamsQuery{IncludeSystem: true})
@@ -78,4 +81,13 @@ func GetProject(client *client.Client, identifier string) (*projects.Project, er
 	}
 
 	return res, nil
+}
+
+func GetAllLibraryVariableSets(client *client.Client) ([]*variables.LibraryVariableSet, error) {
+	res, err := client.LibraryVariableSets.GetAll()
+	if err != nil {
+		return nil, err
+	}
+
+	return util.SliceFilter(res, func(item *variables.LibraryVariableSet) bool { return item.ContentType == "Variables" }), nil
 }

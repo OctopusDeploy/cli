@@ -2,13 +2,14 @@ package tenant
 
 import (
 	"github.com/MakeNowJust/heredoc/v2"
+	cmdClone "github.com/OctopusDeploy/cli/pkg/cmd/tenant/clone"
 	cmdConnect "github.com/OctopusDeploy/cli/pkg/cmd/tenant/connect"
 	cmdCreate "github.com/OctopusDeploy/cli/pkg/cmd/tenant/create"
 	cmdDelete "github.com/OctopusDeploy/cli/pkg/cmd/tenant/delete"
 	cmdDisconnect "github.com/OctopusDeploy/cli/pkg/cmd/tenant/disconnect"
 	cmdList "github.com/OctopusDeploy/cli/pkg/cmd/tenant/list"
 	cmdTag "github.com/OctopusDeploy/cli/pkg/cmd/tenant/tag"
-	cmdClone "github.com/OctopusDeploy/cli/pkg/cmd/tenant/clone"
+	cmdVariable "github.com/OctopusDeploy/cli/pkg/cmd/tenant/variables"
 	cmdView "github.com/OctopusDeploy/cli/pkg/cmd/tenant/view"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/constants/annotations"
@@ -38,6 +39,7 @@ func NewCmdTenant(f factory.Factory) *cobra.Command {
 	cmd.AddCommand(cmdClone.NewCmdClone(f))
 	cmd.AddCommand(cmdDelete.NewCmdDelete(f))
 	cmd.AddCommand(cmdView.NewCmdView(f))
+	cmd.AddCommand(cmdVariable.NewCmdVariables(f))
 
 	return cmd
 }

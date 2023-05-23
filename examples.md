@@ -59,6 +59,20 @@ octopus tenant list -f json | jq --raw-output '.[] | select (.TenantTags[]? | co
 done
 ```
 
+# Creating a new tenant, linked to an existing project with variables
+
+```
+name='Mountain Vet Clinic'
+abrev='mtn'
+octopus tenant create --name "$name" --no-prompt
+octopus tenant connect --tenant "$name" --project "Vet Clinic" --environment Staging --environment Production --no-prompt
+octopus tenant variable update --tenant "$name" --library-variable-set "Tenant shared" --name "Tenant.Abbreviation" --value "$abrev" --no-prompt
+octopus tenant variable update --tenant "$name" --project "Vet Clinic" --name "Tenant.Database.Name" --environment "Staging" --value "Staging$abrev" --no-prompt
+octopus tenant variable update --tenant "$name" --project "Vet Clinic" --name "Tenant.Database.Name" --environment "Production" --value "$abrev" --no-prompt
+octopus tenant variable update --tenant "$name" --project "Vet Clinic" --name "Tenant.Azure.ServicePlan.Sku.Code" --environment "Staging" --value "B1" --no-prompt
+octopus tenant variable update --tenant "$name" --project "Vet Clinic" --name "Tenant.Azure.ServicePlan.Sku.Code" --environment "Production" --value "B4ms" --no-prompt
+```
+
 # List all versions of all packages
 
 ```

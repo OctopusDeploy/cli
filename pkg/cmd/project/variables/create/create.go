@@ -5,12 +5,13 @@ import (
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/cmd"
-	sharedVariable "github.com/OctopusDeploy/cli/pkg/cmd/project/variables/shared"
+	sharedProjectVariable "github.com/OctopusDeploy/cli/pkg/cmd/project/variables/shared"
 	"github.com/OctopusDeploy/cli/pkg/cmd/tenant/shared"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/OctopusDeploy/cli/pkg/question"
 	"github.com/OctopusDeploy/cli/pkg/question/selectors"
+	sharedVariable "github.com/OctopusDeploy/cli/pkg/question/shared/variables"
 	"github.com/OctopusDeploy/cli/pkg/util"
 	"github.com/OctopusDeploy/cli/pkg/util/flag"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
@@ -54,7 +55,7 @@ type CreateFlags struct {
 	Value       *flag.Flag[string]
 	Type        *flag.Flag[string]
 
-	*sharedVariable.ScopeFlags
+	*sharedProjectVariable.ScopeFlags
 
 	IsPrompted          *flag.Flag[bool]
 	PromptLabel         *flag.Flag[string]
@@ -79,7 +80,7 @@ func NewCreateFlags() *CreateFlags {
 		Value:               flag.New[string](FlagValue, false),
 		Description:         flag.New[string](FlagDescription, false),
 		Type:                flag.New[string](FlagType, false),
-		ScopeFlags:          sharedVariable.NewScopeFlags(),
+		ScopeFlags:          sharedProjectVariable.NewScopeFlags(),
 		IsPrompted:          flag.New[bool](FlagPrompt, false),
 		PromptLabel:         flag.New[string](FlagPromptLabel, false),
 		PromptDescription:   flag.New[string](FlagPromptDescription, false),
@@ -130,7 +131,7 @@ func NewCreateCmd(f factory.Factory) *cobra.Command {
 	flags.StringVarP(&createFlags.Type.Value, createFlags.Type.Name, "t", "", fmt.Sprintf("The type of variable. Valid values are %s. Default is %s", strings.Join([]string{TypeText, TypeSensitive, TypeWorkerPool, TypeAwsAccount, TypeAzureAccount, TypeGoogleAccount, TypeCertificate}, ", "), TypeText))
 	flags.StringVar(&createFlags.Value.Value, createFlags.Value.Name, "", "The value to set on the variable")
 
-	sharedVariable.RegisterScopeFlags(cmd, createFlags.ScopeFlags)
+	sharedProjectVariable.RegisterScopeFlags(cmd, createFlags.ScopeFlags)
 	flags.BoolVar(&createFlags.IsPrompted.Value, createFlags.IsPrompted.Name, false, "Make a prompted variable")
 	flags.StringVar(&createFlags.PromptLabel.Value, createFlags.PromptLabel.Name, "", "The label for the prompted variable")
 	flags.StringVar(&createFlags.PromptDescription.Value, createFlags.PromptDescription.Name, "", "Description for the prompted variable")
@@ -158,7 +159,7 @@ func createRun(opts *CreateOptions) error {
 		return err
 	}
 
-	scope, err := sharedVariable.ToVariableScope(projectVariables, opts.ScopeFlags, project)
+	scope, err := sharedProjectVariable.ToVariableScope(projectVariables, opts.ScopeFlags, project)
 	if err != nil {
 		return err
 	}
@@ -309,7 +310,7 @@ func PromptMissing(opts *CreateOptions) error {
 		if err != nil {
 			return err
 		}
-		opts.Value.Value, err = sharedVariable.PromptValue(opts.Ask, variableType, opts.VariableCallbacks)
+		opts.Value.Value, err = sharedVariable.PromptValue(opts.Ask, sharedVariable.VariableType(variableType), opts.VariableCallbacks, nil)
 		if err != nil {
 			return err
 		}
@@ -320,13 +321,13 @@ func PromptMissing(opts *CreateOptions) error {
 		return err
 	}
 
-	scope, err := sharedVariable.ToVariableScope(projectVariables, opts.ScopeFlags, project)
+	scope, err := sharedProjectVariable.ToVariableScope(projectVariables, opts.ScopeFlags, project)
 	if err != nil {
 		return err
 	}
 
 	if scope.IsEmpty() {
-		err = sharedVariable.PromptScopes(opts.Ask, projectVariables, opts.ScopeFlags, opts.IsPrompted.Value)
+		err = sharedProjectVariable.PromptScopes(opts.Ask, projectVariables, opts.ScopeFlags, opts.IsPrompted.Value)
 		if err != nil {
 			return err
 		}

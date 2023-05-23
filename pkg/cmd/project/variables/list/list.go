@@ -81,7 +81,6 @@ func listRun(cmd *cobra.Command, f factory.Factory, id string) error {
 			return v.Name
 		},
 	})
-
 }
 
 func getValue(v *variables.Variable) string {
