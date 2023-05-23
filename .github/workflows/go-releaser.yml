@@ -258,7 +258,7 @@ jobs:
     needs: [goreleaser, msi, generate-packages-and-publish]
     runs-on: ubuntu-latest
     env:
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      INTEGRATIONS_TOKEN: ${{ secrets.INTEGRATIONS_FNM_BOT_TOKEN }}
 
     steps:
         - name: Calculate branch name
@@ -294,11 +294,11 @@ jobs:
             add: releases.json
             push: false
 
-        - run: git push --repo https:/octobob:$GITHUB_TOKEN@github.com/OctopusDeploy/cli.git --set-upstream origin $BRANCH_NAME
+        - run: git push --repo https:/octobob:$INTEGRATIONS_TOKEN@github.com/OctopusDeploy/cli.git --set-upstream origin $BRANCH_NAME
           working-directory: cli
 
         - name: Create PR
           run: |
-            curl -X POST -H "Accept: application/vnd.github+json" -H "Authorization: Bearer $GITHUB_TOKEN" \
+            curl -X POST -H "Accept: application/vnd.github+json" -H "Authorization: Bearer $INTEGRATIONS_TOKEN" \
             https://api.github.com/repos/OctopusDeploy/cli/pulls \
             -d '{"title":"update cli releases.json","body":"An automated update of the releases.json for octopus CLI\nCreated by GitHub Actions [go-releaser](https://github.com/OctopusDeploy/cli/actions/workflows/go-releaser.yml)","head":"'$BRANCH_NAME'","base":"main"}'
