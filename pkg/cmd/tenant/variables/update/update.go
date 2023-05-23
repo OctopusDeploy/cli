@@ -14,8 +14,8 @@ import (
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/accounts"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/actiontemplates"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/certificates"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/core"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/environments"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/tenants"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/variables"
@@ -55,6 +55,7 @@ type UpdateOptions struct {
 	shared.GetTenantCallback
 	shared.GetAllTenantsCallback
 	shared.GetAllLibraryVariableSetsCallback
+	selectors.GetAllEnvironmentsCallback
 	*sharedVariable.VariableCallbacks
 }
 
@@ -84,7 +85,8 @@ func NewUpdateOptions(flags *UpdateFlags, dependencies *cmd.Dependencies) *Updat
 		GetAllLibraryVariableSetsCallback: func() ([]*variables.LibraryVariableSet, error) {
 			return shared.GetAllLibraryVariableSets(dependencies.Client)
 		},
-		VariableCallbacks: sharedVariable.NewVariableCallbacks(dependencies),
+		GetAllEnvironmentsCallback: func() ([]*environments.Environment, error) { return selectors.GetAllEnvironments(dependencies.Client) },
+		VariableCallbacks:          sharedVariable.NewVariableCallbacks(dependencies),
 	}
 }
 
@@ -141,7 +143,7 @@ func updateRun(opts *UpdateOptions) error {
 			return err
 		}
 	} else {
-		environmentMap, err := getEnvironmentMap(opts.Client)
+		environmentMap, err := getEnvironmentMap(opts.GetAllEnvironmentsCallback)
 		if err != nil {
 			return err
 		}
@@ -170,7 +172,7 @@ func PromptMissing(opts *UpdateOptions) error {
 	var tenant *tenants.Tenant
 	var err error
 	if opts.Tenant.Value == "" {
-		tenant, err = selectors.Select(opts.Ask, "You have not specified a source Tenant to clone from. Please select one:", opts.GetAllTenantsCallback, func(tenant *tenants.Tenant) string {
+		tenant, err = selectors.Select(opts.Ask, "You have not specified a Tenant. Please select one:", opts.GetAllTenantsCallback, func(tenant *tenants.Tenant) string {
 			return tenant.Name
 		})
 		if err != nil {
@@ -252,7 +254,7 @@ func PromptMissing(opts *UpdateOptions) error {
 func PromptForEnvironment(opts *UpdateOptions, variables *variables.TenantVariables) error {
 	if opts.Environment.Value == "" {
 		var environmentSelections []*selectors.SelectOption[string]
-		environmentMap, err := getEnvironmentMap(opts.Client)
+		environmentMap, err := getEnvironmentMap(opts.GetAllEnvironmentsCallback)
 		if err != nil {
 			return err
 		}
@@ -528,9 +530,9 @@ func findAccount(opts *UpdateOptions, accountType accounts.AccountType) (string,
 	return "", fmt.Errorf("cannot find %s account with called '%s'", accountType, opts.Value.Value)
 }
 
-func getEnvironmentMap(client *client.Client) (map[string]string, error) {
+func getEnvironmentMap(getAllEnvironments selectors.GetAllEnvironmentsCallback) (map[string]string, error) {
 	environmentMap := make(map[string]string)
-	allEnvs, err := selectors.GetAllEnvironments(client)
+	allEnvs, err := getAllEnvironments()
 	if err != nil {
 		return nil, err
 	}
