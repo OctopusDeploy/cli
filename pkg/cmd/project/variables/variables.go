@@ -22,9 +22,9 @@ func NewCmdVariables(f factory.Factory) *cobra.Command {
 		Short:   "Manage project variables",
 		Long:    "Manage project variables in Octopus Deploy",
 		Example: heredoc.Docf(`
-			$ %[1]s project variables list --project Deploy
-			$ %[1]s project variables view --name "DatabaseName" --project Deploy
-			$ %[1]s project variables update
+			$ %[1]s project variable list "Deploy Web App"
+			$ %[1]s project variable view --name "DatabaseName" --project Deploy
+			$ %[1]s project variable update
 		`, constants.ExecutableName),
 		Annotations: map[string]string{
 			annotations.IsCore: "true",
