@@ -279,14 +279,14 @@ jobs:
             git checkout main
             git checkout -b $BRANCH_NAME
 
-        - name: Generate cli docs
+        - name: Generate cli releases json
           working-directory: cli
           run: curl -s https://api.github.com/repos/OctopusDeploy/cli/releases > releases.json
 
         - name: Commit
           uses: EndBug/add-and-commit@v9
           with:
-            message: 'Update cli releases.json'
+            message: 'chore: update cli releases.json'
             author_name: Bob
             author_email: bob@octopus.com
             committer_name: bob
