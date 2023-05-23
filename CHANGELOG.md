@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.3.0](https://github.com/OctopusDeploy/cli/compare/v1.2.2...v1.3.0) (2023-05-23)
+
+
+### Features
+
+* tenant variable list ([69bb317](https://github.com/OctopusDeploy/cli/commit/69bb3177441b7d4d9e2928e564a61e36343e0a7c))
+* tenant variable update ([69bb317](https://github.com/OctopusDeploy/cli/commit/69bb3177441b7d4d9e2928e564a61e36343e0a7c))
+
 ## [1.2.2](https://github.com/OctopusDeploy/cli/compare/v1.2.1...v1.2.2) (2023-05-21)
 
 
