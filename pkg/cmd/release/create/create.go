@@ -261,6 +261,14 @@ func createRun(cmd *cobra.Command, f factory.Factory, flags *CreateFlags) error 
 			)
 			cmd.Printf("\nAutomation Command: %s\n", autoCmd)
 		}
+	} else {
+		if options.ProjectName != "" {
+			project, err := selectors.FindProject(octopus, options.ProjectName)
+			if err != nil {
+				return err
+			}
+			options.ProjectName = project.GetName()
+		}
 	}
 
 	// the executor will raise errors if any required options are missing

@@ -285,6 +285,15 @@ func deployRun(cmd *cobra.Command, f factory.Factory, flags *DeployFlags) error 
 				cmd.Printf("%s\n", output.Yellow("Warning: Command includes some sensitive variable values which have been replaced with placeholders."))
 			}
 		}
+	} else {
+		if options.ProjectName != "" {
+			project, err := selectors.FindProject(octopus, options.ProjectName)
+			if err != nil {
+				return err
+			}
+			options.ProjectName = project.GetName()
+		}
+
 	}
 
 	// the executor will raise errors if any required options are missing
