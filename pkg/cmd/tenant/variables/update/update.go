@@ -21,6 +21,7 @@ import (
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/variables"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/workerpools"
 	"github.com/spf13/cobra"
+	"sort"
 	"strings"
 )
 
@@ -383,6 +384,9 @@ func findPossibleCommonVariables(opts *UpdateOptions, tenantVariables *variables
 		}
 	}
 
+	sort.SliceStable(filteredVariables, func(i, j int) bool {
+		return filteredVariables[i].Owner < filteredVariables[j].Owner
+	})
 	return filteredVariables
 }
 
@@ -400,8 +404,12 @@ func findPossibleProjectVariables(opts *UpdateOptions, tenantVariables *variable
 		}
 	}
 
+	sort.SliceStable(filteredVariables, func(i, j int) bool {
+		return filteredVariables[i].Owner < filteredVariables[j].Owner
+	})
 	return filteredVariables
 }
+
 func updateProjectVariableValue(opts *UpdateOptions, vars *variables.TenantVariables, environmentMap map[string]string) (bool, error) {
 	var environmentId string
 	for id, environment := range environmentMap {
