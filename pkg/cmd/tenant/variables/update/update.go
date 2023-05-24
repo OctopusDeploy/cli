@@ -563,19 +563,3 @@ type PossibleVariable struct {
 	Owner        string
 	VariableName string
 }
-
-//type PossibleVariables []*PossibleVariable
-//
-//func (p *PossibleVariables) Len() int {
-//	return len(*p)
-//}
-//
-//func (p *PossibleVariables) Less(i, j int) bool {
-//	iRune, _ := utf8.DecodeRune([]byte((*p)[i].Owner))
-//	jRune, _ := utf8.DecodeRune([]byte((*p)[j].Owner))
-//	return int32(iRune) < int32(jRune)
-//}
-//
-//func (p *PossibleVariables) Swap(i, j int) {
-//	(*p)[i], (*p)[j] = (*p)[j], (*p)[i]
-//}
