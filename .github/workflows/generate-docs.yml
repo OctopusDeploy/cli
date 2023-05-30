@@ -38,7 +38,7 @@ jobs:
 
       - name: Generate cli docs
         working-directory: cli
-        run: mkdir -p ../docs/docs/octopus-rest-api/cli && go run cmd/gen-docs/main.go --website --doc-path ../docs/docs/octopus-rest-api/cli
+        run: mkdir -p ../docs/src/pages/docs/octopus-rest-api/cli && go run cmd/gen-docs/main.go --website --doc-path ../docs/src/pages/docs/octopus-rest-api/cli
 
       - name: Commit
         uses: EndBug/add-and-commit@v9
