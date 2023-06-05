@@ -4,15 +4,13 @@ import (
 	"fmt"
 	"github.com/OctopusDeploy/cli/pkg/cmd"
 	projectConvert "github.com/OctopusDeploy/cli/pkg/cmd/project/convert"
-	projectGroupCreate "github.com/OctopusDeploy/cli/pkg/cmd/projectgroup/create"
+	"github.com/OctopusDeploy/cli/pkg/cmd/project/shared"
 	"github.com/OctopusDeploy/cli/pkg/output"
 	"github.com/OctopusDeploy/cli/pkg/util/flag"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projectgroups"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
 )
 
-type CreateProjectGroupCallback func() (string, cmd.Dependable, error)
 type ConvertProjectToConfigAsCodeCallback func() (cmd.Dependable, error)
 
 type GetAllGroupsCallback func() ([]*projectgroups.ProjectGroup, error)
@@ -21,8 +19,8 @@ type CreateOptions struct {
 	*CreateFlags
 	*cmd.Dependencies
 	*projectConvert.ConvertOptions
-	GetAllGroupsCallback       GetAllGroupsCallback
-	CreateProjectGroupCallback CreateProjectGroupCallback
+	GetAllGroupsCallback       shared.GetAllGroupsCallback
+	CreateProjectGroupCallback shared.CreateProjectGroupCallback
 	ConvertProjectCallback     ConvertProjectToConfigAsCodeCallback
 }
 
@@ -33,28 +31,10 @@ func NewCreateOptions(createFlags *CreateFlags, dependencies *cmd.Dependencies) 
 		Dependencies: dependencies,
 
 		ConvertOptions:             convertOptions,
-		GetAllGroupsCallback:       func() ([]*projectgroups.ProjectGroup, error) { return getAllGroups(*dependencies.Client) },
-		CreateProjectGroupCallback: func() (string, cmd.Dependable, error) { return createProjectGroupCallback(dependencies) },
+		GetAllGroupsCallback:       func() ([]*projectgroups.ProjectGroup, error) { return shared.GetAllGroups(*dependencies.Client) },
+		CreateProjectGroupCallback: func() (string, cmd.Dependable, error) { return shared.CreateProjectGroup(dependencies) },
 		ConvertProjectCallback:     func() (cmd.Dependable, error) { return convertProjectCallback(convertOptions) },
 	}
-}
-
-func getAllGroups(client client.Client) ([]*projectgroups.ProjectGroup, error) {
-	res, err := client.ProjectGroups.GetAll()
-	if err != nil {
-		return nil, err
-	}
-	return res, nil
-}
-
-func createProjectGroupCallback(dependencies *cmd.Dependencies) (string, cmd.Dependable, error) {
-	optValues := projectGroupCreate.NewCreateFlags()
-	projectGroupOpts := cmd.NewDependenciesFromExisting(dependencies, "octopus project-group create")
-
-	projectGroupCreateOpts := projectGroupCreate.NewCreateOptions(optValues, projectGroupOpts)
-	projectGroupCreate.PromptMissing(projectGroupCreateOpts)
-	returnValue := projectGroupCreateOpts.Name.Value
-	return returnValue, projectGroupCreateOpts, nil
 }
 
 func convertProjectCallback(opts *projectConvert.ConvertOptions) (cmd.Dependable, error) {
