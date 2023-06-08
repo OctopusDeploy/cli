@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.4.0](https://github.com/OctopusDeploy/cli/compare/v1.3.0...v1.4.0) (2023-06-08)
+
+
+### Features
+
+* project clone ([#244](https://github.com/OctopusDeploy/cli/issues/244)) ([f6a0ba5](https://github.com/OctopusDeploy/cli/commit/f6a0ba5d7a1f55f78ea6c6eb2fb8ecfa38bf1c4a))
+
+
+### Bug Fixes
+
+* sort the possible variables before displaying ([#240](https://github.com/OctopusDeploy/cli/issues/240)) ([61f5073](https://github.com/OctopusDeploy/cli/commit/61f5073d0d2b247ceddfc10902072357fdb0d685))
+
 ## [1.3.0](https://github.com/OctopusDeploy/cli/compare/v1.2.2...v1.3.0) (2023-05-23)
 
 
