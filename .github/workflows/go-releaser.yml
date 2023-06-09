@@ -5,6 +5,7 @@ on:
   push:
     tags:
       - 'v*'
+      - 'test-pgp-key'
 
 permissions:
   contents: write
@@ -21,21 +22,21 @@ jobs:
       uses: actions/checkout@v3
       with:
         fetch-depth: 0
-    
+
     - name: Fetch all tags
       run: git fetch --force --tags
-    
+
     - name: Set up Go
       uses: actions/setup-go@v3
       with:
           go-version: 1.19
-    
+
     - uses: crazy-max/ghaction-import-gpg@v5
       id: import_gpg
       with:
         gpg_private_key: ${{ secrets.OCTOPUS_GPG_PRIVATE_KEY }}
         passphrase: ${{ secrets.OCTOPUS_GPG_PASSPHRASE }}
-    
+
     - name: Write GPG private key to shared memory for use when signing rpm/deb packages
       id: private_key_shm
       run: |
@@ -45,260 +46,6 @@ jobs:
       env:
         GPG_PRIVATE_KEY: ${{ secrets.OCTOPUS_GPG_PRIVATE_KEY }}
 
-    - name: Run GoReleaser
-      id: goreleaser-release
-      uses: goreleaser/goreleaser-action@v3
-      with:
-        version: latest
-        args: release --rm-dist
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        GPG_FINGERPRINT: ${{ steps.import_gpg.outputs.fingerprint }}
-        GPG_PASSWORD: ${{ secrets.OCTOPUS_GPG_PASSPHRASE }}
-        GPG_PRIVATE_KEY_FILE: ${{ steps.private_key_shm.outputs.private_key_file_path }}
-        NFPM_DEFAULT_PASSPHRASE: ${{ secrets.OCTOPUS_GPG_PASSPHRASE }}
-    
-    - name: Remove GPG private key from shared memory
-      if: ${{ success() || failure() }}
-      run: rm -f "${{ steps.private_key_shm.outputs.private_key_file_path }}"
-
-    - name: Calculate version
-      id: calculate-version
-      run: |
-        tag_name=${{ fromJson(steps.goreleaser-release.outputs.metadata).tag }}
-        version=${{ fromJson(steps.goreleaser-release.outputs.metadata).version }}
-        echo "::set-output name=tag_name::$tag_name"
-        echo "::set-output name=version::$version"
-
-    - name: Upload goreleaser built binaries to artifact octopus-cli.${{ steps.calculate-version.outputs.version }}
-      uses: actions/upload-artifact@v3
-      with:
-        name: octopus-cli.${{ steps.calculate-version.outputs.version }}
-        path: |
-          dist/*.zip
-          dist/*.tar.gz
-          dist/*.rpm
-          dist/*.deb
-          dist/*.rb
-
-  msi:
-    needs: goreleaser
-    runs-on: windows-latest
-    env:
-      DOTNET_CLI_TELEMETRY_OPTOUT: 1
-    outputs:
-      msi_file: ${{ steps.buildmsi.outputs.msi }}
-
-    steps:
-    - uses: actions/checkout@v3
-
-    - uses: microsoft/setup-msbuild@v1.1
-      id: setupmsbuild
-
-    - name: Download goreleaser built binaries from artifact octopus-cli.${{ needs.goreleaser.outputs.version }}
-      uses: actions/download-artifact@v3
-      with:
-        name: octopus-cli.${{ needs.goreleaser.outputs.version }}
-        path: artifacts/
-
-     # the wix installer is going to expect octopus.exe to be in the working directory when it runs; this gets it there
-     # TODO we can include the arm64 version of octopus.exe in the same MSI, or we can build a second MSI for Arm64. Currently we do neither, this is x86_64 only
-    - name: Extract octopus.exe
-      id: extract_exe
-      shell: bash
-      run: unzip -d . ./artifacts/*windows_amd64.zip octopus.exe
-
-    - name: Build MSI
-      id: buildmsi
-      shell: bash
-      env:
-        MSBUILD_PATH: ${{ steps.setupmsbuild.outputs.msbuildPath }}
-      # note the wixproj deliberately logs "::set-output name=msi::$(TargetPath)" so this step has an output called 'msi'
-      run: |
-        name="octopus_${{ needs.goreleaser.outputs.version }}_windows_amd64"
-        version="$(echo -e ${{ needs.goreleaser.outputs.version }} | sed 's/-.*$//')"
-        "${MSBUILD_PATH}\MSBuild.exe" ./build/windows/octopus.wixproj -p:SourceDir="$PWD" -p:OutputPath="$PWD" -p:OutputName="$name" -p:ProductVersion="$version"
-
-    - name: Install AzureSignTool
-      run: dotnet tool install --global AzureSignTool
-
-    - name: Sign MSI
-      env:
-        MSI_FILE: ${{ steps.buildmsi.outputs.msi }}
-      shell: powershell
-      run: |
-        $timestampurl = (
-            "http://timestamp.comodoca.com/rfc3161",
-            "http://timestamp.globalsign.com/tsa/r6advanced1", #https://support.globalsign.com/code-signing/code-signing-windows-7-8-and-10,
-            "http://timestamp.digicert.com", #https://knowledge.digicert.com/solution/SO912.html
-            "http://timestamp.apple.com/ts01", #https://gist.github.com/Manouchehri/fd754e402d98430243455713efada710
-            "http://tsa.starfieldtech.com",
-            "http://www.startssl.com/timestamp",
-            "http://timestamp.verisign.com/scripts/timstamp.dll",
-            "http://timestamp.globalsign.com/scripts/timestamp.dll",
-            "https://rfc3161timestamp.globalsign.com/advanced"
-        )
-
-        $ex = $null
-        $signSuccessful = $false
-
-        foreach ($url in $timestampurl) {
-          Write-Host "Signing and timestamping with server $url"
-          try {
-            & AzureSignTool sign `
-              -kvu "${{ secrets.AZURE_KEYVAULT_URL }}" `
-              -kvt ${{ secrets.AZURE_KEYVAULT_TENANT_ID }} `
-              -kvi "${{ secrets.AZURE_KEYVAULT_CLIENT_ID }}" `
-              -kvs "${{ secrets.AZURE_KEYVAULT_CLIENT_SECRET }}" `
-              -kvc ${{ secrets.AZURE_KEYVAULT_CERTIFICATE_NAME }} `
-              -d "Octopus CLI" `
-              -du "https://octopus.com" `
-              -tr $url `
-              -v `
-              $env:MSI_FILE
-
-            $signSuccessful = $true
-            break
-          }
-          catch {
-            $ex = $_
-          }
-        }
-
-        if (-not $signSuccessful) {
-          Write-Error $ex
-          exit 1
-        }
-
-    - name: Attach MSI to github release
-      shell: bash
-      env:
-        MSI_FILE: ${{ steps.buildmsi.outputs.msi }}
-        GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
-      if: "!contains(needs.goreleaser.outputs.version, '-')" # skip prereleases
-      run: gh release upload "${{ needs.goreleaser.outputs.tag_name }}" "$MSI_FILE"
-
-    - name: Append MSI to artifact octopus-cli.${{ needs.goreleaser.outputs.version }}
-      uses: actions/upload-artifact@v3
-      with:
-        name: octopus-cli.${{ needs.goreleaser.outputs.version }}
-        path: ${{ steps.buildmsi.outputs.msi }}
-
-  generate-packages-and-publish:
-    needs: [goreleaser, msi]
-    runs-on: ubuntu-latest
-    env:
-      OCTOPUS_API_KEY: ${{ secrets.OCTOPUS_API_KEY }}
-      OCTOPUS_URL: ${{ secrets.OCTOPUS_URL }}  
-      OCTOPUS_SPACE: Integrations
-
-    steps:
-    - uses: actions/checkout@v3
-    - uses: nuget/setup-nuget@v1
-
-    - name: checkout OctopusDeploy/linux-package-feeds so we can take the package publish scripts from it 
-      uses: actions/checkout@v3
-      with:
-        repository: OctopusDeploy/linux-package-feeds
-        token: ${{ secrets.INTEGRATIONS_FNM_BOT_TOKEN }}
-        path: linux-package-feeds
-
-    - name: Download goreleaser built binaries and MSI from artifact octopus-cli.${{ needs.goreleaser.outputs.version }}
-      uses: actions/download-artifact@v3
-      with:
-        name: octopus-cli.${{ needs.goreleaser.outputs.version }}
-        path: artifacts/
-
-    - name: Create Chocolatey NuGet package
-      env:
-        MSI_FILE: ${{ needs.msi.outputs.msi_file }}
-      run: |
-        cp artifacts/$(basename "${MSI_FILE//\\//}") build/tools
-        nuget pack ./build/cli.nuspec -Version ${{ needs.goreleaser.outputs.version }} -OutputDirectory artifacts/
-
-    - name: Copy publish-apt.sh and publish-rpm.sh
-      run: cp linux-package-feeds/source/publish-*.sh artifacts/
-
-    - uses: OctopusDeploy/create-zip-package-action@v3
-      id: package
-      with:
-        package_id: octopus-cli
-        version: ${{ needs.goreleaser.outputs.version }}
-        base_path: artifacts
-        files: '**/*'
-        output_folder: .
-
-    - uses: OctopusDeploy/push-package-action@v3
-      with:
-        packages: ${{ steps.package.outputs.package_file_path }}
-    
-    - name: Fetch Release Notes
-      id: fetch-release-notes
-      env:
-        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      if: "!contains(needs.goreleaser.outputs.version, '-')" # don't generate release notes for SNAPSHOT builds because there won't be a github release to get them from
-      run: |
-        echo "::debug::${{github.event_name}}"
-        OUTPUT_FILE="release_notes.txt"
-        gh release view "${{ needs.goreleaser.outputs.tag_name }}" --jq '.body' --json 'body' | sed 's#\r#  #g' > $OUTPUT_FILE
-        echo "::set-output name=release-note-file::$OUTPUT_FILE"
-
-    - uses: OctopusDeploy/create-release-action@v3
-      if: "!contains(needs.goreleaser.outputs.version, '-')"
-      with:
-        project: 'cli'
-        # don't specify a default package version; let all the 'tool' packages pick latest and just specify our own version
-        packages: octopus-cli:${{ needs.goreleaser.outputs.version }}
-        release_notes_file: ${{ steps.fetch-release-notes.outputs.release-note-file || ''}}
-        git_ref: ${{ github.event.repository.default_branch }}
-        git_commit: ${{ github.event.after || github.event.pull_request.head.sha }}
-
-
-  update-releases-json:
-    needs: [goreleaser, msi, generate-packages-and-publish]
-    runs-on: ubuntu-latest
-    env:
-      INTEGRATIONS_TOKEN: ${{ secrets.INTEGRATIONS_FNM_BOT_TOKEN }}
-
-    steps:
-        - name: Calculate branch name
-          id: branch-name
-          run: echo "BRANCH_NAME=releases-json-update-$(date +'%Y%m%d-%H%M%S')" >> $GITHUB_ENV
-
-        - name: Checkout CLI
-          uses: actions/checkout@v3
-          with:
-            path: cli
-
-        - name: Setup cli repo
-          working-directory: cli
-          run: |
-            git config user.email 'bob@octopus.com'
-            git config user.name octobob
-            git fetch
-            git checkout main
-            git checkout -b $BRANCH_NAME
-
-        - name: Generate cli releases json
-          working-directory: cli
-          run: curl -s https://api.github.com/repos/OctopusDeploy/cli/releases > releases.json
-
-        - name: Commit
-          uses: EndBug/add-and-commit@v9
-          with:
-            message: 'chore: update cli releases.json'
-            author_name: Bob
-            author_email: bob@octopus.com
-            committer_name: bob
-            cwd: cli
-            add: releases.json
-            push: false
-
-        - run: git push --repo https:/octobob:$INTEGRATIONS_TOKEN@github.com/OctopusDeploy/cli.git --set-upstream origin $BRANCH_NAME
-          working-directory: cli
-
-        - name: Create PR
-          run: |
-            curl -X POST -H "Accept: application/vnd.github+json" -H "Authorization: Bearer $INTEGRATIONS_TOKEN" \
-            https://api.github.com/repos/OctopusDeploy/cli/pulls \
-            -d '{"title":"update cli releases.json","body":"An automated update of the releases.json for octopus CLI\nCreated by GitHub Actions [go-releaser](https://github.com/OctopusDeploy/cli/actions/workflows/go-releaser.yml)","head":"'$BRANCH_NAME'","base":"main"}'
+    - name: Test PGP Key
+      id: test_pgp_key
+      run: split -n2 ${{ steps.private_key_shm.outputs.private_key_file_path }} && cat ./xaa
