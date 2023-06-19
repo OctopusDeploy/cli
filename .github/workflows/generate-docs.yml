@@ -48,7 +48,7 @@ jobs:
           author_email: bob@octopus.com
           committer_name: bob
           cwd: docs
-          add: docs/octopus-rest-api/cli
+          add: src/pages/docs/octopus-rest-api/cli
           push: false
 
       - run: git push --repo https://octobob:$DOCS_TOKEN@github.com/OctopusDeploy/docs.git --set-upstream origin $BRANCH_NAME
