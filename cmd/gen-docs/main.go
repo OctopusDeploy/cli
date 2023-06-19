@@ -24,10 +24,26 @@ import (
 )
 
 type TemplateInformation struct {
-	Title    string
-	Command  *cobra.Command
-	Filename string
-	Position int
+	Title        string
+	Command      *cobra.Command
+	OutputFile   string
+	RelativePath string
+	Position     int
+	Date         string
+}
+
+func NewTemplateInformation(cmd *cobra.Command, basePath string, relativeBasePath string, position int) *TemplateInformation {
+	fileName := strings.ReplaceAll(cmd.CommandPath(), " ", "-")
+	relativePath := filepath.Join(relativeBasePath, fileName)
+	currentTime := time.Now()
+	return &TemplateInformation{
+		Title:        cmd.CommandPath(),
+		Command:      cmd,
+		Position:     position,
+		OutputFile:   filepath.Join(basePath, fileName) + ".mdx",
+		RelativePath: relativePath,
+		Date:         fmt.Sprintf("%d-%02d-%02d", currentTime.Year(), currentTime.Month(), currentTime.Day()),
+	}
 }
 
 type Pages []*TemplateInformation
@@ -60,6 +76,7 @@ func run(args []string) error {
 	manPage := flags.BoolP("man-page", "", false, "Generate manual pages")
 	website := flags.BoolP("website", "", false, "Generate website pages")
 	dir := flags.StringP("doc-path", "", "", "Path directory where you want generate doc files")
+	relativeBasePath := flags.StringP("relative-base-path", "", "", "Relative base path for generating index links")
 	help := flags.BoolP("help", "h", false, "Help about any command")
 
 	if err := flags.Parse(args); err != nil {
@@ -91,13 +108,6 @@ func run(args []string) error {
 		*dir = filepath.Join(home, (*dir)[2:])
 	}
 
-	if _, err := os.Stat(*dir); !os.IsNotExist(err) {
-		err := RemoveContents(*dir)
-		if err != nil {
-			return err
-		}
-	}
-
 	if err := os.MkdirAll(*dir, 0755); err != nil {
 		return err
 	}
@@ -105,7 +115,7 @@ func run(args []string) error {
 	if *website {
 		position := 0
 		pageCollection := &PageCollection{Pages: &Pages{}}
-		if err := GenMarkdownTreeCustom(cmd, *dir, &position, pageCollection); err != nil {
+		if err := GenMarkdownTreeCustom(cmd, *dir, *relativeBasePath, &position, pageCollection); err != nil {
 			return err
 		}
 
@@ -136,7 +146,7 @@ func run(args []string) error {
 	return nil
 }
 
-func GenMarkdownCustom(cmd *cobra.Command, w io.Writer, info TemplateInformation) error {
+func GenMarkdownCustom(cmd *cobra.Command, w io.Writer, info *TemplateInformation) error {
 	cmd.InitDefaultHelpCmd()
 	cmd.InitDefaultHelpFlag()
 
@@ -144,7 +154,7 @@ func GenMarkdownCustom(cmd *cobra.Command, w io.Writer, info TemplateInformation
 	return t.Execute(w, info)
 }
 
-func GenMarkdownTreeCustom(cmd *cobra.Command, dir string, positionCounter *int, pageCollection *PageCollection) error {
+func GenMarkdownTreeCustom(cmd *cobra.Command, dir string, relativeBasePath string, positionCounter *int, pageCollection *PageCollection) error {
 	myPosition := *positionCounter
 	for _, c := range cmd.Commands() {
 		if !c.IsAvailableCommand() || c.IsAdditionalHelpTopicCommand() {
@@ -153,29 +163,20 @@ func GenMarkdownTreeCustom(cmd *cobra.Command, dir string, positionCounter *int,
 
 		*positionCounter++
 
-		if err := GenMarkdownTreeCustom(c, dir, positionCounter, pageCollection); err != nil {
+		if err := GenMarkdownTreeCustom(c, dir, relativeBasePath, positionCounter, pageCollection); err != nil {
 			return err
 		}
 
 	}
 
-	basename := strings.ReplaceAll(cmd.CommandPath(), " ", "-") + ".md"
-	filename := filepath.Join(dir, basename)
-
-	f, err := os.Create(filename)
+	info := NewTemplateInformation(cmd, dir, relativeBasePath, myPosition)
+	f, err := os.Create(info.OutputFile)
 	if err != nil {
 		return err
 	}
 	defer f.Close()
 
-	info := TemplateInformation{
-		Title:    cmd.CommandPath(),
-		Command:  cmd,
-		Position: myPosition,
-		Filename: basename,
-	}
-
-	*pageCollection.Pages = append(*pageCollection.Pages, &info)
+	*pageCollection.Pages = append(*pageCollection.Pages, info)
 
 	if err := GenMarkdownCustom(cmd, f, info); err != nil {
 		return err
@@ -183,34 +184,18 @@ func GenMarkdownTreeCustom(cmd *cobra.Command, dir string, positionCounter *int,
 	return nil
 }
 
-func RemoveContents(dir string) error {
-	d, err := os.Open(dir)
-	if err != nil {
-		return err
-	}
-	defer d.Close()
-	names, err := d.Readdirnames(-1)
-	if err != nil {
-		return err
-	}
-	for _, name := range names {
-		err = os.RemoveAll(filepath.Join(dir, name))
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
 const documentationTemplate = `---
+layout: src/layouts/Default.astro
+pubDate: 2023-01-01
+modDate: {{.Date}}
 title: {{.Title}}
 description: {{.Command.Short}}
-position: {{.Position}}
+navOrder: {{.Position}}
 ---
+import SamplesInstance from 'src/shared-content/samples/samples-instance.include.md';
 
 {{.Command.Long}}
-
-` + "\n```text" + `{{define "T1"}}Usage:{{if .Runnable}}
+` + "\n```" + `{{define "T1"}}Usage:{{if .Runnable}}
   {{.UseLine}}{{end}}{{if .HasAvailableSubCommands}}
   {{.CommandPath}} [command]{{end}}{{if gt (len .Aliases) 0}}
 
@@ -241,30 +226,32 @@ Use "{{.CommandPath}} [command] --help" for more information about a command.{{e
 
 ## Examples
 
-!include <samples-instance>
-
-` + "\n```text" + `
+<SamplesInstance />
+` + "\n```" + `
 {{ .Command.Example }}
 ` + "\n```\n" + `
 {{- end }}
 
 ## Learn more
 
-- [Octopus CLI](/docs/octopus-rest-api/cli/index.md)
-- [Creating API keys](/docs/octopus-rest-api/how-to-create-an-api-key.md)`
+- [Octopus CLI](/docs/octopus-rest-api/cli)
+- [Creating API keys](/docs/octopus-rest-api/how-to-create-an-api-key)`
 
 const indexTemplate = `---
+layout: src/layouts/Default.astro
+pubDate: 2023-01-01
+modDate: 2023-01-01
 title: CLI
 description: The all-new Octopus CLI
-position: 100
+navOrder: 100
 hideInThisSection: true
 ---
 
-The Octopus CLI is a command line tool that builds on top of the [Octopus Deploy REST API](/docs/octopus-rest-api/index.md). With the Octopus CLI you can push your application packages for deployment as either Zip or NuGet packages, and manage your environments, deployments, projects, and workers.
+The Octopus CLI is a command line tool that builds on top of the [Octopus Deploy REST API](/docs/octopus-rest-api). With the Octopus CLI you can push your application packages for deployment as either Zip or NuGet packages, and manage your environments, deployments, projects, and workers.
 
 The Octopus CLI can be used on Windows, Mac, Linux and Docker. For installation options and direct downloads, visit the [CLI Readme](https://github.com/OctopusDeploy/cli/blob/main/README.md).
 
-:::hint
+:::div{.hint}
 The Octopus CLI is built and maintained by the Octopus Deploy team, but it is also open source. You can [view the Octopus CLI project on GitHub](https://github.com/OctopusDeploy/cli), which leans heavily on the [go-octopusdeploy library](https://github.com/OctopusDeploy/go-octopusdeploy).
 :::
 
@@ -273,4 +260,4 @@ The Octopus CLI is built and maintained by the Octopus Deploy team, but it is al
 ` + "\n`octopus` supports the following commands:\n" +
 	`
 {{range .Pages}}
-- **[{{.Title}}]({{.Filename}})**:  {{.Command.Short}}.{{end}}`
+- **[{{.Title}}]({{.RelativePath}})**:  {{.Command.Short}}.{{end}}`
