@@ -378,7 +378,7 @@ func (opts *CreateOptions) Commit() error {
 		auth.AccountID = accountID
 		auth.ClusterName = opts.AKSClusterName.Value
 		auth.ClusterResourceGroup = opts.AKSResourceGroupName.Value
-		auth.AdminLogin = opts.UseAdminCredentials.Value
+		auth.AdminLogin = strconv.FormatBool(opts.UseAdminCredentials.Value)
 		endpoint.Authentication = auth
 	}
 
