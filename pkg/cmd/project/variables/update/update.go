@@ -168,7 +168,7 @@ func updateRun(opts *UpdateOptions) error {
 	if err != nil {
 		return err
 	}
-	_, err = fmt.Fprintf(opts.Out, "Successfully updated variable '%s' in project '%s'\n", opts.Name.Value, project.GetName())
+	_, err = fmt.Fprintf(opts.Out, "Successfully updated variable '%s' in project '%s'\n", variable.Name, project.GetName())
 
 	if !opts.NoPrompt {
 		autoCmd := flag.GenerateAutomationCmd(opts.CmdPath, opts.Id, opts.Name, opts.Value, opts.Project, opts.EnvironmentsScopes, opts.ChannelScopes, opts.StepScopes, opts.TargetScopes, opts.TagScopes, opts.RoleScopes, opts.ProcessScopes, opts.Unscoped, opts.GitRef)
