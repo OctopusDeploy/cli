@@ -18,7 +18,7 @@ import (
 
 const (
 	FlagProject = "project"
-	FlagGitRef  = "gitref"
+	FlagGitRef  = "git-ref"
 )
 
 type ListFlags struct {

@@ -26,7 +26,7 @@ const (
 	FlagValue       = "value"
 	FlagType        = "type"
 	FlagDescription = "description"
-	FlagGitRef      = "gitref"
+	FlagGitRef      = "git-ref"
 
 	FlagPrompt              = "prompted"
 	FlagPromptLabel         = "prompt-label"
@@ -117,7 +117,7 @@ func NewCreateCmd(f factory.Factory) *cobra.Command {
 			$ %[1]s project variable create --project "Deploy Website" --name varname --value "abc"
 			$ %[1]s project variable create --name varname --value "passwordABC" --type sensitive
 			$ %[1]s project variable create --name varname --value "abc" --scope environment='test'
-			$ %[1]s project variable create --name varname --value "abc" --scope environment='test' --gitref refs/heads/main
+			$ %[1]s project variable create --name varname --value "abc" --scope environment='test' --git-ref refs/heads/main
 		`, constants.ExecutableName),
 		RunE: func(c *cobra.Command, args []string) error {
 			opts := NewCreateOptions(createFlags, cmd.NewDependencies(f, c))
@@ -134,7 +134,7 @@ func NewCreateCmd(f factory.Factory) *cobra.Command {
 	flags.StringVarP(&createFlags.Name.Value, createFlags.Name.Name, "n", "", "The name of the variable")
 	flags.StringVarP(&createFlags.Type.Value, createFlags.Type.Name, "t", "", fmt.Sprintf("The type of variable. Valid values are %s. Default is %s", strings.Join([]string{TypeText, TypeSensitive, TypeWorkerPool, TypeAwsAccount, TypeAzureAccount, TypeGoogleAccount, TypeCertificate}, ", "), TypeText))
 	flags.StringVar(&createFlags.Value.Value, createFlags.Value.Name, "", "The value to set on the variable")
-	flags.StringVarP(&createFlags.GitRef.Value, createFlags.GitRef.Name, "", "", "The git-ref for the Config-As-Code branch")
+	flags.StringVarP(&createFlags.GitRef.Value, createFlags.GitRef.Name, "", "", "The GitRef for the Config-As-Code branch")
 
 	sharedProjectVariable.RegisterScopeFlags(cmd, createFlags.ScopeFlags)
 	flags.BoolVar(&createFlags.IsPrompted.Value, createFlags.IsPrompted.Name, false, "Make a prompted variable")

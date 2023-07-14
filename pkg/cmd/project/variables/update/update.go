@@ -27,7 +27,7 @@ const (
 	FlagName     = "name"
 	FlagValue    = "value"
 	FlagUnscoped = "unscoped"
-	FlagGitRef   = "gitref"
+	FlagGitRef   = "git-ref"
 )
 
 type UpdateFlags struct {
@@ -85,7 +85,7 @@ func NewUpdateCmd(f factory.Factory) *cobra.Command {
 			$ %[1]s project variable update --name varname --value "password"
 			$ %[1]s project variable update --name varname --unscoped
 			$ %[1]s project variable update --name varname --environment-scope test
-			$ %[1]s project variable update -p "Deploy Website" --name varname --value "updated" --gitref refs/head/main
+			$ %[1]s project variable update -p "Deploy Website" --name varname --value "updated" --git-ref refs/heads/main
 		`, constants.ExecutableName),
 		RunE: func(c *cobra.Command, args []string) error {
 			opts := NewUpdateOptions(updateFlags, cmd.NewDependencies(f, c))

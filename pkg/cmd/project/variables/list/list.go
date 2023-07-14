@@ -63,7 +63,7 @@ func NewCmdList(f factory.Factory) *cobra.Command {
 		Long:  "List project variables in Octopus Deploy",
 		Example: heredoc.Docf(`
 			$ %[1]s project variable list "Deploy Website"
-			$ %[1]s project variable list -p "Deploy Website" --git-ref refs/head/main
+			$ %[1]s project variable list -p "Deploy Website" --git-ref refs/heads/main
 			$ %[1]s project variable ls
 		`, constants.ExecutableName),
 		Aliases: []string{"ls"},
@@ -82,7 +82,7 @@ func NewCmdList(f factory.Factory) *cobra.Command {
 	}
 
 	flags := cmd.Flags()
-	flags.StringVarP(&listFlags.GitRef.Value, listFlags.GitRef.Name, "", "", "The git-ref for the Config-As-Code branch")
+	flags.StringVarP(&listFlags.GitRef.Value, listFlags.GitRef.Name, "", "", "The GitRef for the Config-As-Code branch")
 	flags.StringVarP(&listFlags.Project.Value, listFlags.Project.Name, "p", "", "The project")
 
 	return cmd
