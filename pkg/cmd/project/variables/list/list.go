@@ -3,34 +3,87 @@ package list
 import (
 	"fmt"
 	"github.com/MakeNowJust/heredoc/v2"
-	"github.com/OctopusDeploy/cli/pkg/apiclient"
+	"github.com/OctopusDeploy/cli/pkg/cmd"
 	variableShared "github.com/OctopusDeploy/cli/pkg/cmd/project/variables/shared"
+	"github.com/OctopusDeploy/cli/pkg/cmd/tenant/shared"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/OctopusDeploy/cli/pkg/output"
+	sharedVariable "github.com/OctopusDeploy/cli/pkg/question/shared/variables"
+	"github.com/OctopusDeploy/cli/pkg/util/flag"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/variables"
 	"github.com/spf13/cobra"
 	"sort"
 	"strconv"
 )
 
+const (
+	FlagProject = "project"
+	FlagGitRef  = "git-ref"
+)
+
+type ListFlags struct {
+	GitRef  *flag.Flag[string]
+	Project *flag.Flag[string]
+}
+
+func NewListFlags() *ListFlags {
+	return &ListFlags{
+		GitRef:  flag.New[string](FlagGitRef, false),
+		Project: flag.New[string](FlagProject, false),
+	}
+}
+
+type ListOptions struct {
+	*ListFlags
+	Command            *cobra.Command
+	GetProjectCallback shared.GetProjectCallback
+	*sharedVariable.VariableCallbacks
+	*cmd.Dependencies
+}
+
+func NewListOptions(flags *ListFlags, dependencies *cmd.Dependencies, cmd *cobra.Command) *ListOptions {
+	return &ListOptions{
+		ListFlags:         flags,
+		Command:           cmd,
+		Dependencies:      dependencies,
+		VariableCallbacks: sharedVariable.NewVariableCallbacks(dependencies),
+		GetProjectCallback: func(identifier string) (*projects.Project, error) {
+			return shared.GetProject(dependencies.Client, identifier)
+		},
+	}
+}
+
 func NewCmdList(f factory.Factory) *cobra.Command {
+	listFlags := NewListFlags()
 	cmd := &cobra.Command{
 		Use:   "list",
 		Short: "List project variables",
 		Long:  "List project variables in Octopus Deploy",
 		Example: heredoc.Docf(`
-			$ %[1]s project variable list
+			$ %[1]s project variable list "Deploy Website"
+			$ %[1]s project variable list -p "Deploy Website" --git-ref refs/head/main
 			$ %[1]s project variable ls
 		`, constants.ExecutableName),
 		Aliases: []string{"ls"},
-		RunE: func(cmd *cobra.Command, args []string) error {
-			if len(args) == 0 {
+		RunE: func(c *cobra.Command, args []string) error {
+			opts := NewListOptions(listFlags, cmd.NewDependencies(f, c), c)
+
+			if opts.Project.Value == "" {
+				opts.Project.Value = args[0]
+			}
+
+			if opts.Project.Value == "" {
 				return fmt.Errorf("must supply project identifier")
 			}
-			return listRun(cmd, f, args[0])
+			return listRun(opts)
 		},
 	}
+
+	flags := cmd.Flags()
+	flags.StringVarP(&listFlags.GitRef.Value, listFlags.GitRef.Name, "", "", "The git-ref for the Config-As-Code branch")
+	flags.StringVarP(&listFlags.Project.Value, listFlags.Project.Name, "p", "", "The project")
 
 	return cmd
 }
@@ -40,20 +93,23 @@ type VariableAsJson struct {
 	Scope variables.VariableScopeValues
 }
 
-func listRun(cmd *cobra.Command, f factory.Factory, id string) error {
-	client, err := f.GetSpacedClient(apiclient.NewRequester(cmd))
+func listRun(opts *ListOptions) error {
+	project, err := opts.GetProjectCallback(opts.Project.Value)
 	if err != nil {
 		return err
 	}
 
-	project, err := client.Projects.GetByIdentifier(id)
-	if err != nil {
-		return err
-	}
-
-	vars, err := client.Variables.GetAll(project.GetID())
-	if err != nil {
-		return err
+	var vars *variables.VariableSet
+	if opts.GitRef.Value == "" {
+		vars, err = opts.GetProjectVariables(project.GetID())
+		if err != nil {
+			return err
+		}
+	} else {
+		vars, err = opts.GetProjectVariablesByGitRef(opts.Space.GetID(), project.GetID(), opts.GitRef.Value)
+		if err != nil {
+			return err
+		}
 	}
 
 	allVariables := vars.Variables
@@ -61,7 +117,7 @@ func listRun(cmd *cobra.Command, f factory.Factory, id string) error {
 		return allVariables[i].Name < allVariables[j].Name
 	})
 
-	return output.PrintArray(vars.Variables, cmd, output.Mappers[*variables.Variable]{
+	return output.PrintArray(vars.Variables, opts.Command, output.Mappers[*variables.Variable]{
 		Json: func(v *variables.Variable) any {
 			enhancedScope, err := variableShared.ToScopeValues(v, vars.ScopeValues)
 			if err != nil {

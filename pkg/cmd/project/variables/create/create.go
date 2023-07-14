@@ -26,6 +26,7 @@ const (
 	FlagValue       = "value"
 	FlagType        = "type"
 	FlagDescription = "description"
+	FlagGitRef      = "gitref"
 
 	FlagPrompt              = "prompted"
 	FlagPromptLabel         = "prompt-label"
@@ -54,6 +55,7 @@ type CreateFlags struct {
 	Description *flag.Flag[string]
 	Value       *flag.Flag[string]
 	Type        *flag.Flag[string]
+	GitRef      *flag.Flag[string]
 
 	*sharedProjectVariable.ScopeFlags
 
@@ -79,6 +81,7 @@ func NewCreateFlags() *CreateFlags {
 		Name:                flag.New[string](FlagName, false),
 		Value:               flag.New[string](FlagValue, false),
 		Description:         flag.New[string](FlagDescription, false),
+		GitRef:              flag.New[string](FlagGitRef, false),
 		Type:                flag.New[string](FlagType, false),
 		ScopeFlags:          sharedProjectVariable.NewScopeFlags(),
 		IsPrompted:          flag.New[bool](FlagPrompt, false),
@@ -111,9 +114,10 @@ func NewCreateCmd(f factory.Factory) *cobra.Command {
 		Aliases: []string{"add"},
 		Example: heredoc.Docf(`
 			$ %[1]s project variable create
-			$ %[1]s project variable create --name varname --value "abc"
+			$ %[1]s project variable create --project "Deploy Website" --name varname --value "abc"
 			$ %[1]s project variable create --name varname --value "passwordABC" --type sensitive
 			$ %[1]s project variable create --name varname --value "abc" --scope environment='test'
+			$ %[1]s project variable create --name varname --value "abc" --scope environment='test' --gitref refs/heads/main
 		`, constants.ExecutableName),
 		RunE: func(c *cobra.Command, args []string) error {
 			opts := NewCreateOptions(createFlags, cmd.NewDependencies(f, c))
@@ -121,7 +125,7 @@ func NewCreateCmd(f factory.Factory) *cobra.Command {
 				opts.Value.Secure = true
 			}
 
-			return createRun(opts)
+			return CreateRun(opts)
 		},
 	}
 
@@ -130,6 +134,7 @@ func NewCreateCmd(f factory.Factory) *cobra.Command {
 	flags.StringVarP(&createFlags.Name.Value, createFlags.Name.Name, "n", "", "The name of the variable")
 	flags.StringVarP(&createFlags.Type.Value, createFlags.Type.Name, "t", "", fmt.Sprintf("The type of variable. Valid values are %s. Default is %s", strings.Join([]string{TypeText, TypeSensitive, TypeWorkerPool, TypeAwsAccount, TypeAzureAccount, TypeGoogleAccount, TypeCertificate}, ", "), TypeText))
 	flags.StringVar(&createFlags.Value.Value, createFlags.Value.Name, "", "The value to set on the variable")
+	flags.StringVarP(&createFlags.GitRef.Value, createFlags.GitRef.Name, "", "", "The git-ref for the Config-As-Code branch")
 
 	sharedProjectVariable.RegisterScopeFlags(cmd, createFlags.ScopeFlags)
 	flags.BoolVar(&createFlags.IsPrompted.Value, createFlags.IsPrompted.Name, false, "Make a prompted variable")
@@ -141,7 +146,7 @@ func NewCreateCmd(f factory.Factory) *cobra.Command {
 	return cmd
 }
 
-func createRun(opts *CreateOptions) error {
+func CreateRun(opts *CreateOptions) error {
 	if !opts.NoPrompt {
 		err := PromptMissing(opts)
 		if err != nil {
@@ -154,7 +159,12 @@ func createRun(opts *CreateOptions) error {
 		return err
 	}
 
-	projectVariables, err := opts.GetProjectVariables(project.GetID())
+	var projectVariables *variables.VariableSet
+	if project.IsVersionControlled && opts.GitRef.Value != "" {
+		projectVariables, err = opts.GetProjectVariablesByGitRef(opts.Space.GetID(), project.GetID(), opts.GitRef.Value)
+	} else {
+		projectVariables, err = opts.GetProjectVariables(project.GetID())
+	}
 	if err != nil {
 		return err
 	}
@@ -189,7 +199,11 @@ func createRun(opts *CreateOptions) error {
 		newVariable.Prompt.DisplaySettings = variables.NewDisplaySettings(promptControlType, selectOptions)
 	}
 
-	_, err = opts.Client.Variables.AddSingle(project.GetID(), newVariable)
+	if opts.GitRef.Value != "" {
+		_, err = opts.Client.ProjectVariables.AddSingleByGitRef(opts.Space.GetID(), project.GetID(), opts.GitRef.Value, newVariable)
+	} else {
+		_, err = opts.Client.Variables.AddSingle(project.GetID(), newVariable)
+	}
 	if err != nil {
 		return err
 	}
@@ -197,7 +211,7 @@ func createRun(opts *CreateOptions) error {
 	_, err = fmt.Fprintf(opts.Out, "Successfully created variable '%s' in project '%s'\n", opts.Name.Value, project.GetName())
 
 	if !opts.NoPrompt {
-		autoCmd := flag.GenerateAutomationCmd(opts.CmdPath, opts.Project, opts.Name, opts.Value, opts.Description, opts.Type, opts.EnvironmentsScopes, opts.ChannelScopes, opts.StepScopes, opts.TargetScopes, opts.TagScopes, opts.RoleScopes, opts.ProcessScopes, opts.IsPrompted, opts.PromptType, opts.PromptLabel, opts.PromptDescription, opts.PromptSelectOptions, opts.PromptRequired)
+		autoCmd := flag.GenerateAutomationCmd(opts.CmdPath, opts.Project, opts.Name, opts.Value, opts.Description, opts.Type, opts.EnvironmentsScopes, opts.ChannelScopes, opts.StepScopes, opts.TargetScopes, opts.TagScopes, opts.RoleScopes, opts.ProcessScopes, opts.IsPrompted, opts.PromptType, opts.PromptLabel, opts.PromptDescription, opts.PromptSelectOptions, opts.PromptRequired, opts.GitRef)
 		fmt.Fprintf(opts.Out, "\nAutomation Command: %s\n", autoCmd)
 	}
 
@@ -218,6 +232,11 @@ func PromptMissing(opts *CreateOptions) error {
 		if err != nil {
 			return err
 		}
+	}
+
+	err = PromptVersionControl(opts, project)
+	if err != nil {
+		return err
 	}
 
 	if opts.Name.Value == "" {
@@ -316,7 +335,13 @@ func PromptMissing(opts *CreateOptions) error {
 		}
 	}
 
-	projectVariables, err := opts.GetProjectVariables(project.GetID())
+	var projectVariables *variables.VariableSet
+	if opts.GitRef.Value != "" {
+		projectVariables, err = opts.GetProjectVariablesByGitRef(opts.Space.GetID(), project.GetID(), opts.GitRef.Value)
+	} else {
+		projectVariables, err = opts.GetProjectVariables(project.GetID())
+	}
+
 	if err != nil {
 		return err
 	}
@@ -329,6 +354,27 @@ func PromptMissing(opts *CreateOptions) error {
 	if scope.IsEmpty() {
 		err = sharedProjectVariable.PromptScopes(opts.Ask, projectVariables, opts.ScopeFlags, opts.IsPrompted.Value)
 		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func PromptVersionControl(opts *CreateOptions, project *projects.Project) error {
+	if !project.IsVersionControlled {
+		return nil
+	}
+
+	if opts.GitRef.Value == "" {
+		if err := opts.Ask(&survey.Input{
+			Message: "GitRef",
+			Help:    fmt.Sprintf("The GitRef where the variable is stored"),
+		}, &opts.GitRef.Value, survey.WithValidator(survey.ComposeValidators(
+			survey.MaxLength(200),
+			survey.MinLength(1),
+			survey.Required,
+		))); err != nil {
 			return err
 		}
 	}

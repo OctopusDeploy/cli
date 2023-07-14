@@ -4,13 +4,13 @@ import (
 	"fmt"
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/cmd"
+	sharedBranches "github.com/OctopusDeploy/cli/pkg/cmd/project/branch/shared"
 	"github.com/OctopusDeploy/cli/pkg/cmd/tenant/shared"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/OctopusDeploy/cli/pkg/output"
 	sharedVariable "github.com/OctopusDeploy/cli/pkg/question/shared/variables"
 	"github.com/OctopusDeploy/cli/pkg/util/flag"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projectbranches"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
 	"github.com/spf13/cobra"
 	"strconv"
@@ -18,7 +18,7 @@ import (
 
 const (
 	FlagProject = "project"
-	FlagGitRef  = "git-ref"
+	FlagGitRef  = "gitref"
 )
 
 type ListFlags struct {
@@ -39,6 +39,7 @@ type ListOptions struct {
 	GetProjectCallback shared.GetProjectCallback
 	*sharedVariable.VariableCallbacks
 	*cmd.Dependencies
+	*sharedBranches.ProjectBranchCallbacks
 }
 
 func NewListOptions(flags *ListFlags, dependencies *cmd.Dependencies, cmd *cobra.Command) *ListOptions {
@@ -49,6 +50,7 @@ func NewListOptions(flags *ListFlags, dependencies *cmd.Dependencies, cmd *cobra
 		GetProjectCallback: func(identifier string) (*projects.Project, error) {
 			return shared.GetProject(dependencies.Client, identifier)
 		},
+		ProjectBranchCallbacks: sharedBranches.NewProjectBranchCallbacks(dependencies),
 	}
 }
 
@@ -94,12 +96,12 @@ func listRun(opts *ListOptions) error {
 		return err
 	}
 
-	branches, err := opts.Client.ProjectBranches.Get(opts.Space.GetID(), project.GetID(), projectbranches.ProjectBranchQuery{Skip: 0, Take: 1000})
+	branches, err := opts.GetAllBranchesCallback(project.GetID())
 	if err != nil {
 		return err
 	}
 
-	return output.PrintArray(branches.Items, opts.Command, output.Mappers[*projects.GitReference]{
+	return output.PrintArray(branches, opts.Command, output.Mappers[*projects.GitReference]{
 		Json: func(b *projects.GitReference) any {
 			return BranchesAsJson{
 				GitReference: b,

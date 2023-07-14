@@ -175,3 +175,33 @@ func TestPromptMissing_PromptedVariableForSelectOptions(t *testing.T) {
 	checkRemainingPrompts()
 	assert.Equal(t, []string{"value1|display 1", "value2|display 2"}, opts.PromptSelectOptions.Value)
 }
+
+func TestPromptVersionControl_NoFlagsSupplied_ExistingBranch(t *testing.T) {
+	pa := []*testutil.PA{
+		testutil.NewInputPrompt("GitRef", "The GitRef where the variable is stored", "refs/heads/main"),
+	}
+	asker, checkRemainingPrompts := testutil.NewMockAsker(t, pa)
+	flags := create.NewCreateFlags()
+	opts := create.NewCreateOptions(flags, &cmd.Dependencies{Ask: asker})
+	project := projects.NewProject("Project", "Lifecycles-1", "ProjectGroups-1")
+	project.IsVersionControlled = true
+
+	err := create.PromptVersionControl(opts, project)
+	checkRemainingPrompts()
+	assert.NoError(t, err)
+	assert.Equal(t, "refs/heads/main", opts.GitRef.Value)
+}
+
+func TestPromptVersionControl_ProjectNotVersionControlled(t *testing.T) {
+	pa := []*testutil.PA{}
+	asker, checkRemainingPrompts := testutil.NewMockAsker(t, pa)
+	flags := create.NewCreateFlags()
+	opts := create.NewCreateOptions(flags, &cmd.Dependencies{Ask: asker})
+	project := projects.NewProject("Project", "Lifecycles-1", "ProjectGroups-1")
+	project.IsVersionControlled = false
+
+	err := create.PromptVersionControl(opts, project)
+	checkRemainingPrompts()
+	assert.NoError(t, err)
+	assert.Equal(t, "", opts.GitRef.Value)
+}

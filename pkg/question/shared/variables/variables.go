@@ -35,17 +35,19 @@ type GetAccountsByTypeCallback func(accountType accounts.AccountType) ([]account
 type GetAllWorkerPoolsCallback func() ([]*workerpools.WorkerPoolListResult, error)
 type GetAllCertificatesCallback func() ([]*certificates.CertificateResource, error)
 type GetProjectVariablesCallback func(projectId string) (*variables.VariableSet, error)
+type GetProjectVariablesByGitRefCallback func(spaceId string, projectId string, gitRef string) (*variables.VariableSet, error)
 type GetTenantVariablesCallback func(tenant *tenants.Tenant) (*variables.TenantVariables, error)
 type GetVariableByIdCallback func(ownerId, variableId string) (*variables.Variable, error)
 type GetAllLibraryVariableSetsCallback func() ([]*variables.LibraryVariableSet, error)
 
 type VariableCallbacks struct {
-	GetAccountsByType   GetAccountsByTypeCallback
-	GetAllWorkerPools   GetAllWorkerPoolsCallback
-	GetAllCertificates  GetAllCertificatesCallback
-	GetProjectVariables GetProjectVariablesCallback
-	GetVariableById     GetVariableByIdCallback
-	GetTenantVariables  GetTenantVariablesCallback
+	GetAccountsByType           GetAccountsByTypeCallback
+	GetAllWorkerPools           GetAllWorkerPoolsCallback
+	GetAllCertificates          GetAllCertificatesCallback
+	GetProjectVariables         GetProjectVariablesCallback
+	GetProjectVariablesByGitRef GetProjectVariablesByGitRefCallback
+	GetVariableById             GetVariableByIdCallback
+	GetTenantVariables          GetTenantVariablesCallback
 }
 
 func NewVariableCallbacks(dependencies *cmd.Dependencies) *VariableCallbacks {
@@ -61,6 +63,9 @@ func NewVariableCallbacks(dependencies *cmd.Dependencies) *VariableCallbacks {
 		},
 		GetProjectVariables: func(projectId string) (*variables.VariableSet, error) {
 			return getProjectVariables(dependencies.Client, projectId)
+		},
+		GetProjectVariablesByGitRef: func(spaceId string, projectId string, gitRef string) (*variables.VariableSet, error) {
+			return getProjectVariablesByGitRef(dependencies.Client, spaceId, projectId, gitRef)
 		},
 		GetTenantVariables: func(tenant *tenants.Tenant) (*variables.TenantVariables, error) {
 			return getTenantVariables(dependencies.Client, tenant)
@@ -197,6 +202,11 @@ func getAllWorkerPools(client *client.Client) ([]*workerpools.WorkerPoolListResu
 func getProjectVariables(client *client.Client, id string) (*variables.VariableSet, error) {
 	variableSet, err := client.Variables.GetAll(id)
 	return &variableSet, err
+}
+
+func getProjectVariablesByGitRef(client *client.Client, spaceId string, projectId string, gitRef string) (*variables.VariableSet, error) {
+	variableSet, err := client.ProjectVariables.GetAllByGitRef(spaceId, projectId, gitRef)
+	return variableSet, err
 }
 
 func getTenantVariables(client *client.Client, tenant *tenants.Tenant) (*variables.TenantVariables, error) {
