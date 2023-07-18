@@ -99,25 +99,32 @@ func listRun(opts *ListOptions) error {
 		return err
 	}
 
-	var vars *variables.VariableSet
-	if opts.GitRef.Value == "" {
-		vars, err = opts.GetProjectVariables(project.GetID())
+	//var vars *variables.VariableSet
+
+	var allVariables []*variables.Variable
+	vars, err := opts.GetProjectVariables(project.GetID())
+	if err != nil {
+		return err
+	}
+	for _, v := range vars.Variables {
+		allVariables = append(allVariables, v)
+	}
+
+	if opts.GitRef.Value != "" {
+		gitVars, err := opts.GetProjectVariablesByGitRef(opts.Space.GetID(), project.GetID(), opts.GitRef.Value)
 		if err != nil {
 			return err
 		}
-	} else {
-		vars, err = opts.GetProjectVariablesByGitRef(opts.Space.GetID(), project.GetID(), opts.GitRef.Value)
-		if err != nil {
-			return err
+		for _, v := range gitVars.Variables {
+			allVariables = append(allVariables, v)
 		}
 	}
 
-	allVariables := vars.Variables
 	sort.SliceStable(allVariables, func(i, j int) bool {
 		return allVariables[i].Name < allVariables[j].Name
 	})
 
-	return output.PrintArray(vars.Variables, opts.Command, output.Mappers[*variables.Variable]{
+	return output.PrintArray(allVariables, opts.Command, output.Mappers[*variables.Variable]{
 		Json: func(v *variables.Variable) any {
 			enhancedScope, err := variableShared.ToScopeValues(v, vars.ScopeValues)
 			if err != nil {
