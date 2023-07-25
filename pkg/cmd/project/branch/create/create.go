@@ -2,6 +2,7 @@ package create
 
 import (
 	"fmt"
+
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/cmd"
@@ -56,7 +57,7 @@ func NewCreateOptions(flags *CreateFlags, dependencies *cmd.Dependencies) *Creat
 	}
 }
 
-func NewCreateCmd(f factory.Factory) *cobra.Command {
+func NewCmdCreate(f factory.Factory) *cobra.Command {
 	createFlags := NewCreateFlags()
 	cmd := &cobra.Command{
 		Use:     "create",

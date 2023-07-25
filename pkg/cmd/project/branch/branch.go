@@ -27,7 +27,7 @@ func NewCmdBranch(f factory.Factory) *cobra.Command {
 	}
 
 	cmd.AddCommand(cmdList.NewCmdList(f))
-	cmd.AddCommand(cmdCreate.NewCreateCmd(f))
+	cmd.AddCommand(cmdCreate.NewCmdCreate(f))
 
 	return cmd
 }
