@@ -2,6 +2,9 @@ package list
 
 import (
 	"fmt"
+	"sort"
+	"strconv"
+
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/cmd"
 	variableShared "github.com/OctopusDeploy/cli/pkg/cmd/project/variables/shared"
@@ -14,8 +17,6 @@ import (
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/variables"
 	"github.com/spf13/cobra"
-	"sort"
-	"strconv"
 )
 
 const (
@@ -98,8 +99,6 @@ func listRun(opts *ListOptions) error {
 	if err != nil {
 		return err
 	}
-
-	//var vars *variables.VariableSet
 
 	var allVariables []*variables.Variable
 	vars, err := opts.GetProjectVariables(project.GetID())
