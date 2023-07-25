@@ -6,6 +6,7 @@ import (
 	"github.com/OctopusDeploy/cli/test/testutil"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/resources"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/spaces"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/variables"
 	"github.com/stretchr/testify/assert"
 	"testing"
@@ -199,5 +200,48 @@ func TestPromptMissing_Unscope(t *testing.T) {
 	assert.Empty(t, opts.ProcessScopes.Value)
 	assert.True(t, opts.Unscoped.Value)
 	assert.Equal(t, "123abc", opts.Id.Value)
+}
 
+func TestPromptMissing_VersionControlledProject_NoGitRefSupplied(t *testing.T) {
+	project := projects.NewProject("Project 1", "Lifecycles-1", "ProjectGroups-1")
+	project.IsVersionControlled = true
+
+	pa := []*testutil.PA{
+		testutil.NewInputPrompt("GitRef", "The GitRef where the variable is stored", "refs/heads/main"),
+		testutil.NewSelectPrompt("Do you want to change the variable scoping?", "", []string{"Leave", "Replace", "Unscope"}, "Unscope"),
+	}
+
+	variable := variables.NewVariable("")
+	variable.ID = "123abc"
+
+	asker, checkRemainingPrompts := testutil.NewMockAsker(t, pa)
+	flags := update.NewUpdateFlags()
+	flags.Project.Value = project.GetName()
+	flags.Value.Value = "updated value"
+	opts := update.NewUpdateOptions(flags, &cmd.Dependencies{Ask: asker})
+	opts.Space = spaces.NewSpace("Default")
+	opts.Space.ID = "Spaces-1"
+
+	opts.GetProjectVariablesByGitRef = func(spaceId, projectId, gitRef string) (*variables.VariableSet, error) {
+		return &variables.VariableSet{
+			OwnerID:   "Projects-1",
+			SpaceID:   opts.Space.GetID(),
+			Variables: []*variables.Variable{variable},
+		}, nil
+	}
+
+	opts.GetProjectCallback = func(identifier string) (*projects.Project, error) { return project, nil }
+
+	err := update.PromptMissing(opts)
+	checkRemainingPrompts()
+	assert.NoError(t, err)
+	assert.Empty(t, opts.EnvironmentsScopes.Value)
+	assert.Empty(t, opts.StepScopes.Value)
+	assert.Empty(t, opts.ChannelScopes.Value)
+	assert.Empty(t, opts.TargetScopes.Value)
+	assert.Empty(t, opts.TagScopes.Value)
+	assert.Empty(t, opts.RoleScopes.Value)
+	assert.Empty(t, opts.ProcessScopes.Value)
+	assert.True(t, opts.Unscoped.Value)
+	assert.Equal(t, "123abc", opts.Id.Value)
 }
