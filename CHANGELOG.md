@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.5.0](https://github.com/OctopusDeploy/cli/compare/v1.4.0...v1.5.0) (2023-07-25)
+
+
+### Features
+
+* project branch create ([101b09e](https://github.com/OctopusDeploy/cli/commit/101b09e409c2885beb19ae9e66b88a977f0c985b))
+* project branch list ([101b09e](https://github.com/OctopusDeploy/cli/commit/101b09e409c2885beb19ae9e66b88a977f0c985b))
+
+
+### Bug Fixes
+
+* admin login property on k8s target was wrong type ([#249](https://github.com/OctopusDeploy/cli/issues/249)) ([fbe8e18](https://github.com/OctopusDeploy/cli/commit/fbe8e18d041cf416fc0013451f416363eb0a83e5))
+* support Config-as-code project variables ([101b09e](https://github.com/OctopusDeploy/cli/commit/101b09e409c2885beb19ae9e66b88a977f0c985b))
+
 ## [1.4.0](https://github.com/OctopusDeploy/cli/compare/v1.3.0...v1.4.0) (2023-06-08)
 
 
