@@ -30,7 +30,7 @@ archives:
       {{ .ProjectName }}_
       {{ .Version }}_
       {{- if eq .Os "darwin}}macOS
-      {{- else }}{{ .Os }}_
+      {{- else }}{{ .Os }}{{ end }}_
       {{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}
 
 nfpms:
