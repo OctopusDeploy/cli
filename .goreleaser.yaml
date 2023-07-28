@@ -26,12 +26,7 @@ archives:
   - format_overrides:
       - goos: windows
         format: zip
-    name_template: >-
-      {{ .ProjectName }}_
-      {{ .Version }}_
-      {{- if eq .Os "darwin"}}macOS
-      {{- else }}{{ .Os }}{{ end }}_
-      {{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{- if eq .Os "darwin"}}macOS{{- else }}{{ .Os }}{{ end }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}"
 
 nfpms:
   - license: Apache 2.0
