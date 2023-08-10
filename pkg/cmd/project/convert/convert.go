@@ -235,7 +235,7 @@ func PromptForConfigAsCode(opts *ConvertOptions) (cmd.Dependable, error) {
 		opts.GitStorage.Value = selectedOption.Value
 	}
 
-	if opts.GitStorage.Value == GitStorageLibrary {
+	if strings.EqualFold(opts.GitStorage.Value, GitStorageLibrary) {
 		err := promptLibraryGitCredentials(opts, opts.GetAllGitCredentialsCallback)
 		if err != nil {
 			return nil, err
