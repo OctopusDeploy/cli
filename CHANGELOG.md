@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.5.1](https://github.com/OctopusDeploy/cli/compare/v1.5.0...v1.5.1) (2023-08-10)
+
+
+### Bug Fixes
+
+* prompt checks for git credentials storage was case-sensitive ([#265](https://github.com/OctopusDeploy/cli/issues/265)) ([c9a5817](https://github.com/OctopusDeploy/cli/commit/c9a5817dfb8e0875a0b70e0ae6243f5012eaedef))
+
 ## [1.5.0](https://github.com/OctopusDeploy/cli/compare/v1.4.0...v1.5.0) (2023-07-25)
 
 
