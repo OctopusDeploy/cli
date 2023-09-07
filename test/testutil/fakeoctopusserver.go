@@ -159,8 +159,16 @@ type RequestWrapper struct {
 	Server  *MockHttpServer
 }
 
-func (r *RequestWrapper) RespondWith(responseObject any) {
+func (r *RequestWrapper) RespondWith(responseObject any) *RequestWrapper {
 	r.RespondWithStatus(http.StatusOK, "200 OK", responseObject)
+	return r
+}
+
+func (r *RequestWrapper) ExpectHeader(t *testing.T, name string, value string) *RequestWrapper {
+	assert.Contains(t, r.Request.Header, name)
+	headerValues := r.Request.Header[name]
+	assert.Contains(t, headerValues, value)
+	return r
 }
 
 func (r *RequestWrapper) RespondWithStatus(statusCode int, statusString string, responseObject any) {

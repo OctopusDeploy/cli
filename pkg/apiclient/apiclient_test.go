@@ -63,6 +63,25 @@ func TestClient_GetSystemClient(t *testing.T) {
 		}
 		assert.Same(t, systemClient, systemClient2)
 	})
+
+	t.Run("GetSystemClient contains the access token in the right header if supplied", func(t *testing.T) {
+		factory, err := apiclient.NewClientFactory(testutil.NewMockHttpClientWithTransport(api), serverUrl, "", "token", "", qa)
+		testutil.RequireSuccess(t, err)
+
+		clientReceiver := testutil.GoBegin2(
+			func() (*octopusApiClient.Client, error) {
+				return factory.GetSystemClient(&apiclient.FakeRequesterContext{})
+			})
+
+		api.ExpectRequest(t, "GET", "/api").ExpectHeader(t, "Authorization", "Bearer token").RespondWith(root)
+
+		systemClient, err := testutil.ReceivePair(clientReceiver)
+		if !testutil.AssertSuccess(t, err) {
+			return
+		}
+
+		assert.NotNil(t, systemClient)
+	})
 }
 
 func TestClient_GetSpacedClient_NoPrompt(t *testing.T) {
@@ -272,5 +291,29 @@ func TestClient_GetSpacedClient_NoPrompt(t *testing.T) {
 			return
 		}
 		assert.Same(t, apiClient, apiClient2)
+	})
+
+	t.Run("GetSpacedClient contains the access token in the right header if supplied", func(t *testing.T) {
+		factory, err := apiclient.NewClientFactory(testutil.NewMockHttpClientWithTransport(api), serverUrl, "", "token", "Spaces-7", qa)
+		testutil.RequireSuccess(t, err)
+
+		clientReceiver := testutil.GoBegin2(
+			func() (*octopusApiClient.Client, error) {
+				return factory.GetSpacedClient(&apiclient.FakeRequesterContext{})
+			})
+
+		api.ExpectRequest(t, "GET", "/api").ExpectHeader(t, "Authorization", "Bearer token").RespondWith(root)
+
+		api.ExpectRequest(t, "GET", "/api/spaces/all").ExpectHeader(t, "Authorization", "Bearer token").RespondWith([]*spaces.Space{integrationsSpace})
+
+		// we need to enqueue this again because after it finds Spaces-7 it will recreate the client and reload the root.
+		api.ExpectRequest(t, "GET", "/api").ExpectHeader(t, "Authorization", "Bearer token").RespondWith(root)
+
+		// note it just goes for /api/Spaces-7 this time
+		api.ExpectRequest(t, "GET", "/api/Spaces-7").ExpectHeader(t, "Authorization", "Bearer token").RespondWith(integrationsSpace)
+
+		apiClient, err := testutil.ReceivePair(clientReceiver)
+		assert.Nil(t, err)
+		assert.NotNil(t, apiClient)
 	})
 }
