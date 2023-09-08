@@ -28,10 +28,11 @@ const (
 
 // keys for key/value store config file
 const (
-	ConfigUrl      = "Url"
-	ConfigApiKey   = "ApiKey"
-	ConfigSpace    = "Space"
-	ConfigNoPrompt = "NoPrompt"
+	ConfigUrl         = "Url"
+	ConfigApiKey      = "ApiKey"
+	ConfigAccessToken = "AccessToken"
+	ConfigSpace       = "Space"
+	ConfigNoPrompt    = "NoPrompt"
 	// ConfigProxyUrl     = "ProxyUrl"
 	ConfigEditor       = "Editor"
 	ConfigShowOctopus  = "ShowOctopus"
@@ -39,12 +40,13 @@ const (
 )
 
 const (
-	EnvOctopusUrl    = "OCTOPUS_URL"
-	EnvOctopusApiKey = "OCTOPUS_API_KEY"
-	EnvOctopusSpace  = "OCTOPUS_SPACE"
-	EnvEditor        = "EDITOR"
-	EnvVisual        = "VISUAL"
-	EnvCI            = "CI"
+	EnvOctopusUrl         = "OCTOPUS_URL"
+	EnvOctopusApiKey      = "OCTOPUS_API_KEY"
+	EnvOctopusAccessToken = "OCTOPUS_ACCESS_TOKEN"
+	EnvOctopusSpace       = "OCTOPUS_SPACE"
+	EnvEditor             = "EDITOR"
+	EnvVisual             = "VISUAL"
+	EnvCI                 = "CI"
 )
 
 const (

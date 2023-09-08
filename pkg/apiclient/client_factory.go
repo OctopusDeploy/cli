@@ -57,8 +57,8 @@ type Client struct {
 
 	// the Server URL, obtained from OCTOPUS_URL
 	ApiUrl *url.URL
-	// the Octopus API Key, obtained from OCTOPUS_API_KEY
-	ApiKey string
+	// Credentials, obtained from OCTOPUS_API_KEY or OCTOPUS_ACCESS_TOKEN
+	Credentials octopusApiClient.ICredential
 	// the Octopus SpaceNameOrID to work within. Obtained from OCTOPUS_SPACE (TODO: or --space=XYZ on the command line??)
 	// Required for commands that need a space, but may be omitted for server-wide commands such as listing teams
 	SpaceNameOrID string
@@ -70,14 +70,16 @@ type Client struct {
 	Ask question.AskProvider
 }
 
-func NewClientFactory(httpClient *http.Client, host string, apiKey string, spaceNameOrID string, ask question.AskProvider) (ClientFactory, error) {
+func NewClientFactory(httpClient *http.Client, host string, credentials octopusApiClient.ICredential, spaceNameOrID string, ask question.AskProvider) (ClientFactory, error) {
 	// httpClient is allowed to be nil; it is passed through to the go-octopusdeploy library which falls back to a default httpClient
 	if host == "" {
 		return nil, cliErrors.NewArgumentNullOrEmptyError("host")
 	}
-	if apiKey == "" {
-		return nil, cliErrors.NewArgumentNullOrEmptyError("apiKey")
+
+	if credentials == nil {
+		return nil, cliErrors.NewArgumentNullOrEmptyError("credentials")
 	}
+
 	// space is allowed to be blank, we will prompt for a space in interactive mode, or error if not
 	if ask == nil {
 		return nil, cliErrors.NewArgumentNullOrEmptyError("ask")
@@ -93,7 +95,7 @@ func NewClientFactory(httpClient *http.Client, host string, apiKey string, space
 		SystemClient:      nil,
 		SpaceScopedClient: nil,
 		ApiUrl:            hostUrl,
-		ApiKey:            apiKey,
+		Credentials:       credentials,
 		SpaceNameOrID:     spaceNameOrID,
 		ActiveSpace:       nil,
 		Ask:               ask,
@@ -106,9 +108,10 @@ func NewClientFactory(httpClient *http.Client, host string, apiKey string, space
 func NewClientFactoryFromConfig(ask question.AskProvider) (ClientFactory, error) {
 	host := viper.GetString(constants.ConfigUrl)
 	apiKey := viper.GetString(constants.ConfigApiKey)
+	accessToken := viper.GetString(constants.ConfigAccessToken)
 	spaceNameOrID := viper.GetString(constants.ConfigSpace)
 
-	errs := ValidateMandatoryEnvironment(host, apiKey)
+	errs := ValidateMandatoryEnvironment(host, apiKey, accessToken)
 	if errs != nil {
 		return nil, errs
 	}
@@ -121,18 +124,38 @@ func NewClientFactoryFromConfig(ask question.AskProvider) (ClientFactory, error)
 		}
 	}
 
-	return NewClientFactory(httpClient, host, apiKey, spaceNameOrID, ask)
+	var credentials octopusApiClient.ICredential
+
+	if apiKey != "" {
+		apiKeyCredential, err := octopusApiClient.NewApiKey(apiKey)
+
+		if err != nil {
+			return nil, err
+		}
+
+		credentials = apiKeyCredential
+	} else if accessToken != "" {
+		accessTokenCredential, err := octopusApiClient.NewAccessToken(accessToken)
+
+		if err != nil {
+			return nil, err
+		}
+
+		credentials = accessTokenCredential
+	}
+
+	return NewClientFactory(httpClient, host, credentials, spaceNameOrID, ask)
 }
 
-func ValidateMandatoryEnvironment(host string, apiKey string) error {
+func ValidateMandatoryEnvironment(host string, apiKey string, accessToken string) error {
 
-	if host == "" || apiKey == "" {
+	if host == "" || (apiKey == "" && accessToken == "") {
 		err := heredoc.Docf(`
-          To get started with Octopus CLI, please populate the %s and %s environment variables
+          To get started with Octopus CLI, please populate the %s environment variable with the URL of your Octopus Server and %s or %s environment variables with credentials
           Alternatively you can run:
             octopus config set %s
             octopus config set %s
-    `, constants.EnvOctopusUrl, constants.EnvOctopusApiKey, constants.ConfigUrl, constants.ConfigApiKey)
+    `, constants.EnvOctopusUrl, constants.EnvOctopusApiKey, constants.EnvOctopusAccessToken, constants.ConfigUrl, constants.ConfigApiKey)
 		return fmt.Errorf(err)
 	}
 
@@ -238,7 +261,7 @@ func (c *Client) GetSpacedClient(requester Requester) (*octopusApiClient.Client,
 		foundSpaceID = foundSpace.ID
 	}
 
-	scopedClient, err := octopusApiClient.NewClientForTool(c.HttpClient, c.ApiUrl, c.ApiKey, foundSpaceID, requester.GetRequester())
+	scopedClient, err := octopusApiClient.NewClientWithCredentials(c.HttpClient, c.ApiUrl, c.Credentials, foundSpaceID, requester.GetRequester())
 	if err != nil {
 		return nil, err
 	}
@@ -265,7 +288,7 @@ func (c *Client) GetSystemClient(requester Requester) (*octopusApiClient.Client,
 		return c.SystemClient, nil
 	}
 
-	systemClient, err := octopusApiClient.NewClientForTool(c.HttpClient, c.ApiUrl, c.ApiKey, "", requester.GetRequester()) // deliberate empty string for space here
+	systemClient, err := octopusApiClient.NewClientWithCredentials(c.HttpClient, c.ApiUrl, c.Credentials, "", requester.GetRequester()) // deliberate empty string for space here
 	if err != nil {
 		return nil, err
 	}
