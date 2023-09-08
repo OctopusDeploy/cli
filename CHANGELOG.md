@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.6.0](https://github.com/OctopusDeploy/cli/compare/v1.5.1...v1.6.0) (2023-09-08)
+
+
+### Features
+
+* Adds support for authenticating with access token ([#270](https://github.com/OctopusDeploy/cli/issues/270)) ([75a8ff7](https://github.com/OctopusDeploy/cli/commit/75a8ff7b622f6ed9a353c83a4d3afa7dc0f93b9f))
+
 ## [1.5.1](https://github.com/OctopusDeploy/cli/compare/v1.5.0...v1.5.1) (2023-08-10)
 
 
