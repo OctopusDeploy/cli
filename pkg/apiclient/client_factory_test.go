@@ -5,6 +5,7 @@ import (
 
 	"github.com/OctopusDeploy/cli/pkg/apiclient"
 	"github.com/OctopusDeploy/cli/test/testutil"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -37,28 +38,32 @@ func TestValidateMandatoryEnvironment_WhenHostAndAccessTokenAreSupplied_DoesNotR
 }
 
 func TestNewClientFactory_WhenHostIsNotSupplied_ReturnsError(t *testing.T) {
-	_, err := apiclient.NewClientFactory(nil, "", apiKey, "", "", qa)
+	apiKeyCredential, _ := client.NewApiKey(apiKey)
+	_, err := apiclient.NewClientFactory(nil, "", apiKeyCredential, "", qa)
 	assert.Error(t, err)
 }
 
 func TestNewClientFactory_WhenHostIsNotAValidUrl_ReturnsError(t *testing.T) {
-	_, err := apiclient.NewClientFactory(nil, "http_foo:bar/this-is-invalid", apiKey, "", "", qa)
+	apiKeyCredential, _ := client.NewApiKey(apiKey)
+	_, err := apiclient.NewClientFactory(nil, "http_foo:bar/this-is-invalid", apiKeyCredential, "", qa)
 	assert.Error(t, err)
 }
 
 func TestNewClientFactory_WhenApiKeyAndAccessTokenAreNotSupplied_ReturnsError(t *testing.T) {
-	_, err := apiclient.NewClientFactory(nil, hostUrl, "", "", "", qa)
+	_, err := apiclient.NewClientFactory(nil, hostUrl, nil, "", qa)
 	assert.Error(t, err)
 }
 
 func TestNewClientFactory_WhenHostAndApiKeyAreSupplied_ReturnsClientFactory(t *testing.T) {
-	factory, err := apiclient.NewClientFactory(nil, hostUrl, apiKey, "", "", qa)
+	apiKeyCredential, _ := client.NewApiKey(apiKey)
+	factory, err := apiclient.NewClientFactory(nil, hostUrl, apiKeyCredential, "", qa)
 	testutil.RequireSuccess(t, err)
 	assert.NotNil(t, factory)
 }
 
 func TestNewClientFactory_WhenHostAndAccessTokenAreSupplied_ReturnsClientFactory(t *testing.T) {
-	factory, err := apiclient.NewClientFactory(nil, hostUrl, "", accessToken, "", qa)
+	accessTokenCredential, _ := client.NewAccessToken(accessToken)
+	factory, err := apiclient.NewClientFactory(nil, hostUrl, accessTokenCredential, "", qa)
 	testutil.RequireSuccess(t, err)
 	assert.NotNil(t, factory)
 }

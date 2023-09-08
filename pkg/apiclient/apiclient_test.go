@@ -21,7 +21,8 @@ func TestClient_GetSystemClient(t *testing.T) {
 	api := testutil.NewMockHttpServer()
 
 	t.Run("GetSystemClient returns the client", func(t *testing.T) {
-		factory, err := apiclient.NewClientFactory(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "", "", qa)
+		apiKeyCredential, _ := octopusApiClient.NewApiKey(placeholderApiKey)
+		factory, err := apiclient.NewClientFactory(testutil.NewMockHttpClientWithTransport(api), serverUrl, apiKeyCredential, "", qa)
 		testutil.RequireSuccess(t, err)
 
 		clientReceiver := testutil.GoBegin2(
@@ -41,7 +42,8 @@ func TestClient_GetSystemClient(t *testing.T) {
 	})
 
 	t.Run("GetSystemClient called twice returns the same client instance", func(t *testing.T) {
-		factory, err := apiclient.NewClientFactory(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "", "", qa)
+		apiKeyCredential, _ := octopusApiClient.NewApiKey(placeholderApiKey)
+		factory, err := apiclient.NewClientFactory(testutil.NewMockHttpClientWithTransport(api), serverUrl, apiKeyCredential, "", qa)
 		testutil.RequireSuccess(t, err)
 		clientReceiver := testutil.GoBegin2(
 			func() (*octopusApiClient.Client, error) {
@@ -65,7 +67,8 @@ func TestClient_GetSystemClient(t *testing.T) {
 	})
 
 	t.Run("GetSystemClient contains the access token in the right header if supplied", func(t *testing.T) {
-		factory, err := apiclient.NewClientFactory(testutil.NewMockHttpClientWithTransport(api), serverUrl, "", "token", "", qa)
+		accessTokenCredential, _ := octopusApiClient.NewAccessToken("token")
+		factory, err := apiclient.NewClientFactory(testutil.NewMockHttpClientWithTransport(api), serverUrl, accessTokenCredential, "", qa)
 		testutil.RequireSuccess(t, err)
 
 		clientReceiver := testutil.GoBegin2(
@@ -100,7 +103,8 @@ func TestClient_GetSpacedClient_NoPrompt(t *testing.T) {
 		// that in no-prompt mode because otherwise people could write a CI script that worked due to
 		// auto-selection of the first space, which would then unexpectedly break later if someone added a
 		// second space to the octopus server
-		factory, err := apiclient.NewClientFactory(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "", "", qa)
+		apiKeyCredential, _ := octopusApiClient.NewApiKey(placeholderApiKey)
+		factory, err := apiclient.NewClientFactory(testutil.NewMockHttpClientWithTransport(api), serverUrl, apiKeyCredential, "", qa)
 		testutil.RequireSuccess(t, err)
 
 		clientReceiver := testutil.GoBegin2(
@@ -117,7 +121,8 @@ func TestClient_GetSpacedClient_NoPrompt(t *testing.T) {
 	})
 
 	t.Run("GetSpacedClient returns an error when a space with the wrong name is specified", func(t *testing.T) {
-		factory, err := apiclient.NewClientFactory(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "", "Integrations", qa)
+		apiKeyCredential, _ := octopusApiClient.NewApiKey(placeholderApiKey)
+		factory, err := apiclient.NewClientFactory(testutil.NewMockHttpClientWithTransport(api), serverUrl, apiKeyCredential, "Integrations", qa)
 		testutil.RequireSuccess(t, err)
 
 		clientReceiver := testutil.GoBegin2(
@@ -135,7 +140,8 @@ func TestClient_GetSpacedClient_NoPrompt(t *testing.T) {
 	})
 
 	t.Run("GetSpacedClient works when the Space ID is directly specified", func(t *testing.T) {
-		factory, err := apiclient.NewClientFactory(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "", "Spaces-7", qa)
+		apiKeyCredential, _ := octopusApiClient.NewApiKey(placeholderApiKey)
+		factory, err := apiclient.NewClientFactory(testutil.NewMockHttpClientWithTransport(api), serverUrl, apiKeyCredential, "Spaces-7", qa)
 		testutil.RequireSuccess(t, err)
 
 		clientReceiver := testutil.GoBegin2(
@@ -159,7 +165,8 @@ func TestClient_GetSpacedClient_NoPrompt(t *testing.T) {
 	})
 
 	t.Run("GetSpacedClient works when the Space ID is directly specified (case insensitive)", func(t *testing.T) {
-		factory, err := apiclient.NewClientFactory(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "", "spaCeS-7", qa)
+		apiKeyCredential, _ := octopusApiClient.NewApiKey(placeholderApiKey)
+		factory, err := apiclient.NewClientFactory(testutil.NewMockHttpClientWithTransport(api), serverUrl, apiKeyCredential, "spaCeS-7", qa)
 		testutil.RequireSuccess(t, err)
 
 		clientReceiver := testutil.GoBegin2(
@@ -183,7 +190,8 @@ func TestClient_GetSpacedClient_NoPrompt(t *testing.T) {
 	})
 
 	t.Run("GetSpacedClient works when the Space Name is directly specified", func(t *testing.T) {
-		factory, err := apiclient.NewClientFactory(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "", "Integrations", qa)
+		apiKeyCredential, _ := octopusApiClient.NewApiKey(placeholderApiKey)
+		factory, err := apiclient.NewClientFactory(testutil.NewMockHttpClientWithTransport(api), serverUrl, apiKeyCredential, "Integrations", qa)
 		testutil.RequireSuccess(t, err)
 
 		clientReceiver := testutil.GoBegin2(
@@ -207,7 +215,8 @@ func TestClient_GetSpacedClient_NoPrompt(t *testing.T) {
 	})
 
 	t.Run("GetSpacedClient works when the Space Name is directly specified (case insensitive)", func(t *testing.T) {
-		factory, err := apiclient.NewClientFactory(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "", "iNtegrationS", qa)
+		apiKeyCredential, _ := octopusApiClient.NewApiKey(placeholderApiKey)
+		factory, err := apiclient.NewClientFactory(testutil.NewMockHttpClientWithTransport(api), serverUrl, apiKeyCredential, "iNtegrationS", qa)
 		testutil.RequireSuccess(t, err)
 
 		clientReceiver := testutil.GoBegin2(
@@ -237,7 +246,8 @@ func TestClient_GetSpacedClient_NoPrompt(t *testing.T) {
 		spaces7space := spaces.NewSpace("Spaces-7") // nobody would do this in reality, but our software must still work properly
 		spaces7space.ID = "Spaces-209"
 
-		factory2, err := apiclient.NewClientFactory(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "", "Spaces-7", qa)
+		apiKeyCredential, _ := octopusApiClient.NewApiKey(placeholderApiKey)
+		factory2, err := apiclient.NewClientFactory(testutil.NewMockHttpClientWithTransport(api), serverUrl, apiKeyCredential, "Spaces-7", qa)
 		testutil.RequireSuccess(t, err)
 
 		clientReceiver := testutil.GoBegin2(
@@ -263,7 +273,8 @@ func TestClient_GetSpacedClient_NoPrompt(t *testing.T) {
 	})
 
 	t.Run("GetSpacedClient called twice returns the same client instance without additional requests", func(t *testing.T) {
-		factory, err := apiclient.NewClientFactory(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "", "Integrations", qa)
+		apiKeyCredential, _ := octopusApiClient.NewApiKey(placeholderApiKey)
+		factory, err := apiclient.NewClientFactory(testutil.NewMockHttpClientWithTransport(api), serverUrl, apiKeyCredential, "Integrations", qa)
 		testutil.RequireSuccess(t, err)
 
 		clientReceiver := testutil.GoBegin2(
@@ -294,7 +305,8 @@ func TestClient_GetSpacedClient_NoPrompt(t *testing.T) {
 	})
 
 	t.Run("GetSpacedClient contains the access token in the right header if supplied", func(t *testing.T) {
-		factory, err := apiclient.NewClientFactory(testutil.NewMockHttpClientWithTransport(api), serverUrl, "", "token", "Spaces-7", qa)
+		accessTokenCredential, _ := octopusApiClient.NewAccessToken("token")
+		factory, err := apiclient.NewClientFactory(testutil.NewMockHttpClientWithTransport(api), serverUrl, accessTokenCredential, "Spaces-7", qa)
 		testutil.RequireSuccess(t, err)
 
 		clientReceiver := testutil.GoBegin2(
