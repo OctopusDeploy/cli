@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.6.1](https://github.com/OctopusDeploy/cli/compare/v1.6.0...v1.6.1) (2023-09-14)
+
+
+### Bug Fixes
+
+* homebrew deployments ([#273](https://github.com/OctopusDeploy/cli/issues/273)) ([4d3845a](https://github.com/OctopusDeploy/cli/commit/4d3845ad5bbc1529f77161d028ce4537626c5053))
+
 ## [1.6.0](https://github.com/OctopusDeploy/cli/compare/v1.5.1...v1.6.0) (2023-09-08)
 
 
