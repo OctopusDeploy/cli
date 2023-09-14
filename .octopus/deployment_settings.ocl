@@ -2,7 +2,7 @@ deployment_changes_template = <<-EOT
         #{each release in Octopus.Deployment.Changes}
         #{release.ReleaseNotes}
         #{/each}
-    EOT
+        EOT
 
 connectivity_policy {
 }
