@@ -3,13 +3,14 @@ package main
 import (
 	_ "embed"
 	"fmt"
+	"os"
+	"strings"
+	"time"
+
 	"github.com/AlecAivazis/survey/v2/terminal"
 	version "github.com/OctopusDeploy/cli"
 	"github.com/briandowns/spinner"
 	"github.com/spf13/viper"
-	"os"
-	"strings"
-	"time"
 
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/OctopusDeploy/cli/pkg/config"
@@ -51,7 +52,7 @@ func main() {
 	clientFactory, err := apiclient.NewClientFactoryFromConfig(askProvider)
 	if err != nil {
 		// a small subset of commands can function even if the app doesn't have valid configuration information
-		if cmdToRun == "config" || cmdToRun == "version" || cmdToRun == "help" {
+		if cmdToRun == "config" || cmdToRun == "version" || cmdToRun == "help" || cmdToRun == "login" {
 			clientFactory = apiclient.NewStubClientFactory()
 		} else {
 			// can't possibly work
