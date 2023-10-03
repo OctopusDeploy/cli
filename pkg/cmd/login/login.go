@@ -1,6 +1,8 @@
 package login
 
 import (
+	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -51,6 +53,25 @@ func NewCmdLogin(f factory.Factory) *cobra.Command {
 	return cmd
 }
 
+type OpenIdConfigurationResponse struct {
+	Issuer        string `json:"issuer"`
+	TokenEndpoint string `json:"token_endpoint"`
+}
+
+type TokenExchangeRequest struct {
+	GrantType        string `json:"grant_type"`
+	Audience         string `json:"audience"`
+	SubjectTokenType string `json:"subject_token_type"`
+	SubjectToken     string `json:"subject_token"`
+}
+
+type TokenExchangeResponse struct {
+	GrantType        string `json:"grant_type"`
+	Audience         string `json:"audience"`
+	SubjectTokenType string `json:"subject_token_type"`
+	SubjectToken     string `json:"subject_token"`
+}
+
 func loginRun(cmd *cobra.Command, flags *LoginFlags) error {
 	server := flags.Server.Value
 	serviceAccountId := flags.ServiceAccountId.Value
@@ -88,6 +109,43 @@ func loginRun(cmd *cobra.Command, flags *LoginFlags) error {
 	sb := string(body)
 
 	cmd.Println(sb)
+
+	var openIdConfiguration OpenIdConfigurationResponse
+
+	json.Unmarshal([]byte(sb), &openIdConfiguration)
+
+	tokenExchangeData := TokenExchangeRequest{
+		GrantType:        "urn:ietf:params:oauth:grant-type:token-exchange",
+		Audience:         serviceAccountId,
+		SubjectTokenType: "urn:ietf:params:oauth:token-type:jwt",
+		SubjectToken:     idToken,
+	}
+
+	tokenExchangeBody, err := json.Marshal(tokenExchangeData)
+
+	if err != nil {
+		return err
+	}
+
+	bodyReader := bytes.NewReader(tokenExchangeBody)
+
+	resp, err = http.Post(openIdConfiguration.TokenEndpoint, "application/json", bodyReader)
+
+	if err != nil {
+		return err
+	}
+
+	body, err = io.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+	sb = string(body)
+
+	cmd.Println(sb)
+
+	var tokenExchangeResponse TokenExchangeResponse
+
+	json.Unmarshal([]byte(sb), &tokenExchangeResponse)
 
 	os.Setenv("OCTOPUS_URL", server)
 	os.Setenv("OCTOPUS_ACCESS_TOKEN", "1234")
