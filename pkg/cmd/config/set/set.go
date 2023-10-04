@@ -118,3 +118,42 @@ func promptMissing(ask question.Asker, key string) (string, string, error) {
 
 	return key, value, nil
 }
+
+func SetConfig(key string, value string) error {
+	// have to make new viper so it only contains file value, no ENVs or Flags
+	configPath, err := config.EnsureConfigPath()
+	if err != nil {
+		return err
+	}
+
+	localViper := viper.New()
+	config.SetupConfigFile(localViper, configPath)
+
+	if err := localViper.ReadInConfig(); err != nil {
+		if _, ok := err.(viper.ConfigFileNotFoundError); ok {
+			// config file not found, we create it here and recover
+			if err = localViper.SafeWriteConfig(); err != nil {
+				return err
+			}
+		} else {
+			return err // any other error is unrecoverable; abort
+		}
+	}
+	if key != "" && !config.IsValidKey(key) {
+		return fmt.Errorf("the key '%s' is not a valid", key)
+	}
+	key = strings.ToLower(key)
+	if key == strings.ToLower(constants.ConfigNoPrompt) {
+		boolValue, err := strconv.ParseBool(value)
+		if err != nil {
+			return fmt.Errorf("the provided value %s is not valid for NoPrompt, please use true of false", value)
+		}
+		localViper.Set(key, boolValue)
+	} else {
+		localViper.Set(key, value)
+	}
+	if err := localViper.WriteConfig(); err != nil {
+		return err
+	}
+	return nil
+}
