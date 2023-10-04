@@ -54,7 +54,7 @@ func NewCmdLogin(f factory.Factory) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "login",
 		Short: "Login to Octopus",
-		Long:  "Login to your Octopus server using OpenID Connect or an API key",
+		Long:  "Login to your Octopus server using OpenID Connect or an API key. If no arguments are provided then login will be done interactively allowing provisioning of an API key.",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return loginRun(cmd, f, f.IsPromptEnabled(), f.Ask, loginFlags)
 		},
@@ -111,7 +111,7 @@ func loginRun(cmd *cobra.Command, f factory.Factory, isPromptEnabled bool, ask q
 		var provisionApiKey bool
 
 		if err := ask(&survey.Confirm{
-			Message: "Provision a new API key?",
+			Message: "Provision a new API key",
 		}, &provisionApiKey); err != nil {
 			return err
 		}
@@ -148,9 +148,6 @@ func loginRun(cmd *cobra.Command, f factory.Factory, isPromptEnabled bool, ask q
 
 		serverLink := output.Bluef(server)
 
-		cmd.Printf("Configuring CLI to use API key for Octopus Server: %s", serverLink)
-		cmd.Println()
-
 		apiKeyCredentials, err := octopusApiClient.NewApiKey(apiKey)
 
 		if err != nil {
@@ -162,6 +159,9 @@ func loginRun(cmd *cobra.Command, f factory.Factory, isPromptEnabled bool, ask q
 		if err != nil {
 			return errors.New("login unsuccessful, please check that your API key is valid")
 		}
+
+		cmd.Printf("Configuring CLI to use API key for Octopus Server: %s", serverLink)
+		cmd.Println()
 
 		set.SetConfig(constants.ConfigUrl, server)
 		set.SetConfig(constants.ConfigApiKey, apiKey)
@@ -267,20 +267,23 @@ func loginRun(cmd *cobra.Command, f factory.Factory, isPromptEnabled bool, ask q
 			return err
 		}
 
+		cmd.Printf("Access token obtained successfully via OpenID Connect, valid until %s", output.Cyan(expiryTime.Format(time.DateTime)))
+		cmd.Println()
+
 		err = testLogin(cmd, server, accessTokenCredentials)
 
 		if err != nil {
 			return errors.New("login unsuccessful using access token obtained via OpenID Connect")
 		}
 
-		cmd.Printf("Configuring CLI to use access token for Octopus Server %s on behalf of service account %s", serverLink, serviceAccountOutput)
+		cmd.Printf("Configuring CLI to use access token for Octopus Server: %s", serverLink)
 		cmd.Println()
 
 		set.SetConfig(constants.ConfigUrl, server)
 		set.SetConfig(constants.ConfigAccessToken, tokenExchangeResponse.AccessToken)
 		set.SetConfig(constants.ConfigApiKey, "")
 
-		cmd.Printf("Login successful, access token valid until %s, happy deployments!", output.Cyan(expiryTime.Format(time.DateTime)))
+		cmd.Printf("Login successful, happy deployments!")
 		cmd.Println()
 	}
 
@@ -288,10 +291,18 @@ func loginRun(cmd *cobra.Command, f factory.Factory, isPromptEnabled bool, ask q
 }
 
 func testLogin(cmd *cobra.Command, server string, credentials octopusApiClient.ICredential) error {
-	askProvider := question.NewAskProvider(survey.AskOne)
-	askProvider.DisableInteractive()
+	serverLink := output.Blue(server)
 
-	clientFactory, err := apiclient.NewClientFactory(nil, server, credentials, "", askProvider)
+	cmd.Printf("Testing login to Octopus Server: %s", serverLink)
+	cmd.Println()
+
+	askProvider := question.NewAskProvider(survey.AskOne)
+
+	httpClient := &http.Client{
+		Transport: apiclient.NewSpinnerRoundTripper(),
+	}
+
+	clientFactory, err := apiclient.NewClientFactory(httpClient, server, credentials, "", askProvider)
 
 	if err != nil {
 		return err
