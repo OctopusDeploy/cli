@@ -111,7 +111,7 @@ func loginRun(cmd *cobra.Command, f factory.Factory, isPromptEnabled bool, ask q
 		var provisionApiKey bool
 
 		if err := ask(&survey.Confirm{
-			Message: "Provision a new API key",
+			Message: "Create a new API key",
 		}, &provisionApiKey); err != nil {
 			return err
 		}
@@ -119,7 +119,7 @@ func loginRun(cmd *cobra.Command, f factory.Factory, isPromptEnabled bool, ask q
 		if provisionApiKey {
 			provisionApiKeyUrl := fmt.Sprintf("%s/app#/users/me/apiKeys", server)
 			provisionApiKeyLink := output.Bluef(provisionApiKeyUrl)
-			cmd.Printf("Opening a browser at %s, please provision an API key and paste it here", provisionApiKeyLink)
+			cmd.Printf("A web browser has been opened at %s. Please create an API key and paste it here. If no web browser is available or if the web browser fails to open, please use the --server and --api-key arguments directly.", provisionApiKeyLink)
 			cmd.Println()
 
 			err := browser.OpenURL(provisionApiKeyUrl)
