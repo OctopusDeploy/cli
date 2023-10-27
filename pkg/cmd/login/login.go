@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/AlecAivazis/survey/v2"
+	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/apiclient"
 	"github.com/OctopusDeploy/cli/pkg/cmd/config/set"
 	"github.com/OctopusDeploy/cli/pkg/constants"
@@ -54,7 +55,12 @@ func NewCmdLogin(f factory.Factory) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "login",
 		Short: "Login to Octopus",
-		Long:  "Login to your Octopus server using OpenID Connect or an API key. If no arguments are provided then login will be done interactively allowing provisioning of an API key.",
+		Long:  "Login to your Octopus server using OpenID Connect (OIDC) or an API key. If no arguments are provided then login will be done interactively allowing creation of an API key.",
+		Example: heredoc.Docf(`
+			$ %[1]s login
+			$ %[1]s login --server https://my.octopus.app --service-account-id b1a6f20f-0ec7-4e9a-938e-db800f945b37 --id-token eyJhbGciOiJQUzI1NiIsImtp...
+			$ %[1]s login --server https://my.octopus.app --api-key API-APIKEY123
+		`, constants.ExecutableName),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return loginRun(cmd, f, f.IsPromptEnabled(), f.Ask, loginFlags)
 		},
@@ -64,10 +70,10 @@ func NewCmdLogin(f factory.Factory) *cobra.Command {
 	}
 
 	flags := cmd.Flags()
-	flags.StringVarP(&loginFlags.Server.Value, loginFlags.Server.Name, "", "", "the URL of the Octopus Server to login to")
-	flags.StringVarP(&loginFlags.ApiKey.Value, loginFlags.ApiKey.Name, "", "", "an API key to login with")
-	flags.StringVarP(&loginFlags.ServiceAccountId.Value, loginFlags.ServiceAccountId.Name, "", "", "the ID of the service account to login with")
-	flags.StringVarP(&loginFlags.IdToken.Value, loginFlags.IdToken.Name, "", "", "the ID token from your OIDC provider to login with")
+	flags.StringVarP(&loginFlags.Server.Value, loginFlags.Server.Name, "", "", "The URL of the Octopus Server to login to")
+	flags.StringVarP(&loginFlags.ApiKey.Value, loginFlags.ApiKey.Name, "", "", "The API key to login with if using API keys")
+	flags.StringVarP(&loginFlags.ServiceAccountId.Value, loginFlags.ServiceAccountId.Name, "", "", "The ID of the service account to login with if using OIDC")
+	flags.StringVarP(&loginFlags.IdToken.Value, loginFlags.IdToken.Name, "", "", "The ID token from your OIDC provider to login with if using OIDC")
 	return cmd
 }
 
@@ -104,25 +110,25 @@ func loginRun(cmd *cobra.Command, f factory.Factory, isPromptEnabled bool, ask q
 		if err := ask(&survey.Input{
 			Message: "Octopus Server URL",
 			Default: currentServer,
-		}, &server); err != nil {
+		}, &server, survey.WithValidator(survey.Required)); err != nil {
 			return err
 		}
 
-		var provisionApiKey bool
+		var createNewApiKey bool
 
 		if err := ask(&survey.Confirm{
 			Message: "Create a new API key",
-		}, &provisionApiKey); err != nil {
+		}, &createNewApiKey); err != nil {
 			return err
 		}
 
-		if provisionApiKey {
-			provisionApiKeyUrl := fmt.Sprintf("%s/app#/users/me/apiKeys", server)
-			provisionApiKeyLink := output.Bluef(provisionApiKeyUrl)
-			cmd.Printf("A web browser has been opened at %s. Please create an API key and paste it here. If no web browser is available or if the web browser fails to open, please use the --server and --api-key arguments directly.", provisionApiKeyLink)
+		if createNewApiKey {
+			createApiKeyUrl := fmt.Sprintf("%s/app#/users/me/apiKeys", server)
+			createApiKeyLink := output.Cyan(createApiKeyUrl)
+			cmd.Printf("A web browser has been opened at %s. Please create an API key and paste it here. If no web browser is available or if the web browser fails to open, please use the --server and --api-key arguments directly e.g. octopus login --server %s --api-key API-MYAPIKEY.", createApiKeyLink, server)
 			cmd.Println()
 
-			err := browser.OpenURL(provisionApiKeyUrl)
+			err := browser.OpenURL(createApiKeyUrl)
 
 			if err != nil {
 				return err
@@ -131,7 +137,7 @@ func loginRun(cmd *cobra.Command, f factory.Factory, isPromptEnabled bool, ask q
 
 		if err := ask(&survey.Input{
 			Message: "API Key",
-		}, &apiKey); err != nil {
+		}, &apiKey, survey.WithValidator(survey.Required)); err != nil {
 			return err
 		}
 	}
@@ -146,7 +152,7 @@ func loginRun(cmd *cobra.Command, f factory.Factory, isPromptEnabled bool, ask q
 
 	if apiKey != "" {
 
-		serverLink := output.Bluef(server)
+		serverLink := output.Cyan(server)
 
 		apiKeyCredentials, err := octopusApiClient.NewApiKey(apiKey)
 
@@ -178,7 +184,7 @@ func loginRun(cmd *cobra.Command, f factory.Factory, isPromptEnabled bool, ask q
 			return errors.New("must supply an id token when logging in with OpenID Connect")
 		}
 
-		serverLink := output.Bluef(server)
+		serverLink := output.Cyan(server)
 		serviceAccountOutput := output.Cyan(serviceAccountId)
 
 		cmd.Printf("Logging in with OpenID Connect to %s using service account %s", serverLink, serviceAccountOutput)
@@ -291,7 +297,7 @@ func loginRun(cmd *cobra.Command, f factory.Factory, isPromptEnabled bool, ask q
 }
 
 func testLogin(cmd *cobra.Command, server string, credentials octopusApiClient.ICredential) error {
-	serverLink := output.Blue(server)
+	serverLink := output.Cyan(server)
 
 	cmd.Printf("Testing login to Octopus Server: %s", serverLink)
 	cmd.Println()
