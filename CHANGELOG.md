@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.7.1](https://github.com/OctopusDeploy/cli/compare/v1.7.0...v1.7.1) (2023-10-31)
+
+
+### Bug Fixes
+
+* Add additional fields to json output when listing workers ([#287](https://github.com/OctopusDeploy/cli/issues/287)) ([dc2b5c6](https://github.com/OctopusDeploy/cli/commit/dc2b5c659cf479a7e534ab267730b47f08301076))
+
 ## [1.7.0](https://github.com/OctopusDeploy/cli/compare/v1.6.2...v1.7.0) (2023-10-31)
 
 
