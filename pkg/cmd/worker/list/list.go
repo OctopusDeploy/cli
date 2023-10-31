@@ -49,10 +49,12 @@ func ListRun(opts *ListOptions) error {
 	}
 
 	type TargetAsJson struct {
-		Id          string         `json:"Id"`
-		Name        string         `json:"Name"`
-		Type        string         `json:"Type"`
-		WorkerPools []model.Entity `json:"WorkerPools"`
+		Id            string         `json:"Id"`
+		Name          string         `json:"Name"`
+		Type          string         `json:"Type"`
+		HealthStatus  string         `json:"HealthStatus"`
+		StatusSummary string         `json:"StatusSummary"`
+		WorkerPools   []model.Entity `json:"WorkerPools"`
 	}
 
 	workerPoolMap, err := GetWorkerPoolMap(opts)
@@ -64,10 +66,12 @@ func ListRun(opts *ListOptions) error {
 		Json: func(item *machines.Worker) any {
 
 			return TargetAsJson{
-				Id:          item.GetID(),
-				Name:        item.Name,
-				Type:        machinescommon.CommunicationStyleToDeploymentTargetTypeMap[item.Endpoint.GetCommunicationStyle()],
-				WorkerPools: resolveEntities(item.WorkerPoolIDs, workerPoolMap),
+				Id:            item.GetID(),
+				Name:          item.Name,
+				Type:          machinescommon.CommunicationStyleToDeploymentTargetTypeMap[item.Endpoint.GetCommunicationStyle()],
+				HealthStatus:  item.HealthStatus,
+				StatusSummary: item.StatusSummary,
+				WorkerPools:   resolveEntities(item.WorkerPoolIDs, workerPoolMap),
 			}
 		},
 		Table: output.TableDefinition[*machines.Worker]{
