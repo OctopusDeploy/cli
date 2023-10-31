@@ -44,7 +44,7 @@ func contributeEndpoint(opts *shared.ViewOptions, workerEndpoint machines.IEndpo
 	endpoint := workerEndpoint.(*machines.SSHEndpoint)
 
 	data = append(data, output.NewDataRow("URI", endpoint.URI.String()))
-	data = append(data, output.NewDataRow("Runtime architecture", getRuntimeArchitecture(endpoint)))
+	data = append(data, output.NewDataRow("Runtime architecture", GetRuntimeArchitecture(endpoint)))
 	accountRows, err := shared.ContributeAccount(opts, endpoint.AccountID)
 	if err != nil {
 		return nil, err
@@ -60,7 +60,7 @@ func contributeEndpoint(opts *shared.ViewOptions, workerEndpoint machines.IEndpo
 	return data, nil
 }
 
-func getRuntimeArchitecture(endpoint *machines.SSHEndpoint) string {
+func GetRuntimeArchitecture(endpoint *machines.SSHEndpoint) string {
 	if endpoint.DotNetCorePlatform == "" {
 		return "Mono"
 	}
