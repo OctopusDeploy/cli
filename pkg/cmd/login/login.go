@@ -100,9 +100,208 @@ type TokenExchangeErrorResponse struct {
 }
 
 func loginRun(cmd *cobra.Command, f factory.Factory, isPromptEnabled bool, ask question.Asker, flags *LoginFlags) error {
+	inputs, err := getInputs(flags, isPromptEnabled, ask, cmd)
+	if err != nil {
+		return err
+	}
+
+	if inputs.server == "" {
+		return errors.New("must supply server")
+	}
+
+	if inputs.serviceAccountId == "" && inputs.apiKey == "" {
+		return errors.New("must supply a service account id or api key")
+	}
+
+	if inputs.serviceAccountId != "" && inputs.apiKey != "" {
+		return errors.New("can only login with one of service account id or api key")
+	}
+
+	if inputs.apiKey != "" {
+		err = loginWithApiKey(inputs.server, inputs.apiKey, cmd)
+		if err != nil {
+			return err
+		}
+	} else if inputs.serviceAccountId != "" {
+		if inputs.idToken == "" {
+			return errors.New("must supply an id token when logging in with OpenID Connect")
+		}
+
+		err = loginWithOpenIdConnect(inputs.server, inputs.serviceAccountId, inputs.idToken, cmd)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func loginWithOpenIdConnect(server string, serviceAccountId string, idToken string, cmd *cobra.Command) error {
+	serverLink := output.Cyan(server)
+	serviceAccountOutput := output.Cyan(serviceAccountId)
+
+	cmd.Printf("Logging in with OpenID Connect to %s using service account %s", serverLink, serviceAccountOutput)
+	cmd.Println()
+
+	openIdConfiguration, err := getOpenIdConfiguration(server)
+	if err != nil {
+		return err
+	}
+
+	tokenExchangeResponse, err := performTokenExchange(serviceAccountId, idToken, openIdConfiguration)
+	if err != nil {
+		return err
+	}
+
+	expiresIn, err := time.ParseDuration(fmt.Sprintf("%ds", tokenExchangeResponse.ExpiresIn))
+
+	if err != nil {
+		return err
+	}
+
+	expiryTime := time.Now().Add(expiresIn)
+
+	accessTokenCredentials, err := octopusApiClient.NewAccessToken(tokenExchangeResponse.AccessToken)
+
+	if err != nil {
+		return err
+	}
+
+	cmd.Printf("Access token obtained successfully via OpenID Connect, valid until %s", output.Cyan(expiryTime.Format(time.DateTime)))
+	cmd.Println()
+
+	err = testLogin(cmd, server, accessTokenCredentials)
+
+	if err != nil {
+		return errors.New("login unsuccessful using access token obtained via OpenID Connect")
+	}
+
+	cmd.Printf("Configuring CLI to use access token for Octopus Server: %s", serverLink)
+	cmd.Println()
+
+	set.SetConfig(constants.ConfigUrl, server)
+	set.SetConfig(constants.ConfigAccessToken, tokenExchangeResponse.AccessToken)
+	set.SetConfig(constants.ConfigApiKey, "")
+
+	cmd.Printf("Login successful, happy deployments!")
+	cmd.Println()
+	return nil
+}
+
+func performTokenExchange(serviceAccountId string, idToken string, openIdConfiguration *OpenIdConfigurationResponse) (*TokenExchangeResponse, error) {
+	tokenExchangeData := TokenExchangeRequest{
+		GrantType:        "urn:ietf:params:oauth:grant-type:token-exchange",
+		Audience:         serviceAccountId,
+		SubjectTokenType: "urn:ietf:params:oauth:token-type:jwt",
+		SubjectToken:     idToken,
+	}
+
+	tokenExchangeBody, err := json.Marshal(tokenExchangeData)
+
+	if err != nil {
+		return nil, err
+	}
+
+	bodyReader := bytes.NewReader(tokenExchangeBody)
+
+	resp, err := http.Post(openIdConfiguration.TokenEndpoint, "application/json", bodyReader)
+
+	if err != nil {
+		return nil, err
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	sb := string(body)
+
+	var tokenExchangeErrorResponse TokenExchangeErrorResponse
+
+	err = json.Unmarshal([]byte(sb), &tokenExchangeErrorResponse)
+
+	if err != nil {
+		return nil, err
+	}
+
+	if tokenExchangeErrorResponse.Error != "" {
+		return nil, errors.New(tokenExchangeErrorResponse.ErrorDescription)
+	}
+
+	var tokenExchangeResponse TokenExchangeResponse
+
+	err = json.Unmarshal([]byte(sb), &tokenExchangeResponse)
+
+	if err != nil {
+		return nil, err
+	}
+	return &tokenExchangeResponse, nil
+}
+
+func getOpenIdConfiguration(server string) (*OpenIdConfigurationResponse, error) {
+	openIdConfigurationEndpoint := fmt.Sprintf("%s/.well-known/openid-configuration", server)
+
+	resp, err := http.Get(openIdConfigurationEndpoint)
+
+	if err != nil {
+		return nil, err
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	sb := string(body)
+
+	var openIdConfiguration OpenIdConfigurationResponse
+
+	err = json.Unmarshal([]byte(sb), &openIdConfiguration)
+
+	if err != nil {
+		return nil, err
+	}
+	return &openIdConfiguration, nil
+}
+
+func loginWithApiKey(server string, apiKey string, cmd *cobra.Command) error {
+	serverLink := output.Cyan(server)
+
+	apiKeyCredentials, err := octopusApiClient.NewApiKey(apiKey)
+
+	if err != nil {
+		return err
+	}
+
+	err = testLogin(cmd, server, apiKeyCredentials)
+
+	if err != nil {
+		return errors.New("login unsuccessful, please check that your API key is valid")
+	}
+
+	cmd.Printf("Configuring CLI to use API key for Octopus Server: %s", serverLink)
+	cmd.Println()
+
+	set.SetConfig(constants.ConfigUrl, server)
+	set.SetConfig(constants.ConfigApiKey, apiKey)
+	set.SetConfig(constants.ConfigAccessToken, "")
+
+	cmd.Printf("Login successful, happy deployments!")
+	cmd.Println()
+	return nil
+}
+
+type LoginInputs struct {
+	server           string
+	apiKey           string
+	serviceAccountId string
+	idToken          string
+}
+
+func getInputs(flags *LoginFlags, isPromptEnabled bool, ask question.Asker, cmd *cobra.Command) (*LoginInputs, error) {
 	server := flags.Server.Value
 	apiKey := flags.ApiKey.Value
 	serviceAccountId := flags.ServiceAccountId.Value
+	idToken := flags.IdToken.Value
 
 	if isPromptEnabled && server == "" {
 		currentServer := viper.GetString(constants.ConfigUrl)
@@ -111,7 +310,7 @@ func loginRun(cmd *cobra.Command, f factory.Factory, isPromptEnabled bool, ask q
 			Message: "Octopus Server URL",
 			Default: currentServer,
 		}, &server, survey.WithValidator(survey.Required)); err != nil {
-			return err
+			return nil, err
 		}
 
 		var createNewApiKey bool
@@ -119,7 +318,7 @@ func loginRun(cmd *cobra.Command, f factory.Factory, isPromptEnabled bool, ask q
 		if err := ask(&survey.Confirm{
 			Message: "Create a new API key",
 		}, &createNewApiKey); err != nil {
-			return err
+			return nil, err
 		}
 
 		if createNewApiKey {
@@ -131,169 +330,23 @@ func loginRun(cmd *cobra.Command, f factory.Factory, isPromptEnabled bool, ask q
 			err := browser.OpenURL(createApiKeyUrl)
 
 			if err != nil {
-				return err
+				return nil, err
 			}
 		}
 
 		if err := ask(&survey.Input{
 			Message: "API Key",
 		}, &apiKey, survey.WithValidator(survey.Required)); err != nil {
-			return err
+			return nil, err
 		}
 	}
-
-	if server == "" {
-		return errors.New("must supply server")
+	inputs := &LoginInputs{
+		server:           server,
+		apiKey:           apiKey,
+		serviceAccountId: serviceAccountId,
+		idToken:          idToken,
 	}
-
-	if serviceAccountId == "" && apiKey == "" {
-		return errors.New("must supply a service account id or api key")
-	}
-
-	if apiKey != "" {
-
-		serverLink := output.Cyan(server)
-
-		apiKeyCredentials, err := octopusApiClient.NewApiKey(apiKey)
-
-		if err != nil {
-			return err
-		}
-
-		err = testLogin(cmd, server, apiKeyCredentials)
-
-		if err != nil {
-			return errors.New("login unsuccessful, please check that your API key is valid")
-		}
-
-		cmd.Printf("Configuring CLI to use API key for Octopus Server: %s", serverLink)
-		cmd.Println()
-
-		set.SetConfig(constants.ConfigUrl, server)
-		set.SetConfig(constants.ConfigApiKey, apiKey)
-		set.SetConfig(constants.ConfigAccessToken, "")
-
-		cmd.Printf("Login successful, happy deployments!")
-		cmd.Println()
-	}
-
-	if serviceAccountId != "" {
-		idToken := flags.IdToken.Value
-
-		if idToken == "" {
-			return errors.New("must supply an id token when logging in with OpenID Connect")
-		}
-
-		serverLink := output.Cyan(server)
-		serviceAccountOutput := output.Cyan(serviceAccountId)
-
-		cmd.Printf("Logging in with OpenID Connect to %s using service account %s", serverLink, serviceAccountOutput)
-		cmd.Println()
-
-		openIdConfigurationEndpoint := fmt.Sprintf("%s/.well-known/openid-configuration", server)
-
-		resp, err := http.Get(openIdConfigurationEndpoint)
-
-		if err != nil {
-			return err
-		}
-
-		body, err := io.ReadAll(resp.Body)
-		if err != nil {
-			return err
-		}
-		sb := string(body)
-
-		var openIdConfiguration OpenIdConfigurationResponse
-
-		err = json.Unmarshal([]byte(sb), &openIdConfiguration)
-
-		if err != nil {
-			return err
-		}
-
-		tokenExchangeData := TokenExchangeRequest{
-			GrantType:        "urn:ietf:params:oauth:grant-type:token-exchange",
-			Audience:         serviceAccountId,
-			SubjectTokenType: "urn:ietf:params:oauth:token-type:jwt",
-			SubjectToken:     idToken,
-		}
-
-		tokenExchangeBody, err := json.Marshal(tokenExchangeData)
-
-		if err != nil {
-			return err
-		}
-
-		bodyReader := bytes.NewReader(tokenExchangeBody)
-
-		resp, err = http.Post(openIdConfiguration.TokenEndpoint, "application/json", bodyReader)
-
-		if err != nil {
-			return err
-		}
-
-		body, err = io.ReadAll(resp.Body)
-		if err != nil {
-			return err
-		}
-		sb = string(body)
-
-		var tokenExchangeErrorResponse TokenExchangeErrorResponse
-
-		err = json.Unmarshal([]byte(sb), &tokenExchangeErrorResponse)
-
-		if err != nil {
-			return err
-		}
-
-		if tokenExchangeErrorResponse.Error != "" {
-			return errors.New(tokenExchangeErrorResponse.ErrorDescription)
-		}
-
-		var tokenExchangeResponse TokenExchangeResponse
-
-		err = json.Unmarshal([]byte(sb), &tokenExchangeResponse)
-
-		if err != nil {
-			return err
-		}
-
-		expiresIn, err := time.ParseDuration(fmt.Sprintf("%ds", tokenExchangeResponse.ExpiresIn))
-
-		if err != nil {
-			return err
-		}
-
-		expiryTime := time.Now().Add(expiresIn)
-
-		accessTokenCredentials, err := octopusApiClient.NewAccessToken(tokenExchangeResponse.AccessToken)
-
-		if err != nil {
-			return err
-		}
-
-		cmd.Printf("Access token obtained successfully via OpenID Connect, valid until %s", output.Cyan(expiryTime.Format(time.DateTime)))
-		cmd.Println()
-
-		err = testLogin(cmd, server, accessTokenCredentials)
-
-		if err != nil {
-			return errors.New("login unsuccessful using access token obtained via OpenID Connect")
-		}
-
-		cmd.Printf("Configuring CLI to use access token for Octopus Server: %s", serverLink)
-		cmd.Println()
-
-		set.SetConfig(constants.ConfigUrl, server)
-		set.SetConfig(constants.ConfigAccessToken, tokenExchangeResponse.AccessToken)
-		set.SetConfig(constants.ConfigApiKey, "")
-
-		cmd.Printf("Login successful, happy deployments!")
-		cmd.Println()
-	}
-
-	return nil
+	return inputs, nil
 }
 
 func testLogin(cmd *cobra.Command, server string, credentials octopusApiClient.ICredential) error {
