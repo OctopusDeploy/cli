@@ -167,7 +167,8 @@ func loginWithOpenIdConnect(server string, serviceAccountId string, idToken stri
 		return err
 	}
 
-	cmd.Printf("Access token obtained successfully via OpenID Connect, valid until %s", output.Cyan(expiryTime.Format(time.DateTime)))
+	// No time.DateTime in go 1.19, when we have upgraded to 1.20+ we can change
+	cmd.Printf("Access token obtained successfully via OpenID Connect, valid until %s", output.Cyan(expiryTime.Format("2006-01-02 15:04:05")))
 	cmd.Println()
 
 	err = testLogin(cmd, server, accessTokenCredentials)
