@@ -318,6 +318,7 @@ func getInputs(flags *LoginFlags, isPromptEnabled bool, ask question.Asker, cmd 
 
 		if err := ask(&survey.Confirm{
 			Message: "Create a new API key",
+			Default: true,
 		}, &createNewApiKey); err != nil {
 			return nil, err
 		}
