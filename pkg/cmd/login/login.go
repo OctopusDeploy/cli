@@ -180,9 +180,9 @@ func loginWithOpenIdConnect(server string, serviceAccountId string, idToken stri
 	cmd.Printf("Configuring CLI to use access token for Octopus Server: %s", serverLink)
 	cmd.Println()
 
-	set.SetConfig(constants.ConfigUrl, server)
-	set.SetConfig(constants.ConfigAccessToken, tokenExchangeResponse.AccessToken)
-	set.SetConfig(constants.ConfigApiKey, "")
+	set.SetConfigNonInteractive(constants.ConfigUrl, server)
+	set.SetConfigNonInteractive(constants.ConfigAccessToken, tokenExchangeResponse.AccessToken)
+	set.SetConfigNonInteractive(constants.ConfigApiKey, "")
 
 	cmd.Printf("Login successful, happy deployments!")
 	cmd.Println()
@@ -282,9 +282,9 @@ func loginWithApiKey(server string, apiKey string, cmd *cobra.Command) error {
 	cmd.Printf("Configuring CLI to use API key for Octopus Server: %s", serverLink)
 	cmd.Println()
 
-	set.SetConfig(constants.ConfigUrl, server)
-	set.SetConfig(constants.ConfigApiKey, apiKey)
-	set.SetConfig(constants.ConfigAccessToken, "")
+	set.SetConfigNonInteractive(constants.ConfigUrl, server)
+	set.SetConfigNonInteractive(constants.ConfigApiKey, apiKey)
+	set.SetConfigNonInteractive(constants.ConfigAccessToken, "")
 
 	cmd.Printf("Login successful, happy deployments!")
 	cmd.Println()

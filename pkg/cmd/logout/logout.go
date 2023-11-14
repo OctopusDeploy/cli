@@ -24,9 +24,9 @@ func NewCmdLogout(f factory.Factory) *cobra.Command {
 }
 
 func logoutRun(cmd *cobra.Command) error {
-	set.SetConfig("Url", "")
-	set.SetConfig("ApiKey", "")
-	set.SetConfig("AccessToken", "")
+	set.SetConfigNonInteractive("Url", "")
+	set.SetConfigNonInteractive("ApiKey", "")
+	set.SetConfigNonInteractive("AccessToken", "")
 
 	return nil
 }
