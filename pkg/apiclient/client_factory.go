@@ -168,9 +168,17 @@ func ValidateMandatoryEnvironment(host string, apiKey string, accessToken string
 
 func GetInteractiveMandatoryEnvironmentErrorMessage() string {
 
+	octopusLogo := ""
+
+	if viper.GetBool(constants.ConfigShowOctopus) {
+		octopusLogo = output.Cyanf(`
+%s
+`, constants.OctopusLogo)
+	}
+
 	return heredoc.Docf(`
 Work seamlessly with Octopus Deploy from the command line.
-
+%s
 To get started with the Octopus CLI, please login to your Octopus Server using:
 
   %s
@@ -181,7 +189,7 @@ Alternatively you can set the following environment variables:
   %s: An API key to authenticate to the Octopus Server with
 			
 Happy deployments!`,
-		output.Cyan("octopus login"), output.Cyan(constants.EnvOctopusUrl), output.Cyan(constants.EnvOctopusApiKey))
+		octopusLogo, output.Cyan("octopus login"), output.Cyan(constants.EnvOctopusUrl), output.Cyan(constants.EnvOctopusApiKey))
 }
 
 func GetNonInteractiveMandatoryEnvironmentErrorMessage() string {
@@ -195,9 +203,17 @@ func GetNonInteractiveMandatoryEnvironmentErrorMessage() string {
 	accessTokenEnvVar := output.Cyan(constants.EnvOctopusAccessToken)
 	apiKeyEnvVar := output.Cyan(constants.EnvOctopusApiKey)
 
+	octopusLogo := ""
+
+	if viper.GetBool(constants.ConfigShowOctopus) {
+		octopusLogo = output.Cyanf(`
+%s
+`, constants.OctopusLogo)
+	}
+
 	return heredoc.Docf(`
 Work seamlessly with Octopus Deploy from the command line.
-
+%s
 The Octopus CLI supports two methods of authentication when using automation:
 
 %s
@@ -223,7 +239,7 @@ Or alternatively:
   %s
 			
 Happy deployments!`,
-		oidcHeader, serverEnvVar, accessTokenEnvVar, oidcLoginCommand, apiKeyHeader, serverEnvVar, apiKeyEnvVar, apiKeyLoginCommand)
+		octopusLogo, oidcHeader, serverEnvVar, accessTokenEnvVar, oidcLoginCommand, apiKeyHeader, serverEnvVar, apiKeyEnvVar, apiKeyLoginCommand)
 }
 
 func (c *Client) GetActiveSpace() *spaces.Space {
