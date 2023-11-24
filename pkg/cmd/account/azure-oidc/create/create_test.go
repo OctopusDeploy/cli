@@ -27,13 +27,14 @@ func TestPromptMissing_AllOptionsSupplied(t *testing.T) {
 	flags.ExecutionSubjectKeys.Value = []string{"space"}
 	flags.HealthSubjectKeys.Value = []string{"space"}
 	flags.AccountTestSubjectKeys.Value = []string{"space"}
+	flags.Audience.Value = "custom audience"
 	flags.Environments.Value = []string{"dev"}
 
 	opts := &create.CreateOptions{
 		CreateFlags:  flags,
 		Dependencies: &cmd.Dependencies{Ask: asker},
 	}
-	create.PromptMissing(opts)
+	_ = create.PromptMissing(opts)
 	checkRemainingPrompts()
 }
 
@@ -50,6 +51,7 @@ func TestPromptMissing_NoOptionsSupplied(t *testing.T) {
 		testutil.NewMultiSelectPrompt("Deployment and Runbook subject keys", "", []string{"space", "environment", "project", "tenant", "runbook", "account", "type"}, []string{"space", "type"}),
 		testutil.NewMultiSelectPrompt("Health check subject keys", "", []string{"space", "target", "account", "type"}, []string{"space", "target"}),
 		testutil.NewMultiSelectPrompt("Account test subject keys", "", []string{"space", "account", "type"}, []string{"space", "account"}),
+		testutil.NewInputPromptWithDefault("Audience", "Set this only if you need to override the default Audience value. In most cases you should leave it at the default value.", "api://AzureADTokenExchange", "custom audience"),
 		testutil.NewMultiSelectPrompt("Choose the environments that are allowed to use this account.\nIf nothing is selected, the account can be used for deployments to any environment.", "", []string{"testenv"}, []string{"testenv"}),
 	}
 
@@ -76,6 +78,7 @@ func TestPromptMissing_NoOptionsSupplied(t *testing.T) {
 	assert.Equal(t, []string{"space", "type"}, flags.ExecutionSubjectKeys.Value)
 	assert.Equal(t, []string{"space", "target"}, flags.HealthSubjectKeys.Value)
 	assert.Equal(t, []string{"space", "account"}, flags.AccountTestSubjectKeys.Value)
+	assert.Equal(t, "custom audience", flags.Audience.Value)
 	assert.Equal(t, []string{"Environments-1"}, flags.Environments.Value)
 	checkRemainingPrompts()
 }

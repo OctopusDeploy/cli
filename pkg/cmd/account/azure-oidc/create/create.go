@@ -39,6 +39,7 @@ type CreateFlags struct {
 	HealthSubjectKeys      *flag.Flag[[]string]
 	AccountTestSubjectKeys *flag.Flag[[]string]
 	ExecutionSubjectKeys   *flag.Flag[[]string]
+	Audience               *flag.Flag[string]
 }
 
 type CreateOptions struct {
@@ -61,6 +62,7 @@ func NewCreateFlags() *CreateFlags {
 		HealthSubjectKeys:      flag.New[[]string]("health-subject-keys", false),
 		AccountTestSubjectKeys: flag.New[[]string]("accounttest-subject-keys", false),
 		ExecutionSubjectKeys:   flag.New[[]string]("execution-subject-keys", false),
+		Audience:               flag.New[string]("audience", false),
 	}
 }
 
@@ -156,6 +158,7 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 	flags.StringArrayVarP(&createFlags.HealthSubjectKeys.Value, createFlags.HealthSubjectKeys.Name, "H", nil, "The subject keys used for a health check")
 	flags.StringArrayVarP(&createFlags.AccountTestSubjectKeys.Value, createFlags.AccountTestSubjectKeys.Name, "T", nil, "The subject keys used for an account test")
 	flags.StringArrayVarP(&createFlags.ExecutionSubjectKeys.Value, createFlags.ExecutionSubjectKeys.Name, "E", nil, "The subject keys used for a deployment or runbook")
+	flags.StringVar(&createFlags.Audience.Value, createFlags.Audience.Name, "", "The audience claim for the federated credentials. Defaults to api://AzureADTokenExchange")
 	flags.StringVarP(&descriptionFilePath, "description-file", "D", "", "Read the description from `file`")
 
 	return cmd
@@ -186,12 +189,13 @@ func CreateRun(opts *CreateOptions) error {
 		tenantID,
 		appID,
 	)
-	oidcAccount.HealthCheckSubjectKeys = opts.HealthSubjectKeys.Value
-	oidcAccount.DeploymentSubjectKeys = opts.ExecutionSubjectKeys.Value
-	oidcAccount.AccountTestSubjectKeys = opts.AccountTestSubjectKeys.Value
 	if err != nil {
 		return err
 	}
+	oidcAccount.HealthCheckSubjectKeys = opts.HealthSubjectKeys.Value
+	oidcAccount.DeploymentSubjectKeys = opts.ExecutionSubjectKeys.Value
+	oidcAccount.AccountTestSubjectKeys = opts.AccountTestSubjectKeys.Value
+	oidcAccount.Audience = opts.Audience.Value
 	oidcAccount.Description = opts.Description.Value
 	oidcAccount.AzureEnvironment = opts.AzureEnvironment.Value
 	oidcAccount.ResourceManagerEndpoint = opts.RMBaseUri.Value
@@ -355,6 +359,16 @@ func PromptMissing(opts *CreateOptions) error {
 	if len(opts.AccountTestSubjectKeys.Value) == 0 {
 		opts.AccountTestSubjectKeys.Value, err = promptSubjectKeys(opts.Ask, "Account test subject keys", []string{"space", "account", "type"})
 		if err != nil {
+			return err
+		}
+	}
+
+	if opts.Audience.Value == "" {
+		if err := opts.Ask(&survey.Input{
+			Message: "Audience",
+			Default: "api://AzureADTokenExchange",
+			Help:    "Set this only if you need to override the default Audience value. In most cases you should leave it at the default value.",
+		}, &opts.Audience.Value); err != nil {
 			return err
 		}
 	}

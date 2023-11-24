@@ -58,21 +58,27 @@ func listAzureAccounts(client *client.Client, cmd *cobra.Command) error {
 				Name                 string
 				Slug                 string
 				SubscriptionNumber   string
+				TenantID             string
+				ApplicationID        string
 				AccountType          string
 				AzureEnvironment     string
 				HealthSubjectKeys    []string
 				TestSubjectKeys      []string
 				ExecutionSubjectKeys []string
+				Audience             string
 			}{
 				Id:                   acc.GetID(),
 				Name:                 acc.GetName(),
 				Slug:                 acc.GetSlug(),
 				SubscriptionNumber:   acc.SubscriptionID.String(),
+				TenantID:             acc.TenantID.String(),
+				ApplicationID:        acc.ApplicationID.String(),
 				AccountType:          string(acc.AccountType),
 				AzureEnvironment:     acc.AzureEnvironment,
 				HealthSubjectKeys:    acc.HealthCheckSubjectKeys,
 				TestSubjectKeys:      acc.AccountTestSubjectKeys,
 				ExecutionSubjectKeys: acc.DeploymentSubjectKeys,
+				Audience:             acc.Audience,
 			}
 		},
 		Table: output.TableDefinition[accounts.IAccount]{
