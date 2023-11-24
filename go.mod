@@ -2,6 +2,10 @@ module github.com/OctopusDeploy/cli
 
 go 1.19
 
+replace (
+	github.com/OctopusDeploy/go-octopusdeploy/v2 => ../go-octopusdeploy
+)
+
 require (
 	github.com/AlecAivazis/survey/v2 v2.3.6
 	github.com/MakeNowJust/heredoc/v2 v2.0.1
