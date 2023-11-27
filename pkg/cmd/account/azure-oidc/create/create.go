@@ -82,9 +82,9 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:     "create",
-		Short:   "Create an Azure subscription account",
-		Long:    "Create an Azure subscription account in Octopus Deploy",
-		Example: heredoc.Docf("$ %s account azure create", constants.ExecutableName),
+		Short:   "Create an Azure OpenID Connect account",
+		Long:    "Create an Azure OpenID Connect account in Octopus Deploy",
+		Example: heredoc.Docf("$ %s account azure-oidc create", constants.ExecutableName),
 		Aliases: []string{"new"},
 		RunE: func(c *cobra.Command, _ []string) error {
 			opts := NewCreateOptions(createFlags, cmd.NewDependencies(f, c))

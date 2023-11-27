@@ -16,21 +16,21 @@ func NewCmdList(f factory.Factory) *cobra.Command {
 		Use:     "list",
 		Short:   "List Azure OpenID Connect accounts",
 		Long:    "List Azure OpenID Connect accounts in Octopus Deploy",
-		Example: heredoc.Docf("$ %s account azure list", constants.ExecutableName),
+		Example: heredoc.Docf("$ %s account azure-oidc list", constants.ExecutableName),
 		Aliases: []string{"ls"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			client, err := f.GetSpacedClient(apiclient.NewRequester(cmd))
 			if err != nil {
 				return err
 			}
-			return listAzureAccounts(client, cmd)
+			return listAzureOidcAccounts(client, cmd)
 		},
 	}
 
 	return cmd
 }
 
-func listAzureAccounts(client *client.Client, cmd *cobra.Command) error {
+func listAzureOidcAccounts(client *client.Client, cmd *cobra.Command) error {
 	accountResources, err := client.Accounts.Get(accounts.AccountsQuery{
 		AccountType: accounts.AccountTypeAzureOIDC,
 	})
