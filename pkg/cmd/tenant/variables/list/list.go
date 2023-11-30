@@ -1,13 +1,16 @@
 package list
 
 import (
+	"errors"
 	"fmt"
+
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/apiclient"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/OctopusDeploy/cli/pkg/output"
 	"github.com/OctopusDeploy/cli/pkg/question/selectors"
+	"github.com/OctopusDeploy/cli/pkg/util/flag"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/actiontemplates"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/core"
@@ -18,7 +21,21 @@ import (
 const (
 	LibraryVariableSetType = "Library"
 	ProjectType            = "Project"
+	FlagTenant             = "tenant"
+	FlagName               = "name"
 )
+
+type ListFlags struct {
+	Tenant *flag.Flag[string]
+	Name   *flag.Flag[string]
+}
+
+func NewListFlags() *ListFlags {
+	return &ListFlags{
+		Tenant: flag.New[string](FlagTenant, false),
+		Name:   flag.New[string](FlagName, false),
+	}
+}
 
 type VariableValue struct {
 	Type            string
@@ -68,6 +85,8 @@ func NewVariableValueProjectAsJson(v *VariableValue) *VariableValueProjectAsJson
 }
 
 func NewCmdList(f factory.Factory) *cobra.Command {
+	listFlags := NewListFlags()
+
 	cmd := &cobra.Command{
 		Use:   "list",
 		Short: "List tenant variables",
@@ -78,28 +97,36 @@ func NewCmdList(f factory.Factory) *cobra.Command {
 		`, constants.ExecutableName),
 		Aliases: []string{"ls"},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if len(args) == 0 {
-				return fmt.Errorf("must supply tenant identifier")
+			if len(args) > 0 && listFlags.Tenant.Value == "" {
+				listFlags.Tenant.Value = args[0]
 			}
-			return listRun(cmd, f, args[0])
+			return listRun(cmd, f, listFlags)
 		},
 	}
 
+	flags := cmd.Flags()
+	flags.StringVarP(&listFlags.Tenant.Value, listFlags.Tenant.Name, "t", "", "Name or ID of the tenant to list variables for")
+	flags.StringVarP(&listFlags.Name.Value, listFlags.Name.Name, "n", "", "filter variables to match only ones with a name containing the given string")
 	return cmd
 }
 
-func listRun(cmd *cobra.Command, f factory.Factory, id string) error {
+func listRun(cmd *cobra.Command, f factory.Factory, flags *ListFlags) error {
 	client, err := f.GetSpacedClient(apiclient.NewRequester(cmd))
 	if err != nil {
 		return err
 	}
 
-	tenant, err := client.Tenants.GetByIdentifier(id)
+	tenant := flags.Tenant.Value
+	if tenant == "" {
+		return errors.New("tenant must be specified")
+	}
+
+	selectedTenant, err := client.Tenants.GetByIdentifier(tenant)
 	if err != nil {
 		return err
 	}
 
-	vars, err := client.Tenants.GetVariables(tenant)
+	vars, err := client.Tenants.GetVariables(selectedTenant)
 	if err != nil {
 		return err
 	}

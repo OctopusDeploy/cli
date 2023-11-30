@@ -1,47 +1,40 @@
 package view
 
 import (
+	"errors"
 	"fmt"
+
 	"github.com/OctopusDeploy/cli/pkg/apiclient"
-	"io"
 
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/OctopusDeploy/cli/pkg/output"
-	"github.com/OctopusDeploy/cli/pkg/usage"
 	"github.com/OctopusDeploy/cli/pkg/util/flag"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
 	"github.com/pkg/browser"
 	"github.com/spf13/cobra"
 )
 
 const (
-	FlagWeb = "web"
+	FlagTenant = "tenant"
+	FlagWeb    = "web"
 )
 
 type ViewFlags struct {
-	Web *flag.Flag[bool]
+	Tenant *flag.Flag[string]
+	Web    *flag.Flag[bool]
 }
 
 func NewViewFlags() *ViewFlags {
 	return &ViewFlags{
-		Web: flag.New[bool](FlagWeb, false),
+		Tenant: flag.New[string](FlagTenant, false),
+		Web:    flag.New[bool](FlagWeb, false),
 	}
-}
-
-type ViewOptions struct {
-	Client   *client.Client
-	Host     string
-	out      io.Writer
-	idOrName string
-	flags    *ViewFlags
 }
 
 func NewCmdView(f factory.Factory) *cobra.Command {
 	viewFlags := NewViewFlags()
 	cmd := &cobra.Command{
-		Args:  usage.ExactArgs(1),
 		Use:   "view {<name> | <id>}",
 		Short: "View a tenant",
 		Long:  "View a tenant in Octopus Deploy",
@@ -50,67 +43,65 @@ func NewCmdView(f factory.Factory) *cobra.Command {
 			$ %[1]s tenant view 'Tenant'
 		`, constants.ExecutableName),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			client, err := f.GetSpacedClient(apiclient.NewRequester(cmd))
-			if err != nil {
-				return err
+			if len(args) > 0 && viewFlags.Tenant.Value == "" {
+				viewFlags.Tenant.Value = args[0]
 			}
-
-			if len(args) == 0 {
-				return fmt.Errorf("tenant identifier is required")
-			}
-
-			opts := &ViewOptions{
-				client,
-				f.GetCurrentHost(),
-				cmd.OutOrStdout(),
-				args[0],
-				viewFlags,
-			}
-
-			return viewRun(opts)
+			return viewRun(cmd, f, viewFlags)
 		},
 	}
 
 	flags := cmd.Flags()
+	flags.StringVarP(&viewFlags.Tenant.Value, viewFlags.Tenant.Name, "t", "", "Name or ID of the tenant to list variables for")
 	flags.BoolVarP(&viewFlags.Web.Value, viewFlags.Web.Name, "w", false, "Open in web browser")
 
 	return cmd
 }
 
-func viewRun(opts *ViewOptions) error {
-	tenant, err := opts.Client.Tenants.GetByIdentifier(opts.idOrName)
+func viewRun(cmd *cobra.Command, f factory.Factory, flags *ViewFlags) error {
+	client, err := f.GetSpacedClient(apiclient.NewRequester(cmd))
 	if err != nil {
 		return err
 	}
 
-	fmt.Fprintf(opts.out, "%s %s\n", output.Bold(tenant.Name), output.Dimf("(%s)", tenant.ID))
-
-	if len(tenant.TenantTags) > 0 {
-		fmt.Fprintf(opts.out, "Tags: ")
+	tenant := flags.Tenant.Value
+	if tenant == "" {
+		return errors.New("tenant must be specified")
 	}
-	for i, tag := range tenant.TenantTags {
+
+	selectedTenant, err := client.Tenants.GetByIdentifier(tenant)
+	if err != nil {
+		return err
+	}
+
+	out := cmd.OutOrStdout()
+	fmt.Fprintf(out, "%s %s\n", output.Bold(selectedTenant.Name), output.Dimf("(%s)", selectedTenant.ID))
+
+	if len(selectedTenant.TenantTags) > 0 {
+		fmt.Fprintf(out, "Tags: ")
+	}
+	for i, tag := range selectedTenant.TenantTags {
 		suffix := ", "
-		if i == len(tenant.TenantTags)-1 {
+		if i == len(selectedTenant.TenantTags)-1 {
 			suffix = ""
 		}
-		fmt.Fprintf(opts.out, "%s%s", tag, suffix)
+		fmt.Fprintf(out, "%s%s", tag, suffix)
 	}
-	if len(tenant.TenantTags) > 0 {
-		fmt.Fprintf(opts.out, "\n")
+	if len(selectedTenant.TenantTags) > 0 {
+		fmt.Fprintf(out, "\n")
 	}
 
-	if tenant.Description == "" {
-		fmt.Fprintln(opts.out, output.Dim(constants.NoDescription))
+	if selectedTenant.Description == "" {
+		fmt.Fprintln(out, output.Dim(constants.NoDescription))
 	} else {
-		fmt.Fprintln(opts.out, output.Dim(tenant.Description))
+		fmt.Fprintln(out, output.Dim(selectedTenant.Description))
 	}
 
-	link := fmt.Sprintf("%s/app#/%s/tenants/%s/overview", opts.Host, tenant.SpaceID, tenant.ID)
+	link := fmt.Sprintf("%s/app#/%s/tenants/%s/overview", f.GetCurrentHost(), selectedTenant.SpaceID, selectedTenant.ID)
 
 	// footer
-	fmt.Fprintf(opts.out, "View this tenant in Octopus Deploy: %s\n", output.Blue(link))
+	fmt.Fprintf(out, "View this tenant in Octopus Deploy: %s\n", output.Blue(link))
 
-	if opts.flags.Web.Value {
+	if flags.Web.Value {
 		browser.OpenURL(link)
 	}
 
