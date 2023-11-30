@@ -22,18 +22,15 @@ const (
 	LibraryVariableSetType = "Library"
 	ProjectType            = "Project"
 	FlagTenant             = "tenant"
-	FlagName               = "name"
 )
 
 type ListFlags struct {
 	Tenant *flag.Flag[string]
-	Name   *flag.Flag[string]
 }
 
 func NewListFlags() *ListFlags {
 	return &ListFlags{
 		Tenant: flag.New[string](FlagTenant, false),
-		Name:   flag.New[string](FlagName, false),
 	}
 }
 
@@ -106,7 +103,6 @@ func NewCmdList(f factory.Factory) *cobra.Command {
 
 	flags := cmd.Flags()
 	flags.StringVarP(&listFlags.Tenant.Value, listFlags.Tenant.Name, "t", "", "Name or ID of the tenant to list variables for")
-	flags.StringVarP(&listFlags.Name.Value, listFlags.Name.Name, "n", "", "filter variables to match only ones with a name containing the given string")
 	return cmd
 }
 
