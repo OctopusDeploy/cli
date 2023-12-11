@@ -41,6 +41,9 @@ type ClientFactory interface {
 
 	// GetHostUrl returns the current set API URL as a string
 	GetHostUrl() string
+
+	// GetHttpClient returns a raw http client which can be used to query Octopus
+	GetHttpClient() (*http.Client, error)
 }
 
 type Client struct {
@@ -250,6 +253,10 @@ func (c *Client) GetHostUrl() string {
 	return c.ApiUrl.String()
 }
 
+func (c *Client) GetHttpClient() (*http.Client, error) {
+	return c.HttpClient, nil
+}
+
 func (c *Client) SetSpaceNameOrId(spaceNameOrId string) {
 	// technically don't need to nil out the SystemClient, but it's cleaner that way
 	// because a SpaceScopedClient can also be a SystemClient
@@ -397,3 +404,7 @@ func (s *stubClientFactory) GetActiveSpace() *spaces.Space { return nil }
 func (s *stubClientFactory) SetSpaceNameOrId(_ string) {}
 
 func (s *stubClientFactory) GetHostUrl() string { return "" }
+
+func (s *stubClientFactory) GetHttpClient() (*http.Client, error) {
+	return nil, nil
+}

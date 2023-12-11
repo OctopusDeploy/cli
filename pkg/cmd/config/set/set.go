@@ -118,7 +118,3 @@ func promptMissing(ask question.Asker, key string) (string, string, error) {
 
 	return key, value, nil
 }
-
-func SetConfigNonInteractive(key string, value string) error {
-	return setRun(false, nil, key, value)
-}

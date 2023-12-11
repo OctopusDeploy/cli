@@ -12,7 +12,7 @@ import (
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/apiclient"
-	"github.com/OctopusDeploy/cli/pkg/cmd/config/set"
+	"github.com/OctopusDeploy/cli/pkg/config"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/constants/annotations"
 	"github.com/OctopusDeploy/cli/pkg/factory"
@@ -21,7 +21,6 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/util/flag"
 	"github.com/pkg/browser"
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 
 	octopusApiClient "github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
 )
@@ -100,7 +99,14 @@ type TokenExchangeErrorResponse struct {
 }
 
 func loginRun(cmd *cobra.Command, f factory.Factory, isPromptEnabled bool, ask question.Asker, flags *LoginFlags) error {
-	inputs, err := getInputs(flags, isPromptEnabled, ask, cmd)
+
+	configProvider, err := f.GetConfigProvider()
+
+	if err != nil {
+		return err
+	}
+
+	inputs, err := getInputs(configProvider, flags, isPromptEnabled, ask, cmd)
 	if err != nil {
 		return err
 	}
@@ -117,8 +123,19 @@ func loginRun(cmd *cobra.Command, f factory.Factory, isPromptEnabled bool, ask q
 		return errors.New("can only login with one of service account id or api key")
 	}
 
+	httpClient, err := f.GetHttpClient()
+
+	if err != nil {
+		return err
+	}
+
+	// The http client could be nil, in which case we just use the default one from http
+	if httpClient == nil {
+		httpClient = &http.Client{}
+	}
+
 	if inputs.apiKey != "" {
-		err = loginWithApiKey(inputs.server, inputs.apiKey, cmd)
+		err = loginWithApiKey(configProvider, httpClient, inputs.server, inputs.apiKey, cmd)
 		if err != nil {
 			return err
 		}
@@ -127,7 +144,7 @@ func loginRun(cmd *cobra.Command, f factory.Factory, isPromptEnabled bool, ask q
 			return errors.New("must supply an id token when logging in with OpenID Connect")
 		}
 
-		err = loginWithOpenIdConnect(inputs.server, inputs.serviceAccountId, inputs.idToken, cmd)
+		err = loginWithOpenIdConnect(configProvider, httpClient, inputs.server, inputs.serviceAccountId, inputs.idToken, cmd)
 		if err != nil {
 			return err
 		}
@@ -136,19 +153,20 @@ func loginRun(cmd *cobra.Command, f factory.Factory, isPromptEnabled bool, ask q
 	return nil
 }
 
-func loginWithOpenIdConnect(server string, serviceAccountId string, idToken string, cmd *cobra.Command) error {
+func loginWithOpenIdConnect(configProvider config.IConfigProvider, httpClient *http.Client, server string, serviceAccountId string, idToken string, cmd *cobra.Command) error {
 	serverLink := output.Cyan(server)
 	serviceAccountOutput := output.Cyan(serviceAccountId)
 
 	cmd.Printf("Logging in with OpenID Connect to %s using service account %s", serverLink, serviceAccountOutput)
 	cmd.Println()
 
-	openIdConfiguration, err := getOpenIdConfiguration(server)
+	openIdConfiguration, err := getOpenIdConfiguration(httpClient, server)
 	if err != nil {
 		return err
 	}
 
-	tokenExchangeResponse, err := performTokenExchange(serviceAccountId, idToken, openIdConfiguration)
+	tokenExchangeResponse, err := performTokenExchange(httpClient, serviceAccountId, idToken, openIdConfiguration)
+
 	if err != nil {
 		return err
 	}
@@ -171,7 +189,7 @@ func loginWithOpenIdConnect(server string, serviceAccountId string, idToken stri
 	cmd.Printf("Access token obtained successfully via OpenID Connect, valid until %s", output.Cyan(expiryTime.Format("2006-01-02 15:04:05")))
 	cmd.Println()
 
-	err = testLogin(cmd, server, accessTokenCredentials)
+	err = testLogin(cmd, httpClient, server, accessTokenCredentials)
 
 	if err != nil {
 		return errors.New("login unsuccessful using access token obtained via OpenID Connect")
@@ -180,16 +198,16 @@ func loginWithOpenIdConnect(server string, serviceAccountId string, idToken stri
 	cmd.Printf("Configuring CLI to use access token for Octopus Server: %s", serverLink)
 	cmd.Println()
 
-	set.SetConfigNonInteractive(constants.ConfigUrl, server)
-	set.SetConfigNonInteractive(constants.ConfigAccessToken, tokenExchangeResponse.AccessToken)
-	set.SetConfigNonInteractive(constants.ConfigApiKey, "")
+	configProvider.Set(constants.ConfigUrl, server)
+	configProvider.Set(constants.ConfigAccessToken, tokenExchangeResponse.AccessToken)
+	configProvider.Set(constants.ConfigApiKey, "")
 
 	cmd.Printf("Login successful, happy deployments!")
 	cmd.Println()
 	return nil
 }
 
-func performTokenExchange(serviceAccountId string, idToken string, openIdConfiguration *OpenIdConfigurationResponse) (*TokenExchangeResponse, error) {
+func performTokenExchange(httpClient *http.Client, serviceAccountId string, idToken string, openIdConfiguration *OpenIdConfigurationResponse) (*TokenExchangeResponse, error) {
 	tokenExchangeData := TokenExchangeRequest{
 		GrantType:        "urn:ietf:params:oauth:grant-type:token-exchange",
 		Audience:         serviceAccountId,
@@ -205,7 +223,7 @@ func performTokenExchange(serviceAccountId string, idToken string, openIdConfigu
 
 	bodyReader := bytes.NewReader(tokenExchangeBody)
 
-	resp, err := http.Post(openIdConfiguration.TokenEndpoint, "application/json", bodyReader)
+	resp, err := httpClient.Post(openIdConfiguration.TokenEndpoint, "application/json", bodyReader)
 
 	if err != nil {
 		return nil, err
@@ -239,10 +257,10 @@ func performTokenExchange(serviceAccountId string, idToken string, openIdConfigu
 	return &tokenExchangeResponse, nil
 }
 
-func getOpenIdConfiguration(server string) (*OpenIdConfigurationResponse, error) {
+func getOpenIdConfiguration(httpClient *http.Client, server string) (*OpenIdConfigurationResponse, error) {
 	openIdConfigurationEndpoint := fmt.Sprintf("%s/.well-known/openid-configuration", server)
 
-	resp, err := http.Get(openIdConfigurationEndpoint)
+	resp, err := httpClient.Get(openIdConfigurationEndpoint)
 
 	if err != nil {
 		return nil, err
@@ -264,7 +282,7 @@ func getOpenIdConfiguration(server string) (*OpenIdConfigurationResponse, error)
 	return &openIdConfiguration, nil
 }
 
-func loginWithApiKey(server string, apiKey string, cmd *cobra.Command) error {
+func loginWithApiKey(configProvider config.IConfigProvider, httpClient *http.Client, server string, apiKey string, cmd *cobra.Command) error {
 	serverLink := output.Cyan(server)
 
 	apiKeyCredentials, err := octopusApiClient.NewApiKey(apiKey)
@@ -273,7 +291,7 @@ func loginWithApiKey(server string, apiKey string, cmd *cobra.Command) error {
 		return err
 	}
 
-	err = testLogin(cmd, server, apiKeyCredentials)
+	err = testLogin(cmd, httpClient, server, apiKeyCredentials)
 
 	if err != nil {
 		return errors.New("login unsuccessful, please check that your API key is valid")
@@ -282,9 +300,9 @@ func loginWithApiKey(server string, apiKey string, cmd *cobra.Command) error {
 	cmd.Printf("Configuring CLI to use API key for Octopus Server: %s", serverLink)
 	cmd.Println()
 
-	set.SetConfigNonInteractive(constants.ConfigUrl, server)
-	set.SetConfigNonInteractive(constants.ConfigApiKey, apiKey)
-	set.SetConfigNonInteractive(constants.ConfigAccessToken, "")
+	configProvider.Set(constants.ConfigUrl, server)
+	configProvider.Set(constants.ConfigApiKey, apiKey)
+	configProvider.Set(constants.ConfigAccessToken, "")
 
 	cmd.Printf("Login successful, happy deployments!")
 	cmd.Println()
@@ -298,50 +316,55 @@ type LoginInputs struct {
 	idToken          string
 }
 
-func getInputs(flags *LoginFlags, isPromptEnabled bool, ask question.Asker, cmd *cobra.Command) (*LoginInputs, error) {
+func getInputs(configProvider config.IConfigProvider, flags *LoginFlags, isPromptEnabled bool, ask question.Asker, cmd *cobra.Command) (*LoginInputs, error) {
 	server := flags.Server.Value
 	apiKey := flags.ApiKey.Value
 	serviceAccountId := flags.ServiceAccountId.Value
 	idToken := flags.IdToken.Value
 
-	if isPromptEnabled && server == "" {
-		currentServer := viper.GetString(constants.ConfigUrl)
+	if isPromptEnabled {
+		if server == "" {
+			currentServer := configProvider.Get(constants.ConfigUrl)
 
-		if err := ask(&survey.Input{
-			Message: "Octopus Server URL",
-			Default: currentServer,
-		}, &server, survey.WithValidator(survey.Required)); err != nil {
-			return nil, err
-		}
-
-		var createNewApiKey bool
-
-		if err := ask(&survey.Confirm{
-			Message: "Create a new API key",
-			Default: true,
-		}, &createNewApiKey); err != nil {
-			return nil, err
-		}
-
-		if createNewApiKey {
-			createApiKeyUrl := fmt.Sprintf("%s/app#/users/me/apiKeys", server)
-			createApiKeyLink := output.Cyan(createApiKeyUrl)
-			cmd.Printf("A web browser has been opened at %s. Please create an API key and paste it here. If no web browser is available or if the web browser fails to open, please use the --server and --api-key arguments directly e.g. octopus login --server %s --api-key API-MYAPIKEY.", createApiKeyLink, server)
-			cmd.Println()
-
-			err := browser.OpenURL(createApiKeyUrl)
-
-			if err != nil {
+			if err := ask(&survey.Input{
+				Message: "Octopus Server URL",
+				Default: currentServer,
+			}, &server, survey.WithValidator(survey.Required)); err != nil {
 				return nil, err
 			}
 		}
 
-		if err := ask(&survey.Input{
-			Message: "API Key",
-		}, &apiKey, survey.WithValidator(survey.Required)); err != nil {
-			return nil, err
+		if apiKey == "" {
+			var createNewApiKey bool
+
+			if err := ask(&survey.Confirm{
+				Message: "Create a new API key",
+				Default: true,
+			}, &createNewApiKey); err != nil {
+				return nil, err
+			}
+
+			if createNewApiKey {
+				createApiKeyUrl := fmt.Sprintf("%s/app#/users/me/apiKeys", server)
+				createApiKeyLink := output.Cyan(createApiKeyUrl)
+				cmd.Printf("A web browser has been opened at %s. Please create an API key and paste it here. If no web browser is available or if the web browser fails to open, please use the --server and --api-key arguments directly e.g. octopus login --server %s --api-key API-MYAPIKEY.", createApiKeyLink, server)
+				cmd.Println()
+
+				err := browser.OpenURL(createApiKeyUrl)
+
+				if err != nil {
+					return nil, err
+				}
+			}
+
+			if err := ask(&survey.Input{
+				Message: "API Key",
+			}, &apiKey, survey.WithValidator(survey.Required)); err != nil {
+				return nil, err
+			}
 		}
 	}
+
 	inputs := &LoginInputs{
 		server:           server,
 		apiKey:           apiKey,
@@ -351,17 +374,13 @@ func getInputs(flags *LoginFlags, isPromptEnabled bool, ask question.Asker, cmd 
 	return inputs, nil
 }
 
-func testLogin(cmd *cobra.Command, server string, credentials octopusApiClient.ICredential) error {
+func testLogin(cmd *cobra.Command, httpClient *http.Client, server string, credentials octopusApiClient.ICredential) error {
 	serverLink := output.Cyan(server)
 
 	cmd.Printf("Testing login to Octopus Server: %s", serverLink)
 	cmd.Println()
 
 	askProvider := question.NewAskProvider(survey.AskOne)
-
-	httpClient := &http.Client{
-		Transport: apiclient.NewSpinnerRoundTripper(),
-	}
 
 	clientFactory, err := apiclient.NewClientFactory(httpClient, server, credentials, "", askProvider)
 

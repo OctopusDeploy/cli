@@ -28,7 +28,9 @@ func main() {
 	// if there is a missing or invalid .env file anywhere, we don't care, just ignore it
 	_ = godotenv.Load()
 
-	if err := config.Setup(viper.GetViper()); err != nil {
+	viper := viper.GetViper()
+
+	if err := config.Setup(viper); err != nil {
 		fmt.Println(err)
 		os.Exit(3)
 	}
@@ -63,7 +65,9 @@ func main() {
 
 	s := spinner.New(spinner.CharSets[11], 100*time.Millisecond, spinner.WithColor("cyan"))
 
-	f := factory.New(clientFactory, askProvider, s, buildVersion)
+	c := config.New(viper)
+
+	f := factory.New(clientFactory, askProvider, s, buildVersion, c)
 
 	cmd := root.NewCmdRoot(f, clientFactory, askProvider)
 

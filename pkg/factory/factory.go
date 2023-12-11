@@ -1,8 +1,11 @@
 package factory
 
 import (
+	"net/http"
+
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/OctopusDeploy/cli/pkg/apiclient"
+	"github.com/OctopusDeploy/cli/pkg/config"
 	"github.com/OctopusDeploy/cli/pkg/question"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/spaces"
@@ -19,6 +22,7 @@ type factory struct {
 	asker        question.AskProvider
 	spinner      Spinner
 	buildVersion string
+	config       config.IConfigProvider
 }
 
 type Factory interface {
@@ -30,14 +34,17 @@ type Factory interface {
 	IsPromptEnabled() bool
 	Ask(p survey.Prompt, response interface{}, opts ...survey.AskOpt) error
 	BuildVersion() string
+	GetHttpClient() (*http.Client, error)
+	GetConfigProvider() (config.IConfigProvider, error)
 }
 
-func New(clientFactory apiclient.ClientFactory, asker question.AskProvider, s Spinner, buildVersion string) Factory {
+func New(clientFactory apiclient.ClientFactory, asker question.AskProvider, s Spinner, buildVersion string, config config.IConfigProvider) Factory {
 	return &factory{
 		client:       clientFactory,
 		asker:        asker,
 		spinner:      s,
 		buildVersion: buildVersion,
+		config:       config,
 	}
 }
 
@@ -66,6 +73,10 @@ func (f *factory) GetCurrentHost() string {
 	return f.client.GetHostUrl()
 }
 
+func (f *factory) GetHttpClient() (*http.Client, error) {
+	return f.client.GetHttpClient()
+}
+
 func (f *factory) IsPromptEnabled() bool {
 	return f.asker.IsInteractive()
 }
@@ -80,6 +91,10 @@ func (f *factory) Spinner() Spinner {
 
 func (f *factory) BuildVersion() string {
 	return f.buildVersion
+}
+
+func (f *factory) GetConfigProvider() (config.IConfigProvider, error) {
+	return f.config, nil
 }
 
 // NoSpinner is a static singleton "does nothing" stand-in for spinner if you want to
