@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/OctopusDeploy/cli/pkg/cmd"
 	"github.com/OctopusDeploy/cli/pkg/cmd/account/shared"
+	"github.com/OctopusDeploy/cli/pkg/question"
 	"os"
 	"strings"
 
@@ -21,7 +22,6 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/util/flag"
 	"github.com/OctopusDeploy/cli/pkg/validation"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/accounts"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/core"
 	"github.com/google/uuid"
 	"github.com/spf13/cobra"
 )
@@ -33,10 +33,13 @@ type CreateFlags struct {
 	SubscriptionID         *flag.Flag[string]
 	TenantID               *flag.Flag[string]
 	ApplicationID          *flag.Flag[string]
-	ApplicationPasswordKey *flag.Flag[string]
 	AzureEnvironment       *flag.Flag[string]
 	ADEndpointBaseUrl      *flag.Flag[string]
 	RMBaseUri              *flag.Flag[string]
+	HealthSubjectKeys      *flag.Flag[[]string]
+	AccountTestSubjectKeys *flag.Flag[[]string]
+	ExecutionSubjectKeys   *flag.Flag[[]string]
+	Audience               *flag.Flag[string]
 }
 
 type CreateOptions struct {
@@ -53,10 +56,13 @@ func NewCreateFlags() *CreateFlags {
 		SubscriptionID:         flag.New[string]("subscription-id", false),
 		TenantID:               flag.New[string]("tenant-id", false),
 		ApplicationID:          flag.New[string]("application-id", false),
-		ApplicationPasswordKey: flag.New[string]("application-key", true),
 		AzureEnvironment:       flag.New[string]("azure-environment", false),
 		ADEndpointBaseUrl:      flag.New[string]("ad-endpoint-base-uri", false),
 		RMBaseUri:              flag.New[string]("resource-management-base-uri", false),
+		HealthSubjectKeys:      flag.New[[]string]("health-subject-keys", false),
+		AccountTestSubjectKeys: flag.New[[]string]("accounttest-subject-keys", false),
+		ExecutionSubjectKeys:   flag.New[[]string]("execution-subject-keys", false),
+		Audience:               flag.New[string]("audience", false),
 	}
 }
 
@@ -76,9 +82,9 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:     "create",
-		Short:   "Create an Azure subscription account",
-		Long:    "Create an Azure subscription account in Octopus Deploy",
-		Example: heredoc.Docf("$ %s account azure create", constants.ExecutableName),
+		Short:   "Create an Azure OpenID Connect account",
+		Long:    "Create an Azure OpenID Connect account in Octopus Deploy",
+		Example: heredoc.Docf("$ %s account azure-oidc create", constants.ExecutableName),
 		Aliases: []string{"new"},
 		RunE: func(c *cobra.Command, _ []string) error {
 			opts := NewCreateOptions(createFlags, cmd.NewDependencies(f, c))
@@ -145,11 +151,14 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 	flags.StringVar(&createFlags.SubscriptionID.Value, createFlags.SubscriptionID.Name, "", "Your Azure subscription ID.")
 	flags.StringVar(&createFlags.TenantID.Value, createFlags.TenantID.Name, "", "Your Azure Active Directory Tenant ID.")
 	flags.StringVar(&createFlags.ApplicationID.Value, createFlags.ApplicationID.Name, "", "Your Azure Active Directory Application ID.")
-	flags.StringVar(&createFlags.ApplicationPasswordKey.Value, createFlags.ApplicationPasswordKey.Name, "", "The password for the Azure Active Directory application.")
 	flags.StringArrayVarP(&createFlags.Environments.Value, createFlags.Environments.Name, "e", nil, "The environments that are allowed to use this account")
 	flags.StringVar(&createFlags.AzureEnvironment.Value, createFlags.AzureEnvironment.Name, "", "Set only if you are using an isolated Azure Environment. Configure isolated Azure Environment. Valid option are AzureChinaCloud, AzureChinaCloud, AzureGermanCloud or AzureUSGovernment")
 	flags.StringVar(&createFlags.ADEndpointBaseUrl.Value, createFlags.ADEndpointBaseUrl.Name, "", "Set this only if you need to override the default Active Directory Endpoint.")
 	flags.StringVar(&createFlags.RMBaseUri.Value, createFlags.RMBaseUri.Name, "", "Set this only if you need to override the default Resource Management Endpoint.")
+	flags.StringArrayVarP(&createFlags.HealthSubjectKeys.Value, createFlags.HealthSubjectKeys.Name, "H", nil, "The subject keys used for a health check")
+	flags.StringArrayVarP(&createFlags.AccountTestSubjectKeys.Value, createFlags.AccountTestSubjectKeys.Name, "T", nil, "The subject keys used for an account test")
+	flags.StringArrayVarP(&createFlags.ExecutionSubjectKeys.Value, createFlags.ExecutionSubjectKeys.Name, "E", nil, "The subject keys used for a deployment or runbook")
+	flags.StringVar(&createFlags.Audience.Value, createFlags.Audience.Name, "", "The audience claim for the federated credentials. Defaults to api://AzureADTokenExchange")
 	flags.StringVarP(&descriptionFilePath, "description-file", "D", "", "Read the description from `file`")
 
 	return cmd
@@ -174,22 +183,25 @@ func CreateRun(opts *CreateOptions) error {
 	if err != nil {
 		return err
 	}
-	servicePrincipalAccount, err := accounts.NewAzureServicePrincipalAccount(
+	oidcAccount, err := accounts.NewAzureOIDCAccount(
 		opts.Name.Value,
 		subId,
 		tenantID,
 		appID,
-		core.NewSensitiveValue(opts.ApplicationPasswordKey.Value),
 	)
 	if err != nil {
 		return err
 	}
-	servicePrincipalAccount.Description = opts.Description.Value
-	servicePrincipalAccount.AzureEnvironment = opts.AzureEnvironment.Value
-	servicePrincipalAccount.ResourceManagerEndpoint = opts.RMBaseUri.Value
-	servicePrincipalAccount.AuthenticationEndpoint = opts.ADEndpointBaseUrl.Value
+	oidcAccount.HealthCheckSubjectKeys = opts.HealthSubjectKeys.Value
+	oidcAccount.DeploymentSubjectKeys = opts.ExecutionSubjectKeys.Value
+	oidcAccount.AccountTestSubjectKeys = opts.AccountTestSubjectKeys.Value
+	oidcAccount.Audience = opts.Audience.Value
+	oidcAccount.Description = opts.Description.Value
+	oidcAccount.AzureEnvironment = opts.AzureEnvironment.Value
+	oidcAccount.ResourceManagerEndpoint = opts.RMBaseUri.Value
+	oidcAccount.AuthenticationEndpoint = opts.ADEndpointBaseUrl.Value
 
-	createdAccount, err = opts.Client.Accounts.Add(servicePrincipalAccount)
+	createdAccount, err = opts.Client.Accounts.Add(oidcAccount)
 	if err != nil {
 		return err
 	}
@@ -209,10 +221,12 @@ func CreateRun(opts *CreateOptions) error {
 			opts.SubscriptionID,
 			opts.TenantID,
 			opts.ApplicationID,
-			opts.ApplicationPasswordKey,
 			opts.AzureEnvironment,
 			opts.ADEndpointBaseUrl,
 			opts.RMBaseUri,
+			opts.HealthSubjectKeys,
+			opts.AccountTestSubjectKeys,
+			opts.ExecutionSubjectKeys,
 		)
 		fmt.Fprintf(opts.Out, "\nAutomation Command: %s\n", autoCmd)
 	}
@@ -282,17 +296,6 @@ func PromptMissing(opts *CreateOptions) error {
 		}
 	}
 
-	if opts.ApplicationPasswordKey.Value == "" {
-		if err := opts.Ask(&survey.Password{
-			Message: "Application Password / Key",
-			Help:    "The password for the Azure Active Directory application. This value is known as Key in the Azure Portal, and Password in the API.",
-		}, &opts.ApplicationPasswordKey.Value, survey.WithValidator(survey.ComposeValidators(
-			survey.Required,
-		))); err != nil {
-			return err
-		}
-	}
-
 	if opts.AzureEnvironment.Value == "" {
 		var shouldConfigureAzureEnvironment bool
 		if err := opts.Ask(&survey.Confirm{
@@ -338,6 +341,38 @@ func PromptMissing(opts *CreateOptions) error {
 		}
 	}
 
+	var err error
+	if len(opts.ExecutionSubjectKeys.Value) == 0 {
+		opts.ExecutionSubjectKeys.Value, err = promptSubjectKeys(opts.Ask, "Deployment and Runbook subject keys", []string{"space", "environment", "project", "tenant", "runbook", "account", "type"})
+		if err != nil {
+			return err
+		}
+	}
+
+	if len(opts.HealthSubjectKeys.Value) == 0 {
+		opts.HealthSubjectKeys.Value, err = promptSubjectKeys(opts.Ask, "Health check subject keys", []string{"space", "target", "account", "type"})
+		if err != nil {
+			return err
+		}
+	}
+
+	if len(opts.AccountTestSubjectKeys.Value) == 0 {
+		opts.AccountTestSubjectKeys.Value, err = promptSubjectKeys(opts.Ask, "Account test subject keys", []string{"space", "account", "type"})
+		if err != nil {
+			return err
+		}
+	}
+
+	if opts.Audience.Value == "" {
+		if err := opts.Ask(&survey.Input{
+			Message: "Audience",
+			Default: "api://AzureADTokenExchange",
+			Help:    "Set this only if you need to override the default Audience value. In most cases you should leave it at the default value.",
+		}, &opts.Audience.Value); err != nil {
+			return err
+		}
+	}
+
 	if opts.Environments.Value == nil {
 		envs, err := selectors.EnvironmentsMultiSelect(opts.Ask, opts.GetAllEnvironmentsCallback,
 			"Choose the environments that are allowed to use this account.\n"+
@@ -348,4 +383,16 @@ func PromptMissing(opts *CreateOptions) error {
 		opts.Environments.Value = util.SliceTransform(envs, func(e *environments.Environment) string { return e.ID })
 	}
 	return nil
+}
+
+func promptSubjectKeys(ask question.Asker, message string, opts []string) ([]string, error) {
+	keys, err := question.MultiSelectMap(ask, message, opts, func(item string) string { return item }, false)
+	if err != nil {
+		return nil, err
+	}
+	if len(keys) > 0 {
+		return keys, nil
+	}
+
+	return nil, nil
 }

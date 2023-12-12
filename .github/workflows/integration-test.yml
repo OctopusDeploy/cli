@@ -31,7 +31,7 @@ jobs:
           --health-retries 10
           --health-start-period 10s
       octopusserver:
-        image: docker.packages.octopushq.com/octopusdeploy/octopusdeploy:2022.4.3812-linux
+        image: docker.packages.octopushq.com/octopusdeploy/octopusdeploy:2023.4.8126-linux
         env:
           ACCEPT_EULA: Y
           DB_CONNECTION_STRING: "Server=sqlserver;Database=OctopusDeploy;User Id=sa;Password=${{ env.SA_PASSWORD }};"
