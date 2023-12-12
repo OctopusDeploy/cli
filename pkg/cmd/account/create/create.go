@@ -6,6 +6,7 @@ import (
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/cmd"
 	awsCreate "github.com/OctopusDeploy/cli/pkg/cmd/account/aws/create"
+	azureOidcCreate "github.com/OctopusDeploy/cli/pkg/cmd/account/azure-oidc/create"
 	azureCreate "github.com/OctopusDeploy/cli/pkg/cmd/account/azure/create"
 	gcpCreate "github.com/OctopusDeploy/cli/pkg/cmd/account/gcp/create"
 	sshCreate "github.com/OctopusDeploy/cli/pkg/cmd/account/ssh/create"
@@ -19,6 +20,7 @@ import (
 const (
 	AwsAccount              = "AWS Account"
 	AzureAccount            = "Azure Account"
+	AzureOidcAccount        = "Azure OIDC Account"
 	GcpAccount              = "Google Cloud Account"
 	SshAccount              = "SSH Key Pair"
 	UsernamePasswordAccount = "Username/Password"
@@ -46,6 +48,7 @@ func createRun(f factory.Factory, c *cobra.Command) error {
 	accountTypes := []string{
 		AwsAccount,
 		AzureAccount,
+		AzureOidcAccount,
 		GcpAccount,
 		SshAccount,
 		UsernamePasswordAccount,
@@ -71,6 +74,11 @@ func createRun(f factory.Factory, c *cobra.Command) error {
 	case AzureAccount:
 		opts := azureCreate.NewCreateOptions(azureCreate.NewCreateFlags(), cmd.NewDependenciesFromExisting(dependencies, fmt.Sprintf("%s account azure create", constants.ExecutableName)))
 		if err := azureCreate.CreateRun(opts); err != nil {
+			return err
+		}
+	case AzureOidcAccount:
+		opts := azureOidcCreate.NewCreateOptions(azureOidcCreate.NewCreateFlags(), cmd.NewDependenciesFromExisting(dependencies, fmt.Sprintf("%s account azure-oidc create", constants.ExecutableName)))
+		if err := azureOidcCreate.CreateRun(opts); err != nil {
 			return err
 		}
 	case GcpAccount:

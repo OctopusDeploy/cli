@@ -62,6 +62,18 @@ func NewSelectPrompt(prompt string, help string, options []string, response stri
 	}
 }
 
+func NewSelectPromptWithDefault(prompt string, help string, options []string, def string, response string) *PA {
+	return &PA{
+		Prompt: &survey.Select{
+			Message: prompt,
+			Options: options,
+			Default: def,
+			Help:    help,
+		},
+		Answer: response,
+	}
+}
+
 func NewMultiSelectPrompt(prompt string, help string, options []string, responses []string) *PA {
 	return &PA{
 		Prompt: &survey.MultiSelect{

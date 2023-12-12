@@ -4,6 +4,7 @@ import (
 	"github.com/MakeNowJust/heredoc/v2"
 	cmdAWS "github.com/OctopusDeploy/cli/pkg/cmd/account/aws"
 	cmdAzure "github.com/OctopusDeploy/cli/pkg/cmd/account/azure"
+	cmdAzureOidc "github.com/OctopusDeploy/cli/pkg/cmd/account/azure-oidc"
 	cmdCreate "github.com/OctopusDeploy/cli/pkg/cmd/account/create"
 	cmdDelete "github.com/OctopusDeploy/cli/pkg/cmd/account/delete"
 	cmdGCP "github.com/OctopusDeploy/cli/pkg/cmd/account/gcp"
@@ -33,6 +34,7 @@ func NewCmdAccount(f factory.Factory) *cobra.Command {
 	cmd.AddCommand(cmdList.NewCmdList(f))
 	cmd.AddCommand(cmdAWS.NewCmdAws(f))
 	cmd.AddCommand(cmdAzure.NewCmdAzure(f))
+	cmd.AddCommand(cmdAzureOidc.NewCmdAzureOidc(f))
 	cmd.AddCommand(cmdGCP.NewCmdGcp(f))
 	cmd.AddCommand(cmdSSH.NewCmdSsh(f))
 	cmd.AddCommand(cmdUsr.NewCmdUsername(f))
