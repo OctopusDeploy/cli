@@ -2,6 +2,7 @@ package login_test
 
 import (
 	"bytes"
+	"errors"
 	"testing"
 
 	"github.com/AlecAivazis/survey/v2"
@@ -212,6 +213,29 @@ func TestLogin_ApiKey(t *testing.T) {
 			assert.Empty(t, fac.ConfigProvider.Get(constants.ConfigApiKey))
 			assert.Empty(t, fac.ConfigProvider.Get(constants.ConfigAccessToken))
 		}},
+
+		{"non-interactive: if api key is invalid returns error", func(t *testing.T, fac *testutil.MockFactory, api *testutil.MockHttpServer, qa *testutil.AskMocker, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
+			currentHost := fac.GetCurrentHost()
+			apiKey := "API-APIINVALIDKEY"
+
+			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
+				defer api.Close()
+				rootCmd.SetArgs([]string{"login", "--server", currentHost, "--api-key", apiKey, "--no-prompt"})
+				return rootCmd.ExecuteC()
+			})
+
+			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
+
+			api.ExpectRequest(t, "GET", "/api/users/me").RespondWithError(errors.New("Your API key is invalid"))
+
+			_, err := testutil.ReceivePair(cmdReceiver)
+			assert.EqualError(t, err, "login unsuccessful, please check that your API key is valid")
+
+			// Check that none of the config got set
+			assert.Empty(t, fac.ConfigProvider.Get(constants.ConfigUrl))
+			assert.Empty(t, fac.ConfigProvider.Get(constants.ConfigApiKey))
+			assert.Empty(t, fac.ConfigProvider.Get(constants.ConfigAccessToken))
+		}},
 	}
 
 	for _, test := range tests {
@@ -272,6 +296,80 @@ func TestLogin_OpenIdConnect(t *testing.T) {
 			assert.Equal(t, currentHost, fac.ConfigProvider.Get(constants.ConfigUrl))
 			assert.Equal(t, "accesstoken", fac.ConfigProvider.Get(constants.ConfigAccessToken))
 			assert.Empty(t, fac.ConfigProvider.Get(constants.ConfigApiKey))
+		}},
+
+		{"when token exchange with Octopus Server fails, returns error", func(t *testing.T, fac *testutil.MockFactory, api *testutil.MockHttpServer, qa *testutil.AskMocker, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
+			currentHost := fac.GetCurrentHost()
+			serviceAccountId := "c247db46-e32a-4906-bf51-2dff9e7431b6"
+
+			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
+				defer api.Close()
+				rootCmd.SetArgs([]string{"login", "--server", currentHost, "--service-account-id", serviceAccountId, "--id-token", "test", "--no-prompt"})
+				return rootCmd.ExecuteC()
+			})
+
+			tokenExchangeEndpoint := "/token/v1"
+
+			openIdDiscoveryConfiguration := login.OpenIdConfigurationResponse{
+				Issuer:        currentHost,
+				TokenEndpoint: tokenExchangeEndpoint,
+			}
+
+			api.ExpectRequest(t, "GET", "/.well-known/openid-configuration").RespondWith(openIdDiscoveryConfiguration)
+
+			tokenExchangeErrorResponse := login.TokenExchangeErrorResponse{
+				Error:            "invalid_request",
+				ErrorDescription: "Your request was not valid",
+			}
+
+			api.ExpectRequest(t, "POST", tokenExchangeEndpoint).RespondWith(tokenExchangeErrorResponse)
+
+			_, err := testutil.ReceivePair(cmdReceiver)
+			assert.EqualError(t, err, "Your request was not valid")
+
+			// Check that none of the config got set
+			assert.Empty(t, fac.ConfigProvider.Get(constants.ConfigUrl))
+			assert.Empty(t, fac.ConfigProvider.Get(constants.ConfigApiKey))
+			assert.Empty(t, fac.ConfigProvider.Get(constants.ConfigAccessToken))
+		}},
+
+		{"when test of access token fails, returns error", func(t *testing.T, fac *testutil.MockFactory, api *testutil.MockHttpServer, qa *testutil.AskMocker, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
+			currentHost := fac.GetCurrentHost()
+			serviceAccountId := "c247db46-e32a-4906-bf51-2dff9e7431b6"
+
+			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
+				defer api.Close()
+				rootCmd.SetArgs([]string{"login", "--server", currentHost, "--service-account-id", serviceAccountId, "--id-token", "test", "--no-prompt"})
+				return rootCmd.ExecuteC()
+			})
+
+			tokenExchangeEndpoint := "/token/v1"
+
+			openIdDiscoveryConfiguration := login.OpenIdConfigurationResponse{
+				Issuer:        currentHost,
+				TokenEndpoint: tokenExchangeEndpoint,
+			}
+
+			api.ExpectRequest(t, "GET", "/.well-known/openid-configuration").RespondWith(openIdDiscoveryConfiguration)
+
+			tokenExchangeResponse := login.TokenExchangeResponse{
+				AccessToken: "accesstoken",
+				ExpiresIn:   3600,
+			}
+
+			api.ExpectRequest(t, "POST", tokenExchangeEndpoint).RespondWith(tokenExchangeResponse)
+
+			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
+
+			api.ExpectRequest(t, "GET", "/api/users/me").RespondWithError(errors.New("Your access token is invalid"))
+
+			_, err := testutil.ReceivePair(cmdReceiver)
+			assert.EqualError(t, err, "login unsuccessful using access token obtained via OpenID Connect")
+
+			// Check that none of the config got set
+			assert.Empty(t, fac.ConfigProvider.Get(constants.ConfigUrl))
+			assert.Empty(t, fac.ConfigProvider.Get(constants.ConfigApiKey))
+			assert.Empty(t, fac.ConfigProvider.Get(constants.ConfigAccessToken))
 		}},
 	}
 
