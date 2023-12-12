@@ -76,26 +76,11 @@ func NewCmdLogin(f factory.Factory) *cobra.Command {
 	return cmd
 }
 
-type OpenIdConfigurationResponse struct {
-	Issuer        string `json:"issuer"`
-	TokenEndpoint string `json:"token_endpoint"`
-}
-
-type TokenExchangeRequest struct {
-	GrantType        string `json:"grant_type"`
-	Audience         string `json:"audience"`
-	SubjectTokenType string `json:"subject_token_type"`
-	SubjectToken     string `json:"subject_token"`
-}
-
-type TokenExchangeResponse struct {
-	AccessToken string `json:"access_token"`
-	ExpiresIn   int32  `json:"expires_in"`
-}
-
-type TokenExchangeErrorResponse struct {
-	Error            string `json:"error"`
-	ErrorDescription string `json:"error_description"`
+type LoginInputs struct {
+	server           string
+	apiKey           string
+	serviceAccountId string
+	idToken          string
 }
 
 func loginRun(cmd *cobra.Command, f factory.Factory, isPromptEnabled bool, ask question.Asker, flags *LoginFlags) error {
@@ -151,6 +136,55 @@ func loginRun(cmd *cobra.Command, f factory.Factory, isPromptEnabled bool, ask q
 	}
 
 	return nil
+}
+
+func loginWithApiKey(configProvider config.IConfigProvider, httpClient *http.Client, server string, apiKey string, cmd *cobra.Command) error {
+	serverLink := output.Cyan(server)
+
+	apiKeyCredentials, err := octopusApiClient.NewApiKey(apiKey)
+
+	if err != nil {
+		return err
+	}
+
+	err = testLogin(cmd, httpClient, server, apiKeyCredentials)
+
+	if err != nil {
+		return errors.New("login unsuccessful, please check that your API key is valid")
+	}
+
+	cmd.Printf("Configuring CLI to use API key for Octopus Server: %s", serverLink)
+	cmd.Println()
+
+	configProvider.Set(constants.ConfigUrl, server)
+	configProvider.Set(constants.ConfigApiKey, apiKey)
+	configProvider.Set(constants.ConfigAccessToken, "")
+
+	cmd.Printf("Login successful, happy deployments!")
+	cmd.Println()
+	return nil
+}
+
+type OpenIdConfigurationResponse struct {
+	Issuer        string `json:"issuer"`
+	TokenEndpoint string `json:"token_endpoint"`
+}
+
+type TokenExchangeRequest struct {
+	GrantType        string `json:"grant_type"`
+	Audience         string `json:"audience"`
+	SubjectTokenType string `json:"subject_token_type"`
+	SubjectToken     string `json:"subject_token"`
+}
+
+type TokenExchangeResponse struct {
+	AccessToken string `json:"access_token"`
+	ExpiresIn   int32  `json:"expires_in"`
+}
+
+type TokenExchangeErrorResponse struct {
+	Error            string `json:"error"`
+	ErrorDescription string `json:"error_description"`
 }
 
 func loginWithOpenIdConnect(configProvider config.IConfigProvider, httpClient *http.Client, server string, serviceAccountId string, idToken string, cmd *cobra.Command) error {
@@ -280,40 +314,6 @@ func getOpenIdConfiguration(httpClient *http.Client, server string) (*OpenIdConf
 		return nil, err
 	}
 	return &openIdConfiguration, nil
-}
-
-func loginWithApiKey(configProvider config.IConfigProvider, httpClient *http.Client, server string, apiKey string, cmd *cobra.Command) error {
-	serverLink := output.Cyan(server)
-
-	apiKeyCredentials, err := octopusApiClient.NewApiKey(apiKey)
-
-	if err != nil {
-		return err
-	}
-
-	err = testLogin(cmd, httpClient, server, apiKeyCredentials)
-
-	if err != nil {
-		return errors.New("login unsuccessful, please check that your API key is valid")
-	}
-
-	cmd.Printf("Configuring CLI to use API key for Octopus Server: %s", serverLink)
-	cmd.Println()
-
-	configProvider.Set(constants.ConfigUrl, server)
-	configProvider.Set(constants.ConfigApiKey, apiKey)
-	configProvider.Set(constants.ConfigAccessToken, "")
-
-	cmd.Printf("Login successful, happy deployments!")
-	cmd.Println()
-	return nil
-}
-
-type LoginInputs struct {
-	server           string
-	apiKey           string
-	serviceAccountId string
-	idToken          string
 }
 
 func getInputs(configProvider config.IConfigProvider, flags *LoginFlags, isPromptEnabled bool, ask question.Asker, cmd *cobra.Command) (*LoginInputs, error) {
