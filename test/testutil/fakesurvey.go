@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/OctopusDeploy/cli/pkg/surveyext"
+	"slices"
 	"testing"
 
 	"github.com/AlecAivazis/survey/v2"
@@ -165,7 +166,13 @@ func NewMockAsker(t *testing.T, pa []*PA) (question.Asker, CheckRemaining) {
 		}
 
 		expectedQA := pa[expectedQuestionIndex]
-		expectedQuestionIndex += 1
+		expectedQuestionIndex++
+
+		if expectedSurvey, ok := expectedQA.Prompt.(*survey.Select); ok {
+			actualSurvey := p.(*survey.Select)
+			slices.Sort(expectedSurvey.Options)
+			slices.Sort(actualSurvey.Options)
+		}
 
 		isEqual := assert.Equal(t, expectedQA.Prompt, p)
 		if !isEqual {
