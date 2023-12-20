@@ -52,6 +52,7 @@ func TestAWSAccountCreatePromptMissing(t *testing.T) {
 	})
 
 	api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
+	api.ExpectRequest(t, "GET", "/api/spaces").RespondWith(rootResource)
 
 	_ = qa.ExpectQuestion(t, &survey.Input{
 		Message: "Name",
@@ -129,6 +130,7 @@ func TestAWSAccountCreateNoPrompt(t *testing.T) {
 	testAccount.SpaceID = spaceID
 
 	api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
+	api.ExpectRequest(t, "GET", "/api/spaces").RespondWith(rootResource)
 	api.ExpectRequest(t, "POST", "/api/Spaces-1/accounts").RespondWithStatus(201, "", testAccount)
 
 	err = <-errReceiver
