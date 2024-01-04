@@ -1,5 +1,21 @@
 # Changelog
 
+## [2.0.0](https://github.com/OctopusDeploy/cli/compare/v1.7.1...v2.0.0) (2024-01-04)
+
+
+### ⚠ BREAKING CHANGES
+
+* bug where lists weren't parsing correctly when names contain a comma ([#306](https://github.com/OctopusDeploy/cli/issues/306))
+
+### Features
+
+* account azure-oidc create ([#296](https://github.com/OctopusDeploy/cli/issues/296)) ([554d171](https://github.com/OctopusDeploy/cli/commit/554d17154c980caae90f52f047696321dd6dd6d3))
+
+
+### Bug Fixes
+
+* bug where lists weren't parsing correctly when names contain a comma ([#306](https://github.com/OctopusDeploy/cli/issues/306)) ([09e1cc3](https://github.com/OctopusDeploy/cli/commit/09e1cc3093cacefc22c8c15631e2b011d9eaaec9))
+
 ## [1.7.1](https://github.com/OctopusDeploy/cli/compare/v1.7.0...v1.7.1) (2023-10-31)
 
 
