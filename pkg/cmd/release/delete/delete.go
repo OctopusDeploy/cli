@@ -3,6 +3,7 @@ package delete
 import (
 	"errors"
 	"fmt"
+
 	"github.com/OctopusDeploy/cli/pkg/apiclient"
 
 	"github.com/AlecAivazis/survey/v2"
@@ -57,7 +58,7 @@ func NewCmdDelete(f factory.Factory) *cobra.Command {
 
 	flags := cmd.Flags()
 	flags.StringVarP(&cmdFlags.Project.Value, cmdFlags.Project.Name, "p", "", "Name or ID of the project to delete releases in")
-	flags.StringSliceVarP(&cmdFlags.Version.Value, cmdFlags.Version.Name, "v", make([]string, 0), "Release version to delete, can be specified multiple times")
+	flags.StringArrayVarP(&cmdFlags.Version.Value, cmdFlags.Version.Name, "v", make([]string, 0), "Release version to delete, can be specified multiple times")
 	return cmd
 }
 
