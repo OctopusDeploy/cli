@@ -105,8 +105,8 @@ func ConfigureFlags(cmd *cobra.Command, connectFlags *ConnectFlags) {
 	flags := cmd.Flags()
 	flags.StringVarP(&connectFlags.Tenant.Value, connectFlags.Tenant.Name, "t", "", "Name or Id of the tenant")
 	flags.StringVarP(&connectFlags.Project.Value, connectFlags.Project.Name, "p", "", "Name, ID or Slug of the project to connect to the tenant")
-	flags.StringSliceVarP(&connectFlags.Environments.Value, connectFlags.Environments.Name, "e", nil, "The environments to connect to the tenant (can be specified multiple times)")
-	flags.StringSliceVar(&connectFlags.Environments.Value, FlagAliasEnvironment, nil, "The environments to connect to the tenant (can be specified multiple times)")
+	flags.StringArrayVarP(&connectFlags.Environments.Value, connectFlags.Environments.Name, "e", nil, "The environments to connect to the tenant (can be specified multiple times)")
+	flags.StringArrayVar(&connectFlags.Environments.Value, FlagAliasEnvironment, nil, "The environments to connect to the tenant (can be specified multiple times)")
 	flags.BoolVar(&connectFlags.EnableTenantDeployments.Value, connectFlags.EnableTenantDeployments.Name, false, "Update the project to support tenanted deployments, if required")
 }
 
