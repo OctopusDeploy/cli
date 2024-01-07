@@ -2,6 +2,8 @@ package exclude
 
 import (
 	"fmt"
+	"strings"
+
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/cmd"
 	"github.com/OctopusDeploy/cli/pkg/cmd/tenant/shared"
@@ -15,7 +17,6 @@ import (
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/variables"
 	"github.com/spf13/cobra"
-	"strings"
 )
 
 const (
@@ -76,7 +77,7 @@ func NewExcludeVariableSetCmd(f factory.Factory) *cobra.Command {
 
 	flags := cmd.Flags()
 	flags.StringVarP(&createFlags.Project.Value, createFlags.Project.Name, "p", "", "The project")
-	flags.StringSliceVarP(&createFlags.VariableSets.Value, createFlags.VariableSets.Name, "", []string{}, "The name of the library variable set")
+	flags.StringArrayVarP(&createFlags.VariableSets.Value, createFlags.VariableSets.Name, "", []string{}, "The name of the library variable set")
 
 	return cmd
 }

@@ -1,6 +1,10 @@
 package util
 
-import "github.com/spf13/pflag"
+import (
+	"strings"
+
+	"github.com/spf13/pflag"
+)
 
 func AddFlagAliasesString(flags *pflag.FlagSet, originalFlag string, aliasMap map[string][]string, aliases ...string) {
 	f := flags.Lookup(originalFlag)
@@ -54,7 +58,10 @@ func ApplyFlagAliases(flags *pflag.FlagSet, aliases map[string][]string) {
 					// predictable way that doesn't change. However, there is nothing in the pflag public API that would
 					// allow us to do a better job, as flag values are only exposed via the `Value` interface which
 					// only allows read/write of values using String.
-					_ = primaryFlag.Value.Set(aliasValueString[1 : len(aliasValueString)-1])
+					aliasValues := strings.Split(aliasValueString[1:len(aliasValueString)-1], ",")
+					for _, aliasValue := range aliasValues {
+						_ = primaryFlag.Value.Set(aliasValue)
+					}
 				} else {
 					_ = primaryFlag.Value.Set(aliasValueString)
 				}

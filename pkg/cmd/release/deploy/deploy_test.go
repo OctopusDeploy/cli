@@ -124,6 +124,7 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 			panic("you must set `options.ReleaseVersion` to match the supplied `release.Version`")
 		}
 		api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
+		api.ExpectRequest(t, "GET", "/api/spaces").RespondWith(rootResource)
 
 		api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+options.ProjectName).RespondWithStatus(404, "NotFound", nil)
 		api.ExpectRequest(t, "GET", "/api/Spaces-1/projects?partialName="+url.QueryEscape(options.ProjectName)).
@@ -151,6 +152,7 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 			})
 
 			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/spaces").RespondWith(rootResource)
 
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/all").RespondWith([]*projects.Project{fireProject})
 
@@ -238,6 +240,7 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 			})
 
 			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/spaces").RespondWith(rootResource)
 
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/fire project").RespondWithStatus(404, "NotFound", nil)
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects?partialName=fire+project").
@@ -297,6 +300,7 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 			})
 
 			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/spaces").RespondWith(rootResource)
 
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/fire project").RespondWithStatus(404, "NotFound", nil)
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects?partialName=fire+project").
@@ -360,6 +364,7 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 			})
 
 			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/spaces").RespondWith(rootResource)
 
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/fire project").RespondWithStatus(404, "NotFound", nil)
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects?partialName=fire+project").
@@ -454,6 +459,7 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 			})
 
 			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/spaces").RespondWith(rootResource)
 
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/fire project").RespondWithStatus(404, "NotFound", nil)
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects?partialName=fire+project").
@@ -552,6 +558,7 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 			})
 
 			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/spaces").RespondWith(rootResource)
 
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/fire project").RespondWithStatus(404, "NotFound", nil)
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects?partialName=fire+project").
@@ -739,6 +746,7 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 			})
 
 			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/spaces").RespondWith(rootResource)
 
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+options.ProjectName).RespondWithStatus(404, "NotFound", nil)
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects?partialName="+url.QueryEscape(options.ProjectName)).
