@@ -32,5 +32,7 @@ func logoutRun(f factory.Factory, cmd *cobra.Command) error {
 	configProvider.Set("ApiKey", "")
 	configProvider.Set("AccessToken", "")
 
+	cmd.Printf("Logout successful")
+
 	return nil
 }
