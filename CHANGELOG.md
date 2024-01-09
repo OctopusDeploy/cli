@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.1.0](https://github.com/OctopusDeploy/cli/compare/v2.0.0...v2.1.0) (2024-01-08)
+
+
+### Features
+
+* Add new login and logout commands ([#291](https://github.com/OctopusDeploy/cli/issues/291)) ([7d4da60](https://github.com/OctopusDeploy/cli/commit/7d4da6049c8163a67ea118e3eee7c0d25028efe0))
+
 ## [2.0.0](https://github.com/OctopusDeploy/cli/compare/v1.7.1...v2.0.0) (2024-01-04)
 
 
