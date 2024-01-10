@@ -72,10 +72,10 @@ echo \
 sudo apt-get update && sudo apt-get install octopus-cli
 
 # for legacy Ubuntu/Debian (< 18.04) use
-sudo apt update && sudo apt install --no-install-recommends gnupg curl ca-certificates apt-transport-https && \
-curl -sSfL https://apt.octopus.com/public.key | sudo apt-key add - && \
-sudo sh -c "echo deb https://apt.octopus.com/ stable main > /etc/apt/sources.list.d/octopus.com.list" && \
-sudo apt update && sudo apt install octopus-cli
+# sudo apt update && sudo apt install --no-install-recommends gnupg curl ca-certificates apt-transport-https && \
+# curl -sSfL https://apt.octopus.com/public.key | sudo apt-key add - && \
+# sudo sh -c "echo deb https://apt.octopus.com/ stable main > /etc/apt/sources.list.d/octopus.com.list" && \
+# sudo apt update && sudo apt install octopus-cli
 ```
 
 #### Linux (redhat/fedora based distributions)
