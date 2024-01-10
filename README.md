@@ -61,15 +61,15 @@ The Homebrew package has native support for macOS Intel and Apple Silicon
 #### Linux (debian/ubuntu based distributions)
 
 ```shell
-apt-get update && apt-get install --no-install-recommends gnupg curl ca-certificates apt-transport-https && \
-  install -m 0755 -d /etc/apt/keyrings && \
+sudo apt update && sudo apt install --no-install-recommends gnupg curl ca-certificates apt-transport-https && \
+sudo install -m 0755 -d /etc/apt/keyrings && \
 curl -fsSL https://apt.octopus.com/public.key | sudo gpg --dearmor -o /etc/apt/keyrings/octopus.gpg && \
-chmod a+r /etc/apt/keyrings/octopus.gpg && \
+sudo chmod a+r /etc/apt/keyrings/octopus.gpg && \
 echo \
   "deb [arch="$(dpkg --print-architecture)" signed-by=/etc/apt/keyrings/octopus.gpg] https://apt.octopus.com/ \
   stable main" | \
-  tee /etc/apt/sources.list.d/octopus.list > /dev/null && \
-sudo apt-get update && sudo apt-get install octopus-cli
+  sudo tee /etc/apt/sources.list.d/octopus.list > /dev/null && \
+sudo apt update && sudo apt install octopus-cli
 
 # for legacy Ubuntu/Debian (< 18.04) use
 # sudo apt update && sudo apt install --no-install-recommends gnupg curl ca-certificates apt-transport-https && \
