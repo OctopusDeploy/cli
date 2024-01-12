@@ -44,6 +44,7 @@ func NewCmdList(f factory.Factory) *cobra.Command {
 				accounts.AccountTypeAmazonWebServicesAccount:   "AWS Account",
 				accounts.AccountTypeAzureSubscription:          "Azure Subscription",
 				accounts.AccountTypeAzureServicePrincipal:      "Azure Service Principal",
+				accounts.AccountTypeAzureOIDC:                  "Azure OpenID Connect",
 				accounts.AccountTypeGoogleCloudPlatformAccount: "Google Cloud Account",
 				accounts.AccountTypeSSHKeyPair:                 "SSH Key Pair",
 				accounts.AccountTypeUsernamePassword:           "Username/Password",

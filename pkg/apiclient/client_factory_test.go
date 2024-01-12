@@ -14,25 +14,25 @@ const apiKey = "API-APIKEY01"
 const accessToken = "token"
 
 func TestValidateMandatoryEnvironment_WhenHostIsNotSupplied_ReturnsError(t *testing.T) {
-	err := apiclient.ValidateMandatoryEnvironment("", apiKey, accessToken)
+	err := apiclient.ValidateMandatoryEnvironment("", apiKey, accessToken, false)
 
 	assert.Error(t, err)
 }
 
 func TestValidateMandatoryEnvironment_WhenApiKeyAndAccessTokenAreNotSupplied_ReturnsError(t *testing.T) {
-	err := apiclient.ValidateMandatoryEnvironment(hostUrl, "", "")
+	err := apiclient.ValidateMandatoryEnvironment(hostUrl, "", "", false)
 
 	assert.Error(t, err)
 }
 
 func TestValidateMandatoryEnvironment_WhenHostAndApiKeyAreSupplied_DoesNotReturnError(t *testing.T) {
-	err := apiclient.ValidateMandatoryEnvironment(hostUrl, apiKey, "")
+	err := apiclient.ValidateMandatoryEnvironment(hostUrl, apiKey, "", false)
 
 	assert.Nil(t, err)
 }
 
 func TestValidateMandatoryEnvironment_WhenHostAndAccessTokenAreSupplied_DoesNotReturnError(t *testing.T) {
-	err := apiclient.ValidateMandatoryEnvironment(hostUrl, "", accessToken)
+	err := apiclient.ValidateMandatoryEnvironment(hostUrl, "", accessToken, false)
 
 	assert.Nil(t, err)
 }

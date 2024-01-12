@@ -29,9 +29,10 @@ func TestClient_GetSystemClient(t *testing.T) {
 			func() (*octopusApiClient.Client, error) {
 				return factory.GetSystemClient(&apiclient.FakeRequesterContext{})
 			})
-		//clientReceiver2 := testutil.GoBegin2(func () (*octopusApiClient.Client, error) { factory.GetSystemClient(&apiclient.FakeRequesterContext{})
 
+		//clientReceiver2 := testutil.GoBegin2(func () (*octopusApiClient.Client, error) { factory.GetSystemClient(&apiclient.FakeRequesterContext{})
 		api.ExpectRequest(t, "GET", "/api").RespondWith(root)
+		api.ExpectRequest(t, "GET", "/api/spaces").RespondWith(root)
 
 		systemClient, err := testutil.ReceivePair(clientReceiver)
 		if !testutil.AssertSuccess(t, err) {
@@ -51,6 +52,7 @@ func TestClient_GetSystemClient(t *testing.T) {
 			})
 
 		api.ExpectRequest(t, "GET", "/api").RespondWith(root)
+		api.ExpectRequest(t, "GET", "/api/spaces").RespondWith(root)
 
 		systemClient, err := testutil.ReceivePair(clientReceiver)
 		if !testutil.AssertSuccess(t, err) {
@@ -77,6 +79,7 @@ func TestClient_GetSystemClient(t *testing.T) {
 			})
 
 		api.ExpectRequest(t, "GET", "/api").ExpectHeader(t, "Authorization", "Bearer token").RespondWith(root)
+		api.ExpectRequest(t, "GET", "/api/spaces").RespondWith(root)
 
 		systemClient, err := testutil.ReceivePair(clientReceiver)
 		if !testutil.AssertSuccess(t, err) {
@@ -113,6 +116,8 @@ func TestClient_GetSpacedClient_NoPrompt(t *testing.T) {
 			})
 
 		api.ExpectRequest(t, "GET", "/api").RespondWith(root)
+		api.ExpectRequest(t, "GET", "/api/spaces").RespondWith(root)
+		//api.ExpectRequest(t, "GET", "/api/spaces/all").RespondWith(root)
 		// it doesn't actually matter how many spaces there are because the CLI doesn't even ask for them
 
 		apiClient, err := testutil.ReceivePair(clientReceiver)
@@ -131,6 +136,7 @@ func TestClient_GetSpacedClient_NoPrompt(t *testing.T) {
 			})
 
 		api.ExpectRequest(t, "GET", "/api").RespondWith(root)
+		api.ExpectRequest(t, "GET", "/api/spaces").RespondWith(root)
 
 		api.ExpectRequest(t, "GET", "/api/spaces/all").RespondWith([]*spaces.Space{cloudSpace})
 
@@ -150,6 +156,7 @@ func TestClient_GetSpacedClient_NoPrompt(t *testing.T) {
 			})
 
 		api.ExpectRequest(t, "GET", "/api").RespondWith(root)
+		api.ExpectRequest(t, "GET", "/api/spaces").RespondWith(root)
 
 		api.ExpectRequest(t, "GET", "/api/spaces/all").RespondWith([]*spaces.Space{integrationsSpace})
 
@@ -175,6 +182,7 @@ func TestClient_GetSpacedClient_NoPrompt(t *testing.T) {
 			})
 
 		api.ExpectRequest(t, "GET", "/api").RespondWith(root)
+		api.ExpectRequest(t, "GET", "/api/spaces").RespondWith(root)
 
 		api.ExpectRequest(t, "GET", "/api/spaces/all").RespondWith([]*spaces.Space{integrationsSpace})
 
@@ -200,6 +208,7 @@ func TestClient_GetSpacedClient_NoPrompt(t *testing.T) {
 			})
 
 		api.ExpectRequest(t, "GET", "/api").RespondWith(root)
+		api.ExpectRequest(t, "GET", "/api/spaces").RespondWith(root)
 
 		api.ExpectRequest(t, "GET", "/api/spaces/all").RespondWith([]*spaces.Space{integrationsSpace})
 
@@ -225,6 +234,7 @@ func TestClient_GetSpacedClient_NoPrompt(t *testing.T) {
 			})
 
 		api.ExpectRequest(t, "GET", "/api").RespondWith(root)
+		api.ExpectRequest(t, "GET", "/api/spaces").RespondWith(root)
 
 		api.ExpectRequest(t, "GET", "/api/spaces/all").RespondWith([]*spaces.Space{integrationsSpace})
 
@@ -256,6 +266,7 @@ func TestClient_GetSpacedClient_NoPrompt(t *testing.T) {
 			})
 
 		api.ExpectRequest(t, "GET", "/api").RespondWith(root)
+		api.ExpectRequest(t, "GET", "/api/spaces").RespondWith(root)
 
 		api.ExpectRequest(t, "GET", "/api/spaces/all").RespondWith([]*spaces.Space{
 			missedSpace,
@@ -283,6 +294,7 @@ func TestClient_GetSpacedClient_NoPrompt(t *testing.T) {
 			})
 
 		api.ExpectRequest(t, "GET", "/api").RespondWith(root)
+		api.ExpectRequest(t, "GET", "/api/spaces").RespondWith(root)
 
 		api.ExpectRequest(t, "GET", "/api/spaces/all").RespondWith([]*spaces.Space{integrationsSpace})
 
@@ -315,6 +327,7 @@ func TestClient_GetSpacedClient_NoPrompt(t *testing.T) {
 			})
 
 		api.ExpectRequest(t, "GET", "/api").ExpectHeader(t, "Authorization", "Bearer token").RespondWith(root)
+		api.ExpectRequest(t, "GET", "/api/spaces").RespondWith(root)
 
 		api.ExpectRequest(t, "GET", "/api/spaces/all").ExpectHeader(t, "Authorization", "Bearer token").RespondWith([]*spaces.Space{integrationsSpace})
 

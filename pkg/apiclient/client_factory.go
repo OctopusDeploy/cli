@@ -8,6 +8,7 @@ import (
 
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/constants"
+	"github.com/OctopusDeploy/cli/pkg/output"
 	"github.com/OctopusDeploy/cli/pkg/question"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/spaces"
 	"github.com/spf13/viper"
@@ -40,6 +41,9 @@ type ClientFactory interface {
 
 	// GetHostUrl returns the current set API URL as a string
 	GetHostUrl() string
+
+	// GetHttpClient returns a raw http client which can be used to query Octopus
+	GetHttpClient() (*http.Client, error)
 }
 
 type Client struct {
@@ -111,7 +115,7 @@ func NewClientFactoryFromConfig(ask question.AskProvider) (ClientFactory, error)
 	accessToken := viper.GetString(constants.ConfigAccessToken)
 	spaceNameOrID := viper.GetString(constants.ConfigSpace)
 
-	errs := ValidateMandatoryEnvironment(host, apiKey, accessToken)
+	errs := ValidateMandatoryEnvironment(host, apiKey, accessToken, ask.IsInteractive())
 	if errs != nil {
 		return nil, errs
 	}
@@ -147,19 +151,98 @@ func NewClientFactoryFromConfig(ask question.AskProvider) (ClientFactory, error)
 	return NewClientFactory(httpClient, host, credentials, spaceNameOrID, ask)
 }
 
-func ValidateMandatoryEnvironment(host string, apiKey string, accessToken string) error {
+func ValidateMandatoryEnvironment(host string, apiKey string, accessToken string, isInteractive bool) error {
 
 	if host == "" || (apiKey == "" && accessToken == "") {
-		err := heredoc.Docf(`
-          To get started with Octopus CLI, please populate the %s environment variable with the URL of your Octopus Server and %s or %s environment variables with credentials
-          Alternatively you can run:
-            octopus config set %s
-            octopus config set %s
-    `, constants.EnvOctopusUrl, constants.EnvOctopusApiKey, constants.EnvOctopusAccessToken, constants.ConfigUrl, constants.ConfigApiKey)
+
+		if isInteractive {
+			err := GetInteractiveMandatoryEnvironmentErrorMessage()
+
+			return fmt.Errorf(err)
+		}
+
+		err := GetNonInteractiveMandatoryEnvironmentErrorMessage()
+
 		return fmt.Errorf(err)
 	}
 
 	return nil
+}
+
+func GetInteractiveMandatoryEnvironmentErrorMessage() string {
+
+	octopusLogo := ""
+
+	if viper.GetBool(constants.ConfigShowOctopus) {
+		octopusLogo = output.Cyanf(`
+%s
+`, constants.OctopusLogo)
+	}
+
+	return heredoc.Docf(`
+Work seamlessly with Octopus Deploy from the command line.
+%s
+To get started with the Octopus CLI, please login to your Octopus Server using:
+
+  %s
+
+Alternatively you can set the following environment variables:
+
+  %s: The URL of your Octopus Server
+  %s: An API key to authenticate to the Octopus Server with
+			
+Happy deployments!`,
+		octopusLogo, output.Cyan("octopus login"), output.Cyan(constants.EnvOctopusUrl), output.Cyan(constants.EnvOctopusApiKey))
+}
+
+func GetNonInteractiveMandatoryEnvironmentErrorMessage() string {
+	oidcHeader := output.Bold("OpenID Connect (OIDC)")
+	apiKeyHeader := output.Bold("API Key")
+
+	oidcLoginCommand := output.Cyan("octopus login --server {OctopusServerUrl} --service-account-id {ServiceAccountId} --id-token {IdTokenFromOidcProvider}")
+	apiKeyLoginCommand := output.Cyan("octopus login --server {OctopusServerUrl} --api-key {OctopusApiKey}")
+
+	serverEnvVar := output.Cyan(constants.EnvOctopusUrl)
+	accessTokenEnvVar := output.Cyan(constants.EnvOctopusAccessToken)
+	apiKeyEnvVar := output.Cyan(constants.EnvOctopusApiKey)
+
+	octopusLogo := ""
+
+	if viper.GetBool(constants.ConfigShowOctopus) {
+		octopusLogo = output.Cyanf(`
+%s
+`, constants.OctopusLogo)
+	}
+
+	return heredoc.Docf(`
+Work seamlessly with Octopus Deploy from the command line.
+%s
+The Octopus CLI supports two methods of authentication when using automation:
+
+%s
+
+To use an Octopus access token obtained via OIDC to configure the CLI, set the following environment variables:
+
+  %s: The URL of your Octopus Server
+  %s: The access token obtained from the Octopus Server
+
+To exchange an OIDC ID token for an Octopus access token and configure the CLI:
+
+  %s
+
+%s
+
+To use an existing API key to configure the CLI, set the following environment variables:
+
+  %s: The URL of your Octopus Server
+  %s: The API key to authenticate to the Octopus Server with
+
+Or alternatively:
+  
+  %s
+			
+Happy deployments!`,
+		octopusLogo, oidcHeader, serverEnvVar, accessTokenEnvVar, oidcLoginCommand, apiKeyHeader, serverEnvVar, apiKeyEnvVar, apiKeyLoginCommand)
 }
 
 func (c *Client) GetActiveSpace() *spaces.Space {
@@ -168,6 +251,10 @@ func (c *Client) GetActiveSpace() *spaces.Space {
 
 func (c *Client) GetHostUrl() string {
 	return c.ApiUrl.String()
+}
+
+func (c *Client) GetHttpClient() (*http.Client, error) {
+	return c.HttpClient, nil
 }
 
 func (c *Client) SetSpaceNameOrId(spaceNameOrId string) {
@@ -317,3 +404,7 @@ func (s *stubClientFactory) GetActiveSpace() *spaces.Space { return nil }
 func (s *stubClientFactory) SetSpaceNameOrId(_ string) {}
 
 func (s *stubClientFactory) GetHostUrl() string { return "" }
+
+func (s *stubClientFactory) GetHttpClient() (*http.Client, error) {
+	return nil, nil
+}

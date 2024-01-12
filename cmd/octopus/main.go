@@ -3,13 +3,14 @@ package main
 import (
 	_ "embed"
 	"fmt"
+	"os"
+	"strings"
+	"time"
+
 	"github.com/AlecAivazis/survey/v2/terminal"
 	version "github.com/OctopusDeploy/cli"
 	"github.com/briandowns/spinner"
 	"github.com/spf13/viper"
-	"os"
-	"strings"
-	"time"
 
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/OctopusDeploy/cli/pkg/config"
@@ -27,7 +28,9 @@ func main() {
 	// if there is a missing or invalid .env file anywhere, we don't care, just ignore it
 	_ = godotenv.Load()
 
-	if err := config.Setup(viper.GetViper()); err != nil {
+	viper := viper.GetViper()
+
+	if err := config.Setup(viper); err != nil {
 		fmt.Println(err)
 		os.Exit(3)
 	}
@@ -51,7 +54,7 @@ func main() {
 	clientFactory, err := apiclient.NewClientFactoryFromConfig(askProvider)
 	if err != nil {
 		// a small subset of commands can function even if the app doesn't have valid configuration information
-		if cmdToRun == "config" || cmdToRun == "version" || cmdToRun == "help" {
+		if cmdToRun == "config" || cmdToRun == "version" || cmdToRun == "help" || cmdToRun == "login" || cmdToRun == "logout" {
 			clientFactory = apiclient.NewStubClientFactory()
 		} else {
 			// can't possibly work
@@ -62,7 +65,9 @@ func main() {
 
 	s := spinner.New(spinner.CharSets[11], 100*time.Millisecond, spinner.WithColor("cyan"))
 
-	f := factory.New(clientFactory, askProvider, s, buildVersion)
+	c := config.New(viper)
+
+	f := factory.New(clientFactory, askProvider, s, buildVersion, c)
 
 	cmd := root.NewCmdRoot(f, clientFactory, askProvider)
 

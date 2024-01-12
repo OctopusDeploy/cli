@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/OctopusDeploy/cli/pkg/surveyext"
+	"slices"
 	"testing"
 
 	"github.com/AlecAivazis/survey/v2"
@@ -56,6 +57,18 @@ func NewSelectPrompt(prompt string, help string, options []string, response stri
 		Prompt: &survey.Select{
 			Message: prompt,
 			Options: options,
+			Help:    help,
+		},
+		Answer: response,
+	}
+}
+
+func NewSelectPromptWithDefault(prompt string, help string, options []string, def string, response string) *PA {
+	return &PA{
+		Prompt: &survey.Select{
+			Message: prompt,
+			Options: options,
+			Default: def,
 			Help:    help,
 		},
 		Answer: response,
@@ -153,7 +166,13 @@ func NewMockAsker(t *testing.T, pa []*PA) (question.Asker, CheckRemaining) {
 		}
 
 		expectedQA := pa[expectedQuestionIndex]
-		expectedQuestionIndex += 1
+		expectedQuestionIndex++
+
+		if expectedSurvey, ok := expectedQA.Prompt.(*survey.Select); ok {
+			actualSurvey := p.(*survey.Select)
+			slices.Sort(expectedSurvey.Options)
+			slices.Sort(actualSurvey.Options)
+		}
 
 		isEqual := assert.Equal(t, expectedQA.Prompt, p)
 		if !isEqual {
