@@ -10,6 +10,7 @@ import (
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/environments"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/releases"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/resources"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/runbooks"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/spaces"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/tenants"
@@ -160,4 +161,84 @@ func NewRunbookProcessForRunbook(spaceID string, projectID string, runbookID str
 	result.ProjectID = projectID
 	result.ID = "RunbookProcess-" + runbookID
 	return result
+}
+
+func EmptyDeploymentPreviews() []*deployments.DeploymentPreview {
+	// Define the Form instance
+	formValues := map[string]string{}
+	formElements := []*deployments.Element{}
+	form := deployments.NewFormWithValuesAndElements(formValues, formElements)
+
+	deploymentPreview := &deployments.DeploymentPreview{
+		Form:                          form,
+		StepsToExecute:                []*deployments.DeploymentTemplateStep{},
+		UseGuidedFailureModeByDefault: false,
+	}
+
+	// Serialize the DeploymentPreview instances to JSON
+	deploymentPreviews := []*deployments.DeploymentPreview{deploymentPreview}
+
+	return deploymentPreviews
+}
+
+func NewDeploymentPreviews() []*deployments.DeploymentPreview {
+	newDisplaySettings := &resources.DisplaySettings{}
+	controlPromptNotRequired := deployments.NewControl("VariableValue", "Prompt not required", "Prompt not required", "", false, newDisplaySettings)
+	controlPromptRequired := deployments.NewControl("VariableValue", "Prompt Required", "Test Env scoped", "", true, newDisplaySettings)
+	controlScopedSensitive := deployments.NewControl("VariableValue", "Scoped Sensitive", "Scoped Sensitive", "", true, resources.NewDisplaySettings(resources.ControlTypeSensitive, nil))
+
+	elementPromptNotRequired := deployments.NewElement("5103b61d-9142-c146-d2c9-11b0e63aa438", controlPromptNotRequired, false)
+	elementTestEnvScoped := deployments.NewElement("1953afe6-f094-1287-2d8a-04846dc0f9b1", controlPromptRequired, true)
+	elementScopedSensitive := deployments.NewElement("41824a1b-64ad-430f-862b-39d8cfeeb13a", controlScopedSensitive, true)
+
+	// Define the Form instance
+	formValues := map[string]string{
+		"5103b61d-9142-c146-d2c9-11b0e63aa438": "Prompt value not required",
+		"1953afe6-f094-1287-2d8a-04846dc0f9b1": "Prompt value required",
+		"41824a1b-64ad-430f-862b-39d8cfeeb13a": "Prompt secret value",
+	}
+	formElements := []*deployments.Element{elementPromptNotRequired, elementTestEnvScoped, elementScopedSensitive}
+	form := deployments.NewFormWithValuesAndElements(formValues, formElements)
+
+	deploymentPreview1 := &deployments.DeploymentPreview{
+		Form:                          form,
+		StepsToExecute:                []*deployments.DeploymentTemplateStep{},
+		UseGuidedFailureModeByDefault: false,
+	}
+
+	deploymentPreview2 := &deployments.DeploymentPreview{
+		Form:                          form,
+		StepsToExecute:                []*deployments.DeploymentTemplateStep{},
+		UseGuidedFailureModeByDefault: false,
+	}
+
+	// Serialize the DeploymentPreview instances to JSON
+	deploymentPreviews := []*deployments.DeploymentPreview{deploymentPreview1, deploymentPreview2}
+
+	return deploymentPreviews
+}
+
+func NewDeploymentPreviewsWithApproval() []*deployments.DeploymentPreview {
+	newDisplaySettings := &resources.DisplaySettings{}
+
+	approvalPromptRequired := deployments.NewControl("VariableValue", "Approver", "Who approved this deployment?", "Who approved this deployment?", true, newDisplaySettings)
+	approvalPromptRequiredElement := deployments.NewElement("1953afe6-f094-1287-2d8a-04846dc0f9b1", approvalPromptRequired, true)
+
+	// Define the Form instance
+	formValues := map[string]string{
+		"1953afe6-f094-1287-2d8a-04846dc0f9b1": "",
+	}
+	formElements := []*deployments.Element{approvalPromptRequiredElement}
+	form := deployments.NewFormWithValuesAndElements(formValues, formElements)
+
+	deploymentPreview1 := &deployments.DeploymentPreview{
+		Form:                          form,
+		StepsToExecute:                []*deployments.DeploymentTemplateStep{},
+		UseGuidedFailureModeByDefault: false,
+	}
+
+	// Serialize the DeploymentPreview instances to JSON
+	deploymentPreviews := []*deployments.DeploymentPreview{deploymentPreview1}
+
+	return deploymentPreviews
 }

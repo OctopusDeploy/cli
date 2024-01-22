@@ -285,6 +285,7 @@ func (m *AskMocker) sendAnswer(answer any, err error) {
 	}
 
 	m.Answer <- answerOrError{answer: answer, error: err}
+
 }
 
 // ReceiveQuestion gets the next question and options from the channel and returns them in a wrapper struct.
