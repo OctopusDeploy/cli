@@ -225,7 +225,7 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 			assert.Equal(t, &executor.TaskOptionsDeployRelease{
 				ProjectName:       "Fire Project",
 				ReleaseVersion:    "1.9",
-				Environments:      []string{"dev"}test,
+				Environments:      []string{"dev"},
 				GuidedFailureMode: "",
 				Variables:         make(map[string]string, 0),
 				ReleaseID:         release19.ID,
