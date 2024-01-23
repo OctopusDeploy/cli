@@ -382,7 +382,7 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 			}, options)
 		}},
 
-		{"multiple prompted variables", func(t *testing.T, api *testutil.MockHttpServer, qa *testutil.AskMocker, stdout *bytes.Buffer) {
+		{"only prompt required variables", func(t *testing.T, api *testutil.MockHttpServer, qa *testutil.AskMocker, stdout *bytes.Buffer) {
 			// we don't need to fully test prompted variables; AskPromptedVariables already has all its own tests, we just
 			// need to very it's wired up properly
 			options := &executor.TaskOptionsDeployRelease{
@@ -417,14 +417,6 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 
 			deploymentPreviews := fixtures.NewDeploymentPreviews()
 			api.ExpectRequest(t, "POST", "/api/Spaces-1/releases/"+release20.ID+"/deployments/previews").RespondWith(&deploymentPreviews)
-
-			promptQuestionOne := qa.ExpectQuestion(t, &survey.Input{
-				Message: "Prompt Required",
-				Default: "Prompt value required",
-				Help:    "",
-			})
-			assert.Regexp(t, "", stdout.String()) // actual options tested in PrintAdvancedSummary
-			_ = promptQuestionOne.AnswerWith("Some Value")
 
 			promptQuestionTwo := qa.ExpectQuestion(t, &survey.Password{
 				Message: "Scoped Sensitive",

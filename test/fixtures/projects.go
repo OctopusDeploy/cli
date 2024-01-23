@@ -184,20 +184,17 @@ func EmptyDeploymentPreviews() []*deployments.DeploymentPreview {
 func NewDeploymentPreviews() []*deployments.DeploymentPreview {
 	newDisplaySettings := &resources.DisplaySettings{}
 	controlPromptNotRequired := deployments.NewControl("VariableValue", "Prompt not required", "Prompt not required", "", false, newDisplaySettings)
-	controlPromptRequired := deployments.NewControl("VariableValue", "Prompt Required", "Test Env scoped", "", true, newDisplaySettings)
 	controlScopedSensitive := deployments.NewControl("VariableValue", "Scoped Sensitive", "Scoped Sensitive", "", true, resources.NewDisplaySettings(resources.ControlTypeSensitive, nil))
 
 	elementPromptNotRequired := deployments.NewElement("5103b61d-9142-c146-d2c9-11b0e63aa438", controlPromptNotRequired, false)
-	elementTestEnvScoped := deployments.NewElement("1953afe6-f094-1287-2d8a-04846dc0f9b1", controlPromptRequired, true)
 	elementScopedSensitive := deployments.NewElement("41824a1b-64ad-430f-862b-39d8cfeeb13a", controlScopedSensitive, true)
 
 	// Define the Form instance
 	formValues := map[string]string{
 		"5103b61d-9142-c146-d2c9-11b0e63aa438": "Prompt value not required",
-		"1953afe6-f094-1287-2d8a-04846dc0f9b1": "Prompt value required",
 		"41824a1b-64ad-430f-862b-39d8cfeeb13a": "Prompt secret value",
 	}
-	formElements := []*deployments.Element{elementPromptNotRequired, elementTestEnvScoped, elementScopedSensitive}
+	formElements := []*deployments.Element{elementPromptNotRequired, elementScopedSensitive}
 	form := deployments.NewFormWithValuesAndElements(formValues, formElements)
 
 	deploymentPreview1 := &deployments.DeploymentPreview{
