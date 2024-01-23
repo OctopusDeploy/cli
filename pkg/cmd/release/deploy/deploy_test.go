@@ -449,7 +449,6 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 				Environments:      []string{"dev"},
 				GuidedFailureMode: "",
 				Variables: map[string]string{
-					"Prompt Required":  "Some Value",
 					"Scoped Sensitive": "Secret Value",
 				},
 				ReleaseID: release20.ID,
