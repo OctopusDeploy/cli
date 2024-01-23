@@ -418,12 +418,12 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 			deploymentPreviews := fixtures.NewDeploymentPreviews()
 			api.ExpectRequest(t, "POST", "/api/Spaces-1/releases/"+release20.ID+"/deployments/previews").RespondWith(&deploymentPreviews)
 
-			promptQuestionTwo := qa.ExpectQuestion(t, &survey.Password{
+			promptQuestion := qa.ExpectQuestion(t, &survey.Password{
 				Message: "Scoped Sensitive",
 				Help:    "",
 			})
 			assert.Regexp(t, "", stdout.String()) // actual options tested in PrintAdvancedSummary
-			_ = promptQuestionTwo.AnswerWith("Secret Value")
+			_ = promptQuestion.AnswerWith("Secret Value")
 
 			assert.Equal(t, heredoc.Doc(`
 				Project Fire Project
