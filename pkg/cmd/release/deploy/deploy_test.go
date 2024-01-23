@@ -135,9 +135,21 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 		api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+fireProjectID+"/releases/"+release.Version).RespondWith(release)
 
 		api.ExpectRequest(t, "GET", "/api/Spaces-1/variables/"+vars.ID).RespondWith(&vars)
-		api.ExpectRequest(t, "GET", "/api/Spaces-1/environments/all").RespondWith([]*environments.Environment{
-			devEnvironment,
-		})
+
+		var selectedEnvironments []*environments.Environment
+		allEnvironments := []*environments.Environment{devEnvironment, scratchEnvironment, prodEnvironment}
+
+		for _, env := range allEnvironments {
+			for _, envName := range options.Environments {
+				if env.Name == envName {
+					selectedEnvironments = append(selectedEnvironments, env)
+					break
+				}
+			}
+		}
+
+		api.ExpectRequest(t, "GET", "/api/Spaces-1/environments/all").RespondWith([]*environments.Environment(selectedEnvironments))
+
 		emptyDeploymentPreviews := fixtures.EmptyDeploymentPreviews()
 		api.ExpectRequest(t, "POST", "/api/Spaces-1/releases/"+release19.ID+"/deployments/previews").RespondWith(&emptyDeploymentPreviews)
 	}
@@ -739,6 +751,14 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 			errReceiver := testutil.GoBegin(func() error {
 				defer testutil.Close(api, qa)
 				octopus, _ := octopusApiClient.NewClient(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "")
+				//
+				//api.ExpectRequest(t, "GET", "/api/Spaces-1/environments/all").RespondWith([]*environments.Environment{
+				//	devEnvironment, scratchEnvironment,
+				//})
+				//
+				//emptyDeploymentPreviews := fixtures.EmptyDeploymentPreviews()
+				//api.ExpectRequest(t, "POST", "/api/Spaces-1/releases/"+release19.ID+"/deployments/previews").RespondWith(&emptyDeploymentPreviews)
+
 				return deploy.AskQuestions(octopus, stdout, qa.AsAsker(), space1, options, now)
 			})
 
@@ -794,12 +814,6 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 				Message: "Package download",
 				Options: []string{"Use cached packages (if available)", "Re-download packages from feed"},
 			}).AnswerWith("Re-download packages from feed")
-
-			// because environments were specified on the commandline, we didn't look them up earlier, but we
-			// must do it now in order to determine the list of deployment targets
-			api.ExpectRequest(t, "GET", "/api/Spaces-1/environments/all").RespondWith([]*environments.Environment{
-				devEnvironment, scratchEnvironment, prodEnvironment,
-			})
 
 			api.ExpectRequest(t, "GET", fmt.Sprintf("/api/Spaces-1/releases/%s/deployments/preview/%s?includeDisabledSteps=true", release19.ID, devEnvironment.ID)).RespondWith(&deployments.DeploymentPreview{
 				StepsToExecute: []*deployments.DeploymentTemplateStep{
