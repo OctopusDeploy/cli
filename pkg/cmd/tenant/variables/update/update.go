@@ -17,6 +17,7 @@ import (
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/core"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/environments"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/resources"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/tenants"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/variables"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/workerpools"
@@ -292,32 +293,32 @@ func PromptForVariable(opts *UpdateOptions, tenantVariables *variables.TenantVar
 	return selectedVariable, nil
 }
 
-func mapVariableControlTypeToVariableType(controlType variables.ControlType) (sharedVariable.VariableType, error) {
+func mapVariableControlTypeToVariableType(controlType resources.ControlType) (sharedVariable.VariableType, error) {
 	switch controlType {
-	case variables.ControlTypeSingleLineText, variables.ControlTypeMultiLineText:
+	case resources.ControlTypeSingleLineText, resources.ControlTypeMultiLineText:
 		return sharedVariable.VariableTypeString, nil
-	case variables.ControlTypeSensitive:
+	case resources.ControlTypeSensitive:
 		return sharedVariable.VariableTypeSensitive, nil
-	case variables.ControlTypeCheckbox:
+	case resources.ControlTypeCheckbox:
 		return sharedVariable.VariableTypeBoolean, nil
-	case variables.ControlTypeCertificate:
+	case resources.ControlTypeCertificate:
 		return sharedVariable.VariableTypeCertificate, nil
-	case variables.ControlTypeWorkerPool:
+	case resources.ControlTypeWorkerPool:
 		return sharedVariable.VariableTypeWorkerPool, nil
-	case variables.ControlTypeGoogleCloudAccount:
+	case resources.ControlTypeGoogleCloudAccount:
 		return sharedVariable.VariableTypeGoogleCloudAccount, nil
-	case variables.ControlTypeAwsAccount:
+	case resources.ControlTypeAwsAccount:
 		return sharedVariable.VariableTypeAwsAccount, nil
-	case variables.ControlTypeAzureAccount:
+	case resources.ControlTypeAzureAccount:
 		return sharedVariable.VariableTypeAzureAccount, nil
-	case variables.ControlTypeSelect:
+	case resources.ControlTypeSelect:
 		return sharedVariable.VariableTypeSelect, nil
 	}
 
 	return "", fmt.Errorf("cannot map control type '%s' to variable type", controlType)
 }
 
-func getVariableType(opts *UpdateOptions, tenantVariables *variables.TenantVariables) (variables.ControlType, error) {
+func getVariableType(opts *UpdateOptions, tenantVariables *variables.TenantVariables) (resources.ControlType, error) {
 	if opts.LibraryVariableSet.Value != "" {
 		for _, v := range tenantVariables.LibraryVariables {
 			if strings.EqualFold(v.LibraryVariableSetName, opts.LibraryVariableSet.Value) {
@@ -325,7 +326,7 @@ func getVariableType(opts *UpdateOptions, tenantVariables *variables.TenantVaria
 				if err != nil {
 					return "", err
 				}
-				return variables.ControlType(template.DisplaySettings["Octopus.ControlType"]), nil
+				return resources.ControlType(template.DisplaySettings["Octopus.ControlType"]), nil
 			}
 		}
 	} else if opts.Project.Value != "" {
@@ -335,7 +336,7 @@ func getVariableType(opts *UpdateOptions, tenantVariables *variables.TenantVaria
 				if err != nil {
 					return "", err
 				}
-				return variables.ControlType(template.DisplaySettings["Octopus.ControlType"]), nil
+				return resources.ControlType(template.DisplaySettings["Octopus.ControlType"]), nil
 			}
 		}
 	}
@@ -457,17 +458,17 @@ func updateCommonVariableValue(opts *UpdateOptions, vars *variables.TenantVariab
 }
 
 func convertValue(opts *UpdateOptions, t *actiontemplates.ActionTemplateParameter) (*core.PropertyValue, error) {
-	variableType := variables.ControlType(t.DisplaySettings["Octopus.ControlType"])
+	variableType := resources.ControlType(t.DisplaySettings["Octopus.ControlType"])
 	value := opts.Value.Value
 	var err error
 	switch variableType {
-	case variables.ControlTypeAwsAccount:
+	case resources.ControlTypeAwsAccount:
 		value, err = findAccount(opts, accounts.AccountTypeAmazonWebServicesAccount)
-	case variables.ControlTypeGoogleCloudAccount:
+	case resources.ControlTypeGoogleCloudAccount:
 		value, err = findAccount(opts, accounts.AccountTypeGoogleCloudPlatformAccount)
-	case variables.ControlTypeAzureAccount:
+	case resources.ControlTypeAzureAccount:
 		value, err = findAccount(opts, accounts.AccountTypeAzureServicePrincipal)
-	case variables.ControlTypeWorkerPool:
+	case resources.ControlTypeWorkerPool:
 		allWorkerPools, err := opts.GetAllWorkerPools()
 		if err != nil {
 			return nil, err
@@ -483,7 +484,7 @@ func convertValue(opts *UpdateOptions, t *actiontemplates.ActionTemplateParamete
 		}
 
 		value, err = matchedWorkerPools[0].ID, nil
-	case variables.ControlTypeCertificate:
+	case resources.ControlTypeCertificate:
 		allCertificates, err := opts.GetAllCertificates()
 		if err != nil {
 			return nil, err
@@ -499,7 +500,7 @@ func convertValue(opts *UpdateOptions, t *actiontemplates.ActionTemplateParamete
 		}
 
 		value, err = matchedCertificate[0].ID, nil
-	case variables.ControlTypeSelect:
+	case resources.ControlTypeSelect:
 		selectionOptions := sharedVariable.GetSelectOptions(t)
 		for _, o := range selectionOptions {
 			if strings.EqualFold(o.Display, opts.Value.Value) || strings.EqualFold(o.Value, opts.Value.Value) {
@@ -511,7 +512,7 @@ func convertValue(opts *UpdateOptions, t *actiontemplates.ActionTemplateParamete
 		if value == "" {
 			err = fmt.Errorf("cannot match selection value  '%s'", opts.Value.Value)
 		}
-	case variables.ControlTypeSensitive:
+	case resources.ControlTypeSensitive:
 		propertyValue := core.NewPropertyValue(value, true)
 		return &propertyValue, nil
 	}

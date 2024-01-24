@@ -482,7 +482,26 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 	if err != nil {
 		return err
 	}
-	options.Variables, err = executionscommon.AskVariables(asker, variableSet, options.Variables)
+
+	if len(selectedEnvironments) == 0 { // if the Q&A process earlier hasn't loaded environments already, we need to load them now
+		selectedEnvironments, err = executionscommon.FindEnvironments(octopus, options.Environments)
+		if err != nil {
+			return err
+		}
+	}
+
+	var deploymentPreviewRequests []deployments.DeploymentPreviewRequest
+	for _, environment := range selectedEnvironments {
+		preview := deployments.DeploymentPreviewRequest{
+			EnvironmentId: environment.ID,
+			// We ignore the TenantId here as we're just using the deployments previews for prompted variables.
+			// Tenant variables do not support prompted variables
+			TenantId: "",
+		}
+		deploymentPreviewRequests = append(deploymentPreviewRequests, preview)
+	}
+
+	options.Variables, err = askDeploymentPreviewVariables(octopus, options.Variables, asker, space.ID, selectedRelease.ID, deploymentPreviewRequests)
 	if err != nil {
 		return err
 	}
@@ -562,7 +581,7 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 
 		if !isExcludedStepsSpecified {
 			// select steps to exclude
-			deploymentProcess, err := deployments.GetDeploymentProcess(octopus, space.ID, selectedRelease.ProjectDeploymentProcessSnapshotID)
+			deploymentProcess, err := deployments.GetDeploymentProcessByID(octopus, space.ID, selectedRelease.ProjectDeploymentProcessSnapshotID)
 			if err != nil {
 				return err
 			}
@@ -647,6 +666,56 @@ func askDeploymentTargets(octopus *octopusApiClient.Client, asker question.Asker
 		return selectedDeploymentTargetNames, nil
 	}
 	return nil, nil
+}
+
+func askDeploymentPreviewVariables(octopus *octopusApiClient.Client, variablesFromCmd map[string]string, asker question.Asker, spaceID string, releaseID string, deploymentPreviewsReqests []deployments.DeploymentPreviewRequest) (map[string]string, error) {
+	previews, err := deployments.GetReleaseDeploymentPreviews(octopus, spaceID, releaseID, deploymentPreviewsReqests, true)
+	if err != nil {
+		return nil, err
+	}
+
+	flattenedValues := make(map[string]string)
+	flattenedControls := make(map[string]*deployments.Control)
+	for _, preview := range previews {
+		for _, element := range preview.Form.Elements {
+			flattenedControls[element.Name] = element.Control
+		}
+		for key, value := range preview.Form.Values {
+			flattenedValues[key] = value
+		}
+	}
+
+	result := make(map[string]string)
+	lcaseVarsFromCmd := make(map[string]string, len(variablesFromCmd))
+	for k, v := range variablesFromCmd {
+		lcaseVarsFromCmd[strings.ToLower(k)] = v
+	}
+
+	for key, control := range flattenedControls {
+		valueFromCmd, foundValueOnCommandLine := lcaseVarsFromCmd[strings.ToLower(control.Name)]
+		if foundValueOnCommandLine {
+			// implicitly fixes up variable casing
+			result[control.Name] = valueFromCmd
+		}
+		if control.Required == true && !foundValueOnCommandLine {
+
+			defaultValue := flattenedValues[key]
+			isSensitive := control.DisplaySettings.ControlType == "Sensitive"
+			promptMessage := control.Name
+
+			if control.Description != "" {
+				promptMessage = fmt.Sprintf("%s (%s)", promptMessage, control.Description) // we'd like to dim the description, but survey overrides this, so we can't
+			}
+
+			responseString, err := executionscommon.AskVariableSpecificPrompt(asker, promptMessage, control.Type, defaultValue, control.Required, isSensitive, control.DisplaySettings)
+			if err != nil {
+				return nil, err
+			}
+			result[control.Name] = responseString
+		}
+	}
+
+	return result, nil
 }
 
 // FindDeployableEnvironmentIDs returns an array of environment IDs that we can deploy to,

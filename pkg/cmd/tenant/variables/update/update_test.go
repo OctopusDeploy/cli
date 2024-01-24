@@ -8,6 +8,7 @@ import (
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/core"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/environments"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/resources"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/tenants"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/variables"
 	"github.com/stretchr/testify/assert"
@@ -30,7 +31,7 @@ func TestPromptMissing_ProjectVariable_AllFlagsProvided(t *testing.T) {
 			ProjectID:   "Projects-1",
 			ProjectName: flags.Project.Value,
 		}
-		projectTemplate := createTemplate("var name", variables.ControlTypeSingleLineText, "templateId-1")
+		projectTemplate := createTemplate("var name", resources.ControlTypeSingleLineText, "templateId-1")
 		projectVars.Templates = append(projectVars.Templates, projectTemplate)
 		vars := variables.NewTenantVariables("Tenants-1")
 		vars.SpaceID = "Spaces-1"
@@ -67,7 +68,7 @@ func TestPromptMissing_LibraryVariable_AllFlagsProvided(t *testing.T) {
 		libraryVariables := variables.NewLibraryVariable()
 		libraryVariables.LibraryVariableSetID = "LibraryVariableSets-1"
 		libraryVariables.LibraryVariableSetName = "lvs"
-		libraryVariables.Templates = append(libraryVariables.Templates, createTemplate("var name", variables.ControlTypeSingleLineText, "templateId-1"))
+		libraryVariables.Templates = append(libraryVariables.Templates, createTemplate("var name", resources.ControlTypeSingleLineText, "templateId-1"))
 		vars := variables.NewTenantVariables("Tenants-1")
 		vars.SpaceID = "Spaces-1"
 		vars.TenantName = "tenant name"
@@ -103,8 +104,8 @@ func TestPromptMissing_LibraryVariable_NoFlagsProvided(t *testing.T) {
 		libraryVariables := variables.NewLibraryVariable()
 		libraryVariables.LibraryVariableSetID = "LibraryVariableSets-1"
 		libraryVariables.LibraryVariableSetName = "lvs"
-		libraryVariables.Templates = append(libraryVariables.Templates, createTemplate("var name", variables.ControlTypeSingleLineText, "templateId-1"))
-		libraryVariables.Templates = append(libraryVariables.Templates, createTemplate("var name 2", variables.ControlTypeSingleLineText, "templateId-2"))
+		libraryVariables.Templates = append(libraryVariables.Templates, createTemplate("var name", resources.ControlTypeSingleLineText, "templateId-1"))
+		libraryVariables.Templates = append(libraryVariables.Templates, createTemplate("var name 2", resources.ControlTypeSingleLineText, "templateId-2"))
 		vars := variables.NewTenantVariables("Tenants-1")
 		vars.SpaceID = "Spaces-1"
 		vars.TenantName = "tenant name"
@@ -152,7 +153,7 @@ func TestPromptMissing_ProjectVariable_NoFlagsProvided(t *testing.T) {
 			ProjectName: "Project 1",
 			Variables:   make(map[string]map[string]core.PropertyValue),
 		}
-		project1Vars.Templates = append(project1Vars.Templates, createTemplate("project 1 var", variables.ControlTypeSingleLineText, "templateId-1"))
+		project1Vars.Templates = append(project1Vars.Templates, createTemplate("project 1 var", resources.ControlTypeSingleLineText, "templateId-1"))
 		project1Vars.Variables["Environments-1"] = make(map[string]core.PropertyValue)
 		project1Vars.Variables["Environments-1"]["templateId-1"] = core.NewPropertyValue("", false)
 		project1Vars.Variables["Environments-2"] = make(map[string]core.PropertyValue)
@@ -162,7 +163,7 @@ func TestPromptMissing_ProjectVariable_NoFlagsProvided(t *testing.T) {
 			ProjectName: "Project 2",
 			Variables:   make(map[string]map[string]core.PropertyValue),
 		}
-		project2Vars.Templates = append(project2Vars.Templates, createTemplate("project 2 var", variables.ControlTypeSingleLineText, "templateId-2"))
+		project2Vars.Templates = append(project2Vars.Templates, createTemplate("project 2 var", resources.ControlTypeSingleLineText, "templateId-2"))
 		project2Vars.Variables["Environments-1"] = make(map[string]core.PropertyValue)
 		project2Vars.Variables["Environments-1"]["templateId-2"] = core.NewPropertyValue("", false)
 		project2Vars.Variables["Environments-2"] = make(map[string]core.PropertyValue)
@@ -205,7 +206,7 @@ func TestPromptMissing_ProjectVariable_NoFlagsProvided(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-func createTemplate(name string, controlType variables.ControlType, templateId string) *actiontemplates.ActionTemplateParameter {
+func createTemplate(name string, controlType resources.ControlType, templateId string) *actiontemplates.ActionTemplateParameter {
 	template := actiontemplates.NewActionTemplateParameter()
 	template.Name = name
 	template.DisplaySettings = make(map[string]string)

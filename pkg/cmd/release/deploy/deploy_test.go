@@ -135,6 +135,23 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 		api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+fireProjectID+"/releases/"+release.Version).RespondWith(release)
 
 		api.ExpectRequest(t, "GET", "/api/Spaces-1/variables/"+vars.ID).RespondWith(&vars)
+
+		var selectedEnvironments []*environments.Environment
+		allEnvironments := []*environments.Environment{devEnvironment, scratchEnvironment, prodEnvironment}
+
+		for _, env := range allEnvironments {
+			for _, envName := range options.Environments {
+				if env.Name == envName {
+					selectedEnvironments = append(selectedEnvironments, env)
+					break
+				}
+			}
+		}
+
+		api.ExpectRequest(t, "GET", "/api/Spaces-1/environments/all").RespondWith([]*environments.Environment(selectedEnvironments))
+
+		emptyDeploymentPreviews := fixtures.EmptyDeploymentPreviews()
+		api.ExpectRequest(t, "POST", "/api/Spaces-1/releases/"+release19.ID+"/deployments/previews").RespondWith(&emptyDeploymentPreviews)
 	}
 
 	tests := []struct {
@@ -203,6 +220,8 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 
 			// now it's going to go looking for prompted variables; we don't have any prompted variables here so it skips
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/variables/"+variableSnapshotNoVars.ID).RespondWith(&variableSnapshotNoVars)
+			emptyDeploymentPreviews := fixtures.EmptyDeploymentPreviews()
+			api.ExpectRequest(t, "POST", "/api/Spaces-1/releases/"+release19.ID+"/deployments/previews").RespondWith(&emptyDeploymentPreviews)
 
 			q := qa.ExpectQuestion(t, &survey.Select{
 				Message: "Change additional options?",
@@ -262,6 +281,13 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 			`), stdout.String())
 			stdout.Reset()
 
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/environments/all").RespondWith([]*environments.Environment{
+				devEnvironment,
+			})
+
+			deploymentPreviews := fixtures.EmptyDeploymentPreviews()
+			api.ExpectRequest(t, "POST", "/api/Spaces-1/releases/"+release19.ID+"/deployments/previews").RespondWith(&deploymentPreviews)
+
 			q := qa.ExpectQuestion(t, &survey.Select{
 				Message: "Change additional options?",
 				Options: []string{"Proceed to deploy", "Change"},
@@ -312,6 +338,12 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 
 			// now it's going to go looking for prompted variables; we don't have any prompted variables here so it skips
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/variables/"+variableSnapshotWithPromptedVariables.ID).RespondWith(&variableSnapshotWithPromptedVariables)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/environments/all").RespondWith([]*environments.Environment{
+				devEnvironment,
+			})
+
+			deploymentPreviews := fixtures.NewDeploymentPreviewsWithApproval()
+			api.ExpectRequest(t, "POST", "/api/Spaces-1/releases/"+release20.ID+"/deployments/previews").RespondWith(&deploymentPreviews)
 
 			q := qa.ExpectQuestion(t, &survey.Input{
 				Message: "Approver (Who approved this deployment?)",
@@ -347,6 +379,79 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 				GuidedFailureMode: "",
 				Variables:         map[string]string{"Approver": "John"},
 				ReleaseID:         release20.ID,
+			}, options)
+		}},
+
+		{"only prompt required variables", func(t *testing.T, api *testutil.MockHttpServer, qa *testutil.AskMocker, stdout *bytes.Buffer) {
+			// we don't need to fully test prompted variables; AskPromptedVariables already has all its own tests, we just
+			// need to very it's wired up properly
+			options := &executor.TaskOptionsDeployRelease{
+				ProjectName:    "fire project",
+				ReleaseVersion: "2.0",
+				Environments:   []string{"dev"},
+			}
+
+			errReceiver := testutil.GoBegin(func() error {
+				defer testutil.Close(api, qa)
+				// NewClient makes network calls so we have to run it in the goroutine
+				octopus, _ := octopusApiClient.NewClient(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "")
+				return deploy.AskQuestions(octopus, stdout, qa.AsAsker(), space1, options, now)
+			})
+
+			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/spaces").RespondWith(rootResource)
+
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/fire project").RespondWithStatus(404, "NotFound", nil)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects?partialName=fire+project").
+				RespondWith(resources.Resources[*projects.Project]{
+					Items: []*projects.Project{fireProject},
+				})
+
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+fireProjectID+"/releases/"+release20.Version).RespondWith(release20)
+
+			// now it's going to go looking for prompted variables; we don't have any prompted variables here so it skips
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/variables/"+variableSnapshotWithPromptedVariables.ID).RespondWith(&variableSnapshotWithPromptedVariables)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/environments/all").RespondWith([]*environments.Environment{
+				devEnvironment,
+			})
+
+			deploymentPreviews := fixtures.NewDeploymentPreviews()
+			api.ExpectRequest(t, "POST", "/api/Spaces-1/releases/"+release20.ID+"/deployments/previews").RespondWith(&deploymentPreviews)
+
+			promptQuestion := qa.ExpectQuestion(t, &survey.Password{
+				Message: "Scoped Sensitive",
+				Help:    "",
+			})
+			assert.Regexp(t, "", stdout.String()) // actual options tested in PrintAdvancedSummary
+			_ = promptQuestion.AnswerWith("Secret Value")
+
+			assert.Equal(t, heredoc.Doc(`
+				Project Fire Project
+				Release 2.0
+				Environments dev
+			`), stdout.String())
+			stdout.Reset()
+
+			q := qa.ExpectQuestion(t, &survey.Select{
+				Message: "Change additional options?",
+				Options: []string{"Proceed to deploy", "Change"},
+			})
+			assert.Regexp(t, "Additional Options", stdout.String()) // actual options tested in PrintAdvancedSummary
+			_ = q.AnswerWith("Proceed to deploy")
+
+			err := <-errReceiver
+			assert.Nil(t, err)
+
+			// check that the question-asking process has filled out the things we told it to
+			assert.Equal(t, &executor.TaskOptionsDeployRelease{
+				ProjectName:       "Fire Project",
+				ReleaseVersion:    "2.0",
+				Environments:      []string{"dev"},
+				GuidedFailureMode: "",
+				Variables: map[string]string{
+					"Scoped Sensitive": "Secret Value",
+				},
+				ReleaseID: release20.ID,
 			}, options)
 		}},
 
@@ -415,6 +520,9 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 
 			// now it's going to go looking for prompted variables; we don't have any prompted variables here so it skips
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/variables/"+variableSnapshotNoVars.ID).RespondWith(&variableSnapshotNoVars)
+
+			emptyDeploymentPreviews := fixtures.EmptyDeploymentPreviews()
+			api.ExpectRequest(t, "POST", "/api/Spaces-1/releases/"+release19.ID+"/deployments/previews").RespondWith(&emptyDeploymentPreviews)
 
 			assert.Equal(t, heredoc.Doc(`
 				Project Fire Project
@@ -514,6 +622,8 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 
 			// now it's going to go looking for prompted variables; we don't have any prompted variables here so it skips
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/variables/"+variableSnapshotNoVars.ID).RespondWith(&variableSnapshotNoVars)
+			emptyDeploymentPreviews := fixtures.EmptyDeploymentPreviews()
+			api.ExpectRequest(t, "POST", "/api/Spaces-1/releases/"+release19.ID+"/deployments/previews").RespondWith(&emptyDeploymentPreviews)
 
 			assert.Equal(t, heredoc.Doc(`
 				Project Fire Project
@@ -596,6 +706,9 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 
 			// now it's going to go looking for prompted variables; we don't have any prompted variables here so it skips
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/variables/"+variableSnapshotNoVars.ID).RespondWith(&variableSnapshotNoVars)
+			emptyDeploymentPreviews := fixtures.EmptyDeploymentPreviews()
+			api.ExpectRequest(t, "POST", "/api/Spaces-1/releases/"+release19.ID+"/deployments/previews").RespondWith(&emptyDeploymentPreviews)
+
 			assert.Equal(t, heredoc.Doc(`
 				Project Fire Project
 				Release 1.9
@@ -629,6 +742,14 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 			errReceiver := testutil.GoBegin(func() error {
 				defer testutil.Close(api, qa)
 				octopus, _ := octopusApiClient.NewClient(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "")
+				//
+				//api.ExpectRequest(t, "GET", "/api/Spaces-1/environments/all").RespondWith([]*environments.Environment{
+				//	devEnvironment, scratchEnvironment,
+				//})
+				//
+				//emptyDeploymentPreviews := fixtures.EmptyDeploymentPreviews()
+				//api.ExpectRequest(t, "POST", "/api/Spaces-1/releases/"+release19.ID+"/deployments/previews").RespondWith(&emptyDeploymentPreviews)
+
 				return deploy.AskQuestions(octopus, stdout, qa.AsAsker(), space1, options, now)
 			})
 
@@ -684,12 +805,6 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 				Message: "Package download",
 				Options: []string{"Use cached packages (if available)", "Re-download packages from feed"},
 			}).AnswerWith("Re-download packages from feed")
-
-			// because environments were specified on the commandline, we didn't look them up earlier, but we
-			// must do it now in order to determine the list of deployment targets
-			api.ExpectRequest(t, "GET", "/api/Spaces-1/environments/all").RespondWith([]*environments.Environment{
-				devEnvironment, scratchEnvironment, prodEnvironment,
-			})
 
 			api.ExpectRequest(t, "GET", fmt.Sprintf("/api/Spaces-1/releases/%s/deployments/preview/%s?includeDisabledSteps=true", release19.ID, devEnvironment.ID)).RespondWith(&deployments.DeploymentPreview{
 				StepsToExecute: []*deployments.DeploymentTemplateStep{
@@ -778,6 +893,8 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 			})
 
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/variables/"+variableSnapshotNoVars.ID).RespondWith(&variableSnapshotNoVars)
+			emptyDeploymentPreviews := fixtures.EmptyDeploymentPreviews()
+			api.ExpectRequest(t, "POST", "/api/Spaces-1/releases/"+release19.ID+"/deployments/previews").RespondWith(&emptyDeploymentPreviews)
 
 			stdout.Reset()
 
@@ -1566,6 +1683,39 @@ func TestDeployCreate_GenerationOfAutomationCommand_MasksSensitiveVariables(t *t
 
 	// now it's going to go looking for prompted variables; we don't have any prompted variables here so it skips
 	api.ExpectRequest(t, "GET", "/api/Spaces-1/variables/"+variableSnapshotWithPromptedVariables.ID).RespondWith(&variableSnapshotWithPromptedVariables)
+
+	devEnvironment := fixtures.NewEnvironment(spaceID, "Environments-12", "dev")
+	api.ExpectRequest(t, "GET", "/api/Spaces-1/environments/all").RespondWith([]*environments.Environment{
+		devEnvironment,
+	})
+
+	newDisplaySettings := &resources.DisplaySettings{}
+	plainValue := deployments.NewControl("VariableValue", "Boring Variable", "Prompt not required", "", true, newDisplaySettings)
+	sensitiveValue := deployments.NewControl("VariableValue", "Nuclear Launch Codes", "Test Env scoped", "", true, resources.NewDisplaySettings(resources.ControlTypeSensitive, nil))
+	sensitiveValueTwo := deployments.NewControl("VariableValue", "Secret Password", "Scoped Sensitive", "", true, resources.NewDisplaySettings(resources.ControlTypeSensitive, nil))
+
+	elementPromptNotRequired := deployments.NewElement("5103b61d-9142-c146-d2c9-11b0e63aa438", plainValue, false)
+	elementTestEnvScoped := deployments.NewElement("1953afe6-f094-1287-2d8a-04846dc0f9b1", sensitiveValue, true)
+	elementScopedSensitive := deployments.NewElement("41824a1b-64ad-430f-862b-39d8cfeeb13a", sensitiveValueTwo, true)
+
+	// Define the Form instance
+	formValues := map[string]string{
+		"5103b61d-9142-c146-d2c9-11b0e63aa438": "",
+		"1953afe6-f094-1287-2d8a-04846dc0f9b1": "",
+		"41824a1b-64ad-430f-862b-39d8cfeeb13a": "",
+	}
+	formElements := []*deployments.Element{elementPromptNotRequired, elementTestEnvScoped, elementScopedSensitive}
+	form := deployments.NewFormWithValuesAndElements(formValues, formElements)
+
+	deploymentPreview := &deployments.DeploymentPreview{
+		Form:                          form,
+		StepsToExecute:                []*deployments.DeploymentTemplateStep{},
+		UseGuidedFailureModeByDefault: false,
+	}
+
+	// Serialize the DeploymentPreview instances to JSON
+	deploymentPreviews := []*deployments.DeploymentPreview{deploymentPreview}
+	api.ExpectRequest(t, "POST", "/api/Spaces-1/releases/"+release20.ID+"/deployments/previews").RespondWith(&deploymentPreviews)
 
 	_ = qa.ExpectQuestion(t, &survey.Input{
 		Message: "Boring Variable",

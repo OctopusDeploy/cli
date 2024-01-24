@@ -15,6 +15,7 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/util"
 	"github.com/OctopusDeploy/cli/pkg/util/flag"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/resources"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/variables"
 	"github.com/spf13/cobra"
 	"strings"
@@ -196,7 +197,7 @@ func CreateRun(opts *CreateOptions) error {
 		}
 
 		selectOptions := parseSelectOptions(opts, promptControlType)
-		newVariable.Prompt.DisplaySettings = variables.NewDisplaySettings(promptControlType, selectOptions)
+		newVariable.Prompt.DisplaySettings = resources.NewDisplaySettings(promptControlType, selectOptions)
 	}
 
 	if opts.GitRef.Value != "" {
@@ -412,15 +413,15 @@ func projectSelector(questionText string, getAllProjectsCallback shared.GetAllPr
 	return question.SelectMap(ask, questionText, existingProjects, func(p *projects.Project) string { return p.GetName() })
 }
 
-func parseSelectOptions(opts *CreateOptions, controlType variables.ControlType) []*variables.SelectOption {
-	options := []*variables.SelectOption{}
-	if controlType != variables.ControlTypeSelect {
+func parseSelectOptions(opts *CreateOptions, controlType resources.ControlType) []*resources.SelectOption {
+	options := []*resources.SelectOption{}
+	if controlType != resources.ControlTypeSelect {
 		return options
 	}
 
 	for _, selectOption := range opts.PromptSelectOptions.Value {
 		o := strings.Split(selectOption, "|")
-		options = append(options, &variables.SelectOption{
+		options = append(options, &resources.SelectOption{
 			Value:       o[0],
 			DisplayName: o[1],
 		})
@@ -454,16 +455,16 @@ func mapVariableType(varType string) (string, error) {
 	}
 }
 
-func mapControlType(promptType string) (variables.ControlType, error) {
+func mapControlType(promptType string) (resources.ControlType, error) {
 	switch promptType {
 	case PromptTypeText:
-		return variables.ControlTypeSingleLineText, nil
+		return resources.ControlTypeSingleLineText, nil
 	case PromptTypeMultiText:
-		return variables.ControlTypeMultiLineText, nil
+		return resources.ControlTypeMultiLineText, nil
 	case PromptTypeCheckbox:
-		return variables.ControlTypeCheckbox, nil
+		return resources.ControlTypeCheckbox, nil
 	case PromptTypeDropdown:
-		return variables.ControlTypeSelect, nil
+		return resources.ControlTypeSelect, nil
 	default:
 		return "", fmt.Errorf("unknown prompt type '%s', valid values are '%s','%s','%s', '%s'", promptType, PromptTypeText, PromptTypeMultiText, PromptTypeCheckbox, PromptTypeDropdown)
 	}
