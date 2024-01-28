@@ -1,9 +1,9 @@
 package view
 
 import (
-	"fmt"
-	"github.com/OctopusDeploy/cli/pkg/apiclient"
 	"io"
+
+	"github.com/OctopusDeploy/cli/pkg/apiclient"
 
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/constants"
@@ -12,7 +12,7 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/usage"
 	"github.com/OctopusDeploy/cli/pkg/util/flag"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
-	"github.com/pkg/browser"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
 	"github.com/spf13/cobra"
 )
 
@@ -28,6 +28,11 @@ func NewViewFlags() *ViewFlags {
 	return &ViewFlags{
 		Web: flag.New[bool](FlagWeb, false),
 	}
+}
+
+type ProjectsListAsJson struct {
+	Name string `json:"Name"`
+	Slug string `json:"Slug"`
 }
 
 type ViewOptions struct {
@@ -63,7 +68,7 @@ func NewCmdView(f factory.Factory) *cobra.Command {
 				viewFlags,
 			}
 
-			return viewRun(opts)
+			return viewRun(opts, cmd)
 		},
 	}
 
@@ -73,37 +78,32 @@ func NewCmdView(f factory.Factory) *cobra.Command {
 	return cmd
 }
 
-func viewRun(opts *ViewOptions) error {
+func viewRun(opts *ViewOptions, cmd *cobra.Command) error {
 	projectGroup, err := opts.Client.ProjectGroups.GetByIDOrName(opts.idOrName)
 	if err != nil {
 		return err
 	}
 
-	fmt.Fprintf(opts.out, "%s %s\n", output.Bold(projectGroup.GetName()), output.Dimf("(%s)", projectGroup.GetID()))
-
-	if projectGroup.Description == "" {
-		fmt.Fprintln(opts.out, output.Dim(constants.NoDescription))
-	} else {
-		fmt.Fprintln(opts.out, output.Dim(projectGroup.Description))
-	}
-
-	projects, err := opts.Client.ProjectGroups.GetProjects(projectGroup)
+	allProjects, err := opts.Client.ProjectGroups.GetProjects(projectGroup)
 	if err != nil {
 		return err
 	}
-	fmt.Fprintf(opts.out, output.Cyan("\nProjects:\n"))
-	for _, project := range projects {
-		fmt.Fprintf(opts.out, "%s (%s)\n", output.Bold(project.GetName()), project.Slug)
-	}
 
-	url := fmt.Sprintf("%s/app#/%s/projects?projectGroupId=%s", opts.Host, projectGroup.SpaceID, projectGroup.GetID())
-
-	// footer
-	fmt.Fprintf(opts.out, "\nView this project group in Octopus Deploy: %s\n", output.Blue(url))
-
-	if opts.flags.Web.Value {
-		browser.OpenURL(url)
-	}
-
-	return nil
+	return output.PrintArray(allProjects, cmd, output.Mappers[*projects.Project]{
+		Json: func(p *projects.Project) any {
+			return ProjectsListAsJson{
+				Name: p.Name,
+				Slug: p.Slug,
+			}
+		},
+		Table: output.TableDefinition[*projects.Project]{
+			Header: []string{"PROJECT NAME", "PROJECT SLUG"},
+			Row: func(p *projects.Project) []string {
+				return []string{output.Bold(p.Name), p.Slug}
+			},
+		},
+		Basic: func(p *projects.Project) string {
+			return p.Name
+		},
+	})
 }
