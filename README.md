@@ -66,7 +66,8 @@ sudo install -m 0755 -d /etc/apt/keyrings && \
 curl -fsSL https://apt.octopus.com/public.key | sudo gpg --dearmor -o /etc/apt/keyrings/octopus.gpg && \
 sudo chmod a+r /etc/apt/keyrings/octopus.gpg && \
 echo \
-  "deb [arch="$(dpkg --print-architecture)" signed-by=/etc/apt/keyrings/octopus.gpg] https://apt.octopus.com/ stable main" | \
+  "deb [arch="$(dpkg --print-architecture)" signed-by=/etc/apt/keyrings/octopus.gpg] https://apt.octopus.com/ \
+  stable main" | \
   sudo tee /etc/apt/sources.list.d/octopus.list > /dev/null && \
 sudo apt update && sudo apt install octopus-cli
 
