@@ -2,6 +2,8 @@ package main
 
 import (
 	"fmt"
+	"github.com/OctopusDeploy/cli/pkg/config"
+	"github.com/spf13/viper"
 	"io"
 	"os"
 	"os/user"
@@ -96,7 +98,9 @@ func run(args []string) error {
 	clientFactory := apiclient.NewStubClientFactory()
 	s := spinner.New(spinner.CharSets[11], 100*time.Millisecond, spinner.WithColor("cyan"))
 	buildVersion := strings.TrimSpace(version.Version)
-	f := factory.New(clientFactory, askProvider, s, buildVersion)
+	viper := viper.GetViper()
+	c := config.New(viper)
+	f := factory.New(clientFactory, askProvider, s, buildVersion, c)
 
 	cmd := root.NewCmdRoot(f, clientFactory, askProvider)
 	cmd.DisableAutoGenTag = true
