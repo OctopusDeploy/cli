@@ -66,7 +66,7 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 		Aliases: []string{"add"},
 		Example: heredoc.Docf(`
 			$ %[1]s project branch create
-			$ %[1]s project branch create --project "Deploy Website" --name branch-nane --base-branch refs/heads/main
+			$ %[1]s project branch create --project "Deploy Website" --name branch-name --base-branch refs/heads/main
 		`, constants.ExecutableName),
 		RunE: func(c *cobra.Command, args []string) error {
 			opts := NewCreateOptions(createFlags, cmd.NewDependencies(f, c))

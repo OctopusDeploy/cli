@@ -65,7 +65,7 @@ func NewCmdClone(f factory.Factory) *cobra.Command {
 		Long:  "Clone a tenant in Octopus Deploy",
 		Example: heredoc.Docf(`
 			$ %[1]s tenant clone
-			$ %[1]s tenant clone --name "Garys Cakes" --source-tenant "Bobs Wood Shop" 
+			$ %[1]s tenant clone --name "Gary's Cakes" --source-tenant "Bob's Wood Shop" 
 		`, constants.ExecutableName),
 		RunE: func(c *cobra.Command, args []string) error {
 			opts := NewCloneOptions(cloneFlags, cmd.NewDependencies(f, c))
