@@ -30,7 +30,7 @@ func NewCmdDelete(f factory.Factory) *cobra.Command {
 		Long:    "Delete a user in Octopus Deploy",
 		Aliases: []string{"del", "rm", "remove"},
 		Example: heredoc.Docf(`
-			$ %[1]s user delete someusername
+			$ %[1]s user delete some-user-name
 			$ %[1]s user rm Users-123
 		`, constants.ExecutableName),
 		RunE: func(c *cobra.Command, args []string) error {

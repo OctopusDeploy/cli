@@ -100,8 +100,8 @@ func NewCmdUpdate(f factory.Factory) *cobra.Command {
 		Long:  "Update the value of a tenant variable in Octopus Deploy",
 		Example: heredoc.Docf(`
 			$ %[1]s tenant variable update
-			$ %[1]s tenant variable update --tenant "Bobs Fish Shack" --name "site-name" --value "Bobs Fish Shack" --project "Awesome Web Site" --environment "Test"
-			$ %[1]s tenant variable update --tenant "Sallys Tackle Truck" --name dbPassword --value "12345" --library-variable-set "Shared Variables"
+			$ %[1]s tenant variable update --tenant "Bobs Fish Shack" --name "site-name" --value "Bob's Fish Shack" --project "Awesome Web Site" --environment "Test"
+			$ %[1]s tenant variable update --tenant "Sally's Tackle Truck" --name dbPassword --value "12345" --library-variable-set "Shared Variables"
 			`, constants.ExecutableName),
 		RunE: func(c *cobra.Command, args []string) error {
 			opts := NewUpdateOptions(updateFlags, cmd.NewDependencies(f, c))

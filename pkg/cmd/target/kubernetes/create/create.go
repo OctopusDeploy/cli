@@ -299,9 +299,9 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 	flags.StringVar(&createFlags.Certificate.Value, createFlags.Certificate.Name, "", "Name of Certificate in Octopus Deploy.")
 	flags.StringVar(&createFlags.CertificateFilePath.Value, createFlags.CertificateFilePath.Name, "", "The path to the CA certificate of the cluster. The default value usually is: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt")
 
-	flags.StringVar(&createFlags.ContainerRegistry.Value, createFlags.ContainerRegistry.Name, "", "The feed of the docker container registery to use if running health check in a container on the worker")
+	flags.StringVar(&createFlags.ContainerRegistry.Value, createFlags.ContainerRegistry.Name, "", "The feed of the docker container registry to use if running health check in a container on the worker")
 
-	flags.StringVar(&createFlags.ImageFlags.Value, createFlags.ImageFlags.Name, "", "The image (including the tag) to use from the container registery")
+	flags.StringVar(&createFlags.ImageFlags.Value, createFlags.ImageFlags.Name, "", "The image (including the tag) to use from the container registry")
 
 	shared.RegisterCreateTargetEnvironmentFlags(cmd, createFlags.CreateTargetEnvironmentFlags)
 	shared.RegisterCreateTargetWorkerPoolFlags(cmd, createFlags.WorkerPoolFlags)
