@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.1.1](https://github.com/OctopusDeploy/cli/compare/v2.1.0...v2.1.1) (2024-02-12)
+
+
+### Bug Fixes
+
+* remove requirement for server config on package create commands ([#323](https://github.com/OctopusDeploy/cli/issues/323)) ([f755841](https://github.com/OctopusDeploy/cli/commit/f75584156b04bec28d41def60360e5953acce0a6))
+
 ## [2.1.0](https://github.com/OctopusDeploy/cli/compare/v2.0.0...v2.1.0) (2024-01-08)
 
 
