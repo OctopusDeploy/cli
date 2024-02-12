@@ -3,6 +3,7 @@ package main
 import (
 	_ "embed"
 	"fmt"
+	"github.com/OctopusDeploy/cli/pkg/util"
 	"os"
 	"strings"
 	"time"
@@ -35,10 +36,6 @@ func main() {
 		os.Exit(3)
 	}
 	arg := os.Args[1:]
-	cmdToRun := ""
-	if len(arg) > 0 {
-		cmdToRun = arg[0]
-	}
 
 	// initialize our wrapper around survey, which is also used as a flag for whether
 	// we are in interactive mode or automation mode
@@ -54,7 +51,7 @@ func main() {
 	clientFactory, err := apiclient.NewClientFactoryFromConfig(askProvider)
 	if err != nil {
 		// a small subset of commands can function even if the app doesn't have valid configuration information
-		if cmdToRun == "config" || cmdToRun == "version" || cmdToRun == "help" || cmdToRun == "login" || cmdToRun == "logout" {
+		if commandDoesNotRequireClient(arg) {
 			clientFactory = apiclient.NewStubClientFactory()
 		} else {
 			// can't possibly work
@@ -86,4 +83,9 @@ func main() {
 
 		os.Exit(1)
 	}
+}
+
+func commandDoesNotRequireClient(args []string) bool {
+	cmdToRun := args[0]
+	return cmdToRun == "config" || cmdToRun == "version" || cmdToRun == "help" || cmdToRun == "login" || cmdToRun == "logout" || (cmdToRun == "package" && util.SliceContains(args, "create"))
 }
