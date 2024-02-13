@@ -1,9 +1,11 @@
 package view
 
 import (
+	"encoding/json"
 	"fmt"
+	"strings"
+
 	"github.com/OctopusDeploy/cli/pkg/apiclient"
-	"io"
 
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/constants"
@@ -34,9 +36,9 @@ func NewViewFlags() *ViewFlags {
 type ViewOptions struct {
 	Client   *client.Client
 	Host     string
-	out      io.Writer
 	idOrName string
 	flags    *ViewFlags
+	cmd      *cobra.Command
 }
 
 func NewCmdView(f factory.Factory) *cobra.Command {
@@ -60,9 +62,9 @@ func NewCmdView(f factory.Factory) *cobra.Command {
 			opts := &ViewOptions{
 				client,
 				f.GetCurrentHost(),
-				cmd.OutOrStdout(),
 				args[0],
 				viewFlags,
+				cmd,
 			}
 
 			return viewRun(opts)
@@ -81,23 +83,62 @@ func viewRun(opts *ViewOptions) error {
 		return err
 	}
 
-	fmt.Fprintf(opts.out, "%s %s\n", output.Bold(project.Name), output.Dimf("(%s)", project.Slug))
+	outputFormat, err := opts.cmd.Flags().GetString(constants.FlagOutputFormat)
 
-	cacBranch := "Not version controlled"
-	if project.IsVersionControlled {
-		cacBranch = project.PersistenceSettings.(projects.GitPersistenceSettings).DefaultBranch()
+	if err != nil { // should never happen, but fallback if it does
+		outputFormat = constants.OutputFormatTable
 	}
-	fmt.Fprintf(opts.out, "Version control branch: %s\n", output.Cyan(cacBranch))
-	if project.Description == "" {
-		fmt.Fprintln(opts.out, output.Dim(constants.NoDescription))
-	} else {
-		fmt.Fprintln(opts.out, output.Dim(project.Description))
+	out := opts.cmd.OutOrStdout()
+
+	projectVcsBranch := "N/A"
+	if project.IsVersionControlled {
+		projectVcsBranch = project.PersistenceSettings.(projects.GitPersistenceSettings).DefaultBranch()
+	}
+
+	projectDescription := project.Description
+	if projectDescription == "" {
+		projectDescription = constants.NoDescription
 	}
 
 	url := opts.Host + project.Links["Web"]
 
-	// footer
-	fmt.Fprintf(opts.out, "View this project in Octopus Deploy: %s\n", output.Blue(url))
+	type ViewData struct {
+		Name                string `json:"name"`
+		Slug                string `json:"slug"`
+		Description         string `json:"description"`
+		IsVersionControlled bool   `json:"isversioncontrolled"`
+		Branch              string `json:"branch"`
+		Url                 string `json:"url"`
+	}
+
+	switch strings.ToLower(outputFormat) {
+	case constants.OutputFormatBasic:
+		fmt.Fprintf(out, "Name: %s %s\n", output.Bold(project.Name), output.Dimf("(%s)", project.Slug))
+		fmt.Fprintf(out, "Description: %s\n", output.Dim(projectDescription))
+		fmt.Fprintf(out, "Is version controlled: %s\n", output.Cyanf("%t", project.IsVersionControlled))
+		fmt.Fprintf(out, "Branch: %s\n", output.Cyan(projectVcsBranch))
+		fmt.Fprintf(out, "View this project in Octopus Deploy: %s\n", output.Blue(url))
+	case constants.OutputFormatTable:
+		t := output.NewTable(out)
+		t.AddRow(output.Bold("KEY"), output.Bold("VALUE"))
+		t.AddRow("Name", project.Name)
+		t.AddRow("Slug", project.Slug)
+		t.AddRow("Description", project.Description)
+		t.AddRow("IsVersionControlled", fmt.Sprintf("%t", project.IsVersionControlled))
+		t.AddRow("Branch", projectVcsBranch)
+		t.AddRow("Url", fmt.Sprintf("%s", output.Blue(url)))
+		t.Print()
+	case constants.OutputFormatJson:
+		viewData := &ViewData{}
+		viewData.Name = project.Name
+		viewData.Slug = project.Slug
+		viewData.Description = project.Description
+		viewData.IsVersionControlled = project.IsVersionControlled
+		viewData.Branch = projectVcsBranch
+		viewData.Url = url
+		data, _ := json.MarshalIndent(viewData, "", "  ")
+		opts.cmd.Println(string(data))
+	}
 
 	if opts.flags.Web.Value {
 		browser.OpenURL(url)
