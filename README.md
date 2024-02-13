@@ -157,7 +157,7 @@ If successful, the go compiler does not output anything. You should now have an 
 
 **Makefile**
 
-If you are using a system that has `make` installed, then you can also simpl run `make` in the cli root folder.
+If you are using a system that has `make` installed, then you can also simply run `make` in the cli root folder.
 The default action for the `Makefile` is to run `go build`, as above.
 
 ## Running the CLI
