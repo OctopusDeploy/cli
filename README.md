@@ -62,8 +62,9 @@ The Homebrew package has native support for macOS Intel and Apple Silicon
 
 ```shell
 sudo apt update && sudo apt install --no-install-recommends gnupg curl ca-certificates apt-transport-https && \
-curl -sSfL https://apt.octopus.com/public.key | sudo apt-key add - && \
-sudo sh -c "echo deb https://apt.octopus.com/ stable main > /etc/apt/sources.list.d/octopus.com.list" && \
+sudo mkdir -p /etc/apt/keyrings && \
+curl -sSfL https://apt.octopus.com/public.key | sudo gpg --dearmor --yes -o /etc/apt/keyrings/octopus.com.gpg && \
+sudo sh -c "echo deb [signed-by=/etc/apt/keyrings/octopus.com.gpg] https://apt.octopus.com/ stable main > /etc/apt/sources.list.d/octopus.com.list" && \
 sudo apt update && sudo apt install octopus-cli
 ```
 
