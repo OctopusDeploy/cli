@@ -53,7 +53,6 @@ type VarProcessScopedItem struct {
 
 type VariableViewData struct {
 	Id                     string                  `json:"id"`
-	Name                   string                  `json:"name"`
 	Value                  string                  `json:"value"`
 	Description            string                  `json:"description"`
 	EnvironmentScope       []*VarScopedItem        `json:"environmentscope"`
@@ -204,7 +203,7 @@ func viewRun(opts *ViewOptions) error {
 		}
 	case constants.OutputFormatJson:
 
-		viewItems := make([]VariableViewData, len(filteredVars))
+		viewItems := make([]VariableViewData, 0, len(filteredVars))
 		for _, v := range filteredVars {
 
 			scopeValues, err := variableShared.ToScopeValues(v, allVars.ScopeValues)
