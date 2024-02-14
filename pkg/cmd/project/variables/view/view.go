@@ -245,13 +245,12 @@ func viewRun(opts *ViewOptions) error {
 			}
 			if util.Any(scopeValues.Processes) {
 				vd.ProcessScope = util.SliceTransform(scopeValues.Processes, func(e *resources.ProcessReferenceDataItem) *VarProcessScopedItem {
-					scopedItem := &VarScopedItem{
-						Id:   e.ID,
-						Name: e.Name,
-					}
 					return &VarProcessScopedItem{
-						VarScopedItem: *scopedItem,
-						ProcessType:   e.ProcessType,
+						VarScopedItem: VarScopedItem{
+							Id:   e.ID,
+							Name: e.Name,
+						},
+						ProcessType: e.ProcessType,
 					}
 				})
 			}
