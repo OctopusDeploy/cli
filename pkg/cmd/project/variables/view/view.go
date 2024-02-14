@@ -46,8 +46,7 @@ type VarScopedItem struct {
 }
 
 type VarProcessScopedItem struct {
-	Id          string `json:"id"`
-	Name        string `json:"name"`
+	VarScopedItem
 	ProcessType string `json:"processtype"`
 }
 
@@ -246,10 +245,13 @@ func viewRun(opts *ViewOptions) error {
 			}
 			if util.Any(scopeValues.Processes) {
 				vd.ProcessScope = util.SliceTransform(scopeValues.Processes, func(e *resources.ProcessReferenceDataItem) *VarProcessScopedItem {
+					scopedItem := &VarScopedItem{
+						Id:   e.ID,
+						Name: e.Name,
+					}
 					return &VarProcessScopedItem{
-						Id:          e.ID,
-						Name:        e.Name,
-						ProcessType: e.ProcessType,
+						VarScopedItem: *scopedItem,
+						ProcessType:   e.ProcessType,
 					}
 				})
 			}
