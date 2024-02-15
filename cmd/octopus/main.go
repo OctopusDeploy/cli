@@ -86,6 +86,11 @@ func main() {
 }
 
 func commandDoesNotRequireClient(args []string) bool {
+    // if there are no arguments after .\octopus.exe or "octopus", it should default to "octopus" which is a valid command.
+	if len(args) == 0 || args == nil {
+		args = []string{""}
+	}
+	
 	cmdToRun := args[0]
-	return cmdToRun == "" || cmdToRun == "config" || cmdToRun == "version" || cmdToRun == "help" || cmdToRun == "login" || cmdToRun == "logout" || (cmdToRun == "package" && util.SliceContains(args, "create"))
+	return cmdToRun == "config" || cmdToRun == "version" || cmdToRun == "help" || cmdToRun == "login" || cmdToRun == "logout" || (cmdToRun == "package" && util.SliceContains(args, "create")) || (cmdToRun == "octopus" && util.SliceContains(args, ""))
 }
