@@ -87,5 +87,5 @@ func main() {
 
 func commandDoesNotRequireClient(args []string) bool {
 	cmdToRun := args[0]
-	return cmdToRun == "config" || cmdToRun == "version" || cmdToRun == "help" || cmdToRun == "login" || cmdToRun == "logout" || (cmdToRun == "package" && util.SliceContains(args, "create"))
+	return cmdToRun == "" || cmdToRun == "config" || cmdToRun == "version" || cmdToRun == "help" || cmdToRun == "login" || cmdToRun == "logout" || (cmdToRun == "package" && util.SliceContains(args, "create"))
 }
