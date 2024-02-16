@@ -139,8 +139,6 @@ func viewRun(opts *ViewOptions, cmd *cobra.Command) error {
 			}
 
 			link := fmt.Sprintf("%s/app#/%s/tenants/%s/overview", opts.Host, tenant.SpaceID, tenant.ID)
-			s.WriteString(fmt.Sprintf("%s\n", link))
-
 			// footer
 			s.WriteString(fmt.Sprintf("View this tenant in Octopus Deploy: %s\n", output.Blue(link)))
 
