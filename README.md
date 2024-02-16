@@ -62,9 +62,20 @@ The Homebrew package has native support for macOS Intel and Apple Silicon
 
 ```shell
 sudo apt update && sudo apt install --no-install-recommends gnupg curl ca-certificates apt-transport-https && \
-curl -sSfL https://apt.octopus.com/public.key | sudo apt-key add - && \
-sudo sh -c "echo deb https://apt.octopus.com/ stable main > /etc/apt/sources.list.d/octopus.com.list" && \
+sudo install -m 0755 -d /etc/apt/keyrings && \
+curl -fsSL https://apt.octopus.com/public.key | sudo gpg --dearmor -o /etc/apt/keyrings/octopus.gpg && \
+sudo chmod a+r /etc/apt/keyrings/octopus.gpg && \
+echo \
+  "deb [arch="$(dpkg --print-architecture)" signed-by=/etc/apt/keyrings/octopus.gpg] https://apt.octopus.com/ \
+  stable main" | \
+  sudo tee /etc/apt/sources.list.d/octopus.list > /dev/null && \
 sudo apt update && sudo apt install octopus-cli
+
+# for legacy Ubuntu/Debian (< 18.04) use
+# sudo apt update && sudo apt install --no-install-recommends gnupg curl ca-certificates apt-transport-https && \
+# curl -sSfL https://apt.octopus.com/public.key | sudo apt-key add - && \
+# sudo sh -c "echo deb https://apt.octopus.com/ stable main > /etc/apt/sources.list.d/octopus.com.list" && \
+# sudo apt update && sudo apt install octopus-cli
 ```
 
 #### Linux (redhat/fedora based distributions)
