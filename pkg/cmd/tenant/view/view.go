@@ -2,8 +2,11 @@ package view
 
 import (
 	"fmt"
-	"github.com/OctopusDeploy/cli/pkg/apiclient"
 	"io"
+	"strings"
+
+	"github.com/OctopusDeploy/cli/pkg/apiclient"
+	"github.com/OctopusDeploy/cli/pkg/cmd/tenant/shared"
 
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/constants"
@@ -12,6 +15,7 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/usage"
 	"github.com/OctopusDeploy/cli/pkg/util/flag"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/tenants"
 	"github.com/pkg/browser"
 	"github.com/spf13/cobra"
 )
@@ -67,7 +71,7 @@ func NewCmdView(f factory.Factory) *cobra.Command {
 				viewFlags,
 			}
 
-			return viewRun(opts)
+			return viewRun(opts, cmd)
 		},
 	}
 
@@ -77,42 +81,97 @@ func NewCmdView(f factory.Factory) *cobra.Command {
 	return cmd
 }
 
-func viewRun(opts *ViewOptions) error {
+func viewRun(opts *ViewOptions, cmd *cobra.Command) error {
 	tenant, err := opts.Client.Tenants.GetByIdentifier(opts.idOrName)
 	if err != nil {
 		return err
 	}
 
-	fmt.Fprintf(opts.out, "%s %s\n", output.Bold(tenant.Name), output.Dimf("(%s)", tenant.ID))
-
-	if len(tenant.TenantTags) > 0 {
-		fmt.Fprintf(opts.out, "Tags: ")
-	}
-	for i, tag := range tenant.TenantTags {
-		suffix := ", "
-		if i == len(tenant.TenantTags)-1 {
-			suffix = ""
-		}
-		fmt.Fprintf(opts.out, "%s%s", tag, suffix)
-	}
-	if len(tenant.TenantTags) > 0 {
-		fmt.Fprintf(opts.out, "\n")
+	environmentMap, err := shared.GetEnvironmentMap(opts.Client, []*tenants.Tenant{tenant})
+	if err != nil {
+		return err
 	}
 
-	if tenant.Description == "" {
-		fmt.Fprintln(opts.out, output.Dim(constants.NoDescription))
-	} else {
-		fmt.Fprintln(opts.out, output.Dim(tenant.Description))
+	projectMap, err := shared.GetProjectMap(opts.Client, []*tenants.Tenant{tenant})
+	if err != nil {
+		return err
 	}
 
-	link := fmt.Sprintf("%s/app#/%s/tenants/%s/overview", opts.Host, tenant.SpaceID, tenant.ID)
+	return output.PrintResource(tenant, cmd, output.Mappers[*tenants.Tenant]{
+		Json: func(t *tenants.Tenant) any {
 
-	// footer
-	fmt.Fprintf(opts.out, "View this tenant in Octopus Deploy: %s\n", output.Blue(link))
+			projectEnvironments := []shared.ProjectEnvironment{}
 
-	if opts.flags.Web.Value {
-		browser.OpenURL(link)
-	}
+			for p := range t.ProjectEnvironments {
+				projectEntity := output.IdAndName{Id: p, Name: projectMap[p]}
+				environments, err := shared.ResolveEntities(t.ProjectEnvironments[p], environmentMap)
+				if err != nil {
+					return err
+				}
+				projectEnvironments = append(projectEnvironments, shared.ProjectEnvironment{Project: projectEntity, Environments: environments})
+			}
 
-	return nil
+			t.Links = nil // ensure the links collection is not serialised
+			return shared.TenantAsJson{
+				Tenant:              t,
+				ProjectEnvironments: projectEnvironments,
+			}
+		},
+		Table: output.TableDefinition[*tenants.Tenant]{
+			Header: []string{"NAME", "DESCRIPTION", "ID", "TAGS"},
+			Row: func(t *tenants.Tenant) []string {
+				return []string{output.Bold(t.Name), t.Description, output.Dim(t.GetID()), output.FormatAsList(t.TenantTags)}
+			},
+		},
+		Basic: func(item *tenants.Tenant) string {
+			var s strings.Builder
+
+			s.WriteString(fmt.Sprintf("%s %s\n", output.Bold(tenant.Name), output.Dimf("(%s)", tenant.ID)))
+
+			if len(tenant.TenantTags) > 0 {
+				s.WriteString(fmt.Sprintf("Tags: %s\n", output.FormatAsList(tenant.TenantTags)))
+			}
+
+			if tenant.Description == "" {
+				s.WriteString(fmt.Sprintln(output.Dim(constants.NoDescription)))
+			} else {
+				s.WriteString(fmt.Sprintln(output.Dim(tenant.Description)))
+			}
+
+			link := fmt.Sprintf("%s/app#/%s/tenants/%s/overview", opts.Host, tenant.SpaceID, tenant.ID)
+			s.WriteString(fmt.Sprintf("%s\n", link))
+
+			// footer
+			s.WriteString(fmt.Sprintf("View this tenant in Octopus Deploy: %s\n", output.Blue(link)))
+
+			if opts.flags.Web.Value {
+				browser.OpenURL(link)
+			}
+
+			return s.String()
+
+			// fmt.Fprintf(opts.out, "%s %s\n", output.Bold(tenant.Name), output.Dimf("(%s)", tenant.ID))
+
+			// if len(tenant.TenantTags) > 0 {
+			// 	fmt.Fprintf(opts.out, "Tags: %s", output.FormatAsList(tenant.TenantTags))
+			// 	fmt.Fprintf(opts.out, "\n")
+			// }
+
+			// if tenant.Description == "" {
+			// 	fmt.Fprintln(opts.out, output.Dim(constants.NoDescription))
+			// } else {
+			// 	fmt.Fprintln(opts.out, output.Dim(tenant.Description))
+			// }
+
+			// link := fmt.Sprintf("%s/app#/%s/tenants/%s/overview", opts.Host, tenant.SpaceID, tenant.ID)
+
+			// // footer
+			// fmt.Fprintf(opts.out, "View this tenant in Octopus Deploy: %s\n", output.Blue(link))
+
+			// if opts.flags.Web.Value {
+			// 	browser.OpenURL(link)
+			// }
+			// return ""
+		},
+	})
 }
