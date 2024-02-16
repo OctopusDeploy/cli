@@ -147,29 +147,6 @@ func viewRun(opts *ViewOptions, cmd *cobra.Command) error {
 			}
 
 			return s.String()
-
-			// fmt.Fprintf(opts.out, "%s %s\n", output.Bold(tenant.Name), output.Dimf("(%s)", tenant.ID))
-
-			// if len(tenant.TenantTags) > 0 {
-			// 	fmt.Fprintf(opts.out, "Tags: %s", output.FormatAsList(tenant.TenantTags))
-			// 	fmt.Fprintf(opts.out, "\n")
-			// }
-
-			// if tenant.Description == "" {
-			// 	fmt.Fprintln(opts.out, output.Dim(constants.NoDescription))
-			// } else {
-			// 	fmt.Fprintln(opts.out, output.Dim(tenant.Description))
-			// }
-
-			// link := fmt.Sprintf("%s/app#/%s/tenants/%s/overview", opts.Host, tenant.SpaceID, tenant.ID)
-
-			// // footer
-			// fmt.Fprintf(opts.out, "View this tenant in Octopus Deploy: %s\n", output.Blue(link))
-
-			// if opts.flags.Web.Value {
-			// 	browser.OpenURL(link)
-			// }
-			// return ""
 		},
 	})
 }
