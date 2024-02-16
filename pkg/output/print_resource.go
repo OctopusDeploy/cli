@@ -14,7 +14,7 @@ import (
 	"github.com/spf13/viper"
 )
 
-func PrintArray[T any](items []T, cmd *cobra.Command, mappers Mappers[T]) error {
+func PrintResource[T any](item T, cmd *cobra.Command, mappers Mappers[T]) error {
 	outputFormat, _ := cmd.Flags().GetString(constants.FlagOutputFormat)
 	if outputFormat == "" {
 		outputFormat = viper.GetString(constants.ConfigOutputFormat)
@@ -26,10 +26,8 @@ func PrintArray[T any](items []T, cmd *cobra.Command, mappers Mappers[T]) error 
 		if jsonMapper == nil {
 			return errors.New("command does not support output in JSON format")
 		}
-		var outputJson []any
-		for _, e := range items {
-			outputJson = append(outputJson, jsonMapper(e))
-		}
+		var outputJson any
+		outputJson = jsonMapper(item)
 
 		data, _ := json.MarshalIndent(outputJson, "", "  ")
 		cmd.Println(string(data))
@@ -39,9 +37,7 @@ func PrintArray[T any](items []T, cmd *cobra.Command, mappers Mappers[T]) error 
 		if textMapper == nil {
 			return errors.New("command does not support output in plain text")
 		}
-		for _, e := range items {
-			cmd.Println(textMapper(e))
-		}
+		cmd.Println(textMapper(item))
 
 	case constants.OutputFormatTable, "": // table is the default of unspecified
 		tableMapper := mappers.Table
@@ -57,9 +53,7 @@ func PrintArray[T any](items []T, cmd *cobra.Command, mappers Mappers[T]) error 
 			t.AddRow(tableMapper.Header...)
 		}
 
-		for _, item := range items {
-			t.AddRow(tableMapper.Row(item)...)
-		}
+		t.AddRow(tableMapper.Row(item)...)
 
 		return t.Print()
 
