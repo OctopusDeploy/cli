@@ -62,6 +62,7 @@ func NewMockHttpClientWithTransport(transport http.RoundTripper) *http.Client {
 	return httpClient
 }
 
+// ReadJson reads from `body`, then calls json.Unmarshal to try load JSON into object of type T
 // NOTE max length of 8k
 func ReadJson[T any](body io.ReadCloser) (T, error) {
 	if body == nil {
@@ -83,6 +84,7 @@ func ReadJson[T any](body io.ReadCloser) (T, error) {
 	return unmarshalled, nil
 }
 
+// NewMockServerAndAsker creates both a MockHttpServer and AskMocker
 // it's super common to New both the mock server and asker at the same time
 func NewMockServerAndAsker() (*MockHttpServer, *AskMocker) {
 	server := NewMockHttpServer()
@@ -90,6 +92,7 @@ func NewMockServerAndAsker() (*MockHttpServer, *AskMocker) {
 	return server, qa
 }
 
+// Close will close both a MockHttpServer and AskMocker
 // it's super common to Close both the mock server and asker at the same time
 func Close(server *MockHttpServer, qa *AskMocker) {
 	if server != nil {
@@ -129,10 +132,13 @@ func CaptureConsoleOutput(f func()) string {
 	}()
 
 	f()
-	w.Close()
+	_ = w.Close()
 
 	var buf bytes.Buffer
-	io.Copy(&buf, r)
+	_, err = io.Copy(&buf, r)
+	if err != nil {
+		panic(err)
+	}
 
 	return buf.String()
 }

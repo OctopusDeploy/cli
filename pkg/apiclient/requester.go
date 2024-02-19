@@ -28,13 +28,13 @@ func NewRequester(c *cobra.Command) *RequesterContext {
 func (r *FakeRequesterContext) GetRequester() string { return "octopus/0.0.0" }
 
 func (r *RequesterContext) GetRequester() string {
-	version := strings.TrimSpace(version.Version)
+	versionStr := strings.TrimSpace(version.Version)
 
 	if r.cmd == nil {
-		if version == "" {
+		if versionStr == "" {
 			return constants.ExecutableName
 		}
-		return fmt.Sprintf("%s/%s", constants.ExecutableName, version)
+		return fmt.Sprintf("%s/%s", constants.ExecutableName, versionStr)
 	}
 
 	commands := []string{r.cmd.Name()}
@@ -42,8 +42,8 @@ func (r *RequesterContext) GetRequester() string {
 	parentCmd := r.cmd.Parent()
 	for parentCmd != nil {
 		name := parentCmd.Name()
-		if name == constants.ExecutableName && version != "" {
-			rootCmd = fmt.Sprintf("%s/%s", name, version)
+		if name == constants.ExecutableName && versionStr != "" {
+			rootCmd = fmt.Sprintf("%s/%s", name, versionStr)
 		} else {
 			commands = append([]string{name}, commands...)
 		}

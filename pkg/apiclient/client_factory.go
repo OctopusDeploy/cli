@@ -391,11 +391,11 @@ func NewStubClientFactory() ClientFactory {
 
 type stubClientFactory struct{}
 
-func (s *stubClientFactory) GetSpacedClient(requester Requester) (*octopusApiClient.Client, error) {
+func (s *stubClientFactory) GetSpacedClient(_ Requester) (*octopusApiClient.Client, error) {
 	return nil, errors.New("app is not configured correctly")
 }
 
-func (s *stubClientFactory) GetSystemClient(requester Requester) (*octopusApiClient.Client, error) {
+func (s *stubClientFactory) GetSystemClient(_ Requester) (*octopusApiClient.Client, error) {
 	return nil, errors.New("app is not configured correctly")
 }
 

@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"sync/atomic"
 	"testing"
@@ -73,7 +73,7 @@ type MockHttpServer struct {
 	Response chan responseOrError
 
 	// so test code can detect unanswered requests or responses at the end.
-	// Not strictly neccessary as unanswered req/resp results in a channel deadlock
+	// Not strictly necessary as unanswered req/resp results in a channel deadlock
 	// and go panics and kills the process, so we find out about it, but this is a bit
 	// less confusing to troubleshoot
 	pendingMsgCount int32
@@ -81,7 +81,7 @@ type MockHttpServer struct {
 	Closed bool
 }
 
-// conforms to RoundTripper so we can use it for httpClient.Transport
+// conforms to RoundTripper, so we can use it for httpClient.Transport
 
 func (m *MockHttpServer) RoundTrip(r *http.Request) (*http.Response, error) {
 	// we're the client here, so we send a request down the request channel
@@ -135,7 +135,7 @@ func (m *MockHttpServer) Respond(response *http.Response, err error) {
 func (m *MockHttpServer) ExpectRequest(t *testing.T, method string, pathAndQuery string) *RequestWrapper {
 	r, ok := m.ReceiveRequest()
 	if !ok { // this means the channel was closed
-		// don't fatal, there'll be some other assertion failure too and we want to let that have a chance to print
+		// don't fatal, there'll be some other assertion failure too, and we want to let that have a chance to print
 		t.Errorf("ExpectRequest %s %s failed; channel closed", method, pathAndQuery)
 		return &RequestWrapper{&http.Request{}, m}
 	}
@@ -190,7 +190,7 @@ func (r *RequestWrapper) RespondWithStatus(statusCode int, statusString string, 
 	r.Server.Respond(&http.Response{
 		StatusCode:    statusCode,
 		Status:        statusString,
-		Body:          ioutil.NopCloser(bytes.NewReader(body)),
+		Body:          io.NopCloser(bytes.NewReader(body)),
 		ContentLength: int64(len(body)),
 	}, nil)
 }
