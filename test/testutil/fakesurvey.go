@@ -4,7 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/OctopusDeploy/cli/pkg/surveyext"
-	"slices"
+	"golang.org/x/exp/slices"
 	"testing"
 
 	"github.com/AlecAivazis/survey/v2"
@@ -241,7 +241,7 @@ func (m *AskMocker) AsAsker() func(p survey.Prompt, response interface{}, opts .
 		// then we wait for a response via the answer channel.
 		// NOTE validations should have already been run on the send side, so we should only receive things
 		// that have passed any survey validators. We mostly do this because the concurrent nature of this
-		// makes it much easier to have the "AnswerWith" do the validation than the more correct place (here.
+		// makes it much easier to have the "AnswerWith" do the validation than the more correct place here.
 		x := <-m.Answer
 
 		if x.answer != nil {

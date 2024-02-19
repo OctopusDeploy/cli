@@ -71,7 +71,7 @@ type MockFactory struct {
 const serverUrl = "http://server"
 const placeholderApiKey = "API-XXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
 
-func (f *MockFactory) GetSystemClient(requester apiclient.Requester) (*octopusApiClient.Client, error) {
+func (f *MockFactory) GetSystemClient(_ apiclient.Requester) (*octopusApiClient.Client, error) {
 	serverUrl, _ := url.Parse(serverUrl)
 
 	if f.SystemClient == nil {
@@ -83,7 +83,7 @@ func (f *MockFactory) GetSystemClient(requester apiclient.Requester) (*octopusAp
 	}
 	return f.SystemClient, nil
 }
-func (f *MockFactory) GetSpacedClient(requester apiclient.Requester) (*octopusApiClient.Client, error) {
+func (f *MockFactory) GetSpacedClient(_ apiclient.Requester) (*octopusApiClient.Client, error) {
 	if f.CurrentSpace == nil {
 		return nil, errors.New("can't get space-scoped client from MockFactory while CurrentSpace is nil")
 	}
