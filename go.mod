@@ -24,6 +24,7 @@ require (
 )
 
 require (
+	github.com/OctopusDeploy/go-octopusdeploy v1.8.6 // indirect
 	github.com/cpuguy83/go-md2man/v2 v2.0.2 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/dghubble/sling v1.4.1 // indirect
