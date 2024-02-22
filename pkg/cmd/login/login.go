@@ -150,7 +150,8 @@ func loginWithApiKey(configProvider config.IConfigProvider, httpClient *http.Cli
 	err = testLogin(cmd, httpClient, server, apiKeyCredentials)
 
 	if err != nil {
-		return errors.New("login unsuccessful, please check that your API key is valid")
+		cmd.Println("login unsuccessful, please check that your API key is valid")
+		return err
 	}
 
 	cmd.Printf("Configuring CLI to use API key for Octopus Server: %s", serverLink)
@@ -226,7 +227,8 @@ func loginWithOpenIdConnect(configProvider config.IConfigProvider, httpClient *h
 	err = testLogin(cmd, httpClient, server, accessTokenCredentials)
 
 	if err != nil {
-		return errors.New("login unsuccessful using access token obtained via OpenID Connect")
+		cmd.Println("login unsuccessful using access token obtained via OpenID Connect")
+		return err
 	}
 
 	cmd.Printf("Configuring CLI to use access token for Octopus Server: %s", serverLink)
