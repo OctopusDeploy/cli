@@ -1,5 +1,17 @@
 # Changelog
 
+## [2.2.0](https://github.com/OctopusDeploy/cli/compare/v2.1.1...v2.2.0) (2024-02-23)
+
+
+### Features
+
+* **tenant:** Tenant view command support for output formatting ([#331](https://github.com/OctopusDeploy/cli/issues/331)) ([0112f1b](https://github.com/OctopusDeploy/cli/commit/0112f1b500096b364c6aeb601b1e2260c4b1474e))
+
+
+### Bug Fixes
+
+* support virtual paths during login ([#334](https://github.com/OctopusDeploy/cli/issues/334)) ([60e43f4](https://github.com/OctopusDeploy/cli/commit/60e43f4527f9cd82dccef94d6aa02f45fbc34c32))
+
 ## [2.1.1](https://github.com/OctopusDeploy/cli/compare/v2.1.0...v2.1.1) (2024-02-12)
 
 
