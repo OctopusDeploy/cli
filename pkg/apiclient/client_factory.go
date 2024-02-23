@@ -1,6 +1,7 @@
 package apiclient
 
 import (
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"net/url"
@@ -121,6 +122,7 @@ func NewClientFactoryFromConfig(ask question.AskProvider) (ClientFactory, error)
 	}
 
 	var httpClient *http.Client
+	http.DefaultTransport.(*http.Transport).TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
 	if ask.IsInteractive() {
 		// spinner round-tripper only needed for interactive mode
 		httpClient = &http.Client{
