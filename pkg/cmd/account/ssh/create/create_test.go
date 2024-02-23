@@ -55,7 +55,7 @@ func TestGCPAccountCreatePromptMissing(t *testing.T) {
 		return create.PromptMissing(opts)
 	})
 
-	api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
+	api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
 	api.ExpectRequest(t, "GET", "/api/spaces").RespondWith(rootResource)
 
 	_ = qa.ExpectQuestion(t, &survey.Input{
@@ -137,7 +137,7 @@ func TestGCPAccountCreateNoPrompt(t *testing.T) {
 	testAccount.SpaceID = spaceID
 	testAccount.PrivateKeyPassphrase = core.NewSensitiveValue(opts.Passphrase.Value)
 
-	api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
+	api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
 	api.ExpectRequest(t, "GET", "/api/spaces").RespondWith(rootResource)
 	api.ExpectRequest(t, "POST", "/api/Spaces-1/accounts").RespondWithStatus(201, "", testAccount)
 

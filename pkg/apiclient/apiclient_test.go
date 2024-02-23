@@ -31,7 +31,7 @@ func TestClient_GetSystemClient(t *testing.T) {
 			})
 
 		//clientReceiver2 := testutil.GoBegin2(func () (*octopusApiClient.Client, error) { factory.GetSystemClient(&apiclient.FakeRequesterContext{})
-		api.ExpectRequest(t, "GET", "/api").RespondWith(root)
+		api.ExpectRequest(t, "GET", "/api/").RespondWith(root)
 		api.ExpectRequest(t, "GET", "/api/spaces").RespondWith(root)
 
 		systemClient, err := testutil.ReceivePair(clientReceiver)
@@ -51,7 +51,7 @@ func TestClient_GetSystemClient(t *testing.T) {
 				return factory.GetSystemClient(&apiclient.FakeRequesterContext{})
 			})
 
-		api.ExpectRequest(t, "GET", "/api").RespondWith(root)
+		api.ExpectRequest(t, "GET", "/api/").RespondWith(root)
 		api.ExpectRequest(t, "GET", "/api/spaces").RespondWith(root)
 
 		systemClient, err := testutil.ReceivePair(clientReceiver)
@@ -78,7 +78,7 @@ func TestClient_GetSystemClient(t *testing.T) {
 				return factory.GetSystemClient(&apiclient.FakeRequesterContext{})
 			})
 
-		api.ExpectRequest(t, "GET", "/api").ExpectHeader(t, "Authorization", "Bearer token").RespondWith(root)
+		api.ExpectRequest(t, "GET", "/api/").ExpectHeader(t, "Authorization", "Bearer token").RespondWith(root)
 		api.ExpectRequest(t, "GET", "/api/spaces").RespondWith(root)
 
 		systemClient, err := testutil.ReceivePair(clientReceiver)
@@ -115,7 +115,7 @@ func TestClient_GetSpacedClient_NoPrompt(t *testing.T) {
 				return factory.GetSpacedClient(&apiclient.FakeRequesterContext{})
 			})
 
-		api.ExpectRequest(t, "GET", "/api").RespondWith(root)
+		api.ExpectRequest(t, "GET", "/api/").RespondWith(root)
 		api.ExpectRequest(t, "GET", "/api/spaces").RespondWith(root)
 		//api.ExpectRequest(t, "GET", "/api/spaces/all").RespondWith(root)
 		// it doesn't actually matter how many spaces there are because the CLI doesn't even ask for them
@@ -135,7 +135,7 @@ func TestClient_GetSpacedClient_NoPrompt(t *testing.T) {
 				return factory.GetSpacedClient(&apiclient.FakeRequesterContext{})
 			})
 
-		api.ExpectRequest(t, "GET", "/api").RespondWith(root)
+		api.ExpectRequest(t, "GET", "/api/").RespondWith(root)
 		api.ExpectRequest(t, "GET", "/api/spaces").RespondWith(root)
 
 		api.ExpectRequest(t, "GET", "/api/spaces/all").RespondWith([]*spaces.Space{cloudSpace})
@@ -155,13 +155,13 @@ func TestClient_GetSpacedClient_NoPrompt(t *testing.T) {
 				return factory.GetSpacedClient(&apiclient.FakeRequesterContext{})
 			})
 
-		api.ExpectRequest(t, "GET", "/api").RespondWith(root)
+		api.ExpectRequest(t, "GET", "/api/").RespondWith(root)
 		api.ExpectRequest(t, "GET", "/api/spaces").RespondWith(root)
 
 		api.ExpectRequest(t, "GET", "/api/spaces/all").RespondWith([]*spaces.Space{integrationsSpace})
 
 		// we need to enqueue this again because after it finds Spaces-7 it will recreate the client and reload the root.
-		api.ExpectRequest(t, "GET", "/api").RespondWith(root)
+		api.ExpectRequest(t, "GET", "/api/").RespondWith(root)
 
 		// note it just goes for /api/Spaces-7 this time
 		api.ExpectRequest(t, "GET", "/api/Spaces-7").RespondWith(integrationsSpace)
@@ -181,13 +181,13 @@ func TestClient_GetSpacedClient_NoPrompt(t *testing.T) {
 				return factory.GetSpacedClient(&apiclient.FakeRequesterContext{})
 			})
 
-		api.ExpectRequest(t, "GET", "/api").RespondWith(root)
+		api.ExpectRequest(t, "GET", "/api/").RespondWith(root)
 		api.ExpectRequest(t, "GET", "/api/spaces").RespondWith(root)
 
 		api.ExpectRequest(t, "GET", "/api/spaces/all").RespondWith([]*spaces.Space{integrationsSpace})
 
 		// we need to enqueue this again because after it finds Spaces-7 it will recreate the client and reload the root.
-		api.ExpectRequest(t, "GET", "/api").RespondWith(root)
+		api.ExpectRequest(t, "GET", "/api/").RespondWith(root)
 
 		// note it just goes for /api/Spaces-7 this time
 		api.ExpectRequest(t, "GET", "/api/Spaces-7").RespondWith(integrationsSpace)
@@ -207,13 +207,13 @@ func TestClient_GetSpacedClient_NoPrompt(t *testing.T) {
 				return factory.GetSpacedClient(&apiclient.FakeRequesterContext{})
 			})
 
-		api.ExpectRequest(t, "GET", "/api").RespondWith(root)
+		api.ExpectRequest(t, "GET", "/api/").RespondWith(root)
 		api.ExpectRequest(t, "GET", "/api/spaces").RespondWith(root)
 
 		api.ExpectRequest(t, "GET", "/api/spaces/all").RespondWith([]*spaces.Space{integrationsSpace})
 
 		// we need to enqueue this again because after it finds Spaces-7 it will recreate the client and reload the root.
-		api.ExpectRequest(t, "GET", "/api").RespondWith(root)
+		api.ExpectRequest(t, "GET", "/api/").RespondWith(root)
 
 		// note it just goes for /api/Spaces-7 this time
 		api.ExpectRequest(t, "GET", "/api/Spaces-7").RespondWith(integrationsSpace)
@@ -233,13 +233,13 @@ func TestClient_GetSpacedClient_NoPrompt(t *testing.T) {
 				return factory.GetSpacedClient(&apiclient.FakeRequesterContext{})
 			})
 
-		api.ExpectRequest(t, "GET", "/api").RespondWith(root)
+		api.ExpectRequest(t, "GET", "/api/").RespondWith(root)
 		api.ExpectRequest(t, "GET", "/api/spaces").RespondWith(root)
 
 		api.ExpectRequest(t, "GET", "/api/spaces/all").RespondWith([]*spaces.Space{integrationsSpace})
 
 		// we need to enqueue this again because after it finds Spaces-7 it will recreate the client and reload the root.
-		api.ExpectRequest(t, "GET", "/api").RespondWith(root)
+		api.ExpectRequest(t, "GET", "/api/").RespondWith(root)
 
 		// note it just goes for /api/Spaces-7 this time
 		api.ExpectRequest(t, "GET", "/api/Spaces-7").RespondWith(integrationsSpace)
@@ -265,7 +265,7 @@ func TestClient_GetSpacedClient_NoPrompt(t *testing.T) {
 				return factory2.GetSpacedClient(&apiclient.FakeRequesterContext{})
 			})
 
-		api.ExpectRequest(t, "GET", "/api").RespondWith(root)
+		api.ExpectRequest(t, "GET", "/api/").RespondWith(root)
 		api.ExpectRequest(t, "GET", "/api/spaces").RespondWith(root)
 
 		api.ExpectRequest(t, "GET", "/api/spaces/all").RespondWith([]*spaces.Space{
@@ -273,7 +273,7 @@ func TestClient_GetSpacedClient_NoPrompt(t *testing.T) {
 			spaces7space,
 		})
 
-		api.ExpectRequest(t, "GET", "/api").RespondWith(root)
+		api.ExpectRequest(t, "GET", "/api/").RespondWith(root)
 
 		api.ExpectRequest(t, "GET", "/api/Spaces-209").RespondWith(spaces7space)
 
@@ -293,13 +293,13 @@ func TestClient_GetSpacedClient_NoPrompt(t *testing.T) {
 				return factory.GetSpacedClient(&apiclient.FakeRequesterContext{})
 			})
 
-		api.ExpectRequest(t, "GET", "/api").RespondWith(root)
+		api.ExpectRequest(t, "GET", "/api/").RespondWith(root)
 		api.ExpectRequest(t, "GET", "/api/spaces").RespondWith(root)
 
 		api.ExpectRequest(t, "GET", "/api/spaces/all").RespondWith([]*spaces.Space{integrationsSpace})
 
 		// we need to enqueue this again because after it finds Spaces-7 it will recreate the client and reload the root.
-		api.ExpectRequest(t, "GET", "/api").RespondWith(root)
+		api.ExpectRequest(t, "GET", "/api/").RespondWith(root)
 
 		// note it just goes for /api/Spaces-7 this time
 		api.ExpectRequest(t, "GET", "/api/Spaces-7").RespondWith(integrationsSpace)
@@ -326,13 +326,13 @@ func TestClient_GetSpacedClient_NoPrompt(t *testing.T) {
 				return factory.GetSpacedClient(&apiclient.FakeRequesterContext{})
 			})
 
-		api.ExpectRequest(t, "GET", "/api").ExpectHeader(t, "Authorization", "Bearer token").RespondWith(root)
+		api.ExpectRequest(t, "GET", "/api/").ExpectHeader(t, "Authorization", "Bearer token").RespondWith(root)
 		api.ExpectRequest(t, "GET", "/api/spaces").RespondWith(root)
 
 		api.ExpectRequest(t, "GET", "/api/spaces/all").ExpectHeader(t, "Authorization", "Bearer token").RespondWith([]*spaces.Space{integrationsSpace})
 
 		// we need to enqueue this again because after it finds Spaces-7 it will recreate the client and reload the root.
-		api.ExpectRequest(t, "GET", "/api").ExpectHeader(t, "Authorization", "Bearer token").RespondWith(root)
+		api.ExpectRequest(t, "GET", "/api/").ExpectHeader(t, "Authorization", "Bearer token").RespondWith(root)
 
 		// note it just goes for /api/Spaces-7 this time
 		api.ExpectRequest(t, "GET", "/api/Spaces-7").ExpectHeader(t, "Authorization", "Bearer token").RespondWith(integrationsSpace)

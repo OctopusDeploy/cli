@@ -48,7 +48,7 @@ func TestLogin_ApiKey(t *testing.T) {
 
 			user := users.NewUser("test", "Test")
 
-			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
 			api.ExpectRequest(t, "GET", "/api/spaces").RespondWith(rootResource)
 
 			api.ExpectRequest(t, "GET", "/api/users/me").RespondWith(user)
@@ -82,7 +82,7 @@ func TestLogin_ApiKey(t *testing.T) {
 
 			user := users.NewUser("test", "Test")
 
-			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
 			api.ExpectRequest(t, "GET", "/api/spaces").RespondWith(rootResource)
 
 			api.ExpectRequest(t, "GET", "/api/users/me").RespondWith(user)
@@ -110,7 +110,7 @@ func TestLogin_ApiKey(t *testing.T) {
 
 			user := users.NewUser("test", "Test")
 
-			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
 			api.ExpectRequest(t, "GET", "/api/spaces").RespondWith(rootResource)
 
 			api.ExpectRequest(t, "GET", "/api/users/me").RespondWith(user)
@@ -134,7 +134,7 @@ func TestLogin_ApiKey(t *testing.T) {
 
 			user := users.NewUser("test", "Test")
 
-			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
 			api.ExpectRequest(t, "GET", "/api/spaces").RespondWith(rootResource)
 
 			api.ExpectRequest(t, "GET", "/api/users/me").RespondWith(user)
@@ -228,7 +228,7 @@ func TestLogin_ApiKey(t *testing.T) {
 				return rootCmd.ExecuteC()
 			})
 
-			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
 			api.ExpectRequest(t, "GET", "/api/spaces").RespondWith(rootResource)
 
 			api.ExpectRequest(t, "GET", "/api/users/me").RespondWithError(errors.New("Your API key is invalid"))
@@ -291,7 +291,7 @@ func TestLogin_OpenIdConnect(t *testing.T) {
 
 			user := users.NewUser("test", "Test")
 
-			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
 			api.ExpectRequest(t, "GET", "/api/spaces").RespondWith(rootResource)
 
 			api.ExpectRequest(t, "GET", "/api/users/me").RespondWith(user)
@@ -365,7 +365,7 @@ func TestLogin_OpenIdConnect(t *testing.T) {
 
 			api.ExpectRequest(t, "POST", tokenExchangeEndpoint).RespondWith(tokenExchangeResponse)
 
-			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
 			api.ExpectRequest(t, "GET", "/api/spaces").RespondWith(rootResource)
 
 			api.ExpectRequest(t, "GET", "/api/users/me").RespondWithError(errors.New("Your access token is invalid"))

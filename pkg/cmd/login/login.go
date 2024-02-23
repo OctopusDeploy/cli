@@ -150,6 +150,7 @@ func loginWithApiKey(configProvider config.IConfigProvider, httpClient *http.Cli
 	err = testLogin(cmd, httpClient, server, apiKeyCredentials)
 
 	if err != nil {
+		cmd.Println(err)
 		return errors.New("login unsuccessful, please check that your API key is valid")
 	}
 
@@ -226,6 +227,7 @@ func loginWithOpenIdConnect(configProvider config.IConfigProvider, httpClient *h
 	err = testLogin(cmd, httpClient, server, accessTokenCredentials)
 
 	if err != nil {
+		cmd.Println(err)
 		return errors.New("login unsuccessful using access token obtained via OpenID Connect")
 	}
 

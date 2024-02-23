@@ -51,7 +51,7 @@ func TestTokenAccountCreatePromptMissing(t *testing.T) {
 		return create.PromptMissing(opts)
 	})
 
-	api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
+	api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
 	api.ExpectRequest(t, "GET", "/api/spaces").RespondWith(rootResource)
 
 	_ = qa.ExpectQuestion(t, &survey.Input{
@@ -121,7 +121,7 @@ func TestTokenAccountCreateNoPrompt(t *testing.T) {
 	testAccount.Slug = "testaccount"
 	testAccount.SpaceID = spaceID
 
-	api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
+	api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
 	api.ExpectRequest(t, "GET", "/api/spaces").RespondWith(rootResource)
 	api.ExpectRequest(t, "POST", "/api/Spaces-1/accounts").RespondWithStatus(201, "", testAccount)
 
