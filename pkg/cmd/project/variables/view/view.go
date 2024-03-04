@@ -153,7 +153,9 @@ func viewRun(opts *ViewOptions) error {
 		fmt.Fprintln(out, output.Bold(filteredVars[0].Name))
 		for _, v := range filteredVars {
 			data := []*output.DataRow{}
-
+			if outputFormat == constants.OutputFormatTable {
+				data = append(data, output.NewDataRow(output.Bold("KEY"), output.Bold("VALUE")))
+			}
 			data = append(data, output.NewDataRow("Id", output.Dim(v.GetID())))
 			if v.IsSensitive {
 				data = append(data, output.NewDataRow("Value", output.Bold("*** (sensitive)")))
