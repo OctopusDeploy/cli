@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.2.1](https://github.com/OctopusDeploy/cli/compare/v2.2.0...v2.2.1) (2024-03-07)
+
+
+### Bug Fixes
+
+* panic when no arguments and no config ([#336](https://github.com/OctopusDeploy/cli/issues/336)) ([44b3e0f](https://github.com/OctopusDeploy/cli/commit/44b3e0fa6cea934e3e88d0717437a618bf7f3f4b))
+
 ## [2.2.0](https://github.com/OctopusDeploy/cli/compare/v2.1.1...v2.2.0) (2024-02-23)
 
 
