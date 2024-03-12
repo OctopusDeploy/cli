@@ -61,7 +61,7 @@ func NewCmdList(f factory.Factory) *cobra.Command {
 	flags := cmd.Flags()
 	flags.StringVarP(&listFlags.Project.Value, listFlags.Project.Name, "p", "", "Name or ID of the project to list runbook snapshots for")
 	flags.StringVarP(&listFlags.Runbook.Value, listFlags.Runbook.Name, "r", "", "Name or ID of the runbook to list snapshots for")
-	flags.Int32Var(&listFlags.Limit.Value, listFlags.Limit.Name, math.MaxInt32, "limit the maximum number of results that will be returned")
+	flags.Int32Var(&listFlags.Limit.Value, listFlags.Limit.Name, math.MaxInt32, "Limit the maximum number of results that will be returned")
 
 	return cmd
 }
