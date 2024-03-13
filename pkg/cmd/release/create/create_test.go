@@ -7,6 +7,7 @@ import (
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/cmd/release/create"
 	cmdRoot "github.com/OctopusDeploy/cli/pkg/cmd/root"
+	"github.com/OctopusDeploy/cli/pkg/executionscommon"
 	"github.com/OctopusDeploy/cli/pkg/executor"
 	"github.com/OctopusDeploy/cli/pkg/surveyext"
 	"github.com/OctopusDeploy/cli/test/fixtures"
@@ -703,7 +704,7 @@ func TestReleaseCreate_AskQuestions_VersionControlledProject(t *testing.T) {
 
 func TestReleaseCreate_AskQuestions_AskPackageOverrideLoop(t *testing.T) {
 
-	baseline := []*create.StepPackageVersion{
+	baseline := []*executionscommon.StepPackageVersion{
 		{ActionName: "Install", PackageID: "pterm", PackageReferenceName: "pterm", Version: "0.12"},
 		{ActionName: "Install", PackageID: "NuGet.CommandLine", PackageReferenceName: "NuGet.CommandLine", Version: "6.1.2"},
 		{ActionName: "Verify", PackageID: "pterm", PackageReferenceName: "pterm", Version: "0.12"},
@@ -715,7 +716,7 @@ func TestReleaseCreate_AskQuestions_AskPackageOverrideLoop(t *testing.T) {
 	}{
 		// this is the happy path where the CLI presents the list of server-selected packages and they just go 'yep'
 		{"no-op test", func(t *testing.T, qa *testutil.AskMocker, stdout *bytes.Buffer) {
-			receiver := testutil.GoBegin3(func() ([]*create.StepPackageVersion, []*create.PackageVersionOverride, error) {
+			receiver := testutil.GoBegin3(func() ([]*executionscommon.StepPackageVersion, []*create.PackageVersionOverride, error) {
 				return create.AskPackageOverrideLoop(baseline, "", make([]string, 0), qa.AsAsker(), stdout)
 			})
 
@@ -728,7 +729,7 @@ func TestReleaseCreate_AskQuestions_AskPackageOverrideLoop(t *testing.T) {
 		}},
 
 		{"override package based on package ID", func(t *testing.T, qa *testutil.AskMocker, stdout *bytes.Buffer) {
-			receiver := testutil.GoBegin3(func() ([]*create.StepPackageVersion, []*create.PackageVersionOverride, error) {
+			receiver := testutil.GoBegin3(func() ([]*executionscommon.StepPackageVersion, []*create.PackageVersionOverride, error) {
 				return create.AskPackageOverrideLoop(baseline, "", make([]string, 0), qa.AsAsker(), stdout)
 			})
 
@@ -738,7 +739,7 @@ func TestReleaseCreate_AskQuestions_AskPackageOverrideLoop(t *testing.T) {
 
 			versions, overrides, err := testutil.ReceiveTriple(receiver)
 			assert.Nil(t, err)
-			assert.Equal(t, []*create.StepPackageVersion{
+			assert.Equal(t, []*executionscommon.StepPackageVersion{
 				{ActionName: "Install", PackageID: "pterm", PackageReferenceName: "pterm", Version: "2.5"},
 				{ActionName: "Install", PackageID: "NuGet.CommandLine", PackageReferenceName: "NuGet.CommandLine", Version: "6.1.2"},
 				{ActionName: "Verify", PackageID: "pterm", PackageReferenceName: "pterm", Version: "2.5"},
@@ -749,7 +750,7 @@ func TestReleaseCreate_AskQuestions_AskPackageOverrideLoop(t *testing.T) {
 		}},
 
 		{"override package based on step name", func(t *testing.T, qa *testutil.AskMocker, stdout *bytes.Buffer) {
-			receiver := testutil.GoBegin3(func() ([]*create.StepPackageVersion, []*create.PackageVersionOverride, error) {
+			receiver := testutil.GoBegin3(func() ([]*executionscommon.StepPackageVersion, []*create.PackageVersionOverride, error) {
 				return create.AskPackageOverrideLoop(baseline, "", make([]string, 0), qa.AsAsker(), stdout)
 			})
 
@@ -759,7 +760,7 @@ func TestReleaseCreate_AskQuestions_AskPackageOverrideLoop(t *testing.T) {
 
 			versions, overrides, err := testutil.ReceiveTriple(receiver)
 			assert.Nil(t, err)
-			assert.Equal(t, []*create.StepPackageVersion{
+			assert.Equal(t, []*executionscommon.StepPackageVersion{
 				{ActionName: "Install", PackageID: "pterm", PackageReferenceName: "pterm", Version: "2.5"},
 				{ActionName: "Install", PackageID: "NuGet.CommandLine", PackageReferenceName: "NuGet.CommandLine", Version: "2.5"},
 				{ActionName: "Verify", PackageID: "pterm", PackageReferenceName: "pterm", Version: "0.12"},
@@ -770,7 +771,7 @@ func TestReleaseCreate_AskQuestions_AskPackageOverrideLoop(t *testing.T) {
 		}},
 
 		{"override package based on package reference", func(t *testing.T, qa *testutil.AskMocker, stdout *bytes.Buffer) {
-			receiver := testutil.GoBegin3(func() ([]*create.StepPackageVersion, []*create.PackageVersionOverride, error) {
+			receiver := testutil.GoBegin3(func() ([]*executionscommon.StepPackageVersion, []*create.PackageVersionOverride, error) {
 				return create.AskPackageOverrideLoop(baseline, "", make([]string, 0), qa.AsAsker(), stdout)
 			})
 
@@ -780,7 +781,7 @@ func TestReleaseCreate_AskQuestions_AskPackageOverrideLoop(t *testing.T) {
 
 			versions, overrides, err := testutil.ReceiveTriple(receiver)
 			assert.Nil(t, err)
-			assert.Equal(t, []*create.StepPackageVersion{
+			assert.Equal(t, []*executionscommon.StepPackageVersion{
 				{ActionName: "Install", PackageID: "pterm", PackageReferenceName: "pterm", Version: "2.5"},
 				{ActionName: "Install", PackageID: "NuGet.CommandLine", PackageReferenceName: "NuGet.CommandLine", Version: "6.1.2"},
 				{ActionName: "Verify", PackageID: "pterm", PackageReferenceName: "pterm", Version: "0.12"},
@@ -793,7 +794,7 @@ func TestReleaseCreate_AskQuestions_AskPackageOverrideLoop(t *testing.T) {
 		{"entering the loop with --package-version picked up from the command line", func(t *testing.T, qa *testutil.AskMocker, stdout *bytes.Buffer) {
 			defaultPackageVersion := "2.5"
 
-			receiver := testutil.GoBegin3(func() ([]*create.StepPackageVersion, []*create.PackageVersionOverride, error) {
+			receiver := testutil.GoBegin3(func() ([]*executionscommon.StepPackageVersion, []*create.PackageVersionOverride, error) {
 				return create.AskPackageOverrideLoop(baseline, defaultPackageVersion, make([]string, 0), qa.AsAsker(), stdout)
 			})
 
@@ -801,7 +802,7 @@ func TestReleaseCreate_AskQuestions_AskPackageOverrideLoop(t *testing.T) {
 
 			versions, overrides, err := testutil.ReceiveTriple(receiver)
 			assert.Nil(t, err)
-			assert.Equal(t, []*create.StepPackageVersion{
+			assert.Equal(t, []*executionscommon.StepPackageVersion{
 				{ActionName: "Install", PackageID: "pterm", PackageReferenceName: "pterm", Version: "2.5"},
 				{ActionName: "Install", PackageID: "NuGet.CommandLine", PackageReferenceName: "NuGet.CommandLine", Version: "2.5"},
 				{ActionName: "Verify", PackageID: "pterm", PackageReferenceName: "pterm", Version: "2.5"},
@@ -814,7 +815,7 @@ func TestReleaseCreate_AskQuestions_AskPackageOverrideLoop(t *testing.T) {
 		{"entering the loop with --package picked up from the command line", func(t *testing.T, qa *testutil.AskMocker, stdout *bytes.Buffer) {
 			cmdlinePackages := []string{"Install:pterm:2.5", "NuGet.CommandLine:7.1"}
 
-			receiver := testutil.GoBegin3(func() ([]*create.StepPackageVersion, []*create.PackageVersionOverride, error) {
+			receiver := testutil.GoBegin3(func() ([]*executionscommon.StepPackageVersion, []*create.PackageVersionOverride, error) {
 				return create.AskPackageOverrideLoop(baseline, "", cmdlinePackages, qa.AsAsker(), stdout)
 			})
 
@@ -822,7 +823,7 @@ func TestReleaseCreate_AskQuestions_AskPackageOverrideLoop(t *testing.T) {
 
 			versions, overrides, err := testutil.ReceiveTriple(receiver)
 			assert.Nil(t, err)
-			assert.Equal(t, []*create.StepPackageVersion{
+			assert.Equal(t, []*executionscommon.StepPackageVersion{
 				{ActionName: "Install", PackageID: "pterm", PackageReferenceName: "pterm", Version: "2.5"},
 				{ActionName: "Install", PackageID: "NuGet.CommandLine", PackageReferenceName: "NuGet.CommandLine", Version: "7.1"},
 				{ActionName: "Verify", PackageID: "pterm", PackageReferenceName: "pterm", Version: "0.12"},
@@ -837,7 +838,7 @@ func TestReleaseCreate_AskQuestions_AskPackageOverrideLoop(t *testing.T) {
 			defaultPackageVersion := "9.9"
 			cmdlinePackages := []string{"Install:pterm:2.5", "NuGet.CommandLine:7.1"}
 
-			receiver := testutil.GoBegin3(func() ([]*create.StepPackageVersion, []*create.PackageVersionOverride, error) {
+			receiver := testutil.GoBegin3(func() ([]*executionscommon.StepPackageVersion, []*create.PackageVersionOverride, error) {
 				return create.AskPackageOverrideLoop(baseline, defaultPackageVersion, cmdlinePackages, qa.AsAsker(), stdout)
 			})
 
@@ -845,7 +846,7 @@ func TestReleaseCreate_AskQuestions_AskPackageOverrideLoop(t *testing.T) {
 
 			versions, overrides, err := testutil.ReceiveTriple(receiver)
 			assert.Nil(t, err)
-			assert.Equal(t, []*create.StepPackageVersion{
+			assert.Equal(t, []*executionscommon.StepPackageVersion{
 				{ActionName: "Install", PackageID: "pterm", PackageReferenceName: "pterm", Version: "2.5"},
 				{ActionName: "Install", PackageID: "NuGet.CommandLine", PackageReferenceName: "NuGet.CommandLine", Version: "7.1"},
 				{ActionName: "Verify", PackageID: "pterm", PackageReferenceName: "pterm", Version: "9.9"},
@@ -858,7 +859,7 @@ func TestReleaseCreate_AskQuestions_AskPackageOverrideLoop(t *testing.T) {
 		}},
 
 		{"blank answer retries the question", func(t *testing.T, qa *testutil.AskMocker, stdout *bytes.Buffer) {
-			receiver := testutil.GoBegin3(func() ([]*create.StepPackageVersion, []*create.PackageVersionOverride, error) {
+			receiver := testutil.GoBegin3(func() ([]*executionscommon.StepPackageVersion, []*create.PackageVersionOverride, error) {
 				return create.AskPackageOverrideLoop(baseline, "", make([]string, 0), qa.AsAsker(), stdout)
 			})
 
@@ -878,7 +879,7 @@ func TestReleaseCreate_AskQuestions_AskPackageOverrideLoop(t *testing.T) {
 		}},
 
 		{"can't specify garbage; question loop retries", func(t *testing.T, qa *testutil.AskMocker, stdout *bytes.Buffer) {
-			receiver := testutil.GoBegin3(func() ([]*create.StepPackageVersion, []*create.PackageVersionOverride, error) {
+			receiver := testutil.GoBegin3(func() ([]*executionscommon.StepPackageVersion, []*create.PackageVersionOverride, error) {
 				return create.AskPackageOverrideLoop(baseline, "", make([]string, 0), qa.AsAsker(), stdout)
 			})
 
@@ -904,7 +905,7 @@ func TestReleaseCreate_AskQuestions_AskPackageOverrideLoop(t *testing.T) {
 
 			versions, overrides, err := testutil.ReceiveTriple(receiver)
 			assert.Nil(t, err)
-			assert.Equal(t, []*create.StepPackageVersion{
+			assert.Equal(t, []*executionscommon.StepPackageVersion{
 				{ActionName: "Install", PackageID: "pterm", PackageReferenceName: "pterm", Version: "2.5"},
 				{ActionName: "Install", PackageID: "NuGet.CommandLine", PackageReferenceName: "NuGet.CommandLine", Version: "2.5"},
 				{ActionName: "Verify", PackageID: "pterm", PackageReferenceName: "pterm", Version: "2.5"},
@@ -915,7 +916,7 @@ func TestReleaseCreate_AskQuestions_AskPackageOverrideLoop(t *testing.T) {
 		}},
 
 		{"can't specify packages or steps that aren't there due to validator; question loop retries", func(t *testing.T, qa *testutil.AskMocker, stdout *bytes.Buffer) {
-			receiver := testutil.GoBegin3(func() ([]*create.StepPackageVersion, []*create.PackageVersionOverride, error) {
+			receiver := testutil.GoBegin3(func() ([]*executionscommon.StepPackageVersion, []*create.PackageVersionOverride, error) {
 				return create.AskPackageOverrideLoop(baseline, "", make([]string, 0), qa.AsAsker(), stdout)
 			})
 
@@ -932,7 +933,7 @@ func TestReleaseCreate_AskQuestions_AskPackageOverrideLoop(t *testing.T) {
 
 			versions, overrides, err := testutil.ReceiveTriple(receiver)
 			assert.Nil(t, err)
-			assert.Equal(t, []*create.StepPackageVersion{
+			assert.Equal(t, []*executionscommon.StepPackageVersion{
 				{ActionName: "Install", PackageID: "pterm", PackageReferenceName: "pterm", Version: "2.5"},
 				{ActionName: "Install", PackageID: "NuGet.CommandLine", PackageReferenceName: "NuGet.CommandLine", Version: "2.5"},
 				{ActionName: "Verify", PackageID: "pterm", PackageReferenceName: "pterm", Version: "2.5"},
@@ -943,7 +944,7 @@ func TestReleaseCreate_AskQuestions_AskPackageOverrideLoop(t *testing.T) {
 		}},
 
 		{"question loop doesn't retry if it gets a hard error", func(t *testing.T, qa *testutil.AskMocker, stdout *bytes.Buffer) {
-			receiver := testutil.GoBegin3(func() ([]*create.StepPackageVersion, []*create.PackageVersionOverride, error) {
+			receiver := testutil.GoBegin3(func() ([]*executionscommon.StepPackageVersion, []*create.PackageVersionOverride, error) {
 				return create.AskPackageOverrideLoop(baseline, "", make([]string, 0), qa.AsAsker(), stdout)
 			})
 
@@ -956,7 +957,7 @@ func TestReleaseCreate_AskQuestions_AskPackageOverrideLoop(t *testing.T) {
 		}},
 
 		{"multiple overrides with undo", func(t *testing.T, qa *testutil.AskMocker, stdout *bytes.Buffer) {
-			receiver := testutil.GoBegin3(func() ([]*create.StepPackageVersion, []*create.PackageVersionOverride, error) {
+			receiver := testutil.GoBegin3(func() ([]*executionscommon.StepPackageVersion, []*create.PackageVersionOverride, error) {
 				return create.AskPackageOverrideLoop(baseline, "", make([]string, 0), qa.AsAsker(), stdout)
 			})
 
@@ -972,7 +973,7 @@ func TestReleaseCreate_AskQuestions_AskPackageOverrideLoop(t *testing.T) {
 
 			versions, overrides, err := testutil.ReceiveTriple(receiver)
 			assert.Nil(t, err)
-			assert.Equal(t, []*create.StepPackageVersion{
+			assert.Equal(t, []*executionscommon.StepPackageVersion{
 				{ActionName: "Install", PackageID: "pterm", PackageReferenceName: "pterm", Version: "2.5"},
 				{ActionName: "Install", PackageID: "NuGet.CommandLine", PackageReferenceName: "NuGet.CommandLine", Version: "7.1"},
 				{ActionName: "Verify", PackageID: "pterm", PackageReferenceName: "pterm", Version: "0.12"}, // this would have been hit by pterm:35 but we undid it
@@ -984,7 +985,7 @@ func TestReleaseCreate_AskQuestions_AskPackageOverrideLoop(t *testing.T) {
 		}},
 
 		{"multiple overrides with reset", func(t *testing.T, qa *testutil.AskMocker, stdout *bytes.Buffer) {
-			receiver := testutil.GoBegin3(func() ([]*create.StepPackageVersion, []*create.PackageVersionOverride, error) {
+			receiver := testutil.GoBegin3(func() ([]*executionscommon.StepPackageVersion, []*create.PackageVersionOverride, error) {
 				return create.AskPackageOverrideLoop(baseline, "", make([]string, 0), qa.AsAsker(), stdout)
 			})
 
@@ -1000,7 +1001,7 @@ func TestReleaseCreate_AskQuestions_AskPackageOverrideLoop(t *testing.T) {
 
 			versions, overrides, err := testutil.ReceiveTriple(receiver)
 			assert.Nil(t, err)
-			assert.Equal(t, []*create.StepPackageVersion{
+			assert.Equal(t, []*executionscommon.StepPackageVersion{
 				{ActionName: "Install", PackageID: "pterm", PackageReferenceName: "pterm", Version: "2.5"},
 				{ActionName: "Install", PackageID: "NuGet.CommandLine", PackageReferenceName: "NuGet.CommandLine", Version: "6.1.2"},
 				{ActionName: "Verify", PackageID: "pterm", PackageReferenceName: "pterm", Version: "0.12"}, // this would have been hit by pterm:35 but we undid it
@@ -1012,13 +1013,13 @@ func TestReleaseCreate_AskQuestions_AskPackageOverrideLoop(t *testing.T) {
 
 		// this is the happy path where the CLI presents the list of server-selected packages and they just go 'yep'
 		{"if we enter the loop with any unresolved packages, force version selection for them before entering the main loop", func(t *testing.T, qa *testutil.AskMocker, stdout *bytes.Buffer) {
-			baselineSomeUnresolved := []*create.StepPackageVersion{
+			baselineSomeUnresolved := []*executionscommon.StepPackageVersion{
 				{ActionName: "Install", PackageID: "pterm", PackageReferenceName: "pterm", Version: ""},                         // unresolved
 				{ActionName: "Install", PackageID: "NuGet.CommandLine", PackageReferenceName: "NuGet.CommandLine", Version: ""}, // unresolved
 				{ActionName: "Verify", PackageID: "pterm", PackageReferenceName: "pterm", Version: "0.12"},
 			}
 
-			receiver := testutil.GoBegin3(func() ([]*create.StepPackageVersion, []*create.PackageVersionOverride, error) {
+			receiver := testutil.GoBegin3(func() ([]*executionscommon.StepPackageVersion, []*create.PackageVersionOverride, error) {
 				return create.AskPackageOverrideLoop(baselineSomeUnresolved, "", make([]string, 0), qa.AsAsker(), stdout)
 			})
 
@@ -1054,7 +1055,7 @@ func TestReleaseCreate_AskQuestions_AskPackageOverrideLoop(t *testing.T) {
 
 			versions, overrides, err := testutil.ReceiveTriple(receiver)
 			assert.Nil(t, err)
-			assert.Equal(t, []*create.StepPackageVersion{
+			assert.Equal(t, []*executionscommon.StepPackageVersion{
 				{ActionName: "Install", PackageID: "pterm", PackageReferenceName: "pterm", Version: "75"},
 				{ActionName: "Install", PackageID: "NuGet.CommandLine", PackageReferenceName: "NuGet.CommandLine", Version: "1.0.0"},
 				{ActionName: "Verify", PackageID: "pterm", PackageReferenceName: "pterm", Version: "0.12"},
@@ -1066,12 +1067,12 @@ func TestReleaseCreate_AskQuestions_AskPackageOverrideLoop(t *testing.T) {
 		}},
 
 		{"if we enter the loop with any unresolved packages, forced version selection doesn't accept bad input", func(t *testing.T, qa *testutil.AskMocker, stdout *bytes.Buffer) {
-			baselineSomeUnresolved := []*create.StepPackageVersion{
+			baselineSomeUnresolved := []*executionscommon.StepPackageVersion{
 				{ActionName: "Install", PackageID: "pterm", PackageReferenceName: "pterm", Version: ""}, // unresolved
 				{ActionName: "Verify", PackageID: "pterm", PackageReferenceName: "pterm", Version: "0.12"},
 			}
 
-			receiver := testutil.GoBegin3(func() ([]*create.StepPackageVersion, []*create.PackageVersionOverride, error) {
+			receiver := testutil.GoBegin3(func() ([]*executionscommon.StepPackageVersion, []*create.PackageVersionOverride, error) {
 				return create.AskPackageOverrideLoop(baselineSomeUnresolved, "", make([]string, 0), qa.AsAsker(), stdout)
 			})
 
@@ -1098,7 +1099,7 @@ func TestReleaseCreate_AskQuestions_AskPackageOverrideLoop(t *testing.T) {
 
 			versions, overrides, err := testutil.ReceiveTriple(receiver)
 			assert.Nil(t, err)
-			assert.Equal(t, []*create.StepPackageVersion{
+			assert.Equal(t, []*executionscommon.StepPackageVersion{
 				{ActionName: "Install", PackageID: "pterm", PackageReferenceName: "pterm", Version: "25.0"},
 				{ActionName: "Verify", PackageID: "pterm", PackageReferenceName: "pterm", Version: "0.12"},
 			}, versions)
@@ -1108,13 +1109,13 @@ func TestReleaseCreate_AskQuestions_AskPackageOverrideLoop(t *testing.T) {
 		}},
 
 		{"if we enter the loop with any unresolved packages, pick up --package-version before assuming they're unresolved", func(t *testing.T, qa *testutil.AskMocker, stdout *bytes.Buffer) {
-			baselineSomeUnresolved := []*create.StepPackageVersion{
+			baselineSomeUnresolved := []*executionscommon.StepPackageVersion{
 				{ActionName: "Install", PackageID: "pterm", PackageReferenceName: "pterm", Version: ""},                         // unresolved
 				{ActionName: "Install", PackageID: "NuGet.CommandLine", PackageReferenceName: "NuGet.CommandLine", Version: ""}, // unresolved
 				{ActionName: "Verify", PackageID: "pterm", PackageReferenceName: "pterm", Version: "0.12"},
 			}
 
-			receiver := testutil.GoBegin3(func() ([]*create.StepPackageVersion, []*create.PackageVersionOverride, error) {
+			receiver := testutil.GoBegin3(func() ([]*executionscommon.StepPackageVersion, []*create.PackageVersionOverride, error) {
 				return create.AskPackageOverrideLoop(baselineSomeUnresolved, "12.7.5", make([]string, 0), qa.AsAsker(), stdout)
 			})
 
@@ -1130,7 +1131,7 @@ func TestReleaseCreate_AskQuestions_AskPackageOverrideLoop(t *testing.T) {
 
 			versions, overrides, err := testutil.ReceiveTriple(receiver)
 			assert.Nil(t, err)
-			assert.Equal(t, []*create.StepPackageVersion{
+			assert.Equal(t, []*executionscommon.StepPackageVersion{
 				{ActionName: "Install", PackageID: "pterm", PackageReferenceName: "pterm", Version: "12.7.5"},
 				{ActionName: "Install", PackageID: "NuGet.CommandLine", PackageReferenceName: "NuGet.CommandLine", Version: "12.7.5"},
 				{ActionName: "Verify", PackageID: "pterm", PackageReferenceName: "pterm", Version: "12.7.5"},
@@ -1142,13 +1143,13 @@ func TestReleaseCreate_AskQuestions_AskPackageOverrideLoop(t *testing.T) {
 		}},
 
 		{"if we enter the loop with any unresolved packages, pick up --package before assuming they're unresolved", func(t *testing.T, qa *testutil.AskMocker, stdout *bytes.Buffer) {
-			baselineSomeUnresolved := []*create.StepPackageVersion{
+			baselineSomeUnresolved := []*executionscommon.StepPackageVersion{
 				{ActionName: "Install", PackageID: "pterm", PackageReferenceName: "pterm", Version: ""},                         // unresolved
 				{ActionName: "Install", PackageID: "NuGet.CommandLine", PackageReferenceName: "NuGet.CommandLine", Version: ""}, // unresolved
 				{ActionName: "Verify", PackageID: "pterm", PackageReferenceName: "pterm", Version: "0.12"},
 			}
 
-			receiver := testutil.GoBegin3(func() ([]*create.StepPackageVersion, []*create.PackageVersionOverride, error) {
+			receiver := testutil.GoBegin3(func() ([]*executionscommon.StepPackageVersion, []*create.PackageVersionOverride, error) {
 				return create.AskPackageOverrideLoop(baselineSomeUnresolved, "", []string{"Install:pterm:12.9.2"}, qa.AsAsker(), stdout)
 			})
 
@@ -1174,7 +1175,7 @@ func TestReleaseCreate_AskQuestions_AskPackageOverrideLoop(t *testing.T) {
 
 			versions, overrides, err := testutil.ReceiveTriple(receiver)
 			assert.Nil(t, err)
-			assert.Equal(t, []*create.StepPackageVersion{
+			assert.Equal(t, []*executionscommon.StepPackageVersion{
 				{ActionName: "Install", PackageID: "pterm", PackageReferenceName: "pterm", Version: "12.9.2"},
 				{ActionName: "Install", PackageID: "NuGet.CommandLine", PackageReferenceName: "NuGet.CommandLine", Version: "75"},
 				{ActionName: "Verify", PackageID: "pterm", PackageReferenceName: "pterm", Version: "0.12"},
@@ -1806,7 +1807,7 @@ func TestReleaseCreate_BuildPackageVersionBaseline(t *testing.T) {
 
 		channel := fixtures.NewChannel(spaceID, "Channels-1", "Default", "Projects-1")
 
-		receiver := testutil.GoBegin2(func() ([]*create.StepPackageVersion, error) {
+		receiver := testutil.GoBegin2(func() ([]*executionscommon.StepPackageVersion, error) {
 			defer api.Close()
 			octopus, _ := octopusApiClient.NewClient(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "")
 			return create.BuildPackageVersionBaseline(octopus, processTemplate, channel)
@@ -1818,7 +1819,7 @@ func TestReleaseCreate_BuildPackageVersionBaseline(t *testing.T) {
 
 		packageVersions, err := testutil.ReceivePair(receiver)
 		assert.Nil(t, err)
-		assert.Equal(t, []*create.StepPackageVersion{}, packageVersions)
+		assert.Equal(t, []*executionscommon.StepPackageVersion{}, packageVersions)
 	})
 
 	t.Run("builds list for single package/step", func(t *testing.T) {
@@ -1838,7 +1839,7 @@ func TestReleaseCreate_BuildPackageVersionBaseline(t *testing.T) {
 
 		channel := fixtures.NewChannel(spaceID, "Channels-1", "Default", "Projects-1")
 
-		receiver := testutil.GoBegin2(func() ([]*create.StepPackageVersion, error) {
+		receiver := testutil.GoBegin2(func() ([]*executionscommon.StepPackageVersion, error) {
 			defer api.Close()
 			octopus, _ := octopusApiClient.NewClient(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "")
 			return create.BuildPackageVersionBaseline(octopus, processTemplate, channel)
@@ -1865,7 +1866,7 @@ func TestReleaseCreate_BuildPackageVersionBaseline(t *testing.T) {
 
 		packageVersions, err := testutil.ReceivePair(receiver)
 		assert.Nil(t, err)
-		assert.Equal(t, []*create.StepPackageVersion{
+		assert.Equal(t, []*executionscommon.StepPackageVersion{
 			{
 				PackageID:            "pterm",
 				ActionName:           "Install",
@@ -1913,7 +1914,7 @@ func TestReleaseCreate_BuildPackageVersionBaseline(t *testing.T) {
 
 		channel := fixtures.NewChannel(spaceID, "Channels-1", "Default", "Projects-1")
 
-		receiver := testutil.GoBegin2(func() ([]*create.StepPackageVersion, error) {
+		receiver := testutil.GoBegin2(func() ([]*executionscommon.StepPackageVersion, error) {
 			defer api.Close()
 			octopus, _ := octopusApiClient.NewClient(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "")
 			return create.BuildPackageVersionBaseline(octopus, processTemplate, channel)
@@ -1952,7 +1953,7 @@ func TestReleaseCreate_BuildPackageVersionBaseline(t *testing.T) {
 
 		packageVersions, err := testutil.ReceivePair(receiver)
 		assert.Nil(t, err)
-		assert.Equal(t, []*create.StepPackageVersion{
+		assert.Equal(t, []*executionscommon.StepPackageVersion{
 			{
 				PackageID:            "pterm",
 				ActionName:           "Install",
@@ -2036,7 +2037,7 @@ func TestReleaseCreate_BuildPackageVersionBaseline(t *testing.T) {
 			},
 		}
 
-		receiver := testutil.GoBegin2(func() ([]*create.StepPackageVersion, error) {
+		receiver := testutil.GoBegin2(func() ([]*executionscommon.StepPackageVersion, error) {
 			defer api.Close()
 			octopus, _ := octopusApiClient.NewClient(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "")
 			return create.BuildPackageVersionBaseline(octopus, processTemplate, channel)
@@ -2080,7 +2081,7 @@ func TestReleaseCreate_BuildPackageVersionBaseline(t *testing.T) {
 
 		packageVersions, err := testutil.ReceivePair(receiver)
 		assert.Nil(t, err)
-		assert.Equal(t, []*create.StepPackageVersion{
+		assert.Equal(t, []*executionscommon.StepPackageVersion{
 			{
 				PackageID:            "pterm",
 				ActionName:           "Install",
@@ -2122,7 +2123,7 @@ func TestReleaseCreate_BuildPackageVersionBaseline(t *testing.T) {
 
 		channel := fixtures.NewChannel(spaceID, "Channels-1", "Default", "Projects-1")
 
-		receiver := testutil.GoBegin2(func() ([]*create.StepPackageVersion, error) {
+		receiver := testutil.GoBegin2(func() ([]*executionscommon.StepPackageVersion, error) {
 			defer api.Close()
 			octopus, _ := octopusApiClient.NewClient(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "")
 			return create.BuildPackageVersionBaseline(octopus, processTemplate, channel)
@@ -2150,7 +2151,7 @@ func TestReleaseCreate_BuildPackageVersionBaseline(t *testing.T) {
 
 		packageVersions, err := testutil.ReceivePair(receiver)
 		assert.Nil(t, err)
-		assert.Equal(t, []*create.StepPackageVersion{
+		assert.Equal(t, []*executionscommon.StepPackageVersion{
 			{
 				PackageID:            "pterm",
 				ActionName:           "Install",
@@ -2180,7 +2181,7 @@ func TestReleaseCreate_BuildPackageVersionBaseline(t *testing.T) {
 
 		channel := fixtures.NewChannel(spaceID, "Channels-1", "Default", "Projects-1")
 
-		receiver := testutil.GoBegin2(func() ([]*create.StepPackageVersion, error) {
+		receiver := testutil.GoBegin2(func() ([]*executionscommon.StepPackageVersion, error) {
 			defer api.Close()
 			octopus, _ := octopusApiClient.NewClient(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "")
 			return create.BuildPackageVersionBaseline(octopus, processTemplate, channel)
@@ -2206,7 +2207,7 @@ func TestReleaseCreate_BuildPackageVersionBaseline(t *testing.T) {
 
 		packageVersions, err := testutil.ReceivePair(receiver)
 		assert.Nil(t, err)
-		assert.Equal(t, []*create.StepPackageVersion{
+		assert.Equal(t, []*executionscommon.StepPackageVersion{
 			{
 				PackageID:            "pterm-#{Octopus.Environment.Name}",
 				ActionName:           "Install",
@@ -2305,7 +2306,7 @@ func TestReleaseCreate_ResolvePackageOverride(t *testing.T) {
 	t.Run("match on package ID", func(t *testing.T) { // this is probably the most common thing people will do
 		nugetPackage := &create.AmbiguousPackageVersionOverride{ActionNameOrPackageID: "NuGet", Version: "5.0"}
 
-		steps := []*create.StepPackageVersion{ // baseline
+		steps := []*executionscommon.StepPackageVersion{ // baseline
 			{PackageID: "NuGet", ActionName: "Install", Version: "0.1", PackageReferenceName: "NuGet"},
 		}
 
@@ -2318,7 +2319,7 @@ func TestReleaseCreate_ResolvePackageOverride(t *testing.T) {
 	t.Run("match on step name", func(t *testing.T) { // this is probably the most common thing people will do
 		nugetPackage := &create.AmbiguousPackageVersionOverride{ActionNameOrPackageID: "Install", Version: "5.0"}
 
-		steps := []*create.StepPackageVersion{ // baseline
+		steps := []*executionscommon.StepPackageVersion{ // baseline
 			{PackageID: "NuGet", ActionName: "Install", Version: "0.1", PackageReferenceName: "NuGet"},
 		}
 
@@ -2331,7 +2332,7 @@ func TestReleaseCreate_ResolvePackageOverride(t *testing.T) {
 	t.Run("match on packageRef", func(t *testing.T) {
 		nugetPackage := &create.AmbiguousPackageVersionOverride{PackageReferenceName: "NuGet-B", Version: "5.0"}
 
-		steps := []*create.StepPackageVersion{ // baseline
+		steps := []*executionscommon.StepPackageVersion{ // baseline
 			{PackageID: "NuGet", ActionName: "Install", Version: "0.1", PackageReferenceName: "NuGet-A"},
 			{PackageID: "NuGet", ActionName: "Verify", Version: "0.1", PackageReferenceName: "NuGet-B"},
 		}
@@ -2345,7 +2346,7 @@ func TestReleaseCreate_ResolvePackageOverride(t *testing.T) {
 	t.Run("match on just version", func(t *testing.T) { // this is probably the most common thing people will do
 		nugetPackage := &create.AmbiguousPackageVersionOverride{Version: "5.0"}
 
-		steps := []*create.StepPackageVersion{ // baseline
+		steps := []*executionscommon.StepPackageVersion{ // baseline
 			{PackageID: "NuGet", ActionName: "Install", Version: "0.1", PackageReferenceName: "NuGet"},
 		}
 
@@ -2357,7 +2358,7 @@ func TestReleaseCreate_ResolvePackageOverride(t *testing.T) {
 	t.Run("match on just version doesn't even need any packages to look at", func(t *testing.T) { // this is probably the most common thing people will do
 		nugetPackage := &create.AmbiguousPackageVersionOverride{Version: "5.0"}
 
-		steps := make([]*create.StepPackageVersion, 0) // baseline
+		steps := make([]*executionscommon.StepPackageVersion, 0) // baseline
 
 		r, err := create.ResolvePackageOverride(nugetPackage, steps)
 		assert.Nil(t, err)
@@ -2367,7 +2368,7 @@ func TestReleaseCreate_ResolvePackageOverride(t *testing.T) {
 	t.Run("match on action+packageRef before packageID", func(t *testing.T) { // this is probably the most common thing people will do
 		nugetPackage := &create.AmbiguousPackageVersionOverride{ActionNameOrPackageID: "Verify", PackageReferenceName: "NuGet", Version: "5.0"}
 
-		steps := []*create.StepPackageVersion{ // baseline
+		steps := []*executionscommon.StepPackageVersion{ // baseline
 			{PackageID: "NuGet", ActionName: "Install", Version: "0.1", PackageReferenceName: "NuGet"},
 			{PackageID: "NuGet", ActionName: "Verify", Version: "0.1", PackageReferenceName: "NuGet"},
 		}
@@ -2380,7 +2381,7 @@ func TestReleaseCreate_ResolvePackageOverride(t *testing.T) {
 	t.Run("match on packageID+packageRef picks the first one where they are the same", func(t *testing.T) {
 		nugetPackage := &create.AmbiguousPackageVersionOverride{ActionNameOrPackageID: "NuGet", PackageReferenceName: "NuGet", Version: "5.0"}
 
-		steps := []*create.StepPackageVersion{ // baseline
+		steps := []*executionscommon.StepPackageVersion{ // baseline
 			{PackageID: "NuGet", ActionName: "Install", Version: "0.1", PackageReferenceName: "NuGet"},
 			{PackageID: "NuGet", ActionName: "Verify", Version: "0.1", PackageReferenceName: "NuGet"},
 		}
@@ -2393,7 +2394,7 @@ func TestReleaseCreate_ResolvePackageOverride(t *testing.T) {
 	t.Run("match on packageID+packageRef picks the correct one where they are different", func(t *testing.T) {
 		nugetPackage := &create.AmbiguousPackageVersionOverride{ActionNameOrPackageID: "NuGet", PackageReferenceName: "NuGet-B", Version: "5.0"}
 
-		steps := []*create.StepPackageVersion{ // baseline
+		steps := []*executionscommon.StepPackageVersion{ // baseline
 			{PackageID: "NuGet", ActionName: "Install", Version: "0.1", PackageReferenceName: "NuGet-A"},
 			{PackageID: "NuGet", ActionName: "Verify", Version: "0.1", PackageReferenceName: "NuGet-B"},
 		}
@@ -2407,7 +2408,7 @@ func TestReleaseCreate_ResolvePackageOverride(t *testing.T) {
 		// we shouldn't get in this situation, but just in case we do :shrug:
 		nugetPackage := &create.AmbiguousPackageVersionOverride{PackageReferenceName: "NuGet-B", ActionNameOrPackageID: "Cheese", Version: "5.0"}
 
-		steps := []*create.StepPackageVersion{ // baseline
+		steps := []*executionscommon.StepPackageVersion{ // baseline
 			{PackageID: "NuGet", ActionName: "Install", Version: "0.1", PackageReferenceName: "NuGet-A"},
 			{PackageID: "NuGet", ActionName: "Verify", Version: "0.1", PackageReferenceName: "NuGet-B"},
 			{PackageID: "OtherPackage", ActionName: "Cheese", Version: "0.1", PackageReferenceName: "Cheese"},
@@ -2422,7 +2423,7 @@ func TestReleaseCreate_ResolvePackageOverride(t *testing.T) {
 		// we shouldn't get in this situation, but just in case we do :shrug:
 		nugetPackage := &create.AmbiguousPackageVersionOverride{PackageReferenceName: "NuGet-B", ActionNameOrPackageID: "Cheese", Version: "5.0"}
 
-		steps := []*create.StepPackageVersion{ // baseline
+		steps := []*executionscommon.StepPackageVersion{ // baseline
 			{PackageID: "NuGet", ActionName: "Install", Version: "0.1", PackageReferenceName: "NuGet-A"},
 			{PackageID: "NuGet", ActionName: "Verify", Version: "0.1", PackageReferenceName: "NuGet-B"},
 			{PackageID: "Cheese", ActionName: "OtherAction", Version: "0.1", PackageReferenceName: "OtherAction"},
@@ -2435,7 +2436,7 @@ func TestReleaseCreate_ResolvePackageOverride(t *testing.T) {
 }
 
 func TestReleaseCreate_ApplyPackageOverride(t *testing.T) {
-	standardPackageSpec := []*create.StepPackageVersion{
+	standardPackageSpec := []*executionscommon.StepPackageVersion{
 		{PackageID: "pterm", ActionName: "Install", Version: "0.12", PackageReferenceName: "pterm-on-install"},
 		{PackageID: "pterm", ActionName: "Push", Version: "0.12", PackageReferenceName: "pterm-on-push"},
 		{PackageID: "NuGet.CommandLine", ActionName: "Install", Version: "5.4", PackageReferenceName: "nuget-on-install"},
@@ -2447,7 +2448,7 @@ func TestReleaseCreate_ApplyPackageOverride(t *testing.T) {
 			{Version: "99"},
 		})
 
-		assert.Equal(t, []*create.StepPackageVersion{
+		assert.Equal(t, []*executionscommon.StepPackageVersion{
 			{PackageID: "pterm", ActionName: "Install", Version: "99", PackageReferenceName: "pterm-on-install"},
 			{PackageID: "pterm", ActionName: "Push", Version: "99", PackageReferenceName: "pterm-on-push"},
 			{PackageID: "NuGet.CommandLine", ActionName: "Install", Version: "99", PackageReferenceName: "nuget-on-install"},
@@ -2460,7 +2461,7 @@ func TestReleaseCreate_ApplyPackageOverride(t *testing.T) {
 			{PackageID: "pterm", Version: "99"},
 		})
 
-		assert.Equal(t, []*create.StepPackageVersion{
+		assert.Equal(t, []*executionscommon.StepPackageVersion{
 			{PackageID: "pterm", ActionName: "Install", Version: "99", PackageReferenceName: "pterm-on-install"},
 			{PackageID: "pterm", ActionName: "Push", Version: "99", PackageReferenceName: "pterm-on-push"},
 			{PackageID: "NuGet.CommandLine", ActionName: "Install", Version: "5.4", PackageReferenceName: "nuget-on-install"},
@@ -2473,7 +2474,7 @@ func TestReleaseCreate_ApplyPackageOverride(t *testing.T) {
 			{ActionName: "Install", Version: "99"},
 		})
 
-		assert.Equal(t, []*create.StepPackageVersion{
+		assert.Equal(t, []*executionscommon.StepPackageVersion{
 			{PackageID: "pterm", ActionName: "Install", Version: "99", PackageReferenceName: "pterm-on-install"},
 			{PackageID: "pterm", ActionName: "Push", Version: "0.12", PackageReferenceName: "pterm-on-push"},
 			{PackageID: "NuGet.CommandLine", ActionName: "Install", Version: "99", PackageReferenceName: "nuget-on-install"},
@@ -2486,7 +2487,7 @@ func TestReleaseCreate_ApplyPackageOverride(t *testing.T) {
 			{PackageID: "pterm", ActionName: "Install", Version: "99"},
 		})
 
-		assert.Equal(t, []*create.StepPackageVersion{
+		assert.Equal(t, []*executionscommon.StepPackageVersion{
 			{PackageID: "pterm", ActionName: "Install", Version: "99", PackageReferenceName: "pterm-on-install"},
 			{PackageID: "pterm", ActionName: "Push", Version: "0.12", PackageReferenceName: "pterm-on-push"},
 			{PackageID: "NuGet.CommandLine", ActionName: "Install", Version: "5.4", PackageReferenceName: "nuget-on-install"},
@@ -2501,7 +2502,7 @@ func TestReleaseCreate_ApplyPackageOverride(t *testing.T) {
 			{PackageID: "NuGet.CommandLine", ActionName: "Push", Version: "6"},
 		})
 
-		assert.Equal(t, []*create.StepPackageVersion{
+		assert.Equal(t, []*executionscommon.StepPackageVersion{
 			{PackageID: "pterm", ActionName: "Install", Version: "2", PackageReferenceName: "pterm-on-install"},
 			{PackageID: "pterm", ActionName: "Push", Version: "2", PackageReferenceName: "pterm-on-push"},
 			{PackageID: "NuGet.CommandLine", ActionName: "Install", Version: "0.1", PackageReferenceName: "nuget-on-install"},
@@ -2516,7 +2517,7 @@ func TestReleaseCreate_ApplyPackageOverride(t *testing.T) {
 			{Version: "0.1"}, // overwrites everything
 		})
 
-		assert.Equal(t, []*create.StepPackageVersion{
+		assert.Equal(t, []*executionscommon.StepPackageVersion{
 			{PackageID: "pterm", ActionName: "Install", Version: "0.1", PackageReferenceName: "pterm-on-install"},
 			{PackageID: "pterm", ActionName: "Push", Version: "0.1", PackageReferenceName: "pterm-on-push"},
 			{PackageID: "NuGet.CommandLine", ActionName: "Install", Version: "0.1", PackageReferenceName: "nuget-on-install"},
@@ -2525,7 +2526,7 @@ func TestReleaseCreate_ApplyPackageOverride(t *testing.T) {
 	})
 
 	t.Run("apply single override targeting only package-ref", func(t *testing.T) {
-		packageSpec := []*create.StepPackageVersion{
+		packageSpec := []*executionscommon.StepPackageVersion{
 			{PackageID: "pterm", ActionName: "Install", PackageReferenceName: "pterm-on-install", Version: "0.12"},
 			{PackageID: "pterm", ActionName: "Push", PackageReferenceName: "pterm", Version: "0.12"},
 			{PackageID: "pterm", ActionName: "Verify", PackageReferenceName: "pterm", Version: "0.12"},
@@ -2536,7 +2537,7 @@ func TestReleaseCreate_ApplyPackageOverride(t *testing.T) {
 			{PackageReferenceName: "pterm", Version: "2000"},
 		})
 
-		assert.Equal(t, []*create.StepPackageVersion{
+		assert.Equal(t, []*executionscommon.StepPackageVersion{
 			{PackageID: "pterm", ActionName: "Install", PackageReferenceName: "pterm-on-install", Version: "0.12"},
 			{PackageID: "pterm", ActionName: "Push", PackageReferenceName: "pterm", Version: "2000"},
 			{PackageID: "pterm", ActionName: "Verify", PackageReferenceName: "pterm", Version: "2000"},
@@ -2546,7 +2547,7 @@ func TestReleaseCreate_ApplyPackageOverride(t *testing.T) {
 
 	t.Run("target both of package-ref:action where package referencename matches another package too", func(t *testing.T) {
 		// real bug observed with manual testing
-		packageSpec := []*create.StepPackageVersion{
+		packageSpec := []*executionscommon.StepPackageVersion{
 			{PackageID: "pterm", ActionName: "Install", PackageReferenceName: "pterm-on-install", Version: "0.12"},
 			{PackageID: "pterm", ActionName: "Push", PackageReferenceName: "pterm", Version: "0.12"},
 			{PackageID: "pterm", ActionName: "Verify", PackageReferenceName: "pterm", Version: "0.12"},
@@ -2557,7 +2558,7 @@ func TestReleaseCreate_ApplyPackageOverride(t *testing.T) {
 			{PackageReferenceName: "pterm-on-install", ActionName: "Install", Version: "20000"},
 		})
 
-		assert.Equal(t, []*create.StepPackageVersion{
+		assert.Equal(t, []*executionscommon.StepPackageVersion{
 			{PackageID: "pterm", ActionName: "Install", PackageReferenceName: "pterm-on-install", Version: "20000"}, // only this one should be overridden
 			{PackageID: "pterm", ActionName: "Push", PackageReferenceName: "pterm", Version: "0.12"},
 			{PackageID: "pterm", ActionName: "Verify", PackageReferenceName: "pterm", Version: "0.12"},

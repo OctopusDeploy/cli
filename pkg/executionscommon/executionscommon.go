@@ -22,6 +22,16 @@ import (
 	"time"
 )
 
+type StepPackageVersion struct {
+	// these 3 fields are the main ones for showing the user
+	PackageID  string
+	ActionName string // "StepName is an obsolete alias for ActionName, they always contain the same value"
+	Version    string // note this may be an empty string, indicating that no version could be found for this package yet
+
+	// used to locate the deployment process VersioningStrategy Donor Package
+	PackageReferenceName string
+}
+
 func findTenantsAndTags(octopus *octopusApiClient.Client, projectID string, environmentIDs []string) ([]string, []string, error) {
 	var validTenants []string
 	var validTags []string // these are 'Canonical' values i.e. "Regions/us-east", NOT TagSets-1/Tags-1

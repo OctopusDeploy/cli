@@ -17,6 +17,7 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/cmd/release/list"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	cliErrors "github.com/OctopusDeploy/cli/pkg/errors"
+	"github.com/OctopusDeploy/cli/pkg/executionscommon"
 	"github.com/OctopusDeploy/cli/pkg/executor"
 	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/OctopusDeploy/cli/pkg/output"
@@ -335,21 +336,11 @@ func createRun(cmd *cobra.Command, f factory.Factory, flags *CreateFlags) error 
 	return nil
 }
 
-type StepPackageVersion struct {
-	// these 3 fields are the main ones for showing the user
-	PackageID  string
-	ActionName string // "StepName is an obsolete alias for ActionName, they always contain the same value"
-	Version    string // note this may be an empty string, indicating that no version could be found for this package yet
-
-	// used to locate the deployment process VersioningStrategy Donor Package
-	PackageReferenceName string
-}
-
 // BuildPackageVersionBaseline loads the deployment process template from the server, and for each step+package therein,
 // finds the latest available version satisfying the channel version rules. Result is the list of step+package+versions
 // to use as a baseline. The package version override process takes this as an input and layers on top of it
-func BuildPackageVersionBaseline(octopus *octopusApiClient.Client, deploymentProcessTemplate *deployments.DeploymentProcessTemplate, channel *channels.Channel) ([]*StepPackageVersion, error) {
-	result := make([]*StepPackageVersion, 0, len(deploymentProcessTemplate.Packages))
+func BuildPackageVersionBaseline(octopus *octopusApiClient.Client, deploymentProcessTemplate *deployments.DeploymentProcessTemplate, channel *channels.Channel) ([]*executionscommon.StepPackageVersion, error) {
+	result := make([]*executionscommon.StepPackageVersion, 0, len(deploymentProcessTemplate.Packages))
 
 	// step 1: pass over all the packages in the deployment process, group them
 	// by their feed, then subgroup by packageId
@@ -362,7 +353,7 @@ func BuildPackageVersionBaseline(octopus *octopusApiClient.Client, deploymentPro
 		// any potential versions for it; we can't succeed in that because variable templates won't get expanded
 		// until deployment time
 		if !pkg.IsResolvable {
-			result = append(result, &StepPackageVersion{
+			result = append(result, &executionscommon.StepPackageVersion{
 				PackageID:            pkg.PackageID,
 				ActionName:           pkg.ActionName,
 				PackageReferenceName: pkg.PackageReferenceName,
@@ -379,7 +370,7 @@ func BuildPackageVersionBaseline(octopus *octopusApiClient.Client, deploymentPro
 	}
 
 	if len(feedsToQuery) == 0 {
-		return make([]*StepPackageVersion, 0), nil
+		return make([]*executionscommon.StepPackageVersion, 0), nil
 	}
 
 	// step 2: load the feed resources, so we can get SearchPackageVersionsTemplate
@@ -423,7 +414,7 @@ func BuildPackageVersionBaseline(octopus *octopusApiClient.Client, deploymentPro
 			}
 
 			if cachedVersion, ok := cache[query]; ok {
-				result = append(result, &StepPackageVersion{
+				result = append(result, &executionscommon.StepPackageVersion{
 					PackageID:            packageRef.PackageID,
 					ActionName:           packageRef.ActionName,
 					PackageReferenceName: packageRef.PackageReferenceName,
@@ -438,7 +429,7 @@ func BuildPackageVersionBaseline(octopus *octopusApiClient.Client, deploymentPro
 				switch len(versions.Items) {
 				case 0: // no package found; cache the response
 					cache[query] = ""
-					result = append(result, &StepPackageVersion{
+					result = append(result, &executionscommon.StepPackageVersion{
 						PackageID:            packageRef.PackageID,
 						ActionName:           packageRef.ActionName,
 						PackageReferenceName: packageRef.PackageReferenceName,
@@ -447,7 +438,7 @@ func BuildPackageVersionBaseline(octopus *octopusApiClient.Client, deploymentPro
 
 				case 1:
 					cache[query] = versions.Items[0].Version
-					result = append(result, &StepPackageVersion{
+					result = append(result, &executionscommon.StepPackageVersion{
 						PackageID:            packageRef.PackageID,
 						ActionName:           packageRef.ActionName,
 						PackageReferenceName: packageRef.PackageReferenceName,
@@ -600,7 +591,7 @@ func ParsePackageOverrideString(packageOverride string) (*AmbiguousPackageVersio
 	}, nil
 }
 
-func ResolvePackageOverride(override *AmbiguousPackageVersionOverride, steps []*StepPackageVersion) (*PackageVersionOverride, error) {
+func ResolvePackageOverride(override *AmbiguousPackageVersionOverride, steps []*executionscommon.StepPackageVersion) (*PackageVersionOverride, error) {
 	// shortcut for wildcard matches; these match everything so we don't need to do any work
 	if override.PackageReferenceName == "" && override.ActionNameOrPackageID == "" {
 		return &PackageVersionOverride{
@@ -661,47 +652,47 @@ func ResolvePackageOverride(override *AmbiguousPackageVersionOverride, steps []*
 	}, nil
 }
 
-func ApplyPackageOverrides(packages []*StepPackageVersion, overrides []*PackageVersionOverride) []*StepPackageVersion {
+func ApplyPackageOverrides(packages []*executionscommon.StepPackageVersion, overrides []*PackageVersionOverride) []*executionscommon.StepPackageVersion {
 	for _, o := range overrides {
 		packages = applyPackageOverride(packages, o)
 	}
 	return packages
 }
 
-func applyPackageOverride(packages []*StepPackageVersion, override *PackageVersionOverride) []*StepPackageVersion {
+func applyPackageOverride(packages []*executionscommon.StepPackageVersion, override *PackageVersionOverride) []*executionscommon.StepPackageVersion {
 	if override.Version == "" {
 		return packages // not specifying a version is technically an error, but we'll just no-op it for safety; should have been filtered out by ParsePackageOverrideString before we get here
 	}
 
-	var matcher func(pkg *StepPackageVersion) bool = nil
+	var matcher func(pkg *executionscommon.StepPackageVersion) bool = nil
 
 	switch {
 	case override.PackageID == "" && override.ActionName == "": // match everything
-		matcher = func(pkg *StepPackageVersion) bool {
+		matcher = func(pkg *executionscommon.StepPackageVersion) bool {
 			return true
 		}
 	case override.PackageID != "" && override.ActionName == "": // match on package ID only
-		matcher = func(pkg *StepPackageVersion) bool {
+		matcher = func(pkg *executionscommon.StepPackageVersion) bool {
 			return pkg.PackageID == override.PackageID
 		}
 	case override.PackageID == "" && override.ActionName != "": // match on step only
-		matcher = func(pkg *StepPackageVersion) bool {
+		matcher = func(pkg *executionscommon.StepPackageVersion) bool {
 			return pkg.ActionName == override.ActionName
 		}
 	case override.PackageID != "" && override.ActionName != "": // match on both; shouldn't be possible but let's ensure it works anyway
-		matcher = func(pkg *StepPackageVersion) bool {
+		matcher = func(pkg *executionscommon.StepPackageVersion) bool {
 			return pkg.PackageID == override.PackageID && pkg.ActionName == override.ActionName
 		}
 	}
 
 	if override.PackageReferenceName != "" { // must also match package reference name
 		if matcher == nil {
-			matcher = func(pkg *StepPackageVersion) bool {
+			matcher = func(pkg *executionscommon.StepPackageVersion) bool {
 				return pkg.PackageReferenceName == override.PackageReferenceName
 			}
 		} else {
 			prevMatcher := matcher
-			matcher = func(pkg *StepPackageVersion) bool {
+			matcher = func(pkg *executionscommon.StepPackageVersion) bool {
 				return pkg.PackageReferenceName == override.PackageReferenceName && prevMatcher(pkg)
 			}
 		}
@@ -711,10 +702,10 @@ func applyPackageOverride(packages []*StepPackageVersion, override *PackageVersi
 		return packages // we can't possibly match against anything; no-op. Should have been filtered out by ParsePackageOverrideString
 	}
 
-	result := make([]*StepPackageVersion, len(packages))
+	result := make([]*executionscommon.StepPackageVersion, len(packages))
 	for i, p := range packages {
 		if matcher(p) {
-			result[i] = &StepPackageVersion{
+			result[i] = &executionscommon.StepPackageVersion{
 				PackageID:            p.PackageID,
 				ActionName:           p.ActionName,
 				PackageReferenceName: p.PackageReferenceName,
@@ -728,9 +719,9 @@ func applyPackageOverride(packages []*StepPackageVersion, override *PackageVersi
 }
 
 // Note this always uses the Table Printer, it pays no respect to outputformat=json, because it's only part of the interactive flow
-func printPackageVersions(ioWriter io.Writer, packages []*StepPackageVersion) error {
+func printPackageVersions(ioWriter io.Writer, packages []*executionscommon.StepPackageVersion) error {
 	// step 1: consolidate multiple rows
-	consolidated := make([]*StepPackageVersion, 0, len(packages))
+	consolidated := make([]*executionscommon.StepPackageVersion, 0, len(packages))
 	for _, pkg := range packages {
 
 		// the common case is that packageReferenceName will be equal to PackageID.
@@ -749,7 +740,7 @@ func printPackageVersions(ioWriter io.Writer, packages []*StepPackageVersion) er
 		for index, entry := range consolidated {
 			if entry.PackageID == pkg.PackageID && entry.Version == pkg.Version {
 				consolidated = append(consolidated[:index+2], consolidated[index+1:]...)
-				consolidated[index+1] = &StepPackageVersion{
+				consolidated[index+1] = &executionscommon.StepPackageVersion{
 					PackageID:  output.Dim(pkg.PackageID),
 					Version:    output.Dim(pkg.Version),
 					ActionName: qualifiedPkgActionName,
@@ -759,7 +750,7 @@ func printPackageVersions(ioWriter io.Writer, packages []*StepPackageVersion) er
 			}
 		}
 		if !updatedExisting {
-			consolidated = append(consolidated, &StepPackageVersion{
+			consolidated = append(consolidated, &executionscommon.StepPackageVersion{
 				PackageID:  pkg.PackageID,
 				Version:    pkg.Version,
 				ActionName: qualifiedPkgActionName,
@@ -899,7 +890,7 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 		return err
 	}
 
-	var overriddenPackageVersions []*StepPackageVersion
+	var overriddenPackageVersions []*executionscommon.StepPackageVersion
 	if len(packageVersionBaseline) > 0 { // if we have packages, run the package flow
 		opv, packageVersionOverrides, err := AskPackageOverrideLoop(
 			packageVersionBaseline,
@@ -946,7 +937,7 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 
 		if versioningStrategy.DonorPackageStepID != nil || versioningStrategy.DonorPackage != nil {
 			// we've already done the package version work so we can just ask the donor package which version it has selected
-			var donorPackage *StepPackageVersion
+			var donorPackage *executionscommon.StepPackageVersion
 			for _, pkg := range overriddenPackageVersions {
 				if pkg.PackageReferenceName == versioningStrategy.DonorPackage.PackageReference && pkg.ActionName == versioningStrategy.DonorPackage.DeploymentAction {
 					donorPackage = pkg
@@ -990,11 +981,11 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 }
 
 func AskPackageOverrideLoop(
-	packageVersionBaseline []*StepPackageVersion,
+	packageVersionBaseline []*executionscommon.StepPackageVersion,
 	defaultPackageVersion string, // the --package-version command line flag
 	initialPackageOverrideFlags []string, // the --package command line flag (multiple occurrences)
 	asker question.Asker,
-	stdout io.Writer) ([]*StepPackageVersion, []*PackageVersionOverride, error) {
+	stdout io.Writer) ([]*executionscommon.StepPackageVersion, []*PackageVersionOverride, error) {
 	packageVersionOverrides := make([]*PackageVersionOverride, 0)
 
 	// pickup any partial package specifications that may have arrived on the commandline
