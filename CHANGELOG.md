@@ -1,5 +1,14 @@
 # Changelog
 
+## [2.3.0](https://github.com/OctopusDeploy/cli/compare/v2.2.1...v2.3.0) (2024-03-13)
+
+
+### Features
+
+* environment create ([#338](https://github.com/OctopusDeploy/cli/issues/338)) ([88d0588](https://github.com/OctopusDeploy/cli/commit/88d058876b63def96ae80a2db2893b43d8546f3c))
+* runbook delete ([#341](https://github.com/OctopusDeploy/cli/issues/341)) ([2bbb1ff](https://github.com/OctopusDeploy/cli/commit/2bbb1ff6b94f77294f8b8b6eb432c326c67acb93))
+* runbook snapshot list ([#340](https://github.com/OctopusDeploy/cli/issues/340)) ([43d5f2c](https://github.com/OctopusDeploy/cli/commit/43d5f2cae0fae861c49c8403f81f888f0a990e12))
+
 ## [2.2.1](https://github.com/OctopusDeploy/cli/compare/v2.2.0...v2.2.1) (2024-03-07)
 
 
