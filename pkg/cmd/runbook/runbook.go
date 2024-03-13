@@ -2,6 +2,7 @@ package runbook
 
 import (
 	"github.com/MakeNowJust/heredoc/v2"
+	cmdDelete "github.com/OctopusDeploy/cli/pkg/cmd/runbook/delete"
 	cmdList "github.com/OctopusDeploy/cli/pkg/cmd/runbook/list"
 	cmdRun "github.com/OctopusDeploy/cli/pkg/cmd/runbook/run"
 	"github.com/OctopusDeploy/cli/pkg/constants"
@@ -26,5 +27,6 @@ func NewCmdRunbook(f factory.Factory) *cobra.Command {
 
 	cmd.AddCommand(cmdList.NewCmdList(f))
 	cmd.AddCommand(cmdRun.NewCmdRun(f))
+	cmd.AddCommand(cmdDelete.NewCmdDelete(f))
 	return cmd
 }
