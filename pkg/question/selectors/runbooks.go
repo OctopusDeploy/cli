@@ -4,6 +4,7 @@ import (
 	"errors"
 	"github.com/OctopusDeploy/cli/pkg/question"
 	octopusApiClient "github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/runbooks"
 	"math"
 )
@@ -27,10 +28,10 @@ func Runbook(questionText string, client *octopusApiClient.Client, ask question.
 	})
 }
 
-func FindRunbook(client *octopusApiClient.Client, runbookIdentifier string, projectID string) (*runbooks.Runbook, error) {
+func FindRunbook(client *octopusApiClient.Client, project *projects.Project, runbookIdentifier string) (*runbooks.Runbook, error) {
 	runbook, err := runbooks.GetByID(client, client.GetSpaceID(), runbookIdentifier)
 	if err != nil {
-		runbook, err = runbooks.GetByName(client, client.GetSpaceID(), projectID, runbookIdentifier)
+		runbook, err = runbooks.GetByName(client, client.GetSpaceID(), project.GetID(), runbookIdentifier)
 		if err != nil {
 			return nil, err
 		}

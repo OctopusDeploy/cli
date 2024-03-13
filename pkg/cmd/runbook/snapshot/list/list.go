@@ -104,7 +104,7 @@ func listRun(cmd *cobra.Command, f factory.Factory, flags *ListFlags) error {
 				return err
 			}
 		} else { // project name is already provided, fetch the object because it's needed for further questions
-			selectedRunbook, err = selectors.FindRunbook(client, runbookNameOrID, selectedProject.GetID())
+			selectedRunbook, err = selectors.FindRunbook(client, selectedProject, runbookNameOrID)
 			if err != nil {
 				return err
 			}
@@ -124,7 +124,7 @@ func listRun(cmd *cobra.Command, f factory.Factory, flags *ListFlags) error {
 		if runbookNameOrID == "" {
 			return errors.New("runbook must be specified")
 		}
-		selectedRunbook, err = selectors.FindRunbook(client, runbookNameOrID, selectedProject.GetID())
+		selectedRunbook, err = selectors.FindRunbook(client, selectedProject, runbookNameOrID)
 		if err != nil {
 			return err
 		}
