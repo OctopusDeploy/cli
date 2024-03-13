@@ -67,7 +67,7 @@ func NewCmdDelete(f factory.Factory) *cobra.Command {
 			deps := cmd.NewDependencies(f, c)
 
 			opts := NewDeleteOptions(deps, deleteFlags)
-			if deleteFlags.Runbook.Value == "" {
+			if deleteFlags.Runbook.Value == "" && len(args) > 0 {
 				deleteFlags.Runbook.Value = args[0]
 			}
 
@@ -109,7 +109,7 @@ func getRunbook(opts *DeleteOptions, project *projects.Project) (*runbooks.Runbo
 	if opts.Runbook.Value == "" {
 		runbook, err = selectors.Select(opts.Ask, "Select the runbook you wish to delete:", func() ([]*runbooks.Runbook, error) { return opts.GetRunbooksCallback(project.GetID()) }, func(runbook *runbooks.Runbook) string { return runbook.Name })
 	} else {
-		runbook, err = selectors.FindRunbook(opts.Client, project.GetID(), opts.Runbook.Value)
+		runbook, err = selectors.FindRunbook(opts.Client, project, opts.Runbook.Value)
 	}
 
 	if runbook == nil {

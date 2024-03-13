@@ -5,6 +5,7 @@ import (
 	cmdDelete "github.com/OctopusDeploy/cli/pkg/cmd/runbook/delete"
 	cmdList "github.com/OctopusDeploy/cli/pkg/cmd/runbook/list"
 	cmdRun "github.com/OctopusDeploy/cli/pkg/cmd/runbook/run"
+	cmdSnapshot "github.com/OctopusDeploy/cli/pkg/cmd/runbook/snapshot"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/constants/annotations"
 	"github.com/OctopusDeploy/cli/pkg/factory"
@@ -28,5 +29,6 @@ func NewCmdRunbook(f factory.Factory) *cobra.Command {
 	cmd.AddCommand(cmdList.NewCmdList(f))
 	cmd.AddCommand(cmdRun.NewCmdRun(f))
 	cmd.AddCommand(cmdDelete.NewCmdDelete(f))
+	cmd.AddCommand(cmdSnapshot.NewCmdSnapshot(f))
 	return cmd
 }
