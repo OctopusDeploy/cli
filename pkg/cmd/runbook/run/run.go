@@ -122,7 +122,7 @@ func NewCmdRun(f factory.Factory) *cobra.Command {
 		Long:  "Run runbooks in Octopus Deploy",
 		Example: heredoc.Docf(`
 			$ %[1]s runbook run  # fully interactive
-			$ %[1]s runbook run --project MyProject ... TODO
+			$ %[1]s runbook run --project MyProject --runbook "Rebuild DB Indexes"
 		`, constants.ExecutableName),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) > 0 && runFlags.Project.Value == "" {
