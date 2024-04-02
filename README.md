@@ -106,6 +106,36 @@ go install github.com/OctopusDeploy/cli/cmd/octopus@latest
 
 This will download the latest public release of the CLI from our GitHub repository, compile it for your platform/architecture, and install the binary in your GOPATH
 
+## Getting Started
+
+To get started with the Octopus CLI, login to your Octopus Server using the following command:
+
+```
+octopus login
+```
+
+This command will walk you through setting the Octopus Server URL, creating an API key (if necessary) and configuring the CLI for use.
+
+### Open ID Connect
+
+In automation scenarios such as CI servers, the login command can be used to authenticate using OpenID Connect (OIDC). This involves exchanging an ID token from an OIDC provider (such as GitHub or GitLab) for an Octopus access token.
+
+To login using OIDC, use the following command:
+
+```
+octopus login --server {OctopusServerUrl} --service-account-id {ServiceAccountId} --id-token {IdTokenFromProvider}
+```
+
+For example:
+
+```
+octopus login --server https://my.octopus.app --service-account-id 834a7275-b5b8-42a1-8b36-14f11c8eb55e --id-token eyJhbGciOiJQUzI1NiIs...
+```
+
+This command will perform the token exchange and configure the CLI for use.
+
+See the [documentation on OpenID Connect for more information](https://oc.to/ServiceAccountOidcIdentities)
+
 ## Overview
 
 This project aims to create a new CLI (written in Go) for communicating with the Octopus Deploy Server.
@@ -173,8 +203,9 @@ The default action for the `Makefile` is to run `go build`, as above.
 
 ## Running the CLI
 
-The CLI needs to authenticate with the octopus server.
-This is currently managed using environment variables which you must set before launching it.
+The CLI needs to authenticate with the octopus server. 
+
+You can configure this using the `octopus login` command from the [Getting Started guide above](#getting-started) or by setting environment variables.
 
 **macOS/Linux:**
 
