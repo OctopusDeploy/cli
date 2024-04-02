@@ -114,7 +114,7 @@ To get started with the Octopus CLI, login to your Octopus Server using the foll
 octopus login
 ```
 
-This command will walk you through configuring the Octopus Server URL, creating an API key (if necessary) and configuring the CLI for use.
+This command will walk you through setting the Octopus Server URL, creating an API key (if necessary) and configuring the CLI for use.
 
 ### Open ID Connect
 
