@@ -4,7 +4,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"golang.org/x/exp/maps"
 	"io"
+	"sort"
 	"strings"
 	"time"
 
@@ -691,7 +693,13 @@ func askDeploymentPreviewVariables(octopus *octopusApiClient.Client, variablesFr
 		lcaseVarsFromCmd[strings.ToLower(k)] = v
 	}
 
-	for key, control := range flattenedControls {
+	keys := maps.Keys(flattenedControls)
+	sort.Slice(keys, func(i, j int) bool {
+		return keys[i] > keys[j]
+	})
+
+	for _, key := range keys {
+		control := flattenedControls[key]
 		valueFromCmd, foundValueOnCommandLine := lcaseVarsFromCmd[strings.ToLower(control.Name)]
 		if foundValueOnCommandLine {
 			// implicitly fixes up variable casing
