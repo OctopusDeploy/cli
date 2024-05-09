@@ -5,6 +5,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/url"
+	"testing"
+	"time"
+
 	"github.com/AlecAivazis/survey/v2"
 	surveyCore "github.com/AlecAivazis/survey/v2/core"
 	"github.com/MakeNowJust/heredoc/v2"
@@ -28,9 +32,6 @@ import (
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/variables"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
-	"net/url"
-	"testing"
-	"time"
 )
 
 var serverUrl, _ = url.Parse("http://server")
@@ -1722,12 +1723,12 @@ func TestDeployCreate_GenerationOfAutomationCommand_MasksSensitiveVariables(t *t
 	}).AnswerWith("BORING")
 
 	_ = qa.ExpectQuestion(t, &survey.Password{
-		Message: "Nuclear Launch Codes",
-	}).AnswerWith("9001")
-
-	_ = qa.ExpectQuestion(t, &survey.Password{
 		Message: "Secret Password",
 	}).AnswerWith("donkey")
+
+	_ = qa.ExpectQuestion(t, &survey.Password{
+		Message: "Nuclear Launch Codes",
+	}).AnswerWith("9001")
 
 	q := qa.ExpectQuestion(t, &survey.Select{
 		Message: "Change additional options?",
