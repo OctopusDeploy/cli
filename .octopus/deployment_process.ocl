@@ -31,7 +31,7 @@ step "push-cli-to-chocolatey" {
             Octopus.Action.Script.ScriptSource = "Inline"
             Octopus.Action.Script.Syntax = "PowerShell"
         }
-        worker_pool = "hosted-windows-2019"
+        worker_pool = "hosted-windows"
 
         packages "cli" {
             acquisition_location = "Server"
