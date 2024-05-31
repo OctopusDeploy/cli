@@ -31,17 +31,17 @@ func RegisterWebFlag(cmd *cobra.Command, flags *WebFlags) {
 }
 
 func DoWebForTargets(target *machines.DeploymentTarget, dependencies *cmd.Dependencies, flags *WebFlags, description string) {
-	url := fmt.Sprintf("%s/app#/%s/infrastructure/machines/%s", dependencies.Host, dependencies.Space.GetID(), target.GetID())
+	url := fmt.Sprintf("%s/app#/%s/infrastructure/machines/%s/settings", dependencies.Host, dependencies.Space.GetID(), target.GetID())
 	doWeb(url, description, dependencies.Out, flags)
 }
 
 func DoWebForWorkers(worker *machines.Worker, dependencies *cmd.Dependencies, flags *WebFlags, description string) {
-	url := fmt.Sprintf("%s/app#/%s/infrastructure/workers/%s", dependencies.Host, dependencies.Space.GetID(), worker.GetID())
+	url := fmt.Sprintf("%s/app#/%s/infrastructure/workers/%s/settings", dependencies.Host, dependencies.Space.GetID(), worker.GetID())
 	doWeb(url, description, dependencies.Out, flags)
 }
 
 func DoWebForWorkerPools(workerPool workerpools.IWorkerPool, dependencies *cmd.Dependencies, flags *WebFlags) {
-	url := fmt.Sprintf("%s/app#/%s/infrastructure/workerpools/%s", dependencies.Host, dependencies.Space.GetID(), workerPool.GetID())
+	url := fmt.Sprintf("%s/app#/%s/infrastructure/workerpools/%s/settings", dependencies.Host, dependencies.Space.GetID(), workerPool.GetID())
 	doWeb(url, "Worker Pool", dependencies.Out, flags)
 }
 
