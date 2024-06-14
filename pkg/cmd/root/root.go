@@ -122,5 +122,7 @@ func NewCmdRoot(f factory.Factory, clientFactory apiclient.ClientFactory, askPro
 		}
 	}
 
+	cmd.Flags().Bool(constants.FlagVersion, false, "Show version")
+
 	return cmd
 }

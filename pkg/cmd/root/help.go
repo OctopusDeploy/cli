@@ -6,6 +6,7 @@ import (
 	"regexp"
 	"strings"
 
+	version "github.com/OctopusDeploy/cli"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/constants/annotations"
 	"github.com/OctopusDeploy/cli/pkg/output"
@@ -24,6 +25,20 @@ func rootHelpFunc(cmd *cobra.Command, _ []string) {
 	libraryCmds := []string{}
 	infrastructureCmds := []string{}
 	additionalCmds := []string{}
+
+	flags := cmd.Flags()
+
+	if isRootCmd(cmd) {
+		out := cmd.OutOrStdout()
+		if versionVal, err := flags.GetBool(constants.FlagHelp); err == nil && versionVal {
+			fmt.Fprintln(out, strings.TrimSpace(version.Version))
+			return
+		} else if err != nil {
+			fmt.Fprintln(out, err)
+			return
+		}
+	}
+
 	for _, c := range cmd.Commands() {
 		if c.Short == "" {
 			continue
