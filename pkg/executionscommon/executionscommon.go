@@ -368,9 +368,10 @@ func splitVariableString(s string, n int, enableEscape bool) []string {
 			if start >= 0 { // we found a delimiter and we are already in a span; end the span and start a new one
 				if len(spans) == n-1 { // we're about to append the last span, break so the 'last field' code consumes the rest of the string
 					break
+				} else {
+					spans = append(spans, span{start, idx})
+					start = idx + 1
 				}
-				spans = append(spans, span{start, idx})
-				start = idx + 1
 			} else { // we found a delimiter and we are not in a span; start a new span
 				if start < 0 {
 					start = idx + 1
@@ -379,7 +380,6 @@ func splitVariableString(s string, n int, enableEscape bool) []string {
 		} else {
 			escaped = false
 		}
-
 	}
 
 	// Last field might end at EOF.
