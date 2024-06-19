@@ -374,7 +374,7 @@ func splitVariableString(s string, n int, enableEscape bool) []string {
 				}
 			} else { // we found a delimiter and we are not in a span; start a new span
 				if start < 0 {
-					start = idx + 1
+					start = idx
 				}
 			}
 		} else {
