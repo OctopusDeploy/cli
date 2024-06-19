@@ -181,7 +181,7 @@ func runbookRun(cmd *cobra.Command, f factory.Factory, flags *RunFlags) error {
 		return err
 	}
 
-	parsedVariables, err := executionscommon.ParseVariableStringArray(flags.Variables.Value)
+	parsedVariables, err := executionscommon.ParseVariableStringArray(flags.Variables.Value, false)
 	if err != nil {
 		return err
 	}

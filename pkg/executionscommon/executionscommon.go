@@ -297,10 +297,10 @@ func AskVariableSpecificPrompt(asker question.Asker, message string, variableTyp
 	}
 }
 
-func ParseVariableStringArray(variables []string) (map[string]string, error) {
+func ParseVariableStringArray(variables []string, enableEscape bool) (map[string]string, error) {
 	result := make(map[string]string, len(variables))
 	for _, v := range variables {
-		components := splitVariableString(v, 2)
+		components := splitVariableString(v, 2, enableEscape)
 		if len(components) != 2 || components[0] == "" || components[1] == "" {
 			return nil, fmt.Errorf("could not parse variable definition '%s'", v)
 		}
@@ -345,7 +345,8 @@ func LookupPackageDownloadString(value bool) string {
 // splitVariableString is a derivative of splitPackageOverrideString in release create.
 // it is required because the builtin go strings.SplitN can't handle more than one delimeter character.
 // otherwise it works the same, but caps the number of splits at 'n'
-func splitVariableString(s string, n int) []string {
+
+func splitVariableString(s string, n int, enableEscape bool) []string {
 	// pass 1: collect spans; golang strings.FieldsFunc says it's much more efficient this way
 	type span struct {
 		start int
@@ -355,20 +356,24 @@ func splitVariableString(s string, n int) []string {
 
 	// Find the field start and end indices.
 	start := 0 // we always start the first span at the beginning of the string
+	escaped := false
+
 	for idx, ch := range s {
-		if ch == ':' || ch == '=' {
+		if enableEscape && ch == '\\' && !escaped {
+			escaped = true
+			continue
+		}
+
+		if (ch == ':' || ch == '=') && (!enableEscape || !escaped) {
 			if start >= 0 { // we found a delimiter and we are already in a span; end the span and start a new one
 				if len(spans) == n-1 { // we're about to append the last span, break so the 'last field' code consumes the rest of the string
 					break
-				} else {
-					spans = append(spans, span{start, idx})
-					start = idx + 1
 				}
-			} else { // we found a delimiter and we are not in a span; start a new span
-				if start < 0 {
-					start = idx
-				}
+				spans = append(spans, span{start, idx})
+				start = idx + 1
 			}
+		} else {
+			escaped = false
 		}
 	}
 
@@ -382,7 +387,31 @@ func splitVariableString(s string, n int) []string {
 	for i, span := range spans {
 		a[i] = s[span.start:span.end]
 	}
+
+	// If escape sequences are enabled, unescape the parts
+	if enableEscape {
+		for i, part := range a {
+			a[i] = unescape(part)
+		}
+	}
+
 	return a
+}
+
+func unescape(s string) string {
+	result := make([]rune, 0, len(s))
+	escaped := false
+
+	for _, ch := range s {
+		if ch == '\\' && !escaped {
+			escaped = true
+			continue
+		}
+		result = append(result, ch)
+		escaped = false
+	}
+
+	return string(result)
 }
 
 // ScheduledStartTimeAnswerFormatter is passed to the DatePicker so that if the user selects a time within the next

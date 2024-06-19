@@ -336,6 +336,7 @@ func TestParseVariableStringArray(t *testing.T) {
 		{name: "foo=bar,baz=qux", input: []string{"foo=bar", "baz=qux"}, expect: map[string]string{"foo": "bar", "baz": "qux"}},
 
 		{name: "foo:bar:more=stuff", input: []string{"foo:bar:more=stuff"}, expect: map[string]string{"foo": "bar:more=stuff"}},
+		{name: "foo\\:bar:more=stuff", input: []string{"foo\\:bar:more=stuff"}, expect: map[string]string{"foo:bar": "more=stuff"}},
 
 		{name: "trims whitespace", input: []string{" foo : \tbar "}, expect: map[string]string{"foo": "bar"}},
 
@@ -348,7 +349,7 @@ func TestParseVariableStringArray(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			result, err := executionscommon.ParseVariableStringArray(test.input)
+			result, err := executionscommon.ParseVariableStringArray(test.input, true)
 			assert.Equal(t, test.expectErr, err)
 			assert.Equal(t, test.expect, result)
 		})

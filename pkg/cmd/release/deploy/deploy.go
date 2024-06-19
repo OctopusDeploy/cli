@@ -196,7 +196,7 @@ func deployRun(cmd *cobra.Command, f factory.Factory, flags *DeployFlags) error 
 		return err
 	}
 
-	parsedVariables, err := executionscommon.ParseVariableStringArray(flags.Variables.Value)
+	parsedVariables, err := executionscommon.ParseVariableStringArray(flags.Variables.Value, true)
 	if err != nil {
 		return err
 	}
