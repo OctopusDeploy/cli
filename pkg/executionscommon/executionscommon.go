@@ -371,10 +371,15 @@ func splitVariableString(s string, n int, enableEscape bool) []string {
 				}
 				spans = append(spans, span{start, idx})
 				start = idx + 1
+			} else { // we found a delimiter and we are not in a span; start a new span
+				if start < 0 {
+					start = idx + 1
+				}
 			}
 		} else {
 			escaped = false
 		}
+
 	}
 
 	// Last field might end at EOF.
