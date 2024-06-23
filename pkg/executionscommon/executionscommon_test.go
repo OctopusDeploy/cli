@@ -8,6 +8,7 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/executionscommon"
 	"github.com/OctopusDeploy/cli/test/fixtures"
 	"github.com/OctopusDeploy/cli/test/testutil"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/resources"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/variables"
 	"github.com/stretchr/testify/assert"
 	"testing"
@@ -96,7 +97,7 @@ func TestAskVariables(t *testing.T) {
 			v1 := variables.NewVariable("ReqText")
 			v1.Prompt = &variables.VariablePromptOptions{
 				Description:     "Enter required text",
-				DisplaySettings: variables.NewDisplaySettings(variables.ControlTypeSingleLineText, nil),
+				DisplaySettings: resources.NewDisplaySettings(resources.ControlTypeSingleLineText, nil),
 				IsRequired:      true,
 			}
 
@@ -140,7 +141,7 @@ func TestAskVariables(t *testing.T) {
 			v1 := variables.NewVariable("SomeText")
 			v1.Prompt = &variables.VariablePromptOptions{
 				Description:     "Enter secret text",
-				DisplaySettings: variables.NewDisplaySettings(variables.ControlTypeSensitive, nil),
+				DisplaySettings: resources.NewDisplaySettings(resources.ControlTypeSensitive, nil),
 			}
 
 			vars := makeVariables(v1)
@@ -188,14 +189,14 @@ func TestAskVariables(t *testing.T) {
 			v1.Type = "Certificate"
 			v1.Prompt = &variables.VariablePromptOptions{
 				Description:     "Codesigning certificate?",
-				DisplaySettings: variables.NewDisplaySettings(variables.ControlTypeCertificate, nil),
+				DisplaySettings: resources.NewDisplaySettings(resources.ControlTypeCertificate, nil),
 			}
 
 			v2 := variables.NewVariable("AWS Account")
 			v2.Type = "AzureAccount"
 			v2.Prompt = &variables.VariablePromptOptions{
 				Description:     "AZ Account?",
-				DisplaySettings: &variables.DisplaySettings{},
+				DisplaySettings: &resources.DisplaySettings{},
 			}
 			vars := makeVariables(v1, v2)
 
@@ -211,7 +212,7 @@ func TestAskVariables(t *testing.T) {
 			v1.Type = "String"
 			v1.Prompt = &variables.VariablePromptOptions{
 				Description: "Which part of the company do you work in?",
-				DisplaySettings: variables.NewDisplaySettings(variables.ControlTypeSelect, []*variables.SelectOption{
+				DisplaySettings: resources.NewDisplaySettings(resources.ControlTypeSelect, []*resources.SelectOption{
 					{Value: "rnd", DisplayName: "R&D"},
 					{Value: "finance", DisplayName: "Finance"},
 					{Value: "hr", DisplayName: "Human Resources"},
@@ -241,7 +242,7 @@ func TestAskVariables(t *testing.T) {
 			v1.Value = "rnd" // looks this up!
 			v1.Prompt = &variables.VariablePromptOptions{
 				Description: "Which part of the company do you work in?",
-				DisplaySettings: variables.NewDisplaySettings(variables.ControlTypeSelect, []*variables.SelectOption{
+				DisplaySettings: resources.NewDisplaySettings(resources.ControlTypeSelect, []*resources.SelectOption{
 					{Value: "rnd", DisplayName: "R&D"},
 					{Value: "finance", DisplayName: "Finance"},
 					{Value: "hr", DisplayName: "Human Resources"},
@@ -269,7 +270,7 @@ func TestAskVariables(t *testing.T) {
 			v1 := variables.NewVariable("IsApproved")
 			v1.Prompt = &variables.VariablePromptOptions{
 				Description:     "Is this approved?",
-				DisplaySettings: variables.NewDisplaySettings(variables.ControlTypeCheckbox, nil),
+				DisplaySettings: resources.NewDisplaySettings(resources.ControlTypeCheckbox, nil),
 				IsRequired:      false,
 			}
 
@@ -294,7 +295,7 @@ func TestAskVariables(t *testing.T) {
 			v1.Value = "True"
 			v1.Prompt = &variables.VariablePromptOptions{
 				Description:     "Is this approved?",
-				DisplaySettings: variables.NewDisplaySettings(variables.ControlTypeCheckbox, nil),
+				DisplaySettings: resources.NewDisplaySettings(resources.ControlTypeCheckbox, nil),
 				IsRequired:      false,
 			}
 

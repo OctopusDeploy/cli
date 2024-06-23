@@ -27,11 +27,11 @@ step "push-cli-to-chocolatey" {
                     }
                 }
                 exit 1
-            EOT
+                EOT
             Octopus.Action.Script.ScriptSource = "Inline"
             Octopus.Action.Script.Syntax = "PowerShell"
         }
-        worker_pool = "hosted-windows-2019"
+        worker_pool = "hosted-windows"
 
         packages "cli" {
             acquisition_location = "Server"
@@ -79,7 +79,7 @@ step "push-homebrew-formula-updates-to-the-homebrew-taps-repo" {
                 
                     $githubtoken = $OctopusParameters["Publish:HomeBrew:ApiKey"]
                     $origin="https://${githubtoken}@github.com/OctopusDeploy/homebrew-taps"
-
+                
                 }
                 
                 if (!$packageVersion || !$extractedPath) {
@@ -91,23 +91,23 @@ step "push-homebrew-formula-updates-to-the-homebrew-taps-repo" {
                 
                 git clone --depth 1 $origin octopus-homebrew-taps
                 cd octopus-homebrew-taps
-
+                
                 if ($gitUserName) {
                     git config user.name $gitUserName
                     git config user.email $gitUserEmail
                 }
-
+                
                 $branchName = "releases/$packageVersion"
                 git checkout -b $branchName
                 
-                Copy-Item -Path "$extractedPath/*" -Filter "*.rb" -Destination "." -Force
-
+                Copy-Item -Path "$extractedPath/homebrew/*" -Filter "*.rb" -Destination "." -Force
+                
                 git diff-index --quiet HEAD || (git commit -a -m "Update for release $packageVersion" `
                     && git push --repo $origin --set-upstream origin $branchName `
                 )
-
+                
                 cd ..
-            EOT
+                EOT
             Octopus.Action.Script.ScriptSource = "Inline"
             Octopus.Action.Script.Syntax = "PowerShell"
         }
@@ -151,7 +151,7 @@ step "publish-to-apt-repo" {
                   --env AWS_SECRET_ACCESS_KEY="$(get_octopusvariable "LinuxPackagePublisherAwsAccount.SecretKey")" \
                   octopusdeploy/publish-linux bash -c 'cd /working && bash publish-apt.sh' 2>&1 || exit
                 
-            EOT
+                EOT
             Octopus.Action.Script.ScriptSource = "Inline"
             Octopus.Action.Script.Syntax = "Bash"
         }
@@ -189,7 +189,7 @@ step "publish-to-rpm-repo" {
                   --env AWS_SECRET_ACCESS_KEY="$(get_octopusvariable "LinuxPackagePublisherAwsAccount.SecretKey")" \
                   octopusdeploy/publish-linux bash -c 'cd /working && bash publish-rpm.sh' 2>&1 || exit
                 
-            EOT
+                EOT
             Octopus.Action.Script.ScriptSource = "Inline"
             Octopus.Action.Script.Syntax = "Bash"
         }

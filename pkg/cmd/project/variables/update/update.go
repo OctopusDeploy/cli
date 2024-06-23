@@ -5,13 +5,14 @@ import (
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/cmd"
-	sharedVariable "github.com/OctopusDeploy/cli/pkg/cmd/project/variables/shared"
+	sharedProjectVariable "github.com/OctopusDeploy/cli/pkg/cmd/project/variables/shared"
 	"github.com/OctopusDeploy/cli/pkg/cmd/tenant/shared"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/OctopusDeploy/cli/pkg/output"
 	"github.com/OctopusDeploy/cli/pkg/question"
 	"github.com/OctopusDeploy/cli/pkg/question/selectors"
+	sharedVariable "github.com/OctopusDeploy/cli/pkg/question/shared/variables"
 	"github.com/OctopusDeploy/cli/pkg/util"
 	"github.com/OctopusDeploy/cli/pkg/util/flag"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
@@ -26,6 +27,7 @@ const (
 	FlagName     = "name"
 	FlagValue    = "value"
 	FlagUnscoped = "unscoped"
+	FlagGitRef   = "git-ref"
 )
 
 type UpdateFlags struct {
@@ -34,8 +36,9 @@ type UpdateFlags struct {
 	Name     *flag.Flag[string]
 	Value    *flag.Flag[string]
 	Unscoped *flag.Flag[bool]
+	GitRef   *flag.Flag[string]
 
-	*sharedVariable.ScopeFlags
+	*sharedProjectVariable.ScopeFlags
 }
 
 type UpdateOptions struct {
@@ -53,7 +56,8 @@ func NewUpdateFlags() *UpdateFlags {
 		Name:       flag.New[string](FlagName, false),
 		Value:      flag.New[string](FlagValue, false),
 		Unscoped:   flag.New[bool](FlagUnscoped, false),
-		ScopeFlags: sharedVariable.NewScopeFlags(),
+		GitRef:     flag.New[string](FlagGitRef, false),
+		ScopeFlags: sharedProjectVariable.NewScopeFlags(),
 	}
 }
 
@@ -77,10 +81,11 @@ func NewUpdateCmd(f factory.Factory) *cobra.Command {
 		Long:  "Update the value of a project variable in Octopus Deploy",
 		Example: heredoc.Docf(`
 			$ %[1]s project variable update
-			$ %[1]s project variable update --name varname --value "abc"
-			$ %[1]s project variable update --name varname --value "password"
-			$ %[1]s project variable update --name varname --unscoped
-			$ %[1]s project variable update --name varname --environment-scope test
+			$ %[1]s project variable update --name "variable name" --value "abc"
+			$ %[1]s project variable update --name "variable name" --value "password"
+			$ %[1]s project variable update --name "variable name" --unscoped
+			$ %[1]s project variable update --name "variable name" --environment-scope test
+			$ %[1]s project variable update -p "Deploy Website" --name "variable name" --value "updated" --git-ref refs/heads/main
 		`, constants.ExecutableName),
 		RunE: func(c *cobra.Command, args []string) error {
 			opts := NewUpdateOptions(updateFlags, cmd.NewDependencies(f, c))
@@ -95,7 +100,8 @@ func NewUpdateCmd(f factory.Factory) *cobra.Command {
 	flags.StringVarP(&updateFlags.Name.Value, updateFlags.Name.Name, "n", "", "The name of the variable")
 	flags.StringVar(&updateFlags.Value.Value, updateFlags.Value.Name, "", "The value to set on the variable")
 	flags.BoolVar(&updateFlags.Unscoped.Value, updateFlags.Unscoped.Name, false, "Remove all shared from the variable, cannot be used with shared")
-	sharedVariable.RegisterScopeFlags(cmd, updateFlags.ScopeFlags)
+	flags.StringVarP(&updateFlags.GitRef.Value, updateFlags.GitRef.Name, "", "", "The GitRef for the Config-As-Code branch")
+	sharedProjectVariable.RegisterScopeFlags(cmd, updateFlags.ScopeFlags)
 
 	return cmd
 }
@@ -117,7 +123,12 @@ func updateRun(opts *UpdateOptions) error {
 		return err
 	}
 
-	projectVariables, err := opts.GetProjectVariables(project.GetID())
+	var projectVariables *variables.VariableSet
+	if project.IsVersionControlled && opts.GitRef.Value != "" {
+		projectVariables, err = opts.GetProjectVariablesByGitRef(opts.Space.GetID(), project.GetID(), opts.GitRef.Value)
+	} else {
+		projectVariables, err = opts.GetProjectVariables(project.GetID())
+	}
 	if err != nil {
 		return err
 	}
@@ -131,7 +142,7 @@ func updateRun(opts *UpdateOptions) error {
 		opts.Value.Secure = true
 	}
 
-	updatedScope, err := sharedVariable.ToVariableScope(projectVariables, opts.ScopeFlags, project)
+	updatedScope, err := sharedProjectVariable.ToVariableScope(projectVariables, opts.ScopeFlags, project)
 	if err != nil {
 		return err
 	}
@@ -148,14 +159,19 @@ func updateRun(opts *UpdateOptions) error {
 		}
 	}
 
-	_, err = opts.Client.Variables.UpdateSingle(project.GetID(), variable)
+	if opts.GitRef.Value != "" {
+		_, err = opts.Client.ProjectVariables.UpdateByGitRef(opts.Space.GetID(), project.GetID(), opts.GitRef.Value, projectVariables)
+	} else {
+		_, err = opts.Client.Variables.UpdateSingle(project.GetID(), variable)
+	}
+
 	if err != nil {
 		return err
 	}
-	_, err = fmt.Fprintf(opts.Out, "Successfully updated variable '%s' in project '%s'\n", opts.Name.Value, project.GetName())
+	_, err = fmt.Fprintf(opts.Out, "Successfully updated variable '%s' in project '%s'\n", variable.Name, project.GetName())
 
 	if !opts.NoPrompt {
-		autoCmd := flag.GenerateAutomationCmd(opts.CmdPath, opts.Id, opts.Name, opts.Value, opts.Project, opts.EnvironmentsScopes, opts.ChannelScopes, opts.StepScopes, opts.TargetScopes, opts.TagScopes, opts.RoleScopes, opts.ProcessScopes, opts.Unscoped)
+		autoCmd := flag.GenerateAutomationCmd(opts.CmdPath, opts.Id, opts.Name, opts.Value, opts.Project, opts.EnvironmentsScopes, opts.ChannelScopes, opts.StepScopes, opts.TargetScopes, opts.TagScopes, opts.RoleScopes, opts.ProcessScopes, opts.Unscoped, opts.GitRef)
 		fmt.Fprintf(opts.Out, "\nAutomation Command: %s\n", autoCmd)
 	}
 
@@ -166,25 +182,28 @@ func getVariable(opts *UpdateOptions, project *projects.Project, projectVariable
 	var variable *variables.Variable
 	var err error
 	if opts.Id.Value != "" {
-		variable, err = opts.GetVariableById(project.GetID(), opts.Id.Value)
-		if err != nil {
-			return nil, err
-		}
+		possibleVariables := util.SliceFilter(projectVariables.Variables, func(v *variables.Variable) bool {
+			return strings.EqualFold(v.ID, opts.Id.Value)
+		})
 
-		if variable == nil {
+		if len(possibleVariables) == 0 {
 			return nil, fmt.Errorf("cannot find variable with id '%s'", opts.Id.Value)
+		} else if len(possibleVariables) > 1 {
+			return nil, fmt.Errorf("'%s' has matched multiple variables", opts.Id.Value)
+		} else {
+			variable = possibleVariables[0]
 		}
 	} else {
-		variables := util.SliceFilter(projectVariables.Variables, func(v *variables.Variable) bool {
+		possibleVariables := util.SliceFilter(projectVariables.Variables, func(v *variables.Variable) bool {
 			return strings.EqualFold(v.Name, opts.Name.Value)
 		})
 
-		if len(variables) == 0 {
+		if len(possibleVariables) == 0 {
 			return nil, fmt.Errorf("cannot find variable with name '%s'", opts.Name.Value)
-		} else if len(variables) > 1 {
-			return nil, fmt.Errorf("'%s' has multiple values, supply '%s' flag", variables[0].Name, FlagId)
+		} else if len(possibleVariables) > 1 {
+			return nil, fmt.Errorf("'%s' has multiple values, supply '%s' flag", possibleVariables[0].Name, FlagId)
 		} else {
-			variable = variables[0]
+			variable = possibleVariables[0]
 		}
 	}
 
@@ -207,7 +226,25 @@ func PromptMissing(opts *UpdateOptions) error {
 		}
 	}
 
-	projectVariables, err := opts.GetProjectVariables(project.GetID())
+	if project.IsVersionControlled && opts.GitRef.Value == "" {
+		if err := opts.Ask(&survey.Input{
+			Message: "GitRef",
+			Help:    fmt.Sprintf("The GitRef where the variable is stored"),
+		}, &opts.GitRef.Value, survey.WithValidator(survey.ComposeValidators(
+			survey.MaxLength(200),
+			survey.MinLength(1),
+			survey.Required,
+		))); err != nil {
+			return err
+		}
+	}
+
+	var projectVariables *variables.VariableSet
+	if opts.GitRef.Value != "" {
+		projectVariables, err = opts.GetProjectVariablesByGitRef(opts.Space.GetID(), project.GetID(), opts.GitRef.Value)
+	} else {
+		projectVariables, err = opts.GetProjectVariables(project.GetID())
+	}
 	if err != nil {
 		return err
 	}
@@ -237,7 +274,7 @@ func PromptMissing(opts *UpdateOptions) error {
 		}, &updateValue)
 
 		if updateValue {
-			opts.Value.Value, err = sharedVariable.PromptValue(opts.Ask, variable.Type, opts.VariableCallbacks)
+			opts.Value.Value, err = sharedVariable.PromptValue(opts.Ask, sharedVariable.VariableType(variable.Type), opts.VariableCallbacks, nil)
 			if err != nil {
 				return err
 			}
@@ -253,7 +290,7 @@ func PromptMissing(opts *UpdateOptions) error {
 		case "unscope":
 			opts.Unscoped.Value = true
 		case "replace":
-			sharedVariable.PromptScopes(opts.Ask, projectVariables, opts.ScopeFlags, variable.Prompt != nil)
+			sharedProjectVariable.PromptScopes(opts.Ask, projectVariables, opts.ScopeFlags, variable.Prompt != nil)
 		}
 	}
 

@@ -2,13 +2,16 @@ package testutil
 
 import (
 	"errors"
+	"net/http"
+	"net/url"
+
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/OctopusDeploy/cli/pkg/apiclient"
+	"github.com/OctopusDeploy/cli/pkg/config"
 	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/OctopusDeploy/cli/pkg/question"
 	octopusApiClient "github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/spaces"
-	"net/url"
 )
 
 type FakeSpinner struct{}
@@ -16,13 +19,30 @@ type FakeSpinner struct{}
 func (f *FakeSpinner) Start() {}
 func (f *FakeSpinner) Stop()  {}
 
+type FakeConfigProvider struct {
+	config map[string]string
+}
+
+func (f *FakeConfigProvider) Get(key string) string {
+	return f.config[key]
+}
+
+func (f *FakeConfigProvider) Set(key string, value string) error {
+	if f.config == nil {
+		f.config = make(map[string]string)
+	}
+	f.config[key] = value
+	return nil
+}
+
 func NewMockFactory(api *MockHttpServer) *MockFactory {
 	if api == nil {
 		panic("api MockHttpServer can't be nil")
 	}
 	return &MockFactory{
-		api:        api,
-		RawSpinner: &FakeSpinner{},
+		api:            api,
+		RawSpinner:     &FakeSpinner{},
+		ConfigProvider: &FakeConfigProvider{},
 	}
 }
 
@@ -44,13 +64,14 @@ type MockFactory struct {
 	CurrentSpace      *spaces.Space
 	RawSpinner        factory.Spinner
 	AskProvider       question.AskProvider
+	ConfigProvider    config.IConfigProvider
 }
 
 // refactor this later if there's ever a need for unit tests to vary the server url or API key (why would there be?)
 const serverUrl = "http://server"
 const placeholderApiKey = "API-XXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
 
-func (f *MockFactory) GetSystemClient(requester apiclient.Requester) (*octopusApiClient.Client, error) {
+func (f *MockFactory) GetSystemClient(_ apiclient.Requester) (*octopusApiClient.Client, error) {
 	serverUrl, _ := url.Parse(serverUrl)
 
 	if f.SystemClient == nil {
@@ -62,7 +83,7 @@ func (f *MockFactory) GetSystemClient(requester apiclient.Requester) (*octopusAp
 	}
 	return f.SystemClient, nil
 }
-func (f *MockFactory) GetSpacedClient(requester apiclient.Requester) (*octopusApiClient.Client, error) {
+func (f *MockFactory) GetSpacedClient(_ apiclient.Requester) (*octopusApiClient.Client, error) {
 	if f.CurrentSpace == nil {
 		return nil, errors.New("can't get space-scoped client from MockFactory while CurrentSpace is nil")
 	}
@@ -82,6 +103,9 @@ func (f *MockFactory) GetCurrentSpace() *spaces.Space {
 func (f *MockFactory) GetCurrentHost() string {
 	return serverUrl
 }
+func (f *MockFactory) GetHttpClient() (*http.Client, error) {
+	return NewMockHttpClientWithTransport(f.api), nil
+}
 func (f *MockFactory) Spinner() factory.Spinner {
 	return f.RawSpinner
 }
@@ -99,4 +123,7 @@ func (f *MockFactory) Ask(p survey.Prompt, response interface{}, opts ...survey.
 		return errors.New("method Ask called on fake factory when provider was nil")
 	}
 	return f.AskProvider.Ask(p, response, opts...)
+}
+func (f *MockFactory) GetConfigProvider() (config.IConfigProvider, error) {
+	return f.ConfigProvider, nil
 }

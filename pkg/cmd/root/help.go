@@ -66,7 +66,7 @@ func rootHelpFunc(cmd *cobra.Command, _ []string) {
 		helpEntries = append(helpEntries, helpEntry{"", longText})
 	}
 	if isRootCmd(cmd) && viper.GetBool(constants.ConfigShowOctopus) {
-		helpEntries = append(helpEntries, helpEntry{"", output.Bluef("%s", constants.OctopusLogo)})
+		helpEntries = append(helpEntries, helpEntry{"", output.Cyanf("%s", constants.OctopusLogo)})
 	}
 	helpEntries = append(helpEntries, helpEntry{"USAGE", cmd.UseLine()})
 	if len(coreCmds) > 0 {
@@ -119,7 +119,7 @@ func rootHelpFunc(cmd *cobra.Command, _ []string) {
 }
 
 func calculatePadding(cmd *cobra.Command) int {
-	namePadding:= 12
+	namePadding := 12
 	for _, c := range cmd.Commands() {
 		if len(c.Name()) > namePadding {
 			namePadding = len(c.Name()) + 2

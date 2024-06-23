@@ -62,9 +62,20 @@ The Homebrew package has native support for macOS Intel and Apple Silicon
 
 ```shell
 sudo apt update && sudo apt install --no-install-recommends gnupg curl ca-certificates apt-transport-https && \
-curl -sSfL https://apt.octopus.com/public.key | sudo apt-key add - && \
-sudo sh -c "echo deb https://apt.octopus.com/ stable main > /etc/apt/sources.list.d/octopus.com.list" && \
+sudo install -m 0755 -d /etc/apt/keyrings && \
+curl -fsSL https://apt.octopus.com/public.key | sudo gpg --dearmor -o /etc/apt/keyrings/octopus.gpg && \
+sudo chmod a+r /etc/apt/keyrings/octopus.gpg && \
+echo \
+  "deb [arch="$(dpkg --print-architecture)" signed-by=/etc/apt/keyrings/octopus.gpg] https://apt.octopus.com/ \
+  stable main" | \
+  sudo tee /etc/apt/sources.list.d/octopus.list > /dev/null && \
 sudo apt update && sudo apt install octopus-cli
+
+# for legacy Ubuntu/Debian (< 18.04) use
+# sudo apt update && sudo apt install --no-install-recommends gnupg curl ca-certificates apt-transport-https && \
+# curl -sSfL https://apt.octopus.com/public.key | sudo apt-key add - && \
+# sudo sh -c "echo deb https://apt.octopus.com/ stable main > /etc/apt/sources.list.d/octopus.com.list" && \
+# sudo apt update && sudo apt install octopus-cli
 ```
 
 #### Linux (redhat/fedora based distributions)
@@ -95,6 +106,36 @@ go install github.com/OctopusDeploy/cli/cmd/octopus@latest
 
 This will download the latest public release of the CLI from our GitHub repository, compile it for your platform/architecture, and install the binary in your GOPATH
 
+## Getting Started
+
+To get started with the Octopus CLI, login to your Octopus Server using the following command:
+
+```
+octopus login
+```
+
+This command will walk you through setting the Octopus Server URL, creating an API key (if necessary) and configuring the CLI for use.
+
+### Open ID Connect
+
+In automation scenarios such as CI servers, the login command can be used to authenticate using OpenID Connect (OIDC). This involves exchanging an ID token from an OIDC provider (such as GitHub or GitLab) for an Octopus access token.
+
+To login using OIDC, use the following command:
+
+```
+octopus login --server {OctopusServerUrl} --service-account-id {ServiceAccountId} --id-token {IdTokenFromProvider}
+```
+
+For example:
+
+```
+octopus login --server https://my.octopus.app --service-account-id 834a7275-b5b8-42a1-8b36-14f11c8eb55e --id-token eyJhbGciOiJQUzI1NiIs...
+```
+
+This command will perform the token exchange and configure the CLI for use.
+
+See the [documentation on OpenID Connect for more information](https://oc.to/ServiceAccountOidcIdentities)
+
 ## Overview
 
 This project aims to create a new CLI (written in Go) for communicating with the Octopus Deploy Server.
@@ -102,15 +143,13 @@ This project aims to create a new CLI (written in Go) for communicating with the
 It does **not** seek to be a drop-in replacement for the existing CLI which is written in C# using .NET.
 https://github.com/OctopusDeploy/OctopusCLI
 
-### Differences from the .NET CLI
-
-The new CLI will not initially contain all the features of the existing .NET CLI.
-Over time we plan to add features and may eventually reach parity, but our intent is that both the
-.NET and Go CLI's will co-exist for a significant period of time.
+### Differences from the .NET CLI (octo)
 
 The new CLI restructures the command line to be more consistent, and fit with convention
 across other popular CLI apps. It is built on the popular and widely-used [Cobra](https://github.com/spf13/cobra)
 command line processing library.
+
+The new CLI does not intend to replace all features that were supported by the .NET CLI.
 
 #### Examples:
 
@@ -129,7 +168,7 @@ parameters are not fully specified on the command line.
 
 ## Documentation
 
-End-user documentation will be provided via the octopus documentation site at a future date.
+- [cli](https://octopus.com/docs/octopus-rest-api/cli)
 
 ## 🤝 Contributions
 
@@ -164,8 +203,9 @@ The default action for the `Makefile` is to run `go build`, as above.
 
 ## Running the CLI
 
-The CLI needs to authenticate with the octopus server.
-This is currently managed using environment variables which you must set before launching it.
+The CLI needs to authenticate with the octopus server. 
+
+You can configure this using the `octopus login` command from the [Getting Started guide above](#getting-started) or by setting environment variables.
 
 **macOS/Linux:**
 

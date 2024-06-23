@@ -1,5 +1,158 @@
 # Changelog
 
+## [2.3.0](https://github.com/OctopusDeploy/cli/compare/v2.2.1...v2.3.0) (2024-05-31)
+
+
+### Features
+
+* environment create ([#338](https://github.com/OctopusDeploy/cli/issues/338)) ([88d0588](https://github.com/OctopusDeploy/cli/commit/88d058876b63def96ae80a2db2893b43d8546f3c))
+* runbook delete ([#341](https://github.com/OctopusDeploy/cli/issues/341)) ([2bbb1ff](https://github.com/OctopusDeploy/cli/commit/2bbb1ff6b94f77294f8b8b6eb432c326c67acb93))
+* runbook snapshot list ([#340](https://github.com/OctopusDeploy/cli/issues/340)) ([43d5f2c](https://github.com/OctopusDeploy/cli/commit/43d5f2cae0fae861c49c8403f81f888f0a990e12))
+
+
+### Bug Fixes
+
+* wrong url for new infrastucture ([#351](https://github.com/OctopusDeploy/cli/issues/351)) ([67f9c14](https://github.com/OctopusDeploy/cli/commit/67f9c148c86efa0691805b8a4fa22b29bb66110f))
+
+## [2.2.1](https://github.com/OctopusDeploy/cli/compare/v2.2.0...v2.2.1) (2024-03-07)
+
+
+### Bug Fixes
+
+* panic when no arguments and no config ([#336](https://github.com/OctopusDeploy/cli/issues/336)) ([44b3e0f](https://github.com/OctopusDeploy/cli/commit/44b3e0fa6cea934e3e88d0717437a618bf7f3f4b))
+
+## [2.2.0](https://github.com/OctopusDeploy/cli/compare/v2.1.1...v2.2.0) (2024-02-23)
+
+
+### Features
+
+* **tenant:** Tenant view command support for output formatting ([#331](https://github.com/OctopusDeploy/cli/issues/331)) ([0112f1b](https://github.com/OctopusDeploy/cli/commit/0112f1b500096b364c6aeb601b1e2260c4b1474e))
+
+
+### Bug Fixes
+
+* support virtual paths during login ([#334](https://github.com/OctopusDeploy/cli/issues/334)) ([60e43f4](https://github.com/OctopusDeploy/cli/commit/60e43f4527f9cd82dccef94d6aa02f45fbc34c32))
+
+## [2.1.1](https://github.com/OctopusDeploy/cli/compare/v2.1.0...v2.1.1) (2024-02-12)
+
+
+### Bug Fixes
+
+* remove requirement for server config on package create commands ([#323](https://github.com/OctopusDeploy/cli/issues/323)) ([f755841](https://github.com/OctopusDeploy/cli/commit/f75584156b04bec28d41def60360e5953acce0a6))
+
+## [2.1.0](https://github.com/OctopusDeploy/cli/compare/v2.0.0...v2.1.0) (2024-01-08)
+
+
+### Features
+
+* Add new login and logout commands ([#291](https://github.com/OctopusDeploy/cli/issues/291)) ([7d4da60](https://github.com/OctopusDeploy/cli/commit/7d4da6049c8163a67ea118e3eee7c0d25028efe0))
+
+## [2.0.0](https://github.com/OctopusDeploy/cli/compare/v1.7.1...v2.0.0) (2024-01-04)
+
+
+### ⚠ BREAKING CHANGES
+
+* bug where lists weren't parsing correctly when names contain a comma ([#306](https://github.com/OctopusDeploy/cli/issues/306))
+
+### Features
+
+* account azure-oidc create ([#296](https://github.com/OctopusDeploy/cli/issues/296)) ([554d171](https://github.com/OctopusDeploy/cli/commit/554d17154c980caae90f52f047696321dd6dd6d3))
+
+
+### Bug Fixes
+
+* bug where lists weren't parsing correctly when names contain a comma ([#306](https://github.com/OctopusDeploy/cli/issues/306)) ([09e1cc3](https://github.com/OctopusDeploy/cli/commit/09e1cc3093cacefc22c8c15631e2b011d9eaaec9))
+
+## [1.7.1](https://github.com/OctopusDeploy/cli/compare/v1.7.0...v1.7.1) (2023-10-31)
+
+
+### Bug Fixes
+
+* Add additional fields to json output when listing workers ([#287](https://github.com/OctopusDeploy/cli/issues/287)) ([dc2b5c6](https://github.com/OctopusDeploy/cli/commit/dc2b5c659cf479a7e534ab267730b47f08301076))
+
+## [1.7.0](https://github.com/OctopusDeploy/cli/compare/v1.6.2...v1.7.0) (2023-10-31)
+
+
+### Features
+
+* Update fields included in JSON output for workers list ([#284](https://github.com/OctopusDeploy/cli/issues/284)) ([9bb3d43](https://github.com/OctopusDeploy/cli/commit/9bb3d43ba9eddf39d73887bb021683b953f15776))
+
+## [1.6.2](https://github.com/OctopusDeploy/cli/compare/v1.6.1...v1.6.2) (2023-09-14)
+
+
+### Bug Fixes
+
+* octopus deploy process for homebrew ([3c82836](https://github.com/OctopusDeploy/cli/commit/3c828368cee0b01844d46eaa6076469825f73e53))
+
+## [1.6.1](https://github.com/OctopusDeploy/cli/compare/v1.6.0...v1.6.1) (2023-09-14)
+
+
+### Bug Fixes
+
+* homebrew deployments ([#273](https://github.com/OctopusDeploy/cli/issues/273)) ([4d3845a](https://github.com/OctopusDeploy/cli/commit/4d3845ad5bbc1529f77161d028ce4537626c5053))
+
+## [1.6.0](https://github.com/OctopusDeploy/cli/compare/v1.5.1...v1.6.0) (2023-09-08)
+
+
+### Features
+
+* Adds support for authenticating with access token ([#270](https://github.com/OctopusDeploy/cli/issues/270)) ([75a8ff7](https://github.com/OctopusDeploy/cli/commit/75a8ff7b622f6ed9a353c83a4d3afa7dc0f93b9f))
+
+## [1.5.1](https://github.com/OctopusDeploy/cli/compare/v1.5.0...v1.5.1) (2023-08-10)
+
+
+### Bug Fixes
+
+* prompt checks for git credentials storage was case-sensitive ([#265](https://github.com/OctopusDeploy/cli/issues/265)) ([c9a5817](https://github.com/OctopusDeploy/cli/commit/c9a5817dfb8e0875a0b70e0ae6243f5012eaedef))
+
+## [1.5.0](https://github.com/OctopusDeploy/cli/compare/v1.4.0...v1.5.0) (2023-07-25)
+
+
+### Features
+
+* project branch create ([101b09e](https://github.com/OctopusDeploy/cli/commit/101b09e409c2885beb19ae9e66b88a977f0c985b))
+* project branch list ([101b09e](https://github.com/OctopusDeploy/cli/commit/101b09e409c2885beb19ae9e66b88a977f0c985b))
+
+
+### Bug Fixes
+
+* admin login property on k8s target was wrong type ([#249](https://github.com/OctopusDeploy/cli/issues/249)) ([fbe8e18](https://github.com/OctopusDeploy/cli/commit/fbe8e18d041cf416fc0013451f416363eb0a83e5))
+* support Config-as-code project variables ([101b09e](https://github.com/OctopusDeploy/cli/commit/101b09e409c2885beb19ae9e66b88a977f0c985b))
+
+## [1.4.0](https://github.com/OctopusDeploy/cli/compare/v1.3.0...v1.4.0) (2023-06-08)
+
+
+### Features
+
+* project clone ([#244](https://github.com/OctopusDeploy/cli/issues/244)) ([f6a0ba5](https://github.com/OctopusDeploy/cli/commit/f6a0ba5d7a1f55f78ea6c6eb2fb8ecfa38bf1c4a))
+
+
+### Bug Fixes
+
+* sort the possible variables before displaying ([#240](https://github.com/OctopusDeploy/cli/issues/240)) ([61f5073](https://github.com/OctopusDeploy/cli/commit/61f5073d0d2b247ceddfc10902072357fdb0d685))
+
+## [1.3.0](https://github.com/OctopusDeploy/cli/compare/v1.2.2...v1.3.0) (2023-05-23)
+
+
+### Features
+
+* tenant variable list ([69bb317](https://github.com/OctopusDeploy/cli/commit/69bb3177441b7d4d9e2928e564a61e36343e0a7c))
+* tenant variable update ([69bb317](https://github.com/OctopusDeploy/cli/commit/69bb3177441b7d4d9e2928e564a61e36343e0a7c))
+
+## [1.2.2](https://github.com/OctopusDeploy/cli/compare/v1.2.1...v1.2.2) (2023-05-21)
+
+
+### Bug Fixes
+
+* fixed incorrect example ([#234](https://github.com/OctopusDeploy/cli/issues/234)) ([969ef1b](https://github.com/OctopusDeploy/cli/commit/969ef1b17cad755c8f7a5087c358e97cac8bad86))
+
+## [1.2.1](https://github.com/OctopusDeploy/cli/compare/v1.2.0...v1.2.1) (2023-05-12)
+
+
+### Bug Fixes
+
+* added support for project slugs to release commands ([#230](https://github.com/OctopusDeploy/cli/issues/230)) ([851631a](https://github.com/OctopusDeploy/cli/commit/851631a0086549fc12528b72f48be9952d5a84af))
+
 ## [1.2.0](https://github.com/OctopusDeploy/cli/compare/v1.1.0...v1.2.0) (2023-01-31)
 
 

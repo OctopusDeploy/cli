@@ -52,7 +52,7 @@ func TestPackageVersions(t *testing.T) {
 				return rootCmd.ExecuteC()
 			})
 
-			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
 			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
 
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/feeds?feedType=BuiltIn&take=1").RespondWith(&resources.Resources[feeds.IFeed]{
@@ -88,7 +88,7 @@ func TestPackageVersions(t *testing.T) {
 				return rootCmd.ExecuteC()
 			})
 
-			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
 			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
 
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/feeds?feedType=BuiltIn&take=1").RespondWith(&resources.Resources[feeds.IFeed]{
@@ -118,7 +118,7 @@ func TestPackageVersions(t *testing.T) {
 				return rootCmd.ExecuteC()
 			})
 
-			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
 			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
 
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/feeds?feedType=BuiltIn&take=1").RespondWith(&resources.Resources[feeds.IFeed]{
@@ -161,7 +161,7 @@ func TestPackageVersions(t *testing.T) {
 				return rootCmd.ExecuteC()
 			})
 
-			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
 			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
 
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/feeds?feedType=BuiltIn&take=1").RespondWith(&resources.Resources[feeds.IFeed]{

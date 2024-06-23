@@ -4,13 +4,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/OctopusDeploy/cli/pkg/apiclient"
 	"io"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/OctopusDeploy/cli/pkg/apiclient"
 
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/constants"
@@ -85,7 +86,7 @@ func NewCmdUpload(f factory.Factory) *cobra.Command {
 	}
 
 	flags := cmd.Flags()
-	flags.StringSliceVarP(&uploadFlags.Package.Value, uploadFlags.Package.Name, "p", nil, "Package to upload, may be specified multiple times. Any arguments without flags will be treated as packages")
+	flags.StringArrayVarP(&uploadFlags.Package.Value, uploadFlags.Package.Name, "p", nil, "Package to upload, may be specified multiple times. Any arguments without flags will be treated as packages")
 	flags.StringVarP(&uploadFlags.OverwriteMode.Value, uploadFlags.OverwriteMode.Name, "", "", "Action when a package already exists. Valid values are 'fail', 'overwrite', 'ignore'. Default is 'fail'")
 	flags.BoolVarP(&uploadFlags.ContinueOnError.Value, uploadFlags.ContinueOnError.Name, "", false, "When uploading multiple packages, controls whether the CLI continues after a failed upload. Default is to abort.")
 	flags.StringVarP(&uploadFlags.UseDeltaCompression.Value, uploadFlags.UseDeltaCompression.Name, "", "true", "If true, will attempt to use delta compression when uploading. Valid values are true or false. Defaults to true.")

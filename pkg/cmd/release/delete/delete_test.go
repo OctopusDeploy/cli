@@ -41,7 +41,7 @@ func TestReleaseDelete(t *testing.T) {
 
 	// we have a load of tests which are all the same except they vary the cmdline args; this is a common test body
 	standardDeleteTestBody := func(api *testutil.MockHttpServer, releaseIDs ...string) {
-		api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
+		api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
 		api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
 
 		api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/Fire Project").RespondWithStatus(404, "NotFound", nil)
@@ -72,7 +72,7 @@ func TestReleaseDelete(t *testing.T) {
 				return rootCmd.ExecuteC()
 			})
 
-			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
 			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
 
 			_, err := testutil.ReceivePair(cmdReceiver)
@@ -89,7 +89,7 @@ func TestReleaseDelete(t *testing.T) {
 				return rootCmd.ExecuteC()
 			})
 
-			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
 			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
 
 			_, err := testutil.ReceivePair(cmdReceiver)
@@ -185,7 +185,7 @@ func TestReleaseDelete(t *testing.T) {
 				return rootCmd.ExecuteC()
 			})
 
-			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
 			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
 
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/Fire Project").RespondWithStatus(404, "NotFound", nil)
@@ -222,7 +222,7 @@ func TestReleaseDelete(t *testing.T) {
 				return rootCmd.ExecuteC()
 			})
 
-			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
 			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
 
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/Fire Project").RespondWithStatus(404, "NotFound", nil)
@@ -259,7 +259,7 @@ func TestReleaseDelete(t *testing.T) {
 				return rootCmd.ExecuteC()
 			})
 
-			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
 			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
 
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/Fire Project").RespondWithStatus(404, "NotFound", nil)
@@ -314,7 +314,7 @@ func TestReleaseDelete(t *testing.T) {
 				return rootCmd.ExecuteC()
 			})
 
-			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
 			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
 
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/all").
@@ -369,7 +369,7 @@ func TestReleaseDelete(t *testing.T) {
 				return rootCmd.ExecuteC()
 			})
 
-			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
 			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
 
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/Fire Project").RespondWithStatus(404, "NotFound", nil)

@@ -53,7 +53,8 @@ func TestAzureAccountCreatePromptMissing(t *testing.T) {
 		return create.PromptMissing(opts)
 	})
 
-	api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
+	api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
+	api.ExpectRequest(t, "GET", "/api/spaces").RespondWith(rootResource)
 
 	_ = qa.ExpectQuestion(t, &survey.Input{
 		Message: "Name",
@@ -71,7 +72,7 @@ func TestAzureAccountCreatePromptMissing(t *testing.T) {
 
 	_ = qa.ExpectQuestion(t, &survey.Input{
 		Message: "Subscription ID",
-		Help:    "Your Azure subscription ID. This is a GUID in the format xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx.",
+		Help:    "Your Azure Subscription ID. This is a GUID in the format xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx.",
 	}).AnswerWith("d2486c05-0cac-4d54-a91e-654043036f31")
 
 	_ = qa.ExpectQuestion(t, &survey.Input{
@@ -81,7 +82,7 @@ func TestAzureAccountCreatePromptMissing(t *testing.T) {
 
 	_ = qa.ExpectQuestion(t, &survey.Input{
 		Message: "Application ID",
-		Help:    "Your Azure Active Directory Tenant ID. This is a GUID in the format xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx.",
+		Help:    "Your Azure Active Directory Application ID. This is a GUID in the format xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx.",
 	}).AnswerWith("d2486c05-0cac-4d54-a91e-654043036f33")
 
 	_ = qa.ExpectQuestion(t, &survey.Password{
@@ -154,7 +155,8 @@ func TestAzureAccountCreateNoPrompt(t *testing.T) {
 	testAccount.Slug = "testaccount"
 	testAccount.SpaceID = spaceID
 
-	api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
+	api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
+	api.ExpectRequest(t, "GET", "/api/spaces").RespondWith(rootResource)
 	api.ExpectRequest(t, "POST", "/api/Spaces-1/accounts").RespondWithStatus(201, "", testAccount)
 
 	err = <-errReceiver

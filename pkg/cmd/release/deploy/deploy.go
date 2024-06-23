@@ -4,10 +4,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/OctopusDeploy/cli/pkg/apiclient"
+	"golang.org/x/exp/maps"
 	"io"
+	"sort"
 	"strings"
 	"time"
+
+	"github.com/OctopusDeploy/cli/pkg/apiclient"
 
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/MakeNowJust/heredoc/v2"
@@ -147,18 +150,18 @@ func NewCmdDeploy(f factory.Factory) *cobra.Command {
 	flags := cmd.Flags()
 	flags.StringVarP(&deployFlags.Project.Value, deployFlags.Project.Name, "p", "", "Name or ID of the project to deploy the release from")
 	flags.StringVarP(&deployFlags.ReleaseVersion.Value, deployFlags.ReleaseVersion.Name, "", "", "Release version to deploy")
-	flags.StringSliceVarP(&deployFlags.Environments.Value, deployFlags.Environments.Name, "e", nil, "Deploy to this environment (can be specified multiple times)")
-	flags.StringSliceVarP(&deployFlags.Tenants.Value, deployFlags.Tenants.Name, "", nil, "Deploy to this tenant (can be specified multiple times)")
-	flags.StringSliceVarP(&deployFlags.TenantTags.Value, deployFlags.TenantTags.Name, "", nil, "Deploy to tenants matching this tag (can be specified multiple times)")
+	flags.StringArrayVarP(&deployFlags.Environments.Value, deployFlags.Environments.Name, "e", nil, "Deploy to this environment (can be specified multiple times)")
+	flags.StringArrayVarP(&deployFlags.Tenants.Value, deployFlags.Tenants.Name, "", nil, "Deploy to this tenant (can be specified multiple times)")
+	flags.StringArrayVarP(&deployFlags.TenantTags.Value, deployFlags.TenantTags.Name, "", nil, "Deploy to tenants matching this tag (can be specified multiple times)")
 	flags.StringVarP(&deployFlags.DeployAt.Value, deployFlags.DeployAt.Name, "", "", "Deploy at a later time. Deploy now if omitted. TODO date formats and timezones!")
 	flags.StringVarP(&deployFlags.MaxQueueTime.Value, deployFlags.MaxQueueTime.Name, "", "", "Cancel the deployment if it hasn't started within this time period.")
-	flags.StringSliceVarP(&deployFlags.Variables.Value, deployFlags.Variables.Name, "v", nil, "Set the value for a prompted variable in the format Label:Value")
+	flags.StringArrayVarP(&deployFlags.Variables.Value, deployFlags.Variables.Name, "v", nil, "Set the value for a prompted variable in the format Label:Value")
 	flags.BoolVarP(&deployFlags.UpdateVariables.Value, deployFlags.UpdateVariables.Name, "", false, "Overwrite the release variable snapshot by re-importing variables from the project.")
-	flags.StringSliceVarP(&deployFlags.ExcludedSteps.Value, deployFlags.ExcludedSteps.Name, "", nil, "Exclude specific steps from the deployment")
+	flags.StringArrayVarP(&deployFlags.ExcludedSteps.Value, deployFlags.ExcludedSteps.Name, "", nil, "Exclude specific steps from the deployment")
 	flags.StringVarP(&deployFlags.GuidedFailureMode.Value, deployFlags.GuidedFailureMode.Name, "", "", "Enable Guided failure mode (true/false/default)")
 	flags.BoolVarP(&deployFlags.ForcePackageDownload.Value, deployFlags.ForcePackageDownload.Name, "", false, "Force re-download of packages")
-	flags.StringSliceVarP(&deployFlags.DeploymentTargets.Value, deployFlags.DeploymentTargets.Name, "", nil, "Deploy to this target (can be specified multiple times)")
-	flags.StringSliceVarP(&deployFlags.ExcludeTargets.Value, deployFlags.ExcludeTargets.Name, "", nil, "Deploy to targets except for this (can be specified multiple times)")
+	flags.StringArrayVarP(&deployFlags.DeploymentTargets.Value, deployFlags.DeploymentTargets.Name, "", nil, "Deploy to this target (can be specified multiple times)")
+	flags.StringArrayVarP(&deployFlags.ExcludeTargets.Value, deployFlags.ExcludeTargets.Name, "", nil, "Deploy to targets except for this (can be specified multiple times)")
 
 	flags.SortFlags = false
 
@@ -285,6 +288,15 @@ func deployRun(cmd *cobra.Command, f factory.Factory, flags *DeployFlags) error 
 				cmd.Printf("%s\n", output.Yellow("Warning: Command includes some sensitive variable values which have been replaced with placeholders."))
 			}
 		}
+	} else {
+		if options.ProjectName != "" {
+			project, err := selectors.FindProject(octopus, options.ProjectName)
+			if err != nil {
+				return err
+			}
+			options.ProjectName = project.GetName()
+		}
+
 	}
 
 	// the executor will raise errors if any required options are missing
@@ -472,7 +484,26 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 	if err != nil {
 		return err
 	}
-	options.Variables, err = executionscommon.AskVariables(asker, variableSet, options.Variables)
+
+	if len(selectedEnvironments) == 0 { // if the Q&A process earlier hasn't loaded environments already, we need to load them now
+		selectedEnvironments, err = executionscommon.FindEnvironments(octopus, options.Environments)
+		if err != nil {
+			return err
+		}
+	}
+
+	var deploymentPreviewRequests []deployments.DeploymentPreviewRequest
+	for _, environment := range selectedEnvironments {
+		preview := deployments.DeploymentPreviewRequest{
+			EnvironmentId: environment.ID,
+			// We ignore the TenantId here as we're just using the deployments previews for prompted variables.
+			// Tenant variables do not support prompted variables
+			TenantId: "",
+		}
+		deploymentPreviewRequests = append(deploymentPreviewRequests, preview)
+	}
+
+	options.Variables, err = askDeploymentPreviewVariables(octopus, options.Variables, asker, space.ID, selectedRelease.ID, deploymentPreviewRequests)
 	if err != nil {
 		return err
 	}
@@ -552,7 +583,7 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 
 		if !isExcludedStepsSpecified {
 			// select steps to exclude
-			deploymentProcess, err := deployments.GetDeploymentProcess(octopus, space.ID, selectedRelease.ProjectDeploymentProcessSnapshotID)
+			deploymentProcess, err := deployments.GetDeploymentProcessByID(octopus, space.ID, selectedRelease.ProjectDeploymentProcessSnapshotID)
 			if err != nil {
 				return err
 			}
@@ -637,6 +668,62 @@ func askDeploymentTargets(octopus *octopusApiClient.Client, asker question.Asker
 		return selectedDeploymentTargetNames, nil
 	}
 	return nil, nil
+}
+
+func askDeploymentPreviewVariables(octopus *octopusApiClient.Client, variablesFromCmd map[string]string, asker question.Asker, spaceID string, releaseID string, deploymentPreviewsReqests []deployments.DeploymentPreviewRequest) (map[string]string, error) {
+	previews, err := deployments.GetReleaseDeploymentPreviews(octopus, spaceID, releaseID, deploymentPreviewsReqests, true)
+	if err != nil {
+		return nil, err
+	}
+
+	flattenedValues := make(map[string]string)
+	flattenedControls := make(map[string]*deployments.Control)
+	for _, preview := range previews {
+		for _, element := range preview.Form.Elements {
+			flattenedControls[element.Name] = element.Control
+		}
+		for key, value := range preview.Form.Values {
+			flattenedValues[key] = value
+		}
+	}
+
+	result := make(map[string]string)
+	lcaseVarsFromCmd := make(map[string]string, len(variablesFromCmd))
+	for k, v := range variablesFromCmd {
+		lcaseVarsFromCmd[strings.ToLower(k)] = v
+	}
+
+	keys := maps.Keys(flattenedControls)
+	sort.Slice(keys, func(i, j int) bool {
+		return keys[i] > keys[j]
+	})
+
+	for _, key := range keys {
+		control := flattenedControls[key]
+		valueFromCmd, foundValueOnCommandLine := lcaseVarsFromCmd[strings.ToLower(control.Name)]
+		if foundValueOnCommandLine {
+			// implicitly fixes up variable casing
+			result[control.Name] = valueFromCmd
+		}
+		if control.Required == true && !foundValueOnCommandLine {
+
+			defaultValue := flattenedValues[key]
+			isSensitive := control.DisplaySettings.ControlType == "Sensitive"
+			promptMessage := control.Name
+
+			if control.Description != "" {
+				promptMessage = fmt.Sprintf("%s (%s)", promptMessage, control.Description) // we'd like to dim the description, but survey overrides this, so we can't
+			}
+
+			responseString, err := executionscommon.AskVariableSpecificPrompt(asker, promptMessage, control.Type, defaultValue, control.Required, isSensitive, control.DisplaySettings)
+			if err != nil {
+				return nil, err
+			}
+			result[control.Name] = responseString
+		}
+	}
+
+	return result, nil
 }
 
 // FindDeployableEnvironmentIDs returns an array of environment IDs that we can deploy to,

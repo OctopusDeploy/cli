@@ -5,15 +5,17 @@ import (
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/cmd"
-	sharedVariable "github.com/OctopusDeploy/cli/pkg/cmd/project/variables/shared"
+	sharedProjectVariable "github.com/OctopusDeploy/cli/pkg/cmd/project/variables/shared"
 	"github.com/OctopusDeploy/cli/pkg/cmd/tenant/shared"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/OctopusDeploy/cli/pkg/question"
 	"github.com/OctopusDeploy/cli/pkg/question/selectors"
+	sharedVariable "github.com/OctopusDeploy/cli/pkg/question/shared/variables"
 	"github.com/OctopusDeploy/cli/pkg/util"
 	"github.com/OctopusDeploy/cli/pkg/util/flag"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/resources"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/variables"
 	"github.com/spf13/cobra"
 	"strings"
@@ -25,6 +27,7 @@ const (
 	FlagValue       = "value"
 	FlagType        = "type"
 	FlagDescription = "description"
+	FlagGitRef      = "git-ref"
 
 	FlagPrompt              = "prompted"
 	FlagPromptLabel         = "prompt-label"
@@ -53,8 +56,9 @@ type CreateFlags struct {
 	Description *flag.Flag[string]
 	Value       *flag.Flag[string]
 	Type        *flag.Flag[string]
+	GitRef      *flag.Flag[string]
 
-	*sharedVariable.ScopeFlags
+	*sharedProjectVariable.ScopeFlags
 
 	IsPrompted          *flag.Flag[bool]
 	PromptLabel         *flag.Flag[string]
@@ -78,8 +82,9 @@ func NewCreateFlags() *CreateFlags {
 		Name:                flag.New[string](FlagName, false),
 		Value:               flag.New[string](FlagValue, false),
 		Description:         flag.New[string](FlagDescription, false),
+		GitRef:              flag.New[string](FlagGitRef, false),
 		Type:                flag.New[string](FlagType, false),
-		ScopeFlags:          sharedVariable.NewScopeFlags(),
+		ScopeFlags:          sharedProjectVariable.NewScopeFlags(),
 		IsPrompted:          flag.New[bool](FlagPrompt, false),
 		PromptLabel:         flag.New[string](FlagPromptLabel, false),
 		PromptDescription:   flag.New[string](FlagPromptDescription, false),
@@ -110,9 +115,10 @@ func NewCreateCmd(f factory.Factory) *cobra.Command {
 		Aliases: []string{"add"},
 		Example: heredoc.Docf(`
 			$ %[1]s project variable create
-			$ %[1]s project variable create --name varname --value "abc"
-			$ %[1]s project variable create --name varname --value "passwordABC" --type sensitive
-			$ %[1]s project variable create --name varname --value "abc" --scope environment='test'
+			$ %[1]s project variable create --project "Deploy Website" --name "variable name" --value "abc"
+			$ %[1]s project variable create --name "variable name" --value "passwordABC" --type sensitive
+			$ %[1]s project variable create --name "variable name" --value "abc" --scope environment='test'
+			$ %[1]s project variable create --name "variable name" --value "abc" --scope environment='test' --git-ref refs/heads/main
 		`, constants.ExecutableName),
 		RunE: func(c *cobra.Command, args []string) error {
 			opts := NewCreateOptions(createFlags, cmd.NewDependencies(f, c))
@@ -120,7 +126,7 @@ func NewCreateCmd(f factory.Factory) *cobra.Command {
 				opts.Value.Secure = true
 			}
 
-			return createRun(opts)
+			return CreateRun(opts)
 		},
 	}
 
@@ -129,8 +135,9 @@ func NewCreateCmd(f factory.Factory) *cobra.Command {
 	flags.StringVarP(&createFlags.Name.Value, createFlags.Name.Name, "n", "", "The name of the variable")
 	flags.StringVarP(&createFlags.Type.Value, createFlags.Type.Name, "t", "", fmt.Sprintf("The type of variable. Valid values are %s. Default is %s", strings.Join([]string{TypeText, TypeSensitive, TypeWorkerPool, TypeAwsAccount, TypeAzureAccount, TypeGoogleAccount, TypeCertificate}, ", "), TypeText))
 	flags.StringVar(&createFlags.Value.Value, createFlags.Value.Name, "", "The value to set on the variable")
+	flags.StringVarP(&createFlags.GitRef.Value, createFlags.GitRef.Name, "", "", "The GitRef for the Config-As-Code branch")
 
-	sharedVariable.RegisterScopeFlags(cmd, createFlags.ScopeFlags)
+	sharedProjectVariable.RegisterScopeFlags(cmd, createFlags.ScopeFlags)
 	flags.BoolVar(&createFlags.IsPrompted.Value, createFlags.IsPrompted.Name, false, "Make a prompted variable")
 	flags.StringVar(&createFlags.PromptLabel.Value, createFlags.PromptLabel.Name, "", "The label for the prompted variable")
 	flags.StringVar(&createFlags.PromptDescription.Value, createFlags.PromptDescription.Name, "", "Description for the prompted variable")
@@ -140,7 +147,7 @@ func NewCreateCmd(f factory.Factory) *cobra.Command {
 	return cmd
 }
 
-func createRun(opts *CreateOptions) error {
+func CreateRun(opts *CreateOptions) error {
 	if !opts.NoPrompt {
 		err := PromptMissing(opts)
 		if err != nil {
@@ -153,12 +160,17 @@ func createRun(opts *CreateOptions) error {
 		return err
 	}
 
-	projectVariables, err := opts.GetProjectVariables(project.GetID())
+	var projectVariables *variables.VariableSet
+	if project.IsVersionControlled && opts.GitRef.Value != "" {
+		projectVariables, err = opts.GetProjectVariablesByGitRef(opts.Space.GetID(), project.GetID(), opts.GitRef.Value)
+	} else {
+		projectVariables, err = opts.GetProjectVariables(project.GetID())
+	}
 	if err != nil {
 		return err
 	}
 
-	scope, err := sharedVariable.ToVariableScope(projectVariables, opts.ScopeFlags, project)
+	scope, err := sharedProjectVariable.ToVariableScope(projectVariables, opts.ScopeFlags, project)
 	if err != nil {
 		return err
 	}
@@ -185,10 +197,14 @@ func createRun(opts *CreateOptions) error {
 		}
 
 		selectOptions := parseSelectOptions(opts, promptControlType)
-		newVariable.Prompt.DisplaySettings = variables.NewDisplaySettings(promptControlType, selectOptions)
+		newVariable.Prompt.DisplaySettings = resources.NewDisplaySettings(promptControlType, selectOptions)
 	}
 
-	_, err = opts.Client.Variables.AddSingle(project.GetID(), newVariable)
+	if opts.GitRef.Value != "" {
+		_, err = opts.Client.ProjectVariables.AddSingleByGitRef(opts.Space.GetID(), project.GetID(), opts.GitRef.Value, newVariable)
+	} else {
+		_, err = opts.Client.Variables.AddSingle(project.GetID(), newVariable)
+	}
 	if err != nil {
 		return err
 	}
@@ -196,7 +212,7 @@ func createRun(opts *CreateOptions) error {
 	_, err = fmt.Fprintf(opts.Out, "Successfully created variable '%s' in project '%s'\n", opts.Name.Value, project.GetName())
 
 	if !opts.NoPrompt {
-		autoCmd := flag.GenerateAutomationCmd(opts.CmdPath, opts.Project, opts.Name, opts.Value, opts.Description, opts.Type, opts.EnvironmentsScopes, opts.ChannelScopes, opts.StepScopes, opts.TargetScopes, opts.TagScopes, opts.RoleScopes, opts.ProcessScopes, opts.IsPrompted, opts.PromptType, opts.PromptLabel, opts.PromptDescription, opts.PromptSelectOptions, opts.PromptRequired)
+		autoCmd := flag.GenerateAutomationCmd(opts.CmdPath, opts.Project, opts.Name, opts.Value, opts.Description, opts.Type, opts.EnvironmentsScopes, opts.ChannelScopes, opts.StepScopes, opts.TargetScopes, opts.TagScopes, opts.RoleScopes, opts.ProcessScopes, opts.IsPrompted, opts.PromptType, opts.PromptLabel, opts.PromptDescription, opts.PromptSelectOptions, opts.PromptRequired, opts.GitRef)
 		fmt.Fprintf(opts.Out, "\nAutomation Command: %s\n", autoCmd)
 	}
 
@@ -217,6 +233,11 @@ func PromptMissing(opts *CreateOptions) error {
 		if err != nil {
 			return err
 		}
+	}
+
+	err = PromptVersionControl(opts, project)
+	if err != nil {
+		return err
 	}
 
 	if opts.Name.Value == "" {
@@ -309,25 +330,52 @@ func PromptMissing(opts *CreateOptions) error {
 		if err != nil {
 			return err
 		}
-		opts.Value.Value, err = sharedVariable.PromptValue(opts.Ask, variableType, opts.VariableCallbacks)
+		opts.Value.Value, err = sharedVariable.PromptValue(opts.Ask, sharedVariable.VariableType(variableType), opts.VariableCallbacks, nil)
 		if err != nil {
 			return err
 		}
 	}
 
-	projectVariables, err := opts.GetProjectVariables(project.GetID())
+	var projectVariables *variables.VariableSet
+	if opts.GitRef.Value != "" {
+		projectVariables, err = opts.GetProjectVariablesByGitRef(opts.Space.GetID(), project.GetID(), opts.GitRef.Value)
+	} else {
+		projectVariables, err = opts.GetProjectVariables(project.GetID())
+	}
+
 	if err != nil {
 		return err
 	}
 
-	scope, err := sharedVariable.ToVariableScope(projectVariables, opts.ScopeFlags, project)
+	scope, err := sharedProjectVariable.ToVariableScope(projectVariables, opts.ScopeFlags, project)
 	if err != nil {
 		return err
 	}
 
 	if scope.IsEmpty() {
-		err = sharedVariable.PromptScopes(opts.Ask, projectVariables, opts.ScopeFlags, opts.IsPrompted.Value)
+		err = sharedProjectVariable.PromptScopes(opts.Ask, projectVariables, opts.ScopeFlags, opts.IsPrompted.Value)
 		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func PromptVersionControl(opts *CreateOptions, project *projects.Project) error {
+	if !project.IsVersionControlled {
+		return nil
+	}
+
+	if opts.GitRef.Value == "" {
+		if err := opts.Ask(&survey.Input{
+			Message: "GitRef",
+			Help:    fmt.Sprintf("The GitRef where the variable is stored"),
+		}, &opts.GitRef.Value, survey.WithValidator(survey.ComposeValidators(
+			survey.MaxLength(200),
+			survey.MinLength(1),
+			survey.Required,
+		))); err != nil {
 			return err
 		}
 	}
@@ -365,15 +413,15 @@ func projectSelector(questionText string, getAllProjectsCallback shared.GetAllPr
 	return question.SelectMap(ask, questionText, existingProjects, func(p *projects.Project) string { return p.GetName() })
 }
 
-func parseSelectOptions(opts *CreateOptions, controlType variables.ControlType) []*variables.SelectOption {
-	options := []*variables.SelectOption{}
-	if controlType != variables.ControlTypeSelect {
+func parseSelectOptions(opts *CreateOptions, controlType resources.ControlType) []*resources.SelectOption {
+	options := []*resources.SelectOption{}
+	if controlType != resources.ControlTypeSelect {
 		return options
 	}
 
 	for _, selectOption := range opts.PromptSelectOptions.Value {
 		o := strings.Split(selectOption, "|")
-		options = append(options, &variables.SelectOption{
+		options = append(options, &resources.SelectOption{
 			Value:       o[0],
 			DisplayName: o[1],
 		})
@@ -407,16 +455,16 @@ func mapVariableType(varType string) (string, error) {
 	}
 }
 
-func mapControlType(promptType string) (variables.ControlType, error) {
+func mapControlType(promptType string) (resources.ControlType, error) {
 	switch promptType {
 	case PromptTypeText:
-		return variables.ControlTypeSingleLineText, nil
+		return resources.ControlTypeSingleLineText, nil
 	case PromptTypeMultiText:
-		return variables.ControlTypeMultiLineText, nil
+		return resources.ControlTypeMultiLineText, nil
 	case PromptTypeCheckbox:
-		return variables.ControlTypeCheckbox, nil
+		return resources.ControlTypeCheckbox, nil
 	case PromptTypeDropdown:
-		return variables.ControlTypeSelect, nil
+		return resources.ControlTypeSelect, nil
 	default:
 		return "", fmt.Errorf("unknown prompt type '%s', valid values are '%s','%s','%s', '%s'", promptType, PromptTypeText, PromptTypeMultiText, PromptTypeCheckbox, PromptTypeDropdown)
 	}

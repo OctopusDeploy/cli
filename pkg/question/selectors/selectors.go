@@ -9,6 +9,13 @@ type SelectOption[T any] struct {
 	Display string
 }
 
+func NewSelectOption[T any](value any, display string) *SelectOption[T] {
+	return &SelectOption[T]{
+		Value:   value.(T),
+		Display: display,
+	}
+}
+
 type Nameable interface {
 	GetName() string
 }

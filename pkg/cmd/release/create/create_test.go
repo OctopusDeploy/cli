@@ -64,7 +64,8 @@ func TestReleaseCreate_AskQuestions_RegularProject(t *testing.T) {
 				return create.AskQuestions(octopus, stdout, qa.AsAsker(), options)
 			})
 
-			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/spaces").RespondWith(rootResource)
 
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/all").RespondWith([]*projects.Project{fireProject})
 
@@ -127,7 +128,8 @@ func TestReleaseCreate_AskQuestions_RegularProject(t *testing.T) {
 				return create.AskQuestions(octopus, stdout, qa.AsAsker(), options)
 			})
 
-			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/spaces").RespondWith(rootResource)
 
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/fire project").RespondWithStatus(404, "NotFound", nil)
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects?partialName=fire+project").
@@ -169,7 +171,8 @@ func TestReleaseCreate_AskQuestions_RegularProject(t *testing.T) {
 				return create.AskQuestions(octopus, stdout, qa.AsAsker(), options)
 			})
 
-			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/spaces").RespondWith(rootResource)
 
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/fire project").RespondWithStatus(404, "NotFound", nil)
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects?partialName=fire+project").
@@ -251,7 +254,8 @@ func TestReleaseCreate_AskQuestions_RegularProject(t *testing.T) {
 				return create.AskQuestions(octopus, stdout, qa.AsAsker(), options)
 			})
 
-			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/spaces").RespondWith(rootResource)
 
 			var fireProject2 = *fireProject // clone the struct value
 			fireProject2.VersioningStrategy = &projects.VersioningStrategy{
@@ -361,7 +365,8 @@ func TestReleaseCreate_AskQuestions_RegularProject(t *testing.T) {
 				return create.AskQuestions(octopus, stdout, qa.AsAsker(), options)
 			})
 
-			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/spaces").RespondWith(rootResource)
 
 			var fireProject2 = *fireProject // clone the struct value
 			fireProject2.VersioningStrategy = &projects.VersioningStrategy{
@@ -470,7 +475,8 @@ func TestReleaseCreate_AskQuestions_VersionControlledProject(t *testing.T) {
 				return create.AskQuestions(octopus, stdout, qa.AsAsker(), options)
 			})
 
-			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/spaces").RespondWith(rootResource)
 
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/all").RespondWith([]*projects.Project{project})
 
@@ -557,7 +563,8 @@ func TestReleaseCreate_AskQuestions_VersionControlledProject(t *testing.T) {
 				return create.AskQuestions(octopus, stdout, qa.AsAsker(), options)
 			})
 
-			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/spaces").RespondWith(rootResource)
 
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/all").RespondWith([]*projects.Project{project})
 
@@ -640,7 +647,8 @@ func TestReleaseCreate_AskQuestions_VersionControlledProject(t *testing.T) {
 				return create.AskQuestions(octopus, stdout, qa.AsAsker(), options)
 			})
 
-			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/spaces").RespondWith(rootResource)
 
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/all").RespondWith([]*projects.Project{project})
 
@@ -1218,7 +1226,7 @@ func TestReleaseCreate_AutomationMode(t *testing.T) {
 				return rootCmd.ExecuteC()
 			})
 
-			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
 			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
 
 			_, err := testutil.ReceivePair(cmdReceiver)
@@ -1237,8 +1245,9 @@ func TestReleaseCreate_AutomationMode(t *testing.T) {
 				return rootCmd.ExecuteC()
 			})
 
-			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
 			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/CaC Project").RespondWith(cacProject)
 
 			req := api.ExpectRequest(t, "POST", "/api/Spaces-1/releases/create/v1")
 
@@ -1283,8 +1292,9 @@ func TestReleaseCreate_AutomationMode(t *testing.T) {
 				return rootCmd.ExecuteC()
 			})
 
-			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
 			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+cacProject.GetName()).RespondWith(cacProject)
 
 			req := api.ExpectRequest(t, "POST", "/api/Spaces-1/releases/create/v1")
 
@@ -1329,8 +1339,9 @@ func TestReleaseCreate_AutomationMode(t *testing.T) {
 				return rootCmd.ExecuteC()
 			})
 
-			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
 			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+cacProject.GetName()).RespondWith(cacProject)
 
 			// don't need to validate the json received by the server, we've done that already
 			api.ExpectRequest(t, "POST", "/api/Spaces-1/releases/create/v1").RespondWith(&releases.CreateReleaseResponseV1{
@@ -1360,8 +1371,9 @@ func TestReleaseCreate_AutomationMode(t *testing.T) {
 				return rootCmd.ExecuteC()
 			})
 
-			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
 			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+cacProject.GetName()).RespondWith(cacProject)
 
 			// don't need to validate the json received by the server, we've done that already
 			api.ExpectRequest(t, "POST", "/api/Spaces-1/releases/create/v1").RespondWith(&releases.CreateReleaseResponseV1{
@@ -1391,8 +1403,9 @@ func TestReleaseCreate_AutomationMode(t *testing.T) {
 				return rootCmd.ExecuteC()
 			})
 
-			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
 			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+cacProject.GetName()).RespondWith(cacProject)
 
 			req := api.ExpectRequest(t, "POST", "/api/Spaces-1/releases/create/v1")
 
@@ -1436,8 +1449,9 @@ func TestReleaseCreate_AutomationMode(t *testing.T) {
 				return rootCmd.ExecuteC()
 			})
 
-			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
 			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+cacProject.GetName()).RespondWith(cacProject)
 
 			req := api.ExpectRequest(t, "POST", "/api/Spaces-1/releases/create/v1")
 
@@ -1511,8 +1525,9 @@ func TestReleaseCreate_AutomationMode(t *testing.T) {
 				return rootCmd.ExecuteC()
 			})
 
-			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
 			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+cacProject.GetName()).RespondWith(cacProject)
 
 			req := api.ExpectRequest(t, "POST", "/api/Spaces-1/releases/create/v1")
 
@@ -1581,8 +1596,9 @@ func TestReleaseCreate_AutomationMode(t *testing.T) {
 				return rootCmd.ExecuteC()
 			})
 
-			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
 			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+cacProject.GetName()).RespondWith(cacProject)
 
 			req := api.ExpectRequest(t, "POST", "/api/Spaces-1/releases/create/v1")
 
@@ -1646,8 +1662,9 @@ func TestReleaseCreate_AutomationMode(t *testing.T) {
 				return rootCmd.ExecuteC()
 			})
 
-			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
 			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+cacProject.GetName()).RespondWith(cacProject)
 
 			req := api.ExpectRequest(t, "POST", "/api/Spaces-1/releases/create/v1")
 
@@ -1714,8 +1731,9 @@ func TestReleaseCreate_AutomationMode(t *testing.T) {
 				return rootCmd.ExecuteC()
 			})
 
-			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
 			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+cacProject.GetName()).RespondWith(cacProject)
 
 			req := api.ExpectRequest(t, "POST", "/api/Spaces-1/releases/create/v1")
 
@@ -1795,7 +1813,8 @@ func TestReleaseCreate_BuildPackageVersionBaseline(t *testing.T) {
 		})
 
 		// octopusApiClient.NewClient fetches the root resource but otherwise BuildPackageVersionBaseline does nothing
-		api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
+		api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
+		api.ExpectRequest(t, "GET", "/api/spaces").RespondWith(rootResource)
 
 		packageVersions, err := testutil.ReceivePair(receiver)
 		assert.Nil(t, err)
@@ -1825,7 +1844,8 @@ func TestReleaseCreate_BuildPackageVersionBaseline(t *testing.T) {
 			return create.BuildPackageVersionBaseline(octopus, processTemplate, channel)
 		})
 
-		api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
+		api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
+		api.ExpectRequest(t, "GET", "/api/spaces").RespondWith(rootResource)
 
 		// it needs to load the feeds to find the links
 		api.ExpectRequest(t, "GET", "/api/Spaces-1/feeds?ids=feeds-builtin&take=1").RespondWith(&feeds.Feeds{Items: []feeds.IFeed{
@@ -1899,7 +1919,8 @@ func TestReleaseCreate_BuildPackageVersionBaseline(t *testing.T) {
 			return create.BuildPackageVersionBaseline(octopus, processTemplate, channel)
 		})
 
-		api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
+		api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
+		api.ExpectRequest(t, "GET", "/api/spaces").RespondWith(rootResource)
 
 		// it needs to load the feeds to find the links
 		api.ExpectRequest(t, "GET", "/api/Spaces-1/feeds?ids=Feeds-1001&ids=feeds-builtin&take=2").RespondWith(&feeds.Feeds{Items: []feeds.IFeed{
@@ -2021,7 +2042,8 @@ func TestReleaseCreate_BuildPackageVersionBaseline(t *testing.T) {
 			return create.BuildPackageVersionBaseline(octopus, processTemplate, channel)
 		})
 
-		api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
+		api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
+		api.ExpectRequest(t, "GET", "/api/spaces").RespondWith(rootResource)
 
 		// it needs to load the feeds to find the links
 		api.ExpectRequest(t, "GET", "/api/Spaces-1/feeds?ids=Feeds-1001&ids=feeds-builtin&take=2").RespondWith(&feeds.Feeds{Items: []feeds.IFeed{
@@ -2106,7 +2128,8 @@ func TestReleaseCreate_BuildPackageVersionBaseline(t *testing.T) {
 			return create.BuildPackageVersionBaseline(octopus, processTemplate, channel)
 		})
 
-		api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
+		api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
+		api.ExpectRequest(t, "GET", "/api/spaces").RespondWith(rootResource)
 
 		// it needs to load the feeds to find the links
 		api.ExpectRequest(t, "GET", "/api/Spaces-1/feeds?ids=feeds-builtin&take=1").RespondWith(&feeds.Feeds{Items: []feeds.IFeed{
@@ -2163,7 +2186,8 @@ func TestReleaseCreate_BuildPackageVersionBaseline(t *testing.T) {
 			return create.BuildPackageVersionBaseline(octopus, processTemplate, channel)
 		})
 
-		api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
+		api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
+		api.ExpectRequest(t, "GET", "/api/spaces").RespondWith(rootResource)
 
 		// it needs to load the feeds to find the links
 		api.ExpectRequest(t, "GET", "/api/Spaces-1/feeds?ids=feeds-builtin&take=1").RespondWith(&feeds.Feeds{Items: []feeds.IFeed{

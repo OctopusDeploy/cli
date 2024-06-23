@@ -2,20 +2,21 @@ package include
 
 import (
 	"fmt"
+	"strings"
+
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/cmd"
-	sharedVariable "github.com/OctopusDeploy/cli/pkg/cmd/project/variables/shared"
 	"github.com/OctopusDeploy/cli/pkg/cmd/tenant/shared"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/OctopusDeploy/cli/pkg/output"
 	"github.com/OctopusDeploy/cli/pkg/question"
+	sharedVariable "github.com/OctopusDeploy/cli/pkg/question/shared/variables"
 	"github.com/OctopusDeploy/cli/pkg/util"
 	"github.com/OctopusDeploy/cli/pkg/util/flag"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/variables"
 	"github.com/spf13/cobra"
-	"strings"
 )
 
 const (
@@ -76,7 +77,7 @@ func NewIncludeVariableSetCmd(f factory.Factory) *cobra.Command {
 
 	flags := cmd.Flags()
 	flags.StringVarP(&createFlags.Project.Value, createFlags.Project.Name, "p", "", "The project")
-	flags.StringSliceVarP(&createFlags.VariableSets.Value, createFlags.VariableSets.Name, "", []string{}, "The name of the library variable set")
+	flags.StringArrayVarP(&createFlags.VariableSets.Value, createFlags.VariableSets.Name, "", []string{}, "The name of the library variable set")
 
 	return cmd
 }

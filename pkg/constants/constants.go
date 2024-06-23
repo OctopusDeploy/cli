@@ -28,10 +28,11 @@ const (
 
 // keys for key/value store config file
 const (
-	ConfigUrl      = "Url"
-	ConfigApiKey   = "ApiKey"
-	ConfigSpace    = "Space"
-	ConfigNoPrompt = "NoPrompt"
+	ConfigUrl         = "Url"
+	ConfigApiKey      = "ApiKey"
+	ConfigAccessToken = "AccessToken"
+	ConfigSpace       = "Space"
+	ConfigNoPrompt    = "NoPrompt"
 	// ConfigProxyUrl     = "ProxyUrl"
 	ConfigEditor       = "Editor"
 	ConfigShowOctopus  = "ShowOctopus"
@@ -39,35 +40,37 @@ const (
 )
 
 const (
-	EnvOctopusUrl    = "OCTOPUS_URL"
-	EnvOctopusApiKey = "OCTOPUS_API_KEY"
-	EnvOctopusSpace  = "OCTOPUS_SPACE"
-	EnvEditor        = "EDITOR"
-	EnvVisual        = "VISUAL"
-	EnvCI            = "CI"
+	EnvOctopusUrl         = "OCTOPUS_URL"
+	EnvOctopusApiKey      = "OCTOPUS_API_KEY"
+	EnvOctopusAccessToken = "OCTOPUS_ACCESS_TOKEN"
+	EnvOctopusSpace       = "OCTOPUS_SPACE"
+	EnvEditor             = "EDITOR"
+	EnvVisual             = "VISUAL"
+	EnvCI                 = "CI"
 )
 
 const (
 	NoDescription = "No description provided"
 )
 
-const OctopusLogo = `            &#BGGGGGGB#&
-         &GP%%%%%%%%%%%%%G&
-       &G%%%%%%%%%%%%%%%%%%P&
-      &%%%%%%%%%%%%%%%%%%%%%%#
-      %%%%%%%%%%%%%%%%%%%%%%%%
-     #%%%%%%%%%%%%%%%%%%%%%%%%&
-     #%%%%%%%%%%%%%%%%%%%%%%%%&
-      P%%%%%%%%%%%%%%%%%%%%%%#
-      &%%%%%%%%%%%%%%%%%%%%%G
-       B%%%%%%%%%%%%%%%%%%%%#
-       P%%%%%%%%%%%%%%%%%%%%P
-     &P%%%%%%%%%%%%%%%%%%%%%%P#
-   #G%%%%P%%%%%%GP%%%%%%PP%%%%%PG&
-&G%%%PB&#P%%%%G   G%%%%P  &P%%P#&&
- &&     G%%%%#    &%%%%G    #P%%#
-       &%%%G&      G%%%B       &&
-        &#          BPB`
+const OctopusLogo = `                ####
+            ############
+         ##################
+       ######################
+      ########################
+      ########################
+     ##########################
+     ##########################
+      ########################
+       ######################
+        ####################
+       ######################
+     ##########################
+   ###############################
+###############   ######  ########
+ ##     ######    ######    #####
+       ######      #####       ##
+        ##          ###`
 
 const (
 	PromptCreateNew = "<Create New>"

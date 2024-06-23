@@ -21,21 +21,21 @@ jobs:
       uses: actions/checkout@v3
       with:
         fetch-depth: 0
-    
+
     - name: Fetch all tags
       run: git fetch --force --tags
-    
+
     - name: Set up Go
       uses: actions/setup-go@v3
       with:
-          go-version: 1.19
-    
+          go-version: 1.21
+
     - uses: crazy-max/ghaction-import-gpg@v5
       id: import_gpg
       with:
         gpg_private_key: ${{ secrets.OCTOPUS_GPG_PRIVATE_KEY }}
         passphrase: ${{ secrets.OCTOPUS_GPG_PASSPHRASE }}
-    
+
     - name: Write GPG private key to shared memory for use when signing rpm/deb packages
       id: private_key_shm
       run: |
@@ -57,7 +57,7 @@ jobs:
         GPG_PASSWORD: ${{ secrets.OCTOPUS_GPG_PASSPHRASE }}
         GPG_PRIVATE_KEY_FILE: ${{ steps.private_key_shm.outputs.private_key_file_path }}
         NFPM_DEFAULT_PASSPHRASE: ${{ secrets.OCTOPUS_GPG_PASSPHRASE }}
-    
+
     - name: Remove GPG private key from shared memory
       if: ${{ success() || failure() }}
       run: rm -f "${{ steps.private_key_shm.outputs.private_key_file_path }}"
@@ -79,7 +79,7 @@ jobs:
           dist/*.tar.gz
           dist/*.rpm
           dist/*.deb
-          dist/*.rb
+          dist/**/*.rb
 
   msi:
     needs: goreleaser
@@ -189,14 +189,14 @@ jobs:
     runs-on: ubuntu-latest
     env:
       OCTOPUS_API_KEY: ${{ secrets.OCTOPUS_API_KEY }}
-      OCTOPUS_URL: ${{ secrets.OCTOPUS_URL }}  
+      OCTOPUS_URL: ${{ secrets.OCTOPUS_URL }}
       OCTOPUS_SPACE: Integrations
 
     steps:
     - uses: actions/checkout@v3
     - uses: nuget/setup-nuget@v1
 
-    - name: checkout OctopusDeploy/linux-package-feeds so we can take the package publish scripts from it 
+    - name: checkout OctopusDeploy/linux-package-feeds so we can take the package publish scripts from it
       uses: actions/checkout@v3
       with:
         repository: OctopusDeploy/linux-package-feeds
@@ -231,7 +231,7 @@ jobs:
     - uses: OctopusDeploy/push-package-action@v3
       with:
         packages: ${{ steps.package.outputs.package_file_path }}
-    
+
     - name: Fetch Release Notes
       id: fetch-release-notes
       env:
@@ -252,3 +252,53 @@ jobs:
         release_notes_file: ${{ steps.fetch-release-notes.outputs.release-note-file || ''}}
         git_ref: ${{ github.event.repository.default_branch }}
         git_commit: ${{ github.event.after || github.event.pull_request.head.sha }}
+
+
+  update-releases-json:
+    needs: [goreleaser, msi, generate-packages-and-publish]
+    runs-on: ubuntu-latest
+    env:
+      INTEGRATIONS_TOKEN: ${{ secrets.INTEGRATIONS_FNM_BOT_TOKEN }}
+
+    steps:
+        - name: Calculate branch name
+          id: branch-name
+          run: echo "BRANCH_NAME=releases-json-update-$(date +'%Y%m%d-%H%M%S')" >> $GITHUB_ENV
+
+        - name: Checkout CLI
+          uses: actions/checkout@v3
+          with:
+            path: cli
+
+        - name: Setup cli repo
+          working-directory: cli
+          run: |
+            git config user.email 'bob@octopus.com'
+            git config user.name octobob
+            git fetch
+            git checkout main
+            git checkout -b $BRANCH_NAME
+
+        - name: Generate cli releases json
+          working-directory: cli
+          run: curl -s https://api.github.com/repos/OctopusDeploy/cli/releases > releases.json
+
+        - name: Commit
+          uses: EndBug/add-and-commit@v9
+          with:
+            message: 'chore: update cli releases.json'
+            author_name: Bob
+            author_email: bob@octopus.com
+            committer_name: bob
+            cwd: cli
+            add: releases.json
+            push: false
+
+        - run: git push --repo https:/octobob:$INTEGRATIONS_TOKEN@github.com/OctopusDeploy/cli.git --set-upstream origin $BRANCH_NAME
+          working-directory: cli
+
+        - name: Create PR
+          run: |
+            curl -X POST -H "Accept: application/vnd.github+json" -H "Authorization: Bearer $INTEGRATIONS_TOKEN" \
+            https://api.github.com/repos/OctopusDeploy/cli/pulls \
+            -d '{"title":"update cli releases.json","body":"An automated update of the releases.json for octopus CLI\nCreated by GitHub Actions [go-releaser](https://github.com/OctopusDeploy/cli/actions/workflows/go-releaser.yml)","head":"'$BRANCH_NAME'","base":"main"}'

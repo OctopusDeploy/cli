@@ -13,6 +13,7 @@ import (
 	octopusApiClient "github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/deployments"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/environments"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/resources"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/tenants"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/variables"
 	"sort"
@@ -186,7 +187,7 @@ func AskVariables(asker question.Asker, variableSet *variables.VariableSet, vari
 				}
 
 				if v.Type == "String" || v.Type == "Sensitive" {
-					responseString, err := askVariableSpecificPrompt(asker, promptMessage, v.Type, v.Value, v.Prompt.IsRequired, v.IsSensitive, v.Prompt.DisplaySettings)
+					responseString, err := AskVariableSpecificPrompt(asker, promptMessage, v.Type, v.Value, v.Prompt.IsRequired, v.IsSensitive, v.Prompt.DisplaySettings)
 					if err != nil {
 						return nil, err
 					}
@@ -201,7 +202,7 @@ func AskVariables(asker question.Asker, variableSet *variables.VariableSet, vari
 	return result, nil
 }
 
-func askVariableSpecificPrompt(asker question.Asker, message string, variableType string, defaultValue string, isRequired bool, isSensitive bool, displaySettings *variables.DisplaySettings) (string, error) {
+func AskVariableSpecificPrompt(asker question.Asker, message string, variableType string, defaultValue string, isRequired bool, isSensitive bool, displaySettings *resources.DisplaySettings) (string, error) {
 	var askOpt survey.AskOpt = func(options *survey.AskOptions) error {
 		if isRequired {
 			options.Validators = append(options.Validators, survey.Required)
@@ -210,7 +211,7 @@ func askVariableSpecificPrompt(asker question.Asker, message string, variableTyp
 	}
 
 	// work out what kind of prompt to use
-	var controlType variables.ControlType
+	var controlType resources.ControlType
 	if displaySettings != nil && displaySettings.ControlType != "" {
 		controlType = displaySettings.ControlType
 	} else { // infer the control type based on other flags
@@ -220,14 +221,14 @@ func askVariableSpecificPrompt(asker question.Asker, message string, variableTyp
 		if variableType == "Sensitive" || isSensitive {
 			// From comment in server:
 			// variable.IsSensitive is Kept for backwards compatibility. New way is to use variable.Type=VariableType.Sensitive
-			controlType = variables.ControlTypeSensitive
+			controlType = resources.ControlTypeSensitive
 		} else {
-			controlType = variables.ControlTypeSingleLineText
+			controlType = resources.ControlTypeSingleLineText
 		}
 	}
 
 	switch controlType {
-	case variables.ControlTypeSingleLineText, "": // if control type is not explicitly set it means single line text.
+	case resources.ControlTypeSingleLineText, "": // if control type is not explicitly set it means single line text.
 		var response string
 		err := asker(&survey.Input{
 			Message: message,
@@ -235,14 +236,14 @@ func askVariableSpecificPrompt(asker question.Asker, message string, variableTyp
 		}, &response, askOpt)
 		return response, err
 
-	case variables.ControlTypeSensitive:
+	case resources.ControlTypeSensitive:
 		var response string
 		err := asker(&survey.Password{
 			Message: message,
 		}, &response, askOpt)
 		return response, err
 
-	case variables.ControlTypeMultiLineText: // not clear if the server ever does this
+	case resources.ControlTypeMultiLineText: // not clear if the server ever does this
 		var response string
 		err := asker(&surveyext.OctoEditor{
 			Editor: &survey.Editor{
@@ -252,7 +253,7 @@ func askVariableSpecificPrompt(asker question.Asker, message string, variableTyp
 			Optional: !isRequired}, &response)
 		return response, err
 
-	case variables.ControlTypeSelect:
+	case resources.ControlTypeSelect:
 		if displaySettings == nil {
 			return "", cliErrors.NewArgumentNullOrEmptyError("displaySettings") // select needs actual display settings
 		}
@@ -277,7 +278,7 @@ func askVariableSpecificPrompt(asker question.Asker, message string, variableTyp
 		}
 		return reverseLookup[response], nil
 
-	case variables.ControlTypeCheckbox:
+	case resources.ControlTypeCheckbox:
 		// if the server didn't specifically set a default value of True then default to No
 		defTrueFalse := "False"
 		if b, err := strconv.ParseBool(defaultValue); err == nil && b {

@@ -42,7 +42,7 @@ func TestReleaseList(t *testing.T) {
 				return rootCmd.ExecuteC()
 			})
 
-			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
 			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
 
 			_, err := testutil.ReceivePair(cmdReceiver)
@@ -59,7 +59,7 @@ func TestReleaseList(t *testing.T) {
 				return rootCmd.ExecuteC()
 			})
 
-			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
 			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
 
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/all").RespondWith([]*projects.Project{fireProject})
@@ -104,7 +104,7 @@ func TestReleaseList(t *testing.T) {
 				return rootCmd.ExecuteC()
 			})
 
-			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
 			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
 
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/Fire Project").RespondWithStatus(404, "NotFound", nil)
@@ -147,7 +147,7 @@ func TestReleaseList(t *testing.T) {
 				return rootCmd.ExecuteC()
 			})
 
-			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
 			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
 
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/Fire Project").RespondWithStatus(404, "NotFound", nil)
@@ -180,7 +180,7 @@ func TestReleaseList(t *testing.T) {
 				return rootCmd.ExecuteC()
 			})
 
-			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
 			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
 
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/Fire Project").RespondWithStatus(404, "NotFound", nil)
@@ -212,7 +212,7 @@ func TestReleaseList(t *testing.T) {
 				rootCmd.SetArgs([]string{"release", "list", "-p", fireProject.Name, "--output-format", "json", "--no-prompt"})
 				return rootCmd.ExecuteC()
 			})
-			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
 			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
 
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/Fire Project").RespondWithStatus(404, "NotFound", nil)
@@ -257,7 +257,7 @@ func TestReleaseList(t *testing.T) {
 				rootCmd.SetArgs([]string{"release", "list", "-p", fireProject.Name, "--output-format", "basic", "--no-prompt"})
 				return rootCmd.ExecuteC()
 			})
-			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
 			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
 
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/Fire Project").RespondWithStatus(404, "NotFound", nil)
@@ -289,7 +289,7 @@ func TestReleaseList(t *testing.T) {
 				rootCmd.SetArgs([]string{"release", "list", "-p", fireProject.Name, "--output-format", "basic"})
 				return rootCmd.ExecuteC()
 			})
-			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
 			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
 
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/Fire Project").RespondWithStatus(404, "NotFound", nil)

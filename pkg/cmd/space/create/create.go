@@ -3,8 +3,9 @@ package create
 import (
 	"errors"
 	"fmt"
-	"github.com/OctopusDeploy/cli/pkg/apiclient"
 	"strings"
+
+	"github.com/OctopusDeploy/cli/pkg/apiclient"
 
 	"github.com/OctopusDeploy/cli/pkg/cmd"
 	"github.com/OctopusDeploy/cli/pkg/cmd/tenant/shared"
@@ -89,8 +90,8 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 	flags := cmd.Flags()
 	flags.StringVarP(&createFlags.Name.Value, createFlags.Name.Name, "n", "", "Name of the space")
 	flags.StringVarP(&createFlags.Description.Value, createFlags.Description.Name, "d", "", "Description of the space")
-	flags.StringSliceVarP(&createFlags.Teams.Value, createFlags.Teams.Name, "t", nil, "The teams to manage the space (can be specified multiple times)")
-	flags.StringSliceVarP(&createFlags.Users.Value, createFlags.Users.Name, "u", nil, "The users to manage the space (can be specified multiple times)")
+	flags.StringArrayVarP(&createFlags.Teams.Value, createFlags.Teams.Name, "t", nil, "The teams to manage the space (can be specified multiple times)")
+	flags.StringArrayVarP(&createFlags.Users.Value, createFlags.Users.Name, "u", nil, "The users to manage the space (can be specified multiple times)")
 
 	return cmd
 }

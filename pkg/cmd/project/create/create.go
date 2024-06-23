@@ -6,12 +6,12 @@ import (
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/cmd"
 	"github.com/OctopusDeploy/cli/pkg/cmd/project/convert"
+	projectShared "github.com/OctopusDeploy/cli/pkg/cmd/project/shared"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/OctopusDeploy/cli/pkg/question"
 	"github.com/OctopusDeploy/cli/pkg/question/selectors"
 	"github.com/OctopusDeploy/cli/pkg/util/flag"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projectgroups"
 	"github.com/spf13/cobra"
 )
 
@@ -120,7 +120,7 @@ func PromptMissing(opts *CreateOptions) ([]cmd.Dependable, error) {
 		opts.Lifecycle.Value = lc.Name
 	}
 
-	value, projectGroupOpt, err := AskProjectGroups(opts.Ask, opts.Group.Value, opts.GetAllGroupsCallback, opts.CreateProjectGroupCallback)
+	value, projectGroupOpt, err := projectShared.AskProjectGroups(opts.Ask, opts.Group.Value, opts.GetAllGroupsCallback, opts.CreateProjectGroupCallback)
 	if err != nil {
 		return nil, err
 	}
@@ -141,23 +141,6 @@ func PromptMissing(opts *CreateOptions) ([]cmd.Dependable, error) {
 	}
 
 	return nestedOpts, nil
-}
-
-func AskProjectGroups(ask question.Asker, value string, getAllGroupsCallback GetAllGroupsCallback, createProjectGroupCallback CreateProjectGroupCallback) (string, cmd.Dependable, error) {
-	if value != "" {
-		return value, nil, nil
-	}
-	g, shouldCreateNew, err := selectors.SelectOrNew(ask, "You have not specified a Project group for this project. Please select one:", getAllGroupsCallback, func(pg *projectgroups.ProjectGroup) string {
-		return pg.Name
-	})
-	if err != nil {
-		return "", nil, err
-	}
-	if shouldCreateNew {
-		return createProjectGroupCallback()
-	}
-	return g.Name, nil, nil
-
 }
 
 func PromptForConfigAsCode(opts *CreateOptions) (cmd.Dependable, error) {

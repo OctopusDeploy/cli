@@ -2,6 +2,7 @@ package environment
 
 import (
 	"github.com/MakeNowJust/heredoc/v2"
+	cmdCreate "github.com/OctopusDeploy/cli/pkg/cmd/environment/create"
 	cmdDelete "github.com/OctopusDeploy/cli/pkg/cmd/environment/delete"
 	cmdList "github.com/OctopusDeploy/cli/pkg/cmd/environment/list"
 	"github.com/OctopusDeploy/cli/pkg/constants"
@@ -26,5 +27,6 @@ func NewCmdEnvironment(f factory.Factory) *cobra.Command {
 
 	cmd.AddCommand(cmdList.NewCmdList(f))
 	cmd.AddCommand(cmdDelete.NewCmdDelete(f))
+	cmd.AddCommand(cmdCreate.NewCmdCreate(f))
 	return cmd
 }

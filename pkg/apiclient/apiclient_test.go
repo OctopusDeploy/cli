@@ -1,13 +1,14 @@
 package apiclient_test
 
 import (
+	"testing"
+
 	"github.com/OctopusDeploy/cli/pkg/apiclient"
 	"github.com/OctopusDeploy/cli/pkg/question"
 	"github.com/OctopusDeploy/cli/test/testutil"
 	octopusApiClient "github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/spaces"
 	"github.com/stretchr/testify/assert"
-	"testing"
 )
 
 const serverUrl = "http://server"
@@ -20,16 +21,18 @@ func TestClient_GetSystemClient(t *testing.T) {
 	api := testutil.NewMockHttpServer()
 
 	t.Run("GetSystemClient returns the client", func(t *testing.T) {
-		factory, err := apiclient.NewClientFactory(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "", qa)
+		apiKeyCredential, _ := octopusApiClient.NewApiKey(placeholderApiKey)
+		factory, err := apiclient.NewClientFactory(testutil.NewMockHttpClientWithTransport(api), serverUrl, apiKeyCredential, "", qa)
 		testutil.RequireSuccess(t, err)
 
 		clientReceiver := testutil.GoBegin2(
 			func() (*octopusApiClient.Client, error) {
 				return factory.GetSystemClient(&apiclient.FakeRequesterContext{})
 			})
-		//clientReceiver2 := testutil.GoBegin2(func () (*octopusApiClient.Client, error) { factory.GetSystemClient(&apiclient.FakeRequesterContext{})
 
-		api.ExpectRequest(t, "GET", "/api").RespondWith(root)
+		//clientReceiver2 := testutil.GoBegin2(func () (*octopusApiClient.Client, error) { factory.GetSystemClient(&apiclient.FakeRequesterContext{})
+		api.ExpectRequest(t, "GET", "/api/").RespondWith(root)
+		api.ExpectRequest(t, "GET", "/api/spaces").RespondWith(root)
 
 		systemClient, err := testutil.ReceivePair(clientReceiver)
 		if !testutil.AssertSuccess(t, err) {
@@ -40,14 +43,16 @@ func TestClient_GetSystemClient(t *testing.T) {
 	})
 
 	t.Run("GetSystemClient called twice returns the same client instance", func(t *testing.T) {
-		factory, err := apiclient.NewClientFactory(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "", qa)
+		apiKeyCredential, _ := octopusApiClient.NewApiKey(placeholderApiKey)
+		factory, err := apiclient.NewClientFactory(testutil.NewMockHttpClientWithTransport(api), serverUrl, apiKeyCredential, "", qa)
 		testutil.RequireSuccess(t, err)
 		clientReceiver := testutil.GoBegin2(
 			func() (*octopusApiClient.Client, error) {
 				return factory.GetSystemClient(&apiclient.FakeRequesterContext{})
 			})
 
-		api.ExpectRequest(t, "GET", "/api").RespondWith(root)
+		api.ExpectRequest(t, "GET", "/api/").RespondWith(root)
+		api.ExpectRequest(t, "GET", "/api/spaces").RespondWith(root)
 
 		systemClient, err := testutil.ReceivePair(clientReceiver)
 		if !testutil.AssertSuccess(t, err) {
@@ -61,6 +66,27 @@ func TestClient_GetSystemClient(t *testing.T) {
 			return
 		}
 		assert.Same(t, systemClient, systemClient2)
+	})
+
+	t.Run("GetSystemClient contains the access token in the right header if supplied", func(t *testing.T) {
+		accessTokenCredential, _ := octopusApiClient.NewAccessToken("token")
+		factory, err := apiclient.NewClientFactory(testutil.NewMockHttpClientWithTransport(api), serverUrl, accessTokenCredential, "", qa)
+		testutil.RequireSuccess(t, err)
+
+		clientReceiver := testutil.GoBegin2(
+			func() (*octopusApiClient.Client, error) {
+				return factory.GetSystemClient(&apiclient.FakeRequesterContext{})
+			})
+
+		api.ExpectRequest(t, "GET", "/api/").ExpectHeader(t, "Authorization", "Bearer token").RespondWith(root)
+		api.ExpectRequest(t, "GET", "/api/spaces").RespondWith(root)
+
+		systemClient, err := testutil.ReceivePair(clientReceiver)
+		if !testutil.AssertSuccess(t, err) {
+			return
+		}
+
+		assert.NotNil(t, systemClient)
 	})
 }
 
@@ -80,7 +106,8 @@ func TestClient_GetSpacedClient_NoPrompt(t *testing.T) {
 		// that in no-prompt mode because otherwise people could write a CI script that worked due to
 		// auto-selection of the first space, which would then unexpectedly break later if someone added a
 		// second space to the octopus server
-		factory, err := apiclient.NewClientFactory(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "", qa)
+		apiKeyCredential, _ := octopusApiClient.NewApiKey(placeholderApiKey)
+		factory, err := apiclient.NewClientFactory(testutil.NewMockHttpClientWithTransport(api), serverUrl, apiKeyCredential, "", qa)
 		testutil.RequireSuccess(t, err)
 
 		clientReceiver := testutil.GoBegin2(
@@ -88,7 +115,9 @@ func TestClient_GetSpacedClient_NoPrompt(t *testing.T) {
 				return factory.GetSpacedClient(&apiclient.FakeRequesterContext{})
 			})
 
-		api.ExpectRequest(t, "GET", "/api").RespondWith(root)
+		api.ExpectRequest(t, "GET", "/api/").RespondWith(root)
+		api.ExpectRequest(t, "GET", "/api/spaces").RespondWith(root)
+		//api.ExpectRequest(t, "GET", "/api/spaces/all").RespondWith(root)
 		// it doesn't actually matter how many spaces there are because the CLI doesn't even ask for them
 
 		apiClient, err := testutil.ReceivePair(clientReceiver)
@@ -97,7 +126,8 @@ func TestClient_GetSpacedClient_NoPrompt(t *testing.T) {
 	})
 
 	t.Run("GetSpacedClient returns an error when a space with the wrong name is specified", func(t *testing.T) {
-		factory, err := apiclient.NewClientFactory(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "Integrations", qa)
+		apiKeyCredential, _ := octopusApiClient.NewApiKey(placeholderApiKey)
+		factory, err := apiclient.NewClientFactory(testutil.NewMockHttpClientWithTransport(api), serverUrl, apiKeyCredential, "Integrations", qa)
 		testutil.RequireSuccess(t, err)
 
 		clientReceiver := testutil.GoBegin2(
@@ -105,7 +135,8 @@ func TestClient_GetSpacedClient_NoPrompt(t *testing.T) {
 				return factory.GetSpacedClient(&apiclient.FakeRequesterContext{})
 			})
 
-		api.ExpectRequest(t, "GET", "/api").RespondWith(root)
+		api.ExpectRequest(t, "GET", "/api/").RespondWith(root)
+		api.ExpectRequest(t, "GET", "/api/spaces").RespondWith(root)
 
 		api.ExpectRequest(t, "GET", "/api/spaces/all").RespondWith([]*spaces.Space{cloudSpace})
 
@@ -115,7 +146,8 @@ func TestClient_GetSpacedClient_NoPrompt(t *testing.T) {
 	})
 
 	t.Run("GetSpacedClient works when the Space ID is directly specified", func(t *testing.T) {
-		factory, err := apiclient.NewClientFactory(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "Spaces-7", qa)
+		apiKeyCredential, _ := octopusApiClient.NewApiKey(placeholderApiKey)
+		factory, err := apiclient.NewClientFactory(testutil.NewMockHttpClientWithTransport(api), serverUrl, apiKeyCredential, "Spaces-7", qa)
 		testutil.RequireSuccess(t, err)
 
 		clientReceiver := testutil.GoBegin2(
@@ -123,12 +155,13 @@ func TestClient_GetSpacedClient_NoPrompt(t *testing.T) {
 				return factory.GetSpacedClient(&apiclient.FakeRequesterContext{})
 			})
 
-		api.ExpectRequest(t, "GET", "/api").RespondWith(root)
+		api.ExpectRequest(t, "GET", "/api/").RespondWith(root)
+		api.ExpectRequest(t, "GET", "/api/spaces").RespondWith(root)
 
 		api.ExpectRequest(t, "GET", "/api/spaces/all").RespondWith([]*spaces.Space{integrationsSpace})
 
 		// we need to enqueue this again because after it finds Spaces-7 it will recreate the client and reload the root.
-		api.ExpectRequest(t, "GET", "/api").RespondWith(root)
+		api.ExpectRequest(t, "GET", "/api/").RespondWith(root)
 
 		// note it just goes for /api/Spaces-7 this time
 		api.ExpectRequest(t, "GET", "/api/Spaces-7").RespondWith(integrationsSpace)
@@ -139,7 +172,8 @@ func TestClient_GetSpacedClient_NoPrompt(t *testing.T) {
 	})
 
 	t.Run("GetSpacedClient works when the Space ID is directly specified (case insensitive)", func(t *testing.T) {
-		factory, err := apiclient.NewClientFactory(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "spaCeS-7", qa)
+		apiKeyCredential, _ := octopusApiClient.NewApiKey(placeholderApiKey)
+		factory, err := apiclient.NewClientFactory(testutil.NewMockHttpClientWithTransport(api), serverUrl, apiKeyCredential, "spaCeS-7", qa)
 		testutil.RequireSuccess(t, err)
 
 		clientReceiver := testutil.GoBegin2(
@@ -147,12 +181,13 @@ func TestClient_GetSpacedClient_NoPrompt(t *testing.T) {
 				return factory.GetSpacedClient(&apiclient.FakeRequesterContext{})
 			})
 
-		api.ExpectRequest(t, "GET", "/api").RespondWith(root)
+		api.ExpectRequest(t, "GET", "/api/").RespondWith(root)
+		api.ExpectRequest(t, "GET", "/api/spaces").RespondWith(root)
 
 		api.ExpectRequest(t, "GET", "/api/spaces/all").RespondWith([]*spaces.Space{integrationsSpace})
 
 		// we need to enqueue this again because after it finds Spaces-7 it will recreate the client and reload the root.
-		api.ExpectRequest(t, "GET", "/api").RespondWith(root)
+		api.ExpectRequest(t, "GET", "/api/").RespondWith(root)
 
 		// note it just goes for /api/Spaces-7 this time
 		api.ExpectRequest(t, "GET", "/api/Spaces-7").RespondWith(integrationsSpace)
@@ -163,7 +198,8 @@ func TestClient_GetSpacedClient_NoPrompt(t *testing.T) {
 	})
 
 	t.Run("GetSpacedClient works when the Space Name is directly specified", func(t *testing.T) {
-		factory, err := apiclient.NewClientFactory(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "Integrations", qa)
+		apiKeyCredential, _ := octopusApiClient.NewApiKey(placeholderApiKey)
+		factory, err := apiclient.NewClientFactory(testutil.NewMockHttpClientWithTransport(api), serverUrl, apiKeyCredential, "Integrations", qa)
 		testutil.RequireSuccess(t, err)
 
 		clientReceiver := testutil.GoBegin2(
@@ -171,12 +207,13 @@ func TestClient_GetSpacedClient_NoPrompt(t *testing.T) {
 				return factory.GetSpacedClient(&apiclient.FakeRequesterContext{})
 			})
 
-		api.ExpectRequest(t, "GET", "/api").RespondWith(root)
+		api.ExpectRequest(t, "GET", "/api/").RespondWith(root)
+		api.ExpectRequest(t, "GET", "/api/spaces").RespondWith(root)
 
 		api.ExpectRequest(t, "GET", "/api/spaces/all").RespondWith([]*spaces.Space{integrationsSpace})
 
 		// we need to enqueue this again because after it finds Spaces-7 it will recreate the client and reload the root.
-		api.ExpectRequest(t, "GET", "/api").RespondWith(root)
+		api.ExpectRequest(t, "GET", "/api/").RespondWith(root)
 
 		// note it just goes for /api/Spaces-7 this time
 		api.ExpectRequest(t, "GET", "/api/Spaces-7").RespondWith(integrationsSpace)
@@ -187,7 +224,8 @@ func TestClient_GetSpacedClient_NoPrompt(t *testing.T) {
 	})
 
 	t.Run("GetSpacedClient works when the Space Name is directly specified (case insensitive)", func(t *testing.T) {
-		factory, err := apiclient.NewClientFactory(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "iNtegrationS", qa)
+		apiKeyCredential, _ := octopusApiClient.NewApiKey(placeholderApiKey)
+		factory, err := apiclient.NewClientFactory(testutil.NewMockHttpClientWithTransport(api), serverUrl, apiKeyCredential, "iNtegrationS", qa)
 		testutil.RequireSuccess(t, err)
 
 		clientReceiver := testutil.GoBegin2(
@@ -195,12 +233,13 @@ func TestClient_GetSpacedClient_NoPrompt(t *testing.T) {
 				return factory.GetSpacedClient(&apiclient.FakeRequesterContext{})
 			})
 
-		api.ExpectRequest(t, "GET", "/api").RespondWith(root)
+		api.ExpectRequest(t, "GET", "/api/").RespondWith(root)
+		api.ExpectRequest(t, "GET", "/api/spaces").RespondWith(root)
 
 		api.ExpectRequest(t, "GET", "/api/spaces/all").RespondWith([]*spaces.Space{integrationsSpace})
 
 		// we need to enqueue this again because after it finds Spaces-7 it will recreate the client and reload the root.
-		api.ExpectRequest(t, "GET", "/api").RespondWith(root)
+		api.ExpectRequest(t, "GET", "/api/").RespondWith(root)
 
 		// note it just goes for /api/Spaces-7 this time
 		api.ExpectRequest(t, "GET", "/api/Spaces-7").RespondWith(integrationsSpace)
@@ -217,7 +256,8 @@ func TestClient_GetSpacedClient_NoPrompt(t *testing.T) {
 		spaces7space := spaces.NewSpace("Spaces-7") // nobody would do this in reality, but our software must still work properly
 		spaces7space.ID = "Spaces-209"
 
-		factory2, err := apiclient.NewClientFactory(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "Spaces-7", qa)
+		apiKeyCredential, _ := octopusApiClient.NewApiKey(placeholderApiKey)
+		factory2, err := apiclient.NewClientFactory(testutil.NewMockHttpClientWithTransport(api), serverUrl, apiKeyCredential, "Spaces-7", qa)
 		testutil.RequireSuccess(t, err)
 
 		clientReceiver := testutil.GoBegin2(
@@ -225,14 +265,15 @@ func TestClient_GetSpacedClient_NoPrompt(t *testing.T) {
 				return factory2.GetSpacedClient(&apiclient.FakeRequesterContext{})
 			})
 
-		api.ExpectRequest(t, "GET", "/api").RespondWith(root)
+		api.ExpectRequest(t, "GET", "/api/").RespondWith(root)
+		api.ExpectRequest(t, "GET", "/api/spaces").RespondWith(root)
 
 		api.ExpectRequest(t, "GET", "/api/spaces/all").RespondWith([]*spaces.Space{
 			missedSpace,
 			spaces7space,
 		})
 
-		api.ExpectRequest(t, "GET", "/api").RespondWith(root)
+		api.ExpectRequest(t, "GET", "/api/").RespondWith(root)
 
 		api.ExpectRequest(t, "GET", "/api/Spaces-209").RespondWith(spaces7space)
 
@@ -243,7 +284,8 @@ func TestClient_GetSpacedClient_NoPrompt(t *testing.T) {
 	})
 
 	t.Run("GetSpacedClient called twice returns the same client instance without additional requests", func(t *testing.T) {
-		factory, err := apiclient.NewClientFactory(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "Integrations", qa)
+		apiKeyCredential, _ := octopusApiClient.NewApiKey(placeholderApiKey)
+		factory, err := apiclient.NewClientFactory(testutil.NewMockHttpClientWithTransport(api), serverUrl, apiKeyCredential, "Integrations", qa)
 		testutil.RequireSuccess(t, err)
 
 		clientReceiver := testutil.GoBegin2(
@@ -251,12 +293,13 @@ func TestClient_GetSpacedClient_NoPrompt(t *testing.T) {
 				return factory.GetSpacedClient(&apiclient.FakeRequesterContext{})
 			})
 
-		api.ExpectRequest(t, "GET", "/api").RespondWith(root)
+		api.ExpectRequest(t, "GET", "/api/").RespondWith(root)
+		api.ExpectRequest(t, "GET", "/api/spaces").RespondWith(root)
 
 		api.ExpectRequest(t, "GET", "/api/spaces/all").RespondWith([]*spaces.Space{integrationsSpace})
 
 		// we need to enqueue this again because after it finds Spaces-7 it will recreate the client and reload the root.
-		api.ExpectRequest(t, "GET", "/api").RespondWith(root)
+		api.ExpectRequest(t, "GET", "/api/").RespondWith(root)
 
 		// note it just goes for /api/Spaces-7 this time
 		api.ExpectRequest(t, "GET", "/api/Spaces-7").RespondWith(integrationsSpace)
@@ -271,5 +314,31 @@ func TestClient_GetSpacedClient_NoPrompt(t *testing.T) {
 			return
 		}
 		assert.Same(t, apiClient, apiClient2)
+	})
+
+	t.Run("GetSpacedClient contains the access token in the right header if supplied", func(t *testing.T) {
+		accessTokenCredential, _ := octopusApiClient.NewAccessToken("token")
+		factory, err := apiclient.NewClientFactory(testutil.NewMockHttpClientWithTransport(api), serverUrl, accessTokenCredential, "Spaces-7", qa)
+		testutil.RequireSuccess(t, err)
+
+		clientReceiver := testutil.GoBegin2(
+			func() (*octopusApiClient.Client, error) {
+				return factory.GetSpacedClient(&apiclient.FakeRequesterContext{})
+			})
+
+		api.ExpectRequest(t, "GET", "/api/").ExpectHeader(t, "Authorization", "Bearer token").RespondWith(root)
+		api.ExpectRequest(t, "GET", "/api/spaces").RespondWith(root)
+
+		api.ExpectRequest(t, "GET", "/api/spaces/all").ExpectHeader(t, "Authorization", "Bearer token").RespondWith([]*spaces.Space{integrationsSpace})
+
+		// we need to enqueue this again because after it finds Spaces-7 it will recreate the client and reload the root.
+		api.ExpectRequest(t, "GET", "/api/").ExpectHeader(t, "Authorization", "Bearer token").RespondWith(root)
+
+		// note it just goes for /api/Spaces-7 this time
+		api.ExpectRequest(t, "GET", "/api/Spaces-7").ExpectHeader(t, "Authorization", "Bearer token").RespondWith(integrationsSpace)
+
+		apiClient, err := testutil.ReceivePair(clientReceiver)
+		assert.Nil(t, err)
+		assert.NotNil(t, apiClient)
 	})
 }

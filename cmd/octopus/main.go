@@ -3,13 +3,15 @@ package main
 import (
 	_ "embed"
 	"fmt"
+	"github.com/OctopusDeploy/cli/pkg/util"
+	"os"
+	"strings"
+	"time"
+
 	"github.com/AlecAivazis/survey/v2/terminal"
 	version "github.com/OctopusDeploy/cli"
 	"github.com/briandowns/spinner"
 	"github.com/spf13/viper"
-	"os"
-	"strings"
-	"time"
 
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/OctopusDeploy/cli/pkg/config"
@@ -27,15 +29,13 @@ func main() {
 	// if there is a missing or invalid .env file anywhere, we don't care, just ignore it
 	_ = godotenv.Load()
 
-	if err := config.Setup(viper.GetViper()); err != nil {
+	viper := viper.GetViper()
+
+	if err := config.Setup(viper); err != nil {
 		fmt.Println(err)
 		os.Exit(3)
 	}
 	arg := os.Args[1:]
-	cmdToRun := ""
-	if len(arg) > 0 {
-		cmdToRun = arg[0]
-	}
 
 	// initialize our wrapper around survey, which is also used as a flag for whether
 	// we are in interactive mode or automation mode
@@ -51,7 +51,7 @@ func main() {
 	clientFactory, err := apiclient.NewClientFactoryFromConfig(askProvider)
 	if err != nil {
 		// a small subset of commands can function even if the app doesn't have valid configuration information
-		if cmdToRun == "config" || cmdToRun == "version" || cmdToRun == "help" {
+		if commandDoesNotRequireClient(arg) {
 			clientFactory = apiclient.NewStubClientFactory()
 		} else {
 			// can't possibly work
@@ -62,7 +62,9 @@ func main() {
 
 	s := spinner.New(spinner.CharSets[11], 100*time.Millisecond, spinner.WithColor("cyan"))
 
-	f := factory.New(clientFactory, askProvider, s, buildVersion)
+	c := config.New(viper)
+
+	f := factory.New(clientFactory, askProvider, s, buildVersion, c)
 
 	cmd := root.NewCmdRoot(f, clientFactory, askProvider)
 
@@ -81,4 +83,12 @@ func main() {
 
 		os.Exit(1)
 	}
+}
+
+func commandDoesNotRequireClient(args []string) bool {
+	if args == nil || len(args) == 0 {
+		return true
+	}
+	cmdToRun := args[0]
+	return cmdToRun == "config" || cmdToRun == "version" || cmdToRun == "help" || cmdToRun == "login" || cmdToRun == "logout" || (cmdToRun == "package" && util.SliceContains(args, "create"))
 }

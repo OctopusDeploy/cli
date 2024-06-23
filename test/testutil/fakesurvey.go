@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/OctopusDeploy/cli/pkg/surveyext"
+	"golang.org/x/exp/slices"
 	"testing"
 
 	"github.com/AlecAivazis/survey/v2"
@@ -56,6 +57,18 @@ func NewSelectPrompt(prompt string, help string, options []string, response stri
 		Prompt: &survey.Select{
 			Message: prompt,
 			Options: options,
+			Help:    help,
+		},
+		Answer: response,
+	}
+}
+
+func NewSelectPromptWithDefault(prompt string, help string, options []string, def string, response string) *PA {
+	return &PA{
+		Prompt: &survey.Select{
+			Message: prompt,
+			Options: options,
+			Default: def,
 			Help:    help,
 		},
 		Answer: response,
@@ -153,7 +166,13 @@ func NewMockAsker(t *testing.T, pa []*PA) (question.Asker, CheckRemaining) {
 		}
 
 		expectedQA := pa[expectedQuestionIndex]
-		expectedQuestionIndex += 1
+		expectedQuestionIndex++
+
+		if expectedSurvey, ok := expectedQA.Prompt.(*survey.Select); ok {
+			actualSurvey := p.(*survey.Select)
+			slices.Sort(expectedSurvey.Options)
+			slices.Sort(actualSurvey.Options)
+		}
 
 		isEqual := assert.Equal(t, expectedQA.Prompt, p)
 		if !isEqual {
@@ -222,7 +241,7 @@ func (m *AskMocker) AsAsker() func(p survey.Prompt, response interface{}, opts .
 		// then we wait for a response via the answer channel.
 		// NOTE validations should have already been run on the send side, so we should only receive things
 		// that have passed any survey validators. We mostly do this because the concurrent nature of this
-		// makes it much easier to have the "AnswerWith" do the validation than the more correct place (here.
+		// makes it much easier to have the "AnswerWith" do the validation than the more correct place here.
 		x := <-m.Answer
 
 		if x.answer != nil {

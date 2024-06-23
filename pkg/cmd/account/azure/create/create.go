@@ -3,6 +3,7 @@ package create
 import (
 	"fmt"
 	"github.com/OctopusDeploy/cli/pkg/cmd"
+	"github.com/OctopusDeploy/cli/pkg/cmd/account/shared"
 	"os"
 	"strings"
 
@@ -69,25 +70,6 @@ func NewCreateOptions(flags *CreateFlags, dependencies *cmd.Dependencies) *Creat
 	}
 }
 
-var azureEnvMap = map[string]string{
-	"Global Cloud (Default)": "AzureCloud",
-	"China Cloud":            "AzureChinaCloud",
-	"German Cloud":           "AzureGermanCloud",
-	"US Government":          "AzureUSGovernment",
-}
-var azureADEndpointBaseUri = map[string]string{
-	"AzureCloud":        "https://login.microsoftonline.com/",
-	"AzureChinaCloud":   "https://login.chinacloudapi.cn/",
-	"AzureGermanCloud":  "https://login.microsoftonline.de/",
-	"AzureUSGovernment": "https://login.microsoftonline.us/",
-}
-var azureResourceManagementBaseUri = map[string]string{
-	"AzureCloud":        "https://management.azure.com/",
-	"AzureChinaCloud":   "https://management.chinacloudapi.cn/",
-	"AzureGermanCloud":  "https://management.microsoftazure.de/",
-	"AzureUSGovernment": "https://management.usgovcloudapi.net/",
-}
-
 func NewCmdCreate(f factory.Factory) *cobra.Command {
 	createFlags := NewCreateFlags()
 	descriptionFilePath := ""
@@ -113,23 +95,23 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 			opts.NoPrompt = !f.IsPromptEnabled()
 
 			if opts.SubscriptionID.Value != "" {
-				if err := validation.IsUuid(opts.SubscriptionID); err != nil {
+				if err := validation.IsUuid(opts.SubscriptionID.Value); err != nil {
 					return err
 				}
 			}
 			if opts.TenantID.Value != "" {
-				if err := validation.IsUuid(opts.TenantID); err != nil {
+				if err := validation.IsUuid(opts.TenantID.Value); err != nil {
 					return err
 				}
 			}
 			if opts.ApplicationID.Value != "" {
-				if err := validation.IsUuid(opts.ApplicationID); err != nil {
+				if err := validation.IsUuid(opts.ApplicationID.Value); err != nil {
 					return err
 				}
 			}
 			if opts.AzureEnvironment.Value != "" {
 				isAzureEnvCorrect := false
-				for _, value := range azureEnvMap {
+				for _, value := range shared.AzureEnvMap {
 					if strings.EqualFold(value, opts.AzureEnvironment.Value) {
 						opts.AzureEnvironment.Value = value
 						isAzureEnvCorrect = true
@@ -140,10 +122,10 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 					return fmt.Errorf("the Azure environment %s is not correct, please use AzureChinaCloud, AzureChinaCloud, AzureGermanCloud or AzureUSGovernment", opts.AzureEnvironment.Value)
 				}
 				if opts.RMBaseUri.Value == "" && opts.NoPrompt {
-					opts.RMBaseUri.Value = azureResourceManagementBaseUri[opts.AzureEnvironment.Value]
+					opts.RMBaseUri.Value = shared.AzureResourceManagementBaseUri[opts.AzureEnvironment.Value]
 				}
 				if opts.ADEndpointBaseUrl.Value == "" && opts.NoPrompt {
-					opts.ADEndpointBaseUrl.Value = azureADEndpointBaseUri[opts.AzureEnvironment.Value]
+					opts.ADEndpointBaseUrl.Value = shared.AzureADEndpointBaseUri[opts.AzureEnvironment.Value]
 				}
 			}
 			if opts.Environments.Value != nil {
@@ -267,7 +249,7 @@ func PromptMissing(opts *CreateOptions) error {
 	if opts.SubscriptionID.Value == "" {
 		if err := opts.Ask(&survey.Input{
 			Message: "Subscription ID",
-			Help:    "Your Azure subscription ID. This is a GUID in the format xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx.",
+			Help:    "Your Azure Subscription ID. This is a GUID in the format xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx.",
 		}, &opts.SubscriptionID.Value, survey.WithValidator(survey.ComposeValidators(
 			survey.Required,
 			validation.IsUuid,
@@ -291,7 +273,7 @@ func PromptMissing(opts *CreateOptions) error {
 	if opts.ApplicationID.Value == "" {
 		if err := opts.Ask(&survey.Input{
 			Message: "Application ID",
-			Help:    "Your Azure Active Directory Tenant ID. This is a GUID in the format xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx.",
+			Help:    "Your Azure Active Directory Application ID. This is a GUID in the format xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx.",
 		}, &opts.ApplicationID.Value, survey.WithValidator(survey.ComposeValidators(
 			survey.Required,
 			validation.IsUuid,
@@ -320,8 +302,8 @@ func PromptMissing(opts *CreateOptions) error {
 			return err
 		}
 		if shouldConfigureAzureEnvironment {
-			envMapKeys := make([]string, 0, len(azureEnvMap))
-			for keys := range azureEnvMap {
+			envMapKeys := make([]string, 0, len(shared.AzureEnvMap))
+			for keys := range shared.AzureEnvMap {
 				envMapKeys = append(envMapKeys, keys)
 			}
 			if err := opts.Ask(&survey.Select{
@@ -331,7 +313,7 @@ func PromptMissing(opts *CreateOptions) error {
 			}, &opts.AzureEnvironment.Value); err != nil {
 				return err
 			}
-			opts.AzureEnvironment.Value = azureEnvMap[opts.AzureEnvironment.Value]
+			opts.AzureEnvironment.Value = shared.AzureEnvMap[opts.AzureEnvironment.Value]
 		}
 	}
 
@@ -339,7 +321,7 @@ func PromptMissing(opts *CreateOptions) error {
 		if opts.ADEndpointBaseUrl.Value == "" {
 			if err := opts.Ask(&survey.Input{
 				Message: "Active Directory endpoint base URI",
-				Default: azureADEndpointBaseUri[opts.AzureEnvironment.Value],
+				Default: shared.AzureADEndpointBaseUri[opts.AzureEnvironment.Value],
 				Help:    "Set this only if you need to override the default Active Directory Endpoint. In most cases you should leave the pre-populated value as is.",
 			}, &opts.ADEndpointBaseUrl.Value); err != nil {
 				return err
@@ -348,7 +330,7 @@ func PromptMissing(opts *CreateOptions) error {
 		if opts.RMBaseUri.Value == "" {
 			if err := opts.Ask(&survey.Input{
 				Message: "Resource Management Base URI",
-				Default: azureResourceManagementBaseUri[opts.AzureEnvironment.Value],
+				Default: shared.AzureResourceManagementBaseUri[opts.AzureEnvironment.Value],
 				Help:    "Set this only if you need to override the default Resource Management Endpoint. In most cases you should leave the pre-populated value as is.",
 			}, &opts.RMBaseUri.Value); err != nil {
 				return err

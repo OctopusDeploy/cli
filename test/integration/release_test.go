@@ -211,7 +211,7 @@ func TestReleaseListAndDelete(t *testing.T) {
 	}
 
 	// create some releases so we can list them
-	createReleaseCmd := releases.NewCreateReleaseCommandV1(space1ID, fx.Project.ID)
+	createReleaseCmd := releases.NewCreateReleaseCommandV1(space1ID, fx.Project.GetName())
 	for i := 0; i < 5; i++ {
 		createReleaseCmd.ReleaseVersion = fmt.Sprintf("%d.0", i+1)
 		_, err := releases.CreateReleaseV1(apiClient, createReleaseCmd)

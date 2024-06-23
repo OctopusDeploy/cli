@@ -2,13 +2,14 @@ package config
 
 import (
 	"fmt"
-	"github.com/OctopusDeploy/cli/pkg/constants"
-	"github.com/OctopusDeploy/cli/pkg/util"
-	"github.com/spf13/viper"
 	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
+
+	"github.com/OctopusDeploy/cli/pkg/constants"
+	"github.com/OctopusDeploy/cli/pkg/util"
+	"github.com/spf13/viper"
 )
 
 const configName = "cli_config"
@@ -39,6 +40,9 @@ func setDefaults(v *viper.Viper) {
 
 func bindEnvironment(v *viper.Viper) error {
 	if err := v.BindEnv(constants.ConfigApiKey, constants.EnvOctopusApiKey); err != nil {
+		return err
+	}
+	if err := v.BindEnv(constants.ConfigAccessToken, constants.EnvOctopusAccessToken); err != nil {
 		return err
 	}
 	if err := v.BindEnv(constants.ConfigUrl, constants.EnvOctopusUrl); err != nil {

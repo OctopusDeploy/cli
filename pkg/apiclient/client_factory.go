@@ -1,6 +1,7 @@
 package apiclient
 
 import (
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"net/url"
@@ -8,6 +9,7 @@ import (
 
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/constants"
+	"github.com/OctopusDeploy/cli/pkg/output"
 	"github.com/OctopusDeploy/cli/pkg/question"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/spaces"
 	"github.com/spf13/viper"
@@ -40,6 +42,9 @@ type ClientFactory interface {
 
 	// GetHostUrl returns the current set API URL as a string
 	GetHostUrl() string
+
+	// GetHttpClient returns a raw http client which can be used to query Octopus
+	GetHttpClient() (*http.Client, error)
 }
 
 type Client struct {
@@ -57,8 +62,8 @@ type Client struct {
 
 	// the Server URL, obtained from OCTOPUS_URL
 	ApiUrl *url.URL
-	// the Octopus API Key, obtained from OCTOPUS_API_KEY
-	ApiKey string
+	// Credentials, obtained from OCTOPUS_API_KEY or OCTOPUS_ACCESS_TOKEN
+	Credentials octopusApiClient.ICredential
 	// the Octopus SpaceNameOrID to work within. Obtained from OCTOPUS_SPACE (TODO: or --space=XYZ on the command line??)
 	// Required for commands that need a space, but may be omitted for server-wide commands such as listing teams
 	SpaceNameOrID string
@@ -70,14 +75,16 @@ type Client struct {
 	Ask question.AskProvider
 }
 
-func NewClientFactory(httpClient *http.Client, host string, apiKey string, spaceNameOrID string, ask question.AskProvider) (ClientFactory, error) {
+func NewClientFactory(httpClient *http.Client, host string, credentials octopusApiClient.ICredential, spaceNameOrID string, ask question.AskProvider) (ClientFactory, error) {
 	// httpClient is allowed to be nil; it is passed through to the go-octopusdeploy library which falls back to a default httpClient
 	if host == "" {
 		return nil, cliErrors.NewArgumentNullOrEmptyError("host")
 	}
-	if apiKey == "" {
-		return nil, cliErrors.NewArgumentNullOrEmptyError("apiKey")
+
+	if credentials == nil {
+		return nil, cliErrors.NewArgumentNullOrEmptyError("credentials")
 	}
+
 	// space is allowed to be blank, we will prompt for a space in interactive mode, or error if not
 	if ask == nil {
 		return nil, cliErrors.NewArgumentNullOrEmptyError("ask")
@@ -93,7 +100,7 @@ func NewClientFactory(httpClient *http.Client, host string, apiKey string, space
 		SystemClient:      nil,
 		SpaceScopedClient: nil,
 		ApiUrl:            hostUrl,
-		ApiKey:            apiKey,
+		Credentials:       credentials,
 		SpaceNameOrID:     spaceNameOrID,
 		ActiveSpace:       nil,
 		Ask:               ask,
@@ -106,14 +113,16 @@ func NewClientFactory(httpClient *http.Client, host string, apiKey string, space
 func NewClientFactoryFromConfig(ask question.AskProvider) (ClientFactory, error) {
 	host := viper.GetString(constants.ConfigUrl)
 	apiKey := viper.GetString(constants.ConfigApiKey)
+	accessToken := viper.GetString(constants.ConfigAccessToken)
 	spaceNameOrID := viper.GetString(constants.ConfigSpace)
 
-	errs := ValidateMandatoryEnvironment(host, apiKey)
+	errs := ValidateMandatoryEnvironment(host, apiKey, accessToken, ask.IsInteractive())
 	if errs != nil {
 		return nil, errs
 	}
 
 	var httpClient *http.Client
+	http.DefaultTransport.(*http.Transport).TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
 	if ask.IsInteractive() {
 		// spinner round-tripper only needed for interactive mode
 		httpClient = &http.Client{
@@ -121,22 +130,121 @@ func NewClientFactoryFromConfig(ask question.AskProvider) (ClientFactory, error)
 		}
 	}
 
-	return NewClientFactory(httpClient, host, apiKey, spaceNameOrID, ask)
+	var credentials octopusApiClient.ICredential
+
+	if apiKey != "" {
+		apiKeyCredential, err := octopusApiClient.NewApiKey(apiKey)
+
+		if err != nil {
+			return nil, err
+		}
+
+		credentials = apiKeyCredential
+	} else if accessToken != "" {
+		accessTokenCredential, err := octopusApiClient.NewAccessToken(accessToken)
+
+		if err != nil {
+			return nil, err
+		}
+
+		credentials = accessTokenCredential
+	}
+
+	return NewClientFactory(httpClient, host, credentials, spaceNameOrID, ask)
 }
 
-func ValidateMandatoryEnvironment(host string, apiKey string) error {
+func ValidateMandatoryEnvironment(host string, apiKey string, accessToken string, isInteractive bool) error {
 
-	if host == "" || apiKey == "" {
-		err := heredoc.Docf(`
-          To get started with Octopus CLI, please populate the %s and %s environment variables
-          Alternatively you can run:
-            octopus config set %s
-            octopus config set %s
-    `, constants.EnvOctopusUrl, constants.EnvOctopusApiKey, constants.ConfigUrl, constants.ConfigApiKey)
+	if host == "" || (apiKey == "" && accessToken == "") {
+
+		if isInteractive {
+			err := GetInteractiveMandatoryEnvironmentErrorMessage()
+
+			return fmt.Errorf(err)
+		}
+
+		err := GetNonInteractiveMandatoryEnvironmentErrorMessage()
+
 		return fmt.Errorf(err)
 	}
 
 	return nil
+}
+
+func GetInteractiveMandatoryEnvironmentErrorMessage() string {
+
+	octopusLogo := ""
+
+	if viper.GetBool(constants.ConfigShowOctopus) {
+		octopusLogo = output.Cyanf(`
+%s
+`, constants.OctopusLogo)
+	}
+
+	return heredoc.Docf(`
+Work seamlessly with Octopus Deploy from the command line.
+%s
+To get started with the Octopus CLI, please login to your Octopus Server using:
+
+  %s
+
+Alternatively you can set the following environment variables:
+
+  %s: The URL of your Octopus Server
+  %s: An API key to authenticate to the Octopus Server with
+			
+Happy deployments!`,
+		octopusLogo, output.Cyan("octopus login"), output.Cyan(constants.EnvOctopusUrl), output.Cyan(constants.EnvOctopusApiKey))
+}
+
+func GetNonInteractiveMandatoryEnvironmentErrorMessage() string {
+	oidcHeader := output.Bold("OpenID Connect (OIDC)")
+	apiKeyHeader := output.Bold("API Key")
+
+	oidcLoginCommand := output.Cyan("octopus login --server {OctopusServerUrl} --service-account-id {ServiceAccountId} --id-token {IdTokenFromOidcProvider}")
+	apiKeyLoginCommand := output.Cyan("octopus login --server {OctopusServerUrl} --api-key {OctopusApiKey}")
+
+	serverEnvVar := output.Cyan(constants.EnvOctopusUrl)
+	accessTokenEnvVar := output.Cyan(constants.EnvOctopusAccessToken)
+	apiKeyEnvVar := output.Cyan(constants.EnvOctopusApiKey)
+
+	octopusLogo := ""
+
+	if viper.GetBool(constants.ConfigShowOctopus) {
+		octopusLogo = output.Cyanf(`
+%s
+`, constants.OctopusLogo)
+	}
+
+	return heredoc.Docf(`
+Work seamlessly with Octopus Deploy from the command line.
+%s
+The Octopus CLI supports two methods of authentication when using automation:
+
+%s
+
+To use an Octopus access token obtained via OIDC to configure the CLI, set the following environment variables:
+
+  %s: The URL of your Octopus Server
+  %s: The access token obtained from the Octopus Server
+
+To exchange an OIDC ID token for an Octopus access token and configure the CLI:
+
+  %s
+
+%s
+
+To use an existing API key to configure the CLI, set the following environment variables:
+
+  %s: The URL of your Octopus Server
+  %s: The API key to authenticate to the Octopus Server with
+
+Or alternatively:
+  
+  %s
+			
+Happy deployments!`,
+		octopusLogo, oidcHeader, serverEnvVar, accessTokenEnvVar, oidcLoginCommand, apiKeyHeader, serverEnvVar, apiKeyEnvVar, apiKeyLoginCommand)
 }
 
 func (c *Client) GetActiveSpace() *spaces.Space {
@@ -145,6 +253,10 @@ func (c *Client) GetActiveSpace() *spaces.Space {
 
 func (c *Client) GetHostUrl() string {
 	return c.ApiUrl.String()
+}
+
+func (c *Client) GetHttpClient() (*http.Client, error) {
+	return c.HttpClient, nil
 }
 
 func (c *Client) SetSpaceNameOrId(spaceNameOrId string) {
@@ -238,7 +350,7 @@ func (c *Client) GetSpacedClient(requester Requester) (*octopusApiClient.Client,
 		foundSpaceID = foundSpace.ID
 	}
 
-	scopedClient, err := octopusApiClient.NewClientForTool(c.HttpClient, c.ApiUrl, c.ApiKey, foundSpaceID, requester.GetRequester())
+	scopedClient, err := octopusApiClient.NewClientWithCredentials(c.HttpClient, c.ApiUrl, c.Credentials, foundSpaceID, requester.GetRequester())
 	if err != nil {
 		return nil, err
 	}
@@ -265,7 +377,7 @@ func (c *Client) GetSystemClient(requester Requester) (*octopusApiClient.Client,
 		return c.SystemClient, nil
 	}
 
-	systemClient, err := octopusApiClient.NewClientForTool(c.HttpClient, c.ApiUrl, c.ApiKey, "", requester.GetRequester()) // deliberate empty string for space here
+	systemClient, err := octopusApiClient.NewClientWithCredentials(c.HttpClient, c.ApiUrl, c.Credentials, "", requester.GetRequester()) // deliberate empty string for space here
 	if err != nil {
 		return nil, err
 	}
@@ -281,11 +393,11 @@ func NewStubClientFactory() ClientFactory {
 
 type stubClientFactory struct{}
 
-func (s *stubClientFactory) GetSpacedClient(requester Requester) (*octopusApiClient.Client, error) {
+func (s *stubClientFactory) GetSpacedClient(_ Requester) (*octopusApiClient.Client, error) {
 	return nil, errors.New("app is not configured correctly")
 }
 
-func (s *stubClientFactory) GetSystemClient(requester Requester) (*octopusApiClient.Client, error) {
+func (s *stubClientFactory) GetSystemClient(_ Requester) (*octopusApiClient.Client, error) {
 	return nil, errors.New("app is not configured correctly")
 }
 
@@ -294,3 +406,7 @@ func (s *stubClientFactory) GetActiveSpace() *spaces.Space { return nil }
 func (s *stubClientFactory) SetSpaceNameOrId(_ string) {}
 
 func (s *stubClientFactory) GetHostUrl() string { return "" }
+
+func (s *stubClientFactory) GetHttpClient() (*http.Client, error) {
+	return nil, nil
+}
