@@ -349,7 +349,7 @@ func TestParseVariableStringArray(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			result, err := executionscommon.ParseVariableStringArray(test.input, true)
+			result, err := executionscommon.ParseVariableStringArray(test.input)
 			assert.Equal(t, test.expectErr, err)
 			assert.Equal(t, test.expect, result)
 		})

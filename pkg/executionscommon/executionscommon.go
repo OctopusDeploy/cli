@@ -297,10 +297,10 @@ func AskVariableSpecificPrompt(asker question.Asker, message string, variableTyp
 	}
 }
 
-func ParseVariableStringArray(variables []string, enableEscape bool) (map[string]string, error) {
+func ParseVariableStringArray(variables []string) (map[string]string, error) {
 	result := make(map[string]string, len(variables))
 	for _, v := range variables {
-		components := splitVariableString(v, 2, enableEscape)
+		components := splitVariableString(v, 2)
 		if len(components) != 2 || components[0] == "" || components[1] == "" {
 			return nil, fmt.Errorf("could not parse variable definition '%s'", v)
 		}
@@ -346,7 +346,7 @@ func LookupPackageDownloadString(value bool) string {
 // it is required because the builtin go strings.SplitN can't handle more than one delimeter character.
 // otherwise it works the same, but caps the number of splits at 'n'
 
-func splitVariableString(s string, n int, enableEscape bool) []string {
+func splitVariableString(s string, n int) []string {
 	// pass 1: collect spans; golang strings.FieldsFunc says it's much more efficient this way
 	type span struct {
 		start int
@@ -359,12 +359,12 @@ func splitVariableString(s string, n int, enableEscape bool) []string {
 	escaped := false
 
 	for idx, ch := range s {
-		if enableEscape && ch == '\\' && !escaped {
+		if ch == '\\' && !escaped {
 			escaped = true
 			continue
 		}
 
-		if (ch == ':' || ch == '=') && (!enableEscape || !escaped) {
+		if (ch == ':' || ch == '=') && (!escaped) {
 			if start >= 0 { // we found a delimiter and we are already in a span; end the span and start a new one
 				if len(spans) == n-1 { // we're about to append the last span, break so the 'last field' code consumes the rest of the string
 					break
@@ -393,11 +393,9 @@ func splitVariableString(s string, n int, enableEscape bool) []string {
 		a[i] = s[span.start:span.end]
 	}
 
-	// If escape sequences are enabled, unescape the parts
-	if enableEscape {
-		for i, part := range a {
-			a[i] = unescape(part)
-		}
+	// the parts
+	for i, part := range a {
+		a[i] = unescape(part)
 	}
 
 	return a
