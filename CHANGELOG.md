@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.3.1](https://github.com/OctopusDeploy/cli/compare/v2.3.0...v2.3.1) (2024-06-26)
+
+
+### Bug Fixes
+
+* Add ability to escape special character when parsing variables argument ([377ddb2](https://github.com/OctopusDeploy/cli/commit/377ddb2102747914be362a496d63876e3a442c4f))
+
 ## [2.3.0](https://github.com/OctopusDeploy/cli/compare/v2.2.1...v2.3.0) (2024-05-31)
 
 

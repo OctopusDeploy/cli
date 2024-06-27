@@ -1,3 +1,5 @@
+version: 2
+
 project_name: octopus
 
 release:
@@ -63,12 +65,12 @@ signs:
     stdin: "{{ .Env.GPG_PASSWORD }}"
 
 changelog:
-  skip: true
+  disable: true
 
 brews:
   - name: "octopus-cli"
 
-    tap:
+    repository:
       owner: OctopusDeploy
       name: homebrew-taps
 
