@@ -5,7 +5,7 @@ go 1.21
 require (
 	github.com/AlecAivazis/survey/v2 v2.3.6
 	github.com/MakeNowJust/heredoc/v2 v2.0.1
-	github.com/OctopusDeploy/go-octopusdeploy/v2 v2.38.1
+	github.com/OctopusDeploy/go-octopusdeploy/v2 v2.44.2-0.20240629192925-20edc738f146
 	github.com/bmatcuk/doublestar/v4 v4.4.0
 	github.com/briandowns/spinner v1.19.0
 	github.com/google/uuid v1.3.0
