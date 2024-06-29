@@ -1,8 +1,10 @@
 package upload_test
 
 import (
+	"archive/zip"
 	"bytes"
 	"context"
+	cryptoRand "crypto/rand"
 	"encoding/base64"
 	"encoding/hex"
 	"github.com/MakeNowJust/heredoc/v2"
@@ -10,6 +12,7 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/test/fixtures"
 	"github.com/OctopusDeploy/cli/test/testutil"
+	"github.com/OctopusDeploy/go-octodiff/pkg/octodiff"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/packages"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/resources"
 	"github.com/spf13/cobra"
@@ -23,30 +26,47 @@ import (
 
 var rootResource = testutil.NewRootResource()
 
+// Remember: These are wiremock-style tests which simulate the HTTP requests and responses from Octopus Server.
+// That layer is handled by the go-octopusdeploy library which has its own integration tests that upload packages,
+// both delta and not, to a real Octopus Server. This test suite is about the CLI's interaction with the library.
 func TestPackageUpload(t *testing.T) {
 	const spaceID = "Spaces-1"
 	space1 := fixtures.NewSpace(spaceID, "Default Space")
 
-	// delta data is taken from octodiff tests so we can be sure it's correct
-	createFileForDelta := func(modifyContents func([]byte)) []byte {
-		contents, _ := base64.StdEncoding.DecodeString("MIICBDCCAaugAwIBAgIUGNg/B3GL5BId8KGNdhD6+NejvsQwCgYIKoZIzj0EAwIwWDELMAkGA1UEBhMCQVUxEzARBgNVBAgMClNvbWUtU3RhdGUxFzAVBgNVBAoMDk9jdG9wdXMgRGVwbG95MQwwCgYDVQQLDANSJkQxDTALBgNVBAMMBFRFU1QwHhcNMjMwMzIwMDk0ODQyWhcNMjQwMzE5MDk0ODQyWjBYMQswCQYDVQQGEwJBVTETMBEGA1UECAwKU29tZS1TdGF0ZTEXMBUGA1UECgwOT2N0b3B1cyBEZXBsb3kxDDAKBgNVBAsMA1ImRDENMAsGA1UEAwwEVEVTVDBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABFBLdySNg+Lj4gm7sil6Dk0k/0Xnnv+I3RZeZBmumFEtq9IhnaRuk9f/mNWhy4AxSlfzfQkx7PfzvUvOISz9LLqjUzBRMB0GA1UdDgQWBBS63SeKMeASd2r7/aTq2P3OkE8O/DAfBgNVHSMEGDAWgBS63SeKMeASd2r7/aTq2P3OkE8O/DAPBgNVHRMBAf8EBTADAQH/MAoGCCqGSM49BAMCA0cAMEQCIFmc75IBFbZKfQvH3lWoS7p/Be54uekDr3y1K0pdzI6iAiAGV1RF2rnCEyWkjeO9fOUaNGEgFadGSHh8en4DJkU3cA==")
-		if modifyContents != nil {
-			modifyContents(contents)
-		}
-		return contents
-	}
+	// we need a bigger file to make the delta worthwhile. Random so it shouldn't compress too much
+	randomContent1 := make([]byte, 2*1024)
+	_, err := cryptoRand.Read(randomContent1)
+	require.NoError(t, err)
+
+	zipFileBytes1 := createZip(t, zippedFile{
+		name:    "content.txt",
+		content: randomContent1,
+	})
+
+	randomContent2 := make([]byte, 2*1024)
+	_, err = cryptoRand.Read(randomContent2)
+	require.NoError(t, err)
+
+	zipFileBytes2 := createZip(t, zippedFile{
+		name:    "content.txt",
+		content: randomContent1,
+	}, zippedFile{
+		name:    "content2.txt",
+		content: randomContent2,
+	})
+
+	const testPkg1FileName = "test.1.0.zip"
+	const otherPkg11FileName = "other.1.1.zip"
+	const deltaPkg1FileName = "deltapkg.1.0.zip"
+	const deltaPkg2FileName = "deltapkg.2.0.zip"
 
 	// this is our "virtual filesystem". It's not really a VFS and we can't unit test path globbing at the moment, but it'll do
 	files := map[string][]byte{
-		"test.1.0.zip":  []byte("test1-contents"),
-		"other.1.1.zip": []byte("other-contents"),
+		testPkg1FileName:   []byte("test1-contents"),
+		otherPkg11FileName: []byte("other-contents"),
 		// for delta upload tests
-		"deltapkg.1.0.zip": createFileForDelta(nil),
-		"deltapkg.2.0.zip": createFileForDelta(func(b []byte) {
-			b[32] = 0xaa
-			b[33] = 0xab
-			b[34] = 0xac
-		}),
+		deltaPkg1FileName: zipFileBytes1,
+		deltaPkg2FileName: zipFileBytes2,
 	}
 	opener := func(name string) (io.ReadSeekCloser, error) {
 		if contents, ok := files[name]; ok {
@@ -80,7 +100,7 @@ func TestPackageUpload(t *testing.T) {
 		{"uploads a single package (delta disabled)", func(t *testing.T, api *testutil.MockHttpServer, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
 			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
 				defer api.Close()
-				rootCmd.SetArgs([]string{"package", "upload", "test.1.0.zip", "--use-delta-compression", "false"})
+				rootCmd.SetArgs([]string{"package", "upload", testPkg1FileName})
 				rootCmd.SetContext(contextWithOpener)
 				return rootCmd.ExecuteC()
 			})
@@ -96,12 +116,12 @@ func TestPackageUpload(t *testing.T) {
 			boundary := string(buf[2:62]) // the boundary will be random but is always in the same place/format so we can extract it
 			assert.Equal(t, crlf(heredoc.Docf(`
 			--%s
-			Content-Disposition: form-data; name="file"; filename="test.1.0.zip"
+			Content-Disposition: form-data; name="file"; filename="%s"
 			Content-Type: application/octet-stream
 			
 			test1-contents
 			--%s--
-			`, boundary, boundary)), string(buf[:bytesRead]))
+			`, boundary, testPkg1FileName, boundary)), string(buf[:bytesRead]))
 
 			req.RespondWithStatus(201, "201 Created", &packages.PackageUploadResponse{
 				PackageSizeBytes: len(files["test1.zip"]),
@@ -122,7 +142,7 @@ func TestPackageUpload(t *testing.T) {
 		{"uploads multiple packages (delta disabled)", func(t *testing.T, api *testutil.MockHttpServer, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
 			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
 				defer api.Close()
-				rootCmd.SetArgs([]string{"package", "upload", "-p", "test.1.0.zip", "--package", "other.1.1.zip", "--use-delta-compression", "false"})
+				rootCmd.SetArgs([]string{"package", "upload", "-p", testPkg1FileName, "--package", otherPkg11FileName})
 				rootCmd.SetContext(contextWithOpener)
 				return rootCmd.ExecuteC()
 			})
@@ -139,15 +159,15 @@ func TestPackageUpload(t *testing.T) {
 			boundary := string(buf[2:62])
 			assert.Equal(t, crlf(heredoc.Docf(`
 			--%s
-			Content-Disposition: form-data; name="file"; filename="test.1.0.zip"
+			Content-Disposition: form-data; name="file"; filename="%s"
 			Content-Type: application/octet-stream
 			
 			test1-contents
 			--%s--
-			`, boundary, boundary)), string(buf[:bytesRead]))
+			`, boundary, testPkg1FileName, boundary)), string(buf[:bytesRead]))
 
 			req.RespondWithStatus(201, "201 Created", &packages.PackageUploadResponse{
-				PackageSizeBytes: len(files["test.1.0.zip"]),
+				PackageSizeBytes: len(files[testPkg1FileName]),
 				Hash:             "some-hash",
 				PackageId:        "test",
 				Title:            "test.1.0",
@@ -164,15 +184,15 @@ func TestPackageUpload(t *testing.T) {
 			boundary = string(buf[2:62])
 			assert.Equal(t, crlf(heredoc.Docf(`
 			--%s
-			Content-Disposition: form-data; name="file"; filename="other.1.1.zip"
+			Content-Disposition: form-data; name="file"; filename="%s"
 			Content-Type: application/octet-stream
 			
 			other-contents
 			--%s--
-			`, boundary, boundary)), string(buf[:bytesRead]))
+			`, boundary, otherPkg11FileName, boundary)), string(buf[:bytesRead]))
 
 			req.RespondWithStatus(201, "201 Created", &packages.PackageUploadResponse{
-				PackageSizeBytes: len(files["other.1.1.zip"]),
+				PackageSizeBytes: len(files[otherPkg11FileName]),
 				Hash:             "some-hash",
 				PackageId:        "other",
 				Title:            "other.1.1",
@@ -190,7 +210,7 @@ func TestPackageUpload(t *testing.T) {
 		{"sets overwriteMode (delta disabled)", func(t *testing.T, api *testutil.MockHttpServer, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
 			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
 				defer api.Close()
-				rootCmd.SetArgs([]string{"package", "upload", "test.1.0.zip", "--overwrite-mode", "overwrite", "--use-delta-compression", "false"})
+				rootCmd.SetArgs([]string{"package", "upload", testPkg1FileName, "--overwrite-mode", "overwrite"})
 				rootCmd.SetContext(contextWithOpener)
 				return rootCmd.ExecuteC()
 			})
@@ -223,7 +243,7 @@ func TestPackageUpload(t *testing.T) {
 		{"uploads multiple packages; default behaviour of failing on first error (delta disabled)", func(t *testing.T, api *testutil.MockHttpServer, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
 			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
 				defer api.Close()
-				rootCmd.SetArgs([]string{"package", "upload", "-p", "test.1.0.zip", "--package", "other.1.1.zip", "--use-delta-compression", "false"})
+				rootCmd.SetArgs([]string{"package", "upload", "-p", testPkg1FileName, "--package", otherPkg11FileName})
 				rootCmd.SetContext(contextWithOpener)
 				return rootCmd.ExecuteC()
 			})
@@ -247,7 +267,7 @@ func TestPackageUpload(t *testing.T) {
 		{"uploads multiple packages; --continue-on-error (delta disabled)", func(t *testing.T, api *testutil.MockHttpServer, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
 			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
 				defer api.Close()
-				rootCmd.SetArgs([]string{"package", "upload", "-p", "test.1.0.zip", "--package", "other.1.1.zip", "--continue-on-error", "--use-delta-compression", "false"})
+				rootCmd.SetArgs([]string{"package", "upload", "-p", testPkg1FileName, "--package", otherPkg11FileName, "--continue-on-error"})
 				rootCmd.SetContext(contextWithOpener)
 				return rootCmd.ExecuteC()
 			})
@@ -269,7 +289,7 @@ func TestPackageUpload(t *testing.T) {
 			assert.Equal(t, 259, bytesRead)
 
 			req.RespondWithStatus(201, "201 Created", &packages.PackageUploadResponse{
-				PackageSizeBytes: len(files["other.1.1.zip"]),
+				PackageSizeBytes: len(files[otherPkg11FileName]),
 				Hash:             "some-hash",
 				PackageId:        "other",
 				Title:            "other.1.1",
@@ -287,7 +307,7 @@ func TestPackageUpload(t *testing.T) {
 		{"uploads multiple packages; doesn't upload the same file more than once (delta disabled)", func(t *testing.T, api *testutil.MockHttpServer, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
 			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
 				defer api.Close()
-				rootCmd.SetArgs([]string{"package", "upload", "-p", "test.1.0.zip", "--package", "test.1.0.zip", "test.1.0.zip", "--use-delta-compression", "false"})
+				rootCmd.SetArgs([]string{"package", "upload", "-p", testPkg1FileName, "--package", testPkg1FileName, testPkg1FileName})
 				rootCmd.SetContext(contextWithOpener)
 				return rootCmd.ExecuteC()
 			})
@@ -302,7 +322,7 @@ func TestPackageUpload(t *testing.T) {
 			assert.Equal(t, 258, bytesRead)
 
 			req.RespondWithStatus(201, "201 Created", &packages.PackageUploadResponse{
-				PackageSizeBytes: len(files["test.1.0.zip"]),
+				PackageSizeBytes: len(files[testPkg1FileName]),
 				Hash:             "some-hash",
 				PackageId:        "test",
 				Title:            "test.1.0",
@@ -322,7 +342,7 @@ func TestPackageUpload(t *testing.T) {
 		{"output-format=json, uploads multiple packages; --continue-on-error (delta disabled)", func(t *testing.T, api *testutil.MockHttpServer, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
 			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
 				defer api.Close()
-				rootCmd.SetArgs([]string{"package", "upload", "-p", "test.1.0.zip", "--package", "other.1.1.zip", "--continue-on-error", "--output-format", "json", "--use-delta-compression", "false"})
+				rootCmd.SetArgs([]string{"package", "upload", "-p", testPkg1FileName, "--package", otherPkg11FileName, "--continue-on-error", "--output-format", "json"})
 				rootCmd.SetContext(contextWithOpener)
 				return rootCmd.ExecuteC()
 			})
@@ -344,7 +364,7 @@ func TestPackageUpload(t *testing.T) {
 			assert.Equal(t, 259, bytesRead)
 
 			req.RespondWithStatus(201, "201 Created", &packages.PackageUploadResponse{
-				PackageSizeBytes: len(files["other.1.1.zip"]),
+				PackageSizeBytes: len(files[otherPkg11FileName]),
 				Hash:             "some-hash",
 				PackageId:        "other",
 				Title:            "other.1.1",
@@ -369,8 +389,8 @@ func TestPackageUpload(t *testing.T) {
 			assert.Nil(t, err)
 
 			assert.Equal(t, xr{
-				Succeeded: []sr{{PackagePath: "other.1.1.zip"}},
-				Failed:    []fr{{PackagePath: "test.1.0.zip", Error: "Octopus API error: the package is not gluten-free [] "}},
+				Succeeded: []sr{{PackagePath: otherPkg11FileName}},
+				Failed:    []fr{{PackagePath: testPkg1FileName, Error: "Octopus API error: the package is not gluten-free [] "}},
 			}, parsedStdout)
 			assert.Equal(t, "", stdErr.String())
 		}},
@@ -378,12 +398,12 @@ func TestPackageUpload(t *testing.T) {
 		{"uploads a single package (delta enabled, no baseline so fallback to full upload)", func(t *testing.T, api *testutil.MockHttpServer, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
 			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
 				defer api.Close()
-				rootCmd.SetArgs([]string{"package", "upload", "test.1.0.zip"})
+				rootCmd.SetArgs([]string{"package", "upload", testPkg1FileName, "--use-delta-compression"})
 				rootCmd.SetContext(contextWithOpener)
 				return rootCmd.ExecuteC()
 			})
 
-			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
 			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
 
 			req := api.ExpectRequest(t, "GET", "/api/Spaces-1/packages/test/1.0/delta-signature")
@@ -398,12 +418,12 @@ func TestPackageUpload(t *testing.T) {
 			boundary := string(buf[2:62]) // the boundary will be random but is always in the same place/format so we can extract it
 			assert.Equal(t, crlf(heredoc.Docf(`
 			--%s
-			Content-Disposition: form-data; name="file"; filename="test.1.0.zip"
+			Content-Disposition: form-data; name="file"; filename="%s"
 			Content-Type: application/octet-stream
 			
 			test1-contents
 			--%s--
-			`, boundary, boundary)), string(buf[:bytesRead]))
+			`, boundary, testPkg1FileName, boundary)), string(buf[:bytesRead]))
 
 			req.RespondWithStatus(201, "201 Created", &packages.PackageUploadResponse{
 				PackageSizeBytes: len(files["test1.zip"]),
@@ -416,35 +436,46 @@ func TestPackageUpload(t *testing.T) {
 
 			_, err = testutil.ReceivePair(cmdReceiver)
 			assert.Nil(t, err)
-			// http status of 200 means 'processed', we might ignored an existing file
-			assert.Equal(t, "Uploaded package test.1.0.zip\n", stdOut.String())
+			// http status of 200 means 'processed', we might ignore an existing file
+			assert.Equal(t, "Uploaded package test.1.0.zip\n    Full upload for package test.1.0.zip. No previous versions available\n", stdOut.String())
 			assert.Equal(t, "", stdErr.String())
 		}},
 
 		{"uploads a package using delta compression", func(t *testing.T, api *testutil.MockHttpServer, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
 			// in this scenario the server pretends it already has deltapkg.1.0 and returns the signature for it
 			// and we are uploading deltapkg.2.0 (which is in our virtual filesystem, see top)
+
 			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
 				defer api.Close()
-				rootCmd.SetArgs([]string{"package", "upload", "deltapkg.2.0.zip"})
+				rootCmd.SetArgs([]string{"package", "upload", "deltapkg.2.0.zip", "--use-delta-compression"})
 				rootCmd.SetContext(contextWithOpener)
 				return rootCmd.ExecuteC()
 			})
 
-			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
 			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
 
-			// in this instance we pretend that file 1.0 was our fake testdata from octodiff.test
-			// which is base64 MIICBDCCAaugAwIBAgIUGNg/B3GL5BId8KGNdhD6+NejvsQwCgYIKoZIzj0EAwIwWDELMAkGA1UEBhMCQVUxEzARBgNVBAgMClNvbWUtU3RhdGUxFzAVBgNVBAoMDk9jdG9wdXMgRGVwbG95MQwwCgYDVQQLDANSJkQxDTALBgNVBAMMBFRFU1QwHhcNMjMwMzIwMDk0ODQyWhcNMjQwMzE5MDk0ODQyWjBYMQswCQYDVQQGEwJBVTETMBEGA1UECAwKU29tZS1TdGF0ZTEXMBUGA1UECgwOT2N0b3B1cyBEZXBsb3kxDDAKBgNVBAsMA1ImRDENMAsGA1UEAwwEVEVTVDBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABFBLdySNg+Lj4gm7sil6Dk0k/0Xnnv+I3RZeZBmumFEtq9IhnaRuk9f/mNWhy4AxSlfzfQkx7PfzvUvOISz9LLqjUzBRMB0GA1UdDgQWBBS63SeKMeASd2r7/aTq2P3OkE8O/DAfBgNVHSMEGDAWgBS63SeKMeASd2r7/aTq2P3OkE8O/DAPBgNVHRMBAf8EBTADAQH/MAoGCCqGSM49BAMCA0cAMEQCIFmc75IBFbZKfQvH3lWoS7p/Be54uekDr3y1K0pdzI6iAiAGV1RF2rnCEyWkjeO9fOUaNGEgFadGSHh8en4DJkU3cA==
+			// the CLI requests a signature file from the server, which returns the valid base64 encoded signature
+			var file1SigBuffer bytes.Buffer
+			require.NoError(t, octodiff.NewSignatureBuilder().Build(bytes.NewReader(zipFileBytes1), int64(len(zipFileBytes1)), &file1SigBuffer))
+			file1SigBytes := file1SigBuffer.Bytes()
 
-			// we request a signature file, which is (per octodiff tests)
-			signatureBase64 := "T0NUT1NJRwEEU0hBMQdBZGxlcjMyPj4+CAL3n6LwMwvQaYLTtdvabBpq0WaHoM2wPA0="
+			// also build the expected delta between zip1 and zip2, so we can assert that the CLI sends it to us
+			var file2DeltaBuffer bytes.Buffer
+			require.NoError(t, octodiff.NewDeltaBuilder().Build(
+				bytes.NewReader(zipFileBytes2),
+				int64(len(zipFileBytes2)),
+				bytes.NewReader(file1SigBytes),
+				int64(len(file1SigBytes)),
+				octodiff.NewBinaryDeltaWriter(&file2DeltaBuffer)))
+			file2DeltaBytes := file2DeltaBuffer.Bytes()
+
+			signatureBase64 := base64.StdEncoding.EncodeToString(file1SigBytes)
 			signatureResponse := map[string]any{"baseVersion": "1.0", "signature": signatureBase64}
 
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/packages/deltapkg/2.0/delta-signature").RespondWith(signatureResponse)
 
 			// now it should go and open deltapkg.2.0.zip from the virtual filesystem, calculate the delta, and post it back
-
 			req := api.ExpectRequest(t, "POST", "/api/Spaces-1/packages/deltapkg/1.0/delta?overwriteMode=FailIfExists")
 
 			buf := make([]byte, 8192)
@@ -459,15 +490,14 @@ func TestPackageUpload(t *testing.T) {
 			
 			`, boundary))
 
-			expectedDelta, _ := base64.StdEncoding.DecodeString("T0NUT0RFTFRBAQRTSEExFAAAABS6ZO6rrSld1gz6vWSP8Xa2SJB3Pj4+gAgCAAAAAAAAMIICBDCCAaugAwIBAgIUGNg/B3GL5BId8KGNdhD6+Neqq6wwCgYIKoZIzj0EAwIwWDELMAkGA1UEBhMCQVUxEzARBgNVBAgMClNvbWUtU3RhdGUxFzAVBgNVBAoMDk9jdG9wdXMgRGVwbG95MQwwCgYDVQQLDANSJkQxDTALBgNVBAMMBFRFU1QwHhcNMjMwMzIwMDk0ODQyWhcNMjQwMzE5MDk0ODQyWjBYMQswCQYDVQQGEwJBVTETMBEGA1UECAwKU29tZS1TdGF0ZTEXMBUGA1UECgwOT2N0b3B1cyBEZXBsb3kxDDAKBgNVBAsMA1ImRDENMAsGA1UEAwwEVEVTVDBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABFBLdySNg+Lj4gm7sil6Dk0k/0Xnnv+I3RZeZBmumFEtq9IhnaRuk9f/mNWhy4AxSlfzfQkx7PfzvUvOISz9LLqjUzBRMB0GA1UdDgQWBBS63SeKMeASd2r7/aTq2P3OkE8O/DAfBgNVHSMEGDAWgBS63SeKMeASd2r7/aTq2P3OkE8O/DAPBgNVHRMBAf8EBTADAQH/MAoGCCqGSM49BAMCA0cAMEQCIFmc75IBFbZKfQvH3lWoS7p/Be54uekDr3y1K0pdzI6iAiAGV1RF2rnCEyWkjeO9fOUaNGEgFadGSHh8en4DJkU3cA==")
-
 			expectedTrailer := crlf(heredoc.Docf(`
 
 			--%s--
 			`, boundary))
 
 			expectedFullBody := append(
-				append([]byte(expectedHeader), expectedDelta...),
+				append([]byte(expectedHeader),
+					file2DeltaBytes...), // the delta bytes should appear in the body of the multipart POST
 				[]byte(expectedTrailer)...)
 
 			assert.Equal(t, hex.EncodeToString(expectedFullBody), hex.EncodeToString(buf[:bytesRead]))
@@ -483,8 +513,8 @@ func TestPackageUpload(t *testing.T) {
 
 			_, err = testutil.ReceivePair(cmdReceiver)
 			assert.Nil(t, err)
-			// http status of 200 means 'processed', we might ignored an existing file
-			assert.Equal(t, "Uploaded package deltapkg.2.0.zip\n", stdOut.String())
+			// http status of 200 means 'processed', we might ignore an existing file
+			assert.Equal(t, "Uploaded package deltapkg.2.0.zip\n    Delta upload for package deltapkg.2.0.zip.\n    Delta size was 54.7% of full file, saving 1.9 KiB\n", stdOut.String())
 			assert.Equal(t, "", stdErr.String())
 		}},
 	}
@@ -526,3 +556,26 @@ func (c *nopReadSeekCloser) Close() error {
 }
 
 var _ io.ReadSeekCloser = (*nopReadSeekCloser)(nil)
+
+type zippedFile struct {
+	name    string
+	content []byte
+}
+
+func createZip(t *testing.T, files ...zippedFile) []byte {
+	var zipBuffer bytes.Buffer
+	zipWriter := zip.NewWriter(&zipBuffer)
+
+	for _, file := range files {
+		fileWriter, err := zipWriter.Create(file.name)
+		require.NoError(t, err)
+
+		_, err = fileWriter.Write(file.content)
+		require.NoError(t, err)
+	}
+
+	err := zipWriter.Close()
+	require.NoError(t, err)
+
+	return zipBuffer.Bytes()
+}
