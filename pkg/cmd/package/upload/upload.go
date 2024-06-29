@@ -4,13 +4,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/OctopusDeploy/cli/pkg/apiclient"
 	"io"
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
-
-	"github.com/OctopusDeploy/cli/pkg/apiclient"
 
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/constants"
@@ -249,20 +247,6 @@ func uploadRun(cmd *cobra.Command, f factory.Factory, flags *UploadFlags) error 
 		return errors.New("one or more packages failed to upload")
 	}
 	return nil
-}
-
-// derived from https://stackoverflow.com/a/58415564/234 by https://stackoverflow.com/users/1705598/icza
-func roundDuration(d time.Duration) time.Duration {
-	divTo2dp := time.Duration(100)
-	switch {
-	case d > time.Second:
-		d = d.Round(time.Second / divTo2dp)
-	case d > time.Millisecond:
-		d = d.Round(time.Millisecond / divTo2dp)
-	case d > time.Microsecond:
-		d = d.Round(time.Microsecond / divTo2dp)
-	}
-	return d
 }
 
 func uploadFileAtPath(octopus newclient.Client, space *spaces.Space, path string, overwriteMode packages.OverwriteMode, useDeltaCompression bool, cmd *cobra.Command) (*packages.PackageUploadResponseV2, error) {
