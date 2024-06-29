@@ -7,7 +7,6 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"time"
 
@@ -41,12 +40,9 @@ const (
 )
 
 type UploadFlags struct {
-	Package       *flag.Flag[[]string]
-	OverwriteMode *flag.Flag[string]
-
-	// Note: string here because cobra doesn't handle bool(default=true) well.
-	// If this were a bool flag, and the user entered --use-delta-compression false, it would come out as true
-	UseDeltaCompression *flag.Flag[string]
+	Package             *flag.Flag[[]string]
+	OverwriteMode       *flag.Flag[string]
+	UseDeltaCompression *flag.Flag[bool]
 	ContinueOnError     *flag.Flag[bool]
 }
 
@@ -54,7 +50,7 @@ func NewUploadFlags() *UploadFlags {
 	return &UploadFlags{
 		Package:             flag.New[[]string](FlagPackage, false),
 		OverwriteMode:       flag.New[string](FlagOverwriteMode, false),
-		UseDeltaCompression: flag.New[string](FlagUseDeltaCompression, false),
+		UseDeltaCompression: flag.New[bool](FlagUseDeltaCompression, false),
 		ContinueOnError:     flag.New[bool](FlagContinueOnError, false),
 	}
 }
@@ -64,7 +60,7 @@ func NewCmdUpload(f factory.Factory) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "upload",
 		Short:   "upload one or more packages to Octopus Deploy",
-		Long:    "upload one or more packages to Octopus Deploy. Glob patterns are supported.",
+		Long:    "upload one or more packages to Octopus Deploy. Glob patterns are supported. Delta compression is off by default.",
 		Aliases: []string{"push"},
 		Example: heredoc.Docf(`
 			$ %[1]s package upload --package SomePackage.1.0.0.zip
@@ -72,8 +68,8 @@ func NewCmdUpload(f factory.Factory) *cobra.Command {
 			$ %[1]s package push SomePackage.1.0.0.zip	
 			$ %[1]s package upload bin/**/*.zip --continue-on-error
 			$ %[1]s package upload PkgA.1.0.0.zip PkgB.2.0.0.tar.gz PkgC.1.0.0.nupkg
-			$ %[1]s package upload --package SomePackage.2.0.0.zip --use-delta-compression false
-			$ %[1]s package upload SomePackage.2.0.0.zip --delta false
+			$ %[1]s package upload --package SomePackage.2.0.0.zip --use-delta-compression
+			$ %[1]s package upload SomePackage.2.0.0.zip -d
 		`, constants.ExecutableName),
 		Annotations: map[string]string{annotations.IsCore: "true"},
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -88,13 +84,13 @@ func NewCmdUpload(f factory.Factory) *cobra.Command {
 	flags := cmd.Flags()
 	flags.StringArrayVarP(&uploadFlags.Package.Value, uploadFlags.Package.Name, "p", nil, "Package to upload, may be specified multiple times. Any arguments without flags will be treated as packages")
 	flags.StringVarP(&uploadFlags.OverwriteMode.Value, uploadFlags.OverwriteMode.Name, "", "", "Action when a package already exists. Valid values are 'fail', 'overwrite', 'ignore'. Default is 'fail'")
-	flags.BoolVarP(&uploadFlags.ContinueOnError.Value, uploadFlags.ContinueOnError.Name, "", false, "When uploading multiple packages, controls whether the CLI continues after a failed upload. Default is to abort.")
-	flags.StringVarP(&uploadFlags.UseDeltaCompression.Value, uploadFlags.UseDeltaCompression.Name, "", "true", "If true, will attempt to use delta compression when uploading. Valid values are true or false. Defaults to true.")
+	flags.BoolVarP(&uploadFlags.ContinueOnError.Value, uploadFlags.ContinueOnError.Name, "", false, "When uploading multiple packages, controls whether the CLI continues after a failed upload. Default is to abort")
+	flags.BoolVarP(&uploadFlags.UseDeltaCompression.Value, uploadFlags.UseDeltaCompression.Name, "d", false, "Will attempt to use delta compression when uploading. Default is false. --delta also works")
 	flags.SortFlags = false
 
 	flagAliases := make(map[string][]string, 1)
 	util.AddFlagAliasesString(flags, FlagOverwriteMode, flagAliases, FlagAliasOverwrite, FlagAliasOverwriteMode)
-	util.AddFlagAliasesString(flags, FlagUseDeltaCompression, flagAliases, FlagAliasDelta)
+	util.AddFlagAliasesBool(flags, FlagUseDeltaCompression, flagAliases, FlagAliasDelta)
 
 	cmd.PreRunE = func(cmd *cobra.Command, args []string) error {
 		util.ApplyFlagAliases(cmd.Flags(), flagAliases)
@@ -147,11 +143,7 @@ func uploadRun(cmd *cobra.Command, f factory.Factory, flags *UploadFlags) error 
 		return fmt.Errorf("invalid value '%s' for --overwrite-mode. Valid values are 'fail', 'ignore', 'overwrite'", overwriteMode)
 	}
 
-	useDeltaCompressionStr := flags.UseDeltaCompression.Value
-	useDeltaCompression, err := strconv.ParseBool(useDeltaCompressionStr)
-	if err != nil {
-		useDeltaCompression = true
-	}
+	useDeltaCompression := flags.UseDeltaCompression.Value
 
 	var jsonResult uploadViewModel
 	didErrorsOccur := false
@@ -160,9 +152,7 @@ func uploadRun(cmd *cobra.Command, f factory.Factory, flags *UploadFlags) error 
 	seenPackages := make(map[string]bool)
 	doUpload := func(path string) error {
 		if !seenPackages[path] {
-			uploadStartTime := time.Now()
 			uploadResult, err := uploadFileAtPath(octopus, space, path, resolvedOverwriteMode, useDeltaCompression, cmd)
-			uploadDuration := time.Since(uploadStartTime)
 
 			seenPackages[path] = true // whether a given package succeeds or fails, we still don't want to process it twice
 
@@ -211,27 +201,17 @@ func uploadRun(cmd *cobra.Command, f factory.Factory, flags *UploadFlags) error 
 
 						switch deltaInfo.DeltaBehaviour {
 						case packages.DeltaBehaviourNoPreviousFile:
-							cmd.Printf("    Full upload for package %s. No previous versions available\n"+
-								"    Timing: Signature %v, Upload %v\n",
-								path, roundDuration(deltaInfo.RequestSignatureDuration), roundDuration(deltaInfo.UploadDuration))
+							cmd.Printf("    Full upload for package %s. No previous versions available\n", path)
 						case packages.DeltaBehaviourNotEfficient:
-							cmd.Printf("    Full upload for package %s. Delta size was %.1f%% of full file (too large)\n"+
-								"    Timing: Signature %v, Build Delta %v, Upload %v\n",
-								path, deltaRatio,
-								roundDuration(deltaInfo.RequestSignatureDuration), roundDuration(deltaInfo.BuildDeltaDuration), roundDuration(deltaInfo.UploadDuration))
+							cmd.Printf("    Full upload for package %s. Delta size was %.1f%% of full file (too large)\n", path, deltaRatio)
 						case packages.DeltaBehaviourUploadedDeltaFile:
 							cmd.Printf("    Delta upload for package %s.\n"+
-								"    Delta size was %.1f%% of full file, saving %d bytes\n"+
-								"    Timing: Signature %v, Build Delta %v, Upload %v\n",
-								path, deltaRatio, deltaInfo.FileSize-deltaInfo.DeltaSize,
-								roundDuration(deltaInfo.RequestSignatureDuration), roundDuration(deltaInfo.BuildDeltaDuration), roundDuration(deltaInfo.UploadDuration))
+								"    Delta size was %.1f%% of full file, saving %s\n",
+								path, deltaRatio, util.HumanReadableBytes(deltaInfo.FileSize-deltaInfo.DeltaSize))
 						default:
 							break // a future unknown DeltaBehaviour will result in printing nothing, deliberately
 						}
-					} else { // delta disabled
-						cmd.Printf("    Timing: Upload %v\n", roundDuration(uploadDuration))
-
-					}
+					} // else delta disabled; print nothing
 				}
 			}
 		}
