@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.4.0](https://github.com/OctopusDeploy/cli/compare/v2.3.1...v2.4.0) (2024-06-30)
+
+
+### Features
+
+* add support for delta package uploads using go-octodiff ([#226](https://github.com/OctopusDeploy/cli/issues/226)) ([a0650c1](https://github.com/OctopusDeploy/cli/commit/a0650c1dbd2222b0ab8ae9b9234a3cc307528f4b))
+
 ## [2.3.1](https://github.com/OctopusDeploy/cli/compare/v2.3.0...v2.3.1) (2024-06-26)
 
 
