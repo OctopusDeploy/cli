@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/OctopusDeploy/cli/pkg/apiclient"
+	"github.com/OctopusDeploy/cli/pkg/util"
 	"math"
 	"time"
 
@@ -120,26 +121,10 @@ func versionsRun(cmd *cobra.Command, f factory.Factory, flags *VersionsFlags) er
 		Table: output.TableDefinition[*packages.PackageVersion]{
 			Header: []string{"VERSION", "PUBLISHED", "SIZE"},
 			Row: func(item *packages.PackageVersion) []string {
-				return []string{item.Version, item.Published.Format("2006-01-02 15:04:05"), humanReadableBytes(item.SizeBytes)} // TODO timezone?
+				return []string{item.Version, item.Published.Format("2006-01-02 15:04:05"), util.HumanReadableBytes(item.SizeBytes)} // TODO timezone?
 			}},
 		Basic: func(item *packages.PackageVersion) string {
 			return item.Version
 		},
 	})
-}
-
-// there are about a zillion golang packages for formatting bytes as human-readable values, the top search result of which is
-// https://pkg.go.dev/github.com/dustin/go-humanize. However, this package is large and does too much, there's no need to use it
-// when we can use this trivial tutorial one instead: https://programming.guide/go/formatting-byte-size-to-human-readable-format.html
-func humanReadableBytes(b int64) string {
-	const unit = 1024
-	if b < unit {
-		return fmt.Sprintf("%d B", b)
-	}
-	div, exp := int64(unit), 0
-	for n := b / unit; n >= unit; n /= unit {
-		div *= unit
-		exp++
-	}
-	return fmt.Sprintf("%.1f %ciB", float64(b)/float64(div), "KMGTPE"[exp])
 }
