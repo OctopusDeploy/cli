@@ -67,7 +67,7 @@ func NewCmdUpload(f factory.Factory) *cobra.Command {
 			$ %[1]s package upload bin/**/*.zip --continue-on-error
 			$ %[1]s package upload PkgA.1.0.0.zip PkgB.2.0.0.tar.gz PkgC.1.0.0.nupkg
 			$ %[1]s package upload --package SomePackage.2.0.0.zip --use-delta-compression
-			$ %[1]s package upload SomePackage.2.0.0.zip --delta
+			$ %[1]s package upload SomePackage.2.0.0.zip --delta # alias for --use-delta-compression
 		`, constants.ExecutableName),
 		Annotations: map[string]string{annotations.IsCore: "true"},
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -83,7 +83,10 @@ func NewCmdUpload(f factory.Factory) *cobra.Command {
 	flags.StringArrayVarP(&uploadFlags.Package.Value, uploadFlags.Package.Name, "p", nil, "Package to upload, may be specified multiple times. Any arguments without flags will be treated as packages")
 	flags.StringVarP(&uploadFlags.OverwriteMode.Value, uploadFlags.OverwriteMode.Name, "", "", "Action when a package already exists. Valid values are 'fail', 'overwrite', 'ignore'. Default is 'fail'")
 	flags.BoolVarP(&uploadFlags.ContinueOnError.Value, uploadFlags.ContinueOnError.Name, "", false, "When uploading multiple packages, controls whether the CLI continues after a failed upload. Default is to abort")
-	flags.BoolVarP(&uploadFlags.UseDeltaCompression.Value, uploadFlags.UseDeltaCompression.Name, "d", false, "Will attempt to use delta compression when uploading. Default is false. --delta also works")
+	// note to future developers: Added in July 2024; We can remove the beta disclaimer on delta compression at the end of 2024 if customers haven't reported any issues.
+	// when removing the beta disclaimer, please leave delta compression off by default. It can help on slow networks, but can be slower over fast ones due to the additional work of diffing/patching.
+	// it's also useless for tar.gz's or zips with single files in them (e.g. someone puts a .MSI file in a .zip just so octopus will accept it)
+	flags.BoolVarP(&uploadFlags.UseDeltaCompression.Value, uploadFlags.UseDeltaCompression.Name, "d", false, "Attempt to use delta compression when uploading. Off by default. As a recent addition to the CLI, it should be considered in beta.")
 	flags.SortFlags = false
 
 	flagAliases := make(map[string][]string, 1)
