@@ -281,7 +281,7 @@ jobs:
 
         - name: Generate cli releases json
           working-directory: cli
-          run: curl -s https://api.github.com/repos/OctopusDeploy/cli/releases > releases.json
+          run: curl -s https://api.github.com/repos/OctopusDeploy/cli/releases?per_page=100 > releases.json
 
         - name: Commit
           uses: EndBug/add-and-commit@v9
