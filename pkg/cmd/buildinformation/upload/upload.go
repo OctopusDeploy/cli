@@ -131,6 +131,7 @@ func uploadRun(opts *UploadOptions) error {
 		if err != nil {
 			return err
 		}
+
 		fmt.Printf("Build information:\n%s\n", string(jsonFile))
 	}
 
@@ -195,22 +196,6 @@ func PromptMissing(opts *UploadOptions) error {
 			return err
 		}
 	}
-
-	// by default we use 'fail' so shouldn't need to ask the user for this option
-	// if opts.OverwriteMode.Value == "" {
-	// 	if err := opts.Ask(&survey.Select{
-	// 		Message: "Overwrite mode",
-	// 		Help:    "Determines behavior if the package already exists in the repository. Valid values are 'fail', 'overwrite' and 'ignore'. Default is 'fail'.",
-	// 		Options: []string{
-	// 			"fail",
-	// 			"ignore",
-	// 			"overwrite",
-	// 		},
-	// 		Default: "fail",
-	// 	}, &opts.OverwriteMode.Value); err != nil {
-	// 		return err
-	// 	}
-	// }
 
 	return nil
 }
