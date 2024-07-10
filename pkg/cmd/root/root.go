@@ -3,7 +3,7 @@ package root
 import (
 	"github.com/OctopusDeploy/cli/pkg/apiclient"
 	accountCmd "github.com/OctopusDeploy/cli/pkg/cmd/account"
-	buildInfoCmd "github.com/OctopusDeploy/cli/pkg/cmd/buildInformation"
+	buildInfoCmd "github.com/OctopusDeploy/cli/pkg/cmd/buildinformation"
 	configCmd "github.com/OctopusDeploy/cli/pkg/cmd/config"
 	environmentCmd "github.com/OctopusDeploy/cli/pkg/cmd/environment"
 	loginCmd "github.com/OctopusDeploy/cli/pkg/cmd/login"
