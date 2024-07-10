@@ -16,6 +16,7 @@ func NewCmdBuildInformation(f factory.Factory) *cobra.Command {
 		Short:   "Manage build information",
 		Long:    "Manage build information in Octopus Deploy",
 		Example: fmt.Sprintf("$ %s build-information upload", constants.ExecutableName),
+		Aliases: []string{"build-info"},
 		Annotations: map[string]string{
 			annotations.IsCore: "true",
 		},
