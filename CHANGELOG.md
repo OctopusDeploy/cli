@@ -1,5 +1,16 @@
 # Changelog
 
+## [2.5.0](https://github.com/OctopusDeploy/cli/compare/v2.4.0...v2.5.0) (2024-07-11)
+
+
+### Features
+
+* add bulk delete build information command ([#369](https://github.com/OctopusDeploy/cli/issues/369)) ([c1631da](https://github.com/OctopusDeploy/cli/commit/c1631da60d8a224e068fda8904f186c940b36f33))
+* add delete build information command ([#368](https://github.com/OctopusDeploy/cli/issues/368)) ([8e66095](https://github.com/OctopusDeploy/cli/commit/8e660954673b3fe8991abfe9082520de1b4b1857))
+* add list build information command ([#366](https://github.com/OctopusDeploy/cli/issues/366)) ([0a17e9f](https://github.com/OctopusDeploy/cli/commit/0a17e9f6b04fc36ad9a297db4959c951053a201c))
+* add upload build info command ([#364](https://github.com/OctopusDeploy/cli/issues/364)) ([189beb4](https://github.com/OctopusDeploy/cli/commit/189beb474c7a01d3d539a51bd13d998d9520022e))
+* add view build information command ([#367](https://github.com/OctopusDeploy/cli/issues/367)) ([e56c4cc](https://github.com/OctopusDeploy/cli/commit/e56c4ccad63e4edab598a4a9b416e451cfa69819))
+
 ## [2.4.0](https://github.com/OctopusDeploy/cli/compare/v2.3.1...v2.4.0) (2024-06-30)
 
 
