@@ -152,16 +152,20 @@ func listRun(cmd *cobra.Command, f factory.Factory, listFlags *ListFlags) error 
 				for _, commit := range b.Commits {
 					s.WriteString(fmt.Sprintf("%s %s\n", output.Dim(commit.ID[0:8]), commit.Comment))
 				}
+			} else {
+				s.WriteString("No commits included\n")
 			}
 
+			s.WriteString(output.Bold("\nWork items\n"))
 			if len(b.WorkItems) > 0 {
-				s.WriteString(output.Bold("\nWork items\n"))
 				if b.IssueTrackerName != "" {
 					s.WriteString(output.Dim(fmt.Sprintf("Issue tracker: %s\n", b.IssueTrackerName)))
 				}
 				for _, workItem := range b.WorkItems {
 					s.WriteString(fmt.Sprintf("%s %s\n", output.Dim(workItem.ID), workItem.Description))
 				}
+			} else {
+				s.WriteString("No work items included\n")
 			}
 
 			return s.String()
