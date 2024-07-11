@@ -74,11 +74,11 @@ func PromptMissing(opts *DisableOptions) error {
 		if err != nil {
 			return err
 		}
-		itemToDelete, err := selectors.ByName(opts.Ask, existingProjects, "Select the project you wish to disable:")
+		selectedProject, err := selectors.ByName(opts.Ask, existingProjects, "Select the project you wish to disable:")
 		if err != nil {
 			return err
 		}
-		opts.IdOrName = itemToDelete.GetID()
+		opts.IdOrName = selectedProject.GetID()
 	}
 
 	return nil
