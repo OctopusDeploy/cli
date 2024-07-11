@@ -1,6 +1,10 @@
 package list
 
 import (
+	"fmt"
+	"strconv"
+	"strings"
+
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/apiclient"
 	"github.com/OctopusDeploy/cli/pkg/constants"
@@ -57,10 +61,28 @@ func NewCmdList(f factory.Factory) *cobra.Command {
 	return cmd
 }
 
+type WorkItemAsJson struct {
+	Id          string `json:"Id"`
+	Source      string `json:"Source"`
+	Description string `json:"Description"`
+}
+
+type CommitAsJson struct {
+	Id      string `json:"Id"`
+	Comment string `json:"Comment"`
+}
+
 type BuildInfoAsJson struct {
-	Id        string `json:"Id"`
-	PackageId string `json:"PackageId"`
-	Version   string `json:"Version"`
+	Id               string            `json:"Id"`
+	PackageId        string            `json:"PackageId"`
+	Version          string            `json:"Version"`
+	Branch           string            `json:"Branch"`
+	BuildEnvironment string            `json:"BuildEnvironment"`
+	VcsCommitNumber  string            `json:"VcsCommitNumber"`
+	VcsType          string            `json:"VcsType"`
+	VcsRoot          string            `json:"VcsRoot"`
+	Commits          []*CommitAsJson   `json:"Commits,omitempty"`
+	WorkItems        []*WorkItemAsJson `json:"WorkItems,omitempty"`
 }
 
 func listRun(cmd *cobra.Command, f factory.Factory, listFlags *ListFlags) error {
@@ -87,20 +109,85 @@ func listRun(cmd *cobra.Command, f factory.Factory, listFlags *ListFlags) error 
 
 	return output.PrintArray(allBuildInfo, cmd, output.Mappers[*buildinformation.BuildInformation]{
 		Json: func(b *buildinformation.BuildInformation) any {
-			return BuildInfoAsJson{
-				Id:        b.GetID(),
-				PackageId: b.PackageID,
-				Version:   b.Version,
+			buildInfo := BuildInfoAsJson{
+				Id:               b.GetID(),
+				PackageId:        b.PackageID,
+				Version:          b.Version,
+				Branch:           b.Branch,
+				BuildEnvironment: b.BuildEnvironment,
+				VcsCommitNumber:  b.VcsCommitNumber,
+				VcsType:          b.VcsType,
+				VcsRoot:          b.VcsRoot,
 			}
+
+			if len(b.Commits) > 0 {
+				for _, c := range b.Commits {
+					buildInfo.Commits = append(buildInfo.Commits, &CommitAsJson{Id: c.ID, Comment: c.Comment})
+				}
+			}
+
+			if len(b.WorkItems) > 0 {
+				for _, w := range b.WorkItems {
+					buildInfo.WorkItems = append(buildInfo.WorkItems, &WorkItemAsJson{Id: w.ID, Source: w.Source, Description: w.Description})
+				}
+			}
+
+			return buildInfo
 		},
 		Table: output.TableDefinition[*buildinformation.BuildInformation]{
-			Header: []string{"PACKAGE ID", "VERSION"},
+			Header: []string{
+				"PACKAGE ID",
+				"VERSION",
+				"ENVIRONMENT",
+				"BUILD NO",
+				"BRANCH",
+				"COMMITS",
+				"WORKITEMS"},
 			Row: func(b *buildinformation.BuildInformation) []string {
-				return []string{output.Bold(b.PackageID), b.Version}
+				return []string{
+					output.Bold(b.PackageID),
+					b.Version,
+					b.BuildEnvironment,
+					b.BuildNumber,
+					b.Branch,
+					strconv.Itoa(len(b.Commits)),
+					strconv.Itoa(len(b.WorkItems))}
 			},
 		},
 		Basic: func(b *buildinformation.BuildInformation) string {
-			return b.PackageID
+			var s strings.Builder
+
+			s.WriteString(fmt.Sprintf("%s %s %s\n", output.Bold(b.PackageID), b.Version, output.Dimf("(%s)", b.GetID())))
+
+			s.WriteString(output.Bold("\nBuild details\n"))
+			s.WriteString(output.Dim(fmt.Sprintf("Environment: %s\n", b.BuildEnvironment)))
+			s.WriteString(output.Dim(fmt.Sprintf("Branch: %s\n", b.Branch)))
+			s.WriteString(output.Dim(fmt.Sprintf("URL: %s\n", output.Blue(b.BuildURL))))
+
+			s.WriteString(output.Bold("\nVCS Details\n"))
+			s.WriteString(output.Dim(fmt.Sprintf("Type: %s\n", b.VcsType)))
+			s.WriteString(output.Dim(fmt.Sprintf("URL: %s\n", output.Blue(b.VcsRoot))))
+
+			s.WriteString(output.Bold("\nCommit details\n"))
+			s.WriteString(output.Dim(fmt.Sprintf("Hash: %s\n", b.VcsCommitNumber)))
+			s.WriteString(output.Dim(fmt.Sprintf("URL: %s\n", output.Blue(b.VcsCommitURL))))
+			if len(b.Commits) > 0 {
+				for _, commit := range b.Commits {
+					s.WriteString(fmt.Sprintf("%s %s\n", output.Dim(commit.ID[0:8]), commit.Comment))
+				}
+			}
+
+			if len(b.WorkItems) > 0 {
+				s.WriteString(output.Bold("\nWork items\n"))
+				if b.IssueTrackerName != "" {
+					s.WriteString(output.Dim(fmt.Sprintf("Issue tracker: %s\n", b.IssueTrackerName)))
+				}
+				for _, workItem := range b.WorkItems {
+					s.WriteString(fmt.Sprintf("%s %s\n", output.Dim(workItem.ID), workItem.Description))
+				}
+			}
+
+			return s.String()
 		},
 	})
 }
