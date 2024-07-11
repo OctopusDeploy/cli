@@ -3,6 +3,7 @@ package buildinformation
 import (
 	"fmt"
 
+	cmdBulkDelete "github.com/OctopusDeploy/cli/pkg/cmd/buildinformation/bulkdelete"
 	cmdDelete "github.com/OctopusDeploy/cli/pkg/cmd/buildinformation/delete"
 	cmdList "github.com/OctopusDeploy/cli/pkg/cmd/buildinformation/list"
 	cmdUpload "github.com/OctopusDeploy/cli/pkg/cmd/buildinformation/upload"
@@ -25,6 +26,7 @@ func NewCmdBuildInformation(f factory.Factory) *cobra.Command {
 		},
 	}
 
+	cmd.AddCommand(cmdBulkDelete.NewCmdBulkDelete(f))
 	cmd.AddCommand(cmdDelete.NewCmdDelete(f))
 	cmd.AddCommand(cmdView.NewCmdView(f))
 	cmd.AddCommand(cmdList.NewCmdList(f))
