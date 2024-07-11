@@ -57,7 +57,9 @@ func NewCmdBulkDelete(f factory.Factory) *cobra.Command {
 		Short: "Bulk delete build information",
 		Long:  "Bulk delete build information in Octopus Deploy",
 		Example: heredoc.Docf(`
-			$ %[1]s build-information bulk-delete BuildInformation-1 BuildInformation-2
+			$ %[1]s build-information bulk-delete
+			$ %[1]s build-info --package-id ThePackage
+			$ %[1]s build-info --package-id ThePackage --version 1.0.0 --version 1.0.1
 		`, constants.ExecutableName),
 		RunE: func(c *cobra.Command, args []string) error {
 			opts := NewDeleteOptions(deleteFlags, cmd.NewDependencies(f, c), confirmFlags)
