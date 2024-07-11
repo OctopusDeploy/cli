@@ -47,6 +47,8 @@ func NewCmdList(f factory.Factory) *cobra.Command {
 			$ %[1]s build-information list
 			$ %[1]s build-information ls
 			$ %[1]s build-info list
+			$ %[1]s build-info ls --package-id ThePackage
+			$ %[1]s build-info ls --package-id ThePackage --filter 1.2.3
 		`, constants.ExecutableName),
 		Aliases: []string{"ls"},
 		RunE: func(cmd *cobra.Command, args []string) error {
