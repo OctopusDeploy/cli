@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	cmdUpload "github.com/OctopusDeploy/cli/pkg/cmd/buildinformation/upload"
+	cmdView "github.com/OctopusDeploy/cli/pkg/cmd/buildinformation/view"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/constants/annotations"
 	"github.com/OctopusDeploy/cli/pkg/factory"
@@ -22,6 +23,7 @@ func NewCmdBuildInformation(f factory.Factory) *cobra.Command {
 		},
 	}
 
+	cmd.AddCommand(cmdView.NewCmdView(f))
 	cmd.AddCommand(cmdUpload.NewCmdUpload(f))
 	return cmd
 }
