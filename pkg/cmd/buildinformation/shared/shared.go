@@ -20,6 +20,6 @@ type BuildInfoAsJson struct {
 	VcsCommitNumber  string            `json:"VcsCommitNumber"`
 	VcsType          string            `json:"VcsType"`
 	VcsRoot          string            `json:"VcsRoot"`
-	Commits          []*CommitAsJson   `json:"Commits"`
-	WorkItems        []*WorkItemAsJson `json:"WorkItems"`
+	Commits          []*CommitAsJson   `json:"Commits,omitempty"`
+	WorkItems        []*WorkItemAsJson `json:"WorkItems,omitempty"`
 }
