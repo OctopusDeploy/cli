@@ -57,7 +57,7 @@ func NewCmdList(f factory.Factory) *cobra.Command {
 	}
 
 	flags := cmd.Flags()
-	flags.BoolVarP(&listFlags.Latest.Value, listFlags.Latest.Name, "", false, "only return the latest build information")
+	flags.BoolVarP(&listFlags.Latest.Value, listFlags.Latest.Name, "", false, "only return the latest build information according to SemVer")
 	flags.StringVarP(&listFlags.Filter.Value, listFlags.Filter.Name, "q", "", "filter build information by version")
 	flags.StringVarP(&listFlags.PackageId.Value, listFlags.PackageId.Name, "p", "", "filter build information by package id")
 
