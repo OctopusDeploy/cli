@@ -2,6 +2,7 @@ package view
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/MakeNowJust/heredoc/v2"
@@ -107,9 +108,23 @@ func viewRun(opts *ViewOptions, cmd *cobra.Command) error {
 			return buildInfo
 		},
 		Table: output.TableDefinition[*buildinformation.BuildInformation]{
-			Header: []string{"PACKAGE ID", "VERSION", "ID"},
+			Header: []string{
+				"PACKAGE ID",
+				"VERSION",
+				"ENVIRONMENT",
+				"BUILD NO",
+				"BRANCH",
+				"COMMITS",
+				"WORKITEMS"},
 			Row: func(b *buildinformation.BuildInformation) []string {
-				return []string{output.Bold(b.PackageID), b.Version, output.Dim(b.GetID())}
+				return []string{
+					output.Bold(b.PackageID),
+					b.Version,
+					b.BuildEnvironment,
+					b.BuildNumber,
+					b.Branch,
+					strconv.Itoa(len(b.Commits)),
+					strconv.Itoa(len(b.WorkItems))}
 			},
 		},
 		Basic: func(b *buildinformation.BuildInformation) string {
