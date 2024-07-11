@@ -128,19 +128,8 @@ func PromptMissing(opts *DeleteOptions) error {
 }
 
 func selectVersions(opts *DeleteOptions) ([]*buildinformation.BuildInformation, error) {
-	var selectedBuildInformationVersions []*buildinformation.BuildInformation
 	if len(opts.Version.Value) > 0 {
-		versionMap, _, err := getVersionMap(opts)
-		if err != nil {
-			return nil, err
-		}
-
-		for _, v := range opts.Version.Value {
-			if value, ok := versionMap[v]; ok {
-				selectedBuildInformationVersions = append(selectedBuildInformationVersions, value)
-			}
-		}
-		return selectedBuildInformationVersions, nil
+		return selectVersionsBasedOnUserInput(opts)
 	}
 
 	shouldSelectVersions := false
@@ -160,22 +149,23 @@ func selectVersions(opts *DeleteOptions) ([]*buildinformation.BuildInformation, 
 	}
 
 	if shouldSelectVersions {
-		optionMap, options, err := getVersionMap(opts)
+		versionsMap, versions, err := getVersionMap(opts)
 		if err != nil {
 			return nil, err
 		}
 		var selectedKeys []string
 		err = opts.Ask(&survey.MultiSelect{
 			Message: "Select version(s)",
-			Options: options,
+			Options: versions,
 		}, &selectedKeys, survey.WithValidator(survey.Required))
 
 		if err != nil {
 			return nil, err
 		}
 
+		var selectedBuildInformationVersions []*buildinformation.BuildInformation
 		for _, v := range selectedKeys {
-			if value, ok := optionMap[v]; ok {
+			if value, ok := versionsMap[v]; ok {
 				selectedBuildInformationVersions = append(selectedBuildInformationVersions, value)
 			}
 		}
@@ -183,19 +173,7 @@ func selectVersions(opts *DeleteOptions) ([]*buildinformation.BuildInformation, 
 		return selectedBuildInformationVersions, nil
 	}
 
-	buildInfoForPackageId, err := buildinformation.Get(opts.Client, opts.Client.GetSpaceID(), buildinformation.BuildInformationQuery{
-		PackageID: opts.PackageID.Value,
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	allBuildInformationVersions, err := buildInfoForPackageId.GetAllPages(opts.Client.Sling())
-	if err != nil {
-		return nil, err
-	}
-
-	return allBuildInformationVersions, nil
+	return selectAllVersionsForPackage(opts)
 }
 
 func getVersionMap(opts *DeleteOptions) (map[string]*buildinformation.BuildInformation, []string, error) {
@@ -213,6 +191,37 @@ func getVersionMap(opts *DeleteOptions) (map[string]*buildinformation.BuildInfor
 
 	optionMap, options := question.MakeItemMapAndOptions(allBuildInfoForPackageId, func(item *buildinformation.BuildInformation) string { return item.Version })
 	return optionMap, options, nil
+}
+
+func selectVersionsBasedOnUserInput(opts *DeleteOptions) ([]*buildinformation.BuildInformation, error) {
+	var selectedBuildInformationVersions []*buildinformation.BuildInformation
+	versionMap, _, err := getVersionMap(opts)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, v := range opts.Version.Value {
+		if value, ok := versionMap[v]; ok {
+			selectedBuildInformationVersions = append(selectedBuildInformationVersions, value)
+		}
+	}
+	return selectedBuildInformationVersions, nil
+}
+
+func selectAllVersionsForPackage(opts *DeleteOptions) ([]*buildinformation.BuildInformation, error) {
+	buildInfoForPackageId, err := buildinformation.Get(opts.Client, opts.Client.GetSpaceID(), buildinformation.BuildInformationQuery{
+		PackageID: opts.PackageID.Value,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	allBuildInformationVersions, err := buildInfoForPackageId.GetAllPages(opts.Client.Sling())
+	if err != nil {
+		return nil, err
+	}
+
+	return allBuildInformationVersions, nil
 }
 
 func deleteWithConfirmation(ask question.Asker, ids []string, doDelete func() error) error {
