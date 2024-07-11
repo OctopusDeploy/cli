@@ -7,6 +7,7 @@ import (
 
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/apiclient"
+	"github.com/OctopusDeploy/cli/pkg/cmd/buildinformation/shared"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/OctopusDeploy/cli/pkg/output"
@@ -61,30 +62,6 @@ func NewCmdList(f factory.Factory) *cobra.Command {
 	return cmd
 }
 
-type WorkItemAsJson struct {
-	Id          string `json:"Id"`
-	Source      string `json:"Source"`
-	Description string `json:"Description"`
-}
-
-type CommitAsJson struct {
-	Id      string `json:"Id"`
-	Comment string `json:"Comment"`
-}
-
-type BuildInfoAsJson struct {
-	Id               string            `json:"Id"`
-	PackageId        string            `json:"PackageId"`
-	Version          string            `json:"Version"`
-	Branch           string            `json:"Branch"`
-	BuildEnvironment string            `json:"BuildEnvironment"`
-	VcsCommitNumber  string            `json:"VcsCommitNumber"`
-	VcsType          string            `json:"VcsType"`
-	VcsRoot          string            `json:"VcsRoot"`
-	Commits          []*CommitAsJson   `json:"Commits,omitempty"`
-	WorkItems        []*WorkItemAsJson `json:"WorkItems,omitempty"`
-}
-
 func listRun(cmd *cobra.Command, f factory.Factory, listFlags *ListFlags) error {
 	octopus, err := f.GetSpacedClient(apiclient.NewRequester(cmd))
 	if err != nil {
@@ -109,7 +86,7 @@ func listRun(cmd *cobra.Command, f factory.Factory, listFlags *ListFlags) error 
 
 	return output.PrintArray(allBuildInfo, cmd, output.Mappers[*buildinformation.BuildInformation]{
 		Json: func(b *buildinformation.BuildInformation) any {
-			buildInfo := BuildInfoAsJson{
+			buildInfo := shared.BuildInfoAsJson{
 				Id:               b.GetID(),
 				PackageId:        b.PackageID,
 				Version:          b.Version,
@@ -122,13 +99,13 @@ func listRun(cmd *cobra.Command, f factory.Factory, listFlags *ListFlags) error 
 
 			if len(b.Commits) > 0 {
 				for _, c := range b.Commits {
-					buildInfo.Commits = append(buildInfo.Commits, &CommitAsJson{Id: c.ID, Comment: c.Comment})
+					buildInfo.Commits = append(buildInfo.Commits, &shared.CommitAsJson{Id: c.ID, Comment: c.Comment})
 				}
 			}
 
 			if len(b.WorkItems) > 0 {
 				for _, w := range b.WorkItems {
-					buildInfo.WorkItems = append(buildInfo.WorkItems, &WorkItemAsJson{Id: w.ID, Source: w.Source, Description: w.Description})
+					buildInfo.WorkItems = append(buildInfo.WorkItems, &shared.WorkItemAsJson{Id: w.ID, Source: w.Source, Description: w.Description})
 				}
 			}
 
