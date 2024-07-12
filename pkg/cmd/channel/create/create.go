@@ -96,15 +96,18 @@ func createRun(opts *CreateOptions) error {
 		return err
 	}
 
-	lifecycle, err := opts.Client.Lifecycles.GetByIDOrName(opts.Lifecycle.Value)
-	if err != nil {
-		return err
-	}
-
 	channel := channels.NewChannel(opts.Name.Value, project.GetID())
 	channel.Description = opts.Description.Value
 	channel.IsDefault = opts.Default.Value
-	channel.LifecycleID = lifecycle.GetID()
+
+	if opts.Lifecycle.Value != "" {
+		lifecycle, err := opts.Client.Lifecycles.GetByIDOrName(opts.Lifecycle.Value)
+		if err != nil {
+			return err
+		}
+
+		channel.LifecycleID = lifecycle.GetID()
+	}
 
 	createChannel, err := channels.Add(opts.Client, channel)
 	if err != nil {
@@ -154,7 +157,7 @@ func PromptMissing(opts *CreateOptions) error {
 
 	var selectedLifecycle *lifecycles.Lifecycle
 	if opts.Lifecycle.Value == "" {
-		var shouldInheritLifecycleFromProject bool
+		var shouldInheritLifecycleFromProject string
 		err := opts.Ask(&survey.Select{
 			Message: "Inherit lifecycle from project?",
 			Help:    "Select 'No' to select lifecycle to use for channel",
@@ -163,12 +166,7 @@ func PromptMissing(opts *CreateOptions) error {
 		if err != nil {
 			return err
 		}
-		if shouldInheritLifecycleFromProject {
-			selectedLifecycle, err = selectors.FindLifecycle(opts.Client, selectedProject.LifecycleID)
-			if err != nil {
-				return err
-			}
-		} else {
+		if shouldInheritLifecycleFromProject == "No" {
 			selectedLifecycle, err = selectors.Lifecycle("Select the lifecycle to use for the channel", opts.Client, opts.Ask)
 			if err != nil {
 				return err
@@ -180,7 +178,9 @@ func PromptMissing(opts *CreateOptions) error {
 			return nil
 		}
 	}
-	opts.Lifecycle.Value = selectedLifecycle.Name
+	if selectedLifecycle != nil {
+		opts.Lifecycle.Value = selectedLifecycle.Name
+	}
 
 	_, err = promptBool(opts, &opts.Default.Value, false, "Set channel as default", "If default is enabled, this will set this channel as the default channel for the project")
 	if err != nil {
