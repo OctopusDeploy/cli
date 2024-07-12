@@ -132,7 +132,11 @@ func uploadRun(opts *UploadOptions) error {
 			return err
 		}
 
-		fmt.Printf("Build information:\n%s\n", string(jsonFile))
+		fmt.Printf("Build information:\n%s\n", output.Dim(string(jsonFile)))
+	}
+
+	if len(buildInformation.Commits) >= 200 {
+		fmt.Printf("%s\n", output.Yellow("Warning: Build information contains 200 or more commits, this may be due to a misconfiguration of your build server."))
 	}
 
 	for _, pkgIdString := range opts.PackageId.Value {
