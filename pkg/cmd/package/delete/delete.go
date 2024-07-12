@@ -96,7 +96,7 @@ func deleteRun(opts *DeleteOptions) error {
 	}
 
 	if opts.ConfirmFlags.Confirm.Value {
-		return delete(opts.Client, nil)
+		return delete(opts.Client, packageToDelete)
 	} else {
 		return question.DeleteWithConfirmation(opts.Ask, "package", packageToDelete.PackageID+" "+packageToDelete.Version, packageToDelete.GetID(), func() error {
 			return delete(opts.Client, packageToDelete)
