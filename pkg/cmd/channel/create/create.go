@@ -154,9 +154,25 @@ func PromptMissing(opts *CreateOptions) error {
 
 	var selectedLifecycle *lifecycles.Lifecycle
 	if opts.Lifecycle.Value == "" {
-		selectedLifecycle, err = selectors.Lifecycle("Select the lifecycle to use for the channel", opts.Client, opts.Ask)
+		var shouldInheritLifecycleFromProject bool
+		err := opts.Ask(&survey.Select{
+			Message: "Inherit lifecycle from project?",
+			Help:    "Select 'No' to select lifecycle to use for channel",
+			Options: []string{"Yes", "No"},
+		}, &shouldInheritLifecycleFromProject)
 		if err != nil {
 			return err
+		}
+		if shouldInheritLifecycleFromProject {
+			selectedLifecycle, err = selectors.FindLifecycle(opts.Client, selectedProject.LifecycleID)
+			if err != nil {
+				return err
+			}
+		} else {
+			selectedLifecycle, err = selectors.Lifecycle("Select the lifecycle to use for the channel", opts.Client, opts.Ask)
+			if err != nil {
+				return err
+			}
 		}
 	} else {
 		selectedLifecycle, err = selectors.FindLifecycle(opts.Client, opts.Lifecycle.Value)
