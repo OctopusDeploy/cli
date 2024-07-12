@@ -56,7 +56,7 @@ func disableRun(opts *EnableOptions) error {
 
 	projectToEnable, err := projects.GetByIdentifier(opts.Client, opts.Client.GetSpaceID(), opts.IdOrName)
 	if err != nil {
-		return nil
+		return err
 	}
 
 	projectToEnable.IsDisabled = false
