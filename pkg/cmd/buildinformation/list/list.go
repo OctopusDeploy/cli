@@ -40,7 +40,7 @@ func NewCmdList(f factory.Factory) *cobra.Command {
 	listFlags := NewListFlags()
 
 	cmd := &cobra.Command{
-		Use:   "List",
+		Use:   "list",
 		Short: "List build information",
 		Long:  "List build information in Octopus Deploy",
 		Example: heredoc.Docf(`
