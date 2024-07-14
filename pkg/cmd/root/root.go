@@ -4,6 +4,7 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/apiclient"
 	accountCmd "github.com/OctopusDeploy/cli/pkg/cmd/account"
 	buildInfoCmd "github.com/OctopusDeploy/cli/pkg/cmd/buildinformation"
+	channelCmd "github.com/OctopusDeploy/cli/pkg/cmd/channel"
 	configCmd "github.com/OctopusDeploy/cli/pkg/cmd/config"
 	environmentCmd "github.com/OctopusDeploy/cli/pkg/cmd/environment"
 	loginCmd "github.com/OctopusDeploy/cli/pkg/cmd/login"
@@ -54,6 +55,7 @@ func NewCmdRoot(f factory.Factory, clientFactory apiclient.ClientFactory, askPro
 	// core
 	cmd.AddCommand(projectGroupCmd.NewCmdProjectGroup(f))
 	cmd.AddCommand(projectCmd.NewCmdProject(f))
+	cmd.AddCommand(channelCmd.NewCmdChannel(f))
 	cmd.AddCommand(tenantCmd.NewCmdTenant(f))
 	cmd.AddCommand(taskCmd.NewCmdTask(f))
 
