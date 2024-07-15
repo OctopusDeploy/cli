@@ -2,6 +2,8 @@ package _package
 
 import (
 	"fmt"
+
+	cmdDelete "github.com/OctopusDeploy/cli/pkg/cmd/package/delete"
 	cmdList "github.com/OctopusDeploy/cli/pkg/cmd/package/list"
 	cmdNuget "github.com/OctopusDeploy/cli/pkg/cmd/package/nuget"
 	cmdUpload "github.com/OctopusDeploy/cli/pkg/cmd/package/upload"
@@ -29,5 +31,7 @@ func NewCmdPackage(f factory.Factory) *cobra.Command {
 	cmd.AddCommand(cmdVersions.NewCmdVersions(f))
 	cmd.AddCommand(cmdNuget.NewCmdPackageNuget(f))
 	cmd.AddCommand(cmdZip.NewCmdPackageZip(f))
+	cmd.AddCommand(cmdDelete.NewCmdDelete(f))
+
 	return cmd
 }
