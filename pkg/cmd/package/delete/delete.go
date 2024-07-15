@@ -4,10 +4,12 @@ import (
 	"fmt"
 	"slices"
 
+	"github.com/AlecAivazis/survey/v2"
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/cmd"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/factory"
+	"github.com/OctopusDeploy/cli/pkg/output"
 	"github.com/OctopusDeploy/cli/pkg/question"
 	"github.com/OctopusDeploy/cli/pkg/util/flag"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
@@ -98,9 +100,27 @@ func deleteRun(opts *DeleteOptions) error {
 	if opts.ConfirmFlags.Confirm.Value {
 		return delete(opts.Client, packageToDelete)
 	} else {
-		return question.DeleteWithConfirmation(opts.Ask, "package", packageToDelete.PackageID+" "+packageToDelete.Version, packageToDelete.GetID(), func() error {
-			return delete(opts.Client, packageToDelete)
-		})
+		packageIdentity := packageToDelete.PackageID + " " + packageToDelete.Version
+		var enteredPackageIdentity string
+		if err := opts.Ask(&survey.Input{
+			Message: fmt.Sprintf(
+				`You are about to delete the package "%s" %s. This action cannot be reversed. To confirm, type the package identity (%s):`,
+				packageIdentity, output.Dimf("(%s)", packageToDelete.GetID()), packageIdentity),
+		}, &enteredPackageIdentity); err != nil {
+			return err
+		}
+
+		if enteredPackageIdentity != packageIdentity {
+			return fmt.Errorf("input value %s does match expected value %s", enteredPackageIdentity, packageIdentity)
+		}
+
+		err = delete(opts.Client, packageToDelete)
+		if err != nil {
+			return err
+		}
+
+		fmt.Printf("%s The package, \"%s\" %s was deleted successfully.\n", output.Red("✔"), packageIdentity, output.Dimf("(%s)", packageToDelete.GetID()))
+		return nil
 	}
 }
 
