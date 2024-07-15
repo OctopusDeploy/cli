@@ -1,5 +1,20 @@
 # Changelog
 
+## [2.6.0](https://github.com/OctopusDeploy/cli/compare/v2.5.0...v2.6.0) (2024-07-15)
+
+
+### Features
+
+* add create channel command ([#377](https://github.com/OctopusDeploy/cli/issues/377)) ([a35a111](https://github.com/OctopusDeploy/cli/commit/a35a111218030e81b0504f9cb887a4a5c9f9428b))
+* add delete package command ([#374](https://github.com/OctopusDeploy/cli/issues/374)) ([b47061d](https://github.com/OctopusDeploy/cli/commit/b47061d26bb94319f889315bea130602cb441e38))
+* add disable project command ([#370](https://github.com/OctopusDeploy/cli/issues/370)) ([b91b062](https://github.com/OctopusDeploy/cli/commit/b91b06291cfaa7b080a7a9b26843c0f3c239a1d9))
+* add enable project command ([#372](https://github.com/OctopusDeploy/cli/issues/372)) ([e29c5b4](https://github.com/OctopusDeploy/cli/commit/e29c5b4f1451037b4a00a3df6b61c22f03e2416d))
+
+
+### Bug Fixes
+
+* fix command use value as it was capitalised ([#375](https://github.com/OctopusDeploy/cli/issues/375)) ([6f20227](https://github.com/OctopusDeploy/cli/commit/6f20227a79d8b2ffd808bf65c71d0584686fec3c))
+
 ## [2.5.0](https://github.com/OctopusDeploy/cli/compare/v2.4.0...v2.5.0) (2024-07-11)
 
 
