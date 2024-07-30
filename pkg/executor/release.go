@@ -3,12 +3,14 @@ package executor
 import (
 	"errors"
 	"fmt"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/deployments"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/releases"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/spaces"
 	"strconv"
 	"strings"
+
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/deployments"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/releases"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/spaces"
 )
 
 // ----- Create Release --------------------------------------
@@ -50,7 +52,12 @@ func releaseCreate(octopus *client.Client, space *spaces.Space, input any) error
 		return errors.New("project must be specified")
 	}
 
-	createReleaseParams := releases.NewCreateReleaseCommandV1(space.ID, params.ProjectName)
+	project, err := projects.GetByIdentifier(octopus, space.GetID(), params.ProjectName)
+	if err != nil {
+		return errors.New(err.Error())
+	}
+
+	createReleaseParams := releases.NewCreateReleaseCommandV1(space.ID, project.GetName())
 
 	createReleaseParams.PackageVersion = params.DefaultPackageVersion
 
@@ -133,10 +140,15 @@ func releaseDeploy(octopus *client.Client, space *spaces.Space, input any) error
 		return errors.New("environment(s) must be specified")
 	}
 
+	project, err := projects.GetByIdentifier(octopus, space.GetID(), params.ProjectName)
+	if err != nil {
+		return errors.New(err.Error())
+	}
+
 	// common properties
 	abstractCmd := deployments.CreateExecutionAbstractCommandV1{
 		SpaceID:              space.ID,
-		ProjectIDOrName:      params.ProjectName,
+		ProjectIDOrName:      project.GetName(),
 		ForcePackageDownload: params.ForcePackageDownload,
 		SpecificMachineNames: params.DeploymentTargets,
 		ExcludedMachineNames: params.ExcludeTargets,
@@ -166,7 +178,7 @@ func releaseDeploy(octopus *client.Client, space *spaces.Space, input any) error
 		if len(params.Environments) > 1 {
 			return fmt.Errorf("tenanted deployments can only specify one environment")
 		}
-		tenantedCommand := deployments.NewCreateDeploymentTenantedCommandV1(space.ID, params.ProjectName)
+		tenantedCommand := deployments.NewCreateDeploymentTenantedCommandV1(space.ID, project.GetName())
 		tenantedCommand.ReleaseVersion = params.ReleaseVersion
 		tenantedCommand.EnvironmentName = params.Environments[0]
 		tenantedCommand.Tenants = params.Tenants
@@ -182,7 +194,7 @@ func releaseDeploy(octopus *client.Client, space *spaces.Space, input any) error
 		}
 		params.Response = createDeploymentResponse
 	} else {
-		untenantedCommand := deployments.NewCreateDeploymentUntenantedCommandV1(space.ID, params.ProjectName)
+		untenantedCommand := deployments.NewCreateDeploymentUntenantedCommandV1(space.ID, project.GetName())
 		untenantedCommand.ReleaseVersion = params.ReleaseVersion
 		untenantedCommand.EnvironmentNames = params.Environments
 		untenantedCommand.ForcePackageRedeployment = params.ForcePackageDownload
