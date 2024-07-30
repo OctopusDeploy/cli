@@ -6,6 +6,7 @@ import (
 	cmdDelete "github.com/OctopusDeploy/cli/pkg/cmd/release/delete"
 	cmdDeploy "github.com/OctopusDeploy/cli/pkg/cmd/release/deploy"
 	cmdList "github.com/OctopusDeploy/cli/pkg/cmd/release/list"
+	cmdProgression "github.com/OctopusDeploy/cli/pkg/cmd/release/progression"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/constants/annotations"
 	"github.com/OctopusDeploy/cli/pkg/factory"
@@ -27,5 +28,7 @@ func NewCmdRelease(f factory.Factory) *cobra.Command {
 	cmd.AddCommand(cmdDeploy.NewCmdDeploy(f))
 	cmd.AddCommand(cmdList.NewCmdList(f))
 	cmd.AddCommand(cmdDelete.NewCmdDelete(f))
+	cmd.AddCommand(cmdProgression.NewCmdProgression(f))
+
 	return cmd
 }
