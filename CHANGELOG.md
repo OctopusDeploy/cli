@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.7.0](https://github.com/OctopusDeploy/cli/compare/v2.6.0...v2.7.0) (2024-07-30)
+
+
+### Features
+
+* add commands to manage release progression ([#382](https://github.com/OctopusDeploy/cli/issues/382)) ([ccb6df6](https://github.com/OctopusDeploy/cli/commit/ccb6df63f5b8b460008ef623e3a46d6c306d6b35))
+
 ## [2.6.0](https://github.com/OctopusDeploy/cli/compare/v2.5.0...v2.6.0) (2024-07-15)
 
 
