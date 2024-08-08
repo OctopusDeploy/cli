@@ -6,6 +6,7 @@ const (
 
 // flags for command line switches
 const (
+	FlagVersion            = "version"
 	FlagHelp               = "help"
 	FlagSpace              = "space"
 	FlagOutputFormat       = "output-format"
