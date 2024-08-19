@@ -39,9 +39,14 @@ func NewCmdRoot(f factory.Factory, clientFactory apiclient.ClientFactory, askPro
 		Long:  `Work seamlessly with Octopus Deploy from the command line.`,
 	}
 
+	flags := cmd.Flags()
+	var versionParameter bool
+	flags.BoolVarP(&versionParameter, "version", "v", false, "Prints version information")
+	versionCommand := version.NewCmdVersion(f)
+
 	// ----- Child Commands -----
 
-	cmd.AddCommand(version.NewCmdVersion(f))
+	cmd.AddCommand(versionCommand)
 
 	// infrastructure
 	cmd.AddCommand(accountCmd.NewCmdAccount(f))
@@ -124,6 +129,14 @@ func NewCmdRoot(f factory.Factory, clientFactory apiclient.ClientFactory, askPro
 		if spaceNameOrId := viper.GetString(constants.ConfigSpace); spaceNameOrId != "" {
 			clientFactory.SetSpaceNameOrId(spaceNameOrId)
 		}
+	}
+
+	cmd.RunE = func(cmd *cobra.Command, args []string) error {
+		if versionParameter {
+			versionCommand.RunE(cmd, args)
+		}
+
+		return nil
 	}
 
 	return cmd

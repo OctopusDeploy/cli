@@ -90,5 +90,5 @@ func commandDoesNotRequireClient(args []string) bool {
 		return true
 	}
 	cmdToRun := args[0]
-	return cmdToRun == "config" || cmdToRun == "version" || cmdToRun == "help" || cmdToRun == "login" || cmdToRun == "logout" || (cmdToRun == "package" && util.SliceContains(args, "create"))
+	return cmdToRun == "config" || cmdToRun == "version" || cmdToRun == "--version" || cmdToRun == "-v" || cmdToRun == "help" || cmdToRun == "login" || cmdToRun == "logout" || (cmdToRun == "package" && util.SliceContains(args, "create"))
 }
