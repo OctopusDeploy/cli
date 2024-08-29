@@ -38,6 +38,7 @@ const (
 	FlagProject            = "project"
 	FlagChannel            = "channel"
 	FlagPackageVersionSpec = "package"
+	FlagGitResourceRefSpec = "git-resource"
 
 	FlagVersion                  = "version"
 	FlagAliasReleaseNumberLegacy = "releaseNumber" // alias for FlagVersion
@@ -111,32 +112,34 @@ dim(---------------------------------------------------------------------)
 `) // note this expects to have prettifyHelp run over it
 
 type CreateFlags struct {
-	Project            *flag.Flag[string]
-	Channel            *flag.Flag[string]
-	GitRef             *flag.Flag[string]
-	GitCommit          *flag.Flag[string]
-	PackageVersion     *flag.Flag[string]
-	ReleaseNotes       *flag.Flag[string]
-	ReleaseNotesFile   *flag.Flag[string]
-	Version            *flag.Flag[string]
-	IgnoreExisting     *flag.Flag[bool]
-	IgnoreChannelRules *flag.Flag[bool]
-	PackageVersionSpec *flag.Flag[[]string]
+	Project             *flag.Flag[string]
+	Channel             *flag.Flag[string]
+	GitRef              *flag.Flag[string]
+	GitCommit           *flag.Flag[string]
+	PackageVersion      *flag.Flag[string]
+	ReleaseNotes        *flag.Flag[string]
+	ReleaseNotesFile    *flag.Flag[string]
+	Version             *flag.Flag[string]
+	IgnoreExisting      *flag.Flag[bool]
+	IgnoreChannelRules  *flag.Flag[bool]
+	PackageVersionSpec  *flag.Flag[[]string]
+	GitResourceRefsSpec *flag.Flag[[]string]
 }
 
 func NewCreateFlags() *CreateFlags {
 	return &CreateFlags{
-		Project:            flag.New[string](FlagProject, false),
-		Channel:            flag.New[string](FlagChannel, false),
-		GitRef:             flag.New[string](FlagGitRef, false),
-		GitCommit:          flag.New[string](FlagGitCommit, false),
-		PackageVersion:     flag.New[string](FlagPackageVersion, false),
-		ReleaseNotes:       flag.New[string](FlagReleaseNotes, false),
-		ReleaseNotesFile:   flag.New[string](FlagReleaseNotesFile, false),
-		Version:            flag.New[string](FlagVersion, false),
-		IgnoreExisting:     flag.New[bool](FlagIgnoreExisting, false),
-		IgnoreChannelRules: flag.New[bool](FlagIgnoreChannelRules, false),
-		PackageVersionSpec: flag.New[[]string](FlagPackageVersionSpec, false),
+		Project:             flag.New[string](FlagProject, false),
+		Channel:             flag.New[string](FlagChannel, false),
+		GitRef:              flag.New[string](FlagGitRef, false),
+		GitCommit:           flag.New[string](FlagGitCommit, false),
+		PackageVersion:      flag.New[string](FlagPackageVersion, false),
+		ReleaseNotes:        flag.New[string](FlagReleaseNotes, false),
+		ReleaseNotesFile:    flag.New[string](FlagReleaseNotesFile, false),
+		Version:             flag.New[string](FlagVersion, false),
+		IgnoreExisting:      flag.New[bool](FlagIgnoreExisting, false),
+		IgnoreChannelRules:  flag.New[bool](FlagIgnoreChannelRules, false),
+		PackageVersionSpec:  flag.New[[]string](FlagPackageVersionSpec, false),
+		GitResourceRefsSpec: flag.New[[]string](FlagGitResourceRefSpec, false),
 	}
 }
 
@@ -169,6 +172,7 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 	flags.BoolVarP(&createFlags.IgnoreExisting.Value, createFlags.IgnoreExisting.Name, "x", false, "If a release with the same version exists, do nothing instead of failing.")
 	flags.BoolVarP(&createFlags.IgnoreChannelRules.Value, createFlags.IgnoreChannelRules.Name, "", false, "Allow creation of a release where channel rules would otherwise prevent it.")
 	flags.StringArrayVarP(&createFlags.PackageVersionSpec.Value, createFlags.PackageVersionSpec.Name, "", []string{}, "Version specification a specific packages.\nFormat as {package}:{version}, {step}:{version} or {package-ref-name}:{packageOrStep}:{version}\nYou may specify this multiple times")
+	flags.StringArrayVarP(&createFlags.GitResourceRefsSpec.Value, createFlags.GitResourceRefsSpec.Name, "", []string{}, "Git ref for a specific git resource.\nFormat as {step}:{git-ref}, {step}:{git-resource-name}:{git-ref}\nYou may specify this multiple times")
 
 	// we want the help text to display in the above order, rather than alphabetical
 	flags.SortFlags = false
@@ -214,6 +218,7 @@ func createRun(cmd *cobra.Command, f factory.Factory, flags *CreateFlags) error 
 		ReleaseNotes:            flags.ReleaseNotes.Value,
 		IgnoreIfAlreadyExists:   flags.IgnoreExisting.Value,
 		IgnoreChannelRules:      flags.IgnoreChannelRules.Value,
+		GitResourceRefs:         flags.GitResourceRefsSpec.Value,
 	}
 
 	if flags.ReleaseNotesFile.Value != "" {
@@ -241,6 +246,7 @@ func createRun(cmd *cobra.Command, f factory.Factory, flags *CreateFlags) error 
 			// deliberately don't include resolvedFlags.PackageVersion in the automation command; it gets converted into PackageVersionSpec
 			resolvedFlags.Project.Value = options.ProjectName
 			resolvedFlags.PackageVersionSpec.Value = options.PackageVersionOverrides
+			resolvedFlags.GitResourceRefsSpec.Value = options.GitResourceRefs
 			resolvedFlags.Channel.Value = options.ChannelName
 			resolvedFlags.GitRef.Value = options.GitReference
 			resolvedFlags.GitCommit.Value = options.GitCommit
@@ -258,6 +264,7 @@ func createRun(cmd *cobra.Command, f factory.Factory, flags *CreateFlags) error 
 				resolvedFlags.IgnoreExisting,
 				resolvedFlags.IgnoreChannelRules,
 				resolvedFlags.PackageVersionSpec,
+				resolvedFlags.GitResourceRefsSpec,
 				resolvedFlags.Version,
 			)
 			cmd.Printf("\nAutomation Command: %s\n", autoCmd)
