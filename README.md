@@ -50,6 +50,14 @@ choco install octopus-cli
 
 *Note:* At this time, the chocolatey package is x64 only. If you are using Windows on ARM, download the manual archive instead.
 
+#### Windows - winget
+
+```shell
+winget install OctopusDeploy.Cli
+```
+
+*Note:* At this time, the winget package is x64 only. If you are using Windows on ARM, download the manual archive instead.
+
 #### macOS - Homebrew
 
 ```shell
