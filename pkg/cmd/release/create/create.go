@@ -510,39 +510,7 @@ func (p *PackageVersionOverride) ToPackageOverrideString() string {
 // and we want to allow for multiple different delimeters.
 // neither the builtin golang strings.Split or strings.FieldsFunc support this. Logic borrowed from strings.FieldsFunc with heavy modifications
 func splitPackageOverrideString(s string) []string {
-	// pass 1: collect spans; golang strings.FieldsFunc says it's much more efficient this way
-	type span struct {
-		start int
-		end   int
-	}
-	spans := make([]span, 0, 3)
-
-	// Find the field start and end indices.
-	start := 0 // we always start the first span at the beginning of the string
-	for idx, ch := range s {
-		if ch == ':' || ch == '/' || ch == '=' {
-			if start >= 0 { // we found a delimiter and we are already in a span; end the span and start a new one
-				spans = append(spans, span{start, idx})
-				start = idx + 1
-			} else { // we found a delimiter and we are not in a span; start a new span
-				if start < 0 {
-					start = idx
-				}
-			}
-		}
-	}
-
-	// Last field might end at EOF.
-	if start >= 0 {
-		spans = append(spans, span{start, len(s)})
-	}
-
-	// pass 2: create strings from recorded field indices.
-	a := make([]string, len(spans))
-	for i, span := range spans {
-		a[i] = s[span.start:span.end]
-	}
-	return a
+	return splitString(s, []int32{':', '/', '='})
 }
 
 // AmbiguousPackageVersionOverride tells us that we want to set the version of some package to `Version`
@@ -889,9 +857,6 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 		_, _ = fmt.Fprintf(stdout, "Channel %s\n", output.Cyan(selectedChannel.Name))
 	}
 	options.ChannelName = selectedChannel.Name
-	if err != nil {
-		return err
-	}
 
 	// immediately load the deployment process template
 	// we need the deployment process template in order to get the steps, so we can lookup the stepID
@@ -928,6 +893,30 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 		}
 	} else {
 		overriddenPackageVersions = packageVersionBaseline // there aren't any, but satisfy the code below anyway
+	}
+
+	gitResourcesBaseline, err := BuildGitResourcesBaseline(deploymentProcessTemplate)
+	if err != nil {
+		return err
+	}
+
+	if len(gitResourcesBaseline) > 0 {
+		overriddenGitResources, err := AskGitResourceOverrideLoop(
+			gitResourcesBaseline,
+			options.GitResourceRefs,
+			asker,
+			stdout)
+
+		if err != nil {
+			return err
+		}
+
+		if len(overriddenGitResources) > 0 {
+			options.GitResourceRefs = make([]string, 0, len(overriddenGitResources))
+			for _, ov := range overriddenGitResources {
+				options.GitResourceRefs = append(options.GitResourceRefs, ov.ToGitResourceGitRefString())
+			}
+		}
 	}
 
 	if options.Version == "" {
