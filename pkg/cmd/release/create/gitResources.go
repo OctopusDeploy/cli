@@ -41,7 +41,7 @@ bold(GIT RESOURCE OVERRIDE STRINGS)
 dim(---------------------------------------------------------------------)
 `) // note this expects to have prettifyHelp run over it
 
-func BuildGitResourcesBaseline(deploymentProcessTemplate *deployments.DeploymentProcessTemplate) ([]*GitResourceGitRef, error) {
+func BuildGitResourcesBaseline(deploymentProcessTemplate *deployments.DeploymentProcessTemplate) []*GitResourceGitRef {
 	result := make([]*GitResourceGitRef, 0, len(deploymentProcessTemplate.GitResources))
 
 	for _, gitResource := range deploymentProcessTemplate.GitResources {
@@ -52,7 +52,7 @@ func BuildGitResourcesBaseline(deploymentProcessTemplate *deployments.Deployment
 		})
 	}
 
-	return result, nil
+	return result
 }
 
 type GitResourceGitRef struct {

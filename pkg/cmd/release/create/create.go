@@ -895,10 +895,7 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 		overriddenPackageVersions = packageVersionBaseline // there aren't any, but satisfy the code below anyway
 	}
 
-	gitResourcesBaseline, err := BuildGitResourcesBaseline(deploymentProcessTemplate)
-	if err != nil {
-		return err
-	}
+	gitResourcesBaseline := BuildGitResourcesBaseline(deploymentProcessTemplate)
 
 	if len(gitResourcesBaseline) > 0 {
 		overriddenGitResources, err := AskGitResourceOverrideLoop(
