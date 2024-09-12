@@ -61,6 +61,8 @@ type GitResourceGitRef struct {
 	GitResourceName string
 }
 
+const GitResourceOverrideQuestion = "Git resource ref override string (y to accept, u to undo, r to reset, ? for help):"
+
 func AskGitResourceOverrideLoop(
 	gitResourcesBaseline []*GitResourceGitRef,
 	initialGitResourceOverrideFlags []string, // the --git-resource command line flag (multiple occurrences)
@@ -76,6 +78,7 @@ func AskGitResourceOverrideLoop(
 		if err != nil {
 			continue
 		}
+
 		resolvedOverride, err := ResolveGitResourceOverride(parsedOverride, gitResourcesBaseline)
 		if err != nil {
 			continue
@@ -85,11 +88,11 @@ func AskGitResourceOverrideLoop(
 	}
 
 	//now merge the parsed overrides with the baseline resources, applying any overrides that match
-	gitResourceGitRefsWithOverrides := applyGitResourceOverrides(gitResourcesBaseline, overriddenGitResourceGitRefs)
+	gitResourceGitRefsWithOverrides := ApplyGitResourceOverrides(gitResourcesBaseline, overriddenGitResourceGitRefs)
 
 outerLoop:
 	for {
-		err := PrintGitResourceGitRefs(stdout, gitResourceGitRefsWithOverrides)
+		err := printGitResourceGitRefs(stdout, gitResourceGitRefsWithOverrides)
 		if err != nil {
 			return nil, err
 		}
@@ -97,7 +100,7 @@ outerLoop:
 		var resolvedOverride *GitResourceGitRef = nil
 		var answer = ""
 		err = asker(&survey.Input{
-			Message: "Git resource ref override string (y to accept, u to undo, r to reset, ? for help):",
+			Message: GitResourceOverrideQuestion,
 		}, &answer, survey.WithValidator(func(ans interface{}) error {
 			str, ok := ans.(string)
 			if !ok {
@@ -117,7 +120,7 @@ outerLoop:
 
 			resolvedOverride, err = ResolveGitResourceOverride(parsedOverride, gitResourcesBaseline)
 			if err != nil {
-				return nil
+				return err
 			}
 
 			return nil //all good!
@@ -137,18 +140,18 @@ outerLoop:
 			if len(overriddenGitResourceGitRefs) > 0 {
 				//strip the last override from the list
 				overriddenGitResourceGitRefs = overriddenGitResourceGitRefs[:len(overriddenGitResourceGitRefs)-1]
-				gitResourceGitRefsWithOverrides = applyGitResourceOverrides(gitResourcesBaseline, overriddenGitResourceGitRefs)
+				gitResourceGitRefsWithOverrides = ApplyGitResourceOverrides(gitResourcesBaseline, overriddenGitResourceGitRefs)
 			} else {
 				_ = fmt.Sprint(stdout, "nothing to undo")
 			}
 
 		case "r": // reset! All the way back to the calculated versions, discarding even the stuff that came in from the cmdline
 			overriddenGitResourceGitRefs = make([]*GitResourceGitRef, 0)
-			gitResourceGitRefsWithOverrides = applyGitResourceOverrides(gitResourcesBaseline, overriddenGitResourceGitRefs) //applying any empty array gives us the original list
+			gitResourceGitRefsWithOverrides = ApplyGitResourceOverrides(gitResourcesBaseline, overriddenGitResourceGitRefs) //applying any empty array gives us the original list
 		default:
 			if resolvedOverride != nil {
 				overriddenGitResourceGitRefs = append(overriddenGitResourceGitRefs, resolvedOverride)
-				gitResourceGitRefsWithOverrides = applyGitResourceOverrides(gitResourcesBaseline, overriddenGitResourceGitRefs)
+				gitResourceGitRefsWithOverrides = ApplyGitResourceOverrides(gitResourcesBaseline, overriddenGitResourceGitRefs)
 			}
 		}
 		// loop around and let them put in more input
@@ -157,7 +160,7 @@ outerLoop:
 }
 
 func ParseGitResourceGitRefString(gitResourceRef string) (*GitResourceGitRef, error) {
-	if gitResourceRef == "" {
+	if strings.TrimSpace(gitResourceRef) == "" {
 		return nil, errors.New("empty git resource git ref specification")
 	}
 
@@ -177,6 +180,14 @@ func ParseGitResourceGitRefString(gitResourceRef string) (*GitResourceGitRef, er
 		gitRef = strings.TrimSpace(components[2])
 	default:
 		return nil, fmt.Errorf("git resource git ref specification \"%s\" does not use expected format", gitResourceRef)
+	}
+
+	if actionName == "" {
+		return nil, fmt.Errorf("git resource git ref specification \"%s\" cannot have an empty step name", gitResourceRef)
+	}
+
+	if gitRef == "" {
+		return nil, fmt.Errorf("git resource git ref specification \"%s\" cannot have an empty git ref", gitResourceRef)
 	}
 
 	return &GitResourceGitRef{
@@ -210,7 +221,7 @@ func ResolveGitResourceOverride(override *GitResourceGitRef, baseline []*GitReso
 	}, nil
 }
 
-func applyGitResourceOverrides(gitResourcesBaseline []*GitResourceGitRef, overrides []*GitResourceGitRef) []*GitResourceGitRef {
+func ApplyGitResourceOverrides(gitResourcesBaseline []*GitResourceGitRef, overrides []*GitResourceGitRef) []*GitResourceGitRef {
 	result := make([]*GitResourceGitRef, 0, len(gitResourcesBaseline))
 
 	for _, gitResourceGitRef := range gitResourcesBaseline {
@@ -247,7 +258,7 @@ func applyGitResourceOverrides(gitResourcesBaseline []*GitResourceGitRef, overri
 }
 
 // Note this always uses the Table Printer, it pays no respect to outputformat=json, because it's only part of the interactive flow
-func PrintGitResourceGitRefs(ioWriter io.Writer, gitResourceGitRefs []*GitResourceGitRef) error {
+func printGitResourceGitRefs(ioWriter io.Writer, gitResourceGitRefs []*GitResourceGitRef) error {
 	t := output.NewTable(ioWriter)
 	t.AddRow(
 		output.Bold("STEP NAME"),
