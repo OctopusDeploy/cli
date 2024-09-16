@@ -78,7 +78,7 @@ step "push-homebrew-formula-updates-to-the-homebrew-taps-repo" {
                     $gitUserEmail = $OctopusParameters["Publish:HomeBrew:UserEmail"]
                 
                     $githubtoken = $OctopusParameters["Publish:HomeBrew:ApiKey"]
-                    $origin="https://${githubtoken}@github.com/OctopusDeploy/homebrew-taps"
+                    $origin="https://$gitUserName:$githubtoken@github.com/OctopusDeploy/homebrew-taps"
                 
                 }
                 
@@ -115,7 +115,7 @@ step "push-homebrew-formula-updates-to-the-homebrew-taps-repo" {
 
         container {
             feed = "docker-hub"
-            image = "octopusdeploy/worker-tools:3.3.2-ubuntu.18.04"
+            image = "octopusdeploy/worker-tools:6.3.0-ubuntu.22.04"
         }
 
         packages "cli" {
