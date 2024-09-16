@@ -25,6 +25,8 @@ func TestReleaseCreate_ParseGitResourceOverrideString(t *testing.T) {
 		{input: "Action:Name1:*", expect: &create.GitResourceGitRef{ActionName: "Action", GitRef: "*", GitResourceName: "Name1"}},
 		{input: "Action=Name1=refs/heads/main", expect: &create.GitResourceGitRef{ActionName: "Action", GitRef: "refs/heads/main", GitResourceName: "Name1"}},
 		{input: "Action=Name1=*", expect: &create.GitResourceGitRef{ActionName: "Action", GitRef: "*", GitResourceName: "Name1"}},
+		//Mixing delimiters is NOT supported (consistent with server-side) this results in an Action name that contains an = (as : is the high preference delimiter)
+		{input: "Action=Name1:*", expect: &create.GitResourceGitRef{ActionName: "Action=Name1", GitRef: "*", GitResourceName: ""}},
 
 		//Invalid inputs
 		{input: "", isErrorExpected: true},

@@ -164,7 +164,18 @@ func ParseGitResourceGitRefString(gitResourceRef string) (*GitResourceGitRef, er
 		return nil, errors.New("empty git resource git reference specification")
 	}
 
-	components := splitString(gitResourceRef, []int32{':', '='})
+	delimiters := []rune{':', '='}
+
+	chosenDelimiterIndex := slices.IndexFunc(delimiters, func(char int32) bool {
+		return strings.ContainsRune(gitResourceRef, char)
+	})
+
+	if chosenDelimiterIndex < 0 {
+		return nil, fmt.Errorf("git resource git reference specification \"%s\" does not use an expected format", gitResourceRef)
+	}
+
+	//for consistency with the server-side code, we only support one type of delimiter at once
+	components := splitString(gitResourceRef, []rune{delimiters[chosenDelimiterIndex]})
 	actionName, gitResourceName, gitRef := "", "", ""
 
 	// We support 2 formats of git resource

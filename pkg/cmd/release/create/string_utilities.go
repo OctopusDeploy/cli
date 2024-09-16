@@ -6,7 +6,7 @@ import "golang.org/x/exp/slices"
 // we want to pick up empty entries here; so "::5" and ":pterm:5" should both return THREE components, rather than one or two
 // and we want to allow for multiple different delimeters.
 // neither the builtin golang strings.Split or strings.FieldsFunc support this. Logic borrowed from strings.FieldsFunc with heavy modifications
-func splitString(s string, delimiters []int32) []string {
+func splitString(s string, delimiters []rune) []string {
 	// pass 1: collect spans; golang strings.FieldsFunc says it's much more efficient this way
 	type span struct {
 		start int
