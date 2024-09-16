@@ -28,10 +28,10 @@ bold(COMMANDS)
 
 bold(GIT RESOURCE OVERRIDE STRINGS)
  Git resource override strings must have 2 or 3 components, separated by a : or =
- The first component is always the step name. The last component is always the target Git ref
+ The first component is always the step name. The last component is always the target Git ref.
  When specifying 2 components, it is assumed that this is for the primary git resource.
- When specifying 3 components, the second component is the name of the Git resource
- You can specify a * for the Git ref which will default to the step-defined default branch
+ When specifying 3 components, the second component is the name of the Git resource.
+ You can specify a * for the Git ref which will default to the step-defined default branch.
 
  Examples:
    bold(Run Script:refs/heads/my-branch)   dim(# sets primary Git resource in the 'Run Script' step to use the 'refs/heads/my-branch' ref)
@@ -61,7 +61,7 @@ type GitResourceGitRef struct {
 	GitResourceName string
 }
 
-const GitResourceOverrideQuestion = "Git resource ref override string (y to accept, u to undo, r to reset, ? for help):"
+const GitResourceOverrideQuestion = "Git resource reference override string (y to accept, u to undo, r to reset, ? for help):"
 
 func AskGitResourceOverrideLoop(
 	gitResourcesBaseline []*GitResourceGitRef,
@@ -179,7 +179,7 @@ func ParseGitResourceGitRefString(gitResourceRef string) (*GitResourceGitRef, er
 		gitResourceName = strings.TrimSpace(components[1])
 		gitRef = strings.TrimSpace(components[2])
 	default:
-		return nil, fmt.Errorf("git resource git ref specification \"%s\" does not use expected format", gitResourceRef)
+		return nil, fmt.Errorf("git resource git ref specification \"%s\" does not use an expected format", gitResourceRef)
 	}
 
 	if actionName == "" {
