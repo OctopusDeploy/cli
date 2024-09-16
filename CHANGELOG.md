@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.8.0](https://github.com/OctopusDeploy/cli/compare/v2.7.0...v2.8.0) (2024-09-16)
+
+
+### Features
+
+* add ability to change git refs when creating release ([#392](https://github.com/OctopusDeploy/cli/issues/392)) ([5409353](https://github.com/OctopusDeploy/cli/commit/540935358adcdace7b53165d473ec38c762611e2))
+
 ## [2.7.0](https://github.com/OctopusDeploy/cli/compare/v2.6.0...v2.7.0) (2024-07-30)
 
 
