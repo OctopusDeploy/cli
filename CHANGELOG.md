@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.8.1](https://github.com/OctopusDeploy/cli/compare/v2.8.0...v2.8.1) (2024-09-16)
+
+
+### Bug Fixes
+
+* no program args now outputs the root help again ([#398](https://github.com/OctopusDeploy/cli/issues/398)) ([a0eec58](https://github.com/OctopusDeploy/cli/commit/a0eec582999df9aeaa17fcd4a9ddbf958d940c13))
+
 ## [2.8.0](https://github.com/OctopusDeploy/cli/compare/v2.7.0...v2.8.0) (2024-09-16)
 
 
