@@ -256,6 +256,24 @@ func TestReleaseCreate_AskQuestions_AskGitResourceOverrideLoop(t *testing.T) {
 			}, overrides)
 		}},
 
+		{"multiple overrides of same git resource results in last override used", func(t *testing.T, qa *testutil.AskMocker, stdout *bytes.Buffer) {
+			receiver := testutil.GoBegin2(func() ([]*create.GitResourceGitRef, error) {
+				return create.AskGitResourceOverrideLoop(baseline, make([]string, 0), qa.AsAsker(), stdout)
+			})
+
+			_ = qa.ExpectQuestion(t, &survey.Input{Message: create.GitResourceOverrideQuestion}).AnswerWith("Action1:refs/heads/elephant")
+			_ = qa.ExpectQuestion(t, &survey.Input{Message: create.GitResourceOverrideQuestion}).AnswerWith("Action1:refs/heads/dinosaur")
+			_ = qa.ExpectQuestion(t, &survey.Input{Message: create.GitResourceOverrideQuestion}).AnswerWith("Action1:refs/heads/lion")
+
+			_ = qa.ExpectQuestion(t, &survey.Input{Message: create.GitResourceOverrideQuestion}).AnswerWith("y")
+
+			overrides, err := testutil.ReceivePair(receiver)
+			assert.Nil(t, err)
+			assert.Equal(t, []*create.GitResourceGitRef{
+				{ActionName: "Action1", GitRef: "refs/heads/lion", GitResourceName: ""},
+			}, overrides)
+		}},
+
 		{"entering the loop with --git-resource picked up from the command line", func(t *testing.T, qa *testutil.AskMocker, stdout *bytes.Buffer) {
 			cmdlineGitResources := []string{"Action1:Name1:refs/tags/1.0.0", "Action2:refs/heads/abc123"}
 
@@ -300,13 +318,13 @@ func TestReleaseCreate_AskQuestions_AskGitResourceOverrideLoop(t *testing.T) {
 			q := qa.ExpectQuestion(t, &survey.Input{Message: create.GitResourceOverrideQuestion})
 
 			validationErr := q.AnswerWith("fish") // not enough components
-			assert.EqualError(t, validationErr, "git resource git ref specification \"fish\" does not use expected format")
+			assert.EqualError(t, validationErr, "git resource git reference specification \"fish\" does not use an expected format")
 
 			validationErr = q.AnswerWith("z:z:z:z") // too many components
-			assert.EqualError(t, validationErr, "git resource git ref specification \"z:z:z:z\" does not use expected format")
+			assert.EqualError(t, validationErr, "git resource git reference specification \"z:z:z:z\" does not use an expected format")
 
 			validationErr = q.AnswerWith("refs/heads/main") // can't just have a git ref with no :
-			assert.EqualError(t, validationErr, "git resource git ref specification \"refs/heads/main\" does not use expected format")
+			assert.EqualError(t, validationErr, "git resource git reference specification \"refs/heads/main\" does not use an expected format")
 
 			validationErr = q.AnswerWith("Action1:refs/heads/elephant") // answer properly this time
 			assert.Nil(t, validationErr)

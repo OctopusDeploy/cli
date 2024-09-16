@@ -150,7 +150,19 @@ outerLoop:
 			gitResourceGitRefsWithOverrides = ApplyGitResourceOverrides(gitResourcesBaseline, overriddenGitResourceGitRefs) //applying any empty array gives us the original list
 		default:
 			if resolvedOverride != nil {
-				overriddenGitResourceGitRefs = append(overriddenGitResourceGitRefs, resolvedOverride)
+				existingIndex := slices.IndexFunc(overriddenGitResourceGitRefs, func(ref *GitResourceGitRef) bool {
+					return ref.Equals(resolvedOverride)
+				})
+
+				//if the override already exists, just overwrite it in the array
+				//this handles the case where they override the same git resource multiple times
+				if existingIndex >= 0 {
+					overriddenGitResourceGitRefs[existingIndex] = resolvedOverride
+				} else {
+					//otherwise just append it
+					overriddenGitResourceGitRefs = append(overriddenGitResourceGitRefs, resolvedOverride)
+				}
+
 				gitResourceGitRefsWithOverrides = ApplyGitResourceOverrides(gitResourcesBaseline, overriddenGitResourceGitRefs)
 			}
 		}
