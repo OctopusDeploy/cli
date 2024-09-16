@@ -24,14 +24,14 @@ bold(COMMANDS)
  - green(y) to accept the list of Git resources and proceed with creating the release
  - green(u) to undo the last edit you made to Git resource Git refs
  - green(r) to reset all Git resource Git ref edits
- - A Git resource Git ref override string.
+ - A Git resource git reference override string
 
 bold(GIT RESOURCE OVERRIDE STRINGS)
  Git resource override strings must have 2 or 3 components, separated by a : or =
  The first component is always the step name. The last component is always the target Git ref.
  When specifying 2 components, it is assumed that this is for the primary git resource.
  When specifying 3 components, the second component is the name of the Git resource.
- You can specify a * for the Git ref which will default to the step-defined default branch.
+ You can specify a * for the Git reference which will default to the step-defined default branch.
 
  Examples:
    bold(Run Script:refs/heads/my-branch)   dim(# sets primary Git resource in the 'Run Script' step to use the 'refs/heads/my-branch' ref)
@@ -61,7 +61,7 @@ type GitResourceGitRef struct {
 	GitResourceName string
 }
 
-const GitResourceOverrideQuestion = "Git resource reference override string (y to accept, u to undo, r to reset, ? for help):"
+const GitResourceOverrideQuestion = "Git resource git reference override string (y to accept, u to undo, r to reset, ? for help):"
 
 func AskGitResourceOverrideLoop(
 	gitResourcesBaseline []*GitResourceGitRef,
@@ -161,7 +161,7 @@ outerLoop:
 
 func ParseGitResourceGitRefString(gitResourceRef string) (*GitResourceGitRef, error) {
 	if strings.TrimSpace(gitResourceRef) == "" {
-		return nil, errors.New("empty git resource git ref specification")
+		return nil, errors.New("empty git resource git reference specification")
 	}
 
 	components := splitString(gitResourceRef, []int32{':', '='})
@@ -179,15 +179,15 @@ func ParseGitResourceGitRefString(gitResourceRef string) (*GitResourceGitRef, er
 		gitResourceName = strings.TrimSpace(components[1])
 		gitRef = strings.TrimSpace(components[2])
 	default:
-		return nil, fmt.Errorf("git resource git ref specification \"%s\" does not use an expected format", gitResourceRef)
+		return nil, fmt.Errorf("git resource git reference specification \"%s\" does not use an expected format", gitResourceRef)
 	}
 
 	if actionName == "" {
-		return nil, fmt.Errorf("git resource git ref specification \"%s\" cannot have an empty step name", gitResourceRef)
+		return nil, fmt.Errorf("git resource git reference specification \"%s\" cannot have an empty step name", gitResourceRef)
 	}
 
 	if gitRef == "" {
-		return nil, fmt.Errorf("git resource git ref specification \"%s\" cannot have an empty git ref", gitResourceRef)
+		return nil, fmt.Errorf("git resource git reference specification \"%s\" cannot have an empty git ref", gitResourceRef)
 	}
 
 	return &GitResourceGitRef{
