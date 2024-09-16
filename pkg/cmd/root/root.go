@@ -133,10 +133,10 @@ func NewCmdRoot(f factory.Factory, clientFactory apiclient.ClientFactory, askPro
 
 	cmd.RunE = func(cmd *cobra.Command, args []string) error {
 		if versionParameter {
-			versionCommand.RunE(cmd, args)
+			return versionCommand.RunE(cmd, args)
+		} else {
+			return cmd.Help()
 		}
-
-		return nil
 	}
 
 	return cmd
