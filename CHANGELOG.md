@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.9.0](https://github.com/OctopusDeploy/cli/compare/v2.8.1...v2.9.0) (2024-09-17)
+
+
+### Features
+
+* print packages that get created ([#404](https://github.com/OctopusDeploy/cli/issues/404)) ([f648633](https://github.com/OctopusDeploy/cli/commit/f648633fa0a2e5f9e77244c3e66c4f17d46c5aba))
+
 ## [2.8.1](https://github.com/OctopusDeploy/cli/compare/v2.8.0...v2.8.1) (2024-09-16)
 
 
