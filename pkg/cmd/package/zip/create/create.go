@@ -25,7 +25,7 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 		`, constants.ExecutableName),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			opts := pack.NewPackageCreateOptions(f, createFlags, cmd)
-			return createRun(cmd, opts)
+			return createRun(opts)
 		},
 	}
 
@@ -42,12 +42,7 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 	return cmd
 }
 
-func createRun(cmd *cobra.Command, opts *pack.PackageCreateOptions) error {
-	outputFormat, err := cmd.Flags().GetString(constants.FlagOutputFormat)
-	if err != nil { // should never happen, but fallback if it does
-		outputFormat = constants.OutputFormatTable
-	}
-
+func createRun(opts *pack.PackageCreateOptions) error {
 	if !opts.NoPrompt {
 		if err := pack.PackageCreatePromptMissing(opts); err != nil {
 			return err
@@ -76,19 +71,7 @@ func createRun(cmd *cobra.Command, opts *pack.PackageCreateOptions) error {
 	}
 
 	outFilePath := pack.BuildOutFileName("zip", opts.Id.Value, opts.Version.Value)
-
-	zip, err := pack.BuildPackage(opts, outFilePath)
-	if (zip != nil) {
-		switch outputFormat {
-			case constants.OutputFormatBasic:
-				cmd.Printf("%s\n", zip.Name())
-			case constants.OutputFormatJson:
-				cmd.Printf(`{"Path": "%s"}`, zip.Name())
-			default: // table
-				cmd.Printf("Successfully created package %s\n", zip.Name())
-		}
-	}
-	return err
+	return pack.BuildPackage(opts, outFilePath)
 }
 
 func applyDefaultsToUnspecifiedOptions(opts *pack.PackageCreateOptions) {

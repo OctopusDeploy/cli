@@ -165,37 +165,37 @@ func BuildOutFileName(packageType, id, version string) string {
 	return fmt.Sprintf("%s.%s.%s", id, version, packageType)
 }
 
-func BuildPackage(opts *PackageCreateOptions, outFileName string) (*os.File, error) {
+func BuildPackage(opts *PackageCreateOptions, outFileName string) error {
 	outFilePath := filepath.Join(opts.OutFolder.Value, outFileName)
 	outPath, err := filepath.Abs(opts.OutFolder.Value)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	_, err = os.Stat(outFilePath)
 	if !opts.Overwrite.Value && err == nil {
-		return nil, fmt.Errorf("package with name '%s' already exists ...aborting", outFileName)
+		return fmt.Errorf("package with name '%s' already exists ...aborting", outFileName)
 	}
 
 	VerboseOut(opts.Writer, opts.Verbose.Value, "Saving \"%s\" to \"%s\"...\nAdding files from \"%s\" matching pattern/s \"%s\"\n", outPath, outFileName, outPath, strings.Join(opts.Include.Value, ", "))
 
 	filePaths, err := getDistinctPatternMatches(opts.BasePath.Value, opts.Include.Value)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	if len(filePaths) == 0 {
-		return nil, errors.New("no files identified to package")
+		return errors.New("no files identified to package")
 	}
 
 	return buildArchive(opts.Writer, outFilePath, opts.BasePath.Value, filePaths, opts.Verbose.Value)
 }
 
-func buildArchive(out io.Writer, outFilePath string, basePath string, filesToArchive []string, isVerbose bool) (*os.File, error) {
+func buildArchive(out io.Writer, outFilePath string, basePath string, filesToArchive []string, isVerbose bool) error {
 	_, outFile := filepath.Split(outFilePath)
 	zipFile, err := os.Create(outFilePath)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	defer zipFile.Close()
 
@@ -210,12 +210,12 @@ func buildArchive(out io.Writer, outFilePath string, basePath string, filesToArc
 		fullPath := filepath.Join(basePath, path)
 		fileInfo, err := os.Stat(fullPath)
 		if err != nil {
-			return nil, err
+			return err
 		}
 
 		header, err := zip.FileInfoHeader(fileInfo)
 		if err != nil {
-			return nil, err
+			return err
 		}
 
 		header.Method = zip.Deflate
@@ -226,7 +226,7 @@ func buildArchive(out io.Writer, outFilePath string, basePath string, filesToArc
 
 		headerWriter, err := writer.CreateHeader(header)
 		if err != nil {
-			return nil, err
+			return err
 		}
 
 		if fileInfo.IsDir() {
@@ -235,23 +235,23 @@ func buildArchive(out io.Writer, outFilePath string, basePath string, filesToArc
 
 		f, err := os.Open(fullPath)
 		if err != nil {
-			return nil, err
+			return err
 		}
 
 		_, err = io.Copy(headerWriter, f)
 		if err == nil {
 			VerboseOut(out, isVerbose, "Added file: %s\n", path)
 		} else {
-			return nil, err
+			return err
 		}
 
 		err = f.Close()
 		if err != nil {
-			return nil, err
+			return err
 		}
 	}
 
-	return zipFile, nil
+	return nil
 }
 
 func getDistinctPatternMatches(basePath string, patterns []string) ([]string, error) {
