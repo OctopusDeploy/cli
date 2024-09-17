@@ -66,7 +66,7 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 				NuPkgCreateFlags:     createFlags,
 				PackageCreateOptions: pack.NewPackageCreateOptions(f, packFlags, cmd),
 			}
-			return createRun(opts)
+			return createRun(cmd, opts)
 		},
 	}
 
@@ -88,7 +88,11 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 	return cmd
 }
 
-func createRun(opts *NuPkgCreateOptions) error {
+func createRun(cmd *cobra.Command, opts *NuPkgCreateOptions) error {
+	outputFormat, err := cmd.Flags().GetString(constants.FlagOutputFormat)
+	if err != nil { // should never happen, but fallback if it does
+		outputFormat = constants.OutputFormatTable
+	}
 	if !opts.NoPrompt {
 		if err := pack.PackageCreatePromptMissing(opts.PackageCreateOptions); err != nil {
 			return err
@@ -102,7 +106,7 @@ func createRun(opts *NuPkgCreateOptions) error {
 		return errors.New("must supply a package ID")
 	}
 
-	err := applyDefaultsToUnspecifiedPackageOptions(opts)
+	err = applyDefaultsToUnspecifiedPackageOptions(opts)
 	if err != nil {
 		return err
 	}
@@ -127,11 +131,6 @@ func createRun(opts *NuPkgCreateOptions) error {
 	pack.VerboseOut(opts.Writer, opts.Verbose.Value, "Packing \"%s\" version \"%s\"...\n", opts.Id.Value, opts.Version.Value)
 	outFilePath := pack.BuildOutFileName("nupkg", opts.Id.Value, opts.Version.Value)
 
-	err = pack.BuildPackage(opts.PackageCreateOptions, outFilePath)
-	if err != nil {
-		return err
-	}
-
 	if !opts.NoPrompt {
 		autoCmd := flag.GenerateAutomationCmd(
 			opts.CmdPath,
@@ -151,7 +150,18 @@ func createRun(opts *NuPkgCreateOptions) error {
 		fmt.Fprintf(opts.Writer, "\nAutomation Command: %s\n", autoCmd)
 	}
 
-	return nil
+	nuget, err := pack.BuildPackage(opts.PackageCreateOptions, outFilePath)
+	if (nuget != nil) {
+		switch outputFormat {
+			case constants.OutputFormatBasic:
+				cmd.Printf("%s\n", nuget.Name())
+			case constants.OutputFormatJson:
+				cmd.Printf(`{"Path": "%s"}`, nuget.Name())
+			default: // table
+				cmd.Printf("Successfully created package %s\n", nuget.Name())
+		}
+	}
+	return err
 }
 
 func PromptMissing(opts *NuPkgCreateOptions) error {
