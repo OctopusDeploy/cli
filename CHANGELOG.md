@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.9.1](https://github.com/OctopusDeploy/cli/compare/v2.9.0...v2.9.1) (2024-09-18)
+
+
+### Bug Fixes
+
+* Removes a whitespace between Path key and value when creating a zip/nupkg with json output format ([59de77a](https://github.com/OctopusDeploy/cli/commit/59de77a3aaf027fc9228d93315097c428245bae8))
+
 ## [2.9.0](https://github.com/OctopusDeploy/cli/compare/v2.8.1...v2.9.0) (2024-09-17)
 
 
