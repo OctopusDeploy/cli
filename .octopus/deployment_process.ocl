@@ -220,7 +220,7 @@ step "publish-winget-update-pr" {
                 
                 $version = $OctopusParameters["Octopus.Release.Number"]
                 
-                $packageUrls = "https://github.com/OctopusDeploy/cli/releases/download/v$version/octopus_$version_windows_amd64.msi|"
+                $packageUrls = "https://github.com/OctopusDeploy/cli/releases/download/v$version/octopus_$version_windows_amd64.msi|x64"
                 
                 # This will perform the update and also create a PR with the relevant update
                 .\wingetcreate.exe update OctopusDeploy.Cli --urls $(packageUrls) --version $version --token $OctopusParameters["Publish:Winget:GitHubPAT"] --submit
