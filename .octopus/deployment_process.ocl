@@ -206,3 +206,27 @@ step "publish-to-rpm-repo" {
         }
     }
 }
+
+step "publish-winget-update-pr" {
+    name = "Publish winget update PR"
+    start_trigger = "StartWithPrevious"
+
+    action {
+        action_type = "Octopus.Script"
+        properties = {
+            Octopus.Action.Script.ScriptBody = <<-EOT
+                # Install winget-create
+                Invoke-WebRequest https://aka.ms/wingetcreate/latest -OutFile wingetcreate.exe
+                
+                $version = $OctopusParameters["Octopus.Release.Number"]
+                
+                $packageUrls = "https://github.com/OctopusDeploy/cli/releases/download/v$version/octopus_$version_windows_amd64.msi"
+                
+                .\wingetcreate.exe update OctopusDeploy.Cli -u $(packageUrls) -v $version -t $(GITHUB_PAT)
+                EOT
+            Octopus.Action.Script.ScriptSource = "Inline"
+            Octopus.Action.Script.Syntax = "PowerShell"
+        }
+        worker_pool = "hosted-windows"
+    }
+}
