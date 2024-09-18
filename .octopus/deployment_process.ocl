@@ -149,7 +149,7 @@ step "publish-to-apt-repo" {
                   --env PUBLISH_ARTIFACTORY_PASSWORD="$(get_octopusvariable "Publish:Artifactory:Password")" \
                   --env AWS_ACCESS_KEY_ID="$(get_octopusvariable "LinuxPackagePublisherAwsAccount.AccessKey")" \
                   --env AWS_SECRET_ACCESS_KEY="$(get_octopusvariable "LinuxPackagePublisherAwsAccount.SecretKey")" \
-                  octopusdeploy/publish-linux bash -c 'cd /working && bash publish-apt.sh' 2>&1 || exit
+                  docker.packages.octopushq.com/octopusdeploy/publish-linux bash -c 'cd /working && bash publish-apt.sh' 2>&1 || exit
                 
                 EOT
             Octopus.Action.Script.ScriptSource = "Inline"
@@ -187,7 +187,7 @@ step "publish-to-rpm-repo" {
                   --env PUBLISH_ARTIFACTORY_PASSWORD="$(get_octopusvariable "Publish:Artifactory:Password")" \
                   --env AWS_ACCESS_KEY_ID="$(get_octopusvariable "LinuxPackagePublisherAwsAccount.AccessKey")" \
                   --env AWS_SECRET_ACCESS_KEY="$(get_octopusvariable "LinuxPackagePublisherAwsAccount.SecretKey")" \
-                  octopusdeploy/publish-linux bash -c 'cd /working && bash publish-rpm.sh' 2>&1 || exit
+                  docker.packages.octopushq.com/octopusdeploy/publish-linux bash -c 'cd /working && bash publish-rpm.sh' 2>&1 || exit
                 
                 EOT
             Octopus.Action.Script.ScriptSource = "Inline"
