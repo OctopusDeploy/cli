@@ -9,6 +9,7 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/OctopusDeploy/cli/pkg/apiclient"
 
@@ -288,15 +289,15 @@ func createRun(cmd *cobra.Command, f factory.Factory, flags *CreateFlags) error 
 	}
 
 	if options.Response != nil {
-		printReleaseVersion := func(release *releases.Release, channel *channels.Channel) {
+		printReleaseVersion := func(releaseVersion string, assembled time.Time, releaseNotes string, channel *channels.Channel) {
 			switch outputFormat {
 			case constants.OutputFormatBasic:
-				cmd.Printf("%s\n", release.Version)
+				cmd.Printf("%s\n", releaseVersion)
 			case constants.OutputFormatJson:
 				v := &list.ReleaseViewModel{
-					Version:      release.Version,
-					Assembled:    release.Assembled,
-					ReleaseNotes: release.ReleaseNotes,
+					Version:      releaseVersion,
+					Assembled:    assembled,
+					ReleaseNotes: releaseNotes,
 				}
 				if channel != nil {
 					v.Channel = channel.Name
@@ -310,9 +311,9 @@ func createRun(cmd *cobra.Command, f factory.Factory, flags *CreateFlags) error 
 				}
 			default: // table
 				if channel != nil {
-					cmd.Printf("Successfully created release version %s using channel %s\n", release.Version, channel.Name)
+					cmd.Printf("Successfully created release version %s using channel %s\n", releaseVersion, channel.Name)
 				} else {
-					cmd.Printf("Successfully created release version %s\n", release.Version)
+					cmd.Printf("Successfully created release version %s\n", releaseVersion)
 				}
 			}
 		}
@@ -321,14 +322,14 @@ func createRun(cmd *cobra.Command, f factory.Factory, flags *CreateFlags) error 
 		newlyCreatedRelease, lookupErr := octopus.Releases.GetByID(options.Response.ReleaseID)
 		if lookupErr != nil {
 			cmd.PrintErrf("Warning: cannot fetch release details: %v\n", lookupErr)
-			printReleaseVersion(newlyCreatedRelease, nil)
+			printReleaseVersion(options.Response.ReleaseVersion, newlyCreatedRelease.Assembled, newlyCreatedRelease.ReleaseNotes, nil)
 		} else {
 			releaseChan, lookupErr := octopus.Channels.GetByID(newlyCreatedRelease.ChannelID)
 			if lookupErr != nil {
 				cmd.PrintErrf("Warning: cannot fetch release channel details: %v\n", lookupErr)
-				printReleaseVersion(newlyCreatedRelease, nil)
+				printReleaseVersion(options.Response.ReleaseVersion, newlyCreatedRelease.Assembled, newlyCreatedRelease.ReleaseNotes, nil)
 			} else {
-				printReleaseVersion(newlyCreatedRelease, releaseChan)
+				printReleaseVersion(options.Response.ReleaseVersion, newlyCreatedRelease.Assembled, newlyCreatedRelease.ReleaseNotes, releaseChan)
 			}
 		}
 
