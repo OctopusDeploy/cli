@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.10.0](https://github.com/OctopusDeploy/cli/compare/v2.9.1...v2.10.0) (2024-09-18)
+
+
+### Features
+
+* handle failures in task wait ([#393](https://github.com/OctopusDeploy/cli/issues/393)) ([da8a86b](https://github.com/OctopusDeploy/cli/commit/da8a86bcc58e56f59a211e2cc26a849e373d635e))
+
 ## [2.9.1](https://github.com/OctopusDeploy/cli/compare/v2.9.0...v2.9.1) (2024-09-18)
 
 
