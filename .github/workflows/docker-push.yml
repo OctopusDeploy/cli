@@ -18,7 +18,7 @@ jobs:
           - linux/arm64
     runs-on: ${{ matrix.os }}
     env:
-      VERSION: ${{  github.ref_name }}
+      VERSION: ${{ github.ref_name }}
     steps:
 
     - name: Prepare
