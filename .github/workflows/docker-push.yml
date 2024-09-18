@@ -69,8 +69,7 @@ jobs:
         if-no-files-found: error
         retention-days: 1
   merge:
-    needs: [get-version-number, build-linux]
-    if: ${{ needs.get-version-number.outputs.CONTINUE == 'Yes' }}
+    needs: [build-linux]
     runs-on: ubuntu-latest
     env:
       VERSION_NUMBER: ${{  github.ref_name }}
