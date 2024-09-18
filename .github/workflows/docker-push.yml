@@ -2,6 +2,8 @@ name: Build octopus-cli Docker image
 
 on:
   push:
+    tags:
+      - 'v*'
   workflow_dispatch:
 
 env:
