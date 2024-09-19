@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.10.1](https://github.com/OctopusDeploy/cli/compare/v2.10.0...v2.10.1) (2024-09-19)
+
+
+### Bug Fixes
+
+* include release notes and assembled date in json output after creating a release ([#410](https://github.com/OctopusDeploy/cli/issues/410)) ([42f2db6](https://github.com/OctopusDeploy/cli/commit/42f2db66e93846aebb53056b59751c0c9a938451))
+
 ## [2.10.0](https://github.com/OctopusDeploy/cli/compare/v2.9.1...v2.10.0) (2024-09-18)
 
 
