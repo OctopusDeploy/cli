@@ -35,11 +35,13 @@ func TestWait(t *testing.T) {
 
 	taskList[0].ID = defaultTaskIDs[0]
 	taskList[0].IsCompleted = &boolFalse
+	taskList[0].FinishedSuccessfully = &boolFalse
 	taskList[0].Description = "Deploy Bar 1 release 0.0.2 to Foo"
 	taskList[0].State = "Executing"
 
 	taskList[1].ID = defaultTaskIDs[0]
 	taskList[1].IsCompleted = &boolTrue
+	taskList[1].FinishedSuccessfully = &boolTrue
 	taskList[1].Description = "Deploy Bar 2 release 0.0.2 to Foo"
 	taskList[1].State = "Success"
 
@@ -57,6 +59,7 @@ func TestWait(t *testing.T) {
 			assert.Len(t, taskIDs, 1)
 			assert.Equal(t, defaultTaskIDs[0], taskIDs[0])
 			taskList[0].IsCompleted = &boolTrue
+			taskList[0].FinishedSuccessfully = &boolTrue
 			taskList[0].State = "Success"
 			taskList = taskList[:len(taskList)-1]
 			return taskList, nil
@@ -121,6 +124,7 @@ func TestWait_FailedPendingTask(t *testing.T) {
 
 	taskList[0].ID = defaultTaskIDs[0]
 	taskList[0].IsCompleted = &boolFalse
+	taskList[0].FinishedSuccessfully = &boolFalse
 	taskList[0].Description = "Deploy Bar 1 release 0.0.2 to Foo"
 	taskList[0].State = "Executing"
 
