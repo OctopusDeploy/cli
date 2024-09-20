@@ -86,7 +86,7 @@ func WaitRun(out io.Writer, taskIDs []string, getServerTasksCallback ServerTasks
 
 	if len(pendingTaskIDs) == 0 {
 		if len(failedTaskIDs) != 0 {
-			return fmt.Errorf("one or more deployment tasks failed")
+			return fmt.Errorf("One or more deployment tasks failed.")
 		}
 		return nil
 	}
@@ -112,7 +112,7 @@ func WaitRun(out io.Writer, taskIDs []string, getServerTasksCallback ServerTasks
 			}
 		}
 		if len(failedTaskIDs) != 0 {
-			gotError <- fmt.Errorf("one or more deployment tasks failed")
+			gotError <- fmt.Errorf("One or more deployment tasks failed.")
 			return
 		}
 		done <- true
