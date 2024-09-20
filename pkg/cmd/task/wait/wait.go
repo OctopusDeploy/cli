@@ -81,7 +81,7 @@ func WaitRun(out io.Writer, taskIDs []string, getServerTasksCallback ServerTasks
 		if t.IsCompleted == nil || !*t.IsCompleted {
 			pendingTaskIDs = append(pendingTaskIDs, t.ID)
 		}
-		if t.FinishedSuccessfully != nil && !*t.FinishedSuccessfully {
+		if (t.IsCompleted != nil && *t.IsCompleted) && (t.FinishedSuccessfully != nil && !*t.FinishedSuccessfully) {
 			failedTaskIDs = append(failedTaskIDs, t.ID)
 		}
 		fmt.Fprintf(out, "%s: %s\n", t.Description, t.State)
