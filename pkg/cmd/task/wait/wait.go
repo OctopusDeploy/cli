@@ -81,15 +81,12 @@ func WaitRun(out io.Writer, taskIDs []string, getServerTasksCallback ServerTasks
 		if t.IsCompleted == nil || !*t.IsCompleted {
 			pendingTaskIDs = append(pendingTaskIDs, t.ID)
 		}
-		if t.FinishedSuccessfully != nil && !*t.FinishedSuccessfully {
-			failedTaskIDs = append(failedTaskIDs, t.ID)
-		}
 		fmt.Fprintf(out, "%s: %s\n", t.Description, t.State)
 	}
 
 	if len(pendingTaskIDs) == 0 {
 		if len(failedTaskIDs) != 0 {
-			return fmt.Errorf("One or more deployment tasks failed.")
+			return fmt.Errorf("one or more deployment tasks failed")
 		}
 		return nil
 	}
@@ -115,7 +112,7 @@ func WaitRun(out io.Writer, taskIDs []string, getServerTasksCallback ServerTasks
 			}
 		}
 		if len(failedTaskIDs) != 0 {
-			gotError <- fmt.Errorf("One or more deployment tasks failed.")
+			gotError <- fmt.Errorf("one or more deployment tasks failed")
 			return
 		}
 		done <- true
