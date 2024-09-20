@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.10.2](https://github.com/OctopusDeploy/cli/compare/v2.10.1...v2.10.2) (2024-09-20)
+
+
+### Bug Fixes
+
+* handle non-nil fields in task wait ([#422](https://github.com/OctopusDeploy/cli/issues/422)) ([6d20dd9](https://github.com/OctopusDeploy/cli/commit/6d20dd98a90d6c53d8ce8dffa284ba2fbc191816))
+
 ## [2.10.1](https://github.com/OctopusDeploy/cli/compare/v2.10.0...v2.10.1) (2024-09-19)
 
 
