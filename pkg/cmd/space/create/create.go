@@ -48,7 +48,7 @@ type CreateOptions struct {
 }
 
 func NewCreateOptions(f factory.Factory, flags *CreateFlags, c *cobra.Command) *CreateOptions {
-	dependencies := cmd.NewDependencies(f, c)
+	dependencies := cmd.NewSystemDependencies(f, c)
 	client, err := f.GetSystemClient(apiclient.NewRequester(c))
 	dependencies.Client = client // override the default space client
 	if err != nil {
