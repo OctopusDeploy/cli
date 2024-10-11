@@ -17,8 +17,8 @@ func NewCmdVariables(f factory.Factory) *cobra.Command {
 		Short:   "Manage tenant variables",
 		Long:    "Manage tenant variables in Octopus Deploy",
 		Example: heredoc.Docf(`
-			$ %[1]s tenant variables list --tenant "Bobs Wood Shop"
-			$ %[1]s tenant variables view --name "DatabaseName" --tenant "Bobs Wood Shop"
+			$ %[1]s tenant variables list "Bobs Wood Shop"
+			$ %[1]s tenant variables update --tenant "Bobs Fish Shack" --name "site-name" --value "Bob's Fish Shack" --project "Awesome Web Site" --environment "Test"
 		`, constants.ExecutableName),
 		Annotations: map[string]string{
 			annotations.IsCore: "true",
