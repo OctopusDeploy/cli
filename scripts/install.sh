@@ -33,7 +33,7 @@ fi
 
 log "Selecting version..."
 
-version=${VERSION:-v2.10.2}
+version=${VERSION:-v2.10.3}
 
 if [ ! $version ]; then
     log "${YELLOW}"
