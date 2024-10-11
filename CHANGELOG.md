@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.10.3](https://github.com/OctopusDeploy/cli/compare/v2.10.2...v2.10.3) (2024-10-11)
+
+
+### Bug Fixes
+
+* correct help text in tenant variable commands ([#430](https://github.com/OctopusDeploy/cli/issues/430)) ([e414d7f](https://github.com/OctopusDeploy/cli/commit/e414d7f06d3376125aa59c1f33e118326487a20d))
+
 ## [2.10.2](https://github.com/OctopusDeploy/cli/compare/v2.10.1...v2.10.2) (2024-09-20)
 
 
