@@ -40,6 +40,7 @@ type DeleteOptions struct {
 }
 
 func NewDeleteFlags() *DeleteFlags {
+
 	return &DeleteFlags{
 		Id:           flag.New[string](FlagId, false),
 		Name:         flag.New[string](FlagName, false),
@@ -50,6 +51,7 @@ func NewDeleteFlags() *DeleteFlags {
 }
 
 func NewDeleteOptions(flags *DeleteFlags, dependencies *cmd.Dependencies) *DeleteOptions {
+
 	return &DeleteOptions{
 		DeleteFlags:  flags,
 		Dependencies: dependencies,
@@ -161,6 +163,7 @@ func updateProjectVariables(opts *DeleteOptions, project *projects.Project, proj
 		return delete(opts, project, *projectVariables)
 	}
 }
+
 func delete(opts *DeleteOptions, project *projects.Project, allVars variables.VariableSet) error {
 	_, err := opts.Client.Variables.Update(project.GetID(), allVars)
 	return err
