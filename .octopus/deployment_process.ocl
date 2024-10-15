@@ -78,7 +78,7 @@ step "push-homebrew-formula-updates-to-the-homebrew-taps-repo" {
                     $gitUserEmail = $OctopusParameters["Publish:HomeBrew:UserEmail"]
                 
                     $githubtoken = $OctopusParameters["Publish:HomeBrew:ApiKey"]
-                    $origin="https://${githubtoken}@github.com/OctopusDeploy/homebrew-taps"
+                    $origin="https://$($gitUserName):$($githubtoken)@github.com/OctopusDeploy/homebrew-taps"
                 
                 }
                 
@@ -90,7 +90,7 @@ step "push-homebrew-formula-updates-to-the-homebrew-taps-repo" {
                 }
                 
                 git clone --depth 1 $origin octopus-homebrew-taps
-                cd octopus-homebrew-taps
+                Set-Location octopus-homebrew-taps
                 
                 if ($gitUserName) {
                     git config user.name $gitUserName
@@ -106,7 +106,7 @@ step "push-homebrew-formula-updates-to-the-homebrew-taps-repo" {
                     && git push --repo $origin --set-upstream origin $branchName `
                 )
                 
-                cd ..
+                Set-Location ..
                 EOT
             Octopus.Action.Script.ScriptSource = "Inline"
             Octopus.Action.Script.Syntax = "PowerShell"
@@ -115,7 +115,7 @@ step "push-homebrew-formula-updates-to-the-homebrew-taps-repo" {
 
         container {
             feed = "docker-hub"
-            image = "octopusdeploy/worker-tools:3.3.2-ubuntu.18.04"
+            image = "octopusdeploy/worker-tools:6.3.0-ubuntu.22.04"
         }
 
         packages "cli" {
@@ -149,7 +149,7 @@ step "publish-to-apt-repo" {
                   --env PUBLISH_ARTIFACTORY_PASSWORD="$(get_octopusvariable "Publish:Artifactory:Password")" \
                   --env AWS_ACCESS_KEY_ID="$(get_octopusvariable "LinuxPackagePublisherAwsAccount.AccessKey")" \
                   --env AWS_SECRET_ACCESS_KEY="$(get_octopusvariable "LinuxPackagePublisherAwsAccount.SecretKey")" \
-                  octopusdeploy/publish-linux bash -c 'cd /working && bash publish-apt.sh' 2>&1 || exit
+                  docker.packages.octopushq.com/octopusdeploy/publish-linux bash -c 'cd /working && bash publish-apt.sh' 2>&1 || exit
                 
                 EOT
             Octopus.Action.Script.ScriptSource = "Inline"
@@ -187,7 +187,7 @@ step "publish-to-rpm-repo" {
                   --env PUBLISH_ARTIFACTORY_PASSWORD="$(get_octopusvariable "Publish:Artifactory:Password")" \
                   --env AWS_ACCESS_KEY_ID="$(get_octopusvariable "LinuxPackagePublisherAwsAccount.AccessKey")" \
                   --env AWS_SECRET_ACCESS_KEY="$(get_octopusvariable "LinuxPackagePublisherAwsAccount.SecretKey")" \
-                  octopusdeploy/publish-linux bash -c 'cd /working && bash publish-rpm.sh' 2>&1 || exit
+                  docker.packages.octopushq.com/octopusdeploy/publish-linux bash -c 'cd /working && bash publish-rpm.sh' 2>&1 || exit
                 
                 EOT
             Octopus.Action.Script.ScriptSource = "Inline"
@@ -204,5 +204,30 @@ step "publish-to-rpm-repo" {
                 SelectionMode = "immediate"
             }
         }
+    }
+}
+
+step "publish-winget-update-pr" {
+    name = "Publish winget update PR"
+    start_trigger = "StartWithPrevious"
+
+    action {
+        action_type = "Octopus.Script"
+        properties = {
+            Octopus.Action.Script.ScriptBody = <<-EOT
+                # Install winget-create
+                Invoke-WebRequest https://aka.ms/wingetcreate/latest -OutFile wingetcreate.exe
+                
+                $version = $OctopusParameters["Octopus.Release.Number"]
+                
+                $packageUrls = "https://github.com/OctopusDeploy/cli/releases/download/v$version/octopus_$($version)_windows_amd64.msi|x64"
+                
+                # This will perform the update and also create a PR with the relevant update
+                .\wingetcreate.exe update OctopusDeploy.Cli --urls $packageUrls --version $version --token $OctopusParameters["Publish:Winget:GitHubPAT"] --submit
+                EOT
+            Octopus.Action.Script.ScriptSource = "Inline"
+            Octopus.Action.Script.Syntax = "PowerShell"
+        }
+        worker_pool = "hosted-windows"
     }
 }

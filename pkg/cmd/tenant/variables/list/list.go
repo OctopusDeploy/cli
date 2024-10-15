@@ -73,8 +73,8 @@ func NewCmdList(f factory.Factory) *cobra.Command {
 		Short: "List tenant variables",
 		Long:  "List tenant variables in Octopus Deploy",
 		Example: heredoc.Docf(`
-			$ %[1]s tenant variable list
-			$ %[1]s tenant variable ls
+			$ %[1]s tenant variables list "Bobs Wood Shop"
+			$ %[1]s tenant variables ls Tenant-123
 		`, constants.ExecutableName),
 		Aliases: []string{"ls"},
 		RunE: func(cmd *cobra.Command, args []string) error {

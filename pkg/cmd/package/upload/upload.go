@@ -4,12 +4,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/OctopusDeploy/cli/pkg/apiclient"
 	"io"
 	"os"
 	"path/filepath"
 	"strings"
-
-	"github.com/OctopusDeploy/cli/pkg/apiclient"
 
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/constants"
@@ -30,8 +29,10 @@ const (
 	FlagAliasOverwrite     = "overwrite"
 	FlagAliasOverwriteMode = "overwritemode" // I keep forgetting the hyphen
 
-	// replace-existing deprected in the .NET CLI so not brought across
-	FlagUseDeltaCompression = "use-delta-compression" // this is not yet supported, but will be in future when we implement OctoDiff in go
+	FlagUseDeltaCompression = "use-delta-compression"
+	FlagAliasDelta          = "delta" // for less typing
+
+	// "replace-existing" flag deprecated in the .NET CLI so not brought across
 
 	FlagContinueOnError = "continue-on-error"
 )
@@ -57,7 +58,7 @@ func NewCmdUpload(f factory.Factory) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "upload",
 		Short:   "upload one or more packages to Octopus Deploy",
-		Long:    "upload one or more packages to Octopus Deploy. Glob patterns are supported.",
+		Long:    "upload one or more packages to Octopus Deploy. Glob patterns are supported. Delta compression is off by default.",
 		Aliases: []string{"push"},
 		Example: heredoc.Docf(`
 			$ %[1]s package upload --package SomePackage.1.0.0.zip
@@ -65,6 +66,8 @@ func NewCmdUpload(f factory.Factory) *cobra.Command {
 			$ %[1]s package push SomePackage.1.0.0.zip	
 			$ %[1]s package upload bin/**/*.zip --continue-on-error
 			$ %[1]s package upload PkgA.1.0.0.zip PkgB.2.0.0.tar.gz PkgC.1.0.0.nupkg
+			$ %[1]s package upload --package SomePackage.2.0.0.zip --use-delta-compression
+			$ %[1]s package upload SomePackage.2.0.0.zip --delta # alias for --use-delta-compression
 		`, constants.ExecutableName),
 		Annotations: map[string]string{annotations.IsCore: "true"},
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -79,11 +82,16 @@ func NewCmdUpload(f factory.Factory) *cobra.Command {
 	flags := cmd.Flags()
 	flags.StringArrayVarP(&uploadFlags.Package.Value, uploadFlags.Package.Name, "p", nil, "Package to upload, may be specified multiple times. Any arguments without flags will be treated as packages")
 	flags.StringVarP(&uploadFlags.OverwriteMode.Value, uploadFlags.OverwriteMode.Name, "", "", "Action when a package already exists. Valid values are 'fail', 'overwrite', 'ignore'. Default is 'fail'")
-	flags.BoolVarP(&uploadFlags.ContinueOnError.Value, uploadFlags.ContinueOnError.Name, "", false, "When uploading multiple packages, controls whether the CLI continues after a failed upload. Default is to abort.")
+	flags.BoolVarP(&uploadFlags.ContinueOnError.Value, uploadFlags.ContinueOnError.Name, "", false, "When uploading multiple packages, controls whether the CLI continues after a failed upload. Default is to abort")
+	// note to future developers: Added in July 2024; We can remove the beta disclaimer on delta compression at the end of 2024 if customers haven't reported any issues.
+	// when removing the beta disclaimer, please leave delta compression off by default. It can help on slow networks, but can be slower over fast ones due to the additional work of diffing/patching.
+	// it's also useless for tar.gz's or zips with single files in them (e.g. someone puts a .MSI file in a .zip just so octopus will accept it)
+	flags.BoolVarP(&uploadFlags.UseDeltaCompression.Value, uploadFlags.UseDeltaCompression.Name, "d", false, "Attempt to use delta compression when uploading. Off by default. As a recent addition to the CLI, it should be considered in beta.")
 	flags.SortFlags = false
 
 	flagAliases := make(map[string][]string, 1)
 	util.AddFlagAliasesString(flags, FlagOverwriteMode, flagAliases, FlagAliasOverwrite, FlagAliasOverwriteMode)
+	util.AddFlagAliasesBool(flags, FlagUseDeltaCompression, flagAliases, FlagAliasDelta)
 
 	cmd.PreRunE = func(cmd *cobra.Command, args []string) error {
 		util.ApplyFlagAliases(cmd.Flags(), flagAliases)
@@ -136,6 +144,8 @@ func uploadRun(cmd *cobra.Command, f factory.Factory, flags *UploadFlags) error 
 		return fmt.Errorf("invalid value '%s' for --overwrite-mode. Valid values are 'fail', 'ignore', 'overwrite'", overwriteMode)
 	}
 
+	useDeltaCompression := flags.UseDeltaCompression.Value
+
 	var jsonResult uploadViewModel
 	didErrorsOccur := false
 
@@ -143,7 +153,8 @@ func uploadRun(cmd *cobra.Command, f factory.Factory, flags *UploadFlags) error 
 	seenPackages := make(map[string]bool)
 	doUpload := func(path string) error {
 		if !seenPackages[path] {
-			created, err := uploadFileAtPath(octopus, space, path, resolvedOverwriteMode, cmd)
+			uploadResult, err := uploadFileAtPath(octopus, space, path, resolvedOverwriteMode, useDeltaCompression, cmd)
+
 			seenPackages[path] = true // whether a given package succeeds or fails, we still don't want to process it twice
 
 			if err != nil {
@@ -176,11 +187,32 @@ func uploadRun(cmd *cobra.Command, f factory.Factory, flags *UploadFlags) error 
 				case constants.OutputFormatBasic:
 					cmd.Printf("%s\n", path)
 				default:
-					if created {
+					if uploadResult.CreatedNewFile {
 						cmd.Printf("Uploaded package %s\n", path)
 					} else {
 						cmd.Printf("Ignored existing package %s\n", path)
 					}
+
+					if uploadResult.UploadMethod == packages.UploadMethodDelta && uploadResult.UploadInfo != nil {
+						deltaInfo := uploadResult.UploadInfo
+						deltaRatio := 0.0
+						if deltaInfo.FileSize > 0 {
+							deltaRatio = float64(deltaInfo.DeltaSize) / float64(deltaInfo.FileSize) * 100
+						}
+
+						switch deltaInfo.DeltaBehaviour {
+						case packages.DeltaBehaviourNoPreviousFile:
+							cmd.Printf("    Full upload for package %s. No previous versions available\n", path)
+						case packages.DeltaBehaviourNotEfficient:
+							cmd.Printf("    Full upload for package %s. Delta size was %.1f%% of full file (too large)\n", path, deltaRatio)
+						case packages.DeltaBehaviourUploadedDeltaFile:
+							cmd.Printf("    Delta upload for package %s.\n"+
+								"    Delta size was %.1f%% of full file, saving %s\n",
+								path, deltaRatio, util.HumanReadableBytes(deltaInfo.FileSize-deltaInfo.DeltaSize))
+						default:
+							break // a future unknown DeltaBehaviour will result in printing nothing, deliberately
+						}
+					} // else delta disabled; print nothing
 				}
 			}
 		}
@@ -220,22 +252,22 @@ func uploadRun(cmd *cobra.Command, f factory.Factory, flags *UploadFlags) error 
 	return nil
 }
 
-func uploadFileAtPath(octopus newclient.Client, space *spaces.Space, path string, overwriteMode packages.OverwriteMode, cmd *cobra.Command) (bool, error) {
-	opener := func(name string) (io.ReadCloser, error) { return os.Open(name) }
+func uploadFileAtPath(octopus newclient.Client, space *spaces.Space, path string, overwriteMode packages.OverwriteMode, useDeltaCompression bool, cmd *cobra.Command) (*packages.PackageUploadResponseV2, error) {
+	opener := func(name string) (io.ReadSeekCloser, error) { return os.Open(name) }
 	if cmd.Context() != nil { // allow context to override the definition of 'os.Open' for testing
-		if f, ok := cmd.Context().Value(constants.ContextKeyOsOpen).(func(string) (io.ReadCloser, error)); ok {
+		if f, ok := cmd.Context().Value(constants.ContextKeyOsOpen).(func(string) (io.ReadSeekCloser, error)); ok {
 			opener = f
 		}
 	}
 
 	fileReader, err := opener(path)
 	if err != nil {
-		return false, err
+		return nil, err
 	}
 
 	// Note: the PackageUploadResponse has a lot of information in it, but we've chosen not to do anything
 	// with it in the CLI at this time.
-	_, created, err := packages.Upload(octopus, space.ID, filepath.Base(path), fileReader, overwriteMode)
+	result, err := packages.UploadV2(octopus, space.ID, filepath.Base(path), fileReader, overwriteMode, useDeltaCompression)
 	_ = fileReader.Close()
-	return created, err
+	return result, err
 }

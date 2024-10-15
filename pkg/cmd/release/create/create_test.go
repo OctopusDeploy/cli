@@ -1495,6 +1495,56 @@ func TestReleaseCreate_AutomationMode(t *testing.T) {
 			assert.Equal(t, "", stdErr.String())
 		}},
 
+		{"release create specifying git resource overrides", func(t *testing.T, api *testutil.MockHttpServer, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
+			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
+				defer api.Close()
+				rootCmd.SetArgs([]string{"release", "create", "--project", cacProject.Name, "--git-resource", "Script Step:ref/tags/1.0.0"})
+				return rootCmd.ExecuteC()
+			})
+
+			api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+cacProject.GetName()).RespondWith(cacProject)
+
+			req := api.ExpectRequest(t, "POST", "/api/Spaces-1/releases/create/v1")
+
+			// check that it sent the server the right request body
+			requestBody, err := testutil.ReadJson[releases.CreateReleaseCommandV1](req.Request.Body)
+			assert.Nil(t, err)
+
+			assert.Equal(t, releases.CreateReleaseCommandV1{
+				SpaceID:         "Spaces-1",
+				ProjectIDOrName: cacProject.Name,
+				GitResources: []string{
+					"Script Step:ref/tags/1.0.0",
+				},
+			}, requestBody)
+
+			req.RespondWith(&releases.CreateReleaseResponseV1{
+				ReleaseID:      "Releases-999", // new release
+				ReleaseVersion: "1.2.3",
+			})
+
+			// after it creates the release it's going to go back to the server and lookup the release by its ID
+			// so it can tell the user what channel got selected
+			releaseInfo := releases.NewRelease("Channels-32", cacProject.ID, "1.2.3")
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/releases/Releases-999").RespondWith(releaseInfo)
+
+			// and now it wants to lookup the channel name too
+			channelInfo := fixtures.NewChannel(space1.ID, "Channels-32", "Alpha channel", cacProject.ID)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/channels/Channels-32").RespondWith(channelInfo)
+
+			_, err = testutil.ReceivePair(cmdReceiver)
+			assert.Nil(t, err)
+
+			assert.Equal(t, heredoc.Doc(`
+				Successfully created release version 1.2.3 using channel Alpha channel
+				
+				View this release on Octopus Deploy: http://server/app#/Spaces-1/releases/Releases-999
+				`), stdOut.String())
+			assert.Equal(t, "", stdErr.String())
+		}},
+
 		{"can't specify release-notes and release-notes-file at the same time", func(t *testing.T, api *testutil.MockHttpServer, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
 			// doesn't even do any API stuff, we get kicked out immediately
 			rootCmd.SetArgs([]string{"release", "create",

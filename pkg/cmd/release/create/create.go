@@ -9,6 +9,7 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/OctopusDeploy/cli/pkg/apiclient"
 
@@ -38,6 +39,7 @@ const (
 	FlagProject            = "project"
 	FlagChannel            = "channel"
 	FlagPackageVersionSpec = "package"
+	FlagGitResourceRefSpec = "git-resource"
 
 	FlagVersion                  = "version"
 	FlagAliasReleaseNumberLegacy = "releaseNumber" // alias for FlagVersion
@@ -111,32 +113,34 @@ dim(---------------------------------------------------------------------)
 `) // note this expects to have prettifyHelp run over it
 
 type CreateFlags struct {
-	Project            *flag.Flag[string]
-	Channel            *flag.Flag[string]
-	GitRef             *flag.Flag[string]
-	GitCommit          *flag.Flag[string]
-	PackageVersion     *flag.Flag[string]
-	ReleaseNotes       *flag.Flag[string]
-	ReleaseNotesFile   *flag.Flag[string]
-	Version            *flag.Flag[string]
-	IgnoreExisting     *flag.Flag[bool]
-	IgnoreChannelRules *flag.Flag[bool]
-	PackageVersionSpec *flag.Flag[[]string]
+	Project             *flag.Flag[string]
+	Channel             *flag.Flag[string]
+	GitRef              *flag.Flag[string]
+	GitCommit           *flag.Flag[string]
+	PackageVersion      *flag.Flag[string]
+	ReleaseNotes        *flag.Flag[string]
+	ReleaseNotesFile    *flag.Flag[string]
+	Version             *flag.Flag[string]
+	IgnoreExisting      *flag.Flag[bool]
+	IgnoreChannelRules  *flag.Flag[bool]
+	PackageVersionSpec  *flag.Flag[[]string]
+	GitResourceRefsSpec *flag.Flag[[]string]
 }
 
 func NewCreateFlags() *CreateFlags {
 	return &CreateFlags{
-		Project:            flag.New[string](FlagProject, false),
-		Channel:            flag.New[string](FlagChannel, false),
-		GitRef:             flag.New[string](FlagGitRef, false),
-		GitCommit:          flag.New[string](FlagGitCommit, false),
-		PackageVersion:     flag.New[string](FlagPackageVersion, false),
-		ReleaseNotes:       flag.New[string](FlagReleaseNotes, false),
-		ReleaseNotesFile:   flag.New[string](FlagReleaseNotesFile, false),
-		Version:            flag.New[string](FlagVersion, false),
-		IgnoreExisting:     flag.New[bool](FlagIgnoreExisting, false),
-		IgnoreChannelRules: flag.New[bool](FlagIgnoreChannelRules, false),
-		PackageVersionSpec: flag.New[[]string](FlagPackageVersionSpec, false),
+		Project:             flag.New[string](FlagProject, false),
+		Channel:             flag.New[string](FlagChannel, false),
+		GitRef:              flag.New[string](FlagGitRef, false),
+		GitCommit:           flag.New[string](FlagGitCommit, false),
+		PackageVersion:      flag.New[string](FlagPackageVersion, false),
+		ReleaseNotes:        flag.New[string](FlagReleaseNotes, false),
+		ReleaseNotesFile:    flag.New[string](FlagReleaseNotesFile, false),
+		Version:             flag.New[string](FlagVersion, false),
+		IgnoreExisting:      flag.New[bool](FlagIgnoreExisting, false),
+		IgnoreChannelRules:  flag.New[bool](FlagIgnoreChannelRules, false),
+		PackageVersionSpec:  flag.New[[]string](FlagPackageVersionSpec, false),
+		GitResourceRefsSpec: flag.New[[]string](FlagGitResourceRefSpec, false),
 	}
 }
 
@@ -168,7 +172,8 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 	flags.StringVarP(&createFlags.Version.Value, createFlags.Version.Name, "v", "", "Override the Release Version")
 	flags.BoolVarP(&createFlags.IgnoreExisting.Value, createFlags.IgnoreExisting.Name, "x", false, "If a release with the same version exists, do nothing instead of failing.")
 	flags.BoolVarP(&createFlags.IgnoreChannelRules.Value, createFlags.IgnoreChannelRules.Name, "", false, "Allow creation of a release where channel rules would otherwise prevent it.")
-	flags.StringArrayVarP(&createFlags.PackageVersionSpec.Value, createFlags.PackageVersionSpec.Name, "", []string{}, "Version specification a specific packages.\nFormat as {package}:{version}, {step}:{version} or {package-ref-name}:{packageOrStep}:{version}\nYou may specify this multiple times")
+	flags.StringArrayVarP(&createFlags.PackageVersionSpec.Value, createFlags.PackageVersionSpec.Name, "", []string{}, "Version specification for a specific package.\nFormat as {package}:{version}, {step}:{version} or {package-ref-name}:{packageOrStep}:{version}\nYou may specify this multiple times")
+	flags.StringArrayVarP(&createFlags.GitResourceRefsSpec.Value, createFlags.GitResourceRefsSpec.Name, "", []string{}, "Git reference for a specific Git resource.\nFormat as {step}:{git-ref}, {step}:{git-resource-name}:{git-ref}\nYou may specify this multiple times")
 
 	// we want the help text to display in the above order, rather than alphabetical
 	flags.SortFlags = false
@@ -214,6 +219,7 @@ func createRun(cmd *cobra.Command, f factory.Factory, flags *CreateFlags) error 
 		ReleaseNotes:            flags.ReleaseNotes.Value,
 		IgnoreIfAlreadyExists:   flags.IgnoreExisting.Value,
 		IgnoreChannelRules:      flags.IgnoreChannelRules.Value,
+		GitResourceRefs:         flags.GitResourceRefsSpec.Value,
 	}
 
 	if flags.ReleaseNotesFile.Value != "" {
@@ -241,6 +247,7 @@ func createRun(cmd *cobra.Command, f factory.Factory, flags *CreateFlags) error 
 			// deliberately don't include resolvedFlags.PackageVersion in the automation command; it gets converted into PackageVersionSpec
 			resolvedFlags.Project.Value = options.ProjectName
 			resolvedFlags.PackageVersionSpec.Value = options.PackageVersionOverrides
+			resolvedFlags.GitResourceRefsSpec.Value = options.GitResourceRefs
 			resolvedFlags.Channel.Value = options.ChannelName
 			resolvedFlags.GitRef.Value = options.GitReference
 			resolvedFlags.GitCommit.Value = options.GitCommit
@@ -258,6 +265,7 @@ func createRun(cmd *cobra.Command, f factory.Factory, flags *CreateFlags) error 
 				resolvedFlags.IgnoreExisting,
 				resolvedFlags.IgnoreChannelRules,
 				resolvedFlags.PackageVersionSpec,
+				resolvedFlags.GitResourceRefsSpec,
 				resolvedFlags.Version,
 			)
 			cmd.Printf("\nAutomation Command: %s\n", autoCmd)
@@ -281,12 +289,16 @@ func createRun(cmd *cobra.Command, f factory.Factory, flags *CreateFlags) error 
 	}
 
 	if options.Response != nil {
-		printReleaseVersion := func(releaseVersion string, channel *channels.Channel) {
+		printReleaseVersion := func(releaseVersion string, assembled time.Time, releaseNotes string, channel *channels.Channel) {
 			switch outputFormat {
 			case constants.OutputFormatBasic:
 				cmd.Printf("%s\n", releaseVersion)
 			case constants.OutputFormatJson:
-				v := &list.ReleaseViewModel{Version: releaseVersion}
+				v := &list.ReleaseViewModel{
+					Version:      releaseVersion,
+					Assembled:    assembled,
+					ReleaseNotes: releaseNotes,
+				}
 				if channel != nil {
 					v.Channel = channel.Name
 				}
@@ -310,14 +322,14 @@ func createRun(cmd *cobra.Command, f factory.Factory, flags *CreateFlags) error 
 		newlyCreatedRelease, lookupErr := octopus.Releases.GetByID(options.Response.ReleaseID)
 		if lookupErr != nil {
 			cmd.PrintErrf("Warning: cannot fetch release details: %v\n", lookupErr)
-			printReleaseVersion(options.Response.ReleaseVersion, nil)
+			printReleaseVersion(options.Response.ReleaseVersion, newlyCreatedRelease.Assembled, newlyCreatedRelease.ReleaseNotes, nil)
 		} else {
 			releaseChan, lookupErr := octopus.Channels.GetByID(newlyCreatedRelease.ChannelID)
 			if lookupErr != nil {
 				cmd.PrintErrf("Warning: cannot fetch release channel details: %v\n", lookupErr)
-				printReleaseVersion(options.Response.ReleaseVersion, nil)
+				printReleaseVersion(options.Response.ReleaseVersion, newlyCreatedRelease.Assembled, newlyCreatedRelease.ReleaseNotes, nil)
 			} else {
-				printReleaseVersion(options.Response.ReleaseVersion, releaseChan)
+				printReleaseVersion(options.Response.ReleaseVersion, newlyCreatedRelease.Assembled, newlyCreatedRelease.ReleaseNotes, releaseChan)
 			}
 		}
 
@@ -503,39 +515,7 @@ func (p *PackageVersionOverride) ToPackageOverrideString() string {
 // and we want to allow for multiple different delimeters.
 // neither the builtin golang strings.Split or strings.FieldsFunc support this. Logic borrowed from strings.FieldsFunc with heavy modifications
 func splitPackageOverrideString(s string) []string {
-	// pass 1: collect spans; golang strings.FieldsFunc says it's much more efficient this way
-	type span struct {
-		start int
-		end   int
-	}
-	spans := make([]span, 0, 3)
-
-	// Find the field start and end indices.
-	start := 0 // we always start the first span at the beginning of the string
-	for idx, ch := range s {
-		if ch == ':' || ch == '/' || ch == '=' {
-			if start >= 0 { // we found a delimiter and we are already in a span; end the span and start a new one
-				spans = append(spans, span{start, idx})
-				start = idx + 1
-			} else { // we found a delimiter and we are not in a span; start a new span
-				if start < 0 {
-					start = idx
-				}
-			}
-		}
-	}
-
-	// Last field might end at EOF.
-	if start >= 0 {
-		spans = append(spans, span{start, len(s)})
-	}
-
-	// pass 2: create strings from recorded field indices.
-	a := make([]string, len(spans))
-	for i, span := range spans {
-		a[i] = s[span.start:span.end]
-	}
-	return a
+	return splitString(s, []int32{':', '/', '='})
 }
 
 // AmbiguousPackageVersionOverride tells us that we want to set the version of some package to `Version`
@@ -882,9 +862,6 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 		_, _ = fmt.Fprintf(stdout, "Channel %s\n", output.Cyan(selectedChannel.Name))
 	}
 	options.ChannelName = selectedChannel.Name
-	if err != nil {
-		return err
-	}
 
 	// immediately load the deployment process template
 	// we need the deployment process template in order to get the steps, so we can lookup the stepID
@@ -921,6 +898,27 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 		}
 	} else {
 		overriddenPackageVersions = packageVersionBaseline // there aren't any, but satisfy the code below anyway
+	}
+
+	gitResourcesBaseline := BuildGitResourcesBaseline(deploymentProcessTemplate)
+
+	if len(gitResourcesBaseline) > 0 {
+		overriddenGitResources, err := AskGitResourceOverrideLoop(
+			gitResourcesBaseline,
+			options.GitResourceRefs,
+			asker,
+			stdout)
+
+		if err != nil {
+			return err
+		}
+
+		if len(overriddenGitResources) > 0 {
+			options.GitResourceRefs = make([]string, 0, len(overriddenGitResources))
+			for _, ov := range overriddenGitResources {
+				options.GitResourceRefs = append(options.GitResourceRefs, ov.ToGitResourceGitRefString())
+			}
+		}
 	}
 
 	if options.Version == "" {

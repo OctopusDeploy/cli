@@ -3,6 +3,8 @@ package root
 import (
 	"github.com/OctopusDeploy/cli/pkg/apiclient"
 	accountCmd "github.com/OctopusDeploy/cli/pkg/cmd/account"
+	buildInfoCmd "github.com/OctopusDeploy/cli/pkg/cmd/buildinformation"
+	channelCmd "github.com/OctopusDeploy/cli/pkg/cmd/channel"
 	configCmd "github.com/OctopusDeploy/cli/pkg/cmd/config"
 	environmentCmd "github.com/OctopusDeploy/cli/pkg/cmd/environment"
 	loginCmd "github.com/OctopusDeploy/cli/pkg/cmd/login"
@@ -37,14 +39,20 @@ func NewCmdRoot(f factory.Factory, clientFactory apiclient.ClientFactory, askPro
 		Long:  `Work seamlessly with Octopus Deploy from the command line.`,
 	}
 
+	flags := cmd.Flags()
+	var versionParameter bool
+	flags.BoolVarP(&versionParameter, "version", "v", false, "Prints version information")
+	versionCommand := version.NewCmdVersion(f)
+
 	// ----- Child Commands -----
 
-	cmd.AddCommand(version.NewCmdVersion(f))
+	cmd.AddCommand(versionCommand)
 
 	// infrastructure
 	cmd.AddCommand(accountCmd.NewCmdAccount(f))
 	cmd.AddCommand(environmentCmd.NewCmdEnvironment(f))
 	cmd.AddCommand(packageCmd.NewCmdPackage(f))
+	cmd.AddCommand(buildInfoCmd.NewCmdBuildInformation(f))
 	cmd.AddCommand(deploymentTargetCmd.NewCmdDeploymentTarget(f))
 	cmd.AddCommand(workerCmd.NewCmdWorker(f))
 	cmd.AddCommand(workerPoolCmd.NewCmdWorkerPool(f))
@@ -52,6 +60,7 @@ func NewCmdRoot(f factory.Factory, clientFactory apiclient.ClientFactory, askPro
 	// core
 	cmd.AddCommand(projectGroupCmd.NewCmdProjectGroup(f))
 	cmd.AddCommand(projectCmd.NewCmdProject(f))
+	cmd.AddCommand(channelCmd.NewCmdChannel(f))
 	cmd.AddCommand(tenantCmd.NewCmdTenant(f))
 	cmd.AddCommand(taskCmd.NewCmdTask(f))
 
@@ -119,6 +128,14 @@ func NewCmdRoot(f factory.Factory, clientFactory apiclient.ClientFactory, askPro
 
 		if spaceNameOrId := viper.GetString(constants.ConfigSpace); spaceNameOrId != "" {
 			clientFactory.SetSpaceNameOrId(spaceNameOrId)
+		}
+	}
+
+	cmd.RunE = func(cmd *cobra.Command, args []string) error {
+		if versionParameter {
+			return versionCommand.RunE(cmd, args)
+		} else {
+			return cmd.Help()
 		}
 	}
 

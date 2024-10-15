@@ -31,6 +31,7 @@ type TaskOptionsCreateRelease struct {
 	IgnoreIfAlreadyExists   bool     // optional
 	IgnoreChannelRules      bool     // optional
 	PackageVersionOverrides []string // optional
+	GitResourceRefs         []string //optional
 	// if the task succeeds, the resulting output will be stored here
 	Response *releases.CreateReleaseResponseV1
 }
@@ -56,6 +57,10 @@ func releaseCreate(octopus *client.Client, space *spaces.Space, input any) error
 
 	if len(params.PackageVersionOverrides) > 0 {
 		createReleaseParams.Packages = params.PackageVersionOverrides
+	}
+
+	if len(params.GitResourceRefs) > 0 {
+		createReleaseParams.GitResources = params.GitResourceRefs
 	}
 
 	createReleaseParams.GitCommit = params.GitCommit

@@ -1,5 +1,7 @@
 package util
 
+import "fmt"
+
 // SliceContains returns true if it finds an item in the slice that is equal to the target
 func SliceContains[T comparable](slice []T, target T) bool {
 	for _, item := range slice {
@@ -46,6 +48,16 @@ func SliceContainsAny[T comparable](slice []T, predicate func(item T) bool) bool
 	return false
 }
 
+// SliceContainsAll returns true if it finds that all items in the slice for which `predicate` returns true
+func SliceContainsAll[T comparable](slice []T, predicate func(item T) bool) bool {
+	for _, item := range slice {
+		if !predicate(item) {
+			return false
+		}
+	}
+	return true
+}
+
 // ExtractValuesMatchingKeys returns a collection of values which matched a specified set of keys, in the exact order of keys.
 // Given a collection of items, and a collection of keys to match within that collection
 // This makes no sense, hopefully an example helps:
@@ -86,10 +98,10 @@ type MapCollectionCacheContainer struct {
 // items as it iterates the collection, and call out to lambdas to look those values up.
 // See the unit tests for examples which should clarify the use-cases for this.
 func MapCollectionWithLookups[T any, TResult any](
-	cacheContainer *MapCollectionCacheContainer,    // cache for keys (typically this will store a mapping of ID->[Name, Name]).
-	collection []T,                                 // input (e.g. list of Releases)
-	keySelector func(T) []string,                   // fetches the keys (e.g given a Release, returns the [ChannelID, ProjectID]
-	mapper func(T, []string) TResult,               // fetches the value to lookup (e.g given a Release and the [ChannelName,ProjectName], does the mapping to return the output struct)
+	cacheContainer *MapCollectionCacheContainer, // cache for keys (typically this will store a mapping of ID->[Name, Name]).
+	collection []T, // input (e.g. list of Releases)
+	keySelector func(T) []string, // fetches the keys (e.g given a Release, returns the [ChannelID, ProjectID]
+	mapper func(T, []string) TResult, // fetches the value to lookup (e.g given a Release and the [ChannelName,ProjectName], does the mapping to return the output struct)
 	runLookups ...func([]string) ([]string, error), // callbacks to go fetch values for the keys (given a list of Channel IDs, it should return the list of associated Channel Names)
 ) ([]TResult, error) {
 	// if the caller didn't specify an external cache, create an internal one.
@@ -187,4 +199,21 @@ func RemoveIndex[T any](s []T, index int) []T {
 	}
 
 	return append(s[:index], s[index+1:]...)
+}
+
+// HumanReadableBytes converts a byte count into a human-readable string, e.g. 2.5 MiB
+// there are about a zillion golang packages for formatting bytes as human-readable values, the top search result of which is
+// https://pkg.go.dev/github.com/dustin/go-humanize. However, this package is large and does too much, there's no need to use it
+// when we can use this trivial tutorial one instead: https://programming.guide/go/formatting-byte-size-to-human-readable-format.html
+func HumanReadableBytes(b int64) string {
+	const unit = 1024
+	if b < unit {
+		return fmt.Sprintf("%d B", b)
+	}
+	div, exp := int64(unit), 0
+	for n := b / unit; n >= unit; n /= unit {
+		div *= unit
+		exp++
+	}
+	return fmt.Sprintf("%.1f %ciB", float64(b)/float64(div), "KMGTPE"[exp])
 }

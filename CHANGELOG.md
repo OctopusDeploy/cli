@@ -1,5 +1,108 @@
 # Changelog
 
+## [2.10.3](https://github.com/OctopusDeploy/cli/compare/v2.10.2...v2.10.3) (2024-10-11)
+
+
+### Bug Fixes
+
+* correct help text in tenant variable commands ([#430](https://github.com/OctopusDeploy/cli/issues/430)) ([e414d7f](https://github.com/OctopusDeploy/cli/commit/e414d7f06d3376125aa59c1f33e118326487a20d))
+
+## [2.10.2](https://github.com/OctopusDeploy/cli/compare/v2.10.1...v2.10.2) (2024-09-20)
+
+
+### Bug Fixes
+
+* handle non-nil fields in task wait ([#422](https://github.com/OctopusDeploy/cli/issues/422)) ([6d20dd9](https://github.com/OctopusDeploy/cli/commit/6d20dd98a90d6c53d8ce8dffa284ba2fbc191816))
+
+## [2.10.1](https://github.com/OctopusDeploy/cli/compare/v2.10.0...v2.10.1) (2024-09-19)
+
+
+### Bug Fixes
+
+* include release notes and assembled date in json output after creating a release ([#410](https://github.com/OctopusDeploy/cli/issues/410)) ([42f2db6](https://github.com/OctopusDeploy/cli/commit/42f2db66e93846aebb53056b59751c0c9a938451))
+
+## [2.10.0](https://github.com/OctopusDeploy/cli/compare/v2.9.1...v2.10.0) (2024-09-18)
+
+
+### Features
+
+* handle failures in task wait ([#393](https://github.com/OctopusDeploy/cli/issues/393)) ([da8a86b](https://github.com/OctopusDeploy/cli/commit/da8a86bcc58e56f59a211e2cc26a849e373d635e))
+
+## [2.9.1](https://github.com/OctopusDeploy/cli/compare/v2.9.0...v2.9.1) (2024-09-18)
+
+
+### Bug Fixes
+
+* Removes a whitespace between Path key and value when creating a zip/nupkg with json output format ([59de77a](https://github.com/OctopusDeploy/cli/commit/59de77a3aaf027fc9228d93315097c428245bae8))
+
+## [2.9.0](https://github.com/OctopusDeploy/cli/compare/v2.8.1...v2.9.0) (2024-09-17)
+
+
+### Features
+
+* print packages that get created ([#404](https://github.com/OctopusDeploy/cli/issues/404)) ([f648633](https://github.com/OctopusDeploy/cli/commit/f648633fa0a2e5f9e77244c3e66c4f17d46c5aba))
+
+## [2.8.1](https://github.com/OctopusDeploy/cli/compare/v2.8.0...v2.8.1) (2024-09-16)
+
+
+### Bug Fixes
+
+* no program args now outputs the root help again ([#398](https://github.com/OctopusDeploy/cli/issues/398)) ([a0eec58](https://github.com/OctopusDeploy/cli/commit/a0eec582999df9aeaa17fcd4a9ddbf958d940c13))
+
+## [2.8.0](https://github.com/OctopusDeploy/cli/compare/v2.7.0...v2.8.0) (2024-09-16)
+
+
+### Features
+
+* add ability to change git refs when creating release ([#392](https://github.com/OctopusDeploy/cli/issues/392)) ([5409353](https://github.com/OctopusDeploy/cli/commit/540935358adcdace7b53165d473ec38c762611e2))
+
+## [2.7.0](https://github.com/OctopusDeploy/cli/compare/v2.6.0...v2.7.0) (2024-07-30)
+
+
+### Features
+
+* add commands to manage release progression ([#382](https://github.com/OctopusDeploy/cli/issues/382)) ([ccb6df6](https://github.com/OctopusDeploy/cli/commit/ccb6df63f5b8b460008ef623e3a46d6c306d6b35))
+
+## [2.6.0](https://github.com/OctopusDeploy/cli/compare/v2.5.0...v2.6.0) (2024-07-15)
+
+
+### Features
+
+* add create channel command ([#377](https://github.com/OctopusDeploy/cli/issues/377)) ([a35a111](https://github.com/OctopusDeploy/cli/commit/a35a111218030e81b0504f9cb887a4a5c9f9428b))
+* add delete package command ([#374](https://github.com/OctopusDeploy/cli/issues/374)) ([b47061d](https://github.com/OctopusDeploy/cli/commit/b47061d26bb94319f889315bea130602cb441e38))
+* add disable project command ([#370](https://github.com/OctopusDeploy/cli/issues/370)) ([b91b062](https://github.com/OctopusDeploy/cli/commit/b91b06291cfaa7b080a7a9b26843c0f3c239a1d9))
+* add enable project command ([#372](https://github.com/OctopusDeploy/cli/issues/372)) ([e29c5b4](https://github.com/OctopusDeploy/cli/commit/e29c5b4f1451037b4a00a3df6b61c22f03e2416d))
+
+
+### Bug Fixes
+
+* fix command use value as it was capitalised ([#375](https://github.com/OctopusDeploy/cli/issues/375)) ([6f20227](https://github.com/OctopusDeploy/cli/commit/6f20227a79d8b2ffd808bf65c71d0584686fec3c))
+
+## [2.5.0](https://github.com/OctopusDeploy/cli/compare/v2.4.0...v2.5.0) (2024-07-11)
+
+
+### Features
+
+* add bulk delete build information command ([#369](https://github.com/OctopusDeploy/cli/issues/369)) ([c1631da](https://github.com/OctopusDeploy/cli/commit/c1631da60d8a224e068fda8904f186c940b36f33))
+* add delete build information command ([#368](https://github.com/OctopusDeploy/cli/issues/368)) ([8e66095](https://github.com/OctopusDeploy/cli/commit/8e660954673b3fe8991abfe9082520de1b4b1857))
+* add list build information command ([#366](https://github.com/OctopusDeploy/cli/issues/366)) ([0a17e9f](https://github.com/OctopusDeploy/cli/commit/0a17e9f6b04fc36ad9a297db4959c951053a201c))
+* add upload build info command ([#364](https://github.com/OctopusDeploy/cli/issues/364)) ([189beb4](https://github.com/OctopusDeploy/cli/commit/189beb474c7a01d3d539a51bd13d998d9520022e))
+* add view build information command ([#367](https://github.com/OctopusDeploy/cli/issues/367)) ([e56c4cc](https://github.com/OctopusDeploy/cli/commit/e56c4ccad63e4edab598a4a9b416e451cfa69819))
+
+## [2.4.0](https://github.com/OctopusDeploy/cli/compare/v2.3.1...v2.4.0) (2024-06-30)
+
+
+### Features
+
+* add support for delta package uploads using go-octodiff ([#226](https://github.com/OctopusDeploy/cli/issues/226)) ([a0650c1](https://github.com/OctopusDeploy/cli/commit/a0650c1dbd2222b0ab8ae9b9234a3cc307528f4b))
+
+## [2.3.1](https://github.com/OctopusDeploy/cli/compare/v2.3.0...v2.3.1) (2024-06-26)
+
+
+### Bug Fixes
+
+* Add ability to escape special character when parsing variables argument ([377ddb2](https://github.com/OctopusDeploy/cli/commit/377ddb2102747914be362a496d63876e3a442c4f))
+
 ## [2.3.0](https://github.com/OctopusDeploy/cli/compare/v2.2.1...v2.3.0) (2024-05-31)
 
 
