@@ -8,6 +8,7 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/OctopusDeploy/cli/pkg/question"
+	sharedVariable "github.com/OctopusDeploy/cli/pkg/question/shared/variables"
 	"github.com/OctopusDeploy/cli/pkg/util"
 	"github.com/OctopusDeploy/cli/pkg/util/flag"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
@@ -20,12 +21,14 @@ const (
 	FlagId      = "id"
 	FlagName    = "name"
 	FlagProject = "project"
+	FlagGitRef  = "git-ref"
 )
 
 type DeleteFlags struct {
 	Id      *flag.Flag[string]
 	Name    *flag.Flag[string]
 	Project *flag.Flag[string]
+	GitRef  *flag.Flag[string]
 	*question.ConfirmFlags
 }
 
@@ -33,24 +36,29 @@ type DeleteOptions struct {
 	*DeleteFlags
 	*cmd.Dependencies
 	shared.GetProjectCallback
+	*sharedVariable.VariableCallbacks
 }
 
 func NewDeleteFlags() *DeleteFlags {
+
 	return &DeleteFlags{
 		Id:           flag.New[string](FlagId, false),
 		Name:         flag.New[string](FlagName, false),
 		Project:      flag.New[string](FlagProject, false),
+		GitRef:       flag.New[string](FlagGitRef, false),
 		ConfirmFlags: question.NewConfirmFlags(),
 	}
 }
 
 func NewDeleteOptions(flags *DeleteFlags, dependencies *cmd.Dependencies) *DeleteOptions {
+
 	return &DeleteOptions{
 		DeleteFlags:  flags,
 		Dependencies: dependencies,
 		GetProjectCallback: func(identifier string) (*projects.Project, error) {
 			return shared.GetProject(dependencies.Client, identifier)
 		},
+		VariableCallbacks: sharedVariable.NewVariableCallbacks(dependencies),
 	}
 }
 
@@ -62,13 +70,14 @@ func NewDeleteCmd(f factory.Factory) *cobra.Command {
 		Short:   "Delete a project variable",
 		Long:    "Delete a project variable in Octopus Deploy",
 		Example: heredoc.Docf(`
-			$ %[1]s project variable delete "Database Name" --project "Deploy Site" 
-			$ %[1]s project variable delete "Database Name" --id 26a58596-4cd9-e072-7215-7e15cb796dd2 --project "Deploy Site" --confirm 
+			$ %[1]s project variable delete --name "variable Name" --project "Deploy Site" 
+			$ %[1]s project variable delete --name "variable Name" --id 26a58596-4cd9-e072-7215-7e15cb796dd2 --project "Deploy Site" --confirm 
+			$ %[1]s project variable delete --name "variable Name" --project "Deploy Site" --git-ref "refs/heads/main"
 		`, constants.ExecutableName),
 		RunE: func(c *cobra.Command, args []string) error {
 			opts := NewDeleteOptions(deleteFlags, cmd.NewDependencies(f, c))
 
-			return deleteRun(opts)
+			return DeleteRun(opts)
 		},
 	}
 
@@ -76,12 +85,13 @@ func NewDeleteCmd(f factory.Factory) *cobra.Command {
 	flags.StringVar(&deleteFlags.Id.Value, deleteFlags.Id.Name, "", "The id of the specific variable value to delete")
 	flags.StringVarP(&deleteFlags.Name.Value, deleteFlags.Name.Name, "n", "", "The name of the variable")
 	flags.StringVarP(&deleteFlags.Project.Value, deleteFlags.Project.Name, "p", "", "The project")
+	flags.StringVarP(&deleteFlags.GitRef.Value, deleteFlags.GitRef.Name, "", "", "The GitRef for the Config-As-Code branch")
 	question.RegisterConfirmDeletionFlag(cmd, &deleteFlags.Confirm.Value, "project variable")
 
 	return cmd
 }
 
-func deleteRun(opts *DeleteOptions) error {
+func DeleteRun(opts *DeleteOptions) error {
 	if opts.Name.Value == "" {
 		return fmt.Errorf("variable name is required but was not provided")
 	}
@@ -91,13 +101,15 @@ func deleteRun(opts *DeleteOptions) error {
 		return err
 	}
 
-	allVars, err := opts.Client.Variables.GetAll(project.GetID())
-	if err != nil {
-		return err
+	var projectVariables *variables.VariableSet
+	if project.IsVersionControlled && opts.GitRef.Value != "" {
+		projectVariables, err = opts.GetProjectVariablesByGitRef(opts.Space.GetID(), project.GetID(), opts.GitRef.Value)
+	} else {
+		projectVariables, err = opts.GetProjectVariables(project.GetID())
 	}
 
 	filteredVars := util.SliceFilter(
-		allVars.Variables,
+		projectVariables.Variables,
 		func(variable *variables.Variable) bool {
 			return strings.EqualFold(variable.Name, opts.Name.Value)
 		})
@@ -123,24 +135,33 @@ func deleteRun(opts *DeleteOptions) error {
 	if len(filteredVars) == 1 {
 		targetVar := filteredVars[0]
 		targetIndex := -1
-		for i, v := range allVars.Variables {
+		for i, v := range projectVariables.Variables {
 			if v.ID == targetVar.ID {
 				targetIndex = i
 			}
 		}
 
-		allVars.Variables = util.RemoveIndex(allVars.Variables, targetIndex)
+		projectVariables.Variables = util.RemoveIndex(projectVariables.Variables, targetIndex)
+
 		if opts.ConfirmFlags.Confirm.Value {
-			delete(opts, project, allVars)
+			return updateProjectVariables(opts, project, projectVariables)
 		} else {
 			return question.DeleteWithConfirmation(opts.Ask, "variable", targetVar.Name, targetVar.ID, func() error {
-				return delete(opts, project, allVars)
+				return updateProjectVariables(opts, project, projectVariables)
 			})
 		}
-
 	}
 
 	return nil
+}
+
+func updateProjectVariables(opts *DeleteOptions, project *projects.Project, projectVariables *variables.VariableSet) error {
+	if opts.GitRef.Value != "" {
+		_, err := opts.Client.ProjectVariables.UpdateByGitRef(opts.Space.GetID(), project.GetID(), opts.GitRef.Value, projectVariables)
+		return err
+	} else {
+		return delete(opts, project, *projectVariables)
+	}
 }
 
 func delete(opts *DeleteOptions, project *projects.Project, allVars variables.VariableSet) error {
