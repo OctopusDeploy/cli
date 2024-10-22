@@ -57,8 +57,8 @@ func NewCmdUpload(f factory.Factory) *cobra.Command {
 	uploadFlags := NewUploadFlags()
 	cmd := &cobra.Command{
 		Use:     "upload",
-		Short:   "upload one or more packages to Octopus Deploy",
-		Long:    "upload one or more packages to Octopus Deploy. Glob patterns are supported. Delta compression is off by default.",
+		Short:   "Upload one or more packages to Octopus Deploy",
+		Long:    "Upload one or more packages to Octopus Deploy. Glob patterns are supported. Delta compression is off by default.",
 		Aliases: []string{"push"},
 		Example: heredoc.Docf(`
 			$ %[1]s package upload --package SomePackage.1.0.0.zip
