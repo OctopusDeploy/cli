@@ -3,6 +3,10 @@ package create_test
 import (
 	"bytes"
 	"errors"
+	"net/url"
+	"os"
+	"testing"
+
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/cmd/release/create"
@@ -24,9 +28,6 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"net/url"
-	"os"
-	"testing"
 )
 
 var serverUrl, _ = url.Parse("http://server")
@@ -1923,6 +1924,38 @@ func TestReleaseCreate_BuildPackageVersionBaseline(t *testing.T) {
 				PackageReferenceName: "pterm-on-install",
 			},
 		}, packageVersions)
+	})
+
+	t.Run("builds empty list when package has fixed version", func(t *testing.T) {
+		api := testutil.NewMockHttpServer()
+		processTemplate := &deployments.DeploymentProcessTemplate{
+			Packages: []releases.ReleaseTemplatePackage{
+				{
+					ActionName:           "Install",
+					FeedID:               builtinFeedID,
+					PackageID:            "pterm",
+					PackageReferenceName: "pterm-on-install",
+					IsResolvable:         true,
+					FixedVersion:         "0.12.51",
+				},
+			},
+			Resource: resources.Resource{},
+		}
+
+		channel := fixtures.NewChannel(spaceID, "Channels-1", "Default", "Projects-1")
+
+		receiver := testutil.GoBegin2(func() ([]*create.StepPackageVersion, error) {
+			defer api.Close()
+			octopus, _ := octopusApiClient.NewClient(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "")
+			return create.BuildPackageVersionBaseline(octopus, processTemplate, channel)
+		})
+
+		api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
+		api.ExpectRequest(t, "GET", "/api/spaces").RespondWith(rootResource)
+
+		packageVersions, err := testutil.ReceivePair(receiver)
+		assert.Nil(t, err)
+		assert.Equal(t, []*create.StepPackageVersion{}, packageVersions)
 	})
 
 	t.Run("builds list for multiple package/steps with some overlapping packages; no duplicate requests sent to server", func(t *testing.T) {
