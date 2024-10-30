@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.11.0](https://github.com/OctopusDeploy/cli/compare/v2.10.4...v2.11.0) (2024-10-30)
+
+
+### Features
+
+* Add support for fixed package versions in release creation ([#435](https://github.com/OctopusDeploy/cli/issues/435)) ([8559b9a](https://github.com/OctopusDeploy/cli/commit/8559b9a6dbff9ae37aefda99e7d342671f4d0a16))
+
 ## [2.10.3](https://github.com/OctopusDeploy/cli/compare/v2.10.2...v2.10.3) (2024-10-11)
 
 
