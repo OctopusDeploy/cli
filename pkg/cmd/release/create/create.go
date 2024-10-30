@@ -371,12 +371,7 @@ func BuildPackageVersionBaseline(octopus *octopusApiClient.Client, deploymentPro
 	for _, pkg := range deploymentProcessTemplate.Packages {
 
 		if pkg.FixedVersion != "" {
-			result = append(result, &StepPackageVersion{
-				PackageID:            pkg.PackageID,
-				ActionName:           pkg.ActionName,
-				PackageReferenceName: pkg.PackageReferenceName,
-				Version:              pkg.FixedVersion,
-			})
+			// If a package has a fixed version it shouldn't be displayed or overridable at all
 			continue
 		}
 
