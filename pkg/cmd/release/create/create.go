@@ -370,6 +370,11 @@ func BuildPackageVersionBaseline(octopus *octopusApiClient.Client, deploymentPro
 	feedsToQuery := make(map[string][]releases.ReleaseTemplatePackage)
 	for _, pkg := range deploymentProcessTemplate.Packages {
 
+		if pkg.FixedVersion != "" {
+			// If a package has a fixed version it shouldn't be displayed or overridable at all
+			continue
+		}
+
 		// If a package is not considered resolvable by the server, don't attempt to query it's feed or lookup
 		// any potential versions for it; we can't succeed in that because variable templates won't get expanded
 		// until deployment time

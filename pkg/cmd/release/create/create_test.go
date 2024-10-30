@@ -3,6 +3,10 @@ package create_test
 import (
 	"bytes"
 	"errors"
+	"net/url"
+	"os"
+	"testing"
+
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/cmd/release/create"
@@ -24,9 +28,6 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"net/url"
-	"os"
-	"testing"
 )
 
 var serverUrl, _ = url.Parse("http://server")
@@ -1881,6 +1882,100 @@ func TestReleaseCreate_BuildPackageVersionBaseline(t *testing.T) {
 					PackageID:            "pterm",
 					PackageReferenceName: "pterm-on-install",
 					IsResolvable:         true,
+				},
+			},
+			Resource: resources.Resource{},
+		}
+
+		channel := fixtures.NewChannel(spaceID, "Channels-1", "Default", "Projects-1")
+
+		receiver := testutil.GoBegin2(func() ([]*create.StepPackageVersion, error) {
+			defer api.Close()
+			octopus, _ := octopusApiClient.NewClient(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "")
+			return create.BuildPackageVersionBaseline(octopus, processTemplate, channel)
+		})
+
+		api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
+		api.ExpectRequest(t, "GET", "/api/spaces").RespondWith(rootResource)
+
+		// it needs to load the feeds to find the links
+		api.ExpectRequest(t, "GET", "/api/Spaces-1/feeds?ids=feeds-builtin&take=1").RespondWith(&feeds.Feeds{Items: []feeds.IFeed{
+			&feeds.FeedResource{Name: "Builtin", FeedType: feeds.FeedTypeBuiltIn, Resource: resources.Resource{
+				ID: builtinFeedID,
+				Links: map[string]string{
+					constants.LinkSearchPackageVersionsTemplate: "/api/Spaces-1/feeds/feeds-builtin/packages/versions{?packageId,take,skip,includePreRelease,versionRange,preReleaseTag,filter,includeReleaseNotes}",
+				}}},
+		}})
+
+		// now it will search for the package versions
+		api.ExpectRequest(t, "GET", "/api/Spaces-1/feeds/feeds-builtin/packages/versions?packageId=pterm&take=1").RespondWith(&resources.Resources[*packages.PackageVersion]{
+			Items: []*packages.PackageVersion{
+				{PackageID: "pterm", Version: "0.12.51"},
+			},
+		})
+
+		packageVersions, err := testutil.ReceivePair(receiver)
+		assert.Nil(t, err)
+		assert.Equal(t, []*create.StepPackageVersion{
+			{
+				PackageID:            "pterm",
+				ActionName:           "Install",
+				Version:              "0.12.51",
+				PackageReferenceName: "pterm-on-install",
+			},
+		}, packageVersions)
+	})
+
+	t.Run("builds empty list when package has fixed version", func(t *testing.T) {
+		api := testutil.NewMockHttpServer()
+		processTemplate := &deployments.DeploymentProcessTemplate{
+			Packages: []releases.ReleaseTemplatePackage{
+				{
+					ActionName:           "Install",
+					FeedID:               builtinFeedID,
+					PackageID:            "pterm",
+					PackageReferenceName: "pterm-on-install",
+					IsResolvable:         true,
+					FixedVersion:         "0.12.51",
+				},
+			},
+			Resource: resources.Resource{},
+		}
+
+		channel := fixtures.NewChannel(spaceID, "Channels-1", "Default", "Projects-1")
+
+		receiver := testutil.GoBegin2(func() ([]*create.StepPackageVersion, error) {
+			defer api.Close()
+			octopus, _ := octopusApiClient.NewClient(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "")
+			return create.BuildPackageVersionBaseline(octopus, processTemplate, channel)
+		})
+
+		api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
+		api.ExpectRequest(t, "GET", "/api/spaces").RespondWith(rootResource)
+
+		packageVersions, err := testutil.ReceivePair(receiver)
+		assert.Nil(t, err)
+		assert.Equal(t, []*create.StepPackageVersion{}, packageVersions)
+	})
+
+	t.Run("builds list containing only selectable package/step when a different step has a fixed package version", func(t *testing.T) {
+		api := testutil.NewMockHttpServer()
+		processTemplate := &deployments.DeploymentProcessTemplate{
+			Packages: []releases.ReleaseTemplatePackage{
+				{
+					ActionName:           "Install",
+					FeedID:               builtinFeedID,
+					PackageID:            "pterm",
+					PackageReferenceName: "pterm-on-install",
+					IsResolvable:         true,
+				},
+				{
+					ActionName:           "Install",
+					FeedID:               builtinFeedID,
+					PackageID:            "pterm",
+					PackageReferenceName: "pterm-on-install",
+					IsResolvable:         true,
+					FixedVersion:         "0.11.23",
 				},
 			},
 			Resource: resources.Resource{},
