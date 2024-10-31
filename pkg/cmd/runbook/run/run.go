@@ -76,6 +76,11 @@ const (
 	FlagAliasExcludeMachines = "excludeMachines" // octo wants a comma separated list. We prefer specifying --exclude-target multiple times, but CSV also works because pflag does it for free
 
 	FlagVariable = "variable"
+
+	FlagGitRef             = "git-ref"
+	FlagPackageVersion     = "package-version"
+	FlagPackageVersionSpec = "package"
+	FlagGitResourceRefSpec = "git-resource"
 )
 
 type RunFlags struct {
@@ -93,6 +98,10 @@ type RunFlags struct {
 	ForcePackageDownload *flag.Flag[bool]
 	RunTargets           *flag.Flag[[]string]
 	ExcludeTargets       *flag.Flag[[]string]
+	GitRef               *flag.Flag[string]
+	PackageVersion       *flag.Flag[string]
+	PackageVersionSpec   *flag.Flag[[]string]
+	GitResourceRefsSpec  *flag.Flag[[]string]
 }
 
 func NewRunFlags() *RunFlags {
@@ -111,6 +120,10 @@ func NewRunFlags() *RunFlags {
 		ForcePackageDownload: flag.New[bool](FlagForcePackageDownload, false),
 		RunTargets:           flag.New[[]string](FlagRunTarget, false),
 		ExcludeTargets:       flag.New[[]string](FlagExcludeRunTarget, false),
+		GitRef:               flag.New[string](FlagGitRef, false),
+		PackageVersion:       flag.New[string](FlagPackageVersion, false),
+		PackageVersionSpec:   flag.New[[]string](FlagPackageVersionSpec, false),
+		GitResourceRefsSpec:  flag.New[[]string](FlagGitResourceRefSpec, false),
 	}
 }
 
@@ -148,6 +161,10 @@ func NewCmdRun(f factory.Factory) *cobra.Command {
 	flags.BoolVarP(&runFlags.ForcePackageDownload.Value, runFlags.ForcePackageDownload.Name, "", false, "Force re-download of packages")
 	flags.StringArrayVarP(&runFlags.RunTargets.Value, runFlags.RunTargets.Name, "", nil, "Run on this target (can be specified multiple times)")
 	flags.StringArrayVarP(&runFlags.ExcludeTargets.Value, runFlags.ExcludeTargets.Name, "", nil, "Run on targets except for this (can be specified multiple times)")
+	flags.StringVarP(&runFlags.GitRef.Value, runFlags.GitRef.Name, "", "", "Git Reference e.g. refs/heads/main. Only relevant for config-as-code projects where runbooks are stored in Git.")
+	flags.StringVarP(&runFlags.PackageVersion.Value, runFlags.PackageVersion.Name, "", "", "Default version to use for all packages. Only relevant for config-as-code projects where runbooks are stored in Git.")
+	flags.StringArrayVarP(&runFlags.PackageVersionSpec.Value, runFlags.PackageVersionSpec.Name, "", nil, "Version specification for a specific package.\nFormat as {package}:{version}, {step}:{version} or {package-ref-name}:{packageOrStep}:{version}\nYou may specify this multiple times.\nOnly relevant for config-as-code projects where runbooks are stored in Git.")
+	flags.StringArrayVarP(&runFlags.GitResourceRefsSpec.Value, runFlags.GitResourceRefsSpec.Name, "", nil, "Git reference for a specific Git resource.\nFormat as {step}:{git-ref}, {step}:{git-resource-name}:{git-ref}\nYou may specify this multiple times.\nOnly relevant for config-as-code projects where runbooks are stored in Git.")
 
 	flags.SortFlags = false
 
@@ -186,121 +203,244 @@ func runbookRun(cmd *cobra.Command, f factory.Factory, flags *RunFlags) error {
 		return err
 	}
 
-	options := &executor.TaskOptionsRunbookRun{
-		ProjectName:          flags.Project.Value,
-		RunbookName:          flags.RunbookName.Value,
-		Environments:         flags.Environments.Value,
-		Tenants:              flags.Tenants.Value,
-		TenantTags:           flags.TenantTags.Value,
-		ScheduledStartTime:   flags.RunAt.Value,
-		ScheduledExpiryTime:  flags.MaxQueueTime.Value,
-		ExcludedSteps:        flags.ExcludedSteps.Value,
-		GuidedFailureMode:    flags.GuidedFailureMode.Value,
-		ForcePackageDownload: flags.ForcePackageDownload.Value,
-		RunTargets:           flags.RunTargets.Value,
-		ExcludeTargets:       flags.ExcludeTargets.Value,
-		Variables:            parsedVariables,
-		Snapshot:             flags.Snapshot.Value,
-	}
+	if flags.GitRef.Value == "" {
+		options := &executor.TaskOptionsRunbookRun{
+			ProjectName:          flags.Project.Value,
+			RunbookName:          flags.RunbookName.Value,
+			Environments:         flags.Environments.Value,
+			Tenants:              flags.Tenants.Value,
+			TenantTags:           flags.TenantTags.Value,
+			ScheduledStartTime:   flags.RunAt.Value,
+			ScheduledExpiryTime:  flags.MaxQueueTime.Value,
+			ExcludedSteps:        flags.ExcludedSteps.Value,
+			GuidedFailureMode:    flags.GuidedFailureMode.Value,
+			ForcePackageDownload: flags.ForcePackageDownload.Value,
+			RunTargets:           flags.RunTargets.Value,
+			ExcludeTargets:       flags.ExcludeTargets.Value,
+			Variables:            parsedVariables,
+			Snapshot:             flags.Snapshot.Value,
+		}
 
-	// special case for FlagForcePackageDownload bool so we can tell if it was set on the cmdline or missing
-	if cmd.Flags().Lookup(FlagForcePackageDownload).Changed {
-		options.ForcePackageDownloadWasSpecified = true
-	}
+		// special case for FlagForcePackageDownload bool so we can tell if it was set on the cmdline or missing
+		if cmd.Flags().Lookup(FlagForcePackageDownload).Changed {
+			options.ForcePackageDownloadWasSpecified = true
+		}
 
-	if f.IsPromptEnabled() {
-		now := time.Now
-		if cmd.Context() != nil { // allow context to override the definition of 'now' for testing
-			if n, ok := cmd.Context().Value(constants.ContextKeyTimeNow).(func() time.Time); ok {
-				now = n
+		if f.IsPromptEnabled() {
+			now := time.Now
+			if cmd.Context() != nil { // allow context to override the definition of 'now' for testing
+				if n, ok := cmd.Context().Value(constants.ContextKeyTimeNow).(func() time.Time); ok {
+					now = n
+				}
+			}
+
+			err = AskQuestions(octopus, cmd.OutOrStdout(), f.Ask, f.GetCurrentSpace(), options, now)
+			if err != nil {
+				return err
+			}
+
+			if !constants.IsProgrammaticOutputFormat(outputFormat) {
+				// the Q&A process will have modified options;backfill into flags for generation of the automation cmd
+				resolvedFlags := NewRunFlags()
+				resolvedFlags.Project.Value = options.ProjectName
+				resolvedFlags.RunbookName.Value = options.RunbookName
+				resolvedFlags.Environments.Value = options.Environments
+				resolvedFlags.Tenants.Value = options.Tenants
+				resolvedFlags.TenantTags.Value = options.TenantTags
+				resolvedFlags.RunAt.Value = options.ScheduledStartTime
+				resolvedFlags.MaxQueueTime.Value = options.ScheduledExpiryTime
+				resolvedFlags.ExcludedSteps.Value = options.ExcludedSteps
+				resolvedFlags.GuidedFailureMode.Value = options.GuidedFailureMode
+				resolvedFlags.RunTargets.Value = options.RunTargets
+				resolvedFlags.ExcludeTargets.Value = options.ExcludeTargets
+
+				didMaskSensitiveVariable := false
+				automationVariables := make(map[string]string, len(options.Variables))
+				for variableName, variableValue := range options.Variables {
+					if util.SliceContainsAny(options.SensitiveVariableNames, func(x string) bool { return strings.EqualFold(x, variableName) }) {
+						didMaskSensitiveVariable = true
+						automationVariables[variableName] = "*****"
+					} else {
+						automationVariables[variableName] = variableValue
+					}
+				}
+				resolvedFlags.Variables.Value = executionscommon.ToVariableStringArray(automationVariables)
+
+				// we're deliberately adding --no-prompt to the generated cmdline so ForcePackageDownload=false will be missing,
+				// but that's fine
+				resolvedFlags.ForcePackageDownload.Value = options.ForcePackageDownload
+
+				autoCmd := flag.GenerateAutomationCmd(constants.ExecutableName+" runbook run",
+					resolvedFlags.Project,
+					resolvedFlags.RunbookName,
+					resolvedFlags.Snapshot,
+					resolvedFlags.Environments,
+					resolvedFlags.Tenants,
+					resolvedFlags.TenantTags,
+					resolvedFlags.RunAt,
+					resolvedFlags.MaxQueueTime,
+					resolvedFlags.ExcludedSteps,
+					resolvedFlags.GuidedFailureMode,
+					resolvedFlags.ForcePackageDownload,
+					resolvedFlags.RunTargets,
+					resolvedFlags.ExcludeTargets,
+					resolvedFlags.Variables,
+				)
+				cmd.Printf("\nAutomation Command: %s\n", autoCmd)
+
+				if didMaskSensitiveVariable {
+					cmd.Printf("%s\n", output.Yellow("Warning: Command includes some sensitive variable values which have been replaced with placeholders."))
+				}
 			}
 		}
 
-		err = AskQuestions(octopus, cmd.OutOrStdout(), f.Ask, f.GetCurrentSpace(), options, now)
+		// the executor will raise errors if any required options are missing
+		err = executor.ProcessTasks(octopus, f.GetCurrentSpace(), []*executor.Task{
+			executor.NewTask(executor.TaskTypeRunbookRun, options),
+		})
 		if err != nil {
 			return err
 		}
 
-		if !constants.IsProgrammaticOutputFormat(outputFormat) {
-			// the Q&A process will have modified options;backfill into flags for generation of the automation cmd
-			resolvedFlags := NewRunFlags()
-			resolvedFlags.Project.Value = options.ProjectName
-			resolvedFlags.RunbookName.Value = options.RunbookName
-			resolvedFlags.Environments.Value = options.Environments
-			resolvedFlags.Tenants.Value = options.Tenants
-			resolvedFlags.TenantTags.Value = options.TenantTags
-			resolvedFlags.RunAt.Value = options.ScheduledStartTime
-			resolvedFlags.MaxQueueTime.Value = options.ScheduledExpiryTime
-			resolvedFlags.ExcludedSteps.Value = options.ExcludedSteps
-			resolvedFlags.GuidedFailureMode.Value = options.GuidedFailureMode
-			resolvedFlags.RunTargets.Value = options.RunTargets
-			resolvedFlags.ExcludeTargets.Value = options.ExcludeTargets
-
-			didMaskSensitiveVariable := false
-			automationVariables := make(map[string]string, len(options.Variables))
-			for variableName, variableValue := range options.Variables {
-				if util.SliceContainsAny(options.SensitiveVariableNames, func(x string) bool { return strings.EqualFold(x, variableName) }) {
-					didMaskSensitiveVariable = true
-					automationVariables[variableName] = "*****"
-				} else {
-					automationVariables[variableName] = variableValue
+		if options.Response != nil {
+			switch outputFormat {
+			case constants.OutputFormatBasic:
+				for _, task := range options.Response.RunbookRunServerTasks {
+					cmd.Printf("%s\n", task.ServerTaskID)
 				}
-			}
-			resolvedFlags.Variables.Value = executionscommon.ToVariableStringArray(automationVariables)
 
-			// we're deliberately adding --no-prompt to the generated cmdline so ForcePackageDownload=false will be missing,
-			// but that's fine
-			resolvedFlags.ForcePackageDownload.Value = options.ForcePackageDownload
-
-			autoCmd := flag.GenerateAutomationCmd(constants.ExecutableName+" runbook run",
-				resolvedFlags.Project,
-				resolvedFlags.RunbookName,
-				resolvedFlags.Snapshot,
-				resolvedFlags.Environments,
-				resolvedFlags.Tenants,
-				resolvedFlags.TenantTags,
-				resolvedFlags.RunAt,
-				resolvedFlags.MaxQueueTime,
-				resolvedFlags.ExcludedSteps,
-				resolvedFlags.GuidedFailureMode,
-				resolvedFlags.ForcePackageDownload,
-				resolvedFlags.RunTargets,
-				resolvedFlags.ExcludeTargets,
-				resolvedFlags.Variables,
-			)
-			cmd.Printf("\nAutomation Command: %s\n", autoCmd)
-
-			if didMaskSensitiveVariable {
-				cmd.Printf("%s\n", output.Yellow("Warning: Command includes some sensitive variable values which have been replaced with placeholders."))
+			case constants.OutputFormatJson:
+				data, err := json.Marshal(options.Response.RunbookRunServerTasks)
+				if err != nil { // shouldn't happen but fallback in case
+					cmd.PrintErrln(err)
+				} else {
+					_, _ = cmd.OutOrStdout().Write(data)
+					cmd.Println()
+				}
+			default: // table
+				cmd.Printf("Successfully started %d runbook run(s)\n", len(options.Response.RunbookRunServerTasks))
 			}
 		}
-	}
+	} else {
+		// Running a Git runbook
 
-	// the executor will raise errors if any required options are missing
-	err = executor.ProcessTasks(octopus, f.GetCurrentSpace(), []*executor.Task{
-		executor.NewTask(executor.TaskTypeRunbookRun, options),
-	})
-	if err != nil {
-		return err
-	}
+		options := &executor.TaskOptionsGitRunbookRun{
+			ProjectName:          flags.Project.Value,
+			RunbookName:          flags.RunbookName.Value,
+			Environments:         flags.Environments.Value,
+			Tenants:              flags.Tenants.Value,
+			TenantTags:           flags.TenantTags.Value,
+			ScheduledStartTime:   flags.RunAt.Value,
+			ScheduledExpiryTime:  flags.MaxQueueTime.Value,
+			ExcludedSteps:        flags.ExcludedSteps.Value,
+			GuidedFailureMode:    flags.GuidedFailureMode.Value,
+			ForcePackageDownload: flags.ForcePackageDownload.Value,
+			RunTargets:           flags.RunTargets.Value,
+			ExcludeTargets:       flags.ExcludeTargets.Value,
+			Variables:            parsedVariables,
+			GitReference:         flags.GitRef.Value,
+		}
 
-	if options.Response != nil {
-		switch outputFormat {
-		case constants.OutputFormatBasic:
-			for _, task := range options.Response.RunbookRunServerTasks {
-				cmd.Printf("%s\n", task.ServerTaskID)
+		// special case for FlagForcePackageDownload bool so we can tell if it was set on the cmdline or missing
+		if cmd.Flags().Lookup(FlagForcePackageDownload).Changed {
+			options.ForcePackageDownloadWasSpecified = true
+		}
+
+		if f.IsPromptEnabled() {
+			now := time.Now
+			if cmd.Context() != nil { // allow context to override the definition of 'now' for testing
+				if n, ok := cmd.Context().Value(constants.ContextKeyTimeNow).(func() time.Time); ok {
+					now = n
+				}
 			}
 
-		case constants.OutputFormatJson:
-			data, err := json.Marshal(options.Response.RunbookRunServerTasks)
-			if err != nil { // shouldn't happen but fallback in case
-				cmd.PrintErrln(err)
-			} else {
-				_, _ = cmd.OutOrStdout().Write(data)
-				cmd.Println()
+			err = AskGitRunbookRunQuestions(octopus, cmd.OutOrStdout(), f.Ask, f.GetCurrentSpace(), options, now)
+			if err != nil {
+				return err
 			}
-		default: // table
-			cmd.Printf("Successfully started %d runbook run(s)\n", len(options.Response.RunbookRunServerTasks))
+
+			if !constants.IsProgrammaticOutputFormat(outputFormat) {
+				// the Q&A process will have modified options;backfill into flags for generation of the automation cmd
+				resolvedFlags := NewRunFlags()
+				resolvedFlags.Project.Value = options.ProjectName
+				resolvedFlags.RunbookName.Value = options.RunbookName
+				resolvedFlags.Environments.Value = options.Environments
+				resolvedFlags.Tenants.Value = options.Tenants
+				resolvedFlags.TenantTags.Value = options.TenantTags
+				resolvedFlags.RunAt.Value = options.ScheduledStartTime
+				resolvedFlags.MaxQueueTime.Value = options.ScheduledExpiryTime
+				resolvedFlags.ExcludedSteps.Value = options.ExcludedSteps
+				resolvedFlags.GuidedFailureMode.Value = options.GuidedFailureMode
+				resolvedFlags.RunTargets.Value = options.RunTargets
+				resolvedFlags.ExcludeTargets.Value = options.ExcludeTargets
+				resolvedFlags.GitRef.Value = options.GitReference
+
+				didMaskSensitiveVariable := false
+				automationVariables := make(map[string]string, len(options.Variables))
+				for variableName, variableValue := range options.Variables {
+					if util.SliceContainsAny(options.SensitiveVariableNames, func(x string) bool { return strings.EqualFold(x, variableName) }) {
+						didMaskSensitiveVariable = true
+						automationVariables[variableName] = "*****"
+					} else {
+						automationVariables[variableName] = variableValue
+					}
+				}
+				resolvedFlags.Variables.Value = executionscommon.ToVariableStringArray(automationVariables)
+
+				// we're deliberately adding --no-prompt to the generated cmdline so ForcePackageDownload=false will be missing,
+				// but that's fine
+				resolvedFlags.ForcePackageDownload.Value = options.ForcePackageDownload
+
+				autoCmd := flag.GenerateAutomationCmd(constants.ExecutableName+" runbook run",
+					resolvedFlags.Project,
+					resolvedFlags.RunbookName,
+					resolvedFlags.Snapshot,
+					resolvedFlags.Environments,
+					resolvedFlags.Tenants,
+					resolvedFlags.TenantTags,
+					resolvedFlags.RunAt,
+					resolvedFlags.MaxQueueTime,
+					resolvedFlags.ExcludedSteps,
+					resolvedFlags.GuidedFailureMode,
+					resolvedFlags.ForcePackageDownload,
+					resolvedFlags.RunTargets,
+					resolvedFlags.ExcludeTargets,
+					resolvedFlags.Variables,
+				)
+				cmd.Printf("\nAutomation Command: %s\n", autoCmd)
+
+				if didMaskSensitiveVariable {
+					cmd.Printf("%s\n", output.Yellow("Warning: Command includes some sensitive variable values which have been replaced with placeholders."))
+				}
+			}
+		}
+
+		// the executor will raise errors if any required options are missing
+		err = executor.ProcessTasks(octopus, f.GetCurrentSpace(), []*executor.Task{
+			executor.NewTask(executor.TaskTypeGitRunbookRun, options),
+		})
+		if err != nil {
+			return err
+		}
+
+		if options.Response != nil {
+			switch outputFormat {
+			case constants.OutputFormatBasic:
+				for _, task := range options.Response.RunbookRunServerTasks {
+					cmd.Printf("%s\n", task.ServerTaskID)
+				}
+
+			case constants.OutputFormatJson:
+				data, err := json.Marshal(options.Response.RunbookRunServerTasks)
+				if err != nil { // shouldn't happen but fallback in case
+					cmd.PrintErrln(err)
+				} else {
+					_, _ = cmd.OutOrStdout().Write(data)
+					cmd.Println()
+				}
+			default: // table
+				cmd.Printf("Successfully started %d runbook run(s)\n", len(options.Response.RunbookRunServerTasks))
+			}
 		}
 	}
 
@@ -533,6 +673,201 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 	return nil
 }
 
+func AskGitRunbookRunQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker question.Asker, space *spaces.Space, options *executor.TaskOptionsGitRunbookRun, now func() time.Time) error {
+	if octopus == nil {
+		return cliErrors.NewArgumentNullOrEmptyError("octopus")
+	}
+	if asker == nil {
+		return cliErrors.NewArgumentNullOrEmptyError("asker")
+	}
+	if options == nil {
+		return cliErrors.NewArgumentNullOrEmptyError("options")
+	}
+	// Note: we don't get here at all if no-prompt is enabled, so we know we are free to ask questions
+
+	// Note on output: survey prints things; if the option is specified already from the command line,
+	// we should emulate that so there is always a line where you can see what the item was when specified on the command line,
+	// however if we support a "quiet mode" then we shouldn't emit those
+
+	var err error
+
+	// select project
+	var selectedProject *projects.Project
+	// selectedProject.TenantedDeploymentMode
+	if options.ProjectName == "" {
+		selectedProject, err = selectors.Project("Select project", octopus, asker)
+		if err != nil {
+			return err
+		}
+	} else { // project name is already provided, fetch the object because it's needed for further questions
+		selectedProject, err = selectors.FindProject(octopus, options.ProjectName)
+		if err != nil {
+			return err
+		}
+		_, _ = fmt.Fprintf(stdout, "Project %s\n", output.Cyan(selectedProject.Name))
+	}
+	options.ProjectName = selectedProject.Name
+
+	// select the runbook
+
+	var selectedRunbook *runbooks.Runbook
+	if options.RunbookName == "" {
+		selectedRunbook, err = selectGitRunbook(octopus, asker, "Select a runbook to run", space, selectedProject, options.GitReference)
+		if err != nil {
+			return err
+		}
+	} else {
+		selectedRunbook, err = findGitRunbook(octopus, space.ID, selectedProject.ID, options.RunbookName, options.GitReference)
+		if err != nil {
+			return err
+		}
+		_, _ = fmt.Fprintf(stdout, "Runbook %s\n", output.Cyan(selectedRunbook.Name))
+	}
+	options.RunbookName = selectedRunbook.Name
+	if err != nil {
+		return err
+	}
+
+	// machine selection later on needs to refer back to the environments.
+	var selectedEnvironments []*environments.Environment
+	if len(options.Environments) == 0 {
+		selectedEnvironments, err = selectGitRunEnvironments(asker, octopus, space, selectedProject, selectedRunbook, options.GitReference)
+		if err != nil {
+			return err
+		}
+		options.Environments = util.SliceTransform(selectedEnvironments, func(env *environments.Environment) string { return env.Name })
+	} else {
+		_, _ = fmt.Fprintf(stdout, "Environments %s\n", output.Cyan(strings.Join(options.Environments, ",")))
+	}
+
+	// ask for tenants and/or tags unless some were specified on the command line
+	if len(options.Tenants) == 0 && len(options.TenantTags) == 0 {
+		tenantedDeploymentMode := false
+		if selectedProject.TenantedDeploymentMode == core.TenantedDeploymentModeTenanted {
+			tenantedDeploymentMode = true
+		}
+		options.Tenants, options.TenantTags, _ = executionscommon.AskTenantsAndTags(asker, octopus, selectedRunbook.ProjectID, selectedEnvironments, tenantedDeploymentMode)
+	} else {
+		if len(options.Tenants) > 0 {
+			_, _ = fmt.Fprintf(stdout, "Tenants %s\n", output.Cyan(strings.Join(options.Tenants, ",")))
+		}
+		if len(options.TenantTags) > 0 {
+			_, _ = fmt.Fprintf(stdout, "Tenant Tags %s\n", output.Cyan(strings.Join(options.TenantTags, ",")))
+		}
+	}
+
+	// PrintAdvancedSummary(stdout, options)
+
+	isRunAtSpecified := options.ScheduledStartTime != ""
+	isExcludedStepsSpecified := len(options.ExcludedSteps) > 0
+	isGuidedFailureModeSpecified := options.GuidedFailureMode != ""
+	isForcePackageDownloadSpecified := options.ForcePackageDownloadWasSpecified
+	isRunTargetsSpecified := len(options.RunTargets) > 0 || len(options.ExcludeTargets) > 0
+
+	allAdvancedOptionsSpecified := isRunAtSpecified && isExcludedStepsSpecified && isGuidedFailureModeSpecified && isForcePackageDownloadSpecified && isRunTargetsSpecified
+
+	shouldAskAdvancedQuestions := false
+	if !allAdvancedOptionsSpecified {
+		var changeOptionsAnswer string
+		err = asker(&survey.Select{
+			Message: "Change additional options?",
+			Options: []string{"Proceed to run", "Change"},
+		}, &changeOptionsAnswer)
+		if err != nil {
+			return err
+		}
+		if changeOptionsAnswer == "Change" {
+			shouldAskAdvancedQuestions = true
+		} else {
+			shouldAskAdvancedQuestions = false
+		}
+	}
+
+	if shouldAskAdvancedQuestions {
+		if !isRunAtSpecified {
+			referenceNow := now()
+			maxSchedStartTime := referenceNow.Add(30 * 24 * time.Hour) // octopus server won't let you schedule things more than 30d in the future
+
+			var answer surveyext.DatePickerAnswer
+			err = asker(&surveyext.DatePicker{
+				Message:         "Scheduled start time",
+				Help:            "Enter the date and time that this runbook should run. A value less than 1 minute in the future means 'now'",
+				Default:         referenceNow,
+				Min:             referenceNow,
+				Max:             maxSchedStartTime,
+				OverrideNow:     referenceNow,
+				AnswerFormatter: executionscommon.ScheduledStartTimeAnswerFormatter,
+			}, &answer)
+			if err != nil {
+				return err
+			}
+			scheduledStartTime := answer.Time
+			// if they enter a time within 1 minute, assume 'now', else we need to pick it up.
+			// note: the server has some code in it which attempts to detect past
+			if scheduledStartTime.After(referenceNow.Add(1 * time.Minute)) {
+				options.ScheduledStartTime = scheduledStartTime.Format(time.RFC3339)
+
+				// only ask for an expiry if they didn't pick "now"
+				startPlusFiveMin := scheduledStartTime.Add(5 * time.Minute)
+				err = asker(&surveyext.DatePicker{
+					Message:     "Scheduled expiry time",
+					Help:        "At the start time, the run will be queued. If it does not begin before 'expiry' time, it will be cancelled. Minimum of 5 minutes after start time",
+					Default:     startPlusFiveMin,
+					Min:         startPlusFiveMin,
+					Max:         maxSchedStartTime.Add(24 * time.Hour), // the octopus server doesn't enforce any upper bound for schedule expiry, so we make a minor judgement call and pick 1d extra here.
+					OverrideNow: referenceNow,
+				}, &answer)
+				if err != nil {
+					return err
+				}
+				options.ScheduledExpiryTime = answer.Time.Format(time.RFC3339)
+			}
+		}
+
+		// if !isExcludedStepsSpecified {
+		// 	// select steps to exclude
+		// 	runbookProcess, err := runbooks.GetProcess(octopus, space.ID, selectedProject.ID, selectedSnapshot.FrozenRunbookProcessID)
+		// 	if err != nil {
+		// 		return err
+		// 	}
+		// 	options.ExcludedSteps, err = executionscommon.AskExcludedSteps(asker, runbookProcess.Steps)
+		// 	if err != nil {
+		// 		return err
+		// 	}
+		// }
+
+		// if !isGuidedFailureModeSpecified { // if they deliberately specified false, don't ask them
+		// 	options.GuidedFailureMode, err = executionscommon.AskGuidedFailureMode(asker)
+		// 	if err != nil {
+		// 		return err
+		// 	}
+		// }
+
+		// if !isForcePackageDownloadSpecified { // if they deliberately specified false, don't ask them
+		// 	options.ForcePackageDownload, err = executionscommon.AskPackageDownload(asker)
+		// 	if err != nil {
+		// 		return err
+		// 	}
+		// }
+
+		// if !isRunTargetsSpecified {
+		// 	if len(selectedEnvironments) == 0 { // if the Q&A process earlier hasn't loaded environments already, we need to load them now
+		// 		selectedEnvironments, err = executionscommon.FindEnvironments(octopus, options.Environments)
+		// 		if err != nil {
+		// 			return err
+		// 		}
+		// 	}
+
+		// 	options.RunTargets, err = askRunbookTargets(octopus, asker, space.ID, selectedSnapshot.ID, selectedEnvironments)
+		// 	if err != nil {
+		// 		return err
+		// 	}
+		// }
+	}
+	// DONE
+	return nil
+}
+
 func askRunbookTargets(octopus *octopusApiClient.Client, asker question.Asker, spaceID string, runbookSnapshotID string, selectedEnvironments []*environments.Environment) ([]string, error) {
 	var results []string
 
@@ -585,6 +920,18 @@ func selectRunEnvironment(ask question.Asker, octopus *octopusApiClient.Client, 
 // selectRunEnvironments selects multiple environments for use in an untenanted run
 func selectRunEnvironments(ask question.Asker, octopus *octopusApiClient.Client, space *spaces.Space, project *projects.Project, runbook *runbooks.Runbook) ([]*environments.Environment, error) {
 	envs, err := runbooks.ListEnvironments(octopus, space.ID, project.ID, runbook.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	return question.MultiSelectMap(ask, "Select one or more environments", envs, func(p *environments.Environment) string {
+		return p.Name
+	}, true)
+}
+
+// selectRunEnvironments selects multiple environments for use in an untenanted run
+func selectGitRunEnvironments(ask question.Asker, octopus *octopusApiClient.Client, space *spaces.Space, project *projects.Project, runbook *runbooks.Runbook, gitRef string) ([]*environments.Environment, error) {
+	envs, err := runbooks.ListEnvironmentsGit(octopus, space.ID, project.ID, runbook.ID, gitRef)
 	if err != nil {
 		return nil, err
 	}
@@ -685,4 +1032,28 @@ func findRunbookPublishedSnapshot(octopus *octopusApiClient.Client, space *space
 		return nil, fmt.Errorf("cannot run runbook %s, it has no published snapshot", runbook.Name)
 	}
 	return findRunbookSnapshot(octopus, space.ID, project.ID, runbook.PublishedRunbookSnapshotID)
+}
+
+func selectGitRunbook(octopus *octopusApiClient.Client, ask question.Asker, questionText string, space *spaces.Space, project *projects.Project, gitRef string) (*runbooks.Runbook, error) {
+	foundRunbooks, err := runbooks.ListGit(octopus, space.ID, project.ID, gitRef, "", math.MaxInt32)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(foundRunbooks.Items) == 0 {
+		return nil, fmt.Errorf("no runbooks found for selected project: %s", project.Name)
+	}
+
+	return question.SelectMap(ask, questionText, foundRunbooks.Items, func(p *runbooks.Runbook) string {
+		return p.Name
+	})
+}
+
+// findRunbook wraps the API client, such that we are always guaranteed to get a result, or error. The "successfully can't find matching name" case doesn't exist
+func findGitRunbook(octopus *octopusApiClient.Client, spaceID string, projectID string, runbookName string, gitRef string) (*runbooks.Runbook, error) {
+	result, err := runbooks.GetByNameGit(octopus, spaceID, projectID, gitRef, runbookName)
+	if result == nil && err == nil {
+		return nil, fmt.Errorf("no runbook found with Name of %s", runbookName)
+	}
+	return result, err
 }
