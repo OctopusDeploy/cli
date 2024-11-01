@@ -15,6 +15,7 @@ const (
 	TaskTypeCreateRelease = TaskType("CreateRelease")
 	TaskTypeDeployRelease = TaskType("DeployRelease")
 	TaskTypeRunbookRun    = TaskType("RunbookRun")
+	TaskTypeGitRunbookRun = TaskType("GitRunbookRun")
 )
 
 type Task struct {
@@ -54,6 +55,10 @@ func ProcessTasks(octopus *client.Client, space *spaces.Space, tasks []*Task) er
 			}
 		case TaskTypeRunbookRun:
 			if err := runbookRun(octopus, space, task.Options); err != nil {
+				return err
+			}
+		case TaskTypeGitRunbookRun:
+			if err := gitRunbookRun(octopus, space, task.Options); err != nil {
 				return err
 			}
 		default:
