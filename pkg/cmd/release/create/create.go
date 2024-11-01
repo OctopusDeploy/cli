@@ -20,6 +20,7 @@ import (
 	cliErrors "github.com/OctopusDeploy/cli/pkg/errors"
 	"github.com/OctopusDeploy/cli/pkg/executor"
 	"github.com/OctopusDeploy/cli/pkg/factory"
+	"github.com/OctopusDeploy/cli/pkg/gitresources"
 	"github.com/OctopusDeploy/cli/pkg/output"
 	"github.com/OctopusDeploy/cli/pkg/question"
 	"github.com/OctopusDeploy/cli/pkg/question/selectors"
@@ -520,7 +521,7 @@ func (p *PackageVersionOverride) ToPackageOverrideString() string {
 // and we want to allow for multiple different delimeters.
 // neither the builtin golang strings.Split or strings.FieldsFunc support this. Logic borrowed from strings.FieldsFunc with heavy modifications
 func splitPackageOverrideString(s string) []string {
-	return splitString(s, []int32{':', '/', '='})
+	return util.SplitString(s, []int32{':', '/', '='})
 }
 
 // AmbiguousPackageVersionOverride tells us that we want to set the version of some package to `Version`
@@ -905,10 +906,10 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 		overriddenPackageVersions = packageVersionBaseline // there aren't any, but satisfy the code below anyway
 	}
 
-	gitResourcesBaseline := BuildGitResourcesBaseline(deploymentProcessTemplate)
+	gitResourcesBaseline := gitresources.BuildGitResourcesBaseline(deploymentProcessTemplate.GitResources)
 
 	if len(gitResourcesBaseline) > 0 {
-		overriddenGitResources, err := AskGitResourceOverrideLoop(
+		overriddenGitResources, err := gitresources.AskGitResourceOverrideLoop(
 			gitResourcesBaseline,
 			options.GitResourceRefs,
 			asker,
