@@ -361,15 +361,15 @@ type StepPackageVersion struct {
 // BuildPackageVersionBaseline loads the deployment process template from the server, and for each step+package therein,
 // finds the latest available version satisfying the channel version rules. Result is the list of step+package+versions
 // to use as a baseline. The package version override process takes this as an input and layers on top of it
-func BuildPackageVersionBaseline(octopus *octopusApiClient.Client, deploymentProcessTemplate *deployments.DeploymentProcessTemplate, channel *channels.Channel) ([]*StepPackageVersion, error) {
-	result := make([]*StepPackageVersion, 0, len(deploymentProcessTemplate.Packages))
+func BuildPackageVersionBaselineWithRuleCheck(octopus *octopusApiClient.Client, packages []releases.ReleaseTemplatePackage, setAdditionalFeedQueryParameters func(releases.ReleaseTemplatePackage, feeds.SearchPackageVersionsQuery)) ([]*StepPackageVersion, error) {
+	result := make([]*StepPackageVersion, 0, len(packages))
 
 	// step 1: pass over all the packages in the deployment process, group them
 	// by their feed, then subgroup by packageId
 
 	// map(key: FeedID, value: list of references using the package so we can trace back to steps)
 	feedsToQuery := make(map[string][]releases.ReleaseTemplatePackage)
-	for _, pkg := range deploymentProcessTemplate.Packages {
+	for _, pkg := range packages {
 
 		if pkg.FixedVersion != "" {
 			// If a package has a fixed version it shouldn't be displayed or overridable at all
@@ -425,20 +425,7 @@ func BuildPackageVersionBaseline(octopus *octopusApiClient.Client, deploymentPro
 				PackageID: packageRef.PackageID,
 				Take:      1,
 			}
-			// look in the channel rules for a version filter for this step+package
-		rulesLoop:
-			for _, rule := range channel.Rules {
-				for _, ap := range rule.ActionPackages {
-					if ap.PackageReference == packageRef.PackageReferenceName && ap.DeploymentAction == packageRef.ActionName {
-						// this rule applies to our step/packageref combo
-						query.PreReleaseTag = rule.Tag
-						query.VersionRange = rule.VersionRange
-						// the octopus server won't let the same package be targeted by more than one rule, so
-						// once we've found the first matching rule for our step+package, we can stop looping
-						break rulesLoop
-					}
-				}
-			}
+			setAdditionalFeedQueryParameters(packageRef, query)
 
 			if cachedVersion, ok := cache[query]; ok {
 				result = append(result, &StepPackageVersion{
@@ -478,6 +465,36 @@ func BuildPackageVersionBaseline(octopus *octopusApiClient.Client, deploymentPro
 			}
 		}
 	}
+	return result, nil
+}
+
+// BuildPackageVersionBaseline loads the deployment process template from the server, and for each step+package therein,
+// finds the latest available version satisfying the channel version rules. Result is the list of step+package+versions
+// to use as a baseline. The package version override process takes this as an input and layers on top of it
+func BuildPackageVersionBaseline(octopus *octopusApiClient.Client, deploymentProcessTemplate *deployments.DeploymentProcessTemplate, channel *channels.Channel) ([]*StepPackageVersion, error) {
+
+	result, err := BuildPackageVersionBaselineWithRuleCheck(octopus, deploymentProcessTemplate.Packages, func(packageRef releases.ReleaseTemplatePackage, query feeds.SearchPackageVersionsQuery) {
+		// look in the channel rules for a version filter for this step+package
+
+	rulesLoop:
+		for _, rule := range channel.Rules {
+			for _, ap := range rule.ActionPackages {
+				if ap.PackageReference == packageRef.PackageReferenceName && ap.DeploymentAction == packageRef.ActionName {
+					// this rule applies to our step/packageref combo
+					query.PreReleaseTag = rule.Tag
+					query.VersionRange = rule.VersionRange
+					// the octopus server won't let the same package be targeted by more than one rule, so
+					// once we've found the first matching rule for our step+package, we can stop looping
+					break rulesLoop
+				}
+			}
+		}
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
 	return result, nil
 }
 
