@@ -1,16 +1,18 @@
-﻿package create
+﻿package gitresources
 
 import (
 	"errors"
 	"fmt"
+	"io"
+	"strings"
+
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/output"
 	"github.com/OctopusDeploy/cli/pkg/question"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/deployments"
+	"github.com/OctopusDeploy/cli/pkg/util"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/releases"
 	"golang.org/x/exp/slices"
-	"io"
-	"strings"
 )
 
 var gitResourceGitRefLoopHelpText = heredoc.Doc(`
@@ -41,10 +43,10 @@ bold(GIT RESOURCE OVERRIDE STRINGS)
 dim(---------------------------------------------------------------------)
 `) // note this expects to have prettifyHelp run over it
 
-func BuildGitResourcesBaseline(deploymentProcessTemplate *deployments.DeploymentProcessTemplate) []*GitResourceGitRef {
-	result := make([]*GitResourceGitRef, 0, len(deploymentProcessTemplate.GitResources))
+func BuildGitResourcesBaseline(gitResources []releases.ReleaseTemplateGitResource) []*GitResourceGitRef {
+	result := make([]*GitResourceGitRef, 0, len(gitResources))
 
-	for _, gitResource := range deploymentProcessTemplate.GitResources {
+	for _, gitResource := range gitResources {
 		result = append(result, &GitResourceGitRef{
 			ActionName:      gitResource.ActionName,
 			GitRef:          gitResource.DefaultBranch,
@@ -187,7 +189,7 @@ func ParseGitResourceGitRefString(gitResourceRef string) (*GitResourceGitRef, er
 	}
 
 	//for consistency with the server-side code, we only support one type of delimiter at once
-	components := splitString(gitResourceRef, []rune{delimiters[chosenDelimiterIndex]})
+	components := util.SplitString(gitResourceRef, []rune{delimiters[chosenDelimiterIndex]})
 	actionName, gitResourceName, gitRef := "", "", ""
 
 	// We support 2 formats of git resource
