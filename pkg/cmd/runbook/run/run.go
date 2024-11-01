@@ -28,7 +28,6 @@ import (
 	octopusApiClient "github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/core"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/environments"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/feeds"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/releases"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/runbooks"
@@ -805,7 +804,7 @@ func AskGitRunbookRunQuestions(octopus *octopusApiClient.Client, stdout io.Write
 		return err
 	}
 
-	packageVersionBaseline, err := packages.BuildPackageVersionBaseline(octopus, convertToValueSlice(runbookSnapshotTemplate.Packages), func(packageRef releases.ReleaseTemplatePackage, query feeds.SearchPackageVersionsQuery) {})
+	packageVersionBaseline, err := packages.BuildPackageVersionBaseline(octopus, convertToValueSlice(runbookSnapshotTemplate.Packages), nil)
 	if err != nil {
 		return err
 	}
