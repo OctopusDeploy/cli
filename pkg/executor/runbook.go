@@ -21,6 +21,30 @@ type TaskResultRunbookRun struct {
 // the command processor is responsible for accepting related entity names from the end user
 // and looking them up for their ID's; we should only deal with strong references at this level
 
+type TaskOptionsRunbookRunBase struct {
+	ProjectName          string // required
+	RunbookName          string // the name of the runbook to run
+	Environments         []string
+	Tenants              []string
+	TenantTags           []string
+	ScheduledStartTime   string
+	ScheduledExpiryTime  string
+	ExcludedSteps        []string
+	GuidedFailureMode    string // ["", "true", "false", "default"]. Note default and "" are the same, the only difference is whether interactive mode prompts you
+	ForcePackageDownload bool
+	RunTargets           []string
+	ExcludeTargets       []string
+	Variables            map[string]string
+
+	// extra behaviour commands
+
+	// true if the value was specified on the command line (because ForcePackageDownload is bool, we can't distinguish 'false' from 'missing')
+	ForcePackageDownloadWasSpecified bool
+
+	// so the automation command can mask sensitive variable output
+	SensitiveVariableNames []string
+}
+
 type TaskOptionsRunbookRun struct {
 	ProjectName          string // required
 	RunbookName          string // the name of the runbook to run
@@ -109,19 +133,6 @@ func runbookRun(octopus *client.Client, space *spaces.Space, input any) error {
 }
 
 type TaskOptionsGitRunbookRun struct {
-	ProjectName             string // required
-	RunbookName             string // the name of the runbook to run
-	Environments            []string
-	Tenants                 []string
-	TenantTags              []string
-	ScheduledStartTime      string
-	ScheduledExpiryTime     string
-	ExcludedSteps           []string
-	GuidedFailureMode       string // ["", "true", "false", "default"]. Note default and "" are the same, the only difference is whether interactive mode prompts you
-	ForcePackageDownload    bool
-	RunTargets              []string
-	ExcludeTargets          []string
-	Variables               map[string]string
 	GitReference            string // required
 	DefaultPackageVersion   string
 	PackageVersionOverrides []string
@@ -137,6 +148,7 @@ type TaskOptionsGitRunbookRun struct {
 
 	// if the task succeeds, the resulting output will be stored here
 	Response *runbooks.GitRunbookRunResponseV1
+	TaskOptionsRunbookRunBase
 }
 
 func gitRunbookRun(octopus *client.Client, space *spaces.Space, input any) error {
