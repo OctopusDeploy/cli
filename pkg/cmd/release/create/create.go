@@ -351,7 +351,7 @@ func createRun(cmd *cobra.Command, f factory.Factory, flags *CreateFlags) error 
 // to use as a baseline. The package version override process takes this as an input and layers on top of it
 func BuildPackageVersionBaselineForChannel(octopus *octopusApiClient.Client, deploymentProcessTemplate *deployments.DeploymentProcessTemplate, channel *channels.Channel) ([]*packages.StepPackageVersion, error) {
 
-	result, err := packages.BuildPackageVersionBaseline(octopus, deploymentProcessTemplate.Packages, func(packageRef releases.ReleaseTemplatePackage, query feeds.SearchPackageVersionsQuery) {
+	result, err := packages.BuildPackageVersionBaseline(octopus, deploymentProcessTemplate.Packages, func(packageRef releases.ReleaseTemplatePackage, query feeds.SearchPackageVersionsQuery) (feeds.SearchPackageVersionsQuery, error) {
 		// look in the channel rules for a version filter for this step+package
 
 	rulesLoop:
@@ -367,6 +367,8 @@ func BuildPackageVersionBaselineForChannel(octopus *octopusApiClient.Client, dep
 				}
 			}
 		}
+
+		return query, nil
 	})
 
 	if err != nil {
