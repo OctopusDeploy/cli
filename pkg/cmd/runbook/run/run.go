@@ -818,26 +818,26 @@ func AskGitRunbookRunQuestions(octopus *octopusApiClient.Client, stdout io.Write
 		}
 	}
 
-	// gitResourcesBaseline := BuildGitResourcesBaseline(deploymentProcessTemplate)
+	gitResourcesBaseline := BuildGitResourcesBaseline(runbookSnapshotTemplate.GitResources)
 
-	// if len(gitResourcesBaseline) > 0 {
-	// 	overriddenGitResources, err := AskGitResourceOverrideLoop(
-	// 		gitResourcesBaseline,
-	// 		options.GitResourceRefs,
-	// 		asker,
-	// 		stdout)
+	if len(gitResourcesBaseline) > 0 {
+		overriddenGitResources, err := AskGitResourceOverrideLoop(
+			gitResourcesBaseline,
+			options.GitResourceRefs,
+			asker,
+			stdout)
 
-	// 	if err != nil {
-	// 		return err
-	// 	}
+		if err != nil {
+			return err
+		}
 
-	// 	if len(overriddenGitResources) > 0 {
-	// 		options.GitResourceRefs = make([]string, 0, len(overriddenGitResources))
-	// 		for _, ov := range overriddenGitResources {
-	// 			options.GitResourceRefs = append(options.GitResourceRefs, ov.ToGitResourceGitRefString())
-	// 		}
-	// 	}
-	// }
+		if len(overriddenGitResources) > 0 {
+			options.GitResourceRefs = make([]string, 0, len(overriddenGitResources))
+			for _, ov := range overriddenGitResources {
+				options.GitResourceRefs = append(options.GitResourceRefs, ov.ToGitResourceGitRefString())
+			}
+		}
+	}
 
 	PrintAdvancedSummaryForBase(stdout, &options.TaskOptionsRunbookRunBase)
 
