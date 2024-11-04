@@ -353,7 +353,7 @@ func runDbRunbook(cmd *cobra.Command, f factory.Factory, flags *RunFlags, octopu
 	return nil
 }
 
-func convertToValueSlice(slice []*releases.ReleaseTemplatePackage) []releases.ReleaseTemplatePackage {
+func convertReleaseTemplatePackagesToValueSlice(slice []*releases.ReleaseTemplatePackage) []releases.ReleaseTemplatePackage {
 	values := make([]releases.ReleaseTemplatePackage, len(slice))
 	for i, v := range slice {
 		values[i] = *v
@@ -798,13 +798,12 @@ func AskGitRunbookRunQuestions(octopus *octopusApiClient.Client, stdout io.Write
 		}
 	}
 
-	// TODO: Packages, Git resources
 	runbookSnapshotTemplate, err := runbooks.GetGitRunbookSnapshotTemplate(octopus, space.ID, project.ID, selectedRunbook.ID, options.GitReference)
 	if err != nil {
 		return err
 	}
 
-	packageVersionBaseline, err := packages.BuildPackageVersionBaseline(octopus, convertToValueSlice(runbookSnapshotTemplate.Packages), nil)
+	packageVersionBaseline, err := packages.BuildPackageVersionBaseline(octopus, convertReleaseTemplatePackagesToValueSlice(runbookSnapshotTemplate.Packages), nil)
 	if err != nil {
 		return err
 	}
@@ -920,7 +919,7 @@ func AskGitRunbookRunQuestions(octopus *octopusApiClient.Client, stdout io.Write
 
 		if !isExcludedStepsSpecified {
 			// select steps to exclude
-			runbookProcess, err := runbooks.GetProcessGit(octopus, space.ID, project.ID, selectedRunbook.ID, options.GitReference)
+			runbookProcess, err := runbooks.GetGitRunbookProcess(octopus, space.ID, project.ID, selectedRunbook.ID, options.GitReference)
 			if err != nil {
 				return err
 			}
@@ -1081,7 +1080,7 @@ func selectRunEnvironments(ask question.Asker, octopus *octopusApiClient.Client,
 
 // selectRunEnvironments selects multiple environments for use in an untenanted run
 func selectGitRunEnvironments(ask question.Asker, octopus *octopusApiClient.Client, space *spaces.Space, project *projects.Project, runbook *runbooks.Runbook, gitRef string) ([]*environments.Environment, error) {
-	envs, err := runbooks.ListEnvironmentsGit(octopus, space.ID, project.ID, runbook.ID, gitRef)
+	envs, err := runbooks.ListEnvironmentsForGitRunbook(octopus, space.ID, project.ID, runbook.ID, gitRef)
 	if err != nil {
 		return nil, err
 	}
@@ -1185,7 +1184,7 @@ func findRunbookPublishedSnapshot(octopus *octopusApiClient.Client, space *space
 }
 
 func selectGitRunbook(octopus *octopusApiClient.Client, ask question.Asker, questionText string, space *spaces.Space, project *projects.Project, gitRef string) (*runbooks.Runbook, error) {
-	foundRunbooks, err := runbooks.ListGit(octopus, space.ID, project.ID, gitRef, "", math.MaxInt32)
+	foundRunbooks, err := runbooks.ListGitRunbooks(octopus, space.ID, project.ID, gitRef, "", math.MaxInt32)
 	if err != nil {
 		return nil, err
 	}
@@ -1201,7 +1200,7 @@ func selectGitRunbook(octopus *octopusApiClient.Client, ask question.Asker, ques
 
 // findRunbook wraps the API client, such that we are always guaranteed to get a result, or error. The "successfully can't find matching name" case doesn't exist
 func findGitRunbook(octopus *octopusApiClient.Client, spaceID string, projectID string, runbookName string, gitRef string) (*runbooks.Runbook, error) {
-	result, err := runbooks.GetByNameGit(octopus, spaceID, projectID, gitRef, runbookName)
+	result, err := runbooks.GetGitRunbookByName(octopus, spaceID, projectID, gitRef, runbookName)
 	if result == nil && err == nil {
 		return nil, fmt.Errorf("no runbook found with Name of %s", runbookName)
 	}
