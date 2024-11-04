@@ -353,14 +353,6 @@ func runDbRunbook(cmd *cobra.Command, f factory.Factory, flags *RunFlags, octopu
 	return nil
 }
 
-func convertReleaseTemplatePackagesToValueSlice(slice []*releases.ReleaseTemplatePackage) []releases.ReleaseTemplatePackage {
-	values := make([]releases.ReleaseTemplatePackage, len(slice))
-	for i, v := range slice {
-		values[i] = *v
-	}
-	return values
-}
-
 func runGitRunbook(cmd *cobra.Command, f factory.Factory, flags *RunFlags, octopus *octopusApiClient.Client, project *projects.Project, parsedVariables map[string]string, outputFormat string) error {
 
 	commonOptions := &executor.TaskOptionsRunbookRunBase{
@@ -803,7 +795,7 @@ func AskGitRunbookRunQuestions(octopus *octopusApiClient.Client, stdout io.Write
 		return err
 	}
 
-	packageVersionBaseline, err := packages.BuildPackageVersionBaseline(octopus, convertReleaseTemplatePackagesToValueSlice(runbookSnapshotTemplate.Packages), nil)
+	packageVersionBaseline, err := packages.BuildPackageVersionBaseline(octopus, util.SliceTransform(runbookSnapshotTemplate.Packages, func(pkg *releases.ReleaseTemplatePackage) releases.ReleaseTemplatePackage { return *pkg }), nil)
 	if err != nil {
 		return err
 	}
