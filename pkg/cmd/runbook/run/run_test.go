@@ -1,12 +1,22 @@
 package run_test
 
 import (
+	"bytes"
 	"context"
-	"github.com/OctopusDeploy/cli/pkg/constants"
-	"github.com/OctopusDeploy/cli/test/testutil"
+	"encoding/json"
 	"net/url"
 	"testing"
 	"time"
+
+	"github.com/MakeNowJust/heredoc/v2"
+	cmdRoot "github.com/OctopusDeploy/cli/pkg/cmd/root"
+	"github.com/OctopusDeploy/cli/pkg/constants"
+	"github.com/OctopusDeploy/cli/test/fixtures"
+	"github.com/OctopusDeploy/cli/test/testutil"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/deployments"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/runbooks"
+	"github.com/spf13/cobra"
+	"github.com/stretchr/testify/assert"
 )
 
 var serverUrl, _ = url.Parse("http://server")
@@ -1024,320 +1034,320 @@ func TestRunbookRun_AskQuestions(t *testing.T) {
 // These tests ensure that given the right input, we call the server's API appropriately
 // they all run in automation mode where survey is disabled; they'd error if they tried to ask questions
 func TestRunbookRun_AutomationMode(t *testing.T) {
-	//	const spaceID = "Spaces-1"
-	//	const fireProjectID = "Projects-22"
-	//
-	//	space1 := fixtures.NewSpace(spaceID, "Default Space")
-	//
-	//	fireProject := fixtures.NewProject(spaceID, fireProjectID, "Fire Project", "Lifecycles-1", "ProjectGroups-1", "deploymentprocess-"+fireProjectID)
-	//	_ = fireProject
-	//
-	//	// TEST STARTS HERE
-	//	tests := []struct {
-	//		name string
-	//		run  func(t *testing.T, api *testutil.MockHttpServer, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer)
-	//	}{
-	//		{"runbook run requires a project name", func(t *testing.T, api *testutil.MockHttpServer, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
-	//			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
-	//				defer api.Close()
-	//				rootCmd.SetArgs([]string{"runbook", "run"})
-	//				return rootCmd.ExecuteC()
-	//			})
-	//
-	//			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
-	//			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
-	//
-	//			_, err := testutil.ReceivePair(cmdReceiver)
-	//			assert.EqualError(t, err, "project must be specified")
-	//
-	//			assert.Equal(t, "", stdOut.String())
-	//			assert.Equal(t, "", stdErr.String())
-	//		}},
-	//
-	//		{"runbook run requires a runbook name", func(t *testing.T, api *testutil.MockHttpServer, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
-	//			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
-	//				defer api.Close()
-	//				rootCmd.SetArgs([]string{"runbook", "run", "--project", "Fire Project"})
-	//				return rootCmd.ExecuteC()
-	//			})
-	//
-	//			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
-	//			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
-	//
-	//			_, err := testutil.ReceivePair(cmdReceiver)
-	//			assert.EqualError(t, err, "runbook name must be specified")
-	//
-	//			assert.Equal(t, "", stdOut.String())
-	//			assert.Equal(t, "", stdErr.String())
-	//		}},
-	//
-	//		{"runbook run requires at least one environment", func(t *testing.T, api *testutil.MockHttpServer, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
-	//			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
-	//				defer api.Close()
-	//				rootCmd.SetArgs([]string{"runbook", "run", "--project", "Fire Project", "--runbook", "Provision Database"})
-	//				return rootCmd.ExecuteC()
-	//			})
-	//
-	//			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
-	//			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
-	//
-	//			_, err := testutil.ReceivePair(cmdReceiver)
-	//			assert.EqualError(t, err, "environment(s) must be specified")
-	//
-	//			assert.Equal(t, "", stdOut.String())
-	//			assert.Equal(t, "", stdErr.String())
-	//		}},
-	//
-	//		{"runbook run specifying project, runbook, env only (bare minimum) assuming untenanted", func(t *testing.T, api *testutil.MockHttpServer, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
-	//			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
-	//				defer api.Close()
-	//				rootCmd.SetArgs([]string{"runbook", "run", "--project", "Fire Project", "--runbook", "Provision Database", "--environment", "dev"})
-	//				return rootCmd.ExecuteC()
-	//			})
-	//
-	//			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
-	//			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
-	//
-	//			// Note: because we didn't specify --tenant or --tenant-tag, automation-mode code is going to assume untenanted
-	//			req := api.ExpectRequest(t, "POST", "/api/Spaces-1/runbook-runs/create/v1")
-	//			requestBody, err := testutil.ReadJson[runbooks.RunbookRunCommandV1](req.Request.Body)
-	//			assert.Nil(t, err)
-	//
-	//			assert.Equal(t, runbooks.RunbookRunCommandV1{
-	//				RunbookName:      "Provision Database",
-	//				EnvironmentNames: []string{"dev"},
-	//				CreateExecutionAbstractCommandV1: deployments.CreateExecutionAbstractCommandV1{
-	//					SpaceID:         "Spaces-1",
-	//					ProjectIDOrName: fireProject.Name,
-	//				},
-	//			}, requestBody)
-	//
-	//			req.RespondWith(&runbooks.RunbookRunResponseV1{
-	//				RunbookRunServerTasks: []*runbooks.RunbookRunServerTask{
-	//					{RunbookRunID: "RunbookRun-203", ServerTaskID: "ServerTasks-29394"},
-	//					{RunbookRunID: "RunbookRun-204", ServerTaskID: "ServerTasks-55312"},
-	//				},
-	//			})
-	//
-	//			_, err = testutil.ReceivePair(cmdReceiver)
-	//			assert.Nil(t, err)
-	//
-	//			assert.Equal(t, "Successfully started 2 runbook run(s)\n", stdOut.String())
-	//			assert.Equal(t, "", stdErr.String())
-	//		}},
-	//
-	//		{"runbook run specifying project, runbook, env only (bare minimum) assuming untenanted; basic output format", func(t *testing.T, api *testutil.MockHttpServer, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
-	//			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
-	//				defer api.Close()
-	//				rootCmd.SetArgs([]string{"runbook", "run", "--project", "Fire Project", "--runbook", "Provision Database", "--environment", "dev", "--output-format", constants.OutputFormatBasic})
-	//				return rootCmd.ExecuteC()
-	//			})
-	//
-	//			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
-	//			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
-	//
-	//			// Note: because we didn't specify --tenant or --tenant-tag, automation-mode code is going to assume untenanted
-	//			api.ExpectRequest(t, "POST", "/api/Spaces-1/runbook-runs/create/v1").RespondWith(&runbooks.RunbookRunResponseV1{
-	//				RunbookRunServerTasks: []*runbooks.RunbookRunServerTask{
-	//					{RunbookRunID: "RunbookRun-203", ServerTaskID: "ServerTasks-29394"},
-	//					{RunbookRunID: "RunbookRun-204", ServerTaskID: "ServerTasks-55312"},
-	//				},
-	//			})
-	//
-	//			_, err := testutil.ReceivePair(cmdReceiver)
-	//			assert.Nil(t, err)
-	//
-	//			assert.Equal(t, heredoc.Doc(`
-	//				ServerTasks-29394
-	//				ServerTasks-55312
-	//				`), stdOut.String())
-	//			assert.Equal(t, "", stdErr.String())
-	//		}},
-	//
-	//		{"runbook run specifying project, runbook, env only (bare minimum) assuming untenanted; json output format", func(t *testing.T, api *testutil.MockHttpServer, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
-	//			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
-	//				defer api.Close()
-	//				rootCmd.SetArgs([]string{"runbook", "run", "--project", "Fire Project", "--runbook", "Provision Database", "--environment", "dev", "--output-format", constants.OutputFormatJson})
-	//				return rootCmd.ExecuteC()
-	//			})
-	//
-	//			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
-	//			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
-	//
-	//			serverTasks := []*runbooks.RunbookRunServerTask{
-	//				{RunbookRunID: "RunbookRun-203", ServerTaskID: "ServerTasks-29394"},
-	//				{RunbookRunID: "RunbookRun-204", ServerTaskID: "ServerTasks-55312"},
-	//			}
-	//
-	//			api.ExpectRequest(t, "POST", "/api/Spaces-1/runbook-runs/create/v1").RespondWith(&runbooks.RunbookRunResponseV1{
-	//				RunbookRunServerTasks: serverTasks,
-	//			})
-	//
-	//			_, err := testutil.ReceivePair(cmdReceiver)
-	//			assert.Nil(t, err)
-	//			var response []*runbooks.RunbookRunServerTask
-	//			err = json.Unmarshal(stdOut.Bytes(), &response)
-	//			assert.Nil(t, err)
-	//
-	//			assert.Equal(t, serverTasks, response)
-	//
-	//			assert.Equal(t, "", stdErr.String())
-	//		}},
-	//
-	//		{"runbook run specifying project, runbook, env only (bare minimum) assuming tenanted", func(t *testing.T, api *testutil.MockHttpServer, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
-	//			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
-	//				defer api.Close()
-	//				rootCmd.SetArgs([]string{"runbook", "run", "--project", "Fire Project", "--runbook", "Provision Database", "--environment", "dev", "--tenant", "Coke", "--tenant", "Pepsi"})
-	//				return rootCmd.ExecuteC()
-	//			})
-	//
-	//			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
-	//			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
-	//
-	//			req := api.ExpectRequest(t, "POST", "/api/Spaces-1/runbook-runs/create/v1")
-	//			requestBody, err := testutil.ReadJson[runbooks.RunbookRunCommandV1](req.Request.Body)
-	//			assert.Nil(t, err)
-	//
-	//			assert.Equal(t, runbooks.RunbookRunCommandV1{
-	//				RunbookName:      "Provision Database",
-	//				EnvironmentNames: []string{"dev"},
-	//				Tenants:          []string{"Coke", "Pepsi"},
-	//				CreateExecutionAbstractCommandV1: deployments.CreateExecutionAbstractCommandV1{
-	//					SpaceID:         "Spaces-1",
-	//					ProjectIDOrName: fireProject.Name,
-	//				},
-	//			}, requestBody)
-	//
-	//			req.RespondWith(&runbooks.RunbookRunResponseV1{
-	//				RunbookRunServerTasks: []*runbooks.RunbookRunServerTask{
-	//					{RunbookRunID: "RunbookRun-203", ServerTaskID: "ServerTasks-29394"},
-	//					{RunbookRunID: "RunbookRun-204", ServerTaskID: "ServerTasks-55312"},
-	//				},
-	//			})
-	//
-	//			_, err = testutil.ReceivePair(cmdReceiver)
-	//			assert.Nil(t, err)
-	//
-	//			assert.Equal(t, "Successfully started 2 runbook run(s)\n", stdOut.String())
-	//			assert.Equal(t, "", stdErr.String())
-	//		}},
-	//
-	//		{"runbook run specifying project, runbook, env only (bare minimum) assuming tenanted via tags", func(t *testing.T, api *testutil.MockHttpServer, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
-	//			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
-	//				defer api.Close()
-	//				rootCmd.SetArgs([]string{"runbook", "run", "--project", "Fire Project", "--runbook", "Provision Database", "--environment", "dev", "--tenant-tag", "Regions/us-west", "--tenant-tag", "Importance/High"})
-	//				return rootCmd.ExecuteC()
-	//			})
-	//
-	//			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
-	//			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
-	//
-	//			req := api.ExpectRequest(t, "POST", "/api/Spaces-1/runbook-runs/create/v1")
-	//			requestBody, err := testutil.ReadJson[runbooks.RunbookRunCommandV1](req.Request.Body)
-	//			assert.Nil(t, err)
-	//
-	//			assert.Equal(t, runbooks.RunbookRunCommandV1{
-	//				RunbookName:      "Provision Database",
-	//				EnvironmentNames: []string{"dev"},
-	//				TenantTags:       []string{"Regions/us-west", "Importance/High"},
-	//				CreateExecutionAbstractCommandV1: deployments.CreateExecutionAbstractCommandV1{
-	//					SpaceID:         "Spaces-1",
-	//					ProjectIDOrName: fireProject.Name,
-	//				},
-	//			}, requestBody)
-	//
-	//			req.RespondWith(&runbooks.RunbookRunResponseV1{
-	//				RunbookRunServerTasks: []*runbooks.RunbookRunServerTask{
-	//					{RunbookRunID: "RunbookRun-203", ServerTaskID: "ServerTasks-29394"},
-	//					{RunbookRunID: "RunbookRun-204", ServerTaskID: "ServerTasks-55312"},
-	//				},
-	//			})
-	//
-	//			_, err = testutil.ReceivePair(cmdReceiver)
-	//			assert.Nil(t, err)
-	//
-	//			assert.Equal(t, "Successfully started 2 runbook run(s)\n", stdOut.String())
-	//			assert.Equal(t, "", stdErr.String())
-	//		}},
-	//
-	//		{"release deploy specifying all the args", func(t *testing.T, api *testutil.MockHttpServer, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
-	//			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
-	//				defer api.Close()
-	//				rootCmd.SetArgs([]string{
-	//					"runbook", "run",
-	//					"--project", "Fire Project",
-	//					"--runbook", "Provision Database",
-	//					"--environment", "dev", "--environment", "test",
-	//					"--run-at", "2022-09-10 13:32:03 +10:00",
-	//					"--run-at-expiry", "2022-09-10 13:37:03 +10:00",
-	//					"--skip", "Install", "--skip", "Cleanup",
-	//					"--snapshot", "Snapshot FWKMLUX",
-	//					"--guided-failure", "true",
-	//					"--force-package-download",
-	//					"--target", "firstMachine", "--target", "secondMachine",
-	//					"--exclude-target", "thirdMachine",
-	//					"--variable", "Approver:John", "--variable", "Signoff:Jane",
-	//					"--output-format", "basic",
-	//				})
-	//				return rootCmd.ExecuteC()
-	//			})
-	//
-	//			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
-	//			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
-	//
-	//			req := api.ExpectRequest(t, "POST", "/api/Spaces-1/runbook-runs/create/v1")
-	//			requestBody, err := testutil.ReadJson[runbooks.RunbookRunCommandV1](req.Request.Body)
-	//			assert.Nil(t, err)
-	//
-	//			trueVar := true
-	//			assert.Equal(t, runbooks.RunbookRunCommandV1{
-	//				RunbookName:      "Provision Database",
-	//				EnvironmentNames: []string{"dev", "test"},
-	//				Snapshot:         "Snapshot FWKMLUX",
-	//				CreateExecutionAbstractCommandV1: deployments.CreateExecutionAbstractCommandV1{
-	//					SpaceID:              "Spaces-1",
-	//					ProjectIDOrName:      fireProject.Name,
-	//					ForcePackageDownload: true,
-	//					SpecificMachineNames: []string{"firstMachine", "secondMachine"},
-	//					ExcludedMachineNames: []string{"thirdMachine"},
-	//					SkipStepNames:        []string{"Install", "Cleanup"},
-	//					UseGuidedFailure:     &trueVar,
-	//					RunAt:                "2022-09-10 13:32:03 +10:00",
-	//					NoRunAfter:           "2022-09-10 13:37:03 +10:00",
-	//					Variables: map[string]string{
-	//						"Approver": "John",
-	//						"Signoff":  "Jane",
-	//					},
-	//				},
-	//			}, requestBody)
-	//
-	//			req.RespondWith(&runbooks.RunbookRunResponseV1{
-	//				RunbookRunServerTasks: []*runbooks.RunbookRunServerTask{
-	//					{RunbookRunID: "RunbookRun-203", ServerTaskID: "ServerTasks-29394"},
-	//				},
-	//			})
-	//
-	//			_, err = testutil.ReceivePair(cmdReceiver)
-	//			assert.Nil(t, err)
-	//
-	//			assert.Equal(t, "ServerTasks-29394\n", stdOut.String())
-	//			assert.Equal(t, "", stdErr.String())
-	//		}},
-	//	}
-	//
-	//	for _, test := range tests {
-	//		t.Run(test.name, func(t *testing.T) {
-	//			stdout, stderr := &bytes.Buffer{}, &bytes.Buffer{}
-	//			api := testutil.NewMockHttpServer()
-	//
-	//			rootCmd := cmdRoot.NewCmdRoot(testutil.NewMockFactoryWithSpace(api, space1), nil, nil)
-	//			rootCmd.SetContext(ctxWithFakeNow)
-	//			rootCmd.SetOut(stdout)
-	//			rootCmd.SetErr(stderr)
-	//
-	//			test.run(t, api, rootCmd, stdout, stderr)
-	//		})
-	//	}
+	const spaceID = "Spaces-1"
+	const fireProjectID = "Projects-22"
+
+	space1 := fixtures.NewSpace(spaceID, "Default Space")
+
+	fireProject := fixtures.NewProject(spaceID, fireProjectID, "Fire Project", "Lifecycles-1", "ProjectGroups-1", "deploymentprocess-"+fireProjectID)
+	_ = fireProject
+
+	// TEST STARTS HERE
+	tests := []struct {
+		name string
+		run  func(t *testing.T, api *testutil.MockHttpServer, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer)
+	}{
+		{"runbook run requires a project name", func(t *testing.T, api *testutil.MockHttpServer, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
+			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
+				defer api.Close()
+				rootCmd.SetArgs([]string{"runbook", "run"})
+				return rootCmd.ExecuteC()
+			})
+
+			api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
+
+			_, err := testutil.ReceivePair(cmdReceiver)
+			assert.EqualError(t, err, "project must be specified")
+
+			assert.Equal(t, "", stdOut.String())
+			assert.Equal(t, "", stdErr.String())
+		}},
+
+		{"runbook run requires a runbook name", func(t *testing.T, api *testutil.MockHttpServer, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
+			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
+				defer api.Close()
+				rootCmd.SetArgs([]string{"runbook", "run", "--project", "Fire Project"})
+				return rootCmd.ExecuteC()
+			})
+
+			api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
+
+			_, err := testutil.ReceivePair(cmdReceiver)
+			assert.EqualError(t, err, "runbook name must be specified")
+
+			assert.Equal(t, "", stdOut.String())
+			assert.Equal(t, "", stdErr.String())
+		}},
+
+		{"runbook run requires at least one environment", func(t *testing.T, api *testutil.MockHttpServer, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
+			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
+				defer api.Close()
+				rootCmd.SetArgs([]string{"runbook", "run", "--project", "Fire Project", "--runbook", "Provision Database"})
+				return rootCmd.ExecuteC()
+			})
+
+			api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
+
+			_, err := testutil.ReceivePair(cmdReceiver)
+			assert.EqualError(t, err, "environment(s) must be specified")
+
+			assert.Equal(t, "", stdOut.String())
+			assert.Equal(t, "", stdErr.String())
+		}},
+
+		{"runbook run specifying project, runbook, env only (bare minimum) assuming untenanted", func(t *testing.T, api *testutil.MockHttpServer, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
+			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
+				defer api.Close()
+				rootCmd.SetArgs([]string{"runbook", "run", "--project", "Fire Project", "--runbook", "Provision Database", "--environment", "dev"})
+				return rootCmd.ExecuteC()
+			})
+
+			api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
+
+			// Note: because we didn't specify --tenant or --tenant-tag, automation-mode code is going to assume untenanted
+			req := api.ExpectRequest(t, "POST", "/api/Spaces-1/runbook-runs/create/v1")
+			requestBody, err := testutil.ReadJson[runbooks.RunbookRunCommandV1](req.Request.Body)
+			assert.Nil(t, err)
+
+			assert.Equal(t, runbooks.RunbookRunCommandV1{
+				RunbookName:      "Provision Database",
+				EnvironmentNames: []string{"dev"},
+				CreateExecutionAbstractCommandV1: deployments.CreateExecutionAbstractCommandV1{
+					SpaceID:         "Spaces-1",
+					ProjectIDOrName: fireProject.Name,
+				},
+			}, requestBody)
+
+			req.RespondWith(&runbooks.RunbookRunResponseV1{
+				RunbookRunServerTasks: []*runbooks.RunbookRunServerTask{
+					{RunbookRunID: "RunbookRun-203", ServerTaskID: "ServerTasks-29394"},
+					{RunbookRunID: "RunbookRun-204", ServerTaskID: "ServerTasks-55312"},
+				},
+			})
+
+			_, err = testutil.ReceivePair(cmdReceiver)
+			assert.Nil(t, err)
+
+			assert.Equal(t, "Successfully started 2 runbook run(s)\n", stdOut.String())
+			assert.Equal(t, "", stdErr.String())
+		}},
+
+		{"runbook run specifying project, runbook, env only (bare minimum) assuming untenanted; basic output format", func(t *testing.T, api *testutil.MockHttpServer, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
+			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
+				defer api.Close()
+				rootCmd.SetArgs([]string{"runbook", "run", "--project", "Fire Project", "--runbook", "Provision Database", "--environment", "dev", "--output-format", constants.OutputFormatBasic})
+				return rootCmd.ExecuteC()
+			})
+
+			api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
+
+			// Note: because we didn't specify --tenant or --tenant-tag, automation-mode code is going to assume untenanted
+			api.ExpectRequest(t, "POST", "/api/Spaces-1/runbook-runs/create/v1").RespondWith(&runbooks.RunbookRunResponseV1{
+				RunbookRunServerTasks: []*runbooks.RunbookRunServerTask{
+					{RunbookRunID: "RunbookRun-203", ServerTaskID: "ServerTasks-29394"},
+					{RunbookRunID: "RunbookRun-204", ServerTaskID: "ServerTasks-55312"},
+				},
+			})
+
+			_, err := testutil.ReceivePair(cmdReceiver)
+			assert.Nil(t, err)
+
+			assert.Equal(t, heredoc.Doc(`
+				ServerTasks-29394
+				ServerTasks-55312
+				`), stdOut.String())
+			assert.Equal(t, "", stdErr.String())
+		}},
+
+		{"runbook run specifying project, runbook, env only (bare minimum) assuming untenanted; json output format", func(t *testing.T, api *testutil.MockHttpServer, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
+			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
+				defer api.Close()
+				rootCmd.SetArgs([]string{"runbook", "run", "--project", "Fire Project", "--runbook", "Provision Database", "--environment", "dev", "--output-format", constants.OutputFormatJson})
+				return rootCmd.ExecuteC()
+			})
+
+			api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
+
+			serverTasks := []*runbooks.RunbookRunServerTask{
+				{RunbookRunID: "RunbookRun-203", ServerTaskID: "ServerTasks-29394"},
+				{RunbookRunID: "RunbookRun-204", ServerTaskID: "ServerTasks-55312"},
+			}
+
+			api.ExpectRequest(t, "POST", "/api/Spaces-1/runbook-runs/create/v1").RespondWith(&runbooks.RunbookRunResponseV1{
+				RunbookRunServerTasks: serverTasks,
+			})
+
+			_, err := testutil.ReceivePair(cmdReceiver)
+			assert.Nil(t, err)
+			var response []*runbooks.RunbookRunServerTask
+			err = json.Unmarshal(stdOut.Bytes(), &response)
+			assert.Nil(t, err)
+
+			assert.Equal(t, serverTasks, response)
+
+			assert.Equal(t, "", stdErr.String())
+		}},
+
+		{"runbook run specifying project, runbook, env only (bare minimum) assuming tenanted", func(t *testing.T, api *testutil.MockHttpServer, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
+			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
+				defer api.Close()
+				rootCmd.SetArgs([]string{"runbook", "run", "--project", "Fire Project", "--runbook", "Provision Database", "--environment", "dev", "--tenant", "Coke", "--tenant", "Pepsi"})
+				return rootCmd.ExecuteC()
+			})
+
+			api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
+
+			req := api.ExpectRequest(t, "POST", "/api/Spaces-1/runbook-runs/create/v1")
+			requestBody, err := testutil.ReadJson[runbooks.RunbookRunCommandV1](req.Request.Body)
+			assert.Nil(t, err)
+
+			assert.Equal(t, runbooks.RunbookRunCommandV1{
+				RunbookName:      "Provision Database",
+				EnvironmentNames: []string{"dev"},
+				Tenants:          []string{"Coke", "Pepsi"},
+				CreateExecutionAbstractCommandV1: deployments.CreateExecutionAbstractCommandV1{
+					SpaceID:         "Spaces-1",
+					ProjectIDOrName: fireProject.Name,
+				},
+			}, requestBody)
+
+			req.RespondWith(&runbooks.RunbookRunResponseV1{
+				RunbookRunServerTasks: []*runbooks.RunbookRunServerTask{
+					{RunbookRunID: "RunbookRun-203", ServerTaskID: "ServerTasks-29394"},
+					{RunbookRunID: "RunbookRun-204", ServerTaskID: "ServerTasks-55312"},
+				},
+			})
+
+			_, err = testutil.ReceivePair(cmdReceiver)
+			assert.Nil(t, err)
+
+			assert.Equal(t, "Successfully started 2 runbook run(s)\n", stdOut.String())
+			assert.Equal(t, "", stdErr.String())
+		}},
+
+		{"runbook run specifying project, runbook, env only (bare minimum) assuming tenanted via tags", func(t *testing.T, api *testutil.MockHttpServer, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
+			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
+				defer api.Close()
+				rootCmd.SetArgs([]string{"runbook", "run", "--project", "Fire Project", "--runbook", "Provision Database", "--environment", "dev", "--tenant-tag", "Regions/us-west", "--tenant-tag", "Importance/High"})
+				return rootCmd.ExecuteC()
+			})
+
+			api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
+
+			req := api.ExpectRequest(t, "POST", "/api/Spaces-1/runbook-runs/create/v1")
+			requestBody, err := testutil.ReadJson[runbooks.RunbookRunCommandV1](req.Request.Body)
+			assert.Nil(t, err)
+
+			assert.Equal(t, runbooks.RunbookRunCommandV1{
+				RunbookName:      "Provision Database",
+				EnvironmentNames: []string{"dev"},
+				TenantTags:       []string{"Regions/us-west", "Importance/High"},
+				CreateExecutionAbstractCommandV1: deployments.CreateExecutionAbstractCommandV1{
+					SpaceID:         "Spaces-1",
+					ProjectIDOrName: fireProject.Name,
+				},
+			}, requestBody)
+
+			req.RespondWith(&runbooks.RunbookRunResponseV1{
+				RunbookRunServerTasks: []*runbooks.RunbookRunServerTask{
+					{RunbookRunID: "RunbookRun-203", ServerTaskID: "ServerTasks-29394"},
+					{RunbookRunID: "RunbookRun-204", ServerTaskID: "ServerTasks-55312"},
+				},
+			})
+
+			_, err = testutil.ReceivePair(cmdReceiver)
+			assert.Nil(t, err)
+
+			assert.Equal(t, "Successfully started 2 runbook run(s)\n", stdOut.String())
+			assert.Equal(t, "", stdErr.String())
+		}},
+
+		{"release deploy specifying all the args", func(t *testing.T, api *testutil.MockHttpServer, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
+			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
+				defer api.Close()
+				rootCmd.SetArgs([]string{
+					"runbook", "run",
+					"--project", "Fire Project",
+					"--runbook", "Provision Database",
+					"--environment", "dev", "--environment", "test",
+					"--run-at", "2022-09-10 13:32:03 +10:00",
+					"--run-at-expiry", "2022-09-10 13:37:03 +10:00",
+					"--skip", "Install", "--skip", "Cleanup",
+					"--snapshot", "Snapshot FWKMLUX",
+					"--guided-failure", "true",
+					"--force-package-download",
+					"--target", "firstMachine", "--target", "secondMachine",
+					"--exclude-target", "thirdMachine",
+					"--variable", "Approver:John", "--variable", "Signoff:Jane",
+					"--output-format", "basic",
+				})
+				return rootCmd.ExecuteC()
+			})
+
+			api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
+
+			req := api.ExpectRequest(t, "POST", "/api/Spaces-1/runbook-runs/create/v1")
+			requestBody, err := testutil.ReadJson[runbooks.RunbookRunCommandV1](req.Request.Body)
+			assert.Nil(t, err)
+
+			trueVar := true
+			assert.Equal(t, runbooks.RunbookRunCommandV1{
+				RunbookName:      "Provision Database",
+				EnvironmentNames: []string{"dev", "test"},
+				Snapshot:         "Snapshot FWKMLUX",
+				CreateExecutionAbstractCommandV1: deployments.CreateExecutionAbstractCommandV1{
+					SpaceID:              "Spaces-1",
+					ProjectIDOrName:      fireProject.Name,
+					ForcePackageDownload: true,
+					SpecificMachineNames: []string{"firstMachine", "secondMachine"},
+					ExcludedMachineNames: []string{"thirdMachine"},
+					SkipStepNames:        []string{"Install", "Cleanup"},
+					UseGuidedFailure:     &trueVar,
+					RunAt:                "2022-09-10 13:32:03 +10:00",
+					NoRunAfter:           "2022-09-10 13:37:03 +10:00",
+					Variables: map[string]string{
+						"Approver": "John",
+						"Signoff":  "Jane",
+					},
+				},
+			}, requestBody)
+
+			req.RespondWith(&runbooks.RunbookRunResponseV1{
+				RunbookRunServerTasks: []*runbooks.RunbookRunServerTask{
+					{RunbookRunID: "RunbookRun-203", ServerTaskID: "ServerTasks-29394"},
+				},
+			})
+
+			_, err = testutil.ReceivePair(cmdReceiver)
+			assert.Nil(t, err)
+
+			assert.Contains(t, stdOut.String(), "ServerTasks-29394\n")
+			assert.Equal(t, "", stdErr.String())
+		}},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			stdout, stderr := &bytes.Buffer{}, &bytes.Buffer{}
+			api := testutil.NewMockHttpServer()
+
+			rootCmd := cmdRoot.NewCmdRoot(testutil.NewMockFactoryWithSpace(api, space1), nil, nil)
+			rootCmd.SetContext(ctxWithFakeNow)
+			rootCmd.SetOut(stdout)
+			rootCmd.SetErr(stderr)
+
+			test.run(t, api, rootCmd, stdout, stderr)
+		})
+	}
 }
 
 // this happens outside the scope of the normal AskQuestions flow so warrants its own integration-style test
