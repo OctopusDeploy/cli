@@ -967,6 +967,16 @@ func selectGitReference(octopus *octopusApiClient.Client, ask question.Asker, pr
 
 	allRefs := append(branches, tags...)
 
+	defaultBranch := project.PersistenceSettings.(projects.GitPersistenceSettings).DefaultBranch()
+
+	// if the default branch is in the list, move it to the top
+	defaultBranchInRefsList := util.SliceFilter(allRefs, func(g *projects.GitReference) bool { return g.Name == defaultBranch })
+	if len(defaultBranchInRefsList) > 0 {
+		defaultBranchRef := defaultBranchInRefsList[0]
+		allRefs = util.SliceExcept(allRefs, func(g *projects.GitReference) bool { return g.Name == defaultBranch })
+		allRefs = append([]*projects.GitReference{defaultBranchRef}, allRefs...)
+	}
+
 	return question.SelectMap(ask, "Select the Git Reference to use", allRefs, func(g *projects.GitReference) string {
 		return fmt.Sprintf("%s %s", g.Name, output.Dimf("(%s)", g.Type.Description()))
 	})
