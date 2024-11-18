@@ -2,11 +2,12 @@ package selectors
 
 import (
 	"errors"
+	"math"
+
 	"github.com/OctopusDeploy/cli/pkg/question"
 	octopusApiClient "github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/runbooks"
-	"math"
 )
 
 func Runbook(questionText string, client *octopusApiClient.Client, ask question.Asker, projectID string) (*runbooks.Runbook, error) {
@@ -32,6 +33,18 @@ func FindRunbook(client *octopusApiClient.Client, project *projects.Project, run
 	runbook, err := runbooks.GetByID(client, client.GetSpaceID(), runbookIdentifier)
 	if err != nil {
 		runbook, err = runbooks.GetByName(client, client.GetSpaceID(), project.GetID(), runbookIdentifier)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return runbook, nil
+}
+
+func FindGitRunbook(client *octopusApiClient.Client, project *projects.Project, runbookIdentifier string, gitRef string) (*runbooks.Runbook, error) {
+	runbook, err := runbooks.GetGitRunbookByID(client, client.GetSpaceID(), project.ID, gitRef, runbookIdentifier)
+	if err != nil {
+		runbook, err = runbooks.GetGitRunbookByName(client, client.GetSpaceID(), project.GetID(), gitRef, runbookIdentifier)
 		if err != nil {
 			return nil, err
 		}
