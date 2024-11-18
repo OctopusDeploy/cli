@@ -73,7 +73,7 @@ func PromptMissing(opts *DisableOptions) error {
 		if err != nil {
 			return err
 		}
-		selectedTenant, err := selectors.ByName(opts.Ask, existingTenants, "Select the tenant you wish to enable:")
+		selectedTenant, err := selectors.ByName(opts.Ask, existingTenants, "Select the tenant you wish to disable:")
 		if err != nil {
 			return err
 		}
