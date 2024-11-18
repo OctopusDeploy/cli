@@ -6,7 +6,9 @@ import (
 	cmdConnect "github.com/OctopusDeploy/cli/pkg/cmd/tenant/connect"
 	cmdCreate "github.com/OctopusDeploy/cli/pkg/cmd/tenant/create"
 	cmdDelete "github.com/OctopusDeploy/cli/pkg/cmd/tenant/delete"
+	cmdDisable "github.com/OctopusDeploy/cli/pkg/cmd/tenant/disable"
 	cmdDisconnect "github.com/OctopusDeploy/cli/pkg/cmd/tenant/disconnect"
+	cmdEnable "github.com/OctopusDeploy/cli/pkg/cmd/tenant/enable"
 	cmdList "github.com/OctopusDeploy/cli/pkg/cmd/tenant/list"
 	cmdTag "github.com/OctopusDeploy/cli/pkg/cmd/tenant/tag"
 	cmdVariable "github.com/OctopusDeploy/cli/pkg/cmd/tenant/variables"
@@ -40,6 +42,8 @@ func NewCmdTenant(f factory.Factory) *cobra.Command {
 	cmd.AddCommand(cmdDelete.NewCmdDelete(f))
 	cmd.AddCommand(cmdView.NewCmdView(f))
 	cmd.AddCommand(cmdVariable.NewCmdVariables(f))
+	cmd.AddCommand(cmdEnable.NewCmdEnable(f))
+	cmd.AddCommand(cmdDisable.NewCmdDisable(f))
 
 	return cmd
 }

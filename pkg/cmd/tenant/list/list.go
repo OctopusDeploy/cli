@@ -9,6 +9,7 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/output"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/tenants"
 	"github.com/spf13/cobra"
+	"strconv"
 )
 
 func NewCmdList(f factory.Factory) *cobra.Command {
@@ -71,9 +72,9 @@ func listRun(cmd *cobra.Command, f factory.Factory) error {
 			}
 		},
 		Table: output.TableDefinition[*tenants.Tenant]{
-			Header: []string{"NAME", "DESCRIPTION", "ID", "TAGS"},
+			Header: []string{"NAME", "DESCRIPTION", "ID", "IS DISABLED", "TAGS"},
 			Row: func(t *tenants.Tenant) []string {
-				return []string{output.Bold(t.Name), t.Description, output.Dim(t.GetID()), output.FormatAsList(t.TenantTags)}
+				return []string{output.Bold(t.Name), t.Description, output.Dim(t.GetID()), strconv.FormatBool(t.IsDisabled), output.FormatAsList(t.TenantTags)}
 			},
 		},
 		Basic: func(t *tenants.Tenant) string {
