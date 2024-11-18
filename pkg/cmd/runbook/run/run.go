@@ -2,6 +2,7 @@ package run
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"math"
@@ -206,7 +207,7 @@ func runbookRun(cmd *cobra.Command, f factory.Factory, flags *RunFlags) error {
 		return err
 	}
 
-	project, err := selectProject(octopus, cmd.OutOrStdout(), f.Ask, flags.Project.Value)
+	project, err := selectProject(octopus, f, flags.Project.Value)
 
 	if err != nil {
 		return err
@@ -487,19 +488,24 @@ func runGitRunbook(cmd *cobra.Command, f factory.Factory, flags *RunFlags, octop
 	return nil
 }
 
-func selectProject(octopus *octopusApiClient.Client, stdout io.Writer, asker question.Asker, projectName string) (*projects.Project, error) {
+func selectProject(octopus *octopusApiClient.Client, f factory.Factory, projectName string) (*projects.Project, error) {
 	if projectName == "" {
-		selectedProject, err := selectors.Project("Select project", octopus, asker)
-		if err != nil {
-			return nil, err
+		if f.IsPromptEnabled() {
+			selectedProject, err := selectors.Project("Select project", octopus, f.Ask)
+			if err != nil {
+				return nil, err
+			}
+			return selectedProject, nil
+		} else {
+			// Project name not provided and not asking questions so error out
+			return nil, errors.New("project must be specified")
 		}
-		return selectedProject, nil
 	} else { // project name is already provided, fetch the object because it's needed for further questions
 		selectedProject, err := selectors.FindProject(octopus, projectName)
 		if err != nil {
 			return nil, err
 		}
-		_, _ = fmt.Fprintf(stdout, "Project %s\n", output.Cyan(selectedProject.Name))
+
 		return selectedProject, nil
 	}
 }
