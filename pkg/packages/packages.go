@@ -62,9 +62,10 @@ type StepPackageVersion struct {
 	PackageReferenceName string
 }
 
-// BuildPackageVersionBaseline loads the deployment process template from the server, and for each step+package therein,
-// finds the latest available version satisfying the channel version rules. Result is the list of step+package+versions
-// to use as a baseline. The package version override process takes this as an input and layers on top of it
+// BuildPackageVersionBaseline takes in a set of template packages from the server, and for each step+package therein,
+// finds the latest available version. Additional parameters for the feed query can be supplied using the setAdditionalFeedQueryParameters callback.
+// Result is the list of step+package+versions to use as a baseline.
+// The package version override process takes this as an input and layers on top of it
 func BuildPackageVersionBaseline(octopus *octopusApiClient.Client, packages []releases.ReleaseTemplatePackage,
 	setAdditionalFeedQueryParameters func(releases.ReleaseTemplatePackage, feeds.SearchPackageVersionsQuery) (feeds.SearchPackageVersionsQuery, error)) ([]*StepPackageVersion, error) {
 	result := make([]*StepPackageVersion, 0, len(packages))
