@@ -372,7 +372,10 @@ func runGitRunbook(cmd *cobra.Command, f factory.Factory, flags *RunFlags, octop
 		Variables:            parsedVariables,
 	}
 	options := &executor.TaskOptionsGitRunbookRun{
-		GitReference: flags.GitRef.Value,
+		GitReference:            flags.GitRef.Value,
+		DefaultPackageVersion:   flags.PackageVersion.Value,
+		PackageVersionOverrides: flags.PackageVersionSpec.Value,
+		GitResourceRefs:         flags.GitResourceRefsSpec.Value,
 	}
 
 	options.TaskOptionsRunbookRunBase = *commonOptions

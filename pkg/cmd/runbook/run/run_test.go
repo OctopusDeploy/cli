@@ -623,7 +623,7 @@ func TestGitRunbookRun_AutomationMode(t *testing.T) {
 			assert.Equal(t, "", stdErr.String())
 		}},
 
-		{"release deploy specifying all the args", func(t *testing.T, api *testutil.MockHttpServer, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
+		{"runbook run specifying all the args", func(t *testing.T, api *testutil.MockHttpServer, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
 			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
 				defer api.Close()
 				rootCmd.SetArgs([]string{
@@ -640,6 +640,9 @@ func TestGitRunbookRun_AutomationMode(t *testing.T) {
 					"--target", "firstMachine", "--target", "secondMachine",
 					"--exclude-target", "thirdMachine",
 					"--variable", "Approver:John", "--variable", "Signoff:Jane",
+					"--package-version", "1.2.0",
+					"--package", "APackageStep:1.5.0",
+					"--git-resource", "AGitStep:develop",
 					"--output-format", "basic",
 				})
 				return rootCmd.ExecuteC()
@@ -672,6 +675,13 @@ func TestGitRunbookRun_AutomationMode(t *testing.T) {
 						"Approver": "John",
 						"Signoff":  "Jane",
 					},
+				},
+				PackageVersion: "1.2.0",
+				Packages: []string{
+					"APackageStep:1.5.0",
+				},
+				GitResources: []string{
+					"AGitStep:develop",
 				},
 			}, requestBody)
 
