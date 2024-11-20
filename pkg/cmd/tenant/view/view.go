@@ -3,6 +3,7 @@ package view
 import (
 	"fmt"
 	"io"
+	"strconv"
 	"strings"
 
 	"github.com/OctopusDeploy/cli/pkg/apiclient"
@@ -118,9 +119,9 @@ func viewRun(opts *ViewOptions, cmd *cobra.Command) error {
 			}
 		},
 		Table: output.TableDefinition[*tenants.Tenant]{
-			Header: []string{"NAME", "DESCRIPTION", "ID", "TAGS"},
+			Header: []string{"NAME", "DESCRIPTION", "ID", "IS DISABLED", "TAGS"},
 			Row: func(t *tenants.Tenant) []string {
-				return []string{output.Bold(t.Name), t.Description, output.Dim(t.GetID()), output.FormatAsList(t.TenantTags)}
+				return []string{output.Bold(t.Name), t.Description, output.Dim(t.GetID()), strconv.FormatBool(t.IsDisabled), output.FormatAsList(t.TenantTags)}
 			},
 		},
 		Basic: func(item *tenants.Tenant) string {
@@ -136,6 +137,12 @@ func viewRun(opts *ViewOptions, cmd *cobra.Command) error {
 				s.WriteString(fmt.Sprintln(output.Dim(constants.NoDescription)))
 			} else {
 				s.WriteString(fmt.Sprintln(output.Dim(tenant.Description)))
+			}
+
+			if tenant.IsDisabled {
+				s.WriteString(fmt.Sprintln("Tenant is disabled"))
+			} else {
+				s.WriteString(fmt.Sprintln("Tenant is enabled"))
 			}
 
 			link := fmt.Sprintf("%s/app#/%s/tenants/%s/overview", opts.Host, tenant.SpaceID, tenant.ID)
