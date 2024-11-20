@@ -29,8 +29,8 @@ func NewCmdDisable(f factory.Factory) *cobra.Command {
 		Short: "Disable a tenant",
 		Long:  "Disable a tenant in Octopus Deploy",
 		Example: heredoc.Docf(`
-			$ %[1]s disable view Tenants-1
-			$ %[1]s disable view 'Tenant'
+			$ %[1]s tenant disable Tenants-1
+			$ %[1]s tenant disable 'Tenant'
 		`, constants.ExecutableName),
 		RunE: func(c *cobra.Command, args []string) error {
 			if len(args) == 0 {
