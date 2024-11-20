@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.12.1](https://github.com/OctopusDeploy/cli/compare/v2.12.0...v2.12.1) (2024-11-20)
+
+
+### Bug Fixes
+
+* disable/enable tenant command docs ([#448](https://github.com/OctopusDeploy/cli/issues/448)) ([c5222b5](https://github.com/OctopusDeploy/cli/commit/c5222b5bc1175407a62992958e571a58e7247fba))
+
 ## [2.12.0](https://github.com/OctopusDeploy/cli/compare/v2.11.0...v2.12.0) (2024-11-20)
 
 
