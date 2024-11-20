@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.12.2](https://github.com/OctopusDeploy/cli/compare/v2.12.1...v2.12.2) (2024-11-20)
+
+
+### Bug Fixes
+
+* incorrect disable tenant example ([#451](https://github.com/OctopusDeploy/cli/issues/451)) ([d5393e3](https://github.com/OctopusDeploy/cli/commit/d5393e3015a082ac438f2b28092db86bf936a279))
+
 ## [2.12.1](https://github.com/OctopusDeploy/cli/compare/v2.12.0...v2.12.1) (2024-11-20)
 
 
