@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.12.0](https://github.com/OctopusDeploy/cli/compare/v2.11.0...v2.12.0) (2024-11-20)
+
+
+### Features
+
+* add ability to disable tenants ([#445](https://github.com/OctopusDeploy/cli/issues/445)) ([44063aa](https://github.com/OctopusDeploy/cli/commit/44063aae00fa770ea320014e375f657c884f4327))
+
 ## [2.11.0](https://github.com/OctopusDeploy/cli/compare/v2.10.4...v2.11.0) (2024-10-30)
 
 
