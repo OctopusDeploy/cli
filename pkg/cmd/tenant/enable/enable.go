@@ -25,10 +25,13 @@ func NewEnableOptions(args []string, dependencies *cmd.Dependencies) *EnableOpti
 
 func NewCmdEnable(f factory.Factory) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:     "enable",
-		Short:   "Enable a tenant",
-		Long:    "Enable a tenant in Octopus Deploy",
-		Example: heredoc.Docf("$ %[1]s tenant enable", constants.ExecutableName),
+		Use:   "enable {<name> | <id>}",
+		Short: "Enable a tenant",
+		Long:  "Enable a tenant in Octopus Deploy",
+		Example: heredoc.Docf(`
+			$ %[1]s tenant enable Tenants-1
+			$ %[1]s tenant enable 'Tenant'
+		`, constants.ExecutableName),
 		RunE: func(c *cobra.Command, args []string) error {
 			if len(args) == 0 {
 				args = append(args, "")
