@@ -15,6 +15,7 @@ import (
 	"github.com/OctopusDeploy/cli/test/fixtures"
 	"github.com/OctopusDeploy/cli/test/testutil"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/deployments"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/runbooks"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
@@ -69,6 +70,7 @@ func TestRunbookRun_AutomationMode(t *testing.T) {
 
 			api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
 			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/Fire Project").RespondWith(fireProject)
 
 			_, err := testutil.ReceivePair(cmdReceiver)
 			assert.EqualError(t, err, "runbook name must be specified")
@@ -86,6 +88,7 @@ func TestRunbookRun_AutomationMode(t *testing.T) {
 
 			api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
 			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/Fire Project").RespondWith(fireProject)
 
 			_, err := testutil.ReceivePair(cmdReceiver)
 			assert.EqualError(t, err, "environment(s) must be specified")
@@ -103,6 +106,7 @@ func TestRunbookRun_AutomationMode(t *testing.T) {
 
 			api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
 			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/Fire Project").RespondWith(fireProject)
 
 			// Note: because we didn't specify --tenant or --tenant-tag, automation-mode code is going to assume untenanted
 			req := api.ExpectRequest(t, "POST", "/api/Spaces-1/runbook-runs/create/v1")
@@ -141,6 +145,7 @@ func TestRunbookRun_AutomationMode(t *testing.T) {
 
 			api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
 			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/Fire Project").RespondWith(fireProject)
 
 			// Note: because we didn't specify --tenant or --tenant-tag, automation-mode code is going to assume untenanted
 			api.ExpectRequest(t, "POST", "/api/Spaces-1/runbook-runs/create/v1").RespondWith(&runbooks.RunbookRunResponseV1{
@@ -169,6 +174,7 @@ func TestRunbookRun_AutomationMode(t *testing.T) {
 
 			api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
 			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/Fire Project").RespondWith(fireProject)
 
 			serverTasks := []*runbooks.RunbookRunServerTask{
 				{RunbookRunID: "RunbookRun-203", ServerTaskID: "ServerTasks-29394"},
@@ -199,6 +205,7 @@ func TestRunbookRun_AutomationMode(t *testing.T) {
 
 			api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
 			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/Fire Project").RespondWith(fireProject)
 
 			req := api.ExpectRequest(t, "POST", "/api/Spaces-1/runbook-runs/create/v1")
 			requestBody, err := testutil.ReadJson[runbooks.RunbookRunCommandV1](req.Request.Body)
@@ -237,6 +244,7 @@ func TestRunbookRun_AutomationMode(t *testing.T) {
 
 			api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
 			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/Fire Project").RespondWith(fireProject)
 
 			req := api.ExpectRequest(t, "POST", "/api/Spaces-1/runbook-runs/create/v1")
 			requestBody, err := testutil.ReadJson[runbooks.RunbookRunCommandV1](req.Request.Body)
@@ -290,6 +298,7 @@ func TestRunbookRun_AutomationMode(t *testing.T) {
 
 			api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
 			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/Fire Project").RespondWith(fireProject)
 
 			req := api.ExpectRequest(t, "POST", "/api/Spaces-1/runbook-runs/create/v1")
 			requestBody, err := testutil.ReadJson[runbooks.RunbookRunCommandV1](req.Request.Body)
@@ -346,6 +355,365 @@ func TestRunbookRun_AutomationMode(t *testing.T) {
 	}
 }
 
+// These tests ensure that given the right input, we call the server's API appropriately
+// they all run in automation mode where survey is disabled; they'd error if they tried to ask questions
+func TestGitRunbookRun_AutomationMode(t *testing.T) {
+	const spaceID = "Spaces-1"
+	const fireProjectID = "Projects-22"
+
+	space1 := fixtures.NewSpace(spaceID, "Default Space")
+
+	fireProject := fixtures.NewVersionControlledProject(spaceID, fireProjectID, "Fire Project", "Lifecycles-1", "ProjectGroups-1", "deploymentprocess-"+fireProjectID)
+	fireProject.PersistenceSettings.(projects.GitPersistenceSettings).SetRunbooksAreInGit()
+	_ = fireProject
+
+	// TEST STARTS HERE
+	tests := []struct {
+		name string
+		run  func(t *testing.T, api *testutil.MockHttpServer, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer)
+	}{
+		{"runbook run requires a project name", func(t *testing.T, api *testutil.MockHttpServer, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
+			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
+				defer api.Close()
+				rootCmd.SetArgs([]string{"runbook", "run"})
+				return rootCmd.ExecuteC()
+			})
+
+			api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
+
+			_, err := testutil.ReceivePair(cmdReceiver)
+			assert.EqualError(t, err, "project must be specified")
+
+			assert.Equal(t, "", stdOut.String())
+			assert.Equal(t, "", stdErr.String())
+		}},
+
+		{"runbook run requires a runbook name", func(t *testing.T, api *testutil.MockHttpServer, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
+			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
+				defer api.Close()
+				rootCmd.SetArgs([]string{"runbook", "run", "--project", "Fire Project"})
+				return rootCmd.ExecuteC()
+			})
+
+			api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/Fire Project").RespondWith(fireProject)
+
+			_, err := testutil.ReceivePair(cmdReceiver)
+			assert.EqualError(t, err, "runbook name must be specified")
+
+			assert.Equal(t, "", stdOut.String())
+			assert.Equal(t, "", stdErr.String())
+		}},
+
+		{"runbook run requires at least one environment", func(t *testing.T, api *testutil.MockHttpServer, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
+			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
+				defer api.Close()
+				rootCmd.SetArgs([]string{"runbook", "run", "--project", "Fire Project", "--runbook", "Provision Database"})
+				return rootCmd.ExecuteC()
+			})
+
+			api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/Fire Project").RespondWith(fireProject)
+
+			_, err := testutil.ReceivePair(cmdReceiver)
+			assert.EqualError(t, err, "environment(s) must be specified")
+
+			assert.Equal(t, "", stdOut.String())
+			assert.Equal(t, "", stdErr.String())
+		}},
+
+		{"runbook run requires a git reference", func(t *testing.T, api *testutil.MockHttpServer, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
+			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
+				defer api.Close()
+				rootCmd.SetArgs([]string{"runbook", "run", "--project", "Fire Project", "--runbook", "Provision Database", "--environment", "dev"})
+				return rootCmd.ExecuteC()
+			})
+
+			api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/Fire Project").RespondWith(fireProject)
+
+			_, err := testutil.ReceivePair(cmdReceiver)
+			assert.EqualError(t, err, "git reference must be specified")
+
+			assert.Equal(t, "", stdOut.String())
+			assert.Equal(t, "", stdErr.String())
+		}},
+
+		{"runbook run specifying project, runbook, env only (bare minimum) assuming untenanted", func(t *testing.T, api *testutil.MockHttpServer, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
+			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
+				defer api.Close()
+				rootCmd.SetArgs([]string{"runbook", "run", "--project", "Fire Project", "--runbook", "Provision Database", "--environment", "dev", "--git-ref", "main"})
+				return rootCmd.ExecuteC()
+			})
+
+			api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/Fire Project").RespondWith(fireProject)
+
+			// Note: because we didn't specify --tenant or --tenant-tag, automation-mode code is going to assume untenanted
+			req := api.ExpectRequest(t, "POST", "/api/Spaces-1/runbook-runs/git/create/v1")
+			requestBody, err := testutil.ReadJson[runbooks.GitRunbookRunCommandV1](req.Request.Body)
+			assert.Nil(t, err)
+
+			assert.Equal(t, runbooks.GitRunbookRunCommandV1{
+				RunbookName:      "Provision Database",
+				EnvironmentNames: []string{"dev"},
+				GitRef:           "main",
+				CreateExecutionAbstractCommandV1: deployments.CreateExecutionAbstractCommandV1{
+					SpaceID:         "Spaces-1",
+					ProjectIDOrName: fireProject.Name,
+				},
+			}, requestBody)
+
+			req.RespondWith(&runbooks.GitRunbookRunResponseV1{
+				RunbookRunServerTasks: []*runbooks.RunbookRunServerTask{
+					{RunbookRunID: "RunbookRun-203", ServerTaskID: "ServerTasks-29394"},
+					{RunbookRunID: "RunbookRun-204", ServerTaskID: "ServerTasks-55312"},
+				},
+			})
+
+			_, err = testutil.ReceivePair(cmdReceiver)
+			assert.Nil(t, err)
+
+			assert.Equal(t, "Successfully started 2 runbook run(s)\n", stdOut.String())
+			assert.Equal(t, "", stdErr.String())
+		}},
+
+		{"runbook run specifying project, runbook, env only (bare minimum) assuming untenanted; basic output format", func(t *testing.T, api *testutil.MockHttpServer, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
+			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
+				defer api.Close()
+				rootCmd.SetArgs([]string{"runbook", "run", "--project", "Fire Project", "--runbook", "Provision Database", "--environment", "dev", "--git-ref", "main", "--output-format", constants.OutputFormatBasic})
+				return rootCmd.ExecuteC()
+			})
+
+			api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/Fire Project").RespondWith(fireProject)
+
+			// Note: because we didn't specify --tenant or --tenant-tag, automation-mode code is going to assume untenanted
+			api.ExpectRequest(t, "POST", "/api/Spaces-1/runbook-runs/git/create/v1").RespondWith(&runbooks.GitRunbookRunResponseV1{
+				RunbookRunServerTasks: []*runbooks.RunbookRunServerTask{
+					{RunbookRunID: "RunbookRun-203", ServerTaskID: "ServerTasks-29394"},
+					{RunbookRunID: "RunbookRun-204", ServerTaskID: "ServerTasks-55312"},
+				},
+			})
+
+			_, err := testutil.ReceivePair(cmdReceiver)
+			assert.Nil(t, err)
+
+			assert.Equal(t, heredoc.Doc(`
+				ServerTasks-29394
+				ServerTasks-55312
+				`), stdOut.String())
+			assert.Equal(t, "", stdErr.String())
+		}},
+
+		{"runbook run specifying project, runbook, env only (bare minimum) assuming untenanted; json output format", func(t *testing.T, api *testutil.MockHttpServer, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
+			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
+				defer api.Close()
+				rootCmd.SetArgs([]string{"runbook", "run", "--project", "Fire Project", "--runbook", "Provision Database", "--environment", "dev", "--git-ref", "main", "--output-format", constants.OutputFormatJson})
+				return rootCmd.ExecuteC()
+			})
+
+			api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/Fire Project").RespondWith(fireProject)
+
+			serverTasks := []*runbooks.RunbookRunServerTask{
+				{RunbookRunID: "RunbookRun-203", ServerTaskID: "ServerTasks-29394"},
+				{RunbookRunID: "RunbookRun-204", ServerTaskID: "ServerTasks-55312"},
+			}
+
+			api.ExpectRequest(t, "POST", "/api/Spaces-1/runbook-runs/git/create/v1").RespondWith(&runbooks.GitRunbookRunResponseV1{
+				RunbookRunServerTasks: serverTasks,
+			})
+
+			_, err := testutil.ReceivePair(cmdReceiver)
+			assert.Nil(t, err)
+			var response []*runbooks.RunbookRunServerTask
+			err = json.Unmarshal(stdOut.Bytes(), &response)
+			assert.Nil(t, err)
+
+			assert.Equal(t, serverTasks, response)
+
+			assert.Equal(t, "", stdErr.String())
+		}},
+
+		{"runbook run specifying project, runbook, env only (bare minimum) assuming tenanted", func(t *testing.T, api *testutil.MockHttpServer, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
+			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
+				defer api.Close()
+				rootCmd.SetArgs([]string{"runbook", "run", "--project", "Fire Project", "--runbook", "Provision Database", "--environment", "dev", "--git-ref", "main", "--tenant", "Coke", "--tenant", "Pepsi"})
+				return rootCmd.ExecuteC()
+			})
+
+			api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/Fire Project").RespondWith(fireProject)
+
+			req := api.ExpectRequest(t, "POST", "/api/Spaces-1/runbook-runs/git/create/v1")
+			requestBody, err := testutil.ReadJson[runbooks.GitRunbookRunCommandV1](req.Request.Body)
+			assert.Nil(t, err)
+
+			assert.Equal(t, runbooks.GitRunbookRunCommandV1{
+				RunbookName:      "Provision Database",
+				EnvironmentNames: []string{"dev"},
+				Tenants:          []string{"Coke", "Pepsi"},
+				GitRef:           "main",
+				CreateExecutionAbstractCommandV1: deployments.CreateExecutionAbstractCommandV1{
+					SpaceID:         "Spaces-1",
+					ProjectIDOrName: fireProject.Name,
+				},
+			}, requestBody)
+
+			req.RespondWith(&runbooks.GitRunbookRunResponseV1{
+				RunbookRunServerTasks: []*runbooks.RunbookRunServerTask{
+					{RunbookRunID: "RunbookRun-203", ServerTaskID: "ServerTasks-29394"},
+					{RunbookRunID: "RunbookRun-204", ServerTaskID: "ServerTasks-55312"},
+				},
+			})
+
+			_, err = testutil.ReceivePair(cmdReceiver)
+			assert.Nil(t, err)
+
+			assert.Equal(t, "Successfully started 2 runbook run(s)\n", stdOut.String())
+			assert.Equal(t, "", stdErr.String())
+		}},
+
+		{"runbook run specifying project, runbook, env only (bare minimum) assuming tenanted via tags", func(t *testing.T, api *testutil.MockHttpServer, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
+			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
+				defer api.Close()
+				rootCmd.SetArgs([]string{"runbook", "run", "--project", "Fire Project", "--runbook", "Provision Database", "--environment", "dev", "--git-ref", "main", "--tenant-tag", "Regions/us-west", "--tenant-tag", "Importance/High"})
+				return rootCmd.ExecuteC()
+			})
+
+			api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/Fire Project").RespondWith(fireProject)
+
+			req := api.ExpectRequest(t, "POST", "/api/Spaces-1/runbook-runs/git/create/v1")
+			requestBody, err := testutil.ReadJson[runbooks.GitRunbookRunCommandV1](req.Request.Body)
+			assert.Nil(t, err)
+
+			assert.Equal(t, runbooks.GitRunbookRunCommandV1{
+				RunbookName:      "Provision Database",
+				EnvironmentNames: []string{"dev"},
+				GitRef:           "main",
+				TenantTags:       []string{"Regions/us-west", "Importance/High"},
+				CreateExecutionAbstractCommandV1: deployments.CreateExecutionAbstractCommandV1{
+					SpaceID:         "Spaces-1",
+					ProjectIDOrName: fireProject.Name,
+				},
+			}, requestBody)
+
+			req.RespondWith(&runbooks.GitRunbookRunResponseV1{
+				RunbookRunServerTasks: []*runbooks.RunbookRunServerTask{
+					{RunbookRunID: "RunbookRun-203", ServerTaskID: "ServerTasks-29394"},
+					{RunbookRunID: "RunbookRun-204", ServerTaskID: "ServerTasks-55312"},
+				},
+			})
+
+			_, err = testutil.ReceivePair(cmdReceiver)
+			assert.Nil(t, err)
+
+			assert.Equal(t, "Successfully started 2 runbook run(s)\n", stdOut.String())
+			assert.Equal(t, "", stdErr.String())
+		}},
+
+		{"runbook run specifying all the args", func(t *testing.T, api *testutil.MockHttpServer, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
+			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
+				defer api.Close()
+				rootCmd.SetArgs([]string{
+					"runbook", "run",
+					"--project", "Fire Project",
+					"--runbook", "Provision Database",
+					"--environment", "dev", "--environment", "test",
+					"--git-ref", "main",
+					"--run-at", "2022-09-10 13:32:03 +10:00",
+					"--run-at-expiry", "2022-09-10 13:37:03 +10:00",
+					"--skip", "Install", "--skip", "Cleanup",
+					"--guided-failure", "true",
+					"--force-package-download",
+					"--target", "firstMachine", "--target", "secondMachine",
+					"--exclude-target", "thirdMachine",
+					"--variable", "Approver:John", "--variable", "Signoff:Jane",
+					"--package-version", "1.2.0",
+					"--package", "APackageStep:1.5.0",
+					"--git-resource", "AGitStep:develop",
+					"--output-format", "basic",
+				})
+				return rootCmd.ExecuteC()
+			})
+
+			api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/Fire Project").RespondWith(fireProject)
+
+			req := api.ExpectRequest(t, "POST", "/api/Spaces-1/runbook-runs/git/create/v1")
+			requestBody, err := testutil.ReadJson[runbooks.GitRunbookRunCommandV1](req.Request.Body)
+			assert.Nil(t, err)
+
+			trueVar := true
+			assert.Equal(t, runbooks.GitRunbookRunCommandV1{
+				RunbookName:      "Provision Database",
+				EnvironmentNames: []string{"dev", "test"},
+				GitRef:           "main",
+				CreateExecutionAbstractCommandV1: deployments.CreateExecutionAbstractCommandV1{
+					SpaceID:              "Spaces-1",
+					ProjectIDOrName:      fireProject.Name,
+					ForcePackageDownload: true,
+					SpecificMachineNames: []string{"firstMachine", "secondMachine"},
+					ExcludedMachineNames: []string{"thirdMachine"},
+					SkipStepNames:        []string{"Install", "Cleanup"},
+					UseGuidedFailure:     &trueVar,
+					RunAt:                "2022-09-10 13:32:03 +10:00",
+					NoRunAfter:           "2022-09-10 13:37:03 +10:00",
+					Variables: map[string]string{
+						"Approver": "John",
+						"Signoff":  "Jane",
+					},
+				},
+				PackageVersion: "1.2.0",
+				Packages: []string{
+					"APackageStep:1.5.0",
+				},
+				GitResources: []string{
+					"AGitStep:develop",
+				},
+			}, requestBody)
+
+			req.RespondWith(&runbooks.GitRunbookRunResponseV1{
+				RunbookRunServerTasks: []*runbooks.RunbookRunServerTask{
+					{RunbookRunID: "RunbookRun-203", ServerTaskID: "ServerTasks-29394"},
+				},
+			})
+
+			_, err = testutil.ReceivePair(cmdReceiver)
+			assert.Nil(t, err)
+
+			assert.Contains(t, stdOut.String(), "ServerTasks-29394\n")
+			assert.Equal(t, "", stdErr.String())
+		}},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			stdout, stderr := &bytes.Buffer{}, &bytes.Buffer{}
+			api := testutil.NewMockHttpServer()
+
+			rootCmd := cmdRoot.NewCmdRoot(testutil.NewMockFactoryWithSpace(api, space1), nil, nil)
+			rootCmd.SetContext(ctxWithFakeNow)
+			rootCmd.SetOut(stdout)
+			rootCmd.SetErr(stderr)
+
+			test.run(t, api, rootCmd, stdout, stderr)
+		})
+	}
+}
+
 func TestRunbookRun_PrintAdvancedSummary(t *testing.T) {
 	tests := []struct {
 		name string
@@ -353,7 +721,7 @@ func TestRunbookRun_PrintAdvancedSummary(t *testing.T) {
 	}{
 		{"default state", func(t *testing.T, stdout *bytes.Buffer) {
 			options := &executor.TaskOptionsRunbookRun{}
-			run.PrintAdvancedSummary(stdout, options)
+			run.PrintAdvancedSummary(stdout, &options.TaskOptionsRunbookRunBase)
 
 			assert.Equal(t, heredoc.Doc(`
 				Additional Options:
@@ -367,14 +735,16 @@ func TestRunbookRun_PrintAdvancedSummary(t *testing.T) {
 
 		{"all the things different", func(t *testing.T, stdout *bytes.Buffer) {
 			options := &executor.TaskOptionsRunbookRun{
-				ScheduledStartTime:   "2022-09-23",
-				GuidedFailureMode:    "false",
-				ForcePackageDownload: true,
-				ExcludedSteps:        []string{"Step 1", "Step 37"},
-				RunTargets:           []string{"vm-1", "vm-2"},
-				ExcludeTargets:       []string{"vm-3", "vm-4"},
+				TaskOptionsRunbookRunBase: executor.TaskOptionsRunbookRunBase{
+					ScheduledStartTime:   "2022-09-23",
+					GuidedFailureMode:    "false",
+					ForcePackageDownload: true,
+					ExcludedSteps:        []string{"Step 1", "Step 37"},
+					RunTargets:           []string{"vm-1", "vm-2"},
+					ExcludeTargets:       []string{"vm-3", "vm-4"},
+				},
 			}
-			run.PrintAdvancedSummary(stdout, options)
+			run.PrintAdvancedSummary(stdout, &options.TaskOptionsRunbookRunBase)
 
 			assert.Equal(t, heredoc.Doc(`
 				Additional Options:
@@ -388,9 +758,11 @@ func TestRunbookRun_PrintAdvancedSummary(t *testing.T) {
 
 		{"variation on include deployment targets only", func(t *testing.T, stdout *bytes.Buffer) {
 			options := &executor.TaskOptionsRunbookRun{
-				RunTargets: []string{"vm-2"},
+				TaskOptionsRunbookRunBase: executor.TaskOptionsRunbookRunBase{
+					RunTargets: []string{"vm-2"},
+				},
 			}
-			run.PrintAdvancedSummary(stdout, options)
+			run.PrintAdvancedSummary(stdout, &options.TaskOptionsRunbookRunBase)
 
 			assert.Equal(t, heredoc.Doc(`
 				Additional Options:
@@ -404,9 +776,11 @@ func TestRunbookRun_PrintAdvancedSummary(t *testing.T) {
 
 		{"variation on exclude deployment targets only", func(t *testing.T, stdout *bytes.Buffer) {
 			options := &executor.TaskOptionsRunbookRun{
-				ExcludeTargets: []string{"vm-4"},
+				TaskOptionsRunbookRunBase: executor.TaskOptionsRunbookRunBase{
+					ExcludeTargets: []string{"vm-4"},
+				},
 			}
-			run.PrintAdvancedSummary(stdout, options)
+			run.PrintAdvancedSummary(stdout, &options.TaskOptionsRunbookRunBase)
 
 			assert.Equal(t, heredoc.Doc(`
 				Additional Options:
