@@ -25,10 +25,13 @@ func NewDisableOptions(args []string, dependencies *cmd.Dependencies) *DisableOp
 
 func NewCmdDisable(f factory.Factory) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:     "disable",
-		Short:   "Disable a tenant",
-		Long:    "Disable a tenant in Octopus Deploy",
-		Example: heredoc.Docf("$ %[1]s tenant enable", constants.ExecutableName),
+		Use:   "disable {<name> | <id>}",
+		Short: "Disable a tenant",
+		Long:  "Disable a tenant in Octopus Deploy",
+		Example: heredoc.Docf(`
+			$ %[1]s tenant disable Tenants-1
+			$ %[1]s tenant disable 'Tenant'
+		`, constants.ExecutableName),
 		RunE: func(c *cobra.Command, args []string) error {
 			if len(args) == 0 {
 				args = append(args, "")
