@@ -741,7 +741,7 @@ func AskGitRunbookRunQuestions(octopus *octopusApiClient.Client, stdout io.Write
 	var err error
 
 	if options.GitReference == "" { // we need a git ref; ask for one
-		gitRef, err := selectGitReference(octopus, asker, project)
+		gitRef, err := selectors.GitReference("Select the Git Reference to run for", octopus, asker, project)
 		if err != nil {
 			return err
 		}
@@ -960,35 +960,6 @@ func AskGitRunbookRunQuestions(octopus *octopusApiClient.Client, stdout io.Write
 	}
 	// DONE
 	return nil
-}
-
-func selectGitReference(octopus *octopusApiClient.Client, ask question.Asker, project *projects.Project) (*projects.GitReference, error) {
-	branches, err := octopus.Projects.GetGitBranches(project)
-	if err != nil {
-		return nil, err
-	}
-
-	tags, err := octopus.Projects.GetGitTags(project)
-
-	if err != nil {
-		return nil, err
-	}
-
-	allRefs := append(branches, tags...)
-
-	defaultBranch := project.PersistenceSettings.(projects.GitPersistenceSettings).DefaultBranch()
-
-	// if the default branch is in the list, move it to the top
-	defaultBranchInRefsList := util.SliceFilter(allRefs, func(g *projects.GitReference) bool { return g.Name == defaultBranch })
-	if len(defaultBranchInRefsList) > 0 {
-		defaultBranchRef := defaultBranchInRefsList[0]
-		allRefs = util.SliceExcept(allRefs, func(g *projects.GitReference) bool { return g.Name == defaultBranch })
-		allRefs = append([]*projects.GitReference{defaultBranchRef}, allRefs...)
-	}
-
-	return question.SelectMap(ask, "Select the Git Reference to use", allRefs, func(g *projects.GitReference) string {
-		return fmt.Sprintf("%s %s", g.Name, output.Dimf("(%s)", g.Type.Description()))
-	})
 }
 
 func askRunbookTargets(octopus *octopusApiClient.Client, asker question.Asker, spaceID string, runbookSnapshotID string, selectedEnvironments []*environments.Environment) ([]string, error) {

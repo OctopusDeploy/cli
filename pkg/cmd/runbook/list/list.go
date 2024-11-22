@@ -2,8 +2,9 @@ package list
 
 import (
 	"errors"
-	"github.com/OctopusDeploy/cli/pkg/apiclient"
 	"math"
+
+	"github.com/OctopusDeploy/cli/pkg/apiclient"
 
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/constants"
@@ -12,6 +13,7 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/question/selectors"
 	"github.com/OctopusDeploy/cli/pkg/util/flag"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/resources"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/runbooks"
 	"github.com/spf13/cobra"
 )
@@ -20,12 +22,14 @@ const (
 	FlagProject = "project"
 	FlagLimit   = "limit"
 	FlagFilter  = "filter"
+	FlagGitRef  = "git-ref"
 )
 
 type ListFlags struct {
 	Project *flag.Flag[string]
 	Limit   *flag.Flag[int32]
 	Filter  *flag.Flag[string]
+	GitRef  *flag.Flag[string]
 }
 
 func NewListFlags() *ListFlags {
@@ -33,6 +37,7 @@ func NewListFlags() *ListFlags {
 		Project: flag.New[string](FlagProject, false),
 		Limit:   flag.New[int32](FlagLimit, false),
 		Filter:  flag.New[string](FlagFilter, false),
+		GitRef:  flag.New[string](FlagGitRef, false),
 	}
 }
 
@@ -62,6 +67,7 @@ func NewCmdList(f factory.Factory) *cobra.Command {
 	flags.StringVarP(&listFlags.Project.Value, listFlags.Project.Name, "p", "", "Name or ID of the project to list runbooks for")
 	flags.Int32Var(&listFlags.Limit.Value, listFlags.Limit.Name, 0, "limit the maximum number of results that will be returned")
 	flags.StringVarP(&listFlags.Filter.Value, listFlags.Filter.Name, "q", "", "filter runbooks to match only ones with a name containing the given string")
+	flags.StringVarP(&listFlags.GitRef.Value, listFlags.GitRef.Name, "", "", "Git reference to list runbooks for e.g. refs/heads/main. Only relevant for config-as-code projects where runbooks are stored in Git.")
 	return cmd
 }
 
@@ -80,6 +86,7 @@ func listRun(cmd *cobra.Command, f factory.Factory, flags *ListFlags) error {
 	limit := flags.Limit.Value
 	filter := flags.Filter.Value
 	projectNameOrID := flags.Project.Value
+	gitReference := flags.GitRef.Value
 
 	octopus, err := f.GetSpacedClient(apiclient.NewRequester(cmd))
 	if err != nil {
@@ -112,10 +119,48 @@ func listRun(cmd *cobra.Command, f factory.Factory, flags *ListFlags) error {
 		}
 	}
 
+	var foundRunbooks *resources.Resources[*runbooks.Runbook]
+	runbooksAreInGit := false
+
+	if selectedProject.PersistenceSettings.Type() == projects.PersistenceSettingsTypeVersionControlled {
+		runbooksAreInGit = selectedProject.PersistenceSettings.(projects.GitPersistenceSettings).RunbooksAreInGit()
+	}
+
 	if limit <= 0 {
 		limit = math.MaxInt32
 	}
-	foundRunbooks, err := runbooks.List(octopus, f.GetCurrentSpace().ID, selectedProject.ID, filter, int(limit))
+
+	if runbooksAreInGit {
+		if f.IsPromptEnabled() {
+			if gitReference == "" { // we need a git ref; ask for one
+				gitRef, err := selectors.GitReference("Select the Git reference to list runbooks for", octopus, f.Ask, selectedProject)
+				if err != nil {
+					return err
+				}
+				gitReference = gitRef.CanonicalName // e.g /refs/heads/main
+			} else {
+				if !constants.IsProgrammaticOutputFormat(outputFormat) {
+					cmd.Printf("Git reference %s\n", output.Cyan(gitReference))
+				}
+			}
+		} else {
+			if gitReference == "" {
+				return errors.New("git reference must be specified")
+			}
+		}
+
+		foundRunbooks, err = runbooks.ListGitRunbooks(octopus, f.GetCurrentSpace().ID, selectedProject.ID, gitReference, filter, int(limit))
+
+		if err != nil {
+			return err
+		}
+	} else {
+		foundRunbooks, err = runbooks.List(octopus, f.GetCurrentSpace().ID, selectedProject.ID, filter, int(limit))
+
+		if err != nil {
+			return err
+		}
+	}
 
 	return output.PrintArray(foundRunbooks.Items, cmd, output.Mappers[*runbooks.Runbook]{
 		Json: func(item *runbooks.Runbook) any {
