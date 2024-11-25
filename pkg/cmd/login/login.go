@@ -2,14 +2,15 @@ package login
 
 import (
 	"bytes"
+	"crypto/tls"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/AlecAivazis/survey/v2"
 	"io"
 	"net/http"
 	"time"
 
-	"github.com/AlecAivazis/survey/v2"
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/apiclient"
 	"github.com/OctopusDeploy/cli/pkg/config"
@@ -30,6 +31,7 @@ const (
 	FlagApiKey           = "api-key"
 	FlagServiceAccountId = "service-account-id"
 	FlagIdToken          = "id-token"
+	FlagIgnoreSslErrors  = "ignore-ssl-errors"
 )
 
 type LoginFlags struct {
@@ -37,6 +39,7 @@ type LoginFlags struct {
 	ApiKey           *flag.Flag[string]
 	ServiceAccountId *flag.Flag[string]
 	IdToken          *flag.Flag[string]
+	IgnoreSslErrors  *flag.Flag[bool]
 }
 
 func NewLoginFlags() *LoginFlags {
@@ -45,6 +48,7 @@ func NewLoginFlags() *LoginFlags {
 		ApiKey:           flag.New[string](FlagApiKey, false),
 		ServiceAccountId: flag.New[string](FlagServiceAccountId, false),
 		IdToken:          flag.New[string](FlagIdToken, false),
+		IgnoreSslErrors:  flag.New[bool](FlagIgnoreSslErrors, false),
 	}
 }
 
@@ -73,6 +77,7 @@ func NewCmdLogin(f factory.Factory) *cobra.Command {
 	flags.StringVarP(&loginFlags.ApiKey.Value, loginFlags.ApiKey.Name, "", "", "The API key to login with if using API keys")
 	flags.StringVarP(&loginFlags.ServiceAccountId.Value, loginFlags.ServiceAccountId.Name, "", "", "The ID of the service account to login with if using OIDC")
 	flags.StringVarP(&loginFlags.IdToken.Value, loginFlags.IdToken.Name, "", "", "The ID token from your OIDC provider to login with if using OIDC")
+	flags.BoolVarP(&loginFlags.IgnoreSslErrors.Value, loginFlags.IgnoreSslErrors.Name, "", false, "Whether to ignore SSL errors")
 	return cmd
 }
 
@@ -81,6 +86,7 @@ type LoginInputs struct {
 	apiKey           string
 	serviceAccountId string
 	idToken          string
+	ignoreSslErrors  bool
 }
 
 func loginRun(cmd *cobra.Command, f factory.Factory, isPromptEnabled bool, ask question.Asker, flags *LoginFlags) error {
@@ -117,6 +123,14 @@ func loginRun(cmd *cobra.Command, f factory.Factory, isPromptEnabled bool, ask q
 	// The http client could be nil, in which case we just use the default one from http
 	if httpClient == nil {
 		httpClient = &http.Client{}
+	}
+
+	if inputs.ignoreSslErrors {
+		if httpClient.Transport == nil {
+			httpClient.Transport = &http.Transport{}
+		}
+
+		httpClient.Transport.(*http.Transport).TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
 	}
 
 	if inputs.apiKey != "" {
@@ -323,6 +337,7 @@ func getInputs(configProvider config.IConfigProvider, flags *LoginFlags, isPromp
 	apiKey := flags.ApiKey.Value
 	serviceAccountId := flags.ServiceAccountId.Value
 	idToken := flags.IdToken.Value
+	ignoreSslErrors := flags.IgnoreSslErrors.Value
 
 	if isPromptEnabled {
 		if server == "" {
@@ -372,6 +387,7 @@ func getInputs(configProvider config.IConfigProvider, flags *LoginFlags, isPromp
 		apiKey:           apiKey,
 		serviceAccountId: serviceAccountId,
 		idToken:          idToken,
+		ignoreSslErrors:  ignoreSslErrors,
 	}
 	return inputs, nil
 }
