@@ -8,6 +8,7 @@ import (
 	cmdCreate "github.com/OctopusDeploy/cli/pkg/cmd/account/create"
 	cmdDelete "github.com/OctopusDeploy/cli/pkg/cmd/account/delete"
 	cmdGCP "github.com/OctopusDeploy/cli/pkg/cmd/account/gcp"
+	cmdGenericOidc "github.com/OctopusDeploy/cli/pkg/cmd/account/generic-oidc"
 	cmdList "github.com/OctopusDeploy/cli/pkg/cmd/account/list"
 	cmdSSH "github.com/OctopusDeploy/cli/pkg/cmd/account/ssh"
 	cmdToken "github.com/OctopusDeploy/cli/pkg/cmd/account/token"
@@ -35,6 +36,7 @@ func NewCmdAccount(f factory.Factory) *cobra.Command {
 	cmd.AddCommand(cmdAWS.NewCmdAws(f))
 	cmd.AddCommand(cmdAzure.NewCmdAzure(f))
 	cmd.AddCommand(cmdAzureOidc.NewCmdAzureOidc(f))
+	cmd.AddCommand(cmdGenericOidc.NewCmdGenericOidc(f))
 	cmd.AddCommand(cmdGCP.NewCmdGcp(f))
 	cmd.AddCommand(cmdSSH.NewCmdSsh(f))
 	cmd.AddCommand(cmdUsr.NewCmdUsername(f))
