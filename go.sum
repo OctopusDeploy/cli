@@ -48,8 +48,8 @@ github.com/Netflix/go-expect v0.0.0-20220104043353-73e0943537d2 h1:+vx7roKuyA63n
 github.com/Netflix/go-expect v0.0.0-20220104043353-73e0943537d2/go.mod h1:HBCaDeC1lPdgDeDbhX8XFpy1jqjK0IBG8W5K+xYqA0w=
 github.com/OctopusDeploy/go-octodiff v1.0.0 h1:U+ORg6azniwwYo+O44giOw6TiD5USk8S4VDhOQ0Ven0=
 github.com/OctopusDeploy/go-octodiff v1.0.0/go.mod h1:Mze0+EkOWTgTmi8++fyUc6r0aLZT7qD9gX+31t8MmIU=
-github.com/OctopusDeploy/go-octopusdeploy/v2 v2.59.0 h1:Yb2VqkRTFAAow/YQRVVuKbJSEzmSoCzUhj7q6uiL6Aw=
-github.com/OctopusDeploy/go-octopusdeploy/v2 v2.59.0/go.mod h1:ggvOXzMnq+w0pLg6C9zdjz6YBaHfO3B3tqmmB7JQdaw=
+github.com/OctopusDeploy/go-octopusdeploy/v2 v2.62.0 h1:p2qapGMs+BGZfRmKa+1K6j7J9g+n6bxTWPZFeHZ/W0o=
+github.com/OctopusDeploy/go-octopusdeploy/v2 v2.62.0/go.mod h1:ggvOXzMnq+w0pLg6C9zdjz6YBaHfO3B3tqmmB7JQdaw=
 github.com/bmatcuk/doublestar/v4 v4.4.0 h1:LmAwNwhjEbYtyVLzjcP/XeVw4nhuScHGkF/XWXnvIic=
 github.com/bmatcuk/doublestar/v4 v4.4.0/go.mod h1:xBQ8jztBU6kakFMg+8WGxn0c6z1fTSPVIjEY1Wr7jzc=
 github.com/briandowns/spinner v1.19.0 h1:s8aq38H+Qju89yhp89b4iIiMzMm8YN3p6vGpwyh/a8E=

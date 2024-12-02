@@ -2,15 +2,17 @@ package delete
 
 import (
 	"errors"
+	"fmt"
+
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/cmd"
 	"github.com/OctopusDeploy/cli/pkg/cmd/runbook/shared"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/factory"
+	"github.com/OctopusDeploy/cli/pkg/output"
 	"github.com/OctopusDeploy/cli/pkg/question"
 	"github.com/OctopusDeploy/cli/pkg/question/selectors"
 	"github.com/OctopusDeploy/cli/pkg/util/flag"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/runbooks"
 	"github.com/spf13/cobra"
@@ -21,11 +23,13 @@ const resourceDescription = "runbook"
 const (
 	FlagProject = "project"
 	FlagRunbook = "runbook"
+	FlagGitRef  = "git-ref"
 )
 
 type DeleteFlags struct {
 	Project          *flag.Flag[string]
 	Runbook          *flag.Flag[string]
+	GitRef           *flag.Flag[string]
 	SkipConfirmation bool
 }
 
@@ -33,6 +37,7 @@ func NewDeleteFlags() *DeleteFlags {
 	return &DeleteFlags{
 		Project: flag.New[string](FlagProject, false),
 		Runbook: flag.New[string](FlagRunbook, false),
+		GitRef:  flag.New[string](FlagGitRef, false),
 	}
 }
 
@@ -71,45 +76,104 @@ func NewCmdDelete(f factory.Factory) *cobra.Command {
 				deleteFlags.Runbook.Value = args[0]
 			}
 
-			return deleteRun(opts)
+			return DeleteRun(opts)
 		},
 	}
 
 	flags := cmd.Flags()
 	flags.StringVarP(&deleteFlags.Project.Value, deleteFlags.Project.Name, "p", "", "Name or ID of the project to delete a runbook from")
 	flags.StringVarP(&deleteFlags.Runbook.Value, deleteFlags.Runbook.Name, "r", "", "Name or ID of the runbook to delete")
+	flags.StringVarP(&deleteFlags.GitRef.Value, deleteFlags.GitRef.Name, "", "", "Git reference to delete runbook for e.g. refs/heads/main. Only relevant for config-as-code projects where runbooks are stored in Git.")
 	question.RegisterConfirmDeletionFlag(cmd, &deleteFlags.SkipConfirmation, resourceDescription)
 
 	return cmd
 }
 
-func deleteRun(opts *DeleteOptions) error {
+func DeleteRun(opts *DeleteOptions) error {
 	project, err := getProject(opts)
 	if err != nil {
 		return err
 	}
 
-	runbook, err := getRunbook(opts, project)
-	if err != nil {
-		return err
+	runbooksAreInGit := false
+
+	if project.PersistenceSettings.Type() == projects.PersistenceSettingsTypeVersionControlled {
+		runbooksAreInGit = project.PersistenceSettings.(projects.GitPersistenceSettings).RunbooksAreInGit()
 	}
 
-	if opts.SkipConfirmation {
-		return delete(opts.Client, runbook)
+	if runbooksAreInGit {
+		gitReference, err := getGitReference(opts, project)
+		if err != nil {
+			return err
+		}
+
+		runbook, err := getGitRunbook(opts, project, gitReference)
+		if err != nil {
+			return err
+		}
+
+		if opts.SkipConfirmation {
+			return deleteGitRunbook(opts, runbook, gitReference)
+		} else {
+			return question.DeleteWithConfirmation(opts.Ask, resourceDescription, runbook.Name, runbook.GetID(), func() error {
+				return deleteGitRunbook(opts, runbook, gitReference)
+			})
+		}
 	} else {
-		return question.DeleteWithConfirmation(opts.Ask, resourceDescription, runbook.Name, runbook.GetID(), func() error {
-			return delete(opts.Client, runbook)
-		})
+		runbook, err := getDbRunbook(opts, project)
+		if err != nil {
+			return err
+		}
+
+		if opts.SkipConfirmation {
+			return deleteDbRunbook(opts, runbook)
+		} else {
+			return question.DeleteWithConfirmation(opts.Ask, resourceDescription, runbook.Name, runbook.GetID(), func() error {
+				return deleteDbRunbook(opts, runbook)
+			})
+		}
 	}
+
 }
 
-func getRunbook(opts *DeleteOptions, project *projects.Project) (*runbooks.Runbook, error) {
+func getDbRunbook(opts *DeleteOptions, project *projects.Project) (*runbooks.Runbook, error) {
 	var runbook *runbooks.Runbook
 	var err error
 	if opts.Runbook.Value == "" {
-		runbook, err = selectors.Select(opts.Ask, "Select the runbook you wish to delete:", func() ([]*runbooks.Runbook, error) { return opts.GetRunbooksCallback(project.GetID()) }, func(runbook *runbooks.Runbook) string { return runbook.Name })
+		runbook, err = selectors.Select(opts.Ask, "Select the runbook you wish to delete:", func() ([]*runbooks.Runbook, error) { return opts.GetDbRunbooksCallback(project.GetID()) }, func(runbook *runbooks.Runbook) string { return runbook.Name })
 	} else {
-		runbook, err = selectors.FindRunbook(opts.Client, project, opts.Runbook.Value)
+		runbook, err = opts.GetDbRunbookCallback(project.GetID(), opts.Runbook.Value)
+	}
+
+	if runbook == nil {
+		return nil, errors.New("unable to find runbook")
+	}
+
+	return runbook, err
+}
+
+func getGitReference(opts *DeleteOptions, project *projects.Project) (string, error) {
+	if opts.GitRef.Value == "" { // we need a git ref; ask for one
+		gitRef, err := selectors.Select(opts.Ask, "Select the Git reference to delete runbook for:", func() ([]*projects.GitReference, error) { return opts.GetGitReferencesCallback(project) }, func(gitReference *projects.GitReference) string {
+			return fmt.Sprintf("%s %s", gitReference.Name, output.Dimf("(%s)", gitReference.Type.Description()))
+		})
+		if err != nil {
+			return "", err
+		}
+		return gitRef.CanonicalName, nil // e.g /refs/heads/main
+	} else {
+		return opts.GitRef.Value, nil
+	}
+}
+
+func getGitRunbook(opts *DeleteOptions, project *projects.Project, gitRef string) (*runbooks.Runbook, error) {
+	var runbook *runbooks.Runbook
+	var err error
+
+	if opts.Runbook.Value == "" {
+		runbook, err = selectors.Select(opts.Ask, "Select the runbook you wish to delete:", func() ([]*runbooks.Runbook, error) { return opts.GetGitRunbooksCallback(project.GetID(), gitRef) }, func(runbook *runbooks.Runbook) string { return runbook.Name })
+	} else {
+		runbook, err = opts.GetGitRunbookCallback(project.GetID(), gitRef, opts.Runbook.Value)
 	}
 
 	if runbook == nil {
@@ -125,7 +189,7 @@ func getProject(opts *DeleteOptions) (*projects.Project, error) {
 	if opts.Project.Value == "" {
 		project, err = selectors.Select(opts.Ask, "Select the project containing the runbook you wish to delete:", opts.GetAllProjectsCallback, func(project *projects.Project) string { return project.GetName() })
 	} else {
-		project, err = selectors.FindProject(opts.Client, opts.Project.Value)
+		project, err = opts.GetProjectCallback(opts.Project.Value)
 	}
 
 	if project == nil {
@@ -135,6 +199,10 @@ func getProject(opts *DeleteOptions) (*projects.Project, error) {
 	return project, err
 }
 
-func delete(client *client.Client, itemToDelete *runbooks.Runbook) error {
-	return client.Runbooks.DeleteByID(itemToDelete.GetID())
+func deleteDbRunbook(opts *DeleteOptions, runbook *runbooks.Runbook) error {
+	return opts.DeleteDbRunbookCallback(runbook)
+}
+
+func deleteGitRunbook(opts *DeleteOptions, runbook *runbooks.Runbook, gitRef string) error {
+	return opts.DeleteGitRunbookCallback(runbook, gitRef)
 }
