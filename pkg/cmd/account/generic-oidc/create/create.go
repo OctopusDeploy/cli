@@ -136,6 +136,7 @@ func CreateRun(opts *CreateOptions) error {
 			opts.Description,
 			opts.Environments,
 			opts.ExecutionSubjectKeys,
+			opts.Audience,
 		)
 		fmt.Fprintf(opts.Out, "\nAutomation Command: %s\n", autoCmd)
 	}
