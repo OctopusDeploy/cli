@@ -1,5 +1,15 @@
 # Changelog
 
+## [2.13.0](https://github.com/OctopusDeploy/cli/compare/v2.12.2...v2.13.0) (2024-12-02)
+
+
+### Features
+
+* Add support for deleting Git runbooks ([#444](https://github.com/OctopusDeploy/cli/issues/444)) ([64915bc](https://github.com/OctopusDeploy/cli/commit/64915bcc87328e469cd73958aa4c0b191f2854cc))
+* Add support for listing Git runbooks ([#443](https://github.com/OctopusDeploy/cli/issues/443)) ([e5d1966](https://github.com/OctopusDeploy/cli/commit/e5d1966c350af0dbfb10ded7b96378b7445ae93d))
+* Add support for running Git runbooks ([#441](https://github.com/OctopusDeploy/cli/issues/441)) ([7cc29ad](https://github.com/OctopusDeploy/cli/commit/7cc29ad4afe2a511560947bac39bd9ad8b1a5cb3))
+* Adds an option to disable ssl verifications for login for use of custom certs ([22d93bd](https://github.com/OctopusDeploy/cli/commit/22d93bd33dba3bc15704e8bba904a7110f5a2116))
+
 ## [2.12.2](https://github.com/OctopusDeploy/cli/compare/v2.12.1...v2.12.2) (2024-11-20)
 
 
