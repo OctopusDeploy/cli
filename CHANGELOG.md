@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.14.0](https://github.com/OctopusDeploy/cli/compare/v2.13.0...v2.14.0) (2024-12-04)
+
+
+### Features
+
+* Add support for generic oidc accounts ([#455](https://github.com/OctopusDeploy/cli/issues/455)) ([87745a9](https://github.com/OctopusDeploy/cli/commit/87745a9aa4ae5046ed848bd89a3f64e7d922ddf2))
+
 ## [2.13.0](https://github.com/OctopusDeploy/cli/compare/v2.12.2...v2.13.0) (2024-12-02)
 
 
