@@ -71,7 +71,7 @@ jobs:
         echo "::set-output name=version::$version"
 
     - name: Upload goreleaser built binaries to artifact octopus-cli.${{ steps.calculate-version.outputs.version }}
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: octopus-cli.${{ steps.calculate-version.outputs.version }}
         path: |
@@ -96,7 +96,7 @@ jobs:
       id: setupmsbuild
 
     - name: Download goreleaser built binaries from artifact octopus-cli.${{ needs.goreleaser.outputs.version }}
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       with:
         name: octopus-cli.${{ needs.goreleaser.outputs.version }}
         path: artifacts/
@@ -179,7 +179,7 @@ jobs:
       run: gh release upload "${{ needs.goreleaser.outputs.tag_name }}" "$MSI_FILE"
 
     - name: Append MSI to artifact octopus-cli.${{ needs.goreleaser.outputs.version }}
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: octopus-cli.${{ needs.goreleaser.outputs.version }}
         path: ${{ steps.buildmsi.outputs.msi }}
@@ -204,7 +204,7 @@ jobs:
         path: linux-package-feeds
 
     - name: Download goreleaser built binaries and MSI from artifact octopus-cli.${{ needs.goreleaser.outputs.version }}
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       with:
         name: octopus-cli.${{ needs.goreleaser.outputs.version }}
         path: artifacts/
