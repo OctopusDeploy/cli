@@ -83,7 +83,7 @@ const (
 	FlagUpdateVariables            = "update-variables"
 	FlagAliasUpdateVariablesLegacy = "updateVariables"
 
-	FlagDeploymentFreezeNames          = "deployment-freeze-names"
+	FlagDeploymentFreezeName           = "deployment-freeze-name"
 	FlagDeploymentFreezeOverrideReason = "deployment-freeze-override-reason"
 )
 
@@ -127,7 +127,7 @@ func NewDeployFlags() *DeployFlags {
 		ForcePackageDownload:           flag.New[bool](FlagForcePackageDownload, false),
 		DeploymentTargets:              flag.New[[]string](FlagDeploymentTarget, false),
 		ExcludeTargets:                 flag.New[[]string](FlagExcludeDeploymentTarget, false),
-		DeploymentFreezeNames:          flag.New[[]string](FlagDeploymentFreezeNames, false),
+		DeploymentFreezeNames:          flag.New[[]string](FlagDeploymentFreezeName, false),
 		DeploymentFreezeOverrideReason: flag.New[string](FlagDeploymentFreezeOverrideReason, false),
 	}
 }

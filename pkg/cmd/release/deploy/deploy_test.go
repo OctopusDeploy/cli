@@ -1470,7 +1470,7 @@ func TestDeployCreate_AutomationMode(t *testing.T) {
 					"--update-variables",
 					"--target", "firstMachine", "--target", "secondMachine",
 					"--exclude-target", "thirdMachine",
-					"--deployment-freeze-names", "freeze 1", "--deployment-freeze-names", "freeze 2",
+					"--deployment-freeze-name", "freeze 1", "--deployment-freeze-name", "freeze 2",
 					"--deployment-freeze-override-reason", "Testing",
 					"--variable", "Approver:John", "--variable", "Signoff:Jane",
 					"--output-format", "basic", // not neccessary, just means we don't need the follow up HTTP requests at the end to print the web link
@@ -1544,7 +1544,7 @@ func TestDeployCreate_AutomationMode(t *testing.T) {
 					"--update-variables",
 					"--target", "firstMachine", "--target", "secondMachine",
 					"--exclude-target", "thirdMachine",
-					"--deployment-freeze-names", "freeze 1",
+					"--deployment-freeze-name", "freeze 1",
 					"--deployment-freeze-override-reason", "Testing",
 					"--variable", "Approver:John", "--variable", "Signoff:Jane",
 					"--output-format", "basic", // not neccessary, just means we don't need the follow up HTTP requests at the end to print the web link
