@@ -82,6 +82,9 @@ const (
 
 	FlagUpdateVariables            = "update-variables"
 	FlagAliasUpdateVariablesLegacy = "updateVariables"
+
+	FlagDeploymentFreezeNames          = "deployment-freeze-names"
+	FlagDeploymentFreezeOverrideReason = "deployment-freeze-override-reason"
 )
 
 // executions API stops here.
@@ -90,38 +93,42 @@ const (
 // DESIGN CHOICE: We are not going to show servertask progress in the CLI.
 
 type DeployFlags struct {
-	Project              *flag.Flag[string]
-	ReleaseVersion       *flag.Flag[string]   // the release to deploy
-	Environments         *flag.Flag[[]string] // multiple for untenanted deployment
-	Tenants              *flag.Flag[[]string]
-	TenantTags           *flag.Flag[[]string]
-	DeployAt             *flag.Flag[string]
-	MaxQueueTime         *flag.Flag[string]
-	Variables            *flag.Flag[[]string]
-	UpdateVariables      *flag.Flag[bool]
-	ExcludedSteps        *flag.Flag[[]string]
-	GuidedFailureMode    *flag.Flag[string] // tri-state: true, false, or "use default". Can we model it with an optional bool?
-	ForcePackageDownload *flag.Flag[bool]
-	DeploymentTargets    *flag.Flag[[]string]
-	ExcludeTargets       *flag.Flag[[]string]
+	Project                        *flag.Flag[string]
+	ReleaseVersion                 *flag.Flag[string]   // the release to deploy
+	Environments                   *flag.Flag[[]string] // multiple for untenanted deployment
+	Tenants                        *flag.Flag[[]string]
+	TenantTags                     *flag.Flag[[]string]
+	DeployAt                       *flag.Flag[string]
+	MaxQueueTime                   *flag.Flag[string]
+	Variables                      *flag.Flag[[]string]
+	UpdateVariables                *flag.Flag[bool]
+	ExcludedSteps                  *flag.Flag[[]string]
+	GuidedFailureMode              *flag.Flag[string] // tri-state: true, false, or "use default". Can we model it with an optional bool?
+	ForcePackageDownload           *flag.Flag[bool]
+	DeploymentTargets              *flag.Flag[[]string]
+	ExcludeTargets                 *flag.Flag[[]string]
+	DeploymentFreezeNames          *flag.Flag[[]string]
+	DeploymentFreezeOverrideReason *flag.Flag[string]
 }
 
 func NewDeployFlags() *DeployFlags {
 	return &DeployFlags{
-		Project:              flag.New[string](FlagProject, false),
-		ReleaseVersion:       flag.New[string](FlagReleaseVersion, false),
-		Environments:         flag.New[[]string](FlagEnvironment, false),
-		Tenants:              flag.New[[]string](FlagTenant, false),
-		TenantTags:           flag.New[[]string](FlagTenantTag, false),
-		MaxQueueTime:         flag.New[string](FlagDeployAtExpiry, false),
-		DeployAt:             flag.New[string](FlagDeployAt, false),
-		Variables:            flag.New[[]string](FlagVariable, false),
-		UpdateVariables:      flag.New[bool](FlagUpdateVariables, false),
-		ExcludedSteps:        flag.New[[]string](FlagSkip, false),
-		GuidedFailureMode:    flag.New[string](FlagGuidedFailure, false),
-		ForcePackageDownload: flag.New[bool](FlagForcePackageDownload, false),
-		DeploymentTargets:    flag.New[[]string](FlagDeploymentTarget, false),
-		ExcludeTargets:       flag.New[[]string](FlagExcludeDeploymentTarget, false),
+		Project:                        flag.New[string](FlagProject, false),
+		ReleaseVersion:                 flag.New[string](FlagReleaseVersion, false),
+		Environments:                   flag.New[[]string](FlagEnvironment, false),
+		Tenants:                        flag.New[[]string](FlagTenant, false),
+		TenantTags:                     flag.New[[]string](FlagTenantTag, false),
+		MaxQueueTime:                   flag.New[string](FlagDeployAtExpiry, false),
+		DeployAt:                       flag.New[string](FlagDeployAt, false),
+		Variables:                      flag.New[[]string](FlagVariable, false),
+		UpdateVariables:                flag.New[bool](FlagUpdateVariables, false),
+		ExcludedSteps:                  flag.New[[]string](FlagSkip, false),
+		GuidedFailureMode:              flag.New[string](FlagGuidedFailure, false),
+		ForcePackageDownload:           flag.New[bool](FlagForcePackageDownload, false),
+		DeploymentTargets:              flag.New[[]string](FlagDeploymentTarget, false),
+		ExcludeTargets:                 flag.New[[]string](FlagExcludeDeploymentTarget, false),
+		DeploymentFreezeNames:          flag.New[[]string](FlagDeploymentFreezeNames, false),
+		DeploymentFreezeOverrideReason: flag.New[string](FlagDeploymentFreezeOverrideReason, false),
 	}
 }
 
@@ -162,6 +169,8 @@ func NewCmdDeploy(f factory.Factory) *cobra.Command {
 	flags.BoolVarP(&deployFlags.ForcePackageDownload.Value, deployFlags.ForcePackageDownload.Name, "", false, "Force re-download of packages")
 	flags.StringArrayVarP(&deployFlags.DeploymentTargets.Value, deployFlags.DeploymentTargets.Name, "", nil, "Deploy to this target (can be specified multiple times)")
 	flags.StringArrayVarP(&deployFlags.ExcludeTargets.Value, deployFlags.ExcludeTargets.Name, "", nil, "Deploy to targets except for this (can be specified multiple times)")
+	flags.StringArrayVarP(&deployFlags.DeploymentFreezeNames.Value, deployFlags.DeploymentFreezeNames.Name, "", nil, "Override this deployment freeze (can be specified multiple times)")
+	flags.StringVarP(&deployFlags.DeploymentFreezeOverrideReason.Value, deployFlags.DeploymentFreezeOverrideReason.Name, "", "", "Reason for overriding a deployment freeze")
 
 	flags.SortFlags = false
 
@@ -202,20 +211,22 @@ func deployRun(cmd *cobra.Command, f factory.Factory, flags *DeployFlags) error 
 	}
 
 	options := &executor.TaskOptionsDeployRelease{
-		ProjectName:          flags.Project.Value,
-		ReleaseVersion:       flags.ReleaseVersion.Value,
-		Environments:         flags.Environments.Value,
-		Tenants:              flags.Tenants.Value,
-		TenantTags:           flags.TenantTags.Value,
-		ScheduledStartTime:   flags.DeployAt.Value,
-		ScheduledExpiryTime:  flags.MaxQueueTime.Value,
-		ExcludedSteps:        flags.ExcludedSteps.Value,
-		GuidedFailureMode:    flags.GuidedFailureMode.Value,
-		ForcePackageDownload: flags.ForcePackageDownload.Value,
-		DeploymentTargets:    flags.DeploymentTargets.Value,
-		ExcludeTargets:       flags.ExcludeTargets.Value,
-		Variables:            parsedVariables,
-		UpdateVariables:      flags.UpdateVariables.Value,
+		ProjectName:                    flags.Project.Value,
+		ReleaseVersion:                 flags.ReleaseVersion.Value,
+		Environments:                   flags.Environments.Value,
+		Tenants:                        flags.Tenants.Value,
+		TenantTags:                     flags.TenantTags.Value,
+		ScheduledStartTime:             flags.DeployAt.Value,
+		ScheduledExpiryTime:            flags.MaxQueueTime.Value,
+		ExcludedSteps:                  flags.ExcludedSteps.Value,
+		GuidedFailureMode:              flags.GuidedFailureMode.Value,
+		ForcePackageDownload:           flags.ForcePackageDownload.Value,
+		DeploymentTargets:              flags.DeploymentTargets.Value,
+		ExcludeTargets:                 flags.ExcludeTargets.Value,
+		DeploymentFreezeNames:          flags.DeploymentFreezeNames.Value,
+		DeploymentFreezeOverrideReason: flags.DeploymentFreezeOverrideReason.Value,
+		Variables:                      parsedVariables,
+		UpdateVariables:                flags.UpdateVariables.Value,
 	}
 
 	// special case for FlagForcePackageDownload bool so we can tell if it was set on the cmdline or missing
@@ -250,6 +261,8 @@ func deployRun(cmd *cobra.Command, f factory.Factory, flags *DeployFlags) error 
 			resolvedFlags.GuidedFailureMode.Value = options.GuidedFailureMode
 			resolvedFlags.DeploymentTargets.Value = options.DeploymentTargets
 			resolvedFlags.ExcludeTargets.Value = options.ExcludeTargets
+			resolvedFlags.DeploymentFreezeNames.Value = options.DeploymentFreezeNames
+			resolvedFlags.DeploymentFreezeOverrideReason.Value = options.DeploymentFreezeOverrideReason
 
 			didMaskSensitiveVariable := false
 			automationVariables := make(map[string]string, len(options.Variables))
@@ -281,6 +294,8 @@ func deployRun(cmd *cobra.Command, f factory.Factory, flags *DeployFlags) error 
 				resolvedFlags.DeploymentTargets,
 				resolvedFlags.ExcludeTargets,
 				resolvedFlags.Variables,
+				resolvedFlags.DeploymentFreezeNames,
+				resolvedFlags.DeploymentFreezeOverrideReason,
 			)
 			cmd.Printf("\nAutomation Command: %s\n", autoCmd)
 
