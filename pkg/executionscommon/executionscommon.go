@@ -259,7 +259,11 @@ func AskVariableSpecificPrompt(asker question.Asker, message string, variableTyp
 		}
 		reverseLookup := make(map[string]string, len(displaySettings.SelectOptions))
 		optionStrings := make([]string, 0, len(displaySettings.SelectOptions))
-		displayNameForDefaultValue := ""
+		var displayNameForDefaultValue string
+		if len(displaySettings.SelectOptions) > 0 {
+			displayNameForDefaultValue = displaySettings.SelectOptions[0].DisplayName
+		}
+
 		for _, v := range displaySettings.SelectOptions {
 			if v.Value == defaultValue {
 				displayNameForDefaultValue = v.DisplayName
