@@ -228,7 +228,7 @@ func TestAskVariables(t *testing.T) {
 			_ = qa.ExpectQuestion(t, &survey.Select{
 				Message: "Division (Which part of the company do you work in?)",
 				Options: []string{"R&D", "Finance", "Human Resources", "Other"},
-				Default: "",
+				Default: "R&D",
 			}).AnswerWith("Human Resources")
 
 			output, err := testutil.ReceivePair(receiver)
