@@ -178,11 +178,16 @@ jobs:
       if: "!contains(needs.goreleaser.outputs.version, '-')" # skip prereleases
       run: gh release upload "${{ needs.goreleaser.outputs.tag_name }}" "$MSI_FILE"
 
-    - name: Append MSI to artifact octopus-cli.${{ needs.goreleaser.outputs.version }}
+    - name: Copy MSI into artifacts folder
+      shell: bash
+      run: cp "${{ steps.buildmsi.outputs.msi }}" "artifacts/${{ steps.buildmsi.outputs.msi }}"
+
+    - name: Re-upload artifacts with MSI to octopus-cli.${{ needs.goreleaser.outputs.version }}
       uses: actions/upload-artifact@v4
       with:
         name: octopus-cli.${{ needs.goreleaser.outputs.version }}
-        path: ${{ steps.buildmsi.outputs.msi }}
+        path: artifacts/
+        overwrite: true
 
   generate-packages-and-publish:
     needs: [goreleaser, msi]
