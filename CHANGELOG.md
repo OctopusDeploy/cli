@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.14.1](https://github.com/OctopusDeploy/cli/compare/v2.14.0...v2.14.1) (2025-01-23)
+
+
+### Bug Fixes
+
+* Use first option as default selection if dont sepecific by variable ([4932b5d](https://github.com/OctopusDeploy/cli/commit/4932b5d0a8edc7220ea187a9f9b20c9bf8b3bf68))
+
 ## [2.14.0](https://github.com/OctopusDeploy/cli/compare/v2.13.0...v2.14.0) (2024-12-04)
 
 
