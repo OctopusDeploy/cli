@@ -71,7 +71,6 @@ func cleanUpTemp(tempDir string) {
 }
 
 func TestBuildPackage_VerboseOutput(t *testing.T) {
-	// Setup test directory and file
 	basePath := setupForArchive(t)
 	if runtime.GOOS == "windows" {
 		defer t.Cleanup(func() {
@@ -83,7 +82,6 @@ func TestBuildPackage_VerboseOutput(t *testing.T) {
 	err := os.MkdirAll(outFolder, 0755)
 	assert.NoError(t, err)
 
-	// Create test options
 	var buf bytes.Buffer
 	opts := &PackageCreateOptions{
 		PackageCreateFlags: &PackageCreateFlags{
@@ -97,14 +95,12 @@ func TestBuildPackage_VerboseOutput(t *testing.T) {
 		},
 		Writer: &buf,
 	}
-
-	// Execute package build
 	_, err = BuildPackage(opts, "TestPackage.1.2.3.zip")
-	assert.NoError(t, err)
 
-	// Verify output format
 	expectedOutput := "Saving \"TestPackage.1.2.3.zip\" to \"" + outFolder + "\"...\n" +
 		"Adding files from \"" + filepath.ToSlash(basePath) + "\" matching pattern/s \"**\"\n" +
 		"Added file: test.txt\n"
+
+	assert.NoError(t, err)
 	assert.Equal(t, expectedOutput, buf.String())
 }
