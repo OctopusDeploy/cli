@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.14.2](https://github.com/OctopusDeploy/cli/compare/v2.14.1...v2.14.2) (2025-01-24)
+
+
+### Bug Fixes
+
+* issue verbose output of the octopus package nuget create ([#474](https://github.com/OctopusDeploy/cli/issues/474)) ([68ceb24](https://github.com/OctopusDeploy/cli/commit/68ceb247c5d7013240f299d0cafc07fef80a99fc))
+* Use first option as default selection if don't specific by variable and add test case cover that scenario ([9e96ae5](https://github.com/OctopusDeploy/cli/commit/9e96ae5c64ff75027d1881d7f6c89fd5509c85b0))
+
 ## [2.14.1](https://github.com/OctopusDeploy/cli/compare/v2.14.0...v2.14.1) (2025-01-23)
 
 
