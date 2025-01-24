@@ -192,7 +192,7 @@ jobs:
 
   generate-packages-and-publish:
     needs: [goreleaser, msi]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     env:
       OCTOPUS_API_KEY: ${{ secrets.OCTOPUS_API_KEY }}
       OCTOPUS_URL: ${{ secrets.OCTOPUS_URL }}
