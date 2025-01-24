@@ -1,7 +1,9 @@
 package support
 
 import (
+	"bytes"
 	"errors"
+	flag "github.com/OctopusDeploy/cli/pkg/util/flag"
 	"github.com/OctopusDeploy/cli/test/testutil"
 	"github.com/stretchr/testify/assert"
 	"os"
@@ -66,4 +68,43 @@ func cleanUpTemp(tempDir string) {
 		time.Sleep(time.Millisecond * 10)
 		err = os.RemoveAll(tempDir)
 	}
+}
+
+func TestBuildPackage_VerboseOutput(t *testing.T) {
+	// Setup test directory and file
+	basePath := setupForArchive(t)
+	if runtime.GOOS == "windows" {
+		defer t.Cleanup(func() {
+			cleanUpTemp(basePath)
+		})
+	}
+
+	outFolder := filepath.Join(basePath, "out")
+	err := os.MkdirAll(outFolder, 0755)
+	assert.NoError(t, err)
+
+	// Create test options
+	var buf bytes.Buffer
+	opts := &PackageCreateOptions{
+		PackageCreateFlags: &PackageCreateFlags{
+			Id:        &flag.Flag[string]{Value: "TestPackage"},
+			Version:   &flag.Flag[string]{Value: "1.2.3"},
+			BasePath:  &flag.Flag[string]{Value: basePath},
+			OutFolder: &flag.Flag[string]{Value: outFolder},
+			Include:   &flag.Flag[[]string]{Value: []string{"**"}},
+			Verbose:   &flag.Flag[bool]{Value: true},
+			Overwrite: &flag.Flag[bool]{Value: true},
+		},
+		Writer: &buf,
+	}
+
+	// Execute package build
+	_, err = BuildPackage(opts, "TestPackage.1.2.3.zip")
+	assert.NoError(t, err)
+
+	// Verify output format
+	expectedOutput := "Saving \"TestPackage.1.2.3.zip\" to \"" + outFolder + "\"...\n" +
+		"Adding files from \"" + filepath.ToSlash(basePath) + "\" matching pattern/s \"**\"\n" +
+		"Added file: test.txt\n"
+	assert.Equal(t, expectedOutput, buf.String())
 }
