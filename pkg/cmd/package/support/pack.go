@@ -177,7 +177,7 @@ func BuildPackage(opts *PackageCreateOptions, outFileName string) (*os.File, err
 		return nil, fmt.Errorf("package with name '%s' already exists ...aborting", outFileName)
 	}
 
-	VerboseOut(opts.Writer, opts.Verbose.Value, "Saving \"%s\" to \"%s\"...\nAdding files from \"%s\" matching pattern/s \"%s\"\n", outPath, outFileName, outPath, strings.Join(opts.Include.Value, ", "))
+	VerboseOut(opts.Writer, opts.Verbose.Value, "Saving \"%s\" to \"%s\"...\nAdding files from \"%s\" matching pattern/s \"%s\"\n", outFileName, outPath, opts.BasePath.Value, strings.Join(opts.Include.Value, ", "))
 
 	filePaths, err := getDistinctPatternMatches(opts.BasePath.Value, opts.Include.Value)
 	if err != nil {
