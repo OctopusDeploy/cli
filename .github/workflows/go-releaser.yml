@@ -118,7 +118,7 @@ jobs:
         name="octopus_${{ needs.goreleaser.outputs.version }}_windows_amd64"
         version="$(echo -e ${{ needs.goreleaser.outputs.version }} | sed 's/-.*$//')"
         "${MSBUILD_PATH}\MSBuild.exe" ./build/windows/octopus.wixproj -p:SourceDir="$PWD" -p:OutputPath="$PWD" -p:OutputName="$name" -p:ProductVersion="$version"
-        echo  "msi_name=$name" >> "$GITHUB_OUTPUT"
+        echo  "msi_name=$name.msi" >> "$GITHUB_OUTPUT"
 
     - name: Install AzureSignTool
       run: dotnet tool install --global AzureSignTool
