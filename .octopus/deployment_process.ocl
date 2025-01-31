@@ -227,7 +227,13 @@ step "publish-winget-update-pr" {
                 EOT
             Octopus.Action.Script.ScriptSource = "Inline"
             Octopus.Action.Script.Syntax = "PowerShell"
+            OctopusUseBundledTooling = "False"
         }
         worker_pool = "hosted-windows"
+
+        container {
+            feed = "docker-hub"
+            image = "octopusdeploy/worker-tools:6.3.0-windows.ltsc2022"
+        }
     }
 }
