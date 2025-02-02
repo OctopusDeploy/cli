@@ -216,9 +216,9 @@ step "publish-winget-update-pr" {
         properties = {
             Octopus.Action.Script.ScriptBody = <<-EOT
                 # Install winget-create
-                #Invoke-WebRequest https://aka.ms/wingetcreate/latest -OutFile wingetcreate.exe
+                Invoke-WebRequest https://aka.ms/wingetcreate/latest -OutFile wingetcreate.exe
                 
-                Invoke-WebRequest https://github.com/microsoft/winget-create/releases/download/v1.6.5.0/wingetcreate.exe -OutFile wingetcreate.exe
+                #Invoke-WebRequest https://github.com/microsoft/winget-create/releases/download/v1.6.5.0/wingetcreate.exe -OutFile wingetcreate.exe
                 
                 
                 $version = $OctopusParameters["Octopus.Release.Number"]
@@ -236,7 +236,7 @@ step "publish-winget-update-pr" {
 
         container {
             feed = "docker-hub"
-            image = "octopusdeploy/worker-tools:6.3.0-windows.ltsc2022"
+            image = "octopusdeploy/worker-tools:6.4.0-windows.ltsc2022"
         }
     }
 }
