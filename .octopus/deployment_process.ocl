@@ -216,6 +216,7 @@ step "publish-winget-update-pr" {
         properties = {
             Octopus.Action.Script.ScriptBody = <<-EOT
                 # Install winget-create
+                echo "Downloading wingetcreate"
                 Invoke-WebRequest https://aka.ms/wingetcreate/latest -OutFile wingetcreate.exe
                 
                 #Invoke-WebRequest https://github.com/microsoft/winget-create/releases/download/v1.6.5.0/wingetcreate.exe -OutFile wingetcreate.exe
