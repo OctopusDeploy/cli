@@ -5,6 +5,12 @@ package executionscommon
 
 import (
 	"fmt"
+	"reflect"
+	"sort"
+	"strconv"
+	"strings"
+	"time"
+
 	"github.com/AlecAivazis/survey/v2"
 	cliErrors "github.com/OctopusDeploy/cli/pkg/errors"
 	"github.com/OctopusDeploy/cli/pkg/question"
@@ -16,11 +22,12 @@ import (
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/resources"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/tenants"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/variables"
-	"sort"
-	"strconv"
-	"strings"
-	"time"
 )
+
+type VariableContext struct {
+	EnvironmentIDs []string
+	ProcessOwner   []string
+}
 
 func findTenantsAndTags(octopus *octopusApiClient.Client, projectID string, environmentIDs []string) ([]string, []string, error) {
 	var validTenants []string
@@ -148,13 +155,16 @@ func AskGuidedFailureMode(asker question.Asker) (string, error) {
 
 // AskVariables returns the map of ALL variables to send to the server, whether they were prompted for, or came from the command line.
 // variablesFromCmd is copied into the result, you don't need to merge them yourselves.
-// Return values: 0: Variables to send to the server, 1: List of sensitive variable names for masking automation command, 2: error
-func AskVariables(asker question.Asker, variableSet *variables.VariableSet, variablesFromCmd map[string]string) (map[string]string, error) {
+// Return values: 0: Variables to send to the server, 1: error
+func AskVariables(asker question.Asker, variableSet *variables.VariableSet, variablesFromCmd map[string]string, variableContext *VariableContext) (map[string]string, error) {
 	if asker == nil {
 		return nil, cliErrors.NewArgumentNullOrEmptyError("asker")
 	}
 	if variableSet == nil {
 		return nil, cliErrors.NewArgumentNullOrEmptyError("variableSet")
+	}
+	if variableContext == nil {
+		variableContext = &VariableContext{}
 	}
 
 	// variablesFromCmd is pure user input and may not have correct casing.
@@ -173,6 +183,11 @@ func AskVariables(asker question.Asker, variableSet *variables.VariableSet, vari
 			}
 
 			if v.Prompt != nil && !foundValueOnCommandLine { // this is a prompted variable, ask for input (unless we already have it)
+				// Check if the variable is in scope before prompting
+				if !isVariableInScope(v, variableContext) {
+					continue // Skip variables that are not in scope
+				}
+
 				// NOTE: there is a v.Prompt.Label which is shown in the web portal,
 				// but we explicitly don't use it here because it can lead to confusion.
 				// e.g.
@@ -199,6 +214,7 @@ func AskVariables(asker question.Asker, variableSet *variables.VariableSet, vari
 			}
 		}
 	}
+
 	return result, nil
 }
 
@@ -467,4 +483,31 @@ func FindEnvironments(client *octopusApiClient.Client, environmentNamesOrIds []s
 		}
 	}
 	return result, nil
+}
+
+func isVariableInScope(variable *variables.Variable, context *VariableContext) bool {
+	if variable == nil || reflect.ValueOf(variable.Scope).IsZero() {
+		return true
+	}
+
+	hasScopes := len(variable.Scope.Environments) > 0 ||
+		len(variable.Scope.ProcessOwners) > 0
+
+	if !hasScopes {
+		return true
+	}
+
+	if len(variable.Scope.Environments) > 0 {
+		if !util.SliceOverlap(variable.Scope.Environments, context.EnvironmentIDs) {
+			return false
+		}
+	}
+
+	if len(variable.Scope.ProcessOwners) > 0 {
+		if !util.SliceOverlap(variable.Scope.ProcessOwners, context.ProcessOwner) {
+			return false
+		}
+	}
+
+	return true
 }
