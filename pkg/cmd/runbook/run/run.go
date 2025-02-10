@@ -598,7 +598,7 @@ func AskDbRunbookRunQuestions(octopus *octopusApiClient.Client, stdout io.Writer
 		}
 	}
 
-	options.Variables, err = askRunbookPreviewVariables(
+	variables, sensitiveVars, err := askRunbookPreviewVariables(
 		octopus,
 		asker,
 		space,
@@ -613,6 +613,8 @@ func AskDbRunbookRunQuestions(octopus *octopusApiClient.Client, stdout io.Writer
 	if err != nil {
 		return err
 	}
+	options.Variables = variables
+	options.SensitiveVariableNames = sensitiveVars
 
 	PrintAdvancedSummary(stdout, &options.TaskOptionsRunbookRunBase)
 
@@ -854,7 +856,7 @@ func AskGitRunbookRunQuestions(octopus *octopusApiClient.Client, stdout io.Write
 		}
 	}
 
-	options.Variables, err = askRunbookPreviewVariables(
+	variables, sensitiveVars, err := askRunbookPreviewVariables(
 		octopus,
 		asker,
 		space,
@@ -869,6 +871,8 @@ func AskGitRunbookRunQuestions(octopus *octopusApiClient.Client, stdout io.Write
 	if err != nil {
 		return err
 	}
+	options.Variables = variables
+	options.SensitiveVariableNames = sensitiveVars
 
 	PrintAdvancedSummary(stdout, &options.TaskOptionsRunbookRunBase)
 
@@ -993,7 +997,7 @@ func askRunbookPreviewVariables(
 	isGitBased bool,
 	gitRef string,
 	snapshotID string,
-) (map[string]string, error) {
+) (map[string]string, []string, error) {
 	// Get previews for each environment to determine required variables
 	var previews []*runbooks.RunPreview
 	for _, environment := range selectedEnvironments {
@@ -1006,7 +1010,7 @@ func askRunbookPreviewVariables(
 			preview, err = runbooks.GetRunbookSnapshotRunPreview(octopus, space.ID, snapshotID, environment.ID, true)
 		}
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		previews = append(previews, preview)
 	}
@@ -1035,6 +1039,9 @@ func askRunbookPreviewVariables(
 		return keys[i] > keys[j]
 	})
 
+	// Track sensitive variables
+	sensitiveVars := make([]string, 0)
+
 	for _, key := range keys {
 		control := flattenedControls[key]
 		valueFromCmd, foundValueOnCommandLine := lcaseVarsFromCmd[strings.ToLower(control.Name)]
@@ -1053,13 +1060,18 @@ func askRunbookPreviewVariables(
 
 			responseString, err := executionscommon.AskVariableSpecificPrompt(asker, promptMessage, control.Type, defaultValue, control.Required, isSensitive, control.DisplaySettings)
 			if err != nil {
-				return nil, err
+				return nil, nil, err
 			}
 			result[control.Name] = responseString
 		}
+
+		// Track sensitive variables from the preview
+		if control.DisplaySettings.ControlType == "Sensitive" {
+			sensitiveVars = append(sensitiveVars, control.Name)
+		}
 	}
 
-	return result, nil
+	return result, sensitiveVars, nil
 }
 
 func askRunbookTargets(octopus *octopusApiClient.Client, asker question.Asker, spaceID string, runbookSnapshotID string, selectedEnvironments []*environments.Environment) ([]string, error) {
