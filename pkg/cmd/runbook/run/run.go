@@ -600,17 +600,10 @@ func AskDbRunbookRunQuestions(octopus *octopusApiClient.Client, stdout io.Writer
 	if err != nil {
 		return err
 	}
-
-	varContext := &executionscommon.VariableContext{
-		EnvironmentIDs: util.SliceTransform(selectedEnvironments, func(e *environments.Environment) string { return e.ID }),
-		ProcessOwner:   []string{selectedSnapshot.RunbookID}, // RunbookID is the process owner for runbooks
-	}
-
-	options.Variables, err = executionscommon.AskVariables(asker, variableSet, options.Variables, varContext)
+	options.Variables, err = executionscommon.AskVariables(asker, variableSet, options.Variables)
 	if err != nil {
 		return err
 	}
-
 	// provide list of sensitive variables to the output phase so it doesn't have to go to the server for the variableSet a second time
 	if variableSet.Variables != nil {
 		sv := util.SliceFilter(variableSet.Variables, func(v *variables.Variable) bool { return v.IsSensitive || v.Type == "Sensitive" })

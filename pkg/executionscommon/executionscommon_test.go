@@ -31,7 +31,7 @@ func TestAskVariables(t *testing.T) {
 		run  func(t *testing.T, qa *testutil.AskMocker, stdout *bytes.Buffer)
 	}{
 		{"doesn't do anything if there are no variables", func(t *testing.T, qa *testutil.AskMocker, stdout *bytes.Buffer) {
-			output, err := executionscommon.AskVariables(qa.AsAsker(), makeVariables(), make(map[string]string, 0), &executionscommon.VariableContext{})
+			output, err := executionscommon.AskVariables(qa.AsAsker(), makeVariables(), make(map[string]string, 0))
 			assert.Nil(t, err)
 			assert.Equal(t, make(map[string]string, 0), output)
 		}},
@@ -40,7 +40,7 @@ func TestAskVariables(t *testing.T) {
 			serverVars := makeVariables(variables.NewVariable("Foo"))
 			cmdlineVars := map[string]string{"foO": "bar", "doesntexist": "value"}
 
-			output, err := executionscommon.AskVariables(qa.AsAsker(), serverVars, cmdlineVars, &executionscommon.VariableContext{})
+			output, err := executionscommon.AskVariables(qa.AsAsker(), serverVars, cmdlineVars)
 			assert.Nil(t, err)
 			assert.Equal(t, map[string]string{"Foo": "bar"}, output)
 		}},
@@ -56,7 +56,7 @@ func TestAskVariables(t *testing.T) {
 
 			vars := makeVariables(v1)
 			receiver := testutil.GoBegin2(func() (map[string]string, error) {
-				return executionscommon.AskVariables(qa.AsAsker(), vars, make(map[string]string, 0), &executionscommon.VariableContext{})
+				return executionscommon.AskVariables(qa.AsAsker(), vars, make(map[string]string, 0))
 			})
 
 			_ = qa.ExpectQuestion(t, &survey.Input{
@@ -81,7 +81,7 @@ func TestAskVariables(t *testing.T) {
 
 			vars := makeVariables(v1)
 			receiver := testutil.GoBegin2(func() (map[string]string, error) {
-				return executionscommon.AskVariables(qa.AsAsker(), vars, make(map[string]string, 0), &executionscommon.VariableContext{})
+				return executionscommon.AskVariables(qa.AsAsker(), vars, make(map[string]string, 0))
 			})
 
 			_ = qa.ExpectQuestion(t, &survey.Input{
@@ -104,7 +104,7 @@ func TestAskVariables(t *testing.T) {
 
 			vars := makeVariables(v1)
 			receiver := testutil.GoBegin2(func() (map[string]string, error) {
-				return executionscommon.AskVariables(qa.AsAsker(), vars, make(map[string]string, 0), &executionscommon.VariableContext{})
+				return executionscommon.AskVariables(qa.AsAsker(), vars, make(map[string]string, 0))
 			})
 
 			q := qa.ExpectQuestion(t, &survey.Input{Message: "ReqText (Enter required text)", Default: ""})
@@ -126,7 +126,7 @@ func TestAskVariables(t *testing.T) {
 
 			vars := makeVariables(v1)
 			receiver := testutil.GoBegin2(func() (map[string]string, error) {
-				return executionscommon.AskVariables(qa.AsAsker(), vars, make(map[string]string, 0), &executionscommon.VariableContext{})
+				return executionscommon.AskVariables(qa.AsAsker(), vars, make(map[string]string, 0))
 			})
 
 			_ = qa.ExpectQuestion(t, &survey.Password{
@@ -147,7 +147,7 @@ func TestAskVariables(t *testing.T) {
 
 			vars := makeVariables(v1)
 			receiver := testutil.GoBegin2(func() (map[string]string, error) {
-				return executionscommon.AskVariables(qa.AsAsker(), vars, make(map[string]string, 0), &executionscommon.VariableContext{})
+				return executionscommon.AskVariables(qa.AsAsker(), vars, make(map[string]string, 0))
 			})
 
 			_ = qa.ExpectQuestion(t, &survey.Password{
@@ -168,7 +168,7 @@ func TestAskVariables(t *testing.T) {
 
 			vars := makeVariables(v1)
 			receiver := testutil.GoBegin2(func() (map[string]string, error) {
-				return executionscommon.AskVariables(qa.AsAsker(), vars, make(map[string]string, 0), &executionscommon.VariableContext{})
+				return executionscommon.AskVariables(qa.AsAsker(), vars, make(map[string]string, 0))
 			})
 
 			_ = qa.ExpectQuestion(t, &survey.Password{
@@ -201,7 +201,7 @@ func TestAskVariables(t *testing.T) {
 			}
 			vars := makeVariables(v1, v2)
 
-			output, err := executionscommon.AskVariables(qa.AsAsker(), vars, make(map[string]string, 0), &executionscommon.VariableContext{})
+			output, err := executionscommon.AskVariables(qa.AsAsker(), vars, make(map[string]string, 0))
 
 			assert.Nil(t, err)
 			assert.Equal(t, make(map[string]string, 0), output)
@@ -223,7 +223,7 @@ func TestAskVariables(t *testing.T) {
 
 			vars := makeVariables(v1)
 			receiver := testutil.GoBegin2(func() (map[string]string, error) {
-				return executionscommon.AskVariables(qa.AsAsker(), vars, make(map[string]string, 0), &executionscommon.VariableContext{})
+				return executionscommon.AskVariables(qa.AsAsker(), vars, make(map[string]string, 0))
 			})
 
 			_ = qa.ExpectQuestion(t, &survey.Select{
@@ -253,7 +253,7 @@ func TestAskVariables(t *testing.T) {
 
 			vars := makeVariables(v1)
 			receiver := testutil.GoBegin2(func() (map[string]string, error) {
-				return executionscommon.AskVariables(qa.AsAsker(), vars, make(map[string]string, 0), &executionscommon.VariableContext{})
+				return executionscommon.AskVariables(qa.AsAsker(), vars, make(map[string]string, 0))
 			})
 
 			_ = qa.ExpectQuestion(t, &survey.Select{
@@ -277,7 +277,7 @@ func TestAskVariables(t *testing.T) {
 
 			vars := makeVariables(v1)
 			receiver := testutil.GoBegin2(func() (map[string]string, error) {
-				return executionscommon.AskVariables(qa.AsAsker(), vars, make(map[string]string, 0), &executionscommon.VariableContext{})
+				return executionscommon.AskVariables(qa.AsAsker(), vars, make(map[string]string, 0))
 			})
 
 			_ = qa.ExpectQuestion(t, &survey.Select{
@@ -302,7 +302,7 @@ func TestAskVariables(t *testing.T) {
 
 			vars := makeVariables(v1)
 			receiver := testutil.GoBegin2(func() (map[string]string, error) {
-				return executionscommon.AskVariables(qa.AsAsker(), vars, make(map[string]string, 0), &executionscommon.VariableContext{})
+				return executionscommon.AskVariables(qa.AsAsker(), vars, make(map[string]string, 0))
 			})
 
 			_ = qa.ExpectQuestion(t, &survey.Select{
