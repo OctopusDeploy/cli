@@ -4,8 +4,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/OctopusDeploy/cli/pkg/packages"
+	"golang.org/x/exp/maps"
 	"io"
 	"math"
+	"sort"
 	"strings"
 	"time"
 
@@ -20,7 +23,6 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/OctopusDeploy/cli/pkg/gitresources"
 	"github.com/OctopusDeploy/cli/pkg/output"
-	"github.com/OctopusDeploy/cli/pkg/packages"
 	"github.com/OctopusDeploy/cli/pkg/question"
 	"github.com/OctopusDeploy/cli/pkg/question/selectors"
 	"github.com/OctopusDeploy/cli/pkg/surveyext"
@@ -28,12 +30,12 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/util/flag"
 	octopusApiClient "github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/core"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/deployments"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/environments"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/releases"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/runbooks"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/spaces"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/variables"
 	"github.com/spf13/cobra"
 )
 
@@ -596,18 +598,20 @@ func AskDbRunbookRunQuestions(octopus *octopusApiClient.Client, stdout io.Writer
 		}
 	}
 
-	variableSet, err := variables.GetVariableSet(octopus, space.ID, selectedSnapshot.FrozenProjectVariableSetID)
+	options.Variables, err = askRunbookPreviewVariables(
+		octopus,
+		asker,
+		space,
+		project,
+		selectedRunbook,
+		selectedEnvironments,
+		options.Variables,
+		false,
+		"",
+		selectedSnapshot.ID,
+	)
 	if err != nil {
 		return err
-	}
-	options.Variables, err = executionscommon.AskVariables(asker, variableSet, options.Variables)
-	if err != nil {
-		return err
-	}
-	// provide list of sensitive variables to the output phase so it doesn't have to go to the server for the variableSet a second time
-	if variableSet.Variables != nil {
-		sv := util.SliceFilter(variableSet.Variables, func(v *variables.Variable) bool { return v.IsSensitive || v.Type == "Sensitive" })
-		options.SensitiveVariableNames = util.SliceTransform(sv, func(v *variables.Variable) string { return v.Name })
 	}
 
 	PrintAdvancedSummary(stdout, &options.TaskOptionsRunbookRunBase)
@@ -850,6 +854,22 @@ func AskGitRunbookRunQuestions(octopus *octopusApiClient.Client, stdout io.Write
 		}
 	}
 
+	options.Variables, err = askRunbookPreviewVariables(
+		octopus,
+		asker,
+		space,
+		project,
+		selectedRunbook,
+		selectedEnvironments,
+		options.Variables,
+		true,
+		options.GitReference,
+		"",
+	)
+	if err != nil {
+		return err
+	}
+
 	PrintAdvancedSummary(stdout, &options.TaskOptionsRunbookRunBase)
 
 	isRunAtSpecified := options.ScheduledStartTime != ""
@@ -960,6 +980,86 @@ func AskGitRunbookRunQuestions(octopus *octopusApiClient.Client, stdout io.Write
 	}
 	// DONE
 	return nil
+}
+
+func askRunbookPreviewVariables(
+	octopus *octopusApiClient.Client,
+	asker question.Asker,
+	space *spaces.Space,
+	project *projects.Project,
+	runbook *runbooks.Runbook,
+	selectedEnvironments []*environments.Environment,
+	variablesFromCmd map[string]string,
+	isGitBased bool,
+	gitRef string,
+	snapshotID string,
+) (map[string]string, error) {
+	// Get previews for each environment to determine required variables
+	var previews []*runbooks.RunPreview
+	for _, environment := range selectedEnvironments {
+		var preview *runbooks.RunPreview
+		var err error
+
+		if isGitBased {
+			preview, err = runbooks.GetGitRunbookRunPreview(octopus, space.ID, project.ID, runbook.ID, gitRef, environment.ID, true)
+		} else {
+			preview, err = runbooks.GetRunbookSnapshotRunPreview(octopus, space.ID, snapshotID, environment.ID, true)
+		}
+		if err != nil {
+			return nil, err
+		}
+		previews = append(previews, preview)
+	}
+
+	// Build a map of variable names to their values and controls
+	flattenedValues := make(map[string]string)
+	flattenedControls := make(map[string]*deployments.Control)
+	for _, preview := range previews {
+		for _, element := range preview.Form.Elements {
+			flattenedControls[element.Name] = element.Control
+		}
+		for key, value := range preview.Form.Values {
+			flattenedValues[key] = value
+		}
+	}
+
+	// Process variables from command line and prompts
+	result := make(map[string]string)
+	lcaseVarsFromCmd := make(map[string]string, len(variablesFromCmd))
+	for k, v := range variablesFromCmd {
+		lcaseVarsFromCmd[strings.ToLower(k)] = v
+	}
+
+	keys := maps.Keys(flattenedControls)
+	sort.Slice(keys, func(i, j int) bool {
+		return keys[i] > keys[j]
+	})
+
+	for _, key := range keys {
+		control := flattenedControls[key]
+		valueFromCmd, foundValueOnCommandLine := lcaseVarsFromCmd[strings.ToLower(control.Name)]
+		if foundValueOnCommandLine {
+			// implicitly fixes up variable casing
+			result[control.Name] = valueFromCmd
+		}
+		if control.Required == true && !foundValueOnCommandLine {
+			defaultValue := flattenedValues[key]
+			isSensitive := control.DisplaySettings.ControlType == "Sensitive"
+			promptMessage := control.Name
+
+			if control.Description != "" {
+				promptMessage = fmt.Sprintf("%s (%s)", promptMessage, control.Description)
+			}
+
+			responseString, err := executionscommon.AskVariableSpecificPrompt(asker, promptMessage, control.Type, defaultValue, control.Required, isSensitive, control.DisplaySettings)
+			if err != nil {
+				return nil, err
+			}
+			result[control.Name] = responseString
+		}
+	}
+
+	return result, nil
 }
 
 func askRunbookTargets(octopus *octopusApiClient.Client, asker question.Asker, spaceID string, runbookSnapshotID string, selectedEnvironments []*environments.Environment) ([]string, error) {
