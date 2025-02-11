@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.14.3](https://github.com/OctopusDeploy/cli/compare/v2.14.2...v2.14.3) (2025-02-11)
+
+
+### Bug Fixes
+
+* Check runbook variable context when prompt variable ([#480](https://github.com/OctopusDeploy/cli/issues/480)) ([13337bf](https://github.com/OctopusDeploy/cli/commit/13337bf0e02694acf667d211cd8853f663d9844d))
+
 ## [2.14.2](https://github.com/OctopusDeploy/cli/compare/v2.14.1...v2.14.2) (2025-01-24)
 
 
