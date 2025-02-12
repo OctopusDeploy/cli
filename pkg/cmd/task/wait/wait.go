@@ -3,6 +3,7 @@ package wait
 import (
 	"fmt"
 	"io"
+	"strings"
 	"time"
 
 	"github.com/MakeNowJust/heredoc/v2"
@@ -254,7 +255,14 @@ func printActivityElement(out io.Writer, activity *tasks.ActivityElement, indent
 				if stepChild.Status == "Success" || stepChild.Status == "Failed" {
 					// Print all log elements for this step's child
 					for _, logElement := range stepChild.LogElements {
-						fmt.Fprintf(out, "                  %-8s %s\n", logElement.Category, logElement.MessageText)
+						// Extract just the message without the timestamp if it ends with a timestamp
+						message := logElement.MessageText
+						if idx := strings.LastIndex(message, " at "); idx != -1 && strings.Contains(message[idx:], "2025") {
+							message = message[:idx]
+						}
+						
+						timeStr := logElement.OccurredAt.Format("02-01-2006 15:04:05")
+						fmt.Fprintf(out, "                  %-19s      %-8s %s\n", timeStr, logElement.Category, message)
 					}
 				}
 			}
