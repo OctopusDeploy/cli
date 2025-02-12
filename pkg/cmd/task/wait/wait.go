@@ -3,7 +3,6 @@ package wait
 import (
 	"fmt"
 	"io"
-	"strings"
 	"time"
 
 	"github.com/MakeNowJust/heredoc/v2"
@@ -35,8 +34,9 @@ type TaskDetailsCallback func(string) (*tasks.TaskDetailsResource, error)
 
 type LogState struct {
 	processedLogs      map[string]bool
-	lastActivityStatus map[string]string // tracks last known status for each activity
+	lastActivityStatus map[string]string
 	headerPrinted      bool
+	completedChildIds  map[string]bool
 }
 
 func NewLogState() *LogState {
@@ -44,6 +44,7 @@ func NewLogState() *LogState {
 		processedLogs:      make(map[string]bool),
 		lastActivityStatus: make(map[string]string),
 		headerPrinted:      false,
+		completedChildIds:  make(map[string]bool),
 	}
 }
 
@@ -143,6 +144,7 @@ func WaitRun(out io.Writer, taskIDs []string, getServerTasksCallback ServerTasks
 	gotError := make(chan error, 1)
 	done := make(chan bool, 1)
 	logState := NewLogState()
+
 	go func() {
 		for len(pendingTaskIDs) != 0 {
 			time.Sleep(5 * time.Second)
@@ -152,13 +154,7 @@ func WaitRun(out io.Writer, taskIDs []string, getServerTasksCallback ServerTasks
 				return
 			}
 			for _, t := range tasks {
-				if t.IsCompleted != nil && *t.IsCompleted {
-					if t.FinishedSuccessfully != nil && !*t.FinishedSuccessfully {
-						failedTaskIDs = append(failedTaskIDs, t.ID)
-					}
-					fmt.Fprintf(out, "%s: %s\n", t.Description, t.State)
-					pendingTaskIDs = removeTaskID(pendingTaskIDs, t.ID)
-				} else if showProgress {
+				if showProgress {
 					details, err := getTaskDetailsCallback(t.ID)
 					if err != nil {
 						continue // Skip progress display if we can't get details
@@ -170,10 +166,23 @@ func WaitRun(out io.Writer, taskIDs []string, getServerTasksCallback ServerTasks
 							logState.headerPrinted = true
 						}
 
+						// Process all activities
 						for _, activity := range details.ActivityLogs {
+							if !logState.hasProcessed(activity, nil) {
+								fmt.Fprintf(out, "Running: %s\n", activity.Name)
+								logState.markProcessed(activity, nil)
+							}
 							printActivityElement(out, activity, 0, logState)
 						}
 					}
+				}
+
+				if t.IsCompleted != nil && *t.IsCompleted {
+					if t.FinishedSuccessfully != nil && !*t.FinishedSuccessfully {
+						failedTaskIDs = append(failedTaskIDs, t.ID)
+					}
+					fmt.Fprintf(out, "%s: %s\n", t.Description, t.State)
+					pendingTaskIDs = removeTaskID(pendingTaskIDs, t.ID)
 				}
 			}
 		}
@@ -192,7 +201,6 @@ func WaitRun(out io.Writer, taskIDs []string, getServerTasksCallback ServerTasks
 	case <-time.After(time.Duration(timeout) * time.Second):
 		return fmt.Errorf("timeout while waiting for pending tasks")
 	}
-
 }
 
 func GetServerTasksCallback(octopus *client.Client) ServerTasksCallback {
@@ -233,26 +241,24 @@ func removeTaskID(taskIDs []string, taskID string) []string {
 }
 
 func printActivityElement(out io.Writer, activity *tasks.ActivityElement, indent int, logState *LogState) {
-	indentStr := strings.Repeat(" ", indent*9)
-
-	// Check if status has changed
-	if !logState.hasProcessed(activity, nil) {
-		if activity.Status != "" {
-			fmt.Fprintf(out, "%s%s: %s\n", indentStr, activity.Status, activity.Name)
-		}
-		logState.markProcessed(activity, nil)
-	}
-
-	// Print child activities
+	// Process children activities (these are the steps)
 	for _, child := range activity.Children {
-		printActivityElement(out, child, indent+1, logState)
-	}
-
-	// Print only new log elements
-	for _, logElement := range activity.LogElements {
-		if !logState.hasProcessed(activity, logElement) {
-			fmt.Fprintf(out, "%s  %-8s %s\n", indentStr, logElement.Category, logElement.MessageText)
-			logState.markProcessed(activity, logElement)
+		// Only print logs for children that have completed and haven't been processed yet
+		if (child.Status == "Success" || child.Status == "Failed") && !logState.completedChildIds[child.ID] {
+			fmt.Fprintf(out, "         %s: %s\n", child.Status, child.Name)
+			
+			// Each step has child activities (like "Octopus Server") that contain the actual logs
+			for _, stepChild := range child.Children {
+				if stepChild.Status == "Success" || stepChild.Status == "Failed" {
+					// Print all log elements for this step's child
+					for _, logElement := range stepChild.LogElements {
+						fmt.Fprintf(out, "                  %-8s %s\n", logElement.Category, logElement.MessageText)
+					}
+				}
+			}
+			
+			// Mark this child as completed
+			logState.completedChildIds[child.ID] = true
 		}
 	}
 }
