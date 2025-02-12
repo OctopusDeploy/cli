@@ -9,6 +9,7 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/cmd"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/factory"
+	"github.com/OctopusDeploy/cli/pkg/output"
 	"github.com/OctopusDeploy/cli/pkg/util"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/tasks"
@@ -240,8 +241,14 @@ func printActivityElement(out io.Writer, activity *tasks.ActivityElement, indent
 	for _, child := range activity.Children {
 		// Only print logs for children that have completed and haven't been processed yet
 		if (child.Status == "Success" || child.Status == "Failed") && !logState.completedChildIds[child.ID] {
-			fmt.Fprintf(out, "         %s: %s\n", child.Status, child.Name)
-			
+			line := fmt.Sprintf("         %s: %s", child.Status, child.Name)
+			if child.Status == "Success" {
+				line = output.Green(line)
+			} else if child.Status == "Failed" {
+				line = output.Red(line)
+			}
+			fmt.Fprintln(out, line)
+
 			// Each step has child activities (like "Octopus Server") that contain the actual logs
 			for _, stepChild := range child.Children {
 				if stepChild.Status == "Success" || stepChild.Status == "Failed" {
@@ -251,7 +258,7 @@ func printActivityElement(out io.Writer, activity *tasks.ActivityElement, indent
 					}
 				}
 			}
-			
+
 			// Mark this child as completed
 			logState.completedChildIds[child.ID] = true
 		}
