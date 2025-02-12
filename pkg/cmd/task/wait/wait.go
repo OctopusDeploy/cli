@@ -133,7 +133,12 @@ func WaitRun(out io.Writer, taskIDs []string, getServerTasksCallback ServerTasks
 		if (t.IsCompleted != nil && *t.IsCompleted) && (t.FinishedSuccessfully != nil && !*t.FinishedSuccessfully) {
 			failedTaskIDs = append(failedTaskIDs, t.ID)
 		}
-		fmt.Fprintf(out, "%s: %s\n", t.Description, t.State)
+		
+		status := fmt.Sprintf("%s: %s", t.Description, t.State)
+		if t.State == "Failed" {
+			status = output.Red(status)
+		}
+		fmt.Fprintln(out, status)
 	}
 
 	if len(pendingTaskIDs) == 0 {
@@ -255,14 +260,29 @@ func printActivityElement(out io.Writer, activity *tasks.ActivityElement, indent
 				if stepChild.Status == "Success" || stepChild.Status == "Failed" {
 					// Print all log elements for this step's child
 					for _, logElement := range stepChild.LogElements {
-						// Extract just the message without the timestamp if it ends with a timestamp
+						// Extract just the message without the timestamp
 						message := logElement.MessageText
-						if idx := strings.LastIndex(message, " at "); idx != -1 && strings.Contains(message[idx:], "2025") {
-							message = message[:idx]
+						if idx := strings.LastIndex(message, " at "); idx != -1 {
+							// Check if the remaining part matches a date pattern
+							remainder := message[idx+4:] // Skip " at "
+							if _, err := time.Parse("02/01/2006 15:04:05", strings.TrimSpace(remainder)); err == nil {
+								message = strings.TrimSpace(message[:idx])
+							}
 						}
 						
 						timeStr := logElement.OccurredAt.Format("02-01-2006 15:04:05")
-						fmt.Fprintf(out, "                  %-19s      %-8s %s\n", timeStr, logElement.Category, message)
+						category := logElement.Category
+						
+						// Color the category and message based on severity
+						logLine := fmt.Sprintf("                  %-19s      %-8s %s", timeStr, category, message)
+						switch strings.ToLower(category) {
+						case "warning":
+							logLine = output.Yellow(logLine)
+						case "error", "fatal":
+							logLine = output.Red(logLine)
+						}
+						
+						fmt.Fprintln(out, logLine)
 					}
 				}
 			}
