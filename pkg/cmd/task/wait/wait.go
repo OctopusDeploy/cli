@@ -33,18 +33,18 @@ type ServerTasksCallback func([]string) ([]*tasks.Task, error)
 type TaskDetailsCallback func(string) (*tasks.TaskDetailsResource, error)
 
 type LogState struct {
-	processedLogs      map[string]bool
-	lastActivityStatus map[string]string
-	headerPrinted      bool
-	completedChildIds  map[string]bool
+	processedLogs       map[string]bool
+	lastActivityStatus  map[string]string
+	completedChildIds   map[string]bool
+	mainActivityPrinted bool
 }
 
 func NewLogState() *LogState {
 	return &LogState{
-		processedLogs:      make(map[string]bool),
-		lastActivityStatus: make(map[string]string),
-		headerPrinted:      false,
-		completedChildIds:  make(map[string]bool),
+		processedLogs:       make(map[string]bool),
+		lastActivityStatus:  make(map[string]string),
+		completedChildIds:   make(map[string]bool),
+		mainActivityPrinted: false,
 	}
 }
 
@@ -161,16 +161,11 @@ func WaitRun(out io.Writer, taskIDs []string, getServerTasksCallback ServerTasks
 					}
 
 					if len(details.ActivityLogs) > 0 {
-						if !logState.headerPrinted {
-							fmt.Fprintf(out, "%s\n", t.Description)
-							logState.headerPrinted = true
-						}
-
 						// Process all activities
 						for _, activity := range details.ActivityLogs {
-							if !logState.hasProcessed(activity, nil) {
+							if !logState.mainActivityPrinted {
 								fmt.Fprintf(out, "Running: %s\n", activity.Name)
-								logState.markProcessed(activity, nil)
+								logState.mainActivityPrinted = true
 							}
 							printActivityElement(out, activity, 0, logState)
 						}
