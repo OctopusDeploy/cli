@@ -40,16 +40,6 @@ type WaitOptions struct {
 type ServerTasksCallback func([]string) ([]*tasks.Task, error)
 type TaskDetailsCallback func(string) (*tasks.TaskDetailsResource, error)
 
-type LogState struct {
-	completedChildIds map[string]bool
-}
-
-func NewLogState() *LogState {
-	return &LogState{
-		completedChildIds: make(map[string]bool),
-	}
-}
-
 func NewWaitOps(dependencies *cmd.Dependencies, taskIDs []string) *WaitOptions {
 	return &WaitOptions{
 		Dependencies:           dependencies,
@@ -126,7 +116,7 @@ func WaitRun(out io.Writer, taskIDs []string, getServerTasksCallback ServerTasks
 
 	gotError := make(chan error, 1)
 	done := make(chan bool, 1)
-	logState := NewLogState()
+	completedChildIds := make(map[string]bool)
 
 	go func() {
 		for len(pendingTaskIDs) != 0 {
@@ -146,7 +136,7 @@ func WaitRun(out io.Writer, taskIDs []string, getServerTasksCallback ServerTasks
 					if len(details.ActivityLogs) > 0 {
 						// Process all activities
 						for _, activity := range details.ActivityLogs {
-							printActivityElement(out, activity, 0, logState)
+							printActivityElement(out, activity, 0, completedChildIds)
 						}
 					}
 				}
@@ -246,11 +236,11 @@ func formatRetryMessage(message string) string {
 	return fmt.Sprintf("%s%s", logLineIndent, output.Yellow(fmt.Sprintf("------ %s ------", message)))
 }
 
-func printActivityElement(out io.Writer, activity *tasks.ActivityElement, indent int, logState *LogState) {
+func printActivityElement(out io.Writer, activity *tasks.ActivityElement, indent int, completedChildIds map[string]bool) {
 	// Process children activities (these are the steps)
 	for _, child := range activity.Children {
 		// Print logs for any status except Pending and Running
-		if child.Status != "Pending" && child.Status != "Running" && !logState.completedChildIds[child.ID] {
+		if child.Status != "Pending" && child.Status != "Running" && !completedChildIds[child.ID] {
 			line := fmt.Sprintf("         %s: %s", child.Status, child.Name)
 
 			var timeInfo string
@@ -314,7 +304,7 @@ func printActivityElement(out io.Writer, activity *tasks.ActivityElement, indent
 				}
 			}
 
-			logState.completedChildIds[child.ID] = true
+			completedChildIds[child.ID] = true
 		}
 	}
 }
