@@ -10,7 +10,6 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/cmd"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/factory"
-	"github.com/OctopusDeploy/cli/pkg/output"
 	"github.com/OctopusDeploy/cli/pkg/util"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/tasks"
@@ -18,16 +17,9 @@ import (
 )
 
 const (
-	FlagTimeout      = "timeout"
-	FlagProgress     = "progress"
-	DefaultTimeout   = 600
-	indentSize       = 4
-	separator        = "─"
-	sepLength        = 29
-	timeFormat       = "02-01-2006 15:04:05"
-	logIndentLevel   = 6
-	taskHeaderIndent = "──────"
-	logLineIndent    = "                  "
+	FlagTimeout    = "timeout"
+	FlagProgress   = "progress"
+	DefaultTimeout = 600
 )
 
 type WaitOptions struct {
@@ -96,6 +88,8 @@ func WaitRun(out io.Writer, taskIDs []string, getServerTasksCallback ServerTasks
 
 	pendingTaskIDs := make([]string, 0)
 	failedTaskIDs := make([]string, 0)
+	formatter := NewTaskOutputFormatter(out)
+
 	for _, t := range tasks {
 		if t.IsCompleted == nil || !*t.IsCompleted {
 			pendingTaskIDs = append(pendingTaskIDs, t.ID)
@@ -104,7 +98,7 @@ func WaitRun(out io.Writer, taskIDs []string, getServerTasksCallback ServerTasks
 			failedTaskIDs = append(failedTaskIDs, t.ID)
 		}
 
-		printTaskInfo(out, t)
+		formatter.PrintTaskInfo(t)
 	}
 
 	if len(pendingTaskIDs) == 0 {
@@ -136,7 +130,7 @@ func WaitRun(out io.Writer, taskIDs []string, getServerTasksCallback ServerTasks
 					if len(details.ActivityLogs) > 0 {
 						// Process all activities
 						for _, activity := range details.ActivityLogs {
-							printActivityElement(out, activity, 0, completedChildIds)
+							formatter.PrintActivityElement(activity, 0, completedChildIds)
 						}
 					}
 				}
@@ -145,7 +139,7 @@ func WaitRun(out io.Writer, taskIDs []string, getServerTasksCallback ServerTasks
 					if t.FinishedSuccessfully != nil && !*t.FinishedSuccessfully {
 						failedTaskIDs = append(failedTaskIDs, t.ID)
 					}
-					printTaskInfo(out, t)
+					formatter.PrintTaskInfo(t)
 					pendingTaskIDs = removeTaskID(pendingTaskIDs, t.ID)
 				}
 			}
@@ -202,133 +196,4 @@ func removeTaskID(taskIDs []string, taskID string) []string {
 		}
 	}
 	return taskIDs
-}
-
-func getIndentation(level int) string {
-	return strings.Repeat(" ", level*indentSize)
-}
-
-func formatSeparatorLine(indent string) string {
-	return indent + strings.Repeat(separator, sepLength)
-}
-
-func formatTaskHeader(taskID string, description string, status string, startTime *time.Time, endTime *time.Time, duration time.Duration) string {
-	if startTime == nil || endTime == nil {
-		return fmt.Sprintf("%s: %s: %s", taskID, description, status)
-	}
-
-	return fmt.Sprintf("\n%s %s %s\n   Name: %s\n   Status: %s\n   Started: %s\n   Ended: %s\n   Duration: %s\n",
-		taskHeaderIndent,
-		taskID,
-		taskHeaderIndent,
-		description,
-		status,
-		startTime.Format(timeFormat),
-		endTime.Format(timeFormat),
-		duration)
-}
-
-func formatLogLine(timeStr, category, message string) string {
-	return fmt.Sprintf("%s%-19s      %-8s %s", logLineIndent, timeStr, category, message)
-}
-
-func formatRetryMessage(message string) string {
-	return fmt.Sprintf("%s%s", logLineIndent, output.Yellow(fmt.Sprintf("------ %s ------", message)))
-}
-
-func printActivityElement(out io.Writer, activity *tasks.ActivityElement, indent int, completedChildIds map[string]bool) {
-	// Process children activities (these are the steps)
-	for _, child := range activity.Children {
-		// Print logs for any status except Pending and Running
-		if child.Status != "Pending" && child.Status != "Running" && !completedChildIds[child.ID] {
-			line := fmt.Sprintf("         %s: %s", child.Status, child.Name)
-
-			var timeInfo string
-			if child.Started != nil && child.Ended != nil {
-				startTime := child.Started.Format(timeFormat)
-				endTime := child.Ended.Format(timeFormat)
-				duration := child.Ended.Sub(*child.Started).Round(time.Second)
-				indentStr := getIndentation(logIndentLevel)
-				sep := formatSeparatorLine(indentStr)
-				timeInfo = fmt.Sprintf("\n%s\n%sStarted:   %s\n%sEnded:     %s\n%sDuration:  %s\n%s",
-					sep,
-					indentStr, startTime,
-					indentStr, endTime,
-					indentStr, duration,
-					sep)
-			}
-
-			switch child.Status {
-			case "Success":
-				line = output.Green(line)
-			case "Failed":
-				line = output.Red(line)
-			case "Skipped":
-				line = output.Yellow(line)
-			case "SuccessWithWarning":
-				line = output.Yellow(line)
-			case "Canceled":
-				line = output.Yellow(line)
-			}
-
-			if timeInfo != "" {
-				line = line + timeInfo
-			}
-			fmt.Fprintln(out, line)
-
-			for _, stepChild := range child.Children {
-				if stepChild.Status != "Pending" && stepChild.Status != "Running" {
-					var lastWasRetry bool
-					for _, logElement := range stepChild.LogElements {
-						message := logElement.MessageText
-						timeStr := logElement.OccurredAt.Format(timeFormat)
-						category := logElement.Category
-
-						if strings.Contains(message, "Retry (attempt") {
-							fmt.Fprintln(out, formatRetryMessage(message))
-							lastWasRetry = true
-						} else if lastWasRetry && strings.Contains(message, "Starting") {
-							lastWasRetry = false
-						}
-
-						logLine := formatLogLine(timeStr, category, message)
-						switch strings.ToLower(category) {
-						case "warning":
-							logLine = output.Yellow(logLine)
-						case "error", "fatal":
-							logLine = output.Red(logLine)
-						}
-
-						fmt.Fprintln(out, logLine)
-					}
-				}
-			}
-
-			completedChildIds[child.ID] = true
-		}
-	}
-}
-
-func formatTaskStatus(state string) string {
-	switch state {
-	case "Failed", "TimedOut":
-		return output.Red(state)
-	case "Success":
-		return output.Green(state)
-	case "Queued", "Executing", "Cancelling", "Canceled":
-		return output.Yellow(state)
-	default:
-		return state
-	}
-}
-
-func printTaskInfo(out io.Writer, t *tasks.Task) {
-	status := formatTaskStatus(t.State)
-	if t.StartTime != nil && t.CompletedTime != nil {
-		duration := t.CompletedTime.Sub(*t.StartTime).Round(time.Second)
-		timeInfo := formatTaskHeader(t.ID, t.Description, status, t.StartTime, t.CompletedTime, duration)
-		fmt.Fprintln(out, timeInfo)
-	} else {
-		fmt.Fprintln(out, formatTaskHeader(t.ID, t.Description, status, nil, nil, time.Duration(0)))
-	}
 }
