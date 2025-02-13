@@ -245,20 +245,28 @@ func removeTaskID(taskIDs []string, taskID string) []string {
 func printActivityElement(out io.Writer, activity *tasks.ActivityElement, indent int, logState *LogState) {
 	// Process children activities (these are the steps)
 	for _, child := range activity.Children {
-		// Only print logs for children that have completed and haven't been processed yet
-		if (child.Status == "Success" || child.Status == "Failed") && !logState.completedChildIds[child.ID] {
+		// Print logs for any status except Pending and Running
+		if child.Status != "Pending" && child.Status != "Running" && !logState.completedChildIds[child.ID] {
 			line := fmt.Sprintf("         %s: %s", child.Status, child.Name)
-			if child.Status == "Success" {
+			switch child.Status {
+			case "Success":
 				line = output.Green(line)
-			} else if child.Status == "Failed" {
+			case "Failed":
 				line = output.Red(line)
+			case "Skipped":
+				line = output.Yellow(line)
+			case "SuccessWithWarning":
+				line = output.Yellow(line)
+			case "Canceled":
+				line = output.Yellow(line)
 			}
 			fmt.Fprintln(out, line)
 
 			// Each step has child activities (like "Octopus Server") that contain the actual logs
 			for _, stepChild := range child.Children {
-				if stepChild.Status == "Success" || stepChild.Status == "Failed" {
+				if stepChild.Status != "Pending" && stepChild.Status != "Running" {
 					// Print all log elements for this step's child
+					var lastWasRetry bool
 					for _, logElement := range stepChild.LogElements {
 						// Extract just the message without the timestamp
 						message := logElement.MessageText
@@ -272,6 +280,14 @@ func printActivityElement(out io.Writer, activity *tasks.ActivityElement, indent
 						
 						timeStr := logElement.OccurredAt.Format("02-01-2006 15:04:05")
 						category := logElement.Category
+						
+						// Add visual separator before retry attempts
+						if strings.Contains(message, "Retry (attempt") {
+							fmt.Fprintln(out, "                  "+output.Yellow("------ Retrying Previous Step ------"))
+							lastWasRetry = true
+						} else if lastWasRetry && strings.Contains(message, "Starting") {
+							lastWasRetry = false
+						}
 						
 						// Color the category and message based on severity
 						logLine := fmt.Sprintf("                  %-19s      %-8s %s", timeStr, category, message)
