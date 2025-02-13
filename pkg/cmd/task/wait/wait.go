@@ -3,12 +3,14 @@ package wait
 import (
 	"fmt"
 	"io"
+	"strings"
 	"time"
 
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/cmd"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/factory"
+	"github.com/OctopusDeploy/cli/pkg/output"
 	"github.com/OctopusDeploy/cli/pkg/util"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/tasks"
@@ -16,7 +18,8 @@ import (
 )
 
 const (
-	FlagTimeout = "timeout"
+	FlagTimeout  = "timeout"
+	FlagProgress = "progress"
 
 	DefaultTimeout = 600 // 600 seconds : 10 minutes
 )
@@ -25,19 +28,33 @@ type WaitOptions struct {
 	*cmd.Dependencies
 	taskIDs                []string
 	GetServerTasksCallback ServerTasksCallback
+	GetTaskDetailsCallback TaskDetailsCallback
+}
+
+type ServerTasksCallback func([]string) ([]*tasks.Task, error)
+type TaskDetailsCallback func(string) (*tasks.TaskDetailsResource, error)
+
+type LogState struct {
+	completedChildIds map[string]bool
+}
+
+func NewLogState() *LogState {
+	return &LogState{
+		completedChildIds: make(map[string]bool),
+	}
 }
 
 func NewWaitOps(dependencies *cmd.Dependencies, taskIDs []string) *WaitOptions {
 	return &WaitOptions{
 		Dependencies:           dependencies,
 		GetServerTasksCallback: GetServerTasksCallback(dependencies.Client),
+		GetTaskDetailsCallback: GetTaskDetailsCallback(dependencies.Client),
 	}
 }
 
-type ServerTasksCallback func([]string) ([]*tasks.Task, error)
-
 func NewCmdWait(f factory.Factory) *cobra.Command {
 	var timeout int
+	var showProgress bool
 	cmd := &cobra.Command{
 		Use:     "wait [TaskIDs]",
 		Short:   "Wait for task(s) to finish",
@@ -52,20 +69,26 @@ func NewCmdWait(f factory.Factory) *cobra.Command {
 			dependencies := cmd.NewDependencies(f, c)
 			opts := NewWaitOps(dependencies, taskIDs)
 
-			return WaitRun(opts.Out, taskIDs, opts.GetServerTasksCallback, timeout)
+			return WaitRun(opts.Out, taskIDs, opts.GetServerTasksCallback, opts.GetTaskDetailsCallback, timeout, showProgress)
 		},
 	}
 
 	flags := cmd.Flags()
 	flags.IntVar(&timeout, FlagTimeout, DefaultTimeout, "Duration to wait (in seconds) before stopping execution")
+	flags.BoolVar(&showProgress, FlagProgress, false, "Show detailed progress of the tasks")
 
 	return cmd
 }
 
-func WaitRun(out io.Writer, taskIDs []string, getServerTasksCallback ServerTasksCallback, timeout int) error {
+func WaitRun(out io.Writer, taskIDs []string, getServerTasksCallback ServerTasksCallback, getTaskDetailsCallback TaskDetailsCallback, timeout int, showProgress bool) error {
 	if len(taskIDs) == 0 {
 		return fmt.Errorf("no server task IDs provided, at least one is required")
 	}
+
+	if showProgress && len(taskIDs) > 1 {
+		return fmt.Errorf("--progress flag is only supported when waiting for a single task")
+	}
+
 	tasks, err := getServerTasksCallback(taskIDs)
 	if err != nil {
 		return err
@@ -84,18 +107,30 @@ func WaitRun(out io.Writer, taskIDs []string, getServerTasksCallback ServerTasks
 		if (t.IsCompleted != nil && *t.IsCompleted) && (t.FinishedSuccessfully != nil && !*t.FinishedSuccessfully) {
 			failedTaskIDs = append(failedTaskIDs, t.ID)
 		}
-		fmt.Fprintf(out, "%s: %s\n", t.Description, t.State)
+
+		status := fmt.Sprintf("%s: %s: %s", t.ID, t.Description, t.State)
+		switch t.State {
+		case "Failed", "TimedOut":
+			status = output.Red(status)
+		case "Success":
+			status = output.Green(status)
+		case "Queued", "Executing", "Cancelling", "Canceled":
+			status = output.Yellow(status)
+		}
+		fmt.Fprintln(out, status)
 	}
 
 	if len(pendingTaskIDs) == 0 {
 		if len(failedTaskIDs) != 0 {
-			return fmt.Errorf("One or more deployment tasks failed.")
+			return fmt.Errorf("One or more deployment tasks failed: %s", strings.Join(failedTaskIDs, ", "))
 		}
 		return nil
 	}
 
 	gotError := make(chan error, 1)
 	done := make(chan bool, 1)
+	logState := NewLogState()
+
 	go func() {
 		for len(pendingTaskIDs) != 0 {
 			time.Sleep(5 * time.Second)
@@ -105,17 +140,40 @@ func WaitRun(out io.Writer, taskIDs []string, getServerTasksCallback ServerTasks
 				return
 			}
 			for _, t := range tasks {
+				if showProgress {
+					details, err := getTaskDetailsCallback(t.ID)
+					if err != nil {
+						continue // Skip progress display if we can't get details
+					}
+
+					if len(details.ActivityLogs) > 0 {
+						// Process all activities
+						for _, activity := range details.ActivityLogs {
+							printActivityElement(out, activity, 0, logState)
+						}
+					}
+				}
+
 				if t.IsCompleted != nil && *t.IsCompleted {
 					if t.FinishedSuccessfully != nil && !*t.FinishedSuccessfully {
 						failedTaskIDs = append(failedTaskIDs, t.ID)
 					}
-					fmt.Fprintf(out, "%s: %s\n", t.Description, t.State)
+					status := fmt.Sprintf("%s: %s: %s", t.ID, t.Description, t.State)
+					switch t.State {
+					case "Failed", "TimedOut":
+						status = output.Red(status)
+					case "Success":
+						status = output.Green(status)
+					case "Queued", "Executing", "Cancelling", "Canceled":
+						status = output.Yellow(status)
+					}
+					fmt.Fprintln(out, status)
 					pendingTaskIDs = removeTaskID(pendingTaskIDs, t.ID)
 				}
 			}
 		}
 		if len(failedTaskIDs) != 0 {
-			gotError <- fmt.Errorf("One or more deployment tasks failed.")
+			gotError <- fmt.Errorf("One or more deployment tasks failed: %s", strings.Join(failedTaskIDs, ", "))
 			return
 		}
 		done <- true
@@ -129,7 +187,6 @@ func WaitRun(out io.Writer, taskIDs []string, getServerTasksCallback ServerTasks
 	case <-time.After(time.Duration(timeout) * time.Second):
 		return fmt.Errorf("timeout while waiting for pending tasks")
 	}
-
 }
 
 func GetServerTasksCallback(octopus *client.Client) ServerTasksCallback {
@@ -152,6 +209,12 @@ func GetServerTasksCallback(octopus *client.Client) ServerTasksCallback {
 	}
 }
 
+func GetTaskDetailsCallback(octopus *client.Client) TaskDetailsCallback {
+	return func(taskID string) (*tasks.TaskDetailsResource, error) {
+		return tasks.GetDetails(octopus, octopus.GetSpaceID(), taskID)
+	}
+}
+
 func removeTaskID(taskIDs []string, taskID string) []string {
 	for i, p := range taskIDs {
 		if p == taskID {
@@ -161,4 +224,57 @@ func removeTaskID(taskIDs []string, taskID string) []string {
 		}
 	}
 	return taskIDs
+}
+
+func printActivityElement(out io.Writer, activity *tasks.ActivityElement, indent int, logState *LogState) {
+	// Process children activities (these are the steps)
+	for _, child := range activity.Children {
+		// Print logs for any status except Pending and Running
+		if child.Status != "Pending" && child.Status != "Running" && !logState.completedChildIds[child.ID] {
+			line := fmt.Sprintf("         %s: %s", child.Status, child.Name)
+			switch child.Status {
+			case "Success":
+				line = output.Green(line)
+			case "Failed":
+				line = output.Red(line)
+			case "Skipped":
+				line = output.Yellow(line)
+			case "SuccessWithWarning":
+				line = output.Yellow(line)
+			case "Canceled":
+				line = output.Yellow(line)
+			}
+			fmt.Fprintln(out, line)
+
+			for _, stepChild := range child.Children {
+				if stepChild.Status != "Pending" && stepChild.Status != "Running" {
+					var lastWasRetry bool
+					for _, logElement := range stepChild.LogElements {
+						message := logElement.MessageText
+						timeStr := logElement.OccurredAt.Format("02-01-2006 15:04:05")
+						category := logElement.Category
+
+						if strings.Contains(message, "Retry (attempt") {
+							fmt.Fprintln(out, "                  "+output.Yellow(fmt.Sprintf("------ %s ------", message)))
+							lastWasRetry = true
+						} else if lastWasRetry && strings.Contains(message, "Starting") {
+							lastWasRetry = false
+						}
+
+						logLine := fmt.Sprintf("                  %-19s      %-8s %s", timeStr, category, message)
+						switch strings.ToLower(category) {
+						case "warning":
+							logLine = output.Yellow(logLine)
+						case "error", "fatal":
+							logLine = output.Red(logLine)
+						}
+
+						fmt.Fprintln(out, logLine)
+					}
+				}
+			}
+
+			logState.completedChildIds[child.ID] = true
+		}
+	}
 }
