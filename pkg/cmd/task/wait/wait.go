@@ -114,26 +114,7 @@ func WaitRun(out io.Writer, taskIDs []string, getServerTasksCallback ServerTasks
 			failedTaskIDs = append(failedTaskIDs, t.ID)
 		}
 
-		var status string
-		switch t.State {
-		case "Failed", "TimedOut":
-			status = output.Red(t.State)
-		case "Success":
-			status = output.Green(t.State)
-		case "Queued", "Executing", "Cancelling", "Canceled":
-			status = output.Yellow(t.State)
-		default:
-			status = t.State
-		}
-
-		var timeInfo string
-		if t.StartTime != nil && t.CompletedTime != nil {
-			duration := t.CompletedTime.Sub(*t.StartTime).Round(time.Second)
-			timeInfo = formatTaskHeader(t.ID, t.Description, status, t.StartTime, t.CompletedTime, duration)
-			fmt.Fprintln(out, timeInfo)
-		} else {
-			fmt.Fprintln(out, formatTaskHeader(t.ID, t.Description, status, nil, nil, time.Duration(0)))
-		}
+		printTaskInfo(out, t)
 	}
 
 	if len(pendingTaskIDs) == 0 {
@@ -174,26 +155,7 @@ func WaitRun(out io.Writer, taskIDs []string, getServerTasksCallback ServerTasks
 					if t.FinishedSuccessfully != nil && !*t.FinishedSuccessfully {
 						failedTaskIDs = append(failedTaskIDs, t.ID)
 					}
-					var status string
-					switch t.State {
-					case "Failed", "TimedOut":
-						status = output.Red(t.State)
-					case "Success":
-						status = output.Green(t.State)
-					case "Queued", "Executing", "Cancelling", "Canceled":
-						status = output.Yellow(t.State)
-					default:
-						status = t.State
-					}
-
-					var timeInfo string
-					if t.StartTime != nil && t.CompletedTime != nil {
-						duration := t.CompletedTime.Sub(*t.StartTime).Round(time.Second)
-						timeInfo = formatTaskHeader(t.ID, t.Description, status, t.StartTime, t.CompletedTime, duration)
-						fmt.Fprintln(out, timeInfo)
-					} else {
-						fmt.Fprintln(out, formatTaskHeader(t.ID, t.Description, status, nil, nil, time.Duration(0)))
-					}
+					printTaskInfo(out, t)
 					pendingTaskIDs = removeTaskID(pendingTaskIDs, t.ID)
 				}
 			}
@@ -354,5 +316,29 @@ func printActivityElement(out io.Writer, activity *tasks.ActivityElement, indent
 
 			logState.completedChildIds[child.ID] = true
 		}
+	}
+}
+
+func formatTaskStatus(state string) string {
+	switch state {
+	case "Failed", "TimedOut":
+		return output.Red(state)
+	case "Success":
+		return output.Green(state)
+	case "Queued", "Executing", "Cancelling", "Canceled":
+		return output.Yellow(state)
+	default:
+		return state
+	}
+}
+
+func printTaskInfo(out io.Writer, t *tasks.Task) {
+	status := formatTaskStatus(t.State)
+	if t.StartTime != nil && t.CompletedTime != nil {
+		duration := t.CompletedTime.Sub(*t.StartTime).Round(time.Second)
+		timeInfo := formatTaskHeader(t.ID, t.Description, status, t.StartTime, t.CompletedTime, duration)
+		fmt.Fprintln(out, timeInfo)
+	} else {
+		fmt.Fprintln(out, formatTaskHeader(t.ID, t.Description, status, nil, nil, time.Duration(0)))
 	}
 }
