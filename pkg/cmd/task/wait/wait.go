@@ -2,7 +2,6 @@ package wait
 
 import (
 	"fmt"
-	"io"
 	"strings"
 	"time"
 
@@ -24,9 +23,11 @@ const (
 
 type WaitOptions struct {
 	*cmd.Dependencies
-	taskIDs                []string
+	TaskIDs                []string
 	GetServerTasksCallback ServerTasksCallback
 	GetTaskDetailsCallback TaskDetailsCallback
+	Timeout               int
+	ShowProgress         bool
 }
 
 type ServerTasksCallback func([]string) ([]*tasks.Task, error)
@@ -35,8 +36,11 @@ type TaskDetailsCallback func(string) (*tasks.TaskDetailsResource, error)
 func NewWaitOps(dependencies *cmd.Dependencies, taskIDs []string) *WaitOptions {
 	return &WaitOptions{
 		Dependencies:           dependencies,
+		TaskIDs:               taskIDs,
 		GetServerTasksCallback: GetServerTasksCallback(dependencies.Client),
 		GetTaskDetailsCallback: GetTaskDetailsCallback(dependencies.Client),
+		Timeout:               DefaultTimeout,
+		ShowProgress:         false,
 	}
 }
 
@@ -56,8 +60,10 @@ func NewCmdWait(f factory.Factory) *cobra.Command {
 
 			dependencies := cmd.NewDependencies(f, c)
 			opts := NewWaitOps(dependencies, taskIDs)
+			opts.Timeout = timeout
+			opts.ShowProgress = showProgress
 
-			return WaitRun(opts.Out, taskIDs, opts.GetServerTasksCallback, opts.GetTaskDetailsCallback, timeout, showProgress)
+			return WaitRun(opts)
 		},
 	}
 
@@ -68,16 +74,16 @@ func NewCmdWait(f factory.Factory) *cobra.Command {
 	return cmd
 }
 
-func WaitRun(out io.Writer, taskIDs []string, getServerTasksCallback ServerTasksCallback, getTaskDetailsCallback TaskDetailsCallback, timeout int, showProgress bool) error {
-	if len(taskIDs) == 0 {
+func WaitRun(opts *WaitOptions) error {
+	if len(opts.TaskIDs) == 0 {
 		return fmt.Errorf("no server task IDs provided, at least one is required")
 	}
 
-	if showProgress && len(taskIDs) > 1 {
+	if opts.ShowProgress && len(opts.TaskIDs) > 1 {
 		return fmt.Errorf("--progress flag is only supported when waiting for a single task")
 	}
 
-	tasks, err := getServerTasksCallback(taskIDs)
+	tasks, err := opts.GetServerTasksCallback(opts.TaskIDs)
 	if err != nil {
 		return err
 	}
@@ -88,7 +94,7 @@ func WaitRun(out io.Writer, taskIDs []string, getServerTasksCallback ServerTasks
 
 	pendingTaskIDs := make([]string, 0)
 	failedTaskIDs := make([]string, 0)
-	formatter := NewTaskOutputFormatter(out)
+	formatter := NewTaskOutputFormatter(opts.Out)
 
 	for _, t := range tasks {
 		if t.IsCompleted == nil || !*t.IsCompleted {
@@ -115,14 +121,14 @@ func WaitRun(out io.Writer, taskIDs []string, getServerTasksCallback ServerTasks
 	go func() {
 		for len(pendingTaskIDs) != 0 {
 			time.Sleep(5 * time.Second)
-			tasks, err = getServerTasksCallback(pendingTaskIDs)
+			tasks, err = opts.GetServerTasksCallback(pendingTaskIDs)
 			if err != nil {
 				gotError <- err
 				return
 			}
 			for _, t := range tasks {
-				if showProgress {
-					details, err := getTaskDetailsCallback(t.ID)
+				if opts.ShowProgress {
+					details, err := opts.GetTaskDetailsCallback(t.ID)
 					if err != nil {
 						continue // Skip progress display if we can't get details
 					}
@@ -156,7 +162,7 @@ func WaitRun(out io.Writer, taskIDs []string, getServerTasksCallback ServerTasks
 		return nil
 	case err := <-gotError:
 		return err
-	case <-time.After(time.Duration(timeout) * time.Second):
+	case <-time.After(time.Duration(opts.Timeout) * time.Second):
 		return fmt.Errorf("timeout while waiting for pending tasks")
 	}
 }
