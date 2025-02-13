@@ -18,10 +18,16 @@ import (
 )
 
 const (
-	FlagTimeout  = "timeout"
-	FlagProgress = "progress"
-
-	DefaultTimeout = 600 // 600 seconds : 10 minutes
+	FlagTimeout      = "timeout"
+	FlagProgress     = "progress"
+	DefaultTimeout   = 600
+	indentSize       = 4
+	separator        = "─"
+	sepLength        = 29
+	timeFormat       = "02-01-2006 15:04:05"
+	logIndentLevel   = 6
+	taskHeaderIndent = "──────"
+	logLineIndent    = "                  "
 )
 
 type WaitOptions struct {
@@ -122,19 +128,11 @@ func WaitRun(out io.Writer, taskIDs []string, getServerTasksCallback ServerTasks
 
 		var timeInfo string
 		if t.StartTime != nil && t.CompletedTime != nil {
-			startTime := t.StartTime.Format("02-01-2006 15:04:05")
-			endTime := t.CompletedTime.Format("02-01-2006 15:04:05")
-			duration := t.Duration
-			timeInfo = fmt.Sprintf("\n ----------- %s ------------------\n   Name: %s\n   Status: %s\n   Started: %s\n   Ended: %s\n   Duration: %s\n",
-				t.ID,
-				t.Description,
-				status,
-				startTime,
-				endTime,
-				duration)
+			duration := t.CompletedTime.Sub(*t.StartTime).Round(time.Second)
+			timeInfo = formatTaskHeader(t.ID, t.Description, status, t.StartTime, t.CompletedTime, duration)
 			fmt.Fprintln(out, timeInfo)
 		} else {
-			fmt.Fprintf(out, "%s: %s: %s\n", t.ID, t.Description, status)
+			fmt.Fprintln(out, formatTaskHeader(t.ID, t.Description, status, nil, nil, time.Duration(0)))
 		}
 	}
 
@@ -190,19 +188,11 @@ func WaitRun(out io.Writer, taskIDs []string, getServerTasksCallback ServerTasks
 
 					var timeInfo string
 					if t.StartTime != nil && t.CompletedTime != nil {
-						startTime := t.StartTime.Format("02-01-2006 15:04:05")
-						endTime := t.CompletedTime.Format("02-01-2006 15:04:05")
 						duration := t.CompletedTime.Sub(*t.StartTime).Round(time.Second)
-						timeInfo = fmt.Sprintf("\n ----------- %s ------------------\n   Name: %s\n   Status: %s\n   Started: %s\n   Ended: %s\n   Duration: %s\n",
-							t.ID,
-							t.Description,
-							status,
-							startTime,
-							endTime,
-							duration)
+						timeInfo = formatTaskHeader(t.ID, t.Description, status, t.StartTime, t.CompletedTime, duration)
 						fmt.Fprintln(out, timeInfo)
 					} else {
-						fmt.Fprintf(out, "%s: %s: %s\n", t.ID, t.Description, status)
+						fmt.Fprintln(out, formatTaskHeader(t.ID, t.Description, status, nil, nil, time.Duration(0)))
 					}
 					pendingTaskIDs = removeTaskID(pendingTaskIDs, t.ID)
 				}
@@ -262,6 +252,38 @@ func removeTaskID(taskIDs []string, taskID string) []string {
 	return taskIDs
 }
 
+func getIndentation(level int) string {
+	return strings.Repeat(" ", level*indentSize)
+}
+
+func formatSeparatorLine(indent string) string {
+	return indent + strings.Repeat(separator, sepLength)
+}
+
+func formatTaskHeader(taskID string, description string, status string, startTime *time.Time, endTime *time.Time, duration time.Duration) string {
+	if startTime == nil || endTime == nil {
+		return fmt.Sprintf("%s: %s: %s", taskID, description, status)
+	}
+
+	return fmt.Sprintf("\n%s %s %s\n   Name: %s\n   Status: %s\n   Started: %s\n   Ended: %s\n   Duration: %s\n",
+		taskHeaderIndent,
+		taskID,
+		taskHeaderIndent,
+		description,
+		status,
+		startTime.Format(timeFormat),
+		endTime.Format(timeFormat),
+		duration)
+}
+
+func formatLogLine(timeStr, category, message string) string {
+	return fmt.Sprintf("%s%-19s      %-8s %s", logLineIndent, timeStr, category, message)
+}
+
+func formatRetryMessage(message string) string {
+	return fmt.Sprintf("%s%s", logLineIndent, output.Yellow(fmt.Sprintf("------ %s ------", message)))
+}
+
 func printActivityElement(out io.Writer, activity *tasks.ActivityElement, indent int, logState *LogState) {
 	// Process children activities (these are the steps)
 	for _, child := range activity.Children {
@@ -271,13 +293,17 @@ func printActivityElement(out io.Writer, activity *tasks.ActivityElement, indent
 
 			var timeInfo string
 			if child.Started != nil && child.Ended != nil {
-				startTime := child.Started.Format("02-01-2006 15:04:05")
-				endTime := child.Ended.Format("02-01-2006 15:04:05")
+				startTime := child.Started.Format(timeFormat)
+				endTime := child.Ended.Format(timeFormat)
 				duration := child.Ended.Sub(*child.Started).Round(time.Second)
-				timeInfo = fmt.Sprintf("\n                    -----------------------------\n                    Started: %s\n                    Ended: %s\n                    Duration: %s\n                    -----------------------------",
-					startTime,
-					endTime,
-					duration)
+				indentStr := getIndentation(logIndentLevel)
+				sep := formatSeparatorLine(indentStr)
+				timeInfo = fmt.Sprintf("\n%s\n%sStarted:   %s\n%sEnded:     %s\n%sDuration:  %s\n%s",
+					sep,
+					indentStr, startTime,
+					indentStr, endTime,
+					indentStr, duration,
+					sep)
 			}
 
 			switch child.Status {
@@ -303,17 +329,17 @@ func printActivityElement(out io.Writer, activity *tasks.ActivityElement, indent
 					var lastWasRetry bool
 					for _, logElement := range stepChild.LogElements {
 						message := logElement.MessageText
-						timeStr := logElement.OccurredAt.Format("02-01-2006 15:04:05")
+						timeStr := logElement.OccurredAt.Format(timeFormat)
 						category := logElement.Category
 
 						if strings.Contains(message, "Retry (attempt") {
-							fmt.Fprintln(out, "                  "+output.Yellow(fmt.Sprintf("------ %s ------", message)))
+							fmt.Fprintln(out, formatRetryMessage(message))
 							lastWasRetry = true
 						} else if lastWasRetry && strings.Contains(message, "Starting") {
 							lastWasRetry = false
 						}
 
-						logLine := fmt.Sprintf("                  %-19s      %-8s %s", timeStr, category, message)
+						logLine := formatLogLine(timeStr, category, message)
 						switch strings.ToLower(category) {
 						case "warning":
 							logLine = output.Yellow(logLine)
@@ -321,7 +347,7 @@ func printActivityElement(out io.Writer, activity *tasks.ActivityElement, indent
 							logLine = output.Red(logLine)
 						}
 
-						fmt.Fprintln(out, "                  "+logLine)
+						fmt.Fprintln(out, logLine)
 					}
 				}
 			}
