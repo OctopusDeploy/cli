@@ -108,16 +108,34 @@ func WaitRun(out io.Writer, taskIDs []string, getServerTasksCallback ServerTasks
 			failedTaskIDs = append(failedTaskIDs, t.ID)
 		}
 
-		status := fmt.Sprintf("%s: %s: %s", t.ID, t.Description, t.State)
+		var status string
 		switch t.State {
 		case "Failed", "TimedOut":
-			status = output.Red(status)
+			status = output.Red(t.State)
 		case "Success":
-			status = output.Green(status)
+			status = output.Green(t.State)
 		case "Queued", "Executing", "Cancelling", "Canceled":
-			status = output.Yellow(status)
+			status = output.Yellow(t.State)
+		default:
+			status = t.State
 		}
-		fmt.Fprintln(out, status)
+
+		var timeInfo string
+		if t.StartTime != nil && t.CompletedTime != nil {
+			startTime := t.StartTime.Format("02-01-2006 15:04:05")
+			endTime := t.CompletedTime.Format("02-01-2006 15:04:05")
+			duration := t.Duration
+			timeInfo = fmt.Sprintf("\n ----------- %s ------------------\n   Name: %s\n   Status: %s\n   Started: %s\n   Ended: %s\n   Duration: %s\n",
+				t.ID,
+				t.Description,
+				status,
+				startTime,
+				endTime,
+				duration)
+			fmt.Fprintln(out, timeInfo)
+		} else {
+			fmt.Fprintf(out, "%s: %s: %s\n", t.ID, t.Description, status)
+		}
 	}
 
 	if len(pendingTaskIDs) == 0 {
@@ -158,16 +176,34 @@ func WaitRun(out io.Writer, taskIDs []string, getServerTasksCallback ServerTasks
 					if t.FinishedSuccessfully != nil && !*t.FinishedSuccessfully {
 						failedTaskIDs = append(failedTaskIDs, t.ID)
 					}
-					status := fmt.Sprintf("%s: %s: %s", t.ID, t.Description, t.State)
+					var status string
 					switch t.State {
 					case "Failed", "TimedOut":
-						status = output.Red(status)
+						status = output.Red(t.State)
 					case "Success":
-						status = output.Green(status)
+						status = output.Green(t.State)
 					case "Queued", "Executing", "Cancelling", "Canceled":
-						status = output.Yellow(status)
+						status = output.Yellow(t.State)
+					default:
+						status = t.State
 					}
-					fmt.Fprintln(out, status)
+
+					var timeInfo string
+					if t.StartTime != nil && t.CompletedTime != nil {
+						startTime := t.StartTime.Format("02-01-2006 15:04:05")
+						endTime := t.CompletedTime.Format("02-01-2006 15:04:05")
+						duration := t.CompletedTime.Sub(*t.StartTime).Round(time.Second)
+						timeInfo = fmt.Sprintf("\n ----------- %s ------------------\n   Name: %s\n   Status: %s\n   Started: %s\n   Ended: %s\n   Duration: %s\n",
+							t.ID,
+							t.Description,
+							status,
+							startTime,
+							endTime,
+							duration)
+						fmt.Fprintln(out, timeInfo)
+					} else {
+						fmt.Fprintf(out, "%s: %s: %s\n", t.ID, t.Description, status)
+					}
 					pendingTaskIDs = removeTaskID(pendingTaskIDs, t.ID)
 				}
 			}
@@ -232,6 +268,18 @@ func printActivityElement(out io.Writer, activity *tasks.ActivityElement, indent
 		// Print logs for any status except Pending and Running
 		if child.Status != "Pending" && child.Status != "Running" && !logState.completedChildIds[child.ID] {
 			line := fmt.Sprintf("         %s: %s", child.Status, child.Name)
+
+			var timeInfo string
+			if child.Started != nil && child.Ended != nil {
+				startTime := child.Started.Format("02-01-2006 15:04:05")
+				endTime := child.Ended.Format("02-01-2006 15:04:05")
+				duration := child.Ended.Sub(*child.Started).Round(time.Second)
+				timeInfo = fmt.Sprintf("\n                    -----------------------------\n                    Started: %s\n                    Ended: %s\n                    Duration: %s\n                    -----------------------------",
+					startTime,
+					endTime,
+					duration)
+			}
+
 			switch child.Status {
 			case "Success":
 				line = output.Green(line)
@@ -243,6 +291,10 @@ func printActivityElement(out io.Writer, activity *tasks.ActivityElement, indent
 				line = output.Yellow(line)
 			case "Canceled":
 				line = output.Yellow(line)
+			}
+
+			if timeInfo != "" {
+				line = line + timeInfo
 			}
 			fmt.Fprintln(out, line)
 
@@ -269,7 +321,7 @@ func printActivityElement(out io.Writer, activity *tasks.ActivityElement, indent
 							logLine = output.Red(logLine)
 						}
 
-						fmt.Fprintln(out, logLine)
+						fmt.Fprintln(out, "                  "+logLine)
 					}
 				}
 			}
