@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.15.0](https://github.com/OctopusDeploy/cli/compare/v2.14.3...v2.15.0) (2025-02-14)
+
+
+### Features
+
+* Task wait support --progress flag to print task logs and some enhancement ([8eaf696](https://github.com/OctopusDeploy/cli/commit/8eaf6966c5699b2effd3a18a349c065fc61022d4))
+
 ## [2.14.3](https://github.com/OctopusDeploy/cli/compare/v2.14.2...v2.14.3) (2025-02-11)
 
 
