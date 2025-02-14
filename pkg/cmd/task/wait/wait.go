@@ -2,7 +2,7 @@ package wait
 
 import (
 	"fmt"
-	"io"
+	"strings"
 	"time"
 
 	"github.com/MakeNowJust/heredoc/v2"
@@ -16,28 +16,37 @@ import (
 )
 
 const (
-	FlagTimeout = "timeout"
-
-	DefaultTimeout = 600 // 600 seconds : 10 minutes
+	FlagTimeout    = "timeout"
+	FlagProgress   = "progress"
+	DefaultTimeout = 600
 )
 
 type WaitOptions struct {
 	*cmd.Dependencies
-	taskIDs                []string
+	TaskIDs                []string
 	GetServerTasksCallback ServerTasksCallback
+	GetTaskDetailsCallback TaskDetailsCallback
+	Timeout               int
+	ShowProgress         bool
 }
+
+type ServerTasksCallback func([]string) ([]*tasks.Task, error)
+type TaskDetailsCallback func(string) (*tasks.TaskDetailsResource, error)
 
 func NewWaitOps(dependencies *cmd.Dependencies, taskIDs []string) *WaitOptions {
 	return &WaitOptions{
 		Dependencies:           dependencies,
+		TaskIDs:               taskIDs,
 		GetServerTasksCallback: GetServerTasksCallback(dependencies.Client),
+		GetTaskDetailsCallback: GetTaskDetailsCallback(dependencies.Client),
+		Timeout:               DefaultTimeout,
+		ShowProgress:         false,
 	}
 }
 
-type ServerTasksCallback func([]string) ([]*tasks.Task, error)
-
 func NewCmdWait(f factory.Factory) *cobra.Command {
 	var timeout int
+	var showProgress bool
 	cmd := &cobra.Command{
 		Use:     "wait [TaskIDs]",
 		Short:   "Wait for task(s) to finish",
@@ -51,22 +60,30 @@ func NewCmdWait(f factory.Factory) *cobra.Command {
 
 			dependencies := cmd.NewDependencies(f, c)
 			opts := NewWaitOps(dependencies, taskIDs)
+			opts.Timeout = timeout
+			opts.ShowProgress = showProgress
 
-			return WaitRun(opts.Out, taskIDs, opts.GetServerTasksCallback, timeout)
+			return WaitRun(opts)
 		},
 	}
 
 	flags := cmd.Flags()
 	flags.IntVar(&timeout, FlagTimeout, DefaultTimeout, "Duration to wait (in seconds) before stopping execution")
+	flags.BoolVar(&showProgress, FlagProgress, false, "Show detailed progress of the tasks")
 
 	return cmd
 }
 
-func WaitRun(out io.Writer, taskIDs []string, getServerTasksCallback ServerTasksCallback, timeout int) error {
-	if len(taskIDs) == 0 {
+func WaitRun(opts *WaitOptions) error {
+	if len(opts.TaskIDs) == 0 {
 		return fmt.Errorf("no server task IDs provided, at least one is required")
 	}
-	tasks, err := getServerTasksCallback(taskIDs)
+
+	if opts.ShowProgress && len(opts.TaskIDs) > 1 {
+		return fmt.Errorf("--progress flag is only supported when waiting for a single task")
+	}
+
+	tasks, err := opts.GetServerTasksCallback(opts.TaskIDs)
 	if err != nil {
 		return err
 	}
@@ -77,6 +94,8 @@ func WaitRun(out io.Writer, taskIDs []string, getServerTasksCallback ServerTasks
 
 	pendingTaskIDs := make([]string, 0)
 	failedTaskIDs := make([]string, 0)
+	formatter := NewTaskOutputFormatter(opts.Out)
+
 	for _, t := range tasks {
 		if t.IsCompleted == nil || !*t.IsCompleted {
 			pendingTaskIDs = append(pendingTaskIDs, t.ID)
@@ -84,38 +103,55 @@ func WaitRun(out io.Writer, taskIDs []string, getServerTasksCallback ServerTasks
 		if (t.IsCompleted != nil && *t.IsCompleted) && (t.FinishedSuccessfully != nil && !*t.FinishedSuccessfully) {
 			failedTaskIDs = append(failedTaskIDs, t.ID)
 		}
-		fmt.Fprintf(out, "%s: %s\n", t.Description, t.State)
+
+		formatter.PrintTaskInfo(t)
 	}
 
 	if len(pendingTaskIDs) == 0 {
 		if len(failedTaskIDs) != 0 {
-			return fmt.Errorf("One or more deployment tasks failed.")
+			return fmt.Errorf("One or more deployment tasks failed: %s", strings.Join(failedTaskIDs, ", "))
 		}
 		return nil
 	}
 
 	gotError := make(chan error, 1)
 	done := make(chan bool, 1)
+	completedChildIds := make(map[string]bool)
+
 	go func() {
 		for len(pendingTaskIDs) != 0 {
 			time.Sleep(5 * time.Second)
-			tasks, err = getServerTasksCallback(pendingTaskIDs)
+			tasks, err = opts.GetServerTasksCallback(pendingTaskIDs)
 			if err != nil {
 				gotError <- err
 				return
 			}
 			for _, t := range tasks {
+				if opts.ShowProgress {
+					details, err := opts.GetTaskDetailsCallback(t.ID)
+					if err != nil {
+						continue // Skip progress display if we can't get details
+					}
+
+					if len(details.ActivityLogs) > 0 {
+						// Process all activities
+						for _, activity := range details.ActivityLogs {
+							formatter.PrintActivityElement(activity, 0, completedChildIds)
+						}
+					}
+				}
+
 				if t.IsCompleted != nil && *t.IsCompleted {
 					if t.FinishedSuccessfully != nil && !*t.FinishedSuccessfully {
 						failedTaskIDs = append(failedTaskIDs, t.ID)
 					}
-					fmt.Fprintf(out, "%s: %s\n", t.Description, t.State)
+					formatter.PrintTaskInfo(t)
 					pendingTaskIDs = removeTaskID(pendingTaskIDs, t.ID)
 				}
 			}
 		}
 		if len(failedTaskIDs) != 0 {
-			gotError <- fmt.Errorf("One or more deployment tasks failed.")
+			gotError <- fmt.Errorf("One or more deployment tasks failed: %s", strings.Join(failedTaskIDs, ", "))
 			return
 		}
 		done <- true
@@ -126,10 +162,9 @@ func WaitRun(out io.Writer, taskIDs []string, getServerTasksCallback ServerTasks
 		return nil
 	case err := <-gotError:
 		return err
-	case <-time.After(time.Duration(timeout) * time.Second):
+	case <-time.After(time.Duration(opts.Timeout) * time.Second):
 		return fmt.Errorf("timeout while waiting for pending tasks")
 	}
-
 }
 
 func GetServerTasksCallback(octopus *client.Client) ServerTasksCallback {
@@ -149,6 +184,12 @@ func GetServerTasksCallback(octopus *client.Client) ServerTasksCallback {
 		}
 
 		return tasks, nil
+	}
+}
+
+func GetTaskDetailsCallback(octopus *client.Client) TaskDetailsCallback {
+	return func(taskID string) (*tasks.TaskDetailsResource, error) {
+		return tasks.GetDetails(octopus, octopus.GetSpaceID(), taskID)
 	}
 }
 

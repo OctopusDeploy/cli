@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/MakeNowJust/heredoc/v2"
+	"github.com/OctopusDeploy/cli/pkg/cmd"
 	taskWaitCreate "github.com/OctopusDeploy/cli/pkg/cmd/task/wait"
 	"github.com/OctopusDeploy/cli/test/testutil"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/tasks"
@@ -39,7 +40,7 @@ func TestWait(t *testing.T) {
 	taskList[0].Description = "Deploy Bar 1 release 0.0.2 to Foo"
 	taskList[0].State = "Executing"
 
-	taskList[1].ID = defaultTaskIDs[0]
+	taskList[1].ID = defaultTaskIDs[1]
 	taskList[1].IsCompleted = &boolTrue
 	taskList[1].FinishedSuccessfully = &boolTrue
 	taskList[1].Description = "Deploy Bar 2 release 0.0.2 to Foo"
@@ -66,13 +67,25 @@ func TestWait(t *testing.T) {
 		}
 		return nil, fmt.Errorf("getServerTaskCallback was called more then the expected amount of times")
 	}
-	err := taskWaitCreate.WaitRun(&out, defaultTaskIDs, getServerTaskCallback, taskWaitCreate.DefaultTimeout)
+
+	opts := &taskWaitCreate.WaitOptions{
+		Dependencies: &cmd.Dependencies{
+			Out: &out,
+		},
+		TaskIDs:                defaultTaskIDs,
+		GetServerTasksCallback: getServerTaskCallback,
+		GetTaskDetailsCallback: nil,
+		Timeout:                taskWaitCreate.DefaultTimeout,
+		ShowProgress:           false,
+	}
+
+	err := taskWaitCreate.WaitRun(opts)
 	assert.NoError(t, err)
 	assert.Equal(t, 2, timesCalled)
 	expectedOutput := heredoc.Doc(`
-  Deploy Bar 1 release 0.0.2 to Foo: Executing
-  Deploy Bar 2 release 0.0.2 to Foo: Success
-  Deploy Bar 1 release 0.0.2 to Foo: Success
+  TaskID1: Deploy Bar 1 release 0.0.2 to Foo: Executing
+  TaskID2: Deploy Bar 2 release 0.0.2 to Foo: Success
+  TaskID1: Deploy Bar 1 release 0.0.2 to Foo: Success
   `)
 	assert.Equal(t, expectedOutput, out.String())
 }
@@ -100,10 +113,22 @@ func TestWait_FailedTask(t *testing.T) {
 	getServerTaskCallback := func(taskIDs []string) ([]*tasks.Task, error) {
 		return taskList, nil
 	}
-	err := taskWaitCreate.WaitRun(&out, defaultTaskIDs, getServerTaskCallback, taskWaitCreate.DefaultTimeout)
-	assert.EqualError(t, err, "One or more deployment tasks failed.")
+
+	opts := &taskWaitCreate.WaitOptions{
+		Dependencies: &cmd.Dependencies{
+			Out: &out,
+		},
+		TaskIDs:                defaultTaskIDs,
+		GetServerTasksCallback: getServerTaskCallback,
+		GetTaskDetailsCallback: nil,
+		Timeout:                taskWaitCreate.DefaultTimeout,
+		ShowProgress:           false,
+	}
+
+	err := taskWaitCreate.WaitRun(opts)
+	assert.EqualError(t, err, "One or more deployment tasks failed: TaskID1")
 	expectedOutput := heredoc.Doc(`
-  Deploy Bar 1 release 0.0.2 to Foo: Failed
+  TaskID1: Deploy Bar 1 release 0.0.2 to Foo: Failed
   `)
 	assert.Equal(t, expectedOutput, out.String())
 }
@@ -143,12 +168,24 @@ func TestWait_FailedPendingTask(t *testing.T) {
 		}
 		return nil, fmt.Errorf("getServerTaskCallback was called more then the expected amount of times")
 	}
-	err := taskWaitCreate.WaitRun(&out, defaultTaskIDs, getServerTaskCallback, taskWaitCreate.DefaultTimeout)
-	assert.EqualError(t, err, "One or more deployment tasks failed.")
+
+	opts := &taskWaitCreate.WaitOptions{
+		Dependencies: &cmd.Dependencies{
+			Out: &out,
+		},
+		TaskIDs:                defaultTaskIDs,
+		GetServerTasksCallback: getServerTaskCallback,
+		GetTaskDetailsCallback: nil,
+		Timeout:                taskWaitCreate.DefaultTimeout,
+		ShowProgress:           false,
+	}
+
+	err := taskWaitCreate.WaitRun(opts)
+	assert.EqualError(t, err, "One or more deployment tasks failed: TaskID1")
 	assert.Equal(t, 2, timesCalled)
 	expectedOutput := heredoc.Doc(`
-  Deploy Bar 1 release 0.0.2 to Foo: Executing
-  Deploy Bar 1 release 0.0.2 to Foo: Failed
+  TaskID1: Deploy Bar 1 release 0.0.2 to Foo: Executing
+  TaskID1: Deploy Bar 1 release 0.0.2 to Foo: Failed
   `)
 	assert.Equal(t, expectedOutput, out.String())
 }
