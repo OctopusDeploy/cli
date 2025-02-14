@@ -10,9 +10,14 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/question/selectors"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/actiontemplates"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/configuration"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/core"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/newclient"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/tenants"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/variables"
 	"github.com/spf13/cobra"
+	"sort"
+	"strings"
 )
 
 const (
@@ -99,67 +104,165 @@ func listRun(cmd *cobra.Command, f factory.Factory, id string) error {
 		return err
 	}
 
-	vars, err := client.Tenants.GetVariables(tenant)
+	newClient := newclient.NewClient(client.HttpSession())
+	toggleRequest := &configuration.FeatureToggleConfigurationQuery{
+		Name: "CommonVariableScopingFeatureToggle",
+	}
+	toggleResponse, err := configuration.Get(newClient, toggleRequest)
 	if err != nil {
 		return err
 	}
+	toggleValue := toggleResponse.FeatureToggles[0]
 
-	missingVariablesResponse, err := client.Tenants.GetMissingVariables(variables.MissingVariablesQuery{TenantID: vars.TenantID})
-	var missingVariables []variables.MissingVariable
-	if len(*missingVariablesResponse) > 0 {
-		missingVariables = (*missingVariablesResponse)[0].MissingVariables
-	}
-	var allVariableValues []*VariableValue
-	for _, element := range vars.LibraryVariables {
-
-		variableValues := unwrapCommonVariables(element, missingVariables)
-		for _, v := range variableValues {
-			allVariableValues = append(allVariableValues, v)
+	if toggleValue.IsEnabled {
+		projectVariables, err := tenants.GetProjectVariables(newClient, tenant.SpaceID, tenant.ID)
+		if err != nil {
+			return err
 		}
-	}
 
-	if err != nil {
-		return err
-	}
-	environmentMap, err := getEnvironmentMap(client)
-	if err != nil {
-		return err
-	}
-	for _, element := range vars.ProjectVariables {
-		variableValues := unwrapProjectVariables(element, environmentMap, missingVariables)
-		for _, v := range variableValues {
-			allVariableValues = append(allVariableValues, v)
+		commonVariablesQuery := variables.GetTenantCommonVariablesQuery{
+			TenantID:                      tenant.ID,
+			SpaceID:                       tenant.SpaceID,
+			IncludeMissingCommonVariables: true,
 		}
-	}
+		commonVariables, err := tenants.GetCommonVariables(newClient, commonVariablesQuery)
+		if err != nil {
+			return err
+		}
 
-	return output.PrintArray(allVariableValues, cmd, output.Mappers[*VariableValue]{
-		Json: func(item *VariableValue) any {
-			if item.Type == LibraryVariableSetType {
-				return NewVariableValueAsJson(item)
-			} else {
-				return NewVariableValueProjectAsJson(item)
-			}
-		},
-		Table: output.TableDefinition[*VariableValue]{
-			Header: []string{"NAME", "LABEL", "TYPE", "OWNER", "ENVIRONMENT", "VALUE", "SENSITIVE", "DEFAULT VALUE"},
-			Row: func(item *VariableValue) []string {
-				value := item.Value
-				if item.HasMissingValue {
-					value = output.Red("<missing>")
+		environmentMap, err := getEnvironmentMap(client)
+		if err != nil {
+			return err
+		}
+
+		var allVariableValues []*VariableValue
+
+		for _, element := range commonVariables.MissingCommonVariables {
+			variableValue := unwrapCommonVariables(element, environmentMap)
+			allVariableValues = append(allVariableValues, variableValue)
+		}
+
+		for _, element := range commonVariables.CommonVariables {
+			variableValue := unwrapCommonVariables(element, environmentMap)
+			allVariableValues = append(allVariableValues, variableValue)
+		}
+
+		for _, element := range projectVariables.ProjectVariables {
+			variableValue := unwrapProjectVariables(element, environmentMap)
+			allVariableValues = append(allVariableValues, variableValue)
+		}
+
+		sortVariableOutput(allVariableValues)
+
+		return output.PrintArray(allVariableValues, cmd, output.Mappers[*VariableValue]{
+			Json: func(item *VariableValue) any {
+				if item.Type == LibraryVariableSetType {
+					return NewVariableValueAsJson(item)
+				} else {
+					return NewVariableValueProjectAsJson(item)
 				}
-
-				return []string{output.Bold(item.Name), item.Label, item.Type, item.OwnerName, item.ScopeName, value, fmt.Sprint(item.IsSensitive), fmt.Sprint(item.IsDefaultValue)}
 			},
-		},
-		Basic: func(item *VariableValue) string {
-			return item.Name
-		},
-	})
+			Table: output.TableDefinition[*VariableValue]{
+				Header: []string{"NAME", "LABEL", "TYPE", "OWNER", "ENVIRONMENT", "VALUE", "SENSITIVE", "DEFAULT VALUE"},
+				Row: func(item *VariableValue) []string {
+					value := item.Value
+					if item.HasMissingValue {
+						value = output.Red("<missing>")
+					}
 
-	return nil
+					return []string{output.Bold(item.Name), item.Label, item.Type, item.OwnerName, item.ScopeName, value, fmt.Sprint(item.IsSensitive), fmt.Sprint(item.IsDefaultValue)}
+				},
+			},
+			Basic: func(item *VariableValue) string {
+				return item.Name
+			},
+		})
+
+		return nil
+	} else {
+		vars, err := client.Tenants.GetVariables(tenant)
+		if err != nil {
+			return err
+		}
+
+		missingVariablesResponse, err := client.Tenants.GetMissingVariables(variables.MissingVariablesQuery{TenantID: vars.TenantID})
+		var missingVariables []variables.MissingVariable
+		if len(*missingVariablesResponse) > 0 {
+			missingVariables = (*missingVariablesResponse)[0].MissingVariables
+		}
+		var allVariableValues []*VariableValue
+		for _, element := range vars.LibraryVariables {
+
+			variableValues := unwrapCommonVariablesV1(element, missingVariables)
+			for _, v := range variableValues {
+				allVariableValues = append(allVariableValues, v)
+			}
+		}
+
+		if err != nil {
+			return err
+		}
+		environmentMap, err := getEnvironmentMap(client)
+		if err != nil {
+			return err
+		}
+		for _, element := range vars.ProjectVariables {
+			variableValues := unwrapProjectVariablesV1(element, environmentMap, missingVariables)
+			for _, v := range variableValues {
+				allVariableValues = append(allVariableValues, v)
+			}
+		}
+
+		return output.PrintArray(allVariableValues, cmd, output.Mappers[*VariableValue]{
+			Json: func(item *VariableValue) any {
+				if item.Type == LibraryVariableSetType {
+					return NewVariableValueAsJson(item)
+				} else {
+					return NewVariableValueProjectAsJson(item)
+				}
+			},
+			Table: output.TableDefinition[*VariableValue]{
+				Header: []string{"NAME", "LABEL", "TYPE", "OWNER", "ENVIRONMENT", "VALUE", "SENSITIVE", "DEFAULT VALUE"},
+				Row: func(item *VariableValue) []string {
+					value := item.Value
+					if item.HasMissingValue {
+						value = output.Red("<missing>")
+					}
+
+					return []string{output.Bold(item.Name), item.Label, item.Type, item.OwnerName, item.ScopeName, value, fmt.Sprint(item.IsSensitive), fmt.Sprint(item.IsDefaultValue)}
+				},
+			},
+			Basic: func(item *VariableValue) string {
+				return item.Name
+			},
+		})
+
+		return nil
+	}
 }
 
-func unwrapCommonVariables(variables variables.LibraryVariable, missingVariables []variables.MissingVariable) []*VariableValue {
+func sortVariableOutput(allVariableValues []*VariableValue) {
+	sort.SliceStable(allVariableValues, func(i, j int) bool {
+		if allVariableValues[i].Type != allVariableValues[j].Type {
+			return allVariableValues[i].Type < allVariableValues[j].Type
+		}
+		if allVariableValues[i].OwnerName != allVariableValues[j].OwnerName {
+			return allVariableValues[i].OwnerName < allVariableValues[j].OwnerName
+		}
+		if allVariableValues[i].Name != allVariableValues[j].Name {
+			return allVariableValues[i].Name < allVariableValues[j].Name
+		}
+		if allVariableValues[i].Value == "" && allVariableValues[j].Value != "" {
+			return true
+		}
+		if allVariableValues[i].Value != "" && allVariableValues[j].Value == "" {
+			return false
+		}
+		return allVariableValues[i].Value < allVariableValues[j].Value
+	})
+}
+
+func unwrapCommonVariablesV1(variables variables.LibraryVariable, missingVariables []variables.MissingVariable) []*VariableValue {
 	var results []*VariableValue = nil
 	for _, template := range variables.Templates {
 		value, isDefault := getVariableValue(template, variables.Variables)
@@ -182,7 +285,7 @@ func unwrapCommonVariables(variables variables.LibraryVariable, missingVariables
 	return results
 }
 
-func unwrapProjectVariables(variables variables.ProjectVariable, environmentMap map[string]string, missingVariables []variables.MissingVariable) []*VariableValue {
+func unwrapProjectVariablesV1(variables variables.ProjectVariable, environmentMap map[string]string, missingVariables []variables.MissingVariable) []*VariableValue {
 	var results []*VariableValue = nil
 	for _, template := range variables.Templates {
 		for environmentId, environmentVariables := range variables.Variables {
@@ -205,6 +308,44 @@ func unwrapProjectVariables(variables variables.ProjectVariable, environmentMap 
 	}
 
 	return results
+}
+
+func unwrapCommonVariables(variable variables.TenantCommonVariable, environmentMap map[string]string) *VariableValue {
+	var environmentScopes []string
+
+	for _, environmentId := range variable.Scope.EnvironmentIds {
+		environmentScopes = append(environmentScopes, environmentMap[environmentId])
+	}
+
+	return &VariableValue{
+		Type:            LibraryVariableSetType,
+		OwnerName:       variable.LibraryVariableSetName,
+		Name:            variable.Template.Name,
+		Value:           getDisplayValue(&variable.Value),
+		IsSensitive:     variable.Value.IsSensitive,
+		IsDefaultValue:  variable.ID == "" && variable.Template.DefaultValue.Value != "" && variable.Value.Value == variable.Template.DefaultValue.Value, // TODO: Compare result against original logic
+		ScopeName:       strings.Join(environmentScopes, ", "),
+		HasMissingValue: variable.Value.Value == "",
+	}
+}
+
+func unwrapProjectVariables(variable variables.TenantProjectVariable, environmentMap map[string]string) *VariableValue {
+	var environmentScopes []string
+
+	for _, environmentId := range variable.Scope.EnvironmentIds {
+		environmentScopes = append(environmentScopes, environmentMap[environmentId])
+	}
+
+	return &VariableValue{
+		Type:            ProjectType,
+		OwnerName:       variable.ProjectName,
+		Name:            variable.Template.Name,
+		Value:           variable.Value.Value,
+		IsSensitive:     variable.Value.IsSensitive,
+		IsDefaultValue:  false, // TODO: Fetch default values
+		ScopeName:       strings.Join(environmentScopes, ", "),
+		HasMissingValue: false, // TODO: Fetch missing values
+	}
 }
 
 func hasMissingProjectValue(missingVariables []variables.MissingVariable, projectID string, environmentID string, templateID string) bool {
