@@ -17,7 +17,6 @@ import (
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/variables"
 	"github.com/spf13/cobra"
 	"sort"
-	"strings"
 )
 
 const (
@@ -115,7 +114,13 @@ func listRun(cmd *cobra.Command, f factory.Factory, id string) error {
 	toggleValue := toggleResponse.FeatureToggles[0]
 
 	if toggleValue.IsEnabled {
-		projectVariables, err := tenants.GetProjectVariables(newClient, tenant.SpaceID, tenant.ID)
+		projectVariablesQuery := variables.GetTenantProjectVariablesQuery{
+			TenantID:                       tenant.ID,
+			SpaceID:                        tenant.SpaceID,
+			IncludeMissingProjectVariables: true,
+		}
+
+		projectVariables, err := tenants.GetProjectVariables(newClient, projectVariablesQuery)
 		if err != nil {
 			return err
 		}
@@ -125,6 +130,7 @@ func listRun(cmd *cobra.Command, f factory.Factory, id string) error {
 			SpaceID:                       tenant.SpaceID,
 			IncludeMissingCommonVariables: true,
 		}
+
 		commonVariables, err := tenants.GetCommonVariables(newClient, commonVariablesQuery)
 		if err != nil {
 			return err
@@ -139,17 +145,22 @@ func listRun(cmd *cobra.Command, f factory.Factory, id string) error {
 
 		for _, element := range commonVariables.MissingCommonVariables {
 			variableValue := unwrapCommonVariables(element, environmentMap)
-			allVariableValues = append(allVariableValues, variableValue)
+			allVariableValues = append(allVariableValues, variableValue...)
 		}
 
 		for _, element := range commonVariables.CommonVariables {
 			variableValue := unwrapCommonVariables(element, environmentMap)
-			allVariableValues = append(allVariableValues, variableValue)
+			allVariableValues = append(allVariableValues, variableValue...)
+		}
+
+		for _, element := range projectVariables.MissingProjectVariables {
+			variableValue := unwrapProjectVariables(element, environmentMap)
+			allVariableValues = append(allVariableValues, variableValue...)
 		}
 
 		for _, element := range projectVariables.ProjectVariables {
 			variableValue := unwrapProjectVariables(element, environmentMap)
-			allVariableValues = append(allVariableValues, variableValue)
+			allVariableValues = append(allVariableValues, variableValue...)
 		}
 
 		sortVariableOutput(allVariableValues)
@@ -310,42 +321,43 @@ func unwrapProjectVariablesV1(variables variables.ProjectVariable, environmentMa
 	return results
 }
 
-func unwrapCommonVariables(variable variables.TenantCommonVariable, environmentMap map[string]string) *VariableValue {
-	var environmentScopes []string
-
+func unwrapCommonVariables(variable variables.TenantCommonVariable, environmentMap map[string]string) []*VariableValue {
+	var results []*VariableValue = nil
 	for _, environmentId := range variable.Scope.EnvironmentIds {
-		environmentScopes = append(environmentScopes, environmentMap[environmentId])
+
+		results = append(results, &VariableValue{
+			Type:            LibraryVariableSetType,
+			OwnerName:       variable.LibraryVariableSetName,
+			Name:            variable.Template.Name,
+			Value:           getDisplayValue(&variable.Value),
+			IsSensitive:     variable.Value.IsSensitive,
+			IsDefaultValue:  variable.ID == "", // Variables without an ID are sourced from the MissingVariables list. For consistency with V1, IsDefault applies to both default and missing variables
+			ScopeName:       environmentMap[environmentId],
+			HasMissingValue: variable.Value.Value == "",
+		})
 	}
 
-	return &VariableValue{
-		Type:            LibraryVariableSetType,
-		OwnerName:       variable.LibraryVariableSetName,
-		Name:            variable.Template.Name,
-		Value:           getDisplayValue(&variable.Value),
-		IsSensitive:     variable.Value.IsSensitive,
-		IsDefaultValue:  variable.ID == "" && variable.Template.DefaultValue.Value != "" && variable.Value.Value == variable.Template.DefaultValue.Value, // TODO: Compare result against original logic
-		ScopeName:       strings.Join(environmentScopes, ", "),
-		HasMissingValue: variable.Value.Value == "",
-	}
+	return results
 }
 
-func unwrapProjectVariables(variable variables.TenantProjectVariable, environmentMap map[string]string) *VariableValue {
-	var environmentScopes []string
-
+func unwrapProjectVariables(variable variables.TenantProjectVariable, environmentMap map[string]string) []*VariableValue {
+	var results []*VariableValue = nil
 	for _, environmentId := range variable.Scope.EnvironmentIds {
-		environmentScopes = append(environmentScopes, environmentMap[environmentId])
+
+		results = append(results, &VariableValue{
+			Type:      LibraryVariableSetType,
+			OwnerName: variable.ProjectName,
+			Name:      variable.Template.Name,
+			// TODO: Sensitive value should be displayed as ***
+			Value:           getDisplayValue(&variable.Value),
+			IsSensitive:     variable.Value.IsSensitive,
+			IsDefaultValue:  variable.ID == "", // Variables without an ID are sourced from the MissingVariables list. For consistency with V1, IsDefault applies to both default and missing variables
+			ScopeName:       environmentMap[environmentId],
+			HasMissingValue: variable.Value.Value == "",
+		})
 	}
 
-	return &VariableValue{
-		Type:            ProjectType,
-		OwnerName:       variable.ProjectName,
-		Name:            variable.Template.Name,
-		Value:           variable.Value.Value,
-		IsSensitive:     variable.Value.IsSensitive,
-		IsDefaultValue:  false, // TODO: Fetch default values
-		ScopeName:       strings.Join(environmentScopes, ", "),
-		HasMissingValue: false, // TODO: Fetch missing values
-	}
+	return results
 }
 
 func hasMissingProjectValue(missingVariables []variables.MissingVariable, projectID string, environmentID string, templateID string) bool {
