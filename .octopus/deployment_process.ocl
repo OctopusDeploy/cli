@@ -228,7 +228,7 @@ step "extra-debug" {
 
         container {
             feed = "docker-hub"
-            image = "octopusdeploy/worker-tools:6.4-ubuntu.22.04"
+            image = "octopusdeploy/worker-tools:6.4-windows.ltsc2022"
         }
     }
 }
