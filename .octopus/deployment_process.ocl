@@ -207,6 +207,32 @@ step "publish-to-rpm-repo" {
     }
 }
 
+step "extra-debug" {
+    name = "extra debug "
+
+    action {
+        action_type = "Octopus.Script"
+        properties = {
+            Octopus.Action.Script.ScriptBody = <<-EOT
+                echo "SDKs"
+                dotnet --list-sdks
+                
+                echo "runtimes"
+                dotnet --list-runtimes
+                EOT
+            Octopus.Action.Script.ScriptSource = "Inline"
+            Octopus.Action.Script.Syntax = "PowerShell"
+            OctopusUseBundledTooling = "False"
+        }
+        worker_pool = "hosted-windows"
+
+        container {
+            feed = "docker-hub"
+            image = "octopusdeploy/worker-tools:6.4-ubuntu.22.04"
+        }
+    }
+}
+
 step "publish-winget-update-pr" {
     name = "Publish winget update PR"
     start_trigger = "StartWithPrevious"
