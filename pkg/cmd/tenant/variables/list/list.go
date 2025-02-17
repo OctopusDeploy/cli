@@ -323,17 +323,26 @@ func unwrapProjectVariablesV1(variables variables.ProjectVariable, environmentMa
 
 func unwrapCommonVariables(variable variables.TenantCommonVariable, environmentMap map[string]string) []*VariableValue {
 	var results []*VariableValue = nil
+	var isDefault = variable.ID == ""
+	var displayValue string
+
+	if isDefault {
+		displayValue = getDisplayValue(variable.Template.DefaultValue)
+	} else {
+		displayValue = getDisplayValue(&variable.Value)
+	}
+
 	for _, environmentId := range variable.Scope.EnvironmentIds {
 
 		results = append(results, &VariableValue{
 			Type:            LibraryVariableSetType,
 			OwnerName:       variable.LibraryVariableSetName,
 			Name:            variable.Template.Name,
-			Value:           getDisplayValue(&variable.Value),
+			Value:           displayValue,
 			IsSensitive:     variable.Value.IsSensitive,
-			IsDefaultValue:  variable.ID == "", // Variables without an ID are sourced from the MissingVariables list. For consistency with V1, IsDefault applies to both default and missing variables
+			IsDefaultValue:  isDefault, // Variables without an ID are sourced from the MissingVariables list. For consistency with V1, IsDefault applies to both default and missing variables
 			ScopeName:       environmentMap[environmentId],
-			HasMissingValue: variable.Value.Value == "",
+			HasMissingValue: isDefault && displayValue == "",
 		})
 	}
 
@@ -342,18 +351,26 @@ func unwrapCommonVariables(variable variables.TenantCommonVariable, environmentM
 
 func unwrapProjectVariables(variable variables.TenantProjectVariable, environmentMap map[string]string) []*VariableValue {
 	var results []*VariableValue = nil
+	var isDefault = variable.ID == ""
+	var displayValue string
+
+	if isDefault {
+		displayValue = getDisplayValue(variable.Template.DefaultValue)
+	} else {
+		displayValue = getDisplayValue(&variable.Value)
+	}
+
 	for _, environmentId := range variable.Scope.EnvironmentIds {
 
 		results = append(results, &VariableValue{
-			Type:      LibraryVariableSetType,
-			OwnerName: variable.ProjectName,
-			Name:      variable.Template.Name,
-			// TODO: Sensitive value should be displayed as ***
-			Value:           getDisplayValue(&variable.Value),
+			Type:            LibraryVariableSetType,
+			OwnerName:       variable.ProjectName,
+			Name:            variable.Template.Name,
+			Value:           displayValue,
 			IsSensitive:     variable.Value.IsSensitive,
-			IsDefaultValue:  variable.ID == "", // Variables without an ID are sourced from the MissingVariables list. For consistency with V1, IsDefault applies to both default and missing variables
+			IsDefaultValue:  isDefault, // Variables without an ID are sourced from the MissingVariables list. For consistency with V1, IsDefault applies to both default and missing variables
 			ScopeName:       environmentMap[environmentId],
-			HasMissingValue: variable.Value.Value == "",
+			HasMissingValue: isDefault && displayValue == "",
 		})
 	}
 
