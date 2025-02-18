@@ -12,7 +12,6 @@ import (
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/configuration"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/core"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/newclient"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/tenants"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/variables"
 	"github.com/spf13/cobra"
@@ -103,11 +102,10 @@ func listRun(cmd *cobra.Command, f factory.Factory, id string) error {
 		return err
 	}
 
-	newClient := newclient.NewClient(client.HttpSession())
 	toggleRequest := &configuration.FeatureToggleConfigurationQuery{
 		Name: "CommonVariableScopingFeatureToggle",
 	}
-	toggleResponse, err := configuration.Get(newClient, toggleRequest)
+	toggleResponse, err := configuration.Get(client, toggleRequest)
 	if err != nil {
 		return err
 	}
@@ -115,23 +113,23 @@ func listRun(cmd *cobra.Command, f factory.Factory, id string) error {
 
 	if toggleValue.IsEnabled {
 		projectVariablesQuery := variables.GetTenantProjectVariablesQuery{
-			TenantID:                       tenant.ID,
-			SpaceID:                        tenant.SpaceID,
-			IncludeMissingProjectVariables: true,
+			TenantID:                tenant.ID,
+			SpaceID:                 tenant.SpaceID,
+			IncludeMissingVariables: true,
 		}
 
-		projectVariables, err := tenants.GetProjectVariables(newClient, projectVariablesQuery)
+		projectVariables, err := tenants.GetProjectVariables(client, projectVariablesQuery)
 		if err != nil {
 			return err
 		}
 
 		commonVariablesQuery := variables.GetTenantCommonVariablesQuery{
-			TenantID:                      tenant.ID,
-			SpaceID:                       tenant.SpaceID,
-			IncludeMissingCommonVariables: true,
+			TenantID:                tenant.ID,
+			SpaceID:                 tenant.SpaceID,
+			IncludeMissingVariables: true,
 		}
 
-		commonVariables, err := tenants.GetCommonVariables(newClient, commonVariablesQuery)
+		commonVariables, err := tenants.GetCommonVariables(client, commonVariablesQuery)
 		if err != nil {
 			return err
 		}
