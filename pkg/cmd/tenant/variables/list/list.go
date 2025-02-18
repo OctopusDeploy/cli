@@ -354,7 +354,7 @@ func unwrapProjectVariables(variable variables.TenantProjectVariable, environmen
 	for _, environmentId := range variable.Scope.EnvironmentIds {
 
 		results = append(results, &VariableValue{
-			Type:            LibraryVariableSetType,
+			Type:            ProjectType,
 			OwnerName:       variable.ProjectName,
 			Name:            variable.Template.Name,
 			Value:           displayValue,
