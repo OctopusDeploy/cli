@@ -8,9 +8,9 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/OctopusDeploy/cli/pkg/output"
 	"github.com/OctopusDeploy/cli/pkg/question/selectors"
+	"github.com/OctopusDeploy/cli/pkg/util/featuretoggle"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/actiontemplates"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/configuration"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/core"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/tenants"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/variables"
@@ -102,16 +102,9 @@ func listRun(cmd *cobra.Command, f factory.Factory, id string) error {
 		return err
 	}
 
-	toggleRequest := &configuration.FeatureToggleConfigurationQuery{
-		Name: "CommonVariableScopingFeatureToggle",
-	}
-	toggleResponse, err := configuration.Get(client, toggleRequest)
-	if err != nil {
-		return err
-	}
-	toggleValue := toggleResponse.FeatureToggles[0]
+	toggleValue, err := featuretoggle.IsToggleEnabled(client, "CommonVariableScopingFeatureToggle")
 
-	if toggleValue.IsEnabled {
+	if toggleValue {
 		projectVariablesQuery := variables.GetTenantProjectVariablesQuery{
 			TenantID:                tenant.ID,
 			SpaceID:                 tenant.SpaceID,
