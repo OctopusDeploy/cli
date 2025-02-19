@@ -17,5 +17,16 @@ func IsToggleEnabled(client *client.Client, toggleName string) (bool, error) {
 		return false, err
 	}
 
-	return returnToggleResponse.FeatureToggles[0].IsEnabled, err
+	if len(returnToggleResponse.FeatureToggles) == 0 {
+		return false, err
+	}
+
+	var toggleValue = returnToggleResponse.FeatureToggles[0]
+
+	// Verify name to avoid error in older versions of Octopus where Name param is not recognised
+	if toggleValue.Name != toggleName {
+		return false, err
+	}
+
+	return toggleValue.IsEnabled, err
 }
