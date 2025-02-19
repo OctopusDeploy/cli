@@ -10,6 +10,7 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/question/selectors"
 	sharedVariable "github.com/OctopusDeploy/cli/pkg/question/shared/variables"
 	"github.com/OctopusDeploy/cli/pkg/util"
+	"github.com/OctopusDeploy/cli/pkg/util/featuretoggle"
 	"github.com/OctopusDeploy/cli/pkg/util/flag"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/accounts"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/actiontemplates"
@@ -22,6 +23,7 @@ import (
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/variables"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/workerpools"
 	"github.com/spf13/cobra"
+	"slices"
 	"sort"
 	"strings"
 )
@@ -41,7 +43,7 @@ const (
 type UpdateFlags struct {
 	Tenant             *flag.Flag[string]
 	Project            *flag.Flag[string]
-	Environment        *flag.Flag[string]
+	Environments       *flag.Flag[[]string]
 	LibraryVariableSet *flag.Flag[string]
 	Name               *flag.Flag[string]
 	Value              *flag.Flag[string]
@@ -59,13 +61,14 @@ type UpdateOptions struct {
 	shared.GetAllLibraryVariableSetsCallback
 	selectors.GetAllEnvironmentsCallback
 	*sharedVariable.VariableCallbacks
+	FeatureToggleCallback func(name string) (bool, error)
 }
 
 func NewUpdateFlags() *UpdateFlags {
 	return &UpdateFlags{
 		Tenant:             flag.New[string](FlagTenant, false),
 		Project:            flag.New[string](FlagProject, false),
-		Environment:        flag.New[string](FlagEnvironment, false),
+		Environments:       flag.New[[]string](FlagEnvironment, false),
 		LibraryVariableSet: flag.New[string](FlagLibraryVariableSet, false),
 		Name:               flag.New[string](FlagName, false),
 		Value:              flag.New[string](FlagValue, false),
@@ -89,6 +92,9 @@ func NewUpdateOptions(flags *UpdateFlags, dependencies *cmd.Dependencies) *Updat
 		},
 		GetAllEnvironmentsCallback: func() ([]*environments.Environment, error) { return selectors.GetAllEnvironments(dependencies.Client) },
 		VariableCallbacks:          sharedVariable.NewVariableCallbacks(dependencies),
+		FeatureToggleCallback: func(name string) (bool, error) {
+			return featuretoggle.IsToggleEnabled(dependencies.Client, name)
+		},
 	}
 }
 
@@ -113,7 +119,7 @@ func NewCmdUpdate(f factory.Factory) *cobra.Command {
 	flags := cmd.Flags()
 	flags.StringVarP(&updateFlags.Tenant.Value, updateFlags.Tenant.Name, "t", "", "The tenant")
 	flags.StringVarP(&updateFlags.Project.Value, updateFlags.Project.Name, "p", "", "The project")
-	flags.StringVarP(&updateFlags.Environment.Value, updateFlags.Environment.Name, "e", "", "The environment")
+	flags.StringSliceVar(&updateFlags.Environments.Value, updateFlags.Environments.Name, []string{}, "Assign environment scopes to the variable. Multiple scopes can be supplied.")
 	flags.StringVarP(&updateFlags.LibraryVariableSet.Value, updateFlags.LibraryVariableSet.Name, "l", "", "The library variable set")
 	flags.StringVarP(&updateFlags.Name.Value, updateFlags.Name.Name, "n", "", "The name of the variable")
 	flags.StringVar(&updateFlags.Value.Value, updateFlags.Value.Name, "", "The value to set on the variable")
@@ -134,36 +140,76 @@ func updateRun(opts *UpdateOptions) error {
 		return err
 	}
 
-	vars, err := opts.GetTenantVariables(tenant)
-	if err != nil {
-		return err
-	}
+	toggleValue, err := opts.FeatureToggleCallback("CommonVariableScopingFeatureToggle")
 
-	if opts.LibraryVariableSet.Value != "" {
-		opts.Value.Secure, err = updateCommonVariableValue(opts, vars)
-		if err != nil {
-			return err
-		}
-	} else {
+	if toggleValue {
 		environmentMap, err := getEnvironmentMap(opts.GetAllEnvironmentsCallback)
 		if err != nil {
 			return err
 		}
-		opts.Value.Secure, err = updateProjectVariableValue(opts, vars, environmentMap)
+
+		if opts.LibraryVariableSet.Value != "" {
+			commonVariables, err := opts.GetTenantCommonVariables(tenant, false)
+			if err != nil {
+				return err
+			}
+
+			var commonVariableCommand variables.ModifyTenantCommonVariablesCommand
+
+			opts.Value.Secure, commonVariableCommand.Variables, err = updateCommonVariableValue(opts, commonVariables.CommonVariables, commonVariables.MissingCommonVariables, environmentMap)
+			if err != nil {
+				return err
+			}
+
+			_, err = tenants.UpdateCommonVariables(opts.Client, tenant.SpaceID, tenant.ID, &commonVariableCommand)
+		} else {
+			projectVariables, err := opts.GetTenantProjectVariables(tenant, false)
+
+			if err != nil {
+				return err
+			}
+
+			var projectVariableCommand variables.ModifyTenantProjectVariablesCommand
+
+			opts.Value.Secure, projectVariableCommand.Variables, err = updateProjectVariableValue(opts, projectVariables.ProjectVariables, projectVariables.MissingProjectVariables, environmentMap)
+			if err != nil {
+				return err
+			}
+
+			_, err = tenants.UpdateProjectVariables(opts.Client, tenant.SpaceID, tenant.ID, &projectVariableCommand)
+		}
+	} else {
+		vars, err := opts.GetTenantVariables(tenant)
 		if err != nil {
 			return err
 		}
-	}
 
-	_, err = opts.Client.Tenants.UpdateVariables(tenant, vars)
-	if err != nil {
-		return err
+		if opts.LibraryVariableSet.Value != "" {
+			opts.Value.Secure, err = updateCommonVariableValueV1(opts, vars)
+			if err != nil {
+				return err
+			}
+		} else {
+			environmentMap, err := getEnvironmentMap(opts.GetAllEnvironmentsCallback)
+			if err != nil {
+				return err
+			}
+			opts.Value.Secure, err = updateProjectVariableValueV1(opts, vars, environmentMap)
+			if err != nil {
+				return err
+			}
+		}
+
+		_, err = opts.Client.Tenants.UpdateVariables(tenant, vars)
+		if err != nil {
+			return err
+		}
 	}
 
 	_, err = fmt.Fprintf(opts.Out, "Successfully updated variable '%s' for tenant '%s'\n", opts.Name.Value, tenant.Name)
 
 	if !opts.NoPrompt {
-		autoCmd := flag.GenerateAutomationCmd(opts.CmdPath, opts.Tenant, opts.Name, opts.Value, opts.Project, opts.LibraryVariableSet, opts.Environment)
+		autoCmd := flag.GenerateAutomationCmd(opts.CmdPath, opts.Tenant, opts.Name, opts.Value, opts.Project, opts.LibraryVariableSet, opts.Environments)
 		fmt.Fprintf(opts.Out, "\nAutomation Command: %s\n", autoCmd)
 	}
 
@@ -254,7 +300,7 @@ func PromptMissing(opts *UpdateOptions) error {
 }
 
 func PromptForEnvironment(opts *UpdateOptions, variables *variables.TenantVariables) error {
-	if opts.Environment.Value == "" {
+	if len(opts.Environments.Value) == 0 {
 		var environmentSelections []*selectors.SelectOption[string]
 		environmentMap, err := getEnvironmentMap(opts.GetAllEnvironmentsCallback)
 		if err != nil {
@@ -273,7 +319,7 @@ func PromptForEnvironment(opts *UpdateOptions, variables *variables.TenantVariab
 		if err != nil {
 			return err
 		}
-		opts.Environment.Value = selectedEnvironment.Value
+		opts.Environments.Value = append(opts.Environments.Value, selectedEnvironment.Value)
 	}
 	return nil
 }
@@ -411,10 +457,300 @@ func findPossibleProjectVariables(opts *UpdateOptions, tenantVariables *variable
 	return filteredVariables
 }
 
-func updateProjectVariableValue(opts *UpdateOptions, vars *variables.TenantVariables, environmentMap map[string]string) (bool, error) {
+func updateProjectVariableValue(opts *UpdateOptions, vars []variables.TenantProjectVariable, missingVars []variables.TenantProjectVariable, environmentMap map[string]string) (bool, []variables.TenantProjectVariablePayload, error) {
+	var environmentIds []string
+	for id, environment := range environmentMap {
+		for _, optEnvironment := range opts.Environments.Value {
+			if strings.EqualFold(environment, optEnvironment) || strings.EqualFold(id, optEnvironment) {
+				environmentIds = append(environmentIds, id)
+			}
+		}
+	}
+
+	var variablesWithMatchingTemplate []variables.TenantProjectVariable
+	for _, v := range vars {
+		if strings.EqualFold(v.ProjectName, opts.Project.Value) && strings.EqualFold(v.Template.Name, opts.Name.Value) {
+			variablesWithMatchingTemplate = append(variablesWithMatchingTemplate, v)
+		}
+	}
+
+	var variablesWithMatchingScope []variables.TenantProjectVariable
+	for _, v := range variablesWithMatchingTemplate {
+		if equals(v.Scope.EnvironmentIds, environmentIds) {
+			variablesWithMatchingScope = append(variablesWithMatchingScope, v)
+		}
+	}
+
+	if len(variablesWithMatchingScope) == 0 {
+		var variablesWithNonMatchingEnvironments []variables.TenantProjectVariable
+		for _, v := range variablesWithMatchingTemplate {
+			if equals(v.Scope.EnvironmentIds, environmentIds) {
+				continue
+			}
+
+			if !contains(v.Scope.EnvironmentIds, environmentIds) {
+				variablesWithNonMatchingEnvironments = append(variablesWithNonMatchingEnvironments, v)
+			}
+			if !contains(environmentIds, v.Scope.EnvironmentIds) {
+				variablesWithNonMatchingEnvironments = append(variablesWithNonMatchingEnvironments, v)
+			}
+		}
+
+		if len(variablesWithNonMatchingEnvironments) > 0 {
+			// TODO: Improve error message
+			return false, nil, fmt.Errorf("no matching variable scope found")
+		}
+	}
+
+	if len(variablesWithMatchingTemplate) > 0 && len(variablesWithMatchingScope) == 0 {
+		var updateVariablePayloads, isSensitive, err = createProjectVariablePayload(opts, "", &variablesWithMatchingTemplate[0].Template, variablesWithMatchingTemplate)
+		if err != nil {
+			return false, nil, err
+		}
+
+		return isSensitive, updateVariablePayloads, nil
+	}
+
+	if len(variablesWithMatchingScope) == 1 {
+		var updateVariablePayloads, isSensitive, err = createProjectVariablePayload(opts, variablesWithMatchingScope[0].ID, &variablesWithMatchingScope[0].Template, variablesWithMatchingTemplate)
+		if err != nil {
+			return false, nil, err
+		}
+
+		return isSensitive, updateVariablePayloads, nil
+	}
+
+	// This should never happen based on server validation
+	if len(variablesWithMatchingScope) > 1 {
+		return false, nil, fmt.Errorf("multiple variable matches found for scope")
+	}
+
+	return false, nil, fmt.Errorf("unable to find requested variable")
+}
+
+func temp(opts *UpdateOptions, vars []variables.TenantProjectVariable, missingVars []variables.TenantProjectVariable, environmentMap map[string]string, environmentIds []string) (bool, []variables.TenantProjectVariablePayload, error) {
+	var variablesWithMatchingTemplate []variables.TenantProjectVariable
+	for _, v := range vars {
+		if strings.EqualFold(v.ProjectName, opts.Project.Value) && strings.EqualFold(v.Template.Name, opts.Name.Value) {
+			variablesWithMatchingTemplate = append(variablesWithMatchingTemplate, v)
+		}
+	}
+
+	var variablesWithMatchingScope []variables.TenantProjectVariable
+	for _, v := range variablesWithMatchingTemplate {
+		if equals(v.Scope.EnvironmentIds, environmentIds) {
+			variablesWithMatchingScope = append(variablesWithMatchingScope, v)
+		}
+	}
+
+	if len(variablesWithMatchingScope) == 0 {
+		var variablesWithNonMatchingEnvironments []variables.TenantProjectVariable
+		for _, v := range variablesWithMatchingTemplate {
+			if equals(v.Scope.EnvironmentIds, environmentIds) {
+				continue
+			}
+
+			if !contains(v.Scope.EnvironmentIds, environmentIds) {
+				variablesWithNonMatchingEnvironments = append(variablesWithNonMatchingEnvironments, v)
+			}
+			if !contains(environmentIds, v.Scope.EnvironmentIds) {
+				variablesWithNonMatchingEnvironments = append(variablesWithNonMatchingEnvironments, v)
+			}
+		}
+
+		if len(variablesWithNonMatchingEnvironments) > 0 {
+			// TODO: Improve error message
+			return false, nil, fmt.Errorf("no matching variable scope found")
+		}
+	}
+
+	if len(variablesWithMatchingTemplate) > 0 && len(variablesWithMatchingScope) == 0 {
+		var updateVariablePayloads, isSensitive, err = createProjectVariablePayload(opts, "", &variablesWithMatchingTemplate[0].Template, variablesWithMatchingTemplate)
+		if err != nil {
+			return false, nil, err
+		}
+
+		return isSensitive, updateVariablePayloads, nil
+	}
+
+	if len(variablesWithMatchingScope) == 1 {
+		var updateVariablePayloads, isSensitive, err = createProjectVariablePayload(opts, variablesWithMatchingScope[0].ID, &variablesWithMatchingScope[0].Template, variablesWithMatchingTemplate)
+		if err != nil {
+			return false, nil, err
+		}
+
+		return isSensitive, updateVariablePayloads, nil
+	}
+
+	// This should never happen based on server validation
+	if len(variablesWithMatchingScope) > 1 {
+		return false, nil, fmt.Errorf("multiple variable matches found for scope")
+	}
+
+	return false, nil, fmt.Errorf("unable to find requested variable")
+}
+
+func equals(sliceA []string, sliceB []string) bool {
+	sort.Strings(sliceA)
+	sort.Strings(sliceB)
+
+	if slices.Equal(sliceA, sliceB) {
+		return true
+	}
+	return false
+}
+
+func contains(sliceA []string, sliceB []string) bool {
+	var containsAllElementsOfB = true
+	for _, aElement := range sliceA {
+		if slices.Contains(sliceB, aElement) && containsAllElementsOfB {
+			containsAllElementsOfB = true
+		}
+		containsAllElementsOfB = false
+	}
+
+	if !containsAllElementsOfB {
+		return false
+	}
+	return true
+}
+
+func updateCommonVariableValue(opts *UpdateOptions, vars []variables.TenantCommonVariable, missingVars []variables.TenantCommonVariable, environmentMap map[string]string) (bool, []variables.TenantCommonVariablePayload, error) {
+	var environmentIds []string
+	for id, environment := range environmentMap {
+		for _, optEnvironment := range opts.Environments.Value {
+			if strings.EqualFold(environment, optEnvironment) || strings.EqualFold(id, optEnvironment) {
+				environmentIds = append(environmentIds, id)
+			}
+		}
+	}
+
+	var variablesWithMatchingTemplate []variables.TenantCommonVariable
+	for _, v := range vars {
+		if strings.EqualFold(v.LibraryVariableSetName, opts.LibraryVariableSet.Value) && strings.EqualFold(v.Template.Name, opts.Name.Value) {
+			variablesWithMatchingTemplate = append(variablesWithMatchingTemplate, v)
+		}
+	}
+
+	var variablesWithMatchingScope []variables.TenantCommonVariable
+	for _, v := range variablesWithMatchingTemplate {
+		if equals(v.Scope.EnvironmentIds, environmentIds) {
+			variablesWithMatchingScope = append(variablesWithMatchingScope, v)
+		}
+	}
+
+	if len(variablesWithMatchingScope) == 0 {
+		var variablesWithNonMatchingEnvironments []variables.TenantCommonVariable
+		for _, v := range variablesWithMatchingTemplate {
+			if equals(v.Scope.EnvironmentIds, environmentIds) {
+				continue
+			}
+
+			if !contains(v.Scope.EnvironmentIds, environmentIds) {
+				variablesWithNonMatchingEnvironments = append(variablesWithNonMatchingEnvironments, v)
+			}
+			if !contains(environmentIds, v.Scope.EnvironmentIds) {
+				variablesWithNonMatchingEnvironments = append(variablesWithNonMatchingEnvironments, v)
+			}
+		}
+
+		if len(variablesWithNonMatchingEnvironments) > 0 {
+			return false, nil, fmt.Errorf("no matching variable scope found for scope '%s'", opts.Environments.Value)
+		}
+	}
+
+	if len(variablesWithMatchingTemplate) > 0 && len(variablesWithMatchingScope) == 0 {
+		var updateVariablePayloads, isSensitive, err = createCommonVariablePayload(opts, "", &variablesWithMatchingTemplate[0].Template, variablesWithMatchingTemplate)
+		if err != nil {
+			return false, nil, err
+		}
+
+		return isSensitive, updateVariablePayloads, nil
+	}
+
+	if len(variablesWithMatchingScope) == 1 {
+		var updateVariablePayloads, isSensitive, err = createCommonVariablePayload(opts, variablesWithMatchingScope[0].ID, &variablesWithMatchingScope[0].Template, variablesWithMatchingTemplate)
+		if err != nil {
+			return false, nil, err
+		}
+
+		return isSensitive, updateVariablePayloads, nil
+	}
+
+	// This should never happen based on server validation
+	if len(variablesWithMatchingScope) > 1 {
+		return false, nil, fmt.Errorf("multiple variable matches found for scope")
+	}
+
+	return false, nil, fmt.Errorf("unable to find requested variable")
+}
+
+func createProjectVariablePayload(opts *UpdateOptions, variableIdToUpdate string, template *actiontemplates.ActionTemplateParameter, allVariables []variables.TenantProjectVariable) (payloads []variables.TenantProjectVariablePayload, isSensitive bool, error error) {
+	newValue, err := convertValue(opts, template)
+	if err != nil {
+		return nil, false, err
+	}
+
+	var updateVariablePayloads []variables.TenantProjectVariablePayload
+
+	for _, v := range allVariables {
+		if variableIdToUpdate == "" || v.ID == variableIdToUpdate {
+			updateVariablePayloads = append(updateVariablePayloads, variables.TenantProjectVariablePayload{
+				ID:         v.ID,
+				ProjectID:  v.ProjectID,
+				TemplateID: v.TemplateID,
+				Value:      *newValue,
+				Scope:      v.Scope,
+			})
+		} else {
+			updateVariablePayloads = append(updateVariablePayloads, variables.TenantProjectVariablePayload{
+				ID:         v.ID,
+				ProjectID:  v.ProjectID,
+				TemplateID: v.TemplateID,
+				Value:      v.Value,
+				Scope:      v.Scope,
+			})
+		}
+	}
+
+	return updateVariablePayloads, newValue.IsSensitive, nil
+}
+
+func createCommonVariablePayload(opts *UpdateOptions, variableIdToUpdate string, template *actiontemplates.ActionTemplateParameter, allVariables []variables.TenantCommonVariable) (payloads []variables.TenantCommonVariablePayload, isSensitive bool, error error) {
+	newValue, err := convertValue(opts, template)
+	if err != nil {
+		return nil, false, err
+	}
+
+	var updateVariablePayloads []variables.TenantCommonVariablePayload
+
+	for _, v := range allVariables {
+		if variableIdToUpdate == "" || v.ID == variableIdToUpdate {
+			updateVariablePayloads = append(updateVariablePayloads, variables.TenantCommonVariablePayload{
+				ID:                   v.ID,
+				LibraryVariableSetId: v.LibraryVariableSetId,
+				TemplateID:           v.TemplateID,
+				Value:                *newValue,
+				Scope:                v.Scope,
+			})
+		} else {
+			updateVariablePayloads = append(updateVariablePayloads, variables.TenantCommonVariablePayload{
+				ID:                   v.ID,
+				LibraryVariableSetId: v.LibraryVariableSetId,
+				TemplateID:           v.TemplateID,
+				Value:                v.Value,
+				Scope:                v.Scope,
+			})
+		}
+	}
+
+	return updateVariablePayloads, newValue.IsSensitive, nil
+}
+
+func updateProjectVariableValueV1(opts *UpdateOptions, vars *variables.TenantVariables, environmentMap map[string]string) (bool, error) {
 	var environmentId string
 	for id, environment := range environmentMap {
-		if strings.EqualFold(environment, opts.Environment.Value) || strings.EqualFold(id, opts.Environment.Value) {
+		if strings.EqualFold(environment, opts.Environments.Value[0]) || strings.EqualFold(id, opts.Environments.Value[0]) {
 			environmentId = id
 		}
 	}
@@ -437,7 +773,7 @@ func updateProjectVariableValue(opts *UpdateOptions, vars *variables.TenantVaria
 	return false, fmt.Errorf("unable to find requested variable")
 }
 
-func updateCommonVariableValue(opts *UpdateOptions, vars *variables.TenantVariables) (bool, error) {
+func updateCommonVariableValueV1(opts *UpdateOptions, vars *variables.TenantVariables) (bool, error) {
 	for _, v := range vars.LibraryVariables {
 		if strings.EqualFold(v.LibraryVariableSetName, opts.LibraryVariableSet.Value) {
 			t, err := findTemplate(v.Templates, opts.Name.Value)
