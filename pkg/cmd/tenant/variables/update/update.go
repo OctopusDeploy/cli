@@ -504,8 +504,8 @@ func updateProjectVariableValue(opts *UpdateOptions, vars []variables.TenantProj
 		}
 
 		if len(variablesWithMatchingTemplate) == 0 {
-			// TODO: Improve error message. Need to handle empty scopes
-			return false, nil, fmt.Errorf("no matching variable scope found")
+			// TODO: Need to handle empty scopes
+			return false, nil, fmt.Errorf("no matching variable scope found for scope '%s'", opts.Environments.Value)
 		}
 	}
 
@@ -560,9 +560,16 @@ func updateCommonVariableValue(opts *UpdateOptions, vars []variables.TenantCommo
 		}
 	}
 
-	var variablesWithMatchingTemplate []variables.TenantCommonVariable
+	var variablesWithMatchingVariableSet []variables.TenantCommonVariable
 	for _, v := range vars {
-		if strings.EqualFold(v.LibraryVariableSetName, opts.LibraryVariableSet.Value) && strings.EqualFold(v.Template.Name, opts.Name.Value) {
+		if strings.EqualFold(v.LibraryVariableSetName, opts.LibraryVariableSet.Value) {
+			variablesWithMatchingVariableSet = append(variablesWithMatchingVariableSet, v)
+		}
+	}
+
+	var variablesWithMatchingTemplate []variables.TenantCommonVariable
+	for _, v := range variablesWithMatchingVariableSet {
+		if strings.EqualFold(v.Template.Name, opts.Name.Value) {
 			variablesWithMatchingTemplate = append(variablesWithMatchingTemplate, v)
 		}
 	}
@@ -575,11 +582,44 @@ func updateCommonVariableValue(opts *UpdateOptions, vars []variables.TenantCommo
 	}
 
 	if len(variablesWithMatchingScope) == 0 {
-		return false, nil, fmt.Errorf("no matching variable scope found for scope '%s'", opts.Environments.Value)
+		if len(missingVars) > 0 {
+			var missingVariablesWithMatchingTemplate []variables.TenantCommonVariable
+			for _, v := range missingVars {
+				if strings.EqualFold(v.LibraryVariableSetName, opts.LibraryVariableSet.Value) && strings.EqualFold(v.Template.Name, opts.Name.Value) {
+					missingVariablesWithMatchingTemplate = append(missingVariablesWithMatchingTemplate, v)
+				}
+			}
+
+			for _, v := range missingVariablesWithMatchingTemplate {
+				if util.SliceContainsSlice(v.Scope.EnvironmentIds, environmentIds) {
+					variablesWithMatchingTemplate = append(variablesWithMatchingTemplate, missingVariablesWithMatchingTemplate[0])
+				}
+			}
+		}
+
+		if len(variablesWithMatchingTemplate) == 0 {
+			// TODO: Improve error message. Need to handle empty scopes
+			return false, nil, fmt.Errorf("no matching variable scope found for scope '%s'", opts.Environments.Value)
+		}
+	}
+
+	var template = variablesWithMatchingTemplate[0].Template
+	newValue, err := convertValue(opts, &template)
+	if err != nil {
+		return false, nil, err
 	}
 
 	if len(variablesWithMatchingTemplate) > 0 && len(variablesWithMatchingScope) == 0 {
-		var updateVariablePayloads, isSensitive, err = createCommonVariablePayload(opts, "", &variablesWithMatchingTemplate[0].Template, variablesWithMatchingTemplate)
+		var variableToCreate = variables.TenantCommonVariable{
+			LibraryVariableSetId:   variablesWithMatchingTemplate[0].LibraryVariableSetId,
+			LibraryVariableSetName: variablesWithMatchingTemplate[0].LibraryVariableSetName,
+			TemplateID:             variablesWithMatchingTemplate[0].Template.ID,
+			Template:               template,
+			Scope: variables.TenantVariableScope{
+				EnvironmentIds: environmentIds,
+			},
+		}
+		updateVariablePayloads, isSensitive, err := createCommonVariablePayload(variableToCreate, newValue, variablesWithMatchingVariableSet)
 		if err != nil {
 			return false, nil, err
 		}
@@ -588,7 +628,7 @@ func updateCommonVariableValue(opts *UpdateOptions, vars []variables.TenantCommo
 	}
 
 	if len(variablesWithMatchingScope) == 1 {
-		var updateVariablePayloads, isSensitive, err = createCommonVariablePayload(opts, variablesWithMatchingScope[0].ID, &variablesWithMatchingScope[0].Template, variablesWithMatchingTemplate)
+		var updateVariablePayloads, isSensitive, err = createCommonVariablePayload(variablesWithMatchingScope[0], newValue, variablesWithMatchingVariableSet)
 		if err != nil {
 			return false, nil, err
 		}
@@ -641,16 +681,22 @@ func createProjectVariablePayload(variableToUpdate variables.TenantProjectVariab
 	return updateVariablePayloads, newValue.IsSensitive, nil
 }
 
-func createCommonVariablePayload(opts *UpdateOptions, variableIdToUpdate string, template *actiontemplates.ActionTemplateParameter, allVariables []variables.TenantCommonVariable) (payloads []variables.TenantCommonVariablePayload, isSensitive bool, error error) {
-	newValue, err := convertValue(opts, template)
-	if err != nil {
-		return nil, false, err
-	}
-
+func createCommonVariablePayload(variableToUpdate variables.TenantCommonVariable, newValue *core.PropertyValue, allVariables []variables.TenantCommonVariable) (payloads []variables.TenantCommonVariablePayload, isSensitive bool, error error) {
 	var updateVariablePayloads []variables.TenantCommonVariablePayload
 
+	if variableToUpdate.ID == "" {
+		updateVariablePayloads = append(updateVariablePayloads, variables.TenantCommonVariablePayload{
+			ID:                   variableToUpdate.ID,
+			LibraryVariableSetId: variableToUpdate.LibraryVariableSetId,
+			TemplateID:           variableToUpdate.TemplateID,
+			Value:                *newValue,
+			Scope:                variableToUpdate.Scope,
+		})
+	}
+
+	// All variables within the selected library variable set must be included in the request to avoid deletions
 	for _, v := range allVariables {
-		if variableIdToUpdate == "" || v.ID == variableIdToUpdate {
+		if v.ID == variableToUpdate.ID {
 			updateVariablePayloads = append(updateVariablePayloads, variables.TenantCommonVariablePayload{
 				ID:                   v.ID,
 				LibraryVariableSetId: v.LibraryVariableSetId,
