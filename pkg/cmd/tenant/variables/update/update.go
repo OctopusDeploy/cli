@@ -23,6 +23,7 @@ import (
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/variables"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/workerpools"
 	"github.com/spf13/cobra"
+	"slices"
 	"sort"
 	"strings"
 )
@@ -284,7 +285,7 @@ func PromptMissingV1(opts *UpdateOptions) error {
 	switch variableType {
 	case VariableOwnerTypeCommon:
 		if opts.LibraryVariableSet.Value == "" || opts.Name.Value == "" {
-			selectedVariable, err := PromptForVariable(opts, variables, findPossibleCommonVariablesV1)
+			selectedVariable, err := PromptForVariableV1(opts, variables, findPossibleCommonVariablesV1)
 			if err != nil {
 				return err
 			}
@@ -293,7 +294,7 @@ func PromptMissingV1(opts *UpdateOptions) error {
 		}
 	case VariableOwnerTypeProject:
 		if opts.Project.Value == "" || opts.Name.Value == "" {
-			selectedVariable, err := PromptForVariable(opts, variables, findPossibleProjectVariablesV1)
+			selectedVariable, err := PromptForVariableV1(opts, variables, findPossibleProjectVariablesV1)
 			if err != nil {
 				return err
 			}
@@ -364,13 +365,14 @@ func PromptMissing(opts *UpdateOptions) error {
 	switch variableType {
 	case VariableOwnerTypeCommon:
 		variableResponse, err := opts.GetTenantCommonVariables(tenant, true)
+		var allVariables = slices.Concat(variableResponse.CommonVariables, variableResponse.MissingCommonVariables)
 
 		if err != nil {
 			return err
 		}
 
 		if opts.LibraryVariableSet.Value == "" || opts.Name.Value == "" {
-			selectedVariable, err := PromptForTenantCommonVariable(opts, &variableResponse.CommonVariables, findPossibleCommonVariables)
+			selectedVariable, err := promptForVariable(opts, &allVariables, findPossibleCommonVariables)
 			if err != nil {
 				return err
 			}
@@ -382,12 +384,13 @@ func PromptMissing(opts *UpdateOptions) error {
 			return err
 		}
 
-		template, err = getCommonVariableTemplate(opts, &variableResponse.CommonVariables)
+		template, err = getCommonVariableTemplate(opts, &allVariables)
 	case VariableOwnerTypeProject:
 		variableResponse, err := opts.GetTenantProjectVariables(tenant, true)
+		var allVariables = slices.Concat(variableResponse.ProjectVariables, variableResponse.MissingProjectVariables)
 
 		if opts.Project.Value == "" || opts.Name.Value == "" {
-			selectedVariable, err := PromptForTenantProjectVariable(opts, &variableResponse.ProjectVariables, findPossibleProjectVariables)
+			selectedVariable, err := promptForVariable(opts, &allVariables, findPossibleProjectVariables)
 			if err != nil {
 				return err
 			}
@@ -399,7 +402,7 @@ func PromptMissing(opts *UpdateOptions) error {
 			return err
 		}
 
-		template, err = getProjectVariableTemplate(opts, &variableResponse.ProjectVariables)
+		template, err = getProjectVariableTemplate(opts, &allVariables)
 	}
 
 	if opts.Value.Value == "" {
@@ -455,7 +458,7 @@ func PromptForEnvironments(opts *UpdateOptions) error {
 	return nil
 }
 
-func PromptForVariable(opts *UpdateOptions, tenantVariables *variables.TenantVariables, variableFilter func(opts *UpdateOptions, tenantVariables *variables.TenantVariables) []*PossibleVariable) (*PossibleVariable, error) {
+func PromptForVariableV1(opts *UpdateOptions, tenantVariables *variables.TenantVariables, variableFilter func(opts *UpdateOptions, tenantVariables *variables.TenantVariables) []*PossibleVariable) (*PossibleVariable, error) {
 	possibleVariables := variableFilter(opts, tenantVariables)
 	selectedVariable, err := selectors.Select(opts.Ask, "You have not specified a variable", func() ([]*PossibleVariable, error) { return possibleVariables, nil }, func(variable *PossibleVariable) string {
 		return fmt.Sprintf("%s / %s", variable.Owner, variable.VariableName)
@@ -470,22 +473,7 @@ func PromptForVariable(opts *UpdateOptions, tenantVariables *variables.TenantVar
 	return selectedVariable, nil
 }
 
-func PromptForTenantProjectVariable(opts *UpdateOptions, tenantVariables *[]variables.TenantProjectVariable, variableFilter func(opts *UpdateOptions, tenantVariables *[]variables.TenantProjectVariable) []*PossibleVariable) (*PossibleVariable, error) {
-	possibleVariables := variableFilter(opts, tenantVariables)
-	selectedVariable, err := selectors.Select(opts.Ask, "You have not specified a variable", func() ([]*PossibleVariable, error) { return possibleVariables, nil }, func(variable *PossibleVariable) string {
-		return fmt.Sprintf("%s / %s", variable.Owner, variable.VariableName)
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	opts.Name.Value = selectedVariable.VariableName
-	opts.VariableId = selectedVariable.ID
-	opts.TemplateId = selectedVariable.TemplateID
-	return selectedVariable, nil
-}
-
-func PromptForTenantCommonVariable(opts *UpdateOptions, tenantVariables *[]variables.TenantCommonVariable, variableFilter func(opts *UpdateOptions, tenantVariables *[]variables.TenantCommonVariable) []*PossibleVariable) (*PossibleVariable, error) {
+func promptForVariable[T any](opts *UpdateOptions, tenantVariables *[]T, variableFilter func(opts *UpdateOptions, tenantVariables *[]T) []*PossibleVariable) (*PossibleVariable, error) {
 	possibleVariables := variableFilter(opts, tenantVariables)
 	selectedVariable, err := selectors.Select(opts.Ask, "You have not specified a variable", func() ([]*PossibleVariable, error) { return possibleVariables, nil }, func(variable *PossibleVariable) string {
 		return fmt.Sprintf("%s / %s", variable.Owner, variable.VariableName)
