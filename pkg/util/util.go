@@ -3,6 +3,7 @@ package util
 import (
 	"fmt"
 	"slices"
+	"sort"
 )
 
 // SliceContains returns true if it finds an item in the slice that is equal to the target
@@ -11,6 +12,31 @@ func SliceContains[T comparable](slice []T, target T) bool {
 		if item == target {
 			return true
 		}
+	}
+	return false
+}
+
+// SliceContainsSlice returns true all items in the target are equal to items in the slice
+func SliceContainsSlice[T comparable](slice []T, target []T) bool {
+	var containsAllElementsOfTarget = true
+	for _, targetElement := range target {
+		if SliceContains(slice, targetElement) {
+			containsAllElementsOfTarget = true
+		} else {
+			return false
+		}
+	}
+
+	return containsAllElementsOfTarget
+}
+
+// SliceEquals returns true if the slices have the same string contents, regardless of order
+func SliceEquals(slice []string, target []string) bool {
+	sort.Strings(slice)
+	sort.Strings(target)
+
+	if slices.Equal(slice, target) {
+		return true
 	}
 	return false
 }
