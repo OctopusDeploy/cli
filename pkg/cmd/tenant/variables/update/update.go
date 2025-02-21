@@ -111,7 +111,13 @@ func NewCmdUpdate(f factory.Factory) *cobra.Command {
 		RunE: func(c *cobra.Command, args []string) error {
 			opts := NewUpdateOptions(updateFlags, cmd.NewDependencies(f, c))
 
-			return updateRun(opts)
+			toggleValue, _ := opts.FeatureToggleCallback("CommonVariableScopingFeatureToggle")
+
+			if toggleValue {
+				return updateRun(opts)
+			}
+
+			return updateRunV1(opts)
 		},
 	}
 
@@ -126,7 +132,7 @@ func NewCmdUpdate(f factory.Factory) *cobra.Command {
 	return cmd
 }
 
-func updateRun(opts *UpdateOptions) error {
+func updateRunV1(opts *UpdateOptions) error {
 	if !opts.NoPrompt {
 		err := PromptMissing(opts)
 		if err != nil {
@@ -139,70 +145,94 @@ func updateRun(opts *UpdateOptions) error {
 		return err
 	}
 
-	toggleValue, err := opts.FeatureToggleCallback("CommonVariableScopingFeatureToggle")
+	vars, err := opts.GetTenantVariables(tenant)
+	if err != nil {
+		return err
+	}
 
-	if toggleValue {
+	if opts.LibraryVariableSet.Value != "" {
+		opts.Value.Secure, err = updateCommonVariableValueV1(opts, vars)
+		if err != nil {
+			return err
+		}
+	} else {
 		environmentMap, err := getEnvironmentMap(opts.GetAllEnvironmentsCallback)
 		if err != nil {
 			return err
 		}
-
-		if opts.LibraryVariableSet.Value != "" {
-			commonVariables, err := opts.GetTenantCommonVariables(tenant, true)
-			if err != nil {
-				return err
-			}
-
-			var commonVariableCommand variables.ModifyTenantCommonVariablesCommand
-
-			opts.Value.Secure, commonVariableCommand.Variables, err = updateCommonVariableValue(opts, commonVariables.CommonVariables, commonVariables.MissingCommonVariables, environmentMap)
-			if err != nil {
-				return err
-			}
-
-			_, err = tenants.UpdateCommonVariables(opts.Client, tenant.SpaceID, tenant.ID, &commonVariableCommand)
-		} else {
-			projectVariables, err := opts.GetTenantProjectVariables(tenant, true)
-
-			if err != nil {
-				return err
-			}
-
-			var projectVariableCommand variables.ModifyTenantProjectVariablesCommand
-
-			opts.Value.Secure, projectVariableCommand.Variables, err = updateProjectVariableValue(opts, projectVariables.ProjectVariables, projectVariables.MissingProjectVariables, environmentMap)
-			if err != nil {
-				return err
-			}
-
-			_, err = tenants.UpdateProjectVariables(opts.Client, tenant.SpaceID, tenant.ID, &projectVariableCommand)
+		opts.Value.Secure, err = updateProjectVariableValueV1(opts, vars, environmentMap)
+		if err != nil {
+			return err
 		}
+	}
+
+	_, err = opts.Client.Tenants.UpdateVariables(tenant, vars)
+	if err != nil {
+		return err
+	}
+
+	_, err = fmt.Fprintf(opts.Out, "Successfully updated variable '%s' for tenant '%s'\n", opts.Name.Value, tenant.Name)
+
+	if !opts.NoPrompt {
+		autoCmd := flag.GenerateAutomationCmd(opts.CmdPath, opts.Tenant, opts.Name, opts.Value, opts.Project, opts.LibraryVariableSet, opts.Environments)
+		fmt.Fprintf(opts.Out, "\nAutomation Command: %s\n", autoCmd)
+	}
+
+	return nil
+}
+
+func updateRun(opts *UpdateOptions) error {
+	// TODO: Handle missing prompts
+	//if !opts.NoPrompt {
+	//	err := PromptMissing(opts)
+	//	if err != nil {
+	//		return err
+	//	}
+	//}
+
+	tenant, err := opts.GetTenantCallback(opts.Tenant.Value)
+	if err != nil {
+		return err
+	}
+
+	environmentMap, err := getEnvironmentMap(opts.GetAllEnvironmentsCallback)
+	if err != nil {
+		return err
+	}
+
+	if opts.LibraryVariableSet.Value != "" {
+		commonVariables, err := opts.GetTenantCommonVariables(tenant, true)
+		if err != nil {
+			return err
+		}
+
+		var commonVariableCommand variables.ModifyTenantCommonVariablesCommand
+
+		opts.Value.Secure, commonVariableCommand.Variables, err = UpdateCommonVariableValue(opts, commonVariables.CommonVariables, commonVariables.MissingCommonVariables, environmentMap)
+		if err != nil {
+			return err
+		}
+
+		_, err = tenants.UpdateCommonVariables(opts.Client, tenant.SpaceID, tenant.ID, &commonVariableCommand)
 	} else {
-		vars, err := opts.GetTenantVariables(tenant)
+		projectVariables, err := opts.GetTenantProjectVariables(tenant, true)
+
 		if err != nil {
 			return err
 		}
 
-		if opts.LibraryVariableSet.Value != "" {
-			opts.Value.Secure, err = updateCommonVariableValueV1(opts, vars)
-			if err != nil {
-				return err
-			}
-		} else {
-			environmentMap, err := getEnvironmentMap(opts.GetAllEnvironmentsCallback)
-			if err != nil {
-				return err
-			}
-			opts.Value.Secure, err = updateProjectVariableValueV1(opts, vars, environmentMap)
-			if err != nil {
-				return err
-			}
-		}
+		var projectVariableCommand variables.ModifyTenantProjectVariablesCommand
 
-		_, err = opts.Client.Tenants.UpdateVariables(tenant, vars)
+		opts.Value.Secure, projectVariableCommand.Variables, err = UpdateProjectVariableValue(opts, projectVariables.ProjectVariables, projectVariables.MissingProjectVariables, environmentMap)
 		if err != nil {
 			return err
 		}
+
+		_, err = tenants.UpdateProjectVariables(opts.Client, tenant.SpaceID, tenant.ID, &projectVariableCommand)
+	}
+
+	if err != nil {
+		return err
 	}
 
 	_, err = fmt.Fprintf(opts.Out, "Successfully updated variable '%s' for tenant '%s'\n", opts.Name.Value, tenant.Name)
@@ -456,7 +486,7 @@ func findPossibleProjectVariables(opts *UpdateOptions, tenantVariables *variable
 	return filteredVariables
 }
 
-func updateProjectVariableValue(opts *UpdateOptions, vars []variables.TenantProjectVariable, missingVars []variables.TenantProjectVariable, environmentMap map[string]string) (bool, []variables.TenantProjectVariablePayload, error) {
+func UpdateProjectVariableValue(opts *UpdateOptions, vars []variables.TenantProjectVariable, missingVars []variables.TenantProjectVariable, environmentMap map[string]string) (bool, []variables.TenantProjectVariablePayload, error) {
 	var environmentIds []string
 	for id, environment := range environmentMap {
 		for _, optEnvironment := range opts.Environments.Value {
@@ -487,6 +517,7 @@ func updateProjectVariableValue(opts *UpdateOptions, vars []variables.TenantProj
 		}
 	}
 
+	var matchingMissingVariables []variables.TenantProjectVariable
 	if len(variablesWithMatchingScope) == 0 {
 		if len(missingVars) > 0 {
 			var missingVariablesWithMatchingTemplate []variables.TenantProjectVariable
@@ -501,10 +532,17 @@ func updateProjectVariableValue(opts *UpdateOptions, vars []variables.TenantProj
 					variablesWithMatchingTemplate = append(variablesWithMatchingTemplate, missingVariablesWithMatchingTemplate[0])
 				}
 			}
-		}
+			for _, v := range missingVariablesWithMatchingTemplate {
+				if util.SliceContainsSlice(v.Scope.EnvironmentIds, environmentIds) {
+					variablesWithMatchingTemplate = append(variablesWithMatchingTemplate, missingVariablesWithMatchingTemplate[0])
+					matchingMissingVariables = append(matchingMissingVariables, missingVariablesWithMatchingTemplate[0])
+				}
+			}
 
-		if len(variablesWithMatchingTemplate) == 0 {
-			// TODO: Need to handle empty scopes
+			if len(matchingMissingVariables) == 0 {
+				return false, nil, fmt.Errorf("no matching variable scope found for scope '%s'", opts.Environments.Value)
+			}
+		} else {
 			return false, nil, fmt.Errorf("no matching variable scope found for scope '%s'", opts.Environments.Value)
 		}
 	}
@@ -550,7 +588,7 @@ func updateProjectVariableValue(opts *UpdateOptions, vars []variables.TenantProj
 	return false, nil, fmt.Errorf("unable to find requested variable")
 }
 
-func updateCommonVariableValue(opts *UpdateOptions, vars []variables.TenantCommonVariable, missingVars []variables.TenantCommonVariable, environmentMap map[string]string) (bool, []variables.TenantCommonVariablePayload, error) {
+func UpdateCommonVariableValue(opts *UpdateOptions, vars []variables.TenantCommonVariable, missingVars []variables.TenantCommonVariable, environmentMap map[string]string) (bool, []variables.TenantCommonVariablePayload, error) {
 	var environmentIds []string
 	for id, environment := range environmentMap {
 		for _, optEnvironment := range opts.Environments.Value {
@@ -581,6 +619,8 @@ func updateCommonVariableValue(opts *UpdateOptions, vars []variables.TenantCommo
 		}
 	}
 
+	var matchingMissingVariables []variables.TenantCommonVariable
+
 	if len(variablesWithMatchingScope) == 0 {
 		if len(missingVars) > 0 {
 			var missingVariablesWithMatchingTemplate []variables.TenantCommonVariable
@@ -593,12 +633,14 @@ func updateCommonVariableValue(opts *UpdateOptions, vars []variables.TenantCommo
 			for _, v := range missingVariablesWithMatchingTemplate {
 				if util.SliceContainsSlice(v.Scope.EnvironmentIds, environmentIds) {
 					variablesWithMatchingTemplate = append(variablesWithMatchingTemplate, missingVariablesWithMatchingTemplate[0])
+					matchingMissingVariables = append(matchingMissingVariables, missingVariablesWithMatchingTemplate[0])
 				}
 			}
-		}
 
-		if len(variablesWithMatchingTemplate) == 0 {
-			// TODO: Improve error message. Need to handle empty scopes
+			if len(matchingMissingVariables) == 0 {
+				return false, nil, fmt.Errorf("no matching variable scope found for scope '%s'", opts.Environments.Value)
+			}
+		} else {
 			return false, nil, fmt.Errorf("no matching variable scope found for scope '%s'", opts.Environments.Value)
 		}
 	}
@@ -609,11 +651,11 @@ func updateCommonVariableValue(opts *UpdateOptions, vars []variables.TenantCommo
 		return false, nil, err
 	}
 
-	if len(variablesWithMatchingTemplate) > 0 && len(variablesWithMatchingScope) == 0 {
+	if len(matchingMissingVariables) > 0 {
 		var variableToCreate = variables.TenantCommonVariable{
-			LibraryVariableSetId:   variablesWithMatchingTemplate[0].LibraryVariableSetId,
-			LibraryVariableSetName: variablesWithMatchingTemplate[0].LibraryVariableSetName,
-			TemplateID:             variablesWithMatchingTemplate[0].Template.ID,
+			LibraryVariableSetId:   matchingMissingVariables[0].LibraryVariableSetId,
+			LibraryVariableSetName: matchingMissingVariables[0].LibraryVariableSetName,
+			TemplateID:             matchingMissingVariables[0].Template.ID,
 			Template:               template,
 			Scope: variables.TenantVariableScope{
 				EnvironmentIds: environmentIds,
