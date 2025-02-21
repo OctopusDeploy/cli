@@ -23,7 +23,6 @@ import (
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/variables"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/workerpools"
 	"github.com/spf13/cobra"
-	"slices"
 	"sort"
 	"strings"
 )
@@ -365,7 +364,7 @@ func PromptMissing(opts *UpdateOptions) error {
 	switch variableType {
 	case VariableOwnerTypeCommon:
 		variableResponse, err := opts.GetTenantCommonVariables(tenant, true)
-		var allVariables = slices.Concat(variableResponse.CommonVariables, variableResponse.MissingCommonVariables)
+		var allVariables = append(variableResponse.CommonVariables, variableResponse.MissingCommonVariables...)
 
 		if err != nil {
 			return err
@@ -387,7 +386,7 @@ func PromptMissing(opts *UpdateOptions) error {
 		template, err = getCommonVariableTemplate(opts, &allVariables)
 	case VariableOwnerTypeProject:
 		variableResponse, err := opts.GetTenantProjectVariables(tenant, true)
-		var allVariables = slices.Concat(variableResponse.ProjectVariables, variableResponse.MissingProjectVariables)
+		var allVariables = append(variableResponse.ProjectVariables, variableResponse.MissingProjectVariables...)
 
 		if opts.Project.Value == "" || opts.Name.Value == "" {
 			selectedVariable, err := promptForVariable(opts, &allVariables, findPossibleProjectVariables)
