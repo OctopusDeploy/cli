@@ -28,24 +28,8 @@ func TestUpdate_CommonVariable_ScopeExactMatch(t *testing.T) {
 	opts := update.NewUpdateOptions(flags, &cmd.Dependencies{Ask: asker})
 
 	var existingCommonVariables = []variables.TenantCommonVariable{
-		{
-			Resource:               resources.Resource{ID: "TenantVariables-1"},
-			LibraryVariableSetId:   "LibraryVariableSets-1",
-			LibraryVariableSetName: "Set 1",
-			TemplateID:             "Templates-1",
-			Template:               *createTemplate("Template 1", resources.ControlTypeSingleLineText, "Templates-1"),
-			Value:                  core.PropertyValue{Value: "existing value 1"},
-			Scope:                  variables.TenantVariableScope{EnvironmentIds: []string{"Environments-1", "Environments-2"}},
-		},
-		{
-			Resource:               resources.Resource{ID: "TenantVariables-2"},
-			LibraryVariableSetId:   "LibraryVariableSets-1",
-			LibraryVariableSetName: "Set 1",
-			TemplateID:             "Templates-1",
-			Template:               *createTemplate("Template 1", resources.ControlTypeSingleLineText, "Templates-1"),
-			Value:                  core.PropertyValue{Value: "existing value 2"},
-			Scope:                  variables.TenantVariableScope{EnvironmentIds: []string{"Environments-3"}},
-		},
+		createCommonVariable("TenantVariables-1", "LibraryVariableSets-1", "Set 1", "Templates-1", "Template 1", "existing value 1", []string{"Environments-1", "Environments-2"}, false),
+		createCommonVariable("TenantVariables-2", "LibraryVariableSets-1", "Set 1", "Templates-1", "Template 1", "existing value 2", []string{"Environments-3"}, false),
 	}
 
 	var environmentMap = map[string]string{
@@ -86,24 +70,8 @@ func TestUpdate_CommonVariable_ScopePartialMatch(t *testing.T) {
 	opts := update.NewUpdateOptions(flags, &cmd.Dependencies{Ask: asker})
 
 	var existingCommonVariables = []variables.TenantCommonVariable{
-		{
-			Resource:               resources.Resource{ID: "TenantVariables-1"},
-			LibraryVariableSetId:   "LibraryVariableSets-1",
-			LibraryVariableSetName: "Set 1",
-			TemplateID:             "Templates-1",
-			Template:               *createTemplate("Template 1", resources.ControlTypeSingleLineText, "Templates-1"),
-			Value:                  core.PropertyValue{Value: "existing value 1"},
-			Scope:                  variables.TenantVariableScope{EnvironmentIds: []string{"Environments-1", "Environments-2"}},
-		},
-		{
-			Resource:               resources.Resource{ID: "TenantVariables-2"},
-			LibraryVariableSetId:   "LibraryVariableSets-1",
-			LibraryVariableSetName: "Set 1",
-			TemplateID:             "Templates-1",
-			Template:               *createTemplate("Template 1", resources.ControlTypeSingleLineText, "Templates-1"),
-			Value:                  core.PropertyValue{Value: "existing value 2"},
-			Scope:                  variables.TenantVariableScope{EnvironmentIds: []string{"Environments-3"}},
-		},
+		createCommonVariable("TenantVariables-1", "LibraryVariableSets-1", "Set 1", "Templates-1", "Template 1", "existing value 1", []string{"Environments-1", "Environments-2"}, false),
+		createCommonVariable("TenantVariables-2", "LibraryVariableSets-1", "Set 1", "Templates-1", "Template 1", "existing value 2", []string{"Environments-3"}, false),
 	}
 
 	var environmentMap = map[string]string{
@@ -130,24 +98,8 @@ func TestUpdate_CommonVariable_ScopeNoMatch(t *testing.T) {
 	opts := update.NewUpdateOptions(flags, &cmd.Dependencies{Ask: asker})
 
 	var existingCommonVariables = []variables.TenantCommonVariable{
-		{
-			Resource:               resources.Resource{ID: "TenantVariables-1"},
-			LibraryVariableSetId:   "LibraryVariableSets-1",
-			LibraryVariableSetName: "Set 1",
-			TemplateID:             "Templates-1",
-			Template:               *createTemplate("Template 1", resources.ControlTypeSingleLineText, "Templates-1"),
-			Value:                  core.PropertyValue{Value: "existing value 1"},
-			Scope:                  variables.TenantVariableScope{EnvironmentIds: []string{"Environments-1", "Environments-2"}},
-		},
-		{
-			Resource:               resources.Resource{ID: "TenantVariables-2"},
-			LibraryVariableSetId:   "LibraryVariableSets-1",
-			LibraryVariableSetName: "Set 1",
-			TemplateID:             "Templates-1",
-			Template:               *createTemplate("Template 1", resources.ControlTypeSingleLineText, "Templates-1"),
-			Value:                  core.PropertyValue{Value: "existing value 2"},
-			Scope:                  variables.TenantVariableScope{EnvironmentIds: []string{"Environments-3"}},
-		},
+		createCommonVariable("TenantVariables-1", "LibraryVariableSets-1", "Set 1", "Templates-1", "Template 1", "existing value 1", []string{"Environments-1", "Environments-2"}, false),
+		createCommonVariable("TenantVariables-2", "LibraryVariableSets-1", "Set 1", "Templates-1", "Template 1", "existing value 2", []string{"Environments-3"}, false),
 	}
 
 	var environmentMap = map[string]string{
@@ -174,27 +126,11 @@ func TestUpdate_CommonVariable_WhenExistingValueIsMissingForScope(t *testing.T) 
 	opts := update.NewUpdateOptions(flags, &cmd.Dependencies{Ask: asker})
 
 	var existingCommonVariables = []variables.TenantCommonVariable{
-		{
-			Resource:               resources.Resource{ID: "TenantVariables-2"},
-			LibraryVariableSetId:   "LibraryVariableSets-1",
-			LibraryVariableSetName: "Set 1",
-			TemplateID:             "Templates-1",
-			Template:               *createTemplate("Template 1", resources.ControlTypeSingleLineText, "Templates-1"),
-			Value:                  core.PropertyValue{Value: "existing value 2"},
-			Scope:                  variables.TenantVariableScope{EnvironmentIds: []string{"Environments-3"}},
-		},
+		createCommonVariable("TenantVariables-2", "LibraryVariableSets-1", "Set 1", "Templates-1", "Template 1", "existing value 2", []string{"Environments-3"}, false),
 	}
 
 	var missingCommonVariables = []variables.TenantCommonVariable{
-		{
-			Resource:               resources.Resource{ID: "TenantVariables-1"},
-			LibraryVariableSetId:   "LibraryVariableSets-1",
-			LibraryVariableSetName: "Set 1",
-			TemplateID:             "Templates-1",
-			Template:               *createTemplate("Template 1", resources.ControlTypeSingleLineText, "Templates-1"),
-			Value:                  core.PropertyValue{Value: "default"},
-			Scope:                  variables.TenantVariableScope{EnvironmentIds: []string{"Environments-1", "Environments-2"}},
-		},
+		createCommonVariable("TenantVariables-1", "LibraryVariableSets-1", "Set 1", "Templates-1", "Template 1", "existing value 1", []string{"Environments-1", "Environments-2"}, false),
 	}
 
 	var environmentMap = map[string]string{
@@ -235,24 +171,8 @@ func TestUpdate_ProjectVariable_ScopeExactMatch(t *testing.T) {
 	opts := update.NewUpdateOptions(flags, &cmd.Dependencies{Ask: asker})
 
 	var existingProjectVariables = []variables.TenantProjectVariable{
-		{
-			Resource:    resources.Resource{ID: "TenantVariables-1"},
-			ProjectID:   "Projects-1",
-			ProjectName: "Project 1",
-			TemplateID:  "Templates-1",
-			Template:    *createTemplate("Template 1", resources.ControlTypeSingleLineText, "Templates-1"),
-			Value:       core.PropertyValue{Value: "existing value 1"},
-			Scope:       variables.TenantVariableScope{EnvironmentIds: []string{"Environments-1", "Environments-2"}},
-		},
-		{
-			Resource:    resources.Resource{ID: "TenantVariables-2"},
-			ProjectID:   "Projects-1",
-			ProjectName: "Project 1",
-			TemplateID:  "Templates-1",
-			Template:    *createTemplate("Template 1", resources.ControlTypeSingleLineText, "Templates-1"),
-			Value:       core.PropertyValue{Value: "existing value 2"},
-			Scope:       variables.TenantVariableScope{EnvironmentIds: []string{"Environments-3"}},
-		},
+		createProjectVariable("TenantVariables-1", "Projects-1", "Project 1", "Templates-1", "Template 1", "existing value 1", []string{"Environments-1", "Environments-2"}, false),
+		createProjectVariable("TenantVariables-2", "Projects-1", "Project 1", "Templates-1", "Template 1", "existing value 2", []string{"Environments-3"}, false),
 	}
 
 	var environmentMap = map[string]string{
@@ -293,24 +213,8 @@ func TestUpdate_ProjectVariable_ScopePartialMatch(t *testing.T) {
 	opts := update.NewUpdateOptions(flags, &cmd.Dependencies{Ask: asker})
 
 	var existingProjectVariables = []variables.TenantProjectVariable{
-		{
-			Resource:    resources.Resource{ID: "TenantVariables-1"},
-			ProjectID:   "Projects-1",
-			ProjectName: "Project 1",
-			TemplateID:  "Templates-1",
-			Template:    *createTemplate("Template 1", resources.ControlTypeSingleLineText, "Templates-1"),
-			Value:       core.PropertyValue{Value: "existing value 1"},
-			Scope:       variables.TenantVariableScope{EnvironmentIds: []string{"Environments-1", "Environments-2"}},
-		},
-		{
-			Resource:    resources.Resource{ID: "TenantVariables-2"},
-			ProjectID:   "Projects-1",
-			ProjectName: "Project 1",
-			TemplateID:  "Templates-1",
-			Template:    *createTemplate("Template 1", resources.ControlTypeSingleLineText, "Templates-1"),
-			Value:       core.PropertyValue{Value: "existing value 2"},
-			Scope:       variables.TenantVariableScope{EnvironmentIds: []string{"Environments-3"}},
-		},
+		createProjectVariable("TenantVariables-1", "Projects-1", "Project 1", "Templates-1", "Template 1", "existing value 1", []string{"Environments-1", "Environments-2"}, false),
+		createProjectVariable("TenantVariables-2", "Projects-1", "Project 1", "Templates-1", "Template 1", "existing value 2", []string{"Environments-3"}, false),
 	}
 
 	var environmentMap = map[string]string{
@@ -337,24 +241,8 @@ func TestUpdate_ProjectVariable_ScopeNoMatch(t *testing.T) {
 	opts := update.NewUpdateOptions(flags, &cmd.Dependencies{Ask: asker})
 
 	var existingProjectVariables = []variables.TenantProjectVariable{
-		{
-			Resource:    resources.Resource{ID: "TenantVariables-1"},
-			ProjectID:   "Projects-1",
-			ProjectName: "Project 1",
-			TemplateID:  "Templates-1",
-			Template:    *createTemplate("Template 1", resources.ControlTypeSingleLineText, "Templates-1"),
-			Value:       core.PropertyValue{Value: "existing value 1"},
-			Scope:       variables.TenantVariableScope{EnvironmentIds: []string{"Environments-1", "Environments-2"}},
-		},
-		{
-			Resource:    resources.Resource{ID: "TenantVariables-2"},
-			ProjectID:   "Projects-1",
-			ProjectName: "Project 1",
-			TemplateID:  "Templates-1",
-			Template:    *createTemplate("Template 1", resources.ControlTypeSingleLineText, "Templates-1"),
-			Value:       core.PropertyValue{Value: "existing value 2"},
-			Scope:       variables.TenantVariableScope{EnvironmentIds: []string{"Environments-3"}},
-		},
+		createProjectVariable("TenantVariables-1", "Projects-1", "Project 1", "Templates-1", "Template 1", "existing value 1", []string{"Environments-1", "Environments-2"}, false),
+		createProjectVariable("TenantVariables-2", "Projects-1", "Project 1", "Templates-1", "Template 1", "existing value 2", []string{"Environments-3"}, false),
 	}
 
 	var environmentMap = map[string]string{
@@ -381,27 +269,11 @@ func TestUpdate_ProjectVariable_WhenExistingValueIsMissingForScope(t *testing.T)
 	opts := update.NewUpdateOptions(flags, &cmd.Dependencies{Ask: asker})
 
 	var existingProjectVariables = []variables.TenantProjectVariable{
-		{
-			Resource:    resources.Resource{ID: "TenantVariables-2"},
-			ProjectID:   "Projects-1",
-			ProjectName: "Project 1",
-			TemplateID:  "Templates-1",
-			Template:    *createTemplate("Template 1", resources.ControlTypeSingleLineText, "Templates-1"),
-			Value:       core.PropertyValue{Value: "existing value 2"},
-			Scope:       variables.TenantVariableScope{EnvironmentIds: []string{"Environments-3"}},
-		},
+		createProjectVariable("TenantVariables-2", "Projects-1", "Project 1", "Templates-1", "Template 1", "existing value 2", []string{"Environments-3"}, false),
 	}
 
 	var missingProjectVariables = []variables.TenantProjectVariable{
-		{
-			Resource:    resources.Resource{ID: "TenantVariables-1"},
-			ProjectID:   "Projects-1",
-			ProjectName: "Project 1",
-			TemplateID:  "Templates-1",
-			Template:    *createTemplate("Template 1", resources.ControlTypeSingleLineText, "Templates-1"),
-			Value:       core.PropertyValue{Value: "default"},
-			Scope:       variables.TenantVariableScope{EnvironmentIds: []string{"Environments-1", "Environments-2"}},
-		},
+		createProjectVariable("TenantVariables-1", "Projects-1", "Project 1", "Templates-1", "Template 1", "default", []string{"Environments-1", "Environments-2"}, false),
 	}
 
 	var environmentMap = map[string]string{
@@ -440,19 +312,14 @@ func TestPromptMissing_ProjectVariable_AllFlagsProvided(t *testing.T) {
 	flags.Project.Value = "project name"
 	flags.Environments.Value = []string{"dev environment"}
 	opts := update.NewUpdateOptions(flags, &cmd.Dependencies{Ask: asker})
-	opts.GetTenantVariables = func(tenant *tenants.Tenant) (*variables.TenantVariables, error) {
-		projectVars := variables.ProjectVariable{
-			ProjectID:   "Projects-1",
-			ProjectName: flags.Project.Value,
-		}
-		projectTemplate := createTemplate("var name", resources.ControlTypeSingleLineText, "templateId-1")
-		projectVars.Templates = append(projectVars.Templates, projectTemplate)
-		vars := variables.NewTenantVariables("Tenants-1")
-		vars.SpaceID = "Spaces-1"
-		vars.TenantName = "tenant name"
-		vars.ProjectVariables = make(map[string]variables.ProjectVariable)
-		vars.ProjectVariables["Projects-1"] = projectVars
-		return vars, nil
+
+	opts.GetTenantProjectVariables = func(tenant *tenants.Tenant, includeMissingVariables bool) (*variables.GetTenantProjectVariablesResponse, error) {
+		return &variables.GetTenantProjectVariablesResponse{
+			TenantID: "Tenants-1",
+			ProjectVariables: []variables.TenantProjectVariable{
+				createProjectVariable("TenantVariables-2", "Projects-1", "Project 1", "Templates-1", "Template 1", "existing value 2", []string{"Environments-3"}, false),
+			},
+		}, nil
 	}
 
 	opts.GetProjectCallback = func(identifier string) (*projects.Project, error) {
@@ -477,17 +344,16 @@ func TestPromptMissing_LibraryVariable_AllFlagsProvided(t *testing.T) {
 	flags.Value.Value = "new value"
 	flags.Name.Value = "var name"
 	flags.LibraryVariableSet.Value = "lvs"
+	flags.Environments.Value = []string{"dev environment"}
 	opts := update.NewUpdateOptions(flags, &cmd.Dependencies{Ask: asker})
-	opts.GetTenantVariables = func(tenant *tenants.Tenant) (*variables.TenantVariables, error) {
-		libraryVariables := variables.NewLibraryVariable()
-		libraryVariables.LibraryVariableSetID = "LibraryVariableSets-1"
-		libraryVariables.LibraryVariableSetName = "lvs"
-		libraryVariables.Templates = append(libraryVariables.Templates, createTemplate("var name", resources.ControlTypeSingleLineText, "templateId-1"))
-		vars := variables.NewTenantVariables("Tenants-1")
-		vars.SpaceID = "Spaces-1"
-		vars.TenantName = "tenant name"
-		vars.LibraryVariables = make(map[string]variables.LibraryVariable)
-		return vars, nil
+
+	opts.GetTenantCommonVariables = func(tenant *tenants.Tenant, includeMissingVariables bool) (*variables.GetTenantCommonVariablesResponse, error) {
+		return &variables.GetTenantCommonVariablesResponse{
+			TenantID: "Tenants-1",
+			CommonVariables: []variables.TenantCommonVariable{
+				createCommonVariable("TenantVariables-2", "LibraryVariableSets-1", "Set 1", "Templates-1", "Template 1", "existing value 2", []string{"Environments-3"}, false),
+			},
+		}, nil
 	}
 
 	opts.GetAllLibraryVariableSetsCallback = func() ([]*variables.LibraryVariableSet, error) {
@@ -507,6 +373,182 @@ func TestPromptMissing_LibraryVariable_NoFlagsProvided(t *testing.T) {
 	pa := []*testutil.PA{
 		testutil.NewSelectPrompt("You have not specified a Tenant. Please select one:", "", []string{"tenant name", "tenant name 2"}, "tenant name"),
 		testutil.NewSelectPrompt("Which type of variable do you want to update?", "", []string{"Library/Common", "Project"}, "Library/Common"),
+		testutil.NewSelectPrompt("You have not specified a variable", "", []string{"Set 1 / Template 1", "Set 2 / Template 2"}, "Set 1 / Template 1"),
+		testutil.NewMultiSelectPrompt("You have not specified an environment", "", []string{"Staging", "Production"}, []string{"Staging"}),
+		testutil.NewInputPrompt("Value", "", "var value"),
+	}
+	asker, checkRemainingPrompts := testutil.NewMockAsker(t, pa)
+	flags := update.NewUpdateFlags()
+	opts := update.NewUpdateOptions(flags, &cmd.Dependencies{Ask: asker})
+
+	opts.GetTenantCommonVariables = func(tenant *tenants.Tenant, includeMissingVariables bool) (*variables.GetTenantCommonVariablesResponse, error) {
+		return &variables.GetTenantCommonVariablesResponse{
+			TenantID: "Tenants-1",
+			CommonVariables: []variables.TenantCommonVariable{
+				createCommonVariable("TenantVariables-1", "LibraryVariableSets-1", "Set 1", "Templates-1", "Template 1", "existing value 1", []string{"Environments-1"}, false),
+				createCommonVariable("TenantVariables-2", "LibraryVariableSets-1", "Set 1", "Templates-1", "Template 1", "existing value 2", []string{"Environments-2"}, false),
+				createCommonVariable("TenantVariables-3", "LibraryVariableSets-2", "Set 2", "Templates-2", "Template 2", "existing value 3", []string{"Environments-1", "Environments-2"}, false),
+			},
+		}, nil
+	}
+
+	opts.GetAllEnvironmentsCallback = func() ([]*environments.Environment, error) {
+		staging := environments.NewEnvironment("Staging")
+		staging.ID = "Environments-1"
+		production := environments.NewEnvironment("Production")
+		production.ID = "Environments-2"
+		return []*environments.Environment{staging, production}, nil
+	}
+
+	opts.GetAllLibraryVariableSetsCallback = func() ([]*variables.LibraryVariableSet, error) {
+		return []*variables.LibraryVariableSet{variables.NewLibraryVariableSet("lvs")}, nil
+	}
+
+	opts.GetAllTenantsCallback = func() ([]*tenants.Tenant, error) {
+		return []*tenants.Tenant{tenants.NewTenant("tenant name"), tenants.NewTenant("tenant name 2")}, nil
+	}
+	opts.GetTenantCallback = func(identifier string) (*tenants.Tenant, error) {
+		return tenants.NewTenant("tenant name"), nil
+	}
+
+	err := update.PromptMissing(opts)
+	checkRemainingPrompts()
+	assert.Equal(t, "var value", flags.Value.Value)
+	assert.Equal(t, "Set 1", flags.LibraryVariableSet.Value)
+	assert.Empty(t, flags.Project.Value)
+	assert.Equal(t, "Template 1", flags.Name.Value)
+	assert.Equal(t, "tenant name", flags.Tenant.Value)
+	assert.NoError(t, err)
+}
+
+func TestPromptMissing_ProjectVariable_NoFlagsProvided(t *testing.T) {
+	pa := []*testutil.PA{
+		testutil.NewSelectPrompt("You have not specified a Tenant. Please select one:", "", []string{"tenant name", "tenant name 2"}, "tenant name"),
+		testutil.NewSelectPrompt("Which type of variable do you want to update?", "", []string{"Library/Common", "Project"}, "Project"),
+		testutil.NewSelectPrompt("You have not specified a variable", "", []string{"Project 1 / Template 1", "Project 2 / Template 2"}, "Project 1 / Template 1"),
+		testutil.NewMultiSelectPrompt("You have not specified an environment", "", []string{"Staging", "Production"}, []string{"Staging"}),
+		testutil.NewInputPrompt("Value", "", "var value"),
+	}
+	asker, checkRemainingPrompts := testutil.NewMockAsker(t, pa)
+	flags := update.NewUpdateFlags()
+	opts := update.NewUpdateOptions(flags, &cmd.Dependencies{Ask: asker})
+
+	opts.GetTenantProjectVariables = func(tenant *tenants.Tenant, includeMissingVariables bool) (*variables.GetTenantProjectVariablesResponse, error) {
+		return &variables.GetTenantProjectVariablesResponse{
+			TenantID: "Tenants-1",
+			ProjectVariables: []variables.TenantProjectVariable{
+				createProjectVariable("TenantVariables-1", "Projects-1", "Project 1", "Templates-1", "Template 1", "existing value 1", []string{"Environments-1"}, false),
+				createProjectVariable("TenantVariables-2", "Projects-1", "Project 1", "Templates-1", "Template 1", "existing value 2", []string{"Environments-2"}, false),
+				createProjectVariable("TenantVariables-3", "Projects-2", "Project 2", "Templates-2", "Template 2", "existing value 3", []string{"Environments-1", "Environments-2"}, false),
+			},
+		}, nil
+	}
+	opts.GetAllLibraryVariableSetsCallback = func() ([]*variables.LibraryVariableSet, error) {
+		return []*variables.LibraryVariableSet{variables.NewLibraryVariableSet("lvs")}, nil
+	}
+
+	opts.GetAllTenantsCallback = func() ([]*tenants.Tenant, error) {
+		return []*tenants.Tenant{tenants.NewTenant("tenant name"), tenants.NewTenant("tenant name 2")}, nil
+	}
+	opts.GetTenantCallback = func(identifier string) (*tenants.Tenant, error) {
+		return tenants.NewTenant("tenant name"), nil
+	}
+	opts.GetAllEnvironmentsCallback = func() ([]*environments.Environment, error) {
+		staging := environments.NewEnvironment("Staging")
+		staging.ID = "Environments-1"
+		production := environments.NewEnvironment("Production")
+		production.ID = "Environments-2"
+		return []*environments.Environment{staging, production}, nil
+	}
+
+	err := update.PromptMissing(opts)
+	checkRemainingPrompts()
+	assert.Equal(t, "var value", flags.Value.Value)
+	assert.Empty(t, flags.LibraryVariableSet.Value)
+	assert.Equal(t, "Project 1", flags.Project.Value)
+	assert.Equal(t, "Template 1", flags.Name.Value)
+	assert.Equal(t, "tenant name", flags.Tenant.Value)
+	assert.NoError(t, err)
+}
+
+func TestPromptMissingV1_ProjectVariable_AllFlagsProvided(t *testing.T) {
+	pa := []*testutil.PA{}
+
+	asker, checkRemainingPrompts := testutil.NewMockAsker(t, pa)
+	flags := update.NewUpdateFlags()
+	flags.Tenant.Value = "tenant name"
+	flags.Value.Value = "new value"
+	flags.Name.Value = "var name"
+	flags.Project.Value = "project name"
+	flags.Environments.Value = []string{"dev environment"}
+	opts := update.NewUpdateOptions(flags, &cmd.Dependencies{Ask: asker})
+	opts.GetTenantVariables = func(tenant *tenants.Tenant) (*variables.TenantVariables, error) {
+		projectVars := variables.ProjectVariable{
+			ProjectID:   "Projects-1",
+			ProjectName: flags.Project.Value,
+		}
+		projectTemplate := createTemplate("var name", resources.ControlTypeSingleLineText, "templateId-1", false)
+		projectVars.Templates = append(projectVars.Templates, projectTemplate)
+		vars := variables.NewTenantVariables("Tenants-1")
+		vars.SpaceID = "Spaces-1"
+		vars.TenantName = "tenant name"
+		vars.ProjectVariables = make(map[string]variables.ProjectVariable)
+		vars.ProjectVariables["Projects-1"] = projectVars
+		return vars, nil
+	}
+
+	opts.GetProjectCallback = func(identifier string) (*projects.Project, error) {
+		return projects.NewProject("Project", "Lifecycles-1", "ProjectGroups-1"), nil
+	}
+
+	opts.GetTenantCallback = func(identifier string) (*tenants.Tenant, error) {
+		return tenants.NewTenant("tenant name"), nil
+	}
+
+	err := update.PromptMissingV1(opts)
+	checkRemainingPrompts()
+	assert.NoError(t, err)
+}
+
+func TestPromptMissingV1_LibraryVariable_AllFlagsProvided(t *testing.T) {
+	pa := []*testutil.PA{}
+
+	asker, checkRemainingPrompts := testutil.NewMockAsker(t, pa)
+	flags := update.NewUpdateFlags()
+	flags.Tenant.Value = "tenant name"
+	flags.Value.Value = "new value"
+	flags.Name.Value = "var name"
+	flags.LibraryVariableSet.Value = "lvs"
+	opts := update.NewUpdateOptions(flags, &cmd.Dependencies{Ask: asker})
+	opts.GetTenantVariables = func(tenant *tenants.Tenant) (*variables.TenantVariables, error) {
+		libraryVariables := variables.NewLibraryVariable()
+		libraryVariables.LibraryVariableSetID = "LibraryVariableSets-1"
+		libraryVariables.LibraryVariableSetName = "lvs"
+		libraryVariables.Templates = append(libraryVariables.Templates, createTemplate("var name", resources.ControlTypeSingleLineText, "templateId-1", false))
+		vars := variables.NewTenantVariables("Tenants-1")
+		vars.SpaceID = "Spaces-1"
+		vars.TenantName = "tenant name"
+		vars.LibraryVariables = make(map[string]variables.LibraryVariable)
+		return vars, nil
+	}
+
+	opts.GetAllLibraryVariableSetsCallback = func() ([]*variables.LibraryVariableSet, error) {
+		return []*variables.LibraryVariableSet{variables.NewLibraryVariableSet("lvs")}, nil
+	}
+
+	opts.GetTenantCallback = func(identifier string) (*tenants.Tenant, error) {
+		return tenants.NewTenant("tenant name"), nil
+	}
+
+	err := update.PromptMissingV1(opts)
+	checkRemainingPrompts()
+	assert.NoError(t, err)
+}
+
+func TestPromptMissingV1_LibraryVariable_NoFlagsProvided(t *testing.T) {
+	pa := []*testutil.PA{
+		testutil.NewSelectPrompt("You have not specified a Tenant. Please select one:", "", []string{"tenant name", "tenant name 2"}, "tenant name"),
+		testutil.NewSelectPrompt("Which type of variable do you want to update?", "", []string{"Library/Common", "Project"}, "Library/Common"),
 		testutil.NewSelectPrompt("You have not specified a variable", "", []string{"lvs / var name", "lvs / var name 2"}, "lvs / var name"),
 		testutil.NewInputPrompt("Value", "", "var value"),
 	}
@@ -518,8 +560,8 @@ func TestPromptMissing_LibraryVariable_NoFlagsProvided(t *testing.T) {
 		libraryVariables := variables.NewLibraryVariable()
 		libraryVariables.LibraryVariableSetID = "LibraryVariableSets-1"
 		libraryVariables.LibraryVariableSetName = "lvs"
-		libraryVariables.Templates = append(libraryVariables.Templates, createTemplate("var name", resources.ControlTypeSingleLineText, "templateId-1"))
-		libraryVariables.Templates = append(libraryVariables.Templates, createTemplate("var name 2", resources.ControlTypeSingleLineText, "templateId-2"))
+		libraryVariables.Templates = append(libraryVariables.Templates, createTemplate("var name", resources.ControlTypeSingleLineText, "templateId-1", false))
+		libraryVariables.Templates = append(libraryVariables.Templates, createTemplate("var name 2", resources.ControlTypeSingleLineText, "templateId-2", false))
 		vars := variables.NewTenantVariables("Tenants-1")
 		vars.SpaceID = "Spaces-1"
 		vars.TenantName = "tenant name"
@@ -539,7 +581,7 @@ func TestPromptMissing_LibraryVariable_NoFlagsProvided(t *testing.T) {
 		return tenants.NewTenant("tenant name"), nil
 	}
 
-	err := update.PromptMissing(opts)
+	err := update.PromptMissingV1(opts)
 	checkRemainingPrompts()
 	assert.Equal(t, "var value", flags.Value.Value)
 	assert.Equal(t, "lvs", flags.LibraryVariableSet.Value)
@@ -549,7 +591,7 @@ func TestPromptMissing_LibraryVariable_NoFlagsProvided(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-func TestPromptMissing_ProjectVariable_NoFlagsProvided(t *testing.T) {
+func TestPromptMissingV1_ProjectVariable_NoFlagsProvided(t *testing.T) {
 	pa := []*testutil.PA{
 		testutil.NewSelectPrompt("You have not specified a Tenant. Please select one:", "", []string{"tenant name", "tenant name 2"}, "tenant name"),
 		testutil.NewSelectPrompt("Which type of variable do you want to update?", "", []string{"Library/Common", "Project"}, "Project"),
@@ -567,7 +609,7 @@ func TestPromptMissing_ProjectVariable_NoFlagsProvided(t *testing.T) {
 			ProjectName: "Project 1",
 			Variables:   make(map[string]map[string]core.PropertyValue),
 		}
-		project1Vars.Templates = append(project1Vars.Templates, createTemplate("project 1 var", resources.ControlTypeSingleLineText, "templateId-1"))
+		project1Vars.Templates = append(project1Vars.Templates, createTemplate("project 1 var", resources.ControlTypeSingleLineText, "templateId-1", false))
 		project1Vars.Variables["Environments-1"] = make(map[string]core.PropertyValue)
 		project1Vars.Variables["Environments-1"]["templateId-1"] = core.NewPropertyValue("", false)
 		project1Vars.Variables["Environments-2"] = make(map[string]core.PropertyValue)
@@ -577,7 +619,7 @@ func TestPromptMissing_ProjectVariable_NoFlagsProvided(t *testing.T) {
 			ProjectName: "Project 2",
 			Variables:   make(map[string]map[string]core.PropertyValue),
 		}
-		project2Vars.Templates = append(project2Vars.Templates, createTemplate("project 2 var", resources.ControlTypeSingleLineText, "templateId-2"))
+		project2Vars.Templates = append(project2Vars.Templates, createTemplate("project 2 var", resources.ControlTypeSingleLineText, "templateId-2", false))
 		project2Vars.Variables["Environments-1"] = make(map[string]core.PropertyValue)
 		project2Vars.Variables["Environments-1"]["templateId-2"] = core.NewPropertyValue("", false)
 		project2Vars.Variables["Environments-2"] = make(map[string]core.PropertyValue)
@@ -610,7 +652,7 @@ func TestPromptMissing_ProjectVariable_NoFlagsProvided(t *testing.T) {
 		return []*environments.Environment{staging, production}, nil
 	}
 
-	err := update.PromptMissing(opts)
+	err := update.PromptMissingV1(opts)
 	checkRemainingPrompts()
 	assert.Equal(t, "var value", flags.Value.Value)
 	assert.Empty(t, flags.LibraryVariableSet.Value)
@@ -620,11 +662,40 @@ func TestPromptMissing_ProjectVariable_NoFlagsProvided(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-func createTemplate(name string, controlType resources.ControlType, templateId string) *actiontemplates.ActionTemplateParameter {
+func createTemplate(name string, controlType resources.ControlType, templateId string, hasDefault bool) *actiontemplates.ActionTemplateParameter {
 	template := actiontemplates.NewActionTemplateParameter()
 	template.ID = templateId
 	template.Name = name
 	template.DisplaySettings = make(map[string]string)
 	template.DisplaySettings["Octopus.ControlType"] = string(controlType)
+
+	if hasDefault {
+		template.DefaultValue = &core.PropertyValue{Value: "default"}
+	}
+
 	return template
+}
+
+func createProjectVariable(id string, projectID string, projectName string, templateID string, templateName string, value string, scope []string, hasDefault bool) variables.TenantProjectVariable {
+	return variables.TenantProjectVariable{
+		Resource:    resources.Resource{ID: id},
+		ProjectID:   projectID,
+		ProjectName: projectName,
+		TemplateID:  templateID,
+		Template:    *createTemplate(templateName, resources.ControlTypeSingleLineText, templateID, hasDefault),
+		Value:       core.PropertyValue{Value: value},
+		Scope:       variables.TenantVariableScope{EnvironmentIds: scope},
+	}
+}
+
+func createCommonVariable(id string, libraryVariableSetId string, libraryVariableSetName string, templateID string, templateName string, value string, scope []string, hasDefault bool) variables.TenantCommonVariable {
+	return variables.TenantCommonVariable{
+		Resource:               resources.Resource{ID: id},
+		LibraryVariableSetId:   libraryVariableSetId,
+		LibraryVariableSetName: libraryVariableSetName,
+		TemplateID:             templateID,
+		Template:               *createTemplate(templateName, resources.ControlTypeSingleLineText, templateID, hasDefault),
+		Value:                  core.PropertyValue{Value: value},
+		Scope:                  variables.TenantVariableScope{EnvironmentIds: scope},
+	}
 }
