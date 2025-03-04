@@ -207,32 +207,6 @@ step "publish-to-rpm-repo" {
     }
 }
 
-step "extra-debug" {
-    name = "extra debug "
-
-    action {
-        action_type = "Octopus.Script"
-        properties = {
-            Octopus.Action.Script.ScriptBody = <<-EOT
-                echo "SDKs"
-                dotnet --list-sdks
-                
-                echo "runtimes"
-                dotnet --list-runtimes
-                EOT
-            Octopus.Action.Script.ScriptSource = "Inline"
-            Octopus.Action.Script.Syntax = "PowerShell"
-            OctopusUseBundledTooling = "False"
-        }
-        worker_pool = "hosted-windows"
-
-        container {
-            feed = "docker-hub"
-            image = "octopusdeploy/worker-tools:6.4-windows.ltsc2022"
-        }
-    }
-}
-
 step "publish-winget-update-pr" {
     name = "Publish winget update PR"
     start_trigger = "StartWithPrevious"
@@ -247,6 +221,12 @@ step "publish-winget-update-pr" {
                 $version = $OctopusParameters["Octopus.Release.Number"]
                 
                 $packageUrls = "https://github.com/OctopusDeploy/cli/releases/download/v$version/octopus_$($version)_windows_amd64.msi|x64"
+                
+                echo "SDKs"
+                dotnet --list-sdks
+                
+                echo "runtimes"
+                dotnet --list-runtimes
                 
                 # This will perform the update and also create a PR with the relevant update
                 .\wingetcreate.exe update OctopusDeploy.Cli --urls $packageUrls --version $version --token $OctopusParameters["Publish:Winget:GitHubPAT"] --submit
