@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.15.1](https://github.com/OctopusDeploy/cli/compare/v2.15.0...v2.15.1) (2025-03-04)
+
+
+### Features
+
+* List scoped common variables [#488](https://github.com/OctopusDeploy/cli/pull/488))
+
+
 ## [2.15.0](https://github.com/OctopusDeploy/cli/compare/v2.14.3...v2.15.0) (2025-02-14)
 
 
