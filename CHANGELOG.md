@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.15.2](https://github.com/OctopusDeploy/cli/compare/v2.15.1...v2.15.2) (2025-03-04)
+
+
+### Miscellaneous Chores
+
+* **main:** release 2.15.2 ([3c90363](https://github.com/OctopusDeploy/cli/commit/3c90363e77cd55298cd4d6a21b8897768d4af741))
+
 ## [2.15.0](https://github.com/OctopusDeploy/cli/compare/v2.14.3...v2.15.0) (2025-02-14)
 
 
