@@ -130,7 +130,7 @@ func TestUpdate_CommonVariable_WhenExistingValueIsMissingForScope(t *testing.T) 
 	}
 
 	var missingCommonVariables = []variables.TenantCommonVariable{
-		createCommonVariable("TenantVariables-1", "LibraryVariableSets-1", "Set 1", "Templates-1", "Template 1", "existing value 1", []string{"Environments-1", "Environments-2"}, false),
+		createCommonVariable("TenantVariables-1", "LibraryVariableSets-1", "Set 1", "Templates-1", "Template 1", "", []string{"Environments-1", "Environments-2"}, false),
 	}
 
 	var environmentMap = map[string]string{
@@ -273,7 +273,7 @@ func TestUpdate_ProjectVariable_WhenExistingValueIsMissingForScope(t *testing.T)
 	}
 
 	var missingProjectVariables = []variables.TenantProjectVariable{
-		createProjectVariable("TenantVariables-1", "Projects-1", "Project 1", "Templates-1", "Template 1", "default", []string{"Environments-1", "Environments-2"}, false),
+		createProjectVariable("TenantVariables-1", "Projects-1", "Project 1", "Templates-1", "Template 1", "", []string{"Environments-1", "Environments-2"}, false),
 	}
 
 	var environmentMap = map[string]string{
