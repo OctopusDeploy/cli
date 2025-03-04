@@ -323,6 +323,21 @@ func unwrapCommonVariables(variable variables.TenantCommonVariable, environmentM
 		displayValue = getDisplayValue(&variable.Value)
 	}
 
+	if len(variable.Scope.EnvironmentIds) == 0 {
+		results = append(results, &VariableValue{
+			Type:            LibraryVariableSetType,
+			OwnerName:       variable.LibraryVariableSetName,
+			Name:            variable.Template.Name,
+			Value:           displayValue,
+			IsSensitive:     variable.Value.IsSensitive,
+			IsDefaultValue:  isDefault, // Variables without an ID are sourced from the MissingVariables list. For consistency with V1, IsDefault applies to both default and missing variables
+			ScopeName:       "Unscoped",
+			HasMissingValue: isDefault && displayValue == "",
+		})
+
+		return results
+	}
+
 	for _, environmentId := range variable.Scope.EnvironmentIds {
 
 		results = append(results, &VariableValue{
@@ -349,6 +364,21 @@ func unwrapProjectVariables(variable variables.TenantProjectVariable, environmen
 		displayValue = getDisplayValue(variable.Template.DefaultValue)
 	} else {
 		displayValue = getDisplayValue(&variable.Value)
+	}
+
+	if len(variable.Scope.EnvironmentIds) == 0 {
+		results = append(results, &VariableValue{
+			Type:            ProjectType,
+			OwnerName:       variable.ProjectName,
+			Name:            variable.Template.Name,
+			Value:           displayValue,
+			IsSensitive:     variable.Value.IsSensitive,
+			IsDefaultValue:  isDefault, // Variables without an ID are sourced from the MissingVariables list. For consistency with V1, IsDefault applies to both default and missing variables
+			ScopeName:       "Unscoped",
+			HasMissingValue: isDefault && displayValue == "",
+		})
+
+		return results
 	}
 
 	for _, environmentId := range variable.Scope.EnvironmentIds {
