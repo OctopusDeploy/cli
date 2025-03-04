@@ -15,6 +15,48 @@ import (
 	"testing"
 )
 
+func TestUpdate_UnscopedCommonVariable_ScopeExactMatch(t *testing.T) {
+	pa := []*testutil.PA{}
+
+	asker, _ := testutil.NewMockAsker(t, pa)
+	flags := update.NewUpdateFlags()
+	flags.Tenant.Value = "tenant name"
+	flags.Value.Value = "new value"
+	flags.Name.Value = "Template 1"
+	flags.LibraryVariableSet.Value = "Set 1"
+	flags.Environments.Value = []string{}
+	opts := update.NewUpdateOptions(flags, &cmd.Dependencies{Ask: asker})
+
+	var existingCommonVariables = []variables.TenantCommonVariable{
+		createCommonVariable("TenantVariables-1", "LibraryVariableSets-1", "Set 1", "Templates-1", "Template 1", "existing value 1", []string{}, false),
+		createCommonVariable("TenantVariables-2", "LibraryVariableSets-1", "Set 1", "Templates-1", "Template 1", "existing value 2", []string{"Environments-3"}, false),
+	}
+
+	var environmentMap = map[string]string{
+		"Environments-1": "Dev",
+		"Environments-2": "Test",
+		"Environments-3": "Prod",
+	}
+
+	isSensitive, variablePayload, err := update.UpdateCommonVariableValue(opts, existingCommonVariables, nil, environmentMap)
+
+	assert.NoError(t, err)
+	assert.Equal(t, 2, len(variablePayload))
+
+	assert.Equal(t, existingCommonVariables[0].ID, variablePayload[0].ID)
+	assert.Equal(t, core.PropertyValue{Value: "new value"}, variablePayload[0].Value)
+	assert.Equal(t, existingCommonVariables[0].LibraryVariableSetId, variablePayload[0].LibraryVariableSetId)
+	assert.Equal(t, existingCommonVariables[0].TemplateID, variablePayload[0].TemplateID)
+	assert.Equal(t, existingCommonVariables[0].Scope, variablePayload[0].Scope)
+
+	assert.Equal(t, existingCommonVariables[1].ID, variablePayload[1].ID)
+	assert.Equal(t, existingCommonVariables[1].Value, variablePayload[1].Value)
+	assert.Equal(t, existingCommonVariables[1].LibraryVariableSetId, variablePayload[1].LibraryVariableSetId)
+	assert.Equal(t, existingCommonVariables[1].TemplateID, variablePayload[1].TemplateID)
+	assert.Equal(t, existingCommonVariables[1].Scope, variablePayload[1].Scope)
+	assert.False(t, isSensitive)
+}
+
 func TestUpdate_CommonVariable_ScopeExactMatch(t *testing.T) {
 	pa := []*testutil.PA{}
 
@@ -83,6 +125,54 @@ func TestUpdate_CommonVariable_ScopePartialMatch(t *testing.T) {
 	_, _, err := update.UpdateCommonVariableValue(opts, existingCommonVariables, nil, environmentMap)
 
 	assert.Error(t, err)
+}
+
+func TestUpdate_UnscopedCommonVariable_ScopeNoMatch(t *testing.T) {
+	pa := []*testutil.PA{}
+
+	asker, _ := testutil.NewMockAsker(t, pa)
+	flags := update.NewUpdateFlags()
+	flags.Tenant.Value = "tenant name"
+	flags.Value.Value = "new value"
+	flags.Name.Value = "Template 1"
+	flags.LibraryVariableSet.Value = "Set 1"
+	flags.Environments.Value = []string{}
+	opts := update.NewUpdateOptions(flags, &cmd.Dependencies{Ask: asker})
+
+	var existingCommonVariables = []variables.TenantCommonVariable{
+		createCommonVariable("TenantVariables-1", "LibraryVariableSets-1", "Set 1", "Templates-1", "Template 1", "existing value 1", []string{"Environments-1", "Environments-2"}, false),
+		createCommonVariable("TenantVariables-2", "LibraryVariableSets-1", "Set 1", "Templates-1", "Template 1", "existing value 2", []string{"Environments-3"}, false),
+	}
+
+	var environmentMap = map[string]string{
+		"Environments-1": "Dev",
+		"Environments-2": "Test",
+		"Environments-3": "Prod",
+	}
+
+	isSensitive, variablePayload, err := update.UpdateCommonVariableValue(opts, existingCommonVariables, nil, environmentMap)
+
+	assert.NoError(t, err)
+	assert.Equal(t, 3, len(variablePayload))
+
+	assert.Empty(t, variablePayload[0].ID)
+	assert.Equal(t, core.PropertyValue{Value: "new value"}, variablePayload[0].Value)
+	assert.Equal(t, existingCommonVariables[0].LibraryVariableSetId, variablePayload[0].LibraryVariableSetId)
+	assert.Equal(t, existingCommonVariables[0].TemplateID, variablePayload[0].TemplateID)
+	assert.Empty(t, variablePayload[0].Scope.EnvironmentIds)
+
+	assert.Equal(t, existingCommonVariables[0].ID, variablePayload[1].ID)
+	assert.Equal(t, existingCommonVariables[0].Value, variablePayload[1].Value)
+	assert.Equal(t, existingCommonVariables[0].LibraryVariableSetId, variablePayload[1].LibraryVariableSetId)
+	assert.Equal(t, existingCommonVariables[0].TemplateID, variablePayload[1].TemplateID)
+	assert.Equal(t, existingCommonVariables[0].Scope, variablePayload[1].Scope)
+
+	assert.Equal(t, existingCommonVariables[1].ID, variablePayload[2].ID)
+	assert.Equal(t, existingCommonVariables[1].Value, variablePayload[2].Value)
+	assert.Equal(t, existingCommonVariables[1].LibraryVariableSetId, variablePayload[2].LibraryVariableSetId)
+	assert.Equal(t, existingCommonVariables[1].TemplateID, variablePayload[2].TemplateID)
+	assert.Equal(t, existingCommonVariables[1].Scope, variablePayload[2].Scope)
+	assert.False(t, isSensitive)
 }
 
 func TestUpdate_CommonVariable_ScopeNoMatch(t *testing.T) {
@@ -158,6 +248,48 @@ func TestUpdate_CommonVariable_WhenExistingValueIsMissingForScope(t *testing.T) 
 	assert.False(t, isSensitive)
 }
 
+func TestUpdate_UnscopedProjectVariable_ScopeExactMatch(t *testing.T) {
+	pa := []*testutil.PA{}
+
+	asker, _ := testutil.NewMockAsker(t, pa)
+	flags := update.NewUpdateFlags()
+	flags.Tenant.Value = "tenant name"
+	flags.Value.Value = "new value"
+	flags.Name.Value = "Template 1"
+	flags.Project.Value = "Project 1"
+	flags.Environments.Value = []string{}
+	opts := update.NewUpdateOptions(flags, &cmd.Dependencies{Ask: asker})
+
+	var existingProjectVariables = []variables.TenantProjectVariable{
+		createProjectVariable("TenantVariables-1", "Projects-1", "Project 1", "Templates-1", "Template 1", "existing value 1", []string{}, false),
+		createProjectVariable("TenantVariables-2", "Projects-1", "Project 1", "Templates-1", "Template 1", "existing value 2", []string{"Environments-3"}, false),
+	}
+
+	var environmentMap = map[string]string{
+		"Environments-1": "Dev",
+		"Environments-2": "Test",
+		"Environments-3": "Prod",
+	}
+
+	isSensitive, variablePayload, err := update.UpdateProjectVariableValue(opts, existingProjectVariables, nil, environmentMap)
+
+	assert.NoError(t, err)
+	assert.Equal(t, 2, len(variablePayload))
+
+	assert.Equal(t, existingProjectVariables[0].ID, variablePayload[0].ID)
+	assert.Equal(t, core.PropertyValue{Value: "new value"}, variablePayload[0].Value)
+	assert.Equal(t, existingProjectVariables[0].ProjectID, variablePayload[0].ProjectID)
+	assert.Equal(t, existingProjectVariables[0].TemplateID, variablePayload[0].TemplateID)
+	assert.Equal(t, existingProjectVariables[0].Scope, variablePayload[0].Scope)
+
+	assert.Equal(t, existingProjectVariables[1].ID, variablePayload[1].ID)
+	assert.Equal(t, existingProjectVariables[1].Value, variablePayload[1].Value)
+	assert.Equal(t, existingProjectVariables[1].ProjectID, variablePayload[1].ProjectID)
+	assert.Equal(t, existingProjectVariables[1].TemplateID, variablePayload[1].TemplateID)
+	assert.Equal(t, existingProjectVariables[1].Scope, variablePayload[1].Scope)
+	assert.False(t, isSensitive)
+}
+
 func TestUpdate_ProjectVariable_ScopeExactMatch(t *testing.T) {
 	pa := []*testutil.PA{}
 
@@ -226,6 +358,54 @@ func TestUpdate_ProjectVariable_ScopePartialMatch(t *testing.T) {
 	_, _, err := update.UpdateProjectVariableValue(opts, existingProjectVariables, nil, environmentMap)
 
 	assert.Error(t, err)
+}
+
+func TestUpdate_UnscopedProjectVariable_ScopeNoMatch(t *testing.T) {
+	pa := []*testutil.PA{}
+
+	asker, _ := testutil.NewMockAsker(t, pa)
+	flags := update.NewUpdateFlags()
+	flags.Tenant.Value = "tenant name"
+	flags.Value.Value = "new value"
+	flags.Name.Value = "Template 1"
+	flags.Project.Value = "Project 1"
+	flags.Environments.Value = []string{}
+	opts := update.NewUpdateOptions(flags, &cmd.Dependencies{Ask: asker})
+
+	var existingProjectVariables = []variables.TenantProjectVariable{
+		createProjectVariable("TenantVariables-1", "Projects-1", "Project 1", "Templates-1", "Template 1", "existing value 1", []string{"Environments-1", "Environments-2"}, false),
+		createProjectVariable("TenantVariables-2", "Projects-1", "Project 1", "Templates-1", "Template 1", "existing value 2", []string{"Environments-3"}, false),
+	}
+
+	var environmentMap = map[string]string{
+		"Environments-1": "Dev",
+		"Environments-2": "Test",
+		"Environments-3": "Prod",
+	}
+
+	isSensitive, variablePayload, err := update.UpdateProjectVariableValue(opts, existingProjectVariables, nil, environmentMap)
+
+	assert.NoError(t, err)
+	assert.Equal(t, 3, len(variablePayload))
+
+	assert.Empty(t, variablePayload[0].ID)
+	assert.Equal(t, core.PropertyValue{Value: "new value"}, variablePayload[0].Value)
+	assert.Equal(t, existingProjectVariables[0].ProjectID, variablePayload[0].ProjectID)
+	assert.Equal(t, existingProjectVariables[0].TemplateID, variablePayload[0].TemplateID)
+	assert.Empty(t, variablePayload[0].Scope.EnvironmentIds)
+
+	assert.Equal(t, existingProjectVariables[0].ID, variablePayload[1].ID)
+	assert.Equal(t, existingProjectVariables[0].Value, variablePayload[1].Value)
+	assert.Equal(t, existingProjectVariables[0].ProjectID, variablePayload[1].ProjectID)
+	assert.Equal(t, existingProjectVariables[0].TemplateID, variablePayload[1].TemplateID)
+	assert.Equal(t, existingProjectVariables[0].Scope, variablePayload[1].Scope)
+
+	assert.Equal(t, existingProjectVariables[1].ID, variablePayload[2].ID)
+	assert.Equal(t, existingProjectVariables[1].Value, variablePayload[2].Value)
+	assert.Equal(t, existingProjectVariables[1].ProjectID, variablePayload[2].ProjectID)
+	assert.Equal(t, existingProjectVariables[1].TemplateID, variablePayload[2].TemplateID)
+	assert.Equal(t, existingProjectVariables[1].Scope, variablePayload[2].Scope)
+	assert.False(t, isSensitive)
 }
 
 func TestUpdate_ProjectVariable_ScopeNoMatch(t *testing.T) {
@@ -374,7 +554,7 @@ func TestPromptMissing_LibraryVariable_NoFlagsProvided(t *testing.T) {
 		testutil.NewSelectPrompt("You have not specified a Tenant. Please select one:", "", []string{"tenant name", "tenant name 2"}, "tenant name"),
 		testutil.NewSelectPrompt("Which type of variable do you want to update?", "", []string{"Library/Common", "Project"}, "Library/Common"),
 		testutil.NewSelectPrompt("You have not specified a variable", "", []string{"Set 1 / Template 1", "Set 2 / Template 2"}, "Set 1 / Template 1"),
-		testutil.NewMultiSelectPrompt("You have not specified an environment", "", []string{"Staging", "Production"}, []string{"Staging"}),
+		testutil.NewMultiSelectPrompt("You have not specified an environment. Select a scope or leave empty to update an unscoped variable", "", []string{"Staging", "Production"}, []string{"Staging"}),
 		testutil.NewInputPrompt("Value", "", "var value"),
 	}
 	asker, checkRemainingPrompts := testutil.NewMockAsker(t, pa)
@@ -426,7 +606,7 @@ func TestPromptMissing_ProjectVariable_NoFlagsProvided(t *testing.T) {
 		testutil.NewSelectPrompt("You have not specified a Tenant. Please select one:", "", []string{"tenant name", "tenant name 2"}, "tenant name"),
 		testutil.NewSelectPrompt("Which type of variable do you want to update?", "", []string{"Library/Common", "Project"}, "Project"),
 		testutil.NewSelectPrompt("You have not specified a variable", "", []string{"Project 1 / Template 1", "Project 2 / Template 2"}, "Project 1 / Template 1"),
-		testutil.NewMultiSelectPrompt("You have not specified an environment", "", []string{"Staging", "Production"}, []string{"Staging"}),
+		testutil.NewMultiSelectPrompt("You have not specified an environment. Select a scope or leave empty to update an unscoped variable", "", []string{"Staging", "Production"}, []string{"Staging"}),
 		testutil.NewInputPrompt("Value", "", "var value"),
 	}
 	asker, checkRemainingPrompts := testutil.NewMockAsker(t, pa)

@@ -447,7 +447,7 @@ func PromptForEnvironmentV1(opts *UpdateOptions, variables *variables.TenantVari
 
 func PromptForEnvironments(opts *UpdateOptions) error {
 	if len(opts.Environments.Value) == 0 {
-		selectedEnvironments, err := selectors.EnvironmentsMultiSelect(opts.Ask, opts.GetAllEnvironmentsCallback, "You have not specified an environment", true)
+		selectedEnvironments, err := selectors.EnvironmentsMultiSelect(opts.Ask, opts.GetAllEnvironmentsCallback, "You have not specified an environment. Select a scope or leave empty to update an unscoped variable", false)
 		if err != nil {
 			return err
 		}
@@ -734,10 +734,13 @@ func UpdateProjectVariableValue(opts *UpdateOptions, vars []variables.TenantProj
 				}
 			}
 
-			if len(matchingMissingVariables) == 0 {
-				return false, nil, fmt.Errorf("no matching variable scope found for scope '%s'", opts.Environments.Value)
-			}
-		} else {
+		}
+
+		if len(opts.Environments.Value) == 0 && len(variablesWithMatchingTemplate) > 0 && len(matchingMissingVariables) == 0 {
+			matchingMissingVariables = append(matchingMissingVariables, variablesWithMatchingTemplate[0])
+		}
+
+		if len(matchingMissingVariables) == 0 {
 			return false, nil, fmt.Errorf("no matching variable scope found for scope '%s'", opts.Environments.Value)
 		}
 	}
@@ -831,11 +834,13 @@ func UpdateCommonVariableValue(opts *UpdateOptions, vars []variables.TenantCommo
 					matchingMissingVariables = append(matchingMissingVariables, missingVariablesWithMatchingTemplate[0])
 				}
 			}
+		}
 
-			if len(matchingMissingVariables) == 0 {
-				return false, nil, fmt.Errorf("no matching variable scope found for scope '%s'", opts.Environments.Value)
-			}
-		} else {
+		if len(opts.Environments.Value) == 0 && len(variablesWithMatchingTemplate) > 0 && len(matchingMissingVariables) == 0 {
+			matchingMissingVariables = append(matchingMissingVariables, variablesWithMatchingTemplate[0])
+		}
+
+		if len(matchingMissingVariables) == 0 {
 			return false, nil, fmt.Errorf("no matching variable scope found for scope '%s'", opts.Environments.Value)
 		}
 	}
