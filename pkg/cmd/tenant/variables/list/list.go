@@ -134,22 +134,22 @@ func listRun(cmd *cobra.Command, f factory.Factory, id string) error {
 
 		var allVariableValues []*VariableValue
 
-		for _, element := range commonVariables.MissingCommonVariables {
+		for _, element := range commonVariables.MissingVariables {
 			variableValue := unwrapCommonVariables(element, environmentMap)
 			allVariableValues = append(allVariableValues, variableValue...)
 		}
 
-		for _, element := range commonVariables.CommonVariables {
+		for _, element := range commonVariables.Variables {
 			variableValue := unwrapCommonVariables(element, environmentMap)
 			allVariableValues = append(allVariableValues, variableValue...)
 		}
 
-		for _, element := range projectVariables.MissingProjectVariables {
+		for _, element := range projectVariables.MissingVariables {
 			variableValue := unwrapProjectVariables(element, environmentMap)
 			allVariableValues = append(allVariableValues, variableValue...)
 		}
 
-		for _, element := range projectVariables.ProjectVariables {
+		for _, element := range projectVariables.Variables {
 			variableValue := unwrapProjectVariables(element, environmentMap)
 			allVariableValues = append(allVariableValues, variableValue...)
 		}
