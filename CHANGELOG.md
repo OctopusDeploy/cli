@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.15.3](https://github.com/OctopusDeploy/cli/compare/v2.15.2...v2.15.3) (2025-03-05)
+
+
+### Bug Fixes
+
+* Pump go-octopusdeploy to fix vulnerabilities-package ([#498](https://github.com/OctopusDeploy/cli/issues/498)) ([0983510](https://github.com/OctopusDeploy/cli/commit/09835103ce2bc5b9a7506c68f82517a76108582e))
+
 ## [2.15.2](https://github.com/OctopusDeploy/cli/compare/v2.15.1...v2.15.2) (2025-03-04)
 
 
