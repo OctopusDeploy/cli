@@ -736,8 +736,26 @@ func UpdateProjectVariableValue(opts *UpdateOptions, vars []variables.TenantProj
 
 		}
 
-		if len(opts.Environments.Value) == 0 && len(variablesWithMatchingTemplate) > 0 && len(matchingMissingVariables) == 0 {
-			matchingMissingVariables = append(matchingMissingVariables, variablesWithMatchingTemplate[0])
+		if len(variablesWithMatchingTemplate) > 0 && len(matchingMissingVariables) == 0 {
+			if len(opts.Environments.Value) == 0 {
+				matchingMissingVariables = append(matchingMissingVariables, variablesWithMatchingTemplate[0])
+			} else {
+				environmentsWithExistingValues := make(map[string]bool)
+
+				for _, v := range variablesWithMatchingTemplate {
+					for _, e := range v.Scope.EnvironmentIds {
+						environmentsWithExistingValues[e] = true
+					}
+				}
+
+				for _, e := range environmentIds {
+					if environmentsWithExistingValues[e] {
+						return false, nil, fmt.Errorf("no matching variable scope found for scope '%s'", opts.Environments.Value)
+					}
+				}
+
+				matchingMissingVariables = append(matchingMissingVariables, variablesWithMatchingTemplate[0])
+			}
 		}
 
 		if len(matchingMissingVariables) == 0 {
@@ -836,8 +854,26 @@ func UpdateCommonVariableValue(opts *UpdateOptions, vars []variables.TenantCommo
 			}
 		}
 
-		if len(opts.Environments.Value) == 0 && len(variablesWithMatchingTemplate) > 0 && len(matchingMissingVariables) == 0 {
-			matchingMissingVariables = append(matchingMissingVariables, variablesWithMatchingTemplate[0])
+		if len(variablesWithMatchingTemplate) > 0 && len(matchingMissingVariables) == 0 {
+			if len(opts.Environments.Value) == 0 {
+				matchingMissingVariables = append(matchingMissingVariables, variablesWithMatchingTemplate[0])
+			} else {
+				environmentsWithExistingValues := make(map[string]bool)
+
+				for _, v := range variablesWithMatchingTemplate {
+					for _, e := range v.Scope.EnvironmentIds {
+						environmentsWithExistingValues[e] = true
+					}
+				}
+
+				for _, e := range environmentIds {
+					if environmentsWithExistingValues[e] {
+						return false, nil, fmt.Errorf("no matching variable scope found for scope '%s'", opts.Environments.Value)
+					}
+				}
+
+				matchingMissingVariables = append(matchingMissingVariables, variablesWithMatchingTemplate[0])
+			}
 		}
 
 		if len(matchingMissingVariables) == 0 {
