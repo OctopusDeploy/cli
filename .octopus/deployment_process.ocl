@@ -222,6 +222,14 @@ step "publish-winget-update-pr" {
                 
                 $packageUrls = "https://github.com/OctopusDeploy/cli/releases/download/v$version/octopus_$($version)_windows_amd64.msi|x64"
                 
+                echo "SDKs"
+                dotnet --list-sdks
+                
+                echo "runtimes"
+                dotnet --list-runtimes
+                
+                $Env:DOTNET_ROOT = "C:\Users\ContainerAdministrator\AppData\Local\Microsoft\dotnet"
+                
                 # This will perform the update and also create a PR with the relevant update
                 .\wingetcreate.exe update OctopusDeploy.Cli --urls $packageUrls --version $version --token $OctopusParameters["Publish:Winget:GitHubPAT"] --submit
                 EOT
@@ -233,7 +241,7 @@ step "publish-winget-update-pr" {
 
         container {
             feed = "docker-hub"
-            image = "octopusdeploy/worker-tools:6.3.0-windows.ltsc2022"
+            image = "octopusdeploy/worker-tools:6.4-windows.ltsc2022"
         }
     }
 }
