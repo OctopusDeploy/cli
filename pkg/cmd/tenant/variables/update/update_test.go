@@ -578,7 +578,7 @@ func TestPromptMissing_ProjectVariable_AllFlagsProvided(t *testing.T) {
 	opts.GetTenantProjectVariables = func(tenant *tenants.Tenant, includeMissingVariables bool) (*variables.GetTenantProjectVariablesResponse, error) {
 		return &variables.GetTenantProjectVariablesResponse{
 			TenantID: "Tenants-1",
-			ProjectVariables: []variables.TenantProjectVariable{
+			Variables: []variables.TenantProjectVariable{
 				createProjectVariable("TenantVariables-2", "Projects-1", "Project 1", "Templates-1", "Template 1", "existing value 2", []string{"Environments-3"}, false),
 			},
 		}, nil
@@ -612,7 +612,7 @@ func TestPromptMissing_LibraryVariable_AllFlagsProvided(t *testing.T) {
 	opts.GetTenantCommonVariables = func(tenant *tenants.Tenant, includeMissingVariables bool) (*variables.GetTenantCommonVariablesResponse, error) {
 		return &variables.GetTenantCommonVariablesResponse{
 			TenantID: "Tenants-1",
-			CommonVariables: []variables.TenantCommonVariable{
+			Variables: []variables.TenantCommonVariable{
 				createCommonVariable("TenantVariables-2", "LibraryVariableSets-1", "Set 1", "Templates-1", "Template 1", "existing value 2", []string{"Environments-3"}, false),
 			},
 		}, nil
@@ -646,7 +646,7 @@ func TestPromptMissing_LibraryVariable_NoFlagsProvided(t *testing.T) {
 	opts.GetTenantCommonVariables = func(tenant *tenants.Tenant, includeMissingVariables bool) (*variables.GetTenantCommonVariablesResponse, error) {
 		return &variables.GetTenantCommonVariablesResponse{
 			TenantID: "Tenants-1",
-			CommonVariables: []variables.TenantCommonVariable{
+			Variables: []variables.TenantCommonVariable{
 				createCommonVariable("TenantVariables-1", "LibraryVariableSets-1", "Set 1", "Templates-1", "Template 1", "existing value 1", []string{"Environments-1"}, false),
 				createCommonVariable("TenantVariables-2", "LibraryVariableSets-1", "Set 1", "Templates-1", "Template 1", "existing value 2", []string{"Environments-2"}, false),
 				createCommonVariable("TenantVariables-3", "LibraryVariableSets-2", "Set 2", "Templates-2", "Template 2", "existing value 3", []string{"Environments-1", "Environments-2"}, false),
@@ -698,7 +698,7 @@ func TestPromptMissing_ProjectVariable_NoFlagsProvided(t *testing.T) {
 	opts.GetTenantProjectVariables = func(tenant *tenants.Tenant, includeMissingVariables bool) (*variables.GetTenantProjectVariablesResponse, error) {
 		return &variables.GetTenantProjectVariablesResponse{
 			TenantID: "Tenants-1",
-			ProjectVariables: []variables.TenantProjectVariable{
+			Variables: []variables.TenantProjectVariable{
 				createProjectVariable("TenantVariables-1", "Projects-1", "Project 1", "Templates-1", "Template 1", "existing value 1", []string{"Environments-1"}, false),
 				createProjectVariable("TenantVariables-2", "Projects-1", "Project 1", "Templates-1", "Template 1", "existing value 2", []string{"Environments-2"}, false),
 				createProjectVariable("TenantVariables-3", "Projects-2", "Project 2", "Templates-2", "Template 2", "existing value 3", []string{"Environments-1", "Environments-2"}, false),

@@ -207,7 +207,7 @@ func updateRun(opts *UpdateOptions) error {
 
 		var commonVariableCommand variables.ModifyTenantCommonVariablesCommand
 
-		opts.Value.Secure, commonVariableCommand.Variables, err = UpdateCommonVariableValue(opts, commonVariables.CommonVariables, commonVariables.MissingCommonVariables, environmentMap)
+		opts.Value.Secure, commonVariableCommand.Variables, err = UpdateCommonVariableValue(opts, commonVariables.Variables, commonVariables.MissingVariables, environmentMap)
 		if err != nil {
 			return err
 		}
@@ -222,7 +222,7 @@ func updateRun(opts *UpdateOptions) error {
 
 		var projectVariableCommand variables.ModifyTenantProjectVariablesCommand
 
-		opts.Value.Secure, projectVariableCommand.Variables, err = UpdateProjectVariableValue(opts, projectVariables.ProjectVariables, projectVariables.MissingProjectVariables, environmentMap)
+		opts.Value.Secure, projectVariableCommand.Variables, err = UpdateProjectVariableValue(opts, projectVariables.Variables, projectVariables.MissingVariables, environmentMap)
 		if err != nil {
 			return err
 		}
@@ -364,7 +364,7 @@ func PromptMissing(opts *UpdateOptions) error {
 	switch variableType {
 	case VariableOwnerTypeCommon:
 		variableResponse, err := opts.GetTenantCommonVariables(tenant, true)
-		var allVariables = append(variableResponse.CommonVariables, variableResponse.MissingCommonVariables...)
+		var allVariables = append(variableResponse.Variables, variableResponse.MissingVariables...)
 
 		if err != nil {
 			return err
@@ -386,7 +386,7 @@ func PromptMissing(opts *UpdateOptions) error {
 		template, err = getCommonVariableTemplate(opts, &allVariables)
 	case VariableOwnerTypeProject:
 		variableResponse, err := opts.GetTenantProjectVariables(tenant, true)
-		var allVariables = append(variableResponse.ProjectVariables, variableResponse.MissingProjectVariables...)
+		var allVariables = append(variableResponse.Variables, variableResponse.MissingVariables...)
 
 		if opts.Project.Value == "" || opts.Name.Value == "" {
 			selectedVariable, err := promptForVariable(opts, &allVariables, findPossibleProjectVariables)
