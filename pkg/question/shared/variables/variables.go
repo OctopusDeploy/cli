@@ -39,6 +39,8 @@ type GetProjectVariablesByGitRefCallback func(spaceId string, projectId string, 
 type GetTenantVariablesCallback func(tenant *tenants.Tenant) (*variables.TenantVariables, error)
 type GetVariableByIdCallback func(ownerId, variableId string) (*variables.Variable, error)
 type GetAllLibraryVariableSetsCallback func() ([]*variables.LibraryVariableSet, error)
+type GetTenantProjectVariablesCallback func(tenant *tenants.Tenant, includeMissingVariables bool) (*variables.GetTenantProjectVariablesResponse, error)
+type GetTenantCommonVariablesCallback func(tenant *tenants.Tenant, includeMissingVariables bool) (*variables.GetTenantCommonVariablesResponse, error)
 
 type VariableCallbacks struct {
 	GetAccountsByType           GetAccountsByTypeCallback
@@ -48,6 +50,8 @@ type VariableCallbacks struct {
 	GetProjectVariablesByGitRef GetProjectVariablesByGitRefCallback
 	GetVariableById             GetVariableByIdCallback
 	GetTenantVariables          GetTenantVariablesCallback
+	GetTenantProjectVariables   GetTenantProjectVariablesCallback
+	GetTenantCommonVariables    GetTenantCommonVariablesCallback
 }
 
 func NewVariableCallbacks(dependencies *cmd.Dependencies) *VariableCallbacks {
@@ -72,6 +76,12 @@ func NewVariableCallbacks(dependencies *cmd.Dependencies) *VariableCallbacks {
 		},
 		GetVariableById: func(ownerId, variableId string) (*variables.Variable, error) {
 			return getVariableById(dependencies.Client, ownerId, variableId)
+		},
+		GetTenantProjectVariables: func(tenant *tenants.Tenant, includeMissingVariables bool) (*variables.GetTenantProjectVariablesResponse, error) {
+			return getTenantProjectVariables(dependencies.Client, tenant, includeMissingVariables)
+		},
+		GetTenantCommonVariables: func(tenant *tenants.Tenant, includeMissingVariables bool) (*variables.GetTenantCommonVariablesResponse, error) {
+			return getTenantCommonVariables(dependencies.Client, tenant, includeMissingVariables)
 		},
 	}
 }
@@ -211,6 +221,28 @@ func getProjectVariablesByGitRef(client *client.Client, spaceId string, projectI
 
 func getTenantVariables(client *client.Client, tenant *tenants.Tenant) (*variables.TenantVariables, error) {
 	tenantVariables, err := client.Tenants.GetVariables(tenant)
+	return tenantVariables, err
+}
+
+func getTenantProjectVariables(client *client.Client, tenant *tenants.Tenant, includeMissingVariables bool) (*variables.GetTenantProjectVariablesResponse, error) {
+	projectVariablesQuery := variables.GetTenantProjectVariablesQuery{
+		TenantID:                tenant.ID,
+		SpaceID:                 tenant.SpaceID,
+		IncludeMissingVariables: includeMissingVariables,
+	}
+
+	tenantVariables, err := tenants.GetProjectVariables(client, projectVariablesQuery)
+	return tenantVariables, err
+}
+
+func getTenantCommonVariables(client *client.Client, tenant *tenants.Tenant, includeMissingVariables bool) (*variables.GetTenantCommonVariablesResponse, error) {
+	commonVariablesQuery := variables.GetTenantCommonVariablesQuery{
+		TenantID:                tenant.ID,
+		SpaceID:                 tenant.SpaceID,
+		IncludeMissingVariables: includeMissingVariables,
+	}
+
+	tenantVariables, err := tenants.GetCommonVariables(client, commonVariablesQuery)
 	return tenantVariables, err
 }
 
