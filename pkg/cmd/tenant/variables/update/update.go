@@ -779,7 +779,7 @@ func UpdateProjectVariableValue(opts *UpdateOptions, vars []variables.TenantProj
 				EnvironmentIds: environmentIds,
 			},
 		}
-		updateVariablePayloads, isSensitive, err := createProjectVariablePayload(variableToCreate, newValue, variablesWithMatchingProject)
+		updateVariablePayloads, isSensitive, err := createProjectVariablePayload(variableToCreate, newValue, vars)
 		if err != nil {
 			return false, nil, err
 		}
@@ -788,7 +788,7 @@ func UpdateProjectVariableValue(opts *UpdateOptions, vars []variables.TenantProj
 	}
 
 	if len(variablesWithMatchingScope) == 1 {
-		var updateVariablePayloads, isSensitive, err = createProjectVariablePayload(variablesWithMatchingScope[0], newValue, variablesWithMatchingProject)
+		var updateVariablePayloads, isSensitive, err = createProjectVariablePayload(variablesWithMatchingScope[0], newValue, vars)
 		if err != nil {
 			return false, nil, err
 		}
@@ -897,7 +897,7 @@ func UpdateCommonVariableValue(opts *UpdateOptions, vars []variables.TenantCommo
 				EnvironmentIds: environmentIds,
 			},
 		}
-		updateVariablePayloads, isSensitive, err := createCommonVariablePayload(variableToCreate, newValue, variablesWithMatchingVariableSet)
+		updateVariablePayloads, isSensitive, err := createCommonVariablePayload(variableToCreate, newValue, vars)
 		if err != nil {
 			return false, nil, err
 		}
@@ -906,7 +906,7 @@ func UpdateCommonVariableValue(opts *UpdateOptions, vars []variables.TenantCommo
 	}
 
 	if len(variablesWithMatchingScope) == 1 {
-		var updateVariablePayloads, isSensitive, err = createCommonVariablePayload(variablesWithMatchingScope[0], newValue, variablesWithMatchingVariableSet)
+		var updateVariablePayloads, isSensitive, err = createCommonVariablePayload(variablesWithMatchingScope[0], newValue, vars)
 		if err != nil {
 			return false, nil, err
 		}
@@ -972,7 +972,7 @@ func createCommonVariablePayload(variableToUpdate variables.TenantCommonVariable
 		})
 	}
 
-	// All variables within the selected library variable set must be included in the request to avoid deletions
+	// All variables must be included in the request to avoid deletions
 	for _, v := range allVariables {
 		if v.ID == variableToUpdate.ID {
 			updateVariablePayloads = append(updateVariablePayloads, variables.TenantCommonVariablePayload{
