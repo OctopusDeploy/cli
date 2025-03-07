@@ -935,7 +935,7 @@ func createProjectVariablePayload(variableToUpdate variables.TenantProjectVariab
 		})
 	}
 
-	// All variables within the selected project must be included in the request to avoid deletions
+	// All project variables must be included in the request to avoid deletions
 	for _, v := range allVariables {
 		if v.ID == variableToUpdate.ID {
 			updateVariablePayloads = append(updateVariablePayloads, variables.TenantProjectVariablePayload{
@@ -972,7 +972,7 @@ func createCommonVariablePayload(variableToUpdate variables.TenantCommonVariable
 		})
 	}
 
-	// All variables must be included in the request to avoid deletions
+	// All common variables must be included in the request to avoid deletions
 	for _, v := range allVariables {
 		if v.ID == variableToUpdate.ID {
 			updateVariablePayloads = append(updateVariablePayloads, variables.TenantCommonVariablePayload{
