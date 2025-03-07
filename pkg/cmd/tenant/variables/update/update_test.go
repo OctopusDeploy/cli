@@ -72,6 +72,7 @@ func TestUpdate_CommonVariable_ScopeExactMatch(t *testing.T) {
 	var existingCommonVariables = []variables.TenantCommonVariable{
 		createCommonVariable("TenantVariables-1", "LibraryVariableSets-1", "Set 1", "Templates-1", "Template 1", "existing value 1", []string{"Environments-1", "Environments-2"}, false),
 		createCommonVariable("TenantVariables-2", "LibraryVariableSets-1", "Set 1", "Templates-1", "Template 1", "existing value 2", []string{"Environments-3"}, false),
+		createCommonVariable("TenantVariables-3", "LibraryVariableSets-2", "Set 2", "Templates-2", "Template 2", "existing value 3", []string{}, false),
 	}
 
 	var environmentMap = map[string]string{
@@ -83,7 +84,7 @@ func TestUpdate_CommonVariable_ScopeExactMatch(t *testing.T) {
 	isSensitive, variablePayload, err := update.UpdateCommonVariableValue(opts, existingCommonVariables, nil, environmentMap)
 
 	assert.NoError(t, err)
-	assert.Equal(t, 2, len(variablePayload))
+	assert.Equal(t, 3, len(variablePayload))
 
 	assert.Equal(t, existingCommonVariables[0].ID, variablePayload[0].ID)
 	assert.Equal(t, core.PropertyValue{Value: "new value"}, variablePayload[0].Value)
@@ -96,6 +97,13 @@ func TestUpdate_CommonVariable_ScopeExactMatch(t *testing.T) {
 	assert.Equal(t, existingCommonVariables[1].LibraryVariableSetId, variablePayload[1].LibraryVariableSetId)
 	assert.Equal(t, existingCommonVariables[1].TemplateID, variablePayload[1].TemplateID)
 	assert.Equal(t, existingCommonVariables[1].Scope, variablePayload[1].Scope)
+	assert.False(t, isSensitive)
+
+	assert.Equal(t, existingCommonVariables[2].ID, variablePayload[2].ID)
+	assert.Equal(t, existingCommonVariables[2].Value, variablePayload[2].Value)
+	assert.Equal(t, existingCommonVariables[2].LibraryVariableSetId, variablePayload[2].LibraryVariableSetId)
+	assert.Equal(t, existingCommonVariables[2].TemplateID, variablePayload[2].TemplateID)
+	assert.Equal(t, existingCommonVariables[2].Scope, variablePayload[2].Scope)
 	assert.False(t, isSensitive)
 }
 
@@ -217,6 +225,7 @@ func TestUpdate_CommonVariable_WhenExistingValueIsMissingForScope(t *testing.T) 
 
 	var existingCommonVariables = []variables.TenantCommonVariable{
 		createCommonVariable("TenantVariables-2", "LibraryVariableSets-1", "Set 1", "Templates-1", "Template 1", "existing value 2", []string{"Environments-3"}, false),
+		createCommonVariable("TenantVariables-3", "LibraryVariableSets-2", "Set 2", "Templates-2", "Template 2", "existing value 3", []string{"Environments-3"}, false),
 	}
 
 	var missingCommonVariables = []variables.TenantCommonVariable{
@@ -232,7 +241,7 @@ func TestUpdate_CommonVariable_WhenExistingValueIsMissingForScope(t *testing.T) 
 	isSensitive, variablePayload, err := update.UpdateCommonVariableValue(opts, existingCommonVariables, missingCommonVariables, environmentMap)
 
 	assert.NoError(t, err)
-	assert.Equal(t, 2, len(variablePayload))
+	assert.Equal(t, 3, len(variablePayload))
 
 	assert.Empty(t, variablePayload[0].ID)
 	assert.Equal(t, core.PropertyValue{Value: "new value"}, variablePayload[0].Value)
@@ -245,6 +254,12 @@ func TestUpdate_CommonVariable_WhenExistingValueIsMissingForScope(t *testing.T) 
 	assert.Equal(t, existingCommonVariables[0].LibraryVariableSetId, variablePayload[1].LibraryVariableSetId)
 	assert.Equal(t, existingCommonVariables[0].TemplateID, variablePayload[1].TemplateID)
 	assert.Equal(t, existingCommonVariables[0].Scope, variablePayload[1].Scope)
+
+	assert.Equal(t, existingCommonVariables[1].ID, variablePayload[2].ID)
+	assert.Equal(t, existingCommonVariables[1].Value, variablePayload[2].Value)
+	assert.Equal(t, existingCommonVariables[1].LibraryVariableSetId, variablePayload[2].LibraryVariableSetId)
+	assert.Equal(t, existingCommonVariables[1].TemplateID, variablePayload[2].TemplateID)
+	assert.Equal(t, existingCommonVariables[1].Scope, variablePayload[2].Scope)
 	assert.False(t, isSensitive)
 }
 
@@ -346,6 +361,7 @@ func TestUpdate_ProjectVariable_ScopeExactMatch(t *testing.T) {
 	var existingProjectVariables = []variables.TenantProjectVariable{
 		createProjectVariable("TenantVariables-1", "Projects-1", "Project 1", "Templates-1", "Template 1", "existing value 1", []string{"Environments-1", "Environments-2"}, false),
 		createProjectVariable("TenantVariables-2", "Projects-1", "Project 1", "Templates-1", "Template 1", "existing value 2", []string{"Environments-3"}, false),
+		createProjectVariable("TenantVariables-3", "Projects-2", "Project 2", "Templates-2", "Template 2", "existing value 3", []string{}, false),
 	}
 
 	var environmentMap = map[string]string{
@@ -357,7 +373,7 @@ func TestUpdate_ProjectVariable_ScopeExactMatch(t *testing.T) {
 	isSensitive, variablePayload, err := update.UpdateProjectVariableValue(opts, existingProjectVariables, nil, environmentMap)
 
 	assert.NoError(t, err)
-	assert.Equal(t, 2, len(variablePayload))
+	assert.Equal(t, 3, len(variablePayload))
 
 	assert.Equal(t, existingProjectVariables[0].ID, variablePayload[0].ID)
 	assert.Equal(t, core.PropertyValue{Value: "new value"}, variablePayload[0].Value)
@@ -370,6 +386,12 @@ func TestUpdate_ProjectVariable_ScopeExactMatch(t *testing.T) {
 	assert.Equal(t, existingProjectVariables[1].ProjectID, variablePayload[1].ProjectID)
 	assert.Equal(t, existingProjectVariables[1].TemplateID, variablePayload[1].TemplateID)
 	assert.Equal(t, existingProjectVariables[1].Scope, variablePayload[1].Scope)
+
+	assert.Equal(t, existingProjectVariables[2].ID, variablePayload[2].ID)
+	assert.Equal(t, existingProjectVariables[2].Value, variablePayload[2].Value)
+	assert.Equal(t, existingProjectVariables[2].ProjectID, variablePayload[2].ProjectID)
+	assert.Equal(t, existingProjectVariables[2].TemplateID, variablePayload[2].TemplateID)
+	assert.Equal(t, existingProjectVariables[2].Scope, variablePayload[2].Scope)
 	assert.False(t, isSensitive)
 }
 
@@ -491,6 +513,7 @@ func TestUpdate_ProjectVariable_WhenExistingValueIsMissingForScope(t *testing.T)
 
 	var existingProjectVariables = []variables.TenantProjectVariable{
 		createProjectVariable("TenantVariables-2", "Projects-1", "Project 1", "Templates-1", "Template 1", "existing value 2", []string{"Environments-3"}, false),
+		createProjectVariable("TenantVariables-3", "Projects-2", "Project 2", "Templates-2", "Template 2", "existing value 3", []string{"Environments-3"}, false),
 	}
 
 	var missingProjectVariables = []variables.TenantProjectVariable{
@@ -506,7 +529,7 @@ func TestUpdate_ProjectVariable_WhenExistingValueIsMissingForScope(t *testing.T)
 	isSensitive, variablePayload, err := update.UpdateProjectVariableValue(opts, existingProjectVariables, missingProjectVariables, environmentMap)
 
 	assert.NoError(t, err)
-	assert.Equal(t, 2, len(variablePayload))
+	assert.Equal(t, 3, len(variablePayload))
 
 	assert.Empty(t, variablePayload[0].ID)
 	assert.Equal(t, core.PropertyValue{Value: "new value"}, variablePayload[0].Value)
@@ -519,6 +542,12 @@ func TestUpdate_ProjectVariable_WhenExistingValueIsMissingForScope(t *testing.T)
 	assert.Equal(t, existingProjectVariables[0].ProjectID, variablePayload[1].ProjectID)
 	assert.Equal(t, existingProjectVariables[0].TemplateID, variablePayload[1].TemplateID)
 	assert.Equal(t, existingProjectVariables[0].Scope, variablePayload[1].Scope)
+
+	assert.Equal(t, existingProjectVariables[1].ID, variablePayload[2].ID)
+	assert.Equal(t, existingProjectVariables[1].Value, variablePayload[2].Value)
+	assert.Equal(t, existingProjectVariables[1].ProjectID, variablePayload[2].ProjectID)
+	assert.Equal(t, existingProjectVariables[1].TemplateID, variablePayload[2].TemplateID)
+	assert.Equal(t, existingProjectVariables[1].Scope, variablePayload[2].Scope)
 	assert.False(t, isSensitive)
 }
 
