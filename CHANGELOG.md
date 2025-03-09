@@ -1,5 +1,48 @@
 # Changelog
 
+## [2.15.3](https://github.com/OctopusDeploy/cli/compare/v2.15.2...v2.15.3) (2025-03-05)
+
+
+### Bug Fixes
+
+* Pump go-octopusdeploy to fix vulnerabilities-package ([#498](https://github.com/OctopusDeploy/cli/issues/498)) ([0983510](https://github.com/OctopusDeploy/cli/commit/09835103ce2bc5b9a7506c68f82517a76108582e))
+
+## [2.15.2](https://github.com/OctopusDeploy/cli/compare/v2.15.1...v2.15.2) (2025-03-04)
+
+
+### Miscellaneous Chores
+
+* **main:** release 2.15.2 ([3c90363](https://github.com/OctopusDeploy/cli/commit/3c90363e77cd55298cd4d6a21b8897768d4af741))
+
+## [2.15.0](https://github.com/OctopusDeploy/cli/compare/v2.14.3...v2.15.0) (2025-02-14)
+
+
+### Features
+
+* Task wait support --progress flag to print task logs and some enhancement ([8eaf696](https://github.com/OctopusDeploy/cli/commit/8eaf6966c5699b2effd3a18a349c065fc61022d4))
+
+## [2.14.3](https://github.com/OctopusDeploy/cli/compare/v2.14.2...v2.14.3) (2025-02-11)
+
+
+### Bug Fixes
+
+* Check runbook variable context when prompt variable ([#480](https://github.com/OctopusDeploy/cli/issues/480)) ([13337bf](https://github.com/OctopusDeploy/cli/commit/13337bf0e02694acf667d211cd8853f663d9844d))
+
+## [2.14.2](https://github.com/OctopusDeploy/cli/compare/v2.14.1...v2.14.2) (2025-01-24)
+
+
+### Bug Fixes
+
+* issue verbose output of the octopus package nuget create ([#474](https://github.com/OctopusDeploy/cli/issues/474)) ([68ceb24](https://github.com/OctopusDeploy/cli/commit/68ceb247c5d7013240f299d0cafc07fef80a99fc))
+* Use first option as default selection if don't specific by variable and add test case cover that scenario ([9e96ae5](https://github.com/OctopusDeploy/cli/commit/9e96ae5c64ff75027d1881d7f6c89fd5509c85b0))
+
+## [2.14.1](https://github.com/OctopusDeploy/cli/compare/v2.14.0...v2.14.1) (2025-01-23)
+
+
+### Bug Fixes
+
+* Use first option as default selection if dont sepecific by variable ([4932b5d](https://github.com/OctopusDeploy/cli/commit/4932b5d0a8edc7220ea187a9f9b20c9bf8b3bf68))
+
 ## [2.14.0](https://github.com/OctopusDeploy/cli/compare/v2.13.0...v2.14.0) (2024-12-04)
 
 

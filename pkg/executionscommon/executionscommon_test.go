@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"testing"
+
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/OctopusDeploy/cli/pkg/executionscommon"
 	"github.com/OctopusDeploy/cli/test/fixtures"
@@ -11,7 +13,6 @@ import (
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/resources"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/variables"
 	"github.com/stretchr/testify/assert"
-	"testing"
 )
 
 func TestAskVariables(t *testing.T) {
@@ -228,7 +229,7 @@ func TestAskVariables(t *testing.T) {
 			_ = qa.ExpectQuestion(t, &survey.Select{
 				Message: "Division (Which part of the company do you work in?)",
 				Options: []string{"R&D", "Finance", "Human Resources", "Other"},
-				Default: "",
+				Default: "R&D",
 			}).AnswerWith("Human Resources")
 
 			output, err := testutil.ReceivePair(receiver)
@@ -313,6 +314,36 @@ func TestAskVariables(t *testing.T) {
 			output, err := testutil.ReceivePair(receiver)
 			assert.Nil(t, err)
 			assert.Equal(t, map[string]string{"IsApproved": "True"}, output)
+		}},
+
+		{"prompts for select control type with options and default value is empty", func(t *testing.T, qa *testutil.AskMocker, stdout *bytes.Buffer) {
+			displaySettings := resources.NewDisplaySettings(resources.ControlTypeSelect, []*resources.SelectOption{
+				{Value: "Production", DisplayName: "Production Environment"},
+				{Value: "Development", DisplayName: "Development Environment"},
+			})
+
+			done := make(chan struct{})
+			go func() {
+				defer close(done)
+				_ = qa.ExpectQuestion(t, &survey.Select{
+					Message: "Environment (Select environment)",
+					Options: []string{"Production Environment", "Development Environment"},
+					Default: "Production Environment",
+				}).AnswerWith("Production Environment")
+			}()
+
+			result, err := executionscommon.AskVariableSpecificPrompt(
+				qa.AsAsker(),
+				"Environment (Select environment)",
+				"String",
+				"",
+				false,
+				false,
+				displaySettings,
+			)
+
+			assert.Nil(t, err)
+			assert.Equal(t, "Production", result)
 		}},
 	}
 
