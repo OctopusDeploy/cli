@@ -86,20 +86,22 @@ func releaseCreate(octopus *client.Client, space *spaces.Space, input any) error
 // ----- Deploy Release --------------------------------------
 
 type TaskOptionsDeployRelease struct {
-	ProjectName          string   // required
-	ReleaseVersion       string   // the release to deploy
-	Environments         []string // multiple for untenanted deployment, only one entry for tenanted deployment
-	Tenants              []string
-	TenantTags           []string
-	ScheduledStartTime   string
-	ScheduledExpiryTime  string
-	ExcludedSteps        []string
-	GuidedFailureMode    string // ["", "true", "false", "default"]. Note default and "" are the same, the only difference is whether interactive mode prompts you
-	ForcePackageDownload bool
-	DeploymentTargets    []string
-	ExcludeTargets       []string
-	Variables            map[string]string
-	UpdateVariables      bool
+	ProjectName                    string   // required
+	ReleaseVersion                 string   // the release to deploy
+	Environments                   []string // multiple for untenanted deployment, only one entry for tenanted deployment
+	Tenants                        []string
+	TenantTags                     []string
+	ScheduledStartTime             string
+	ScheduledExpiryTime            string
+	ExcludedSteps                  []string
+	GuidedFailureMode              string // ["", "true", "false", "default"]. Note default and "" are the same, the only difference is whether interactive mode prompts you
+	ForcePackageDownload           bool
+	DeploymentTargets              []string
+	ExcludeTargets                 []string
+	Variables                      map[string]string
+	UpdateVariables                bool
+	DeploymentFreezeNames          []string
+	DeploymentFreezeOverrideReason string
 
 	// extra behaviour commands
 
@@ -140,15 +142,17 @@ func releaseDeploy(octopus *client.Client, space *spaces.Space, input any) error
 
 	// common properties
 	abstractCmd := deployments.CreateExecutionAbstractCommandV1{
-		SpaceID:              space.ID,
-		ProjectIDOrName:      params.ProjectName,
-		ForcePackageDownload: params.ForcePackageDownload,
-		SpecificMachineNames: params.DeploymentTargets,
-		ExcludedMachineNames: params.ExcludeTargets,
-		SkipStepNames:        params.ExcludedSteps,
-		RunAt:                params.ScheduledStartTime,
-		NoRunAfter:           params.ScheduledExpiryTime,
-		Variables:            params.Variables,
+		SpaceID:                        space.ID,
+		ProjectIDOrName:                params.ProjectName,
+		ForcePackageDownload:           params.ForcePackageDownload,
+		SpecificMachineNames:           params.DeploymentTargets,
+		ExcludedMachineNames:           params.ExcludeTargets,
+		SkipStepNames:                  params.ExcludedSteps,
+		RunAt:                          params.ScheduledStartTime,
+		NoRunAfter:                     params.ScheduledExpiryTime,
+		Variables:                      params.Variables,
+		DeploymentFreezeNames:          params.DeploymentFreezeNames,
+		DeploymentFreezeOverrideReason: params.DeploymentFreezeOverrideReason,
 	}
 
 	b, err := strconv.ParseBool(params.GuidedFailureMode)

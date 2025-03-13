@@ -1470,6 +1470,8 @@ func TestDeployCreate_AutomationMode(t *testing.T) {
 					"--update-variables",
 					"--target", "firstMachine", "--target", "secondMachine",
 					"--exclude-target", "thirdMachine",
+					"--deployment-freeze-name", "freeze 1", "--deployment-freeze-name", "freeze 2",
+					"--deployment-freeze-override-reason", "Testing",
 					"--variable", "Approver:John", "--variable", "Signoff:Jane",
 					"--output-format", "basic", // not neccessary, just means we don't need the follow up HTTP requests at the end to print the web link
 				})
@@ -1505,6 +1507,8 @@ func TestDeployCreate_AutomationMode(t *testing.T) {
 						"Approver": "John",
 						"Signoff":  "Jane",
 					},
+					DeploymentFreezeNames:          []string{"freeze 1", "freeze 2"},
+					DeploymentFreezeOverrideReason: "Testing",
 				},
 			}, requestBody)
 
@@ -1540,6 +1544,8 @@ func TestDeployCreate_AutomationMode(t *testing.T) {
 					"--update-variables",
 					"--target", "firstMachine", "--target", "secondMachine",
 					"--exclude-target", "thirdMachine",
+					"--deployment-freeze-name", "freeze 1",
+					"--deployment-freeze-override-reason", "Testing",
 					"--variable", "Approver:John", "--variable", "Signoff:Jane",
 					"--output-format", "basic", // not neccessary, just means we don't need the follow up HTTP requests at the end to print the web link
 				})
@@ -1576,6 +1582,8 @@ func TestDeployCreate_AutomationMode(t *testing.T) {
 						"Approver": "John",
 						"Signoff":  "Jane",
 					},
+					DeploymentFreezeNames:          []string{"freeze 1"},
+					DeploymentFreezeOverrideReason: "Testing",
 				},
 			}, requestBody)
 
