@@ -241,7 +241,7 @@
 ## [2.0.0](https://github.com/OctopusDeploy/cli/compare/v1.7.1...v2.0.0) (2024-01-04)
 
 
-### ⚠ BREAKING CHANGES
+###  BREAKING CHANGES
 
 * bug where lists weren't parsing correctly when names contain a comma ([#306](https://github.com/OctopusDeploy/cli/issues/306))
 
@@ -372,7 +372,7 @@
 ## [1.0.0](https://github.com/OctopusDeploy/cli/compare/v0.10.2...v1.0.0) (2023-01-05)
 
 
-### ⚠ BREAKING CHANGES
+###  BREAKING CHANGES
 
 * package
 

@@ -244,6 +244,6 @@ func deleteWithConfirmation(ask question.Asker, ids []string, doDelete func() er
 		return err
 	}
 
-	fmt.Printf("%s The %s were deleted successfully.\n", output.Red("✔"), strings.Join(ids, ", "))
+	fmt.Printf("%s The %s were deleted successfully.\n", output.Red("*"), strings.Join(ids, ", "))
 	return nil
 }

@@ -119,7 +119,7 @@ func deleteRun(opts *DeleteOptions) error {
 			return err
 		}
 
-		fmt.Printf("%s The package, \"%s\" %s was deleted successfully.\n", output.Red("✔"), packageIdentity, output.Dimf("(%s)", packageToDelete.GetID()))
+		fmt.Printf("%s The package, \"%s\" %s was deleted successfully.\n", output.Red("*"), packageIdentity, output.Dimf("(%s)", packageToDelete.GetID()))
 		return nil
 	}
 }

@@ -42,7 +42,7 @@ func DeleteWithConfirmation(ask Asker, itemType string, itemName string, itemID 
 		return err
 	}
 
-	fmt.Printf("%s The %s, \"%s\" %s was deleted successfully.\n", output.Red("✔"), itemType, itemName, output.Dimf("(%s)", itemID))
+	fmt.Printf("%s The %s, \"%s\" %s was deleted successfully.\n", output.Red("*"), itemType, itemName, output.Dimf("(%s)", itemID))
 	return nil
 }
 
