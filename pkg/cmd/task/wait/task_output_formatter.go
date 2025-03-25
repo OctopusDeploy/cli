@@ -12,11 +12,11 @@ import (
 
 const (
 	indentSize       = 4
-	separator        = "─"
+	separator        = ""
 	sepLength        = 29
 	timeFormat       = "02-01-2006 15:04:05"
 	logIndentLevel   = 6
-	taskHeaderIndent = "──────"
+	taskHeaderIndent = ""
 	logLineIndent    = "                  "
 )
 
