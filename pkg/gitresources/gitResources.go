@@ -1,4 +1,4 @@
-package gitresources
+package gitresources
 
 import (
 	"errors"

@@ -1,7 +1,7 @@
 <div align="center">
   <img alt="go-octopusdeploy Logo" src="logo.png" width="256" />
   <h3 align="center">cli</h3>
-  <p align="center">Command Line Interface for <a href="https://octopus.com/">Octopus Deploy</a> </p>
+  <p align="center">Command Line Interface for <a href="https://octopus.com/">Octopus Deploy</a> </p>
   <p align="center">
     <a href="https://github.com/OctopusDeploy/cli/releases/latest"><img alt="GitHub release" src="https://img.shields.io/github/v/release/OctopusDeploy/cli.svg?logo=github&style=flat-square"></a>
     <a href="https://goreportcard.com/badge/github.com/OctopusDeploy/cli"><img src="https://goreportcard.com/badge/github.com/OctopusDeploy/cli" alt="Go Report"></a>

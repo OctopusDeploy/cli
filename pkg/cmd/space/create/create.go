@@ -139,7 +139,7 @@ func createRun(opts *CreateOptions) error {
 		return err
 	}
 
-	fmt.Printf("%s The space, \"%s\" %s was created successfully.\n", output.Green(""), createdSpace.Name, output.Dimf("(%s)", createdSpace.ID))
+	fmt.Printf("%s The space, \"%s\" %s was created successfully.\n", output.Green("*"), createdSpace.Name, output.Dimf("(%s)", createdSpace.ID))
 
 	if !opts.NoPrompt {
 		autoCmd := flag.GenerateAutomationCmd(opts.CmdPath, opts.Name, opts.Description, opts.Teams, opts.Users)

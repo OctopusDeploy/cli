@@ -1,4 +1,4 @@
-package gitresources_test
+package gitresources_test
 
 import (
 	"bytes"

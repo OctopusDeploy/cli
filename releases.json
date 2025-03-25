@@ -27915,7 +27915,7 @@
     ],
     "tarball_url": "https://api.github.com/repos/OctopusDeploy/cli/tarball/v2.0.0",
     "zipball_url": "https://api.github.com/repos/OctopusDeploy/cli/zipball/v2.0.0",
-    "body": "## [2.0.0](https://github.com/OctopusDeploy/cli/compare/v1.7.1...v2.0.0) (2024-01-04)\n\n\n###  BREAKING CHANGES\n\n* bug where lists weren't parsing correctly when names contain a comma ([#306](https://github.com/OctopusDeploy/cli/issues/306))\n\n### Features\n\n* account azure-oidc create ([#296](https://github.com/OctopusDeploy/cli/issues/296)) ([554d171](https://github.com/OctopusDeploy/cli/commit/554d17154c980caae90f52f047696321dd6dd6d3))\n\n\n### Bug Fixes\n\n* bug where lists weren't parsing correctly when names contain a comma ([#306](https://github.com/OctopusDeploy/cli/issues/306)) ([09e1cc3](https://github.com/OctopusDeploy/cli/commit/09e1cc3093cacefc22c8c15631e2b011d9eaaec9))",
+    "body": "## [2.0.0](https://github.com/OctopusDeploy/cli/compare/v1.7.1...v2.0.0) (2024-01-04)\n\n\n### BREAKING CHANGES\n\n* bug where lists weren't parsing correctly when names contain a comma ([#306](https://github.com/OctopusDeploy/cli/issues/306))\n\n### Features\n\n* account azure-oidc create ([#296](https://github.com/OctopusDeploy/cli/issues/296)) ([554d171](https://github.com/OctopusDeploy/cli/commit/554d17154c980caae90f52f047696321dd6dd6d3))\n\n\n### Bug Fixes\n\n* bug where lists weren't parsing correctly when names contain a comma ([#306](https://github.com/OctopusDeploy/cli/issues/306)) ([09e1cc3](https://github.com/OctopusDeploy/cli/commit/09e1cc3093cacefc22c8c15631e2b011d9eaaec9))",
     "reactions": {
       "url": "https://api.github.com/repos/OctopusDeploy/cli/releases/135761391/reactions",
       "total_count": 1,
@@ -39771,7 +39771,7 @@
     ],
     "tarball_url": "https://api.github.com/repos/OctopusDeploy/cli/tarball/v1.0.0",
     "zipball_url": "https://api.github.com/repos/OctopusDeploy/cli/zipball/v1.0.0",
-    "body": "## [1.0.0](https://github.com/OctopusDeploy/cli/compare/v0.10.2...v1.0.0) (2023-01-05)\n\n\n###  BREAKING CHANGES\n\n* package\n\n### Features\n\n* package ([088df06](https://github.com/OctopusDeploy/cli/commit/088df0673c2bf88928f2f5ce86dff46533cb0dd7))\n\n\n### Bug Fixes\n\n* null ref exception in  `account create` command ([#204](https://github.com/OctopusDeploy/cli/issues/204)) ([204f706](https://github.com/OctopusDeploy/cli/commit/204f706b48bb606fa52e7ef5223845775d344ec6))\n* remove project convert support for default protected branch  ([#199](https://github.com/OctopusDeploy/cli/issues/199)) ([05ee50a](https://github.com/OctopusDeploy/cli/commit/05ee50a9d8a7e04ea7afbf1858c3f2d5bfd909a1))",
+    "body": "## [1.0.0](https://github.com/OctopusDeploy/cli/compare/v0.10.2...v1.0.0) (2023-01-05)\n\n\n### BREAKING CHANGES\n\n* package\n\n### Features\n\n* package ([088df06](https://github.com/OctopusDeploy/cli/commit/088df0673c2bf88928f2f5ce86dff46533cb0dd7))\n\n\n### Bug Fixes\n\n* null ref exception in  `account create` command ([#204](https://github.com/OctopusDeploy/cli/issues/204)) ([204f706](https://github.com/OctopusDeploy/cli/commit/204f706b48bb606fa52e7ef5223845775d344ec6))\n* remove project convert support for default protected branch  ([#199](https://github.com/OctopusDeploy/cli/issues/199)) ([05ee50a](https://github.com/OctopusDeploy/cli/commit/05ee50a9d8a7e04ea7afbf1858c3f2d5bfd909a1))",
     "reactions": {
       "url": "https://api.github.com/repos/OctopusDeploy/cli/releases/88074769/reactions",
       "total_count": 1,
