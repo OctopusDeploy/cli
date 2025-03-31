@@ -3,7 +3,9 @@ package view
 import (
 	"fmt"
 	"github.com/OctopusDeploy/cli/pkg/apiclient"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projectgroups"
 	"io"
+	"strings"
 
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/constants"
@@ -63,7 +65,7 @@ func NewCmdView(f factory.Factory) *cobra.Command {
 				viewFlags,
 			}
 
-			return viewRun(opts)
+			return viewRun(cmd, opts)
 		},
 	}
 
@@ -73,37 +75,75 @@ func NewCmdView(f factory.Factory) *cobra.Command {
 	return cmd
 }
 
-func viewRun(opts *ViewOptions) error {
+type ProjectLookup struct {
+	Id   string `json:"Id"`
+	Name string `json:"Name"`
+}
+
+type ProjectGroupAsJson struct {
+	Id          string             `json:"Id"`
+	Name        string             `json:"Name"`
+	Description string             `json:"Description"`
+	Projects    []output.IdAndName `json:"Projects"`
+}
+
+func viewRun(cmd *cobra.Command, opts *ViewOptions) error {
 	projectGroup, err := opts.Client.ProjectGroups.GetByIDOrName(opts.idOrName)
 	if err != nil {
 		return err
-	}
-
-	fmt.Fprintf(opts.out, "%s %s\n", output.Bold(projectGroup.GetName()), output.Dimf("(%s)", projectGroup.GetID()))
-
-	if projectGroup.Description == "" {
-		fmt.Fprintln(opts.out, output.Dim(constants.NoDescription))
-	} else {
-		fmt.Fprintln(opts.out, output.Dim(projectGroup.Description))
 	}
 
 	projects, err := opts.Client.ProjectGroups.GetProjects(projectGroup)
 	if err != nil {
 		return err
 	}
-	fmt.Fprintf(opts.out, output.Cyan("\nProjects:\n"))
-	for _, project := range projects {
-		fmt.Fprintf(opts.out, "%s (%s)\n", output.Bold(project.GetName()), project.Slug)
-	}
 
 	url := fmt.Sprintf("%s/app#/%s/projects?projectGroupId=%s", opts.Host, projectGroup.SpaceID, projectGroup.GetID())
 
-	// footer
-	fmt.Fprintf(opts.out, "\nView this project group in Octopus Deploy: %s\n", output.Blue(url))
+	return output.PrintResource(projectGroup, cmd, output.Mappers[*projectgroups.ProjectGroup]{
+		Json: func(pg *projectgroups.ProjectGroup) any {
+			projectsLookup := []output.IdAndName{}
 
-	if opts.flags.Web.Value {
-		browser.OpenURL(url)
-	}
+			for _, p := range projects {
+				projectsLookup = append(projectsLookup, output.IdAndName{Id: p.ID, Name: p.Name})
+			}
 
-	return nil
+			return ProjectGroupAsJson{
+				Id:          pg.GetID(),
+				Name:        pg.GetName(),
+				Description: pg.Description,
+				Projects:    projectsLookup,
+			}
+		},
+		Table: output.TableDefinition[*projectgroups.ProjectGroup]{
+			Header: []string{"NAME", "DESCRIPTION", "ID"},
+			Row: func(pg *projectgroups.ProjectGroup) []string {
+				return []string{output.Bold(pg.Name), pg.Description, output.Dim(pg.GetID())}
+			},
+		},
+		Basic: func(item *projectgroups.ProjectGroup) string {
+			var s strings.Builder
+
+			s.WriteString(fmt.Sprintf("%s %s\n", output.Bold(projectGroup.GetName()), output.Dimf("(%s)", projectGroup.GetID())))
+			if projectGroup.Description == "" {
+				s.WriteString(fmt.Sprintln(output.Dim(constants.NoDescription)))
+			} else {
+				s.WriteString(fmt.Sprintln(output.Dim(projectGroup.Description)))
+			}
+
+			s.WriteString(fmt.Sprintf(output.Cyan("\nProjects:\n")))
+			for _, project := range projects {
+				s.WriteString(fmt.Sprintf("%s (%s)\n", output.Bold(project.GetName()), project.Slug))
+			}
+
+			// footer
+			s.WriteString(fmt.Sprintf("\nView this project group in Octopus Deploy: %s\n", output.Blue(url)))
+
+			if opts.flags.Web.Value {
+				browser.OpenURL(url)
+			}
+
+			return s.String()
+		},
+	})
 }
