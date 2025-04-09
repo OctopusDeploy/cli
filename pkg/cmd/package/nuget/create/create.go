@@ -16,6 +16,7 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/surveyext"
 	"github.com/OctopusDeploy/cli/pkg/util"
 	"github.com/OctopusDeploy/cli/pkg/util/flag"
+	"github.com/google/uuid"
 	"github.com/spf13/cobra"
 )
 
@@ -115,18 +116,36 @@ func createRun(cmd *cobra.Command, opts *NuPkgCreateOptions) error {
 	if shouldGenerateNuSpec(opts) {
 		defer func() {
 			if nuspecFilePath != "" {
-				err := os.Remove(nuspecFilePath)
-				if err != nil {
-					panic(err)
-				}
+				defer cleanupFile(nuspecFilePath)
 			}
 		}()
 		nuspecFilePath, err = GenerateNuSpec(opts)
 		if err != nil {
 			return err
 		}
-		opts.Include.Value = append(opts.Include.Value, opts.Id.Value+".nuspec")
+		opts.Include.Value = append(opts.Include.Value, nuspecFilePath)
 	}
+
+	contentTypesFilePath, err := generateContentTypesFile(opts)
+	if err != nil {
+		return err
+	}
+	defer cleanupFile(contentTypesFilePath)
+	opts.Include.Value = append(opts.Include.Value, contentTypesFilePath)
+
+	corePropertiesFilePath, err := generateCorePropertiesFile(opts)
+	if err != nil {
+		return err
+	}
+	defer cleanupFile(corePropertiesFilePath)
+	opts.Include.Value = append(opts.Include.Value, corePropertiesFilePath)
+
+	relsFilePath, err := generateRelsFile(opts, nuspecFilePath, corePropertiesFilePath)
+	if err != nil {
+		return err
+	}
+	defer cleanupFile(relsFilePath)
+	opts.Include.Value = append(opts.Include.Value, relsFilePath)
 
 	pack.VerboseOut(opts.Writer, opts.Verbose.Value, "Packing \"%s\" version \"%s\"...\n", opts.Id.Value, opts.Version.Value)
 	outFilePath := pack.BuildOutFileName("nupkg", opts.Id.Value, opts.Version.Value)
@@ -324,4 +343,93 @@ func GenerateNuSpec(opts *NuPkgCreateOptions) (string, error) {
 	}
 
 	return filePath, file.Close()
+}
+
+func generateContentTypesFile(opts *NuPkgCreateOptions) (string, error) {
+	filePath := filepath.Join(opts.BasePath.Value, "[Content_Types].xml")
+	var sb strings.Builder
+	sb.WriteString(`<?xml version="1.0" encoding="utf-8"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml" />
+  <Default Extension="psmdcp" ContentType="application/vnd.openxmlformats-package.core-properties+xml" />
+  <Default Extension="json" ContentType="application/octet" />
+  <Default Extension="dll" ContentType="application/octet" />
+  <Default Extension="pdb" ContentType="application/octet" />
+  <Default Extension="exe" ContentType="application/octet" />
+  <Default Extension="nuspec" ContentType="application/octet" />
+</Types>`)
+	file, err := os.Create(filePath)
+	if err != nil {
+		return "", err
+	}
+
+	_, err = file.WriteString(sb.String())
+	if err != nil {
+		return "", err
+	}
+
+	return filePath, file.Close()
+}
+
+func generateCorePropertiesFile(opts *NuPkgCreateOptions) (string, error) {
+	fileName := strings.Replace(uuid.New().String(), "-", "", -1) + ".psmdcp"
+	filePath := filepath.Join(opts.BasePath.Value, "package", "services", "metadata", "core-properties", fileName)
+	var sb strings.Builder
+	sb.WriteString(`<?xml version="1.0" encoding="utf-8"?>
+<coreProperties xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://schemas.openxmlformats.org/package/2006/metadata/core-properties">
+  <dc:creator>@</dc:creator>
+  <dc:description>` + opts.Description.Value + `</dc:description>
+  <dc:identifier>` + opts.Id.Value + `</dc:identifier>
+  <version>` + opts.Version.Value + `</version>
+  <keywords></keywords>
+  <lastModifiedBy>Octopus CLI</lastModifiedBy>
+</coreProperties>`)
+	err := os.MkdirAll(filepath.Dir(filePath), 0770)
+	if err != nil {
+		return "", err
+	}
+	file, err := os.Create(filePath)
+	if err != nil {
+		return "", err
+	}
+
+	_, err = file.WriteString(sb.String())
+	if err != nil {
+		return "", err
+	}
+
+	return filePath, file.Close()
+}
+
+func generateRelsFile(opts *NuPkgCreateOptions, nuspecFilePath, corePropertiesFilePath string) (string, error) {
+	filePath := filepath.Join(opts.BasePath.Value, "_rels", ".rels")
+	var sb strings.Builder
+	sb.WriteString(`<?xml version="1.0" encoding="utf-8"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Type="http://schemas.microsoft.com/packaging/2010/07/manifest" Target="/` + filepath.Base(nuspecFilePath) + `" Id="R1" />
+  <Relationship Type="http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties" Target="/package/services/metadata/core-properties/` +
+		filepath.Base(corePropertiesFilePath) + `" Id="R2" />
+</Relationships>`)
+	err := os.MkdirAll(filepath.Dir(filePath), 0770)
+	if err != nil {
+		return "", err
+	}
+	file, err := os.Create(filePath)
+	if err != nil {
+		return "", err
+	}
+
+	_, err = file.WriteString(sb.String())
+	if err != nil {
+		return "", err
+	}
+
+	return filePath, file.Close()
+}
+
+func cleanupFile(filePath string) {
+	err := os.Remove(filePath)
+	if err != nil {
+		panic(err)
+	}
 }
