@@ -1,5 +1,26 @@
 # Changelog
 
+## [2.15.6](https://github.com/OctopusDeploy/cli/compare/v2.15.5...v2.15.6) (2025-03-13)
+
+
+### Features
+
+* Add deployment freeze override flags [#463](https://github.com/OctopusDeploy/cli/issues/463) ([0dc7bfd](https://github.com/OctopusDeploy/cli/commit/0dc7bfd0915e5a71acc5e3e8e335b4c04f127bc2))
+
+## [2.15.5](https://github.com/OctopusDeploy/cli/compare/v2.15.4...v2.15.5) (2025-03-07)
+
+
+### Bug Fixes
+
+* Fix deleting variables from other variable sets [#502](https://github.com/OctopusDeploy/cli/issues/502) ([788a9a3](https://github.com/OctopusDeploy/cli/commit/788a9a3ae4fd9ceb186d6c0f4290ac058391b926))
+
+## [2.15.4](https://github.com/OctopusDeploy/cli/compare/v2.15.3...v2.15.4) (2025-03-07)
+
+
+### Features
+
+* Enable updates of scoped common variables [#489](https://github.com/OctopusDeploy/cli/issues/489) ([361054c](https://github.com/OctopusDeploy/cli/commit/361054c0b22349bdb5e36d1439e1de54358d813c))
+
 ## [2.15.3](https://github.com/OctopusDeploy/cli/compare/v2.15.2...v2.15.3) (2025-03-05)
 
 
