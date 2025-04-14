@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.15.7](https://github.com/OctopusDeploy/cli/compare/v2.15.6...v2.15.7) (2025-04-14)
+
+
+### Bug Fixes
+
+* Add missing title property to nuspec ([#511](https://github.com/OctopusDeploy/cli/issues/511)) ([3c0f97c](https://github.com/OctopusDeploy/cli/commit/3c0f97ce244a248e89212e988f9ee1a37f1acc3d))
+
 ## [2.15.6](https://github.com/OctopusDeploy/cli/compare/v2.15.5...v2.15.6) (2025-03-13)
 
 
