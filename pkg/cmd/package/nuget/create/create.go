@@ -305,6 +305,9 @@ func GenerateNuSpec(opts *NuPkgCreateOptions) (string, error) {
 	sb.WriteString("  <metadata>\n")
 	sb.WriteString("    <id>" + opts.Id.Value + "</id>\n")
 	sb.WriteString("    <version>" + opts.Version.Value + "</version>\n")
+	if opts.Title.Value != "" {
+		sb.WriteString("    <title>" + opts.Title.Value + "</title>\n")
+	}
 	sb.WriteString("    <description>" + opts.Description.Value + "</description>\n")
 	sb.WriteString("    <authors>" + strings.Join(opts.Author.Value, ",") + "</authors>\n")
 	if releaseNotes != "" {
