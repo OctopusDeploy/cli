@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/OctopusDeploy/cli/pkg/apiclient"
 	"io"
+	"strings"
 
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/constants"
@@ -65,7 +66,7 @@ func NewCmdView(f factory.Factory) *cobra.Command {
 				viewFlags,
 			}
 
-			return viewRun(opts)
+			return viewRun(cmd, opts)
 		},
 	}
 
@@ -75,33 +76,62 @@ func NewCmdView(f factory.Factory) *cobra.Command {
 	return cmd
 }
 
-func viewRun(opts *ViewOptions) error {
+type ProjectAsJson struct {
+	Id                  string `json:"Id"`
+	Name                string `json:"Name"`
+	Description         string `json:"Description"`
+	IsVersionControlled bool   `json:"IsVersionControlled"`
+	Branch              string `json:"Branch"`
+}
+
+func viewRun(cmd *cobra.Command, opts *ViewOptions) error {
 	project, err := opts.Client.Projects.GetByIdentifier(opts.idOrName)
 	if err != nil {
 		return err
 	}
 
-	fmt.Fprintf(opts.out, "%s %s\n", output.Bold(project.Name), output.Dimf("(%s)", project.Slug))
-
 	cacBranch := "Not version controlled"
 	if project.IsVersionControlled {
 		cacBranch = project.PersistenceSettings.(projects.GitPersistenceSettings).DefaultBranch()
 	}
-	fmt.Fprintf(opts.out, "Version control branch: %s\n", output.Cyan(cacBranch))
-	if project.Description == "" {
-		fmt.Fprintln(opts.out, output.Dim(constants.NoDescription))
-	} else {
-		fmt.Fprintln(opts.out, output.Dim(project.Description))
-	}
 
 	url := opts.Host + project.Links["Web"]
 
-	// footer
-	fmt.Fprintf(opts.out, "View this project in Octopus Deploy: %s\n", output.Blue(url))
+	return output.PrintResource(project, cmd, output.Mappers[*projects.Project]{
+		Json: func(p *projects.Project) any {
+			return ProjectAsJson{
+				Id:                  p.GetID(),
+				Name:                p.GetName(),
+				Description:         p.Description,
+				IsVersionControlled: p.IsVersionControlled,
+				Branch:              cacBranch,
+			}
+		},
+		Table: output.TableDefinition[*projects.Project]{
+			Header: []string{"NAME", "DESCRIPTION", "ID", "CAC BRANCH"},
+			Row: func(p *projects.Project) []string {
+				return []string{output.Bold(p.Name), p.Description, output.Dim(p.GetID()), cacBranch}
+			},
+		},
+		Basic: func(item *projects.Project) string {
+			var s strings.Builder
 
-	if opts.flags.Web.Value {
-		browser.OpenURL(url)
-	}
+			s.WriteString(fmt.Sprintf("%s %s\n", output.Bold(project.Name), output.Dimf("(%s)", project.Slug)))
+			s.WriteString(fmt.Sprintf("Version control branch: %s\n", output.Cyan(cacBranch)))
+			if project.Description == "" {
+				s.WriteString(fmt.Sprintln(output.Dim(constants.NoDescription)))
+			} else {
+				s.WriteString(fmt.Sprintln(output.Dim(project.Description)))
+			}
 
-	return nil
+			// footer
+			s.WriteString(fmt.Sprintf("View this project in Octopus Deploy: %s\n", output.Blue(url)))
+
+			if opts.flags.Web.Value {
+				browser.OpenURL(url)
+			}
+
+			return s.String()
+		},
+	})
 }
