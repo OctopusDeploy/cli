@@ -165,6 +165,8 @@ func getSnapshot(opts *PublishOptions, runbook *runbooks.Runbook) (*runbooks.Run
 		if snapshot == nil {
 			return nil, errors.New("unable to find snapshot")
 		}
+
+		return snapshot, nil
 	}
 
 	snapshot, err := selectors.Select(opts.Ask, "Select the snapshot to publish:", func() ([]*runbooks.RunbookSnapshot, error) {
