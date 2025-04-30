@@ -1,6 +1,7 @@
 package create
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/AlecAivazis/survey/v2"
@@ -96,7 +97,12 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 		`, constants.ExecutableName),
 		RunE: func(c *cobra.Command, args []string) error {
 			opts := NewCreateOptions(createFlags, cmd.NewDependencies(f, c))
-			return createRun(opts)
+			outputFormat, err := c.Flags().GetString(constants.FlagOutputFormat)
+			if err != nil {
+				outputFormat = constants.OutputFormatTable
+			}
+
+			return createRun(opts, outputFormat)
 		},
 	}
 
@@ -114,7 +120,7 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 	return cmd
 }
 
-func createRun(opts *CreateOptions) error {
+func createRun(opts *CreateOptions, outputFormat string) error {
 	if opts.SnapshotNotes.Value != "" && opts.SnapshotNotesFile.Value != "" {
 		return errors.New("cannot specify both --snapshot-notes and --snapshot-notes-file at the same time")
 	}
@@ -224,17 +230,32 @@ func createRun(opts *CreateOptions) error {
 		if err != nil {
 			return err
 		}
-		_, _ = fmt.Fprintf(opts.Out, "\nSuccessfully created and published runbook snapshot '%s' (%s) for runbook '%s'\n", snapshot.Name, snapshot.GetID(), runbook.Name)
+
 	} else {
 		snapshot, err = opts.Client.RunbookSnapshots.Add(snapshot)
 		if err != nil {
 			return err
 		}
-		_, _ = fmt.Fprintf(opts.Out, "\nSuccessfully created runbook snapshot '%s' (%s) for runbook '%s'\n", snapshot.Name, snapshot.GetID(), runbook.Name)
 	}
 
-	link := output.Bluef("%s/app#/%s/projects/%s/operations/runbooks/%s/snapshots/%s", opts.Host, opts.Space.GetID(), project.GetID(), runbook.GetID(), snapshot.GetID())
-	fmt.Fprintf(opts.Out, "View this snapshot on Octopus Deploy: %s\n", link)
+	switch outputFormat {
+	case constants.OutputFormatBasic:
+		fmt.Fprintf(opts.Out, "%s\n", snapshot.GetID())
+	case constants.OutputFormatJson:
+		data, err := json.MarshalIndent(snapshot, "", "\t")
+		if err != nil {
+			return err
+		}
+		fmt.Fprintf(opts.Out, string(data))
+	default:
+		if opts.Publish.Value {
+			_, _ = fmt.Fprintf(opts.Out, "\nSuccessfully created and published runbook snapshot '%s' (%s) for runbook '%s'\n", snapshot.Name, snapshot.GetID(), runbook.Name)
+		} else {
+			_, _ = fmt.Fprintf(opts.Out, "\nSuccessfully created runbook snapshot '%s' (%s) for runbook '%s'\n", snapshot.Name, snapshot.GetID(), runbook.Name)
+		}
+		link := output.Bluef("%s/app#/%s/projects/%s/operations/runbooks/%s/snapshots/%s", opts.Host, opts.Space.GetID(), project.GetID(), runbook.GetID(), snapshot.GetID())
+		fmt.Fprintf(opts.Out, "View this snapshot on Octopus Deploy: %s\n", link)
+	}
 
 	return nil
 }
