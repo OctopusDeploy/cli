@@ -143,7 +143,7 @@ func createRun(opts *CreateOptions) error {
 
 	runbooksInGit := areRunbooksInGit(project)
 	if runbooksInGit {
-		return errors.New("Creating independent Runbook snapshots is not supported for Runbooks stored in Git.")
+		return errors.New("creating independent Runbook snapshots is not supported for Runbooks stored in Git")
 	}
 
 	runbook, err := selectors.FindRunbook(opts.Client, project, opts.Runbook.Value)
@@ -288,7 +288,7 @@ func PromptMissing(opts *CreateOptions) error {
 
 	runbooksInGit := areRunbooksInGit(project)
 	if runbooksInGit {
-		return errors.New("Creating independent Runbook snapshots is not supported for Runbooks stored in Git.")
+		return errors.New("creating independent Runbook snapshots is not supported for Runbooks stored in Git")
 	}
 
 	selectedRunbook, err := getRunbook(opts, project)
@@ -390,7 +390,7 @@ func getRunbook(opts *CreateOptions, project *projects.Project) (*runbooks.Runbo
 	var runbook *runbooks.Runbook
 	var err error
 	if opts.Runbook.Value == "" {
-		runbook, err = selectors.Select(opts.Ask, "Select the runbook you wish to delete:", func() ([]*runbooks.Runbook, error) { return opts.GetDbRunbooksCallback(project.GetID()) }, func(runbook *runbooks.Runbook) string { return runbook.Name })
+		runbook, err = selectors.Select(opts.Ask, "Select the runbook you wish to to snapshot:", func() ([]*runbooks.Runbook, error) { return opts.GetDbRunbooksCallback(project.GetID()) }, func(runbook *runbooks.Runbook) string { return runbook.Name })
 	} else {
 		runbook, err = opts.GetDbRunbookCallback(project.GetID(), opts.Runbook.Value)
 	}
