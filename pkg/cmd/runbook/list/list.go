@@ -2,6 +2,7 @@ package list
 
 import (
 	"errors"
+	"github.com/OctopusDeploy/cli/pkg/cmd/runbook/shared"
 	"math"
 
 	"github.com/OctopusDeploy/cli/pkg/apiclient"
@@ -120,17 +121,11 @@ func listRun(cmd *cobra.Command, f factory.Factory, flags *ListFlags) error {
 	}
 
 	var foundRunbooks *resources.Resources[*runbooks.Runbook]
-	runbooksAreInGit := false
-
-	if selectedProject.PersistenceSettings.Type() == projects.PersistenceSettingsTypeVersionControlled {
-		runbooksAreInGit = selectedProject.PersistenceSettings.(projects.GitPersistenceSettings).RunbooksAreInGit()
-	}
-
 	if limit <= 0 {
 		limit = math.MaxInt32
 	}
 
-	if runbooksAreInGit {
+	if shared.AreRunbooksInGit(selectedProject) {
 		if f.IsPromptEnabled() {
 			if gitReference == "" { // we need a git ref; ask for one
 				gitRef, err := selectors.GitReference("Select the Git reference to list runbooks for", octopus, f.Ask, selectedProject)
