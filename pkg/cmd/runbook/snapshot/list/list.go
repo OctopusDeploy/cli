@@ -40,6 +40,7 @@ type SnapshotsAsJson struct {
 	Id        string     `json:"Id"`
 	Name      string     `json:"Name"`
 	Assembled *time.Time `json:"Assembled"`
+	Published bool       `json:"Published"`
 }
 
 func NewCmdList(f factory.Factory) *cobra.Command {
@@ -141,12 +142,17 @@ func listRun(cmd *cobra.Command, f factory.Factory, flags *ListFlags) error {
 				Id:        s.GetID(),
 				Name:      s.Name,
 				Assembled: s.Assembled,
+				Published: s.GetID() == selectedRunbook.PublishedRunbookSnapshotID,
 			}
 		},
 		Table: output.TableDefinition[*runbooks.RunbookSnapshot]{
-			Header: []string{"ID", "NAME", "ASSEMBLED"},
+			Header: []string{"ID", "NAME", "PUBLISHED", "ASSEMBLED"},
 			Row: func(s *runbooks.RunbookSnapshot) []string {
-				return []string{s.GetID(), output.Bold(s.Name), s.Assembled.Format(time.RFC1123Z)}
+				published := ""
+				if selectedRunbook.PublishedRunbookSnapshotID == s.GetID() {
+					published = "Yes"
+				}
+				return []string{s.GetID(), output.Bold(s.Name), output.Green(published), s.Assembled.Format(time.RFC1123Z)}
 			},
 		},
 		Basic: func(s *runbooks.RunbookSnapshot) string {
