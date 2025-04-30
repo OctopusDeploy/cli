@@ -164,3 +164,13 @@ func GetProject(octopus *client.Client, projectIdentifier string) (*projects.Pro
 
 	return project, nil
 }
+
+func AreRunbooksInGit(project *projects.Project) bool {
+	inGit := false
+
+	if project.PersistenceSettings.Type() == projects.PersistenceSettingsTypeVersionControlled {
+		inGit = project.PersistenceSettings.(projects.GitPersistenceSettings).RunbooksAreInGit()
+	}
+
+	return inGit
+}

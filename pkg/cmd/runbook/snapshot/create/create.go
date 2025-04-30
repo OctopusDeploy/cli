@@ -141,7 +141,7 @@ func createRun(opts *CreateOptions) error {
 		return errors.New("unable to find project")
 	}
 
-	runbooksInGit := areRunbooksInGit(project)
+	runbooksInGit := shared.AreRunbooksInGit(project)
 	if runbooksInGit {
 		return errors.New("creating independent Runbook snapshots is not supported for Runbooks stored in Git")
 	}
@@ -286,7 +286,7 @@ func PromptMissing(opts *CreateOptions) error {
 	}
 	opts.Project.Value = project.GetName()
 
-	runbooksInGit := areRunbooksInGit(project)
+	runbooksInGit := shared.AreRunbooksInGit(project)
 	if runbooksInGit {
 		return errors.New("creating independent Runbook snapshots is not supported for Runbooks stored in Git")
 	}
@@ -400,14 +400,4 @@ func getRunbook(opts *CreateOptions, project *projects.Project) (*runbooks.Runbo
 	}
 
 	return runbook, err
-}
-
-func areRunbooksInGit(project *projects.Project) bool {
-	inGit := false
-
-	if project.PersistenceSettings.Type() == projects.PersistenceSettingsTypeVersionControlled {
-		inGit = project.PersistenceSettings.(projects.GitPersistenceSettings).RunbooksAreInGit()
-	}
-
-	return inGit
 }
