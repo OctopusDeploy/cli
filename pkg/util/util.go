@@ -1,6 +1,7 @@
 package util
 
 import (
+	"encoding/json"
 	"fmt"
 	"slices"
 	"sort"
@@ -285,4 +286,10 @@ func SplitString(s string, delimiters []rune) []string {
 		a[i] = s[span.start:span.end]
 	}
 	return a
+}
+
+// helpful for debugging
+func PrintJSON(obj interface{}) {
+	bytes, _ := json.MarshalIndent(obj, "\t", "\t")
+	fmt.Println(string(bytes))
 }
