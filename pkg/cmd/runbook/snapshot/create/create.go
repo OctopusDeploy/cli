@@ -8,6 +8,7 @@ import (
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/cmd"
 	"github.com/OctopusDeploy/cli/pkg/cmd/runbook/shared"
+	"github.com/OctopusDeploy/cli/pkg/cmd/runbook/snapshot/list"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/OctopusDeploy/cli/pkg/gitresources"
@@ -242,7 +243,13 @@ func createRun(opts *CreateOptions, outputFormat string) error {
 	case constants.OutputFormatBasic:
 		fmt.Fprintf(opts.Out, "%s\n", snapshot.GetID())
 	case constants.OutputFormatJson:
-		data, err := json.MarshalIndent(snapshot, "", "\t")
+		outputJson := list.SnapshotsAsJson{
+			Id:        snapshot.GetID(),
+			Name:      snapshotName,
+			Assembled: snapshot.Assembled,
+			Published: opts.Publish.Value,
+		}
+		data, _ := json.MarshalIndent(outputJson, "", "  ")
 		if err != nil {
 			return err
 		}
