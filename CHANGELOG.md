@@ -1,5 +1,14 @@
 # Changelog
 
+## [2.16.0](https://github.com/OctopusDeploy/cli/compare/v2.15.7...v2.16.0) (2025-05-02)
+
+
+### Features
+
+* runbook snapshot create ([#514](https://github.com/OctopusDeploy/cli/issues/514)) ([d7b7330](https://github.com/OctopusDeploy/cli/commit/d7b7330e1f241e7d8468154fb19b7817b1ea767c))
+* runbook snapshot publish ([d7b7330](https://github.com/OctopusDeploy/cli/commit/d7b7330e1f241e7d8468154fb19b7817b1ea767c))
+* show the published runbook snapshot when listing ([d7b7330](https://github.com/OctopusDeploy/cli/commit/d7b7330e1f241e7d8468154fb19b7817b1ea767c))
+
 ## [2.15.7](https://github.com/OctopusDeploy/cli/compare/v2.15.6...v2.15.7) (2025-04-14)
 
 
