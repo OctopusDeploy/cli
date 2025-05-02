@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/OctopusDeploy/cli/pkg/cmd/runbook/shared"
 	"github.com/OctopusDeploy/cli/pkg/packages"
 	"golang.org/x/exp/maps"
 	"io"
@@ -141,7 +142,7 @@ func NewCmdRun(f factory.Factory) *cobra.Command {
 		Long:  "Run runbooks in Octopus Deploy",
 		Example: heredoc.Docf(`
 			$ %[1]s runbook run  # fully interactive
-			$ %[1]s runbook run --project MyProject ... TODO
+			$ %[1]s runbook run --project MyProject --runbook "Rebuild DB indexes"
 		`, constants.ExecutableName),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) > 0 && runFlags.Project.Value == "" {
@@ -216,13 +217,7 @@ func runbookRun(cmd *cobra.Command, f factory.Factory, flags *RunFlags) error {
 	}
 
 	flags.Project.Value = project.Name
-	runbooksAreInGit := false
-
-	if project.PersistenceSettings.Type() == projects.PersistenceSettingsTypeVersionControlled {
-		runbooksAreInGit = project.PersistenceSettings.(projects.GitPersistenceSettings).RunbooksAreInGit()
-	}
-
-	if runbooksAreInGit {
+	if shared.AreRunbooksInGit(project) {
 		return runGitRunbook(cmd, f, flags, octopus, project, parsedVariables, outputFormat)
 	} else {
 		return runDbRunbook(cmd, f, flags, octopus, project, parsedVariables, outputFormat)

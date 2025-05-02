@@ -95,13 +95,7 @@ func DeleteRun(opts *DeleteOptions) error {
 		return err
 	}
 
-	runbooksAreInGit := false
-
-	if project.PersistenceSettings.Type() == projects.PersistenceSettingsTypeVersionControlled {
-		runbooksAreInGit = project.PersistenceSettings.(projects.GitPersistenceSettings).RunbooksAreInGit()
-	}
-
-	if runbooksAreInGit {
+	if shared.AreRunbooksInGit(project) {
 		gitReference, err := getGitReference(opts, project)
 		if err != nil {
 			return err
