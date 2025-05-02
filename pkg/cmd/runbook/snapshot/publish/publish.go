@@ -57,10 +57,9 @@ func NewPublishOptions(publishFlags *PublishFlags, dependencies *cmd.Dependencie
 func NewCmdPublish(f factory.Factory) *cobra.Command {
 	publishFlags := NewPublishFlags()
 	cmd := &cobra.Command{
-		Use:     "publish",
-		Short:   "Publish a runbook snapshot",
-		Long:    "Publish a runbook snapshot in Octopus Deploy",
-		Aliases: []string{"new", "publish"},
+		Use:   "publish",
+		Short: "Publish a runbook snapshot",
+		Long:  "Publish a runbook snapshot in Octopus Deploy",
 		Example: heredoc.Docf(`
 			$ %[1]s runbook snapshot publish --project MyProject --runbook "Rebuild DB Indexes" --snapshot "Snapshot 40C9ENM"
 		`, constants.ExecutableName),
