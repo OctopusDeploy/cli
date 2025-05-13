@@ -86,10 +86,12 @@ const (
 	FlagDeploymentFreezeName           = "deployment-freeze-name"
 	FlagDeploymentFreezeOverrideReason = "deployment-freeze-override-reason"
 
-	FlagWaitForDeployment = "wait-for-deployment"
-	FlagTimeout           = "timeout"
-	FlagCancelOnTimeout   = "cancel-on-timeout"
-	DefaultTimeout        = 600
+	FlagWaitForDeployment  = "wait-for-deployment"
+	FlagTimeout            = "timeout"
+	FlagPollingInterval    = "polling-interval"
+	FlagCancelOnTimeout    = "cancel-on-timeout"
+	DefaultTimeout         = 600
+	DefaultPollingInterval = 10
 )
 
 // executions API stops here.
@@ -116,6 +118,7 @@ type DeployFlags struct {
 	DeploymentFreezeOverrideReason *flag.Flag[string]
 	WaitForDeployment              *flag.Flag[bool]
 	Timeout                        *flag.Flag[int]
+	PollingInterval                *flag.Flag[int]
 	CancelOnTimeout                *flag.Flag[bool]
 }
 
@@ -139,6 +142,7 @@ func NewDeployFlags() *DeployFlags {
 		DeploymentFreezeOverrideReason: flag.New[string](FlagDeploymentFreezeOverrideReason, false),
 		WaitForDeployment:              flag.New[bool](FlagWaitForDeployment, false),
 		Timeout:                        flag.New[int](FlagTimeout, false),
+		PollingInterval:                flag.New[int](FlagPollingInterval, false),
 		CancelOnTimeout:                flag.New[bool](FlagCancelOnTimeout, false),
 	}
 }
@@ -183,7 +187,8 @@ func NewCmdDeploy(f factory.Factory) *cobra.Command {
 	flags.StringArrayVarP(&deployFlags.DeploymentFreezeNames.Value, deployFlags.DeploymentFreezeNames.Name, "", nil, "Override this deployment freeze (can be specified multiple times)")
 	flags.StringVarP(&deployFlags.DeploymentFreezeOverrideReason.Value, deployFlags.DeploymentFreezeOverrideReason.Name, "", "", "Reason for overriding a deployment freeze")
 	flags.BoolVarP(&deployFlags.WaitForDeployment.Value, deployFlags.WaitForDeployment.Name, "", false, "Wait for the deployment to complete")
-	flags.IntVarP(&deployFlags.Timeout.Value, deployFlags.Timeout.Name, "", DefaultTimeout, "Seconds to wait for the deployment to complete. Requires --wait-for-deployment")
+	flags.IntVarP(&deployFlags.Timeout.Value, deployFlags.Timeout.Name, "", DefaultTimeout, "Time in seconds to wait for deployment to complete. Requires --wait-for-deployment")
+	flags.IntVarP(&deployFlags.PollingInterval.Value, deployFlags.PollingInterval.Name, "", DefaultPollingInterval, "Polling interval in seconds to check deployment status during wait. Requires --wait-for-deployment")
 	flags.BoolVarP(&deployFlags.CancelOnTimeout.Value, deployFlags.CancelOnTimeout.Name, "", false, "Cancel the deployment if the wait timeout is reached. Requires --wait-for-deployment")
 
 	flags.SortFlags = false
