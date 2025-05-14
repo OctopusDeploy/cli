@@ -33,6 +33,7 @@ import (
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/releases"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/spaces"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/tasks"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/variables"
 	"github.com/spf13/cobra"
 )
@@ -378,6 +379,18 @@ func deployRun(cmd *cobra.Command, f factory.Factory, flags *DeployFlags) error 
 			if releaseID != "" {
 				link := output.Bluef("%s/app#/%s/releases/%s", f.GetCurrentHost(), f.GetCurrentSpace().ID, releaseID)
 				cmd.Printf("\nView this release on Octopus Deploy: %s\n", link)
+			}
+		}
+
+		if flags.WaitForDeployment.Value {
+			var taskIDs []string
+			for _, deploymentServerTask := range options.Response.DeploymentServerTasks {
+				taskIDs = append(taskIDs, deploymentServerTask.ServerTaskID)
+			}
+
+			err := waitForDeployments(cmd, octopus, taskIDs, flags.PollingInterval.Value, flags.Timeout.Value, flags.CancelOnTimeout.Value)
+			if err != nil {
+				return err
 			}
 		}
 	}
@@ -950,4 +963,106 @@ func determineIsTenanted(project *projects.Project, ask question.Asker) (bool, e
 	default: // should not get here
 		return false, fmt.Errorf("unhandled tenanted deployment mode %s", project.TenantedDeploymentMode)
 	}
+}
+
+func waitForDeployments(cmd *cobra.Command, octopus *octopusApiClient.Client, taskIDs []string, pollingInterval int, timeout int, cancelOnTimeout bool) error {
+	pendingTaskIDs := make([]string, 0)
+	failedTaskIDs := make([]string, 0)
+
+	serverTasks, err := getServerTasks(octopus, taskIDs)
+	if err != nil {
+		return err
+	}
+
+	// Initialize pending tasks
+	for _, t := range serverTasks {
+		if t.IsCompleted == nil || !*t.IsCompleted {
+			pendingTaskIDs = append(pendingTaskIDs, t.ID)
+		}
+		if (t.IsCompleted != nil && *t.IsCompleted) && (t.FinishedSuccessfully != nil && !*t.FinishedSuccessfully) {
+			failedTaskIDs = append(failedTaskIDs, t.ID)
+		}
+	}
+
+	if len(pendingTaskIDs) == 0 {
+		if len(failedTaskIDs) != 0 {
+			return fmt.Errorf("one or more deployment tasks failed: %s", strings.Join(failedTaskIDs, ", "))
+		}
+		return nil
+	}
+
+	cmd.Printf("Waiting for %d deployment(s) to complete...\n", len(pendingTaskIDs))
+
+	gotError := make(chan error, 1)
+	done := make(chan bool, 1)
+
+	go func() {
+		for len(pendingTaskIDs) != 0 {
+			time.Sleep(time.Duration(pollingInterval) * time.Second)
+
+			serverTasks, err := getServerTasks(octopus, pendingTaskIDs)
+			if err != nil {
+				gotError <- err
+				return
+			}
+			for _, t := range serverTasks {
+				if t.IsCompleted != nil && *t.IsCompleted {
+					if t.FinishedSuccessfully != nil && !*t.FinishedSuccessfully {
+						failedTaskIDs = append(failedTaskIDs, t.ID)
+					}
+					pendingTaskIDs = removeTaskID(pendingTaskIDs, t.ID)
+				}
+			}
+		}
+
+		if len(failedTaskIDs) != 0 {
+			gotError <- fmt.Errorf("one or more deployment tasks failed: %s", strings.Join(failedTaskIDs, ", "))
+			return
+		}
+		done <- true
+	}()
+
+	select {
+	case <-done:
+		return nil
+	case err := <-gotError:
+		return err
+	case <-time.After(time.Duration(timeout) * time.Second):
+		if cancelOnTimeout {
+			cmd.PrintErrf("Cancelling remaining deployment tasks: %s\n", strings.Join(pendingTaskIDs, ", "))
+			for _, taskID := range pendingTaskIDs {
+				_, err := tasks.Cancel(octopus, octopus.GetSpaceID(), taskID)
+				if err != nil {
+					return err
+				}
+			}
+		}
+		return fmt.Errorf("timeout while waiting for deployment(s) to complete")
+	}
+}
+
+func getServerTasks(octopus *octopusApiClient.Client, taskIDs []string) ([]*tasks.Task, error) {
+	query := tasks.TasksQuery{
+		IDs: taskIDs,
+	}
+	resourceTasks, err := octopus.Tasks.Get(query)
+	if err != nil {
+		return nil, err
+	}
+	result, err := resourceTasks.GetAllPages(octopus.Sling())
+	if err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
+func removeTaskID(taskIDs []string, taskID string) []string {
+	for i, p := range taskIDs {
+		if p == taskID {
+			taskIDs[i] = taskIDs[len(taskIDs)-1]
+			taskIDs = taskIDs[:len(taskIDs)-1]
+			break
+		}
+	}
+	return taskIDs
 }
