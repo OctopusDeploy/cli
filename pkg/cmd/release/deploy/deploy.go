@@ -14,7 +14,6 @@ import (
 
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/MakeNowJust/heredoc/v2"
-	"github.com/OctopusDeploy/cli/pkg/cmd"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	cliErrors "github.com/OctopusDeploy/cli/pkg/errors"
 	"github.com/OctopusDeploy/cli/pkg/executionscommon"
@@ -34,7 +33,6 @@ import (
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/releases"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/spaces"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/tasks"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/variables"
 	"github.com/spf13/cobra"
 )
@@ -87,39 +85,7 @@ const (
 
 	FlagDeploymentFreezeName           = "deployment-freeze-name"
 	FlagDeploymentFreezeOverrideReason = "deployment-freeze-override-reason"
-
-	FlagWaitForDeployment  = "wait-for-deployment"
-	FlagTimeout            = "timeout"
-	FlagPollingInterval    = "polling-interval"
-	FlagCancelOnTimeout    = "cancel-on-timeout"
-	DefaultTimeout         = 600
-	DefaultPollingInterval = 10
 )
-
-type GetServerTasksCallback func([]string) ([]*tasks.Task, error)
-type CancelServerTasksCallback func([]string) error
-
-type WaitOptions struct {
-	*cmd.Dependencies
-	TaskIDs                   []string
-	GetServerTasksCallback    GetServerTasksCallback
-	CancelServerTasksCallback CancelServerTasksCallback
-	Timeout                   int
-	PollInterval              int
-	CancelOnTimeout           bool
-}
-
-func NewWaitOps(dependencies *cmd.Dependencies, taskIDs []string, timeout int, pollInterval int, cancelOnTimeout bool) *WaitOptions {
-	return &WaitOptions{
-		Dependencies:              dependencies,
-		TaskIDs:                   taskIDs,
-		GetServerTasksCallback:    getServerTasksCallback(dependencies.Client),
-		CancelServerTasksCallback: cancelServerTasksCallback(dependencies.Client),
-		Timeout:                   timeout,
-		PollInterval:              pollInterval,
-		CancelOnTimeout:           cancelOnTimeout,
-	}
-}
 
 // executions API stops here.
 
@@ -143,10 +109,6 @@ type DeployFlags struct {
 	ExcludeTargets                 *flag.Flag[[]string]
 	DeploymentFreezeNames          *flag.Flag[[]string]
 	DeploymentFreezeOverrideReason *flag.Flag[string]
-	WaitForDeployment              *flag.Flag[bool]
-	Timeout                        *flag.Flag[int]
-	PollingInterval                *flag.Flag[int]
-	CancelOnTimeout                *flag.Flag[bool]
 }
 
 func NewDeployFlags() *DeployFlags {
@@ -167,10 +129,6 @@ func NewDeployFlags() *DeployFlags {
 		ExcludeTargets:                 flag.New[[]string](FlagExcludeDeploymentTarget, false),
 		DeploymentFreezeNames:          flag.New[[]string](FlagDeploymentFreezeName, false),
 		DeploymentFreezeOverrideReason: flag.New[string](FlagDeploymentFreezeOverrideReason, false),
-		WaitForDeployment:              flag.New[bool](FlagWaitForDeployment, false),
-		Timeout:                        flag.New[int](FlagTimeout, false),
-		PollingInterval:                flag.New[int](FlagPollingInterval, false),
-		CancelOnTimeout:                flag.New[bool](FlagCancelOnTimeout, false),
 	}
 }
 
@@ -213,10 +171,6 @@ func NewCmdDeploy(f factory.Factory) *cobra.Command {
 	flags.StringArrayVarP(&deployFlags.ExcludeTargets.Value, deployFlags.ExcludeTargets.Name, "", nil, "Deploy to targets except for this (can be specified multiple times)")
 	flags.StringArrayVarP(&deployFlags.DeploymentFreezeNames.Value, deployFlags.DeploymentFreezeNames.Name, "", nil, "Override this deployment freeze (can be specified multiple times)")
 	flags.StringVarP(&deployFlags.DeploymentFreezeOverrideReason.Value, deployFlags.DeploymentFreezeOverrideReason.Name, "", "", "Reason for overriding a deployment freeze")
-	flags.BoolVarP(&deployFlags.WaitForDeployment.Value, deployFlags.WaitForDeployment.Name, "", false, "Wait for the deployment to complete")
-	flags.IntVarP(&deployFlags.Timeout.Value, deployFlags.Timeout.Name, "", DefaultTimeout, "Time in seconds to wait for deployment to complete. Requires --wait-for-deployment")
-	flags.IntVarP(&deployFlags.PollingInterval.Value, deployFlags.PollingInterval.Name, "", DefaultPollingInterval, "Polling interval in seconds to check deployment status during wait. Requires --wait-for-deployment")
-	flags.BoolVarP(&deployFlags.CancelOnTimeout.Value, deployFlags.CancelOnTimeout.Name, "", false, "Cancel the deployment if the wait timeout is reached. Requires --wait-for-deployment")
 
 	flags.SortFlags = false
 
@@ -240,13 +194,13 @@ func NewCmdDeploy(f factory.Factory) *cobra.Command {
 	return cmd
 }
 
-func deployRun(command *cobra.Command, f factory.Factory, flags *DeployFlags) error {
-	outputFormat, err := command.Flags().GetString(constants.FlagOutputFormat)
+func deployRun(cmd *cobra.Command, f factory.Factory, flags *DeployFlags) error {
+	outputFormat, err := cmd.Flags().GetString(constants.FlagOutputFormat)
 	if err != nil { // should never happen, but fallback if it does
 		outputFormat = constants.OutputFormatTable
 	}
 
-	octopus, err := f.GetSpacedClient(apiclient.NewRequester(command))
+	octopus, err := f.GetSpacedClient(apiclient.NewRequester(cmd))
 	if err != nil {
 		return err
 	}
@@ -276,19 +230,19 @@ func deployRun(command *cobra.Command, f factory.Factory, flags *DeployFlags) er
 	}
 
 	// special case for FlagForcePackageDownload bool so we can tell if it was set on the cmdline or missing
-	if command.Flags().Lookup(FlagForcePackageDownload).Changed {
+	if cmd.Flags().Lookup(FlagForcePackageDownload).Changed {
 		options.ForcePackageDownloadWasSpecified = true
 	}
 
 	if f.IsPromptEnabled() {
 		now := time.Now
-		if command.Context() != nil { // allow context to override the definition of 'now' for testing
-			if n, ok := command.Context().Value(constants.ContextKeyTimeNow).(func() time.Time); ok {
+		if cmd.Context() != nil { // allow context to override the definition of 'now' for testing
+			if n, ok := cmd.Context().Value(constants.ContextKeyTimeNow).(func() time.Time); ok {
 				now = n
 			}
 		}
 
-		err = AskQuestions(octopus, command.OutOrStdout(), f.Ask, f.GetCurrentSpace(), options, now)
+		err = AskQuestions(octopus, cmd.OutOrStdout(), f.Ask, f.GetCurrentSpace(), options, now)
 		if err != nil {
 			return err
 		}
@@ -343,10 +297,10 @@ func deployRun(command *cobra.Command, f factory.Factory, flags *DeployFlags) er
 				resolvedFlags.DeploymentFreezeNames,
 				resolvedFlags.DeploymentFreezeOverrideReason,
 			)
-			command.Printf("\nAutomation Command: %s\n", autoCmd)
+			cmd.Printf("\nAutomation Command: %s\n", autoCmd)
 
 			if didMaskSensitiveVariable {
-				command.Printf("%s\n", output.Yellow("Warning: Command includes some sensitive variable values which have been replaced with placeholders."))
+				cmd.Printf("%s\n", output.Yellow("Warning: Command includes some sensitive variable values which have been replaced with placeholders."))
 			}
 		}
 	} else {
@@ -372,19 +326,19 @@ func deployRun(command *cobra.Command, f factory.Factory, flags *DeployFlags) er
 		switch outputFormat {
 		case constants.OutputFormatBasic:
 			for _, task := range options.Response.DeploymentServerTasks {
-				command.Printf("%s\n", task.ServerTaskID)
+				cmd.Printf("%s\n", task.ServerTaskID)
 			}
 
 		case constants.OutputFormatJson:
 			data, err := json.Marshal(options.Response.DeploymentServerTasks)
 			if err != nil { // shouldn't happen but fallback in case
-				command.PrintErrln(err)
+				cmd.PrintErrln(err)
 			} else {
-				_, _ = command.OutOrStdout().Write(data)
-				command.Println()
+				_, _ = cmd.OutOrStdout().Write(data)
+				cmd.Println()
 			}
 		default: // table
-			command.Printf("Successfully started %d deployment(s)\n", len(options.Response.DeploymentServerTasks))
+			cmd.Printf("Successfully started %d deployment(s)\n", len(options.Response.DeploymentServerTasks))
 		}
 
 		// output web URL all the time, so long as output format is not JSON or basic
@@ -404,21 +358,7 @@ func deployRun(command *cobra.Command, f factory.Factory, flags *DeployFlags) er
 
 			if releaseID != "" {
 				link := output.Bluef("%s/app#/%s/releases/%s", f.GetCurrentHost(), f.GetCurrentSpace().ID, releaseID)
-				command.Printf("\nView this release on Octopus Deploy: %s\n", link)
-			}
-		}
-
-		if flags.WaitForDeployment.Value {
-			var taskIDs []string
-			for _, deploymentServerTask := range options.Response.DeploymentServerTasks {
-				taskIDs = append(taskIDs, deploymentServerTask.ServerTaskID)
-			}
-
-			dependencies := cmd.NewDependencies(f, command)
-			opts := NewWaitOps(dependencies, taskIDs, flags.Timeout.Value, flags.PollingInterval.Value, flags.CancelOnTimeout.Value)
-			err := WaitForDeployments(opts)
-			if err != nil {
-				return err
+				cmd.Printf("\nView this release on Octopus Deploy: %s\n", link)
 			}
 		}
 	}
@@ -991,118 +931,4 @@ func determineIsTenanted(project *projects.Project, ask question.Asker) (bool, e
 	default: // should not get here
 		return false, fmt.Errorf("unhandled tenanted deployment mode %s", project.TenantedDeploymentMode)
 	}
-}
-
-func WaitForDeployments(opts *WaitOptions) error {
-	pendingTaskIDs := make([]string, 0)
-	failedTaskIDs := make([]string, 0)
-
-	serverTasks, err := opts.GetServerTasksCallback(opts.TaskIDs)
-	if err != nil {
-		return err
-	}
-
-	// Initialize pending tasks
-	for _, t := range serverTasks {
-		if t.IsCompleted == nil || !*t.IsCompleted {
-			pendingTaskIDs = append(pendingTaskIDs, t.ID)
-		}
-		if (t.IsCompleted != nil && *t.IsCompleted) && (t.FinishedSuccessfully != nil && !*t.FinishedSuccessfully) {
-			failedTaskIDs = append(failedTaskIDs, t.ID)
-		}
-	}
-
-	if len(pendingTaskIDs) == 0 {
-		if len(failedTaskIDs) != 0 {
-			return fmt.Errorf("one or more deployment tasks failed: %s", strings.Join(failedTaskIDs, ", "))
-		}
-		return nil
-	}
-
-	fmt.Fprintf(opts.Dependencies.Out, "Waiting for %d deployment(s) to complete...\n", len(pendingTaskIDs))
-	gotError := make(chan error, 1)
-	done := make(chan bool, 1)
-
-	go func() {
-		for len(pendingTaskIDs) != 0 {
-			time.Sleep(time.Duration(opts.PollInterval) * time.Second)
-
-			serverTasks, err := opts.GetServerTasksCallback(pendingTaskIDs)
-			if err != nil {
-				gotError <- err
-				return
-			}
-			for _, t := range serverTasks {
-				if t.IsCompleted != nil && *t.IsCompleted {
-					if t.FinishedSuccessfully != nil && !*t.FinishedSuccessfully {
-						failedTaskIDs = append(failedTaskIDs, t.ID)
-					}
-					pendingTaskIDs = removeTaskID(pendingTaskIDs, t.ID)
-				}
-			}
-		}
-
-		if len(failedTaskIDs) != 0 {
-			gotError <- fmt.Errorf("one or more deployment tasks failed: %s", strings.Join(failedTaskIDs, ", "))
-			return
-		}
-		done <- true
-	}()
-
-	select {
-	case <-done:
-		fmt.Fprint(opts.Dependencies.Out, "Deployment(s) completed successfully\n")
-		return nil
-	case err := <-gotError:
-		return err
-	case <-time.After(time.Duration(opts.Timeout) * time.Second):
-		if opts.CancelOnTimeout {
-			fmt.Fprintf(opts.Dependencies.Out, "Cancelling remaining deployment tasks: %s\n", strings.Join(pendingTaskIDs, ", "))
-			err := opts.CancelServerTasksCallback(pendingTaskIDs)
-			if err != nil {
-				return err
-			}
-		}
-		return fmt.Errorf("timeout while waiting for deployment(s) to complete")
-	}
-}
-
-func getServerTasksCallback(octopus *octopusApiClient.Client) GetServerTasksCallback {
-	return func(taskIDs []string) ([]*tasks.Task, error) {
-		query := tasks.TasksQuery{
-			IDs: taskIDs,
-		}
-		resourceTasks, err := octopus.Tasks.Get(query)
-		if err != nil {
-			return nil, err
-		}
-		result, err := resourceTasks.GetAllPages(octopus.Sling())
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	}
-}
-
-func cancelServerTasksCallback(octopus *octopusApiClient.Client) CancelServerTasksCallback {
-	return func(taskIDs []string) error {
-		for _, taskID := range taskIDs {
-			_, err := tasks.Cancel(octopus, octopus.GetSpaceID(), taskID)
-			if err != nil {
-				return err
-			}
-		}
-		return nil
-	}
-}
-
-func removeTaskID(taskIDs []string, taskID string) []string {
-	for i, p := range taskIDs {
-		if p == taskID {
-			taskIDs[i] = taskIDs[len(taskIDs)-1]
-			taskIDs = taskIDs[:len(taskIDs)-1]
-			break
-		}
-	}
-	return taskIDs
 }
