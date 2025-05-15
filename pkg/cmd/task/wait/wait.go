@@ -16,12 +16,12 @@ import (
 )
 
 const (
-	FlagTimeout            = "timeout"
-	FlagPollingInterval    = "polling-interval"
-	FlagCancelOnTimeout    = "cancel-on-timeout"
-	FlagProgress           = "progress"
-	DefaultTimeout         = 600
-	DefaultPollingInterval = 10
+	FlagTimeout         = "timeout"
+	FlagPollInterval    = "poll-interval"
+	FlagCancelOnTimeout = "cancel-on-timeout"
+	FlagProgress        = "progress"
+	DefaultTimeout      = 600
+	DefaultPollInterval = 10
 )
 
 type WaitOptions struct {
@@ -78,8 +78,8 @@ func NewCmdWait(f factory.Factory) *cobra.Command {
 
 	flags := cmd.Flags()
 	flags.IntVar(&timeout, FlagTimeout, DefaultTimeout, "Time in seconds to wait for the tasks to complete")
-	flags.IntVarP(&pollInterval, FlagPollingInterval, "", DefaultPollingInterval, "Polling interval in seconds to check task status during wait")
-	flags.BoolVarP(&cancelOnTimeout, FlagCancelOnTimeout, "", false, "Cancel the tasks if the wait timeout is reached")
+	flags.IntVar(&pollInterval, FlagPollInterval, DefaultPollInterval, "Polling interval in seconds to check task status during wait")
+	flags.BoolVar(&cancelOnTimeout, FlagCancelOnTimeout, false, "Cancel the tasks if the wait timeout is reached")
 	flags.BoolVar(&showProgress, FlagProgress, false, "Show detailed progress of the tasks")
 
 	return cmd
