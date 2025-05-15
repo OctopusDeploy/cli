@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.17.0](https://github.com/OctopusDeploy/cli/compare/v2.16.0...v2.17.0) (2025-05-15)
+
+
+### Features
+
+* add option to cancel task on wait timeout  ([84b1bac](https://github.com/OctopusDeploy/cli/commit/84b1bac5ba3d5aa4ba97c012b92ab062ca5db97f))
+
 ## [2.16.0](https://github.com/OctopusDeploy/cli/compare/v2.15.7...v2.16.0) (2025-05-02)
 
 
