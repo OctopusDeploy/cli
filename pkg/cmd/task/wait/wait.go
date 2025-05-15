@@ -26,8 +26,8 @@ type WaitOptions struct {
 	TaskIDs                []string
 	GetServerTasksCallback ServerTasksCallback
 	GetTaskDetailsCallback TaskDetailsCallback
-	Timeout               int
-	ShowProgress         bool
+	Timeout                int
+	ShowProgress           bool
 }
 
 type ServerTasksCallback func([]string) ([]*tasks.Task, error)
@@ -36,11 +36,11 @@ type TaskDetailsCallback func(string) (*tasks.TaskDetailsResource, error)
 func NewWaitOps(dependencies *cmd.Dependencies, taskIDs []string) *WaitOptions {
 	return &WaitOptions{
 		Dependencies:           dependencies,
-		TaskIDs:               taskIDs,
+		TaskIDs:                taskIDs,
 		GetServerTasksCallback: GetServerTasksCallback(dependencies.Client),
 		GetTaskDetailsCallback: GetTaskDetailsCallback(dependencies.Client),
-		Timeout:               DefaultTimeout,
-		ShowProgress:         false,
+		Timeout:                DefaultTimeout,
+		ShowProgress:           false,
 	}
 }
 
@@ -68,7 +68,7 @@ func NewCmdWait(f factory.Factory) *cobra.Command {
 	}
 
 	flags := cmd.Flags()
-	flags.IntVar(&timeout, FlagTimeout, DefaultTimeout, "Duration to wait (in seconds) before stopping execution")
+	flags.IntVar(&timeout, FlagTimeout, DefaultTimeout, "Duration to wait (in seconds) before the CLI exits. Does not cancel the task in progress.")
 	flags.BoolVar(&showProgress, FlagProgress, false, "Show detailed progress of the tasks")
 
 	return cmd
