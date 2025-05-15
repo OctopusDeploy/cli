@@ -14,6 +14,7 @@ import (
 
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/MakeNowJust/heredoc/v2"
+	"github.com/OctopusDeploy/cli/pkg/cmd"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	cliErrors "github.com/OctopusDeploy/cli/pkg/errors"
 	"github.com/OctopusDeploy/cli/pkg/executionscommon"
@@ -94,6 +95,31 @@ const (
 	DefaultTimeout         = 600
 	DefaultPollingInterval = 10
 )
+
+type GetServerTasksCallback func([]string) ([]*tasks.Task, error)
+type CancelServerTasksCallback func([]string) error
+
+type WaitOptions struct {
+	*cmd.Dependencies
+	TaskIDs                   []string
+	GetServerTasksCallback    GetServerTasksCallback
+	CancelServerTasksCallback CancelServerTasksCallback
+	Timeout                   int
+	PollInterval              int
+	CancelOnTimeout           bool
+}
+
+func NewWaitOps(dependencies *cmd.Dependencies, taskIDs []string, timeout int, pollInterval int, cancelOnTimeout bool) *WaitOptions {
+	return &WaitOptions{
+		Dependencies:              dependencies,
+		TaskIDs:                   taskIDs,
+		GetServerTasksCallback:    getServerTasksCallback(dependencies.Client),
+		CancelServerTasksCallback: cancelServerTasksCallback(dependencies.Client),
+		Timeout:                   timeout,
+		PollInterval:              pollInterval,
+		CancelOnTimeout:           cancelOnTimeout,
+	}
+}
 
 // executions API stops here.
 
@@ -214,13 +240,13 @@ func NewCmdDeploy(f factory.Factory) *cobra.Command {
 	return cmd
 }
 
-func deployRun(cmd *cobra.Command, f factory.Factory, flags *DeployFlags) error {
-	outputFormat, err := cmd.Flags().GetString(constants.FlagOutputFormat)
+func deployRun(command *cobra.Command, f factory.Factory, flags *DeployFlags) error {
+	outputFormat, err := command.Flags().GetString(constants.FlagOutputFormat)
 	if err != nil { // should never happen, but fallback if it does
 		outputFormat = constants.OutputFormatTable
 	}
 
-	octopus, err := f.GetSpacedClient(apiclient.NewRequester(cmd))
+	octopus, err := f.GetSpacedClient(apiclient.NewRequester(command))
 	if err != nil {
 		return err
 	}
@@ -250,19 +276,19 @@ func deployRun(cmd *cobra.Command, f factory.Factory, flags *DeployFlags) error 
 	}
 
 	// special case for FlagForcePackageDownload bool so we can tell if it was set on the cmdline or missing
-	if cmd.Flags().Lookup(FlagForcePackageDownload).Changed {
+	if command.Flags().Lookup(FlagForcePackageDownload).Changed {
 		options.ForcePackageDownloadWasSpecified = true
 	}
 
 	if f.IsPromptEnabled() {
 		now := time.Now
-		if cmd.Context() != nil { // allow context to override the definition of 'now' for testing
-			if n, ok := cmd.Context().Value(constants.ContextKeyTimeNow).(func() time.Time); ok {
+		if command.Context() != nil { // allow context to override the definition of 'now' for testing
+			if n, ok := command.Context().Value(constants.ContextKeyTimeNow).(func() time.Time); ok {
 				now = n
 			}
 		}
 
-		err = AskQuestions(octopus, cmd.OutOrStdout(), f.Ask, f.GetCurrentSpace(), options, now)
+		err = AskQuestions(octopus, command.OutOrStdout(), f.Ask, f.GetCurrentSpace(), options, now)
 		if err != nil {
 			return err
 		}
@@ -317,10 +343,10 @@ func deployRun(cmd *cobra.Command, f factory.Factory, flags *DeployFlags) error 
 				resolvedFlags.DeploymentFreezeNames,
 				resolvedFlags.DeploymentFreezeOverrideReason,
 			)
-			cmd.Printf("\nAutomation Command: %s\n", autoCmd)
+			command.Printf("\nAutomation Command: %s\n", autoCmd)
 
 			if didMaskSensitiveVariable {
-				cmd.Printf("%s\n", output.Yellow("Warning: Command includes some sensitive variable values which have been replaced with placeholders."))
+				command.Printf("%s\n", output.Yellow("Warning: Command includes some sensitive variable values which have been replaced with placeholders."))
 			}
 		}
 	} else {
@@ -346,19 +372,19 @@ func deployRun(cmd *cobra.Command, f factory.Factory, flags *DeployFlags) error 
 		switch outputFormat {
 		case constants.OutputFormatBasic:
 			for _, task := range options.Response.DeploymentServerTasks {
-				cmd.Printf("%s\n", task.ServerTaskID)
+				command.Printf("%s\n", task.ServerTaskID)
 			}
 
 		case constants.OutputFormatJson:
 			data, err := json.Marshal(options.Response.DeploymentServerTasks)
 			if err != nil { // shouldn't happen but fallback in case
-				cmd.PrintErrln(err)
+				command.PrintErrln(err)
 			} else {
-				_, _ = cmd.OutOrStdout().Write(data)
-				cmd.Println()
+				_, _ = command.OutOrStdout().Write(data)
+				command.Println()
 			}
 		default: // table
-			cmd.Printf("Successfully started %d deployment(s)\n", len(options.Response.DeploymentServerTasks))
+			command.Printf("Successfully started %d deployment(s)\n", len(options.Response.DeploymentServerTasks))
 		}
 
 		// output web URL all the time, so long as output format is not JSON or basic
@@ -378,7 +404,7 @@ func deployRun(cmd *cobra.Command, f factory.Factory, flags *DeployFlags) error 
 
 			if releaseID != "" {
 				link := output.Bluef("%s/app#/%s/releases/%s", f.GetCurrentHost(), f.GetCurrentSpace().ID, releaseID)
-				cmd.Printf("\nView this release on Octopus Deploy: %s\n", link)
+				command.Printf("\nView this release on Octopus Deploy: %s\n", link)
 			}
 		}
 
@@ -388,7 +414,9 @@ func deployRun(cmd *cobra.Command, f factory.Factory, flags *DeployFlags) error 
 				taskIDs = append(taskIDs, deploymentServerTask.ServerTaskID)
 			}
 
-			err := waitForDeployments(cmd, octopus, taskIDs, flags.PollingInterval.Value, flags.Timeout.Value, flags.CancelOnTimeout.Value)
+			dependencies := cmd.NewDependencies(f, command)
+			opts := NewWaitOps(dependencies, taskIDs, flags.Timeout.Value, flags.PollingInterval.Value, flags.CancelOnTimeout.Value)
+			err := WaitForDeployments(opts)
 			if err != nil {
 				return err
 			}
@@ -965,11 +993,11 @@ func determineIsTenanted(project *projects.Project, ask question.Asker) (bool, e
 	}
 }
 
-func waitForDeployments(cmd *cobra.Command, octopus *octopusApiClient.Client, taskIDs []string, pollingInterval int, timeout int, cancelOnTimeout bool) error {
+func WaitForDeployments(opts *WaitOptions) error {
 	pendingTaskIDs := make([]string, 0)
 	failedTaskIDs := make([]string, 0)
 
-	serverTasks, err := getServerTasks(octopus, taskIDs)
+	serverTasks, err := opts.GetServerTasksCallback(opts.TaskIDs)
 	if err != nil {
 		return err
 	}
@@ -991,16 +1019,15 @@ func waitForDeployments(cmd *cobra.Command, octopus *octopusApiClient.Client, ta
 		return nil
 	}
 
-	cmd.Printf("Waiting for %d deployment(s) to complete...\n", len(pendingTaskIDs))
-
+	fmt.Fprintf(opts.Dependencies.Out, "Waiting for %d deployment(s) to complete...\n", len(pendingTaskIDs))
 	gotError := make(chan error, 1)
 	done := make(chan bool, 1)
 
 	go func() {
 		for len(pendingTaskIDs) != 0 {
-			time.Sleep(time.Duration(pollingInterval) * time.Second)
+			time.Sleep(time.Duration(opts.PollInterval) * time.Second)
 
-			serverTasks, err := getServerTasks(octopus, pendingTaskIDs)
+			serverTasks, err := opts.GetServerTasksCallback(pendingTaskIDs)
 			if err != nil {
 				gotError <- err
 				return
@@ -1024,36 +1051,49 @@ func waitForDeployments(cmd *cobra.Command, octopus *octopusApiClient.Client, ta
 
 	select {
 	case <-done:
+		fmt.Fprint(opts.Dependencies.Out, "Deployment(s) completed successfully\n")
 		return nil
 	case err := <-gotError:
 		return err
-	case <-time.After(time.Duration(timeout) * time.Second):
-		if cancelOnTimeout {
-			cmd.PrintErrf("Cancelling remaining deployment tasks: %s\n", strings.Join(pendingTaskIDs, ", "))
-			for _, taskID := range pendingTaskIDs {
-				_, err := tasks.Cancel(octopus, octopus.GetSpaceID(), taskID)
-				if err != nil {
-					return err
-				}
+	case <-time.After(time.Duration(opts.Timeout) * time.Second):
+		if opts.CancelOnTimeout {
+			fmt.Fprintf(opts.Dependencies.Out, "Cancelling remaining deployment tasks: %s\n", strings.Join(pendingTaskIDs, ", "))
+			err := opts.CancelServerTasksCallback(pendingTaskIDs)
+			if err != nil {
+				return err
 			}
 		}
 		return fmt.Errorf("timeout while waiting for deployment(s) to complete")
 	}
 }
 
-func getServerTasks(octopus *octopusApiClient.Client, taskIDs []string) ([]*tasks.Task, error) {
-	query := tasks.TasksQuery{
-		IDs: taskIDs,
+func getServerTasksCallback(octopus *octopusApiClient.Client) GetServerTasksCallback {
+	return func(taskIDs []string) ([]*tasks.Task, error) {
+		query := tasks.TasksQuery{
+			IDs: taskIDs,
+		}
+		resourceTasks, err := octopus.Tasks.Get(query)
+		if err != nil {
+			return nil, err
+		}
+		result, err := resourceTasks.GetAllPages(octopus.Sling())
+		if err != nil {
+			return nil, err
+		}
+		return result, nil
 	}
-	resourceTasks, err := octopus.Tasks.Get(query)
-	if err != nil {
-		return nil, err
+}
+
+func cancelServerTasksCallback(octopus *octopusApiClient.Client) CancelServerTasksCallback {
+	return func(taskIDs []string) error {
+		for _, taskID := range taskIDs {
+			_, err := tasks.Cancel(octopus, octopus.GetSpaceID(), taskID)
+			if err != nil {
+				return err
+			}
+		}
+		return nil
 	}
-	result, err := resourceTasks.GetAllPages(octopus.Sling())
-	if err != nil {
-		return nil, err
-	}
-	return result, nil
 }
 
 func removeTaskID(taskIDs []string, taskID string) []string {
