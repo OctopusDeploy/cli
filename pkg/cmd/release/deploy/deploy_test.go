@@ -629,12 +629,6 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 			assert.Equal(t, heredoc.Doc(`
 				Project Fire Project
 				Release 1.9
-				Additional Options:
-				Deploy Time: Now
-				Skipped Steps: None
-				Guided Failure Mode: Use default setting from the target environment
-				Package Download: Use cached packages (if available)
-				Deployment Targets: All included"
 			`), stdout.String())
 			stdout.Reset()
 
