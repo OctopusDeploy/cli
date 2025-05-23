@@ -215,6 +215,26 @@ step "publish-winget-update-pr" {
         action_type = "Octopus.Script"
         properties = {
             Octopus.Action.Script.ScriptBody = <<-EOT
+                #Headers
+                $headers = @{
+                    'Accept'               = "application/vnd.github+json";
+                    'X-GitHub-Api-Version' = "2022-11-28";
+                }
+                try {
+                    
+                    # Delete the fork of the winget-pkgs repo using the bot's token
+                    $response = Invoke-WebRequest -Method "DELETE" -Uri "https://api.github.com/repos/team-integrations-fnm-bot/winget-pkgs" -Authentication "Bearer" -Token $OctopusParameters["Publish:Winget:GitHubPAT"] -Headers $headers
+                    $statusCode = $Response.StatusCode
+                }
+                catch {
+                    $statusCode = $_.Exception.Response.StatusCode.value__
+                }
+                
+                if (!($statusCode -ge 200 -and $statusCode -le 299 )) {
+                    Write-Warning "Failed to delete fork repo 'team-integrations-fnm-bot/winget-pkgs'. If this fork is too far behind its source, winget-create may fail."
+                }
+                
+                
                 # Install winget-create
                 Invoke-WebRequest https://aka.ms/wingetcreate/latest -OutFile wingetcreate.exe
                 
