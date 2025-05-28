@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/configuration"
 	"net/url"
 	"testing"
 	"time"
@@ -134,6 +135,14 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 			})
 
 		api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+fireProjectID+"/releases/"+release.Version).RespondWith(release)
+		api.ExpectRequest(t, "GET", "/api/configuration/feature-toggles?Name=indicate-missing-packages-for-release").RespondWith(&configuration.FeatureToggleConfigurationResponse{
+			FeatureToggles: []configuration.ConfiguredFeatureToggle{
+				{
+					Name:      "indicate-missing-packages-for-release",
+					IsEnabled: false,
+				},
+			},
+		})
 
 		api.ExpectRequest(t, "GET", "/api/Spaces-1/variables/"+vars.ID).RespondWith(&vars)
 
@@ -196,6 +205,15 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 				Message: "Select a release to deploy",
 				Options: []string{release20.Version, release19.Version},
 			}).AnswerWith(release19.Version)
+
+			api.ExpectRequest(t, "GET", "/api/configuration/feature-toggles?Name=indicate-missing-packages-for-release").RespondWith(&configuration.FeatureToggleConfigurationResponse{
+				FeatureToggles: []configuration.ConfiguredFeatureToggle{
+					{
+						Name:      "indicate-missing-packages-for-release",
+						IsEnabled: false,
+					},
+				},
+			})
 
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/releases/"+release19.ID+"/progression").RespondWith(&releases.LifecycleProgression{
 				Phases: []*releases.LifecycleProgressionPhase{
@@ -269,6 +287,14 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 				})
 
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+fireProjectID+"/releases/"+release19.Version).RespondWith(release19)
+			api.ExpectRequest(t, "GET", "/api/configuration/feature-toggles?Name=indicate-missing-packages-for-release").RespondWith(&configuration.FeatureToggleConfigurationResponse{
+				FeatureToggles: []configuration.ConfiguredFeatureToggle{
+					{
+						Name:      "indicate-missing-packages-for-release",
+						IsEnabled: false,
+					},
+				},
+			})
 
 			// doesn't lookup the progression or env names because it already has them
 
@@ -336,6 +362,14 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 				})
 
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+fireProjectID+"/releases/"+release20.Version).RespondWith(release20)
+			api.ExpectRequest(t, "GET", "/api/configuration/feature-toggles?Name=indicate-missing-packages-for-release").RespondWith(&configuration.FeatureToggleConfigurationResponse{
+				FeatureToggles: []configuration.ConfiguredFeatureToggle{
+					{
+						Name:      "indicate-missing-packages-for-release",
+						IsEnabled: false,
+					},
+				},
+			})
 
 			// now it's going to go looking for prompted variables; we don't have any prompted variables here so it skips
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/variables/"+variableSnapshotWithPromptedVariables.ID).RespondWith(&variableSnapshotWithPromptedVariables)
@@ -409,6 +443,14 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 				})
 
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+fireProjectID+"/releases/"+release20.Version).RespondWith(release20)
+			api.ExpectRequest(t, "GET", "/api/configuration/feature-toggles?Name=indicate-missing-packages-for-release").RespondWith(&configuration.FeatureToggleConfigurationResponse{
+				FeatureToggles: []configuration.ConfiguredFeatureToggle{
+					{
+						Name:      "indicate-missing-packages-for-release",
+						IsEnabled: false,
+					},
+				},
+			})
 
 			// now it's going to go looking for prompted variables; we don't have any prompted variables here so it skips
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/variables/"+variableSnapshotWithPromptedVariables.ID).RespondWith(&variableSnapshotWithPromptedVariables)
@@ -479,6 +521,14 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 				})
 
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+fireProjectID+"/releases/"+release19.Version).RespondWith(release19)
+			api.ExpectRequest(t, "GET", "/api/configuration/feature-toggles?Name=indicate-missing-packages-for-release").RespondWith(&configuration.FeatureToggleConfigurationResponse{
+				FeatureToggles: []configuration.ConfiguredFeatureToggle{
+					{
+						Name:      "indicate-missing-packages-for-release",
+						IsEnabled: false,
+					},
+				},
+			})
 
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/releases/"+release19.ID+"/progression").RespondWith(&releases.LifecycleProgression{
 				Phases: []*releases.LifecycleProgressionPhase{
@@ -582,6 +632,14 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 			}).AnswerWith("Tenanted")
 
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+fireProjectID+"/releases/"+release19.Version).RespondWith(release19)
+			api.ExpectRequest(t, "GET", "/api/configuration/feature-toggles?Name=indicate-missing-packages-for-release").RespondWith(&configuration.FeatureToggleConfigurationResponse{
+				FeatureToggles: []configuration.ConfiguredFeatureToggle{
+					{
+						Name:      "indicate-missing-packages-for-release",
+						IsEnabled: false,
+					},
+				},
+			})
 
 			// find environments via progression
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/releases/"+release19.ID+"/progression").RespondWith(&releases.LifecycleProgression{
@@ -683,6 +741,14 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 			}).AnswerWith("Untenanted")
 
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+fireProjectID+"/releases/"+release19.Version).RespondWith(release19)
+			api.ExpectRequest(t, "GET", "/api/configuration/feature-toggles?Name=indicate-missing-packages-for-release").RespondWith(&configuration.FeatureToggleConfigurationResponse{
+				FeatureToggles: []configuration.ConfiguredFeatureToggle{
+					{
+						Name:      "indicate-missing-packages-for-release",
+						IsEnabled: false,
+					},
+				},
+			})
 
 			// find environments via progression
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/releases/"+release19.ID+"/progression").RespondWith(&releases.LifecycleProgression{
@@ -737,20 +803,118 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 			}, options)
 		}},
 
+		{"prompt if feature toggle is on and a release has missing packages", func(t *testing.T, api *testutil.MockHttpServer, qa *testutil.AskMocker, stdout *bytes.Buffer) {
+			options := &executor.TaskOptionsDeployRelease{
+				ProjectName:    "fire project",
+				ReleaseVersion: "1.9",
+			}
+
+			errReceiver := testutil.GoBegin(func() error {
+				defer testutil.Close(api, qa)
+				// NewClient makes network calls so we have to run it in the goroutine
+				octopus, _ := octopusApiClient.NewClient(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "")
+				return deploy.AskQuestions(octopus, stdout, qa.AsAsker(), space1, options, now)
+			})
+
+			api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/spaces").RespondWith(rootResource)
+
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/fire project").RespondWithStatus(404, "NotFound", nil)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects?partialName=fire+project").
+				RespondWith(resources.Resources[*projects.Project]{
+					Items: []*projects.Project{fireProjectMaybeTenanted},
+				})
+
+			_ = qa.ExpectQuestion(t, &survey.Select{
+				Message: "Select Tenanted or Untenanted deployment",
+				Options: []string{"Tenanted", "Untenanted"},
+			}).AnswerWith("Untenanted")
+
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+fireProjectID+"/releases/"+release19.Version).RespondWith(release19)
+			api.ExpectRequest(t, "GET", "/api/configuration/feature-toggles?Name=indicate-missing-packages-for-release").RespondWith(&configuration.FeatureToggleConfigurationResponse{
+				FeatureToggles: []configuration.ConfiguredFeatureToggle{
+					{
+						Name:      "indicate-missing-packages-for-release",
+						IsEnabled: true,
+					},
+				},
+			})
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/releases/"+release19.ID+"/missingpackages").RespondWith(&releases.MissingPackages{
+				Packages: []releases.MissingPackageInfo{
+					{ID: "apples", Version: "1.0.0"},
+					{ID: "bananas", Version: "2.0.0"},
+				},
+			})
+
+			_ = qa.ExpectQuestion(t, &survey.Confirm{
+				Message: "Do you want to continue?",
+				Default: false,
+			}).AnswerWith("true")
+
+			// find environments via progression
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/releases/"+release19.ID+"/progression").RespondWith(&releases.LifecycleProgression{
+				Phases: []*releases.LifecycleProgressionPhase{
+					{Name: "Dev", Progress: releases.PhaseProgressCurrent, AutomaticDeploymentTargets: []string{scratchEnvironment.ID}, OptionalDeploymentTargets: []string{devEnvironment.ID}},
+					{Name: "Prod", Progress: releases.PhaseProgressPending, OptionalDeploymentTargets: []string{prodEnvironment.ID}}, // should scope this out due to pending
+				},
+				NextDeployments: []string{devEnvironment.ID},
+			})
+			api.ExpectRequest(t, "GET", fmt.Sprintf("/api/Spaces-1/environments?ids=%s%%2C%s", scratchEnvironment.ID, devEnvironment.ID)).RespondWith(resources.Resources[*environments.Environment]{
+				Items: []*environments.Environment{scratchEnvironment, devEnvironment},
+			})
+
+			// Note: scratch comes first but default should be dev, due to NextDeployments
+			_ = qa.ExpectQuestion(t, &survey.MultiSelect{
+				Message: "Select environment(s)",
+				Options: []string{scratchEnvironment.Name, devEnvironment.Name},
+				Default: []string{devEnvironment.Name},
+			}).AnswerWith([]surveyCore.OptionAnswer{
+				{Value: devEnvironment.Name, Index: 0},
+			})
+
+			// now it's going to go looking for prompted variables; we don't have any prompted variables here so it skips
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/variables/"+variableSnapshotNoVars.ID).RespondWith(&variableSnapshotNoVars)
+			emptyDeploymentPreviews := fixtures.EmptyDeploymentPreviews()
+			api.ExpectRequest(t, "POST", "/api/Spaces-1/releases/"+release19.ID+"/deployments/previews").RespondWith(&emptyDeploymentPreviews)
+
+			assert.Equal(t, heredoc.Doc(`
+				Project Fire Project
+				Release 1.9
+				Warning: The following packages are missing from the built-in feed for this release:
+				 - apples (Version: 1.0.0)
+				 - bananas (Version: 2.0.0)
+
+				This might cause the deployment to fail.
+			`), stdout.String())
+			stdout.Reset()
+
+			q := qa.ExpectQuestion(t, &survey.Select{
+				Message: "Change additional options?",
+				Options: []string{"Proceed to deploy", "Change"},
+			})
+			assert.Regexp(t, "Additional Options", stdout.String()) // actual options tested in PrintAdvancedSummary
+			_ = q.AnswerWith("Proceed to deploy")
+
+			err := <-errReceiver
+			assert.Nil(t, err)
+
+			// check that the question-asking process has filled out the things we told it to
+			assert.Equal(t, &executor.TaskOptionsDeployRelease{
+				ProjectName:       "Fire Project",
+				ReleaseVersion:    "1.9",
+				Environments:      []string{"dev"},
+				GuidedFailureMode: "",
+				Variables:         make(map[string]string, 0),
+				ReleaseID:         release19.ID,
+			}, options)
+		}},
+
 		{"advanced options", func(t *testing.T, api *testutil.MockHttpServer, qa *testutil.AskMocker, stdout *bytes.Buffer) {
 			options := &executor.TaskOptionsDeployRelease{ProjectName: "fire project", ReleaseVersion: "1.9", Environments: []string{"dev", "scratch"}}
 
 			errReceiver := testutil.GoBegin(func() error {
 				defer testutil.Close(api, qa)
 				octopus, _ := octopusApiClient.NewClient(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "")
-				//
-				//api.ExpectRequest(t, "GET", "/api/Spaces-1/environments/all").RespondWith([]*environments.Environment{
-				//	devEnvironment, scratchEnvironment,
-				//})
-				//
-				//emptyDeploymentPreviews := fixtures.EmptyDeploymentPreviews()
-				//api.ExpectRequest(t, "POST", "/api/Spaces-1/releases/"+release19.ID+"/deployments/previews").RespondWith(&emptyDeploymentPreviews)
-
 				return deploy.AskQuestions(octopus, stdout, qa.AsAsker(), space1, options, now)
 			})
 
@@ -871,6 +1035,14 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 				})
 
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+fireProjectID+"/releases/"+release19.Version).RespondWith(release19)
+			api.ExpectRequest(t, "GET", "/api/configuration/feature-toggles?Name=indicate-missing-packages-for-release").RespondWith(&configuration.FeatureToggleConfigurationResponse{
+				FeatureToggles: []configuration.ConfiguredFeatureToggle{
+					{
+						Name:      "indicate-missing-packages-for-release",
+						IsEnabled: false,
+					},
+				},
+			})
 
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/releases/"+release19.ID+"/progression").RespondWith(&releases.LifecycleProgression{
 				Phases: []*releases.LifecycleProgressionPhase{
@@ -1689,6 +1861,14 @@ func TestDeployCreate_GenerationOfAutomationCommand_MasksSensitiveVariables(t *t
 		})
 
 	api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+fireProjectID+"/releases/"+release20.Version).RespondWith(release20)
+	api.ExpectRequest(t, "GET", "/api/configuration/feature-toggles?Name=indicate-missing-packages-for-release").RespondWith(&configuration.FeatureToggleConfigurationResponse{
+		FeatureToggles: []configuration.ConfiguredFeatureToggle{
+			{
+				Name:      "indicate-missing-packages-for-release",
+				IsEnabled: false,
+			},
+		},
+	})
 
 	// now it's going to go looking for prompted variables; we don't have any prompted variables here so it skips
 	api.ExpectRequest(t, "GET", "/api/Spaces-1/variables/"+variableSnapshotWithPromptedVariables.ID).RespondWith(&variableSnapshotWithPromptedVariables)

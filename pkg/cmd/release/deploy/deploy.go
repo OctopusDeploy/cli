@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/OctopusDeploy/cli/pkg/util/featuretoggle"
 	"golang.org/x/exp/maps"
 	"io"
 	"sort"
@@ -436,6 +437,14 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 		return err
 	}
 
+	indicateMissingPackagesForReleaseFeatureToggleValue, err := featuretoggle.IsToggleEnabled(octopus, "indicate-missing-packages-for-release")
+	if indicateMissingPackagesForReleaseFeatureToggleValue {
+		proceed := promptMissingPackages(octopus, stdout, asker, selectedRelease);
+		if !proceed {
+			return errors.New("aborting deployment creation as requested")
+		}
+	}
+
 	// machine selection later on needs to refer back to the environments.
 	// NOTE: this is allowed to remain nil; environments will get looked up later on if needed
 	var selectedEnvironments []*environments.Environment
@@ -739,6 +748,37 @@ func askDeploymentPreviewVariables(octopus *octopusApiClient.Client, variablesFr
 	}
 
 	return result, nil
+}
+
+func promptMissingPackages(octopus *octopusApiClient.Client, stdout io.Writer, asker question.Asker, release *releases.Release) bool {
+	missingPackages, err := releases.GetMissingPackages(octopus, release)
+	if err != nil {
+		// We don't want to prevent deployments from going through because of this check
+		_, _ = fmt.Fprintf(stdout, "Unable to determine if there are missing packages for this release - %v\n", err)
+		return true
+	}
+
+	if len(missingPackages) == 0 {
+		return true
+	}
+
+	_, _ = fmt.Fprintf(stdout ,"Warning: The following packages are missing from the built-in feed for this release:\n")
+	for _, p := range missingPackages {
+		_, _ = fmt.Fprintf(stdout, " - %s (Version: %s)\n", p.ID, p.Version)
+	}
+	_, _ = fmt.Fprintln(stdout, "\nThis might cause the deployment to fail.")
+
+	prompt := &survey.Confirm{
+		Message: "Do you want to continue?",
+		Default: false,
+	}
+
+	var answer bool
+	if err := asker(prompt, &answer); err != nil {
+		return answer
+	}
+
+	return answer
 }
 
 // FindDeployableEnvironmentIDs returns an array of environment IDs that we can deploy to,
