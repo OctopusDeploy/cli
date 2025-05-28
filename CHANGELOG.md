@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.18.0](https://github.com/OctopusDeploy/cli/compare/v2.17.0...v2.18.0) (2025-05-28)
+
+
+### Features
+
+* warn about missing packages when deploying ([b5b93ff](https://github.com/OctopusDeploy/cli/commit/b5b93ff8c540108ce860d56d7c88b2161851dad6))
+
 ## [2.17.0](https://github.com/OctopusDeploy/cli/compare/v2.16.0...v2.17.0) (2025-05-15)
 
 
