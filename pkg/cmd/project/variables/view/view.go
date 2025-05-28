@@ -1,7 +1,11 @@
 package view
 
 import (
+	"encoding/json"
 	"fmt"
+	"strconv"
+	"strings"
+
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/apiclient"
 	variableShared "github.com/OctopusDeploy/cli/pkg/cmd/project/variables/shared"
@@ -14,9 +18,6 @@ import (
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/resources"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/variables"
 	"github.com/spf13/cobra"
-	"io"
-	"strconv"
-	"strings"
 )
 
 const (
@@ -34,9 +35,35 @@ type ViewFlags struct {
 type ViewOptions struct {
 	Client *client.Client
 	Host   string
-	out    io.Writer
 	name   string
 	*ViewFlags
+	cmd *cobra.Command
+}
+
+type VarScopedItem struct {
+	Id   string `json:"id"`
+	Name string `json:"name"`
+}
+
+type VarProcessScopedItem struct {
+	VarScopedItem
+	ProcessType string `json:"processtype"`
+}
+
+type VariableViewData struct {
+	Id                     string                  `json:"id"`
+	Value                  string                  `json:"value"`
+	Description            string                  `json:"description"`
+	EnvironmentScope       []*VarScopedItem        `json:"environmentscope"`
+	RoleScope              []*VarScopedItem        `json:"rolescope"`
+	MachineScope           []*VarScopedItem        `json:"machinescope"`
+	ProcessScope           []*VarProcessScopedItem `json:"processscope"`
+	StepScope              []*VarScopedItem        `json:"stepscope"`
+	ChannelScope           []*VarScopedItem        `json:"channelscope"`
+	Prompted               bool                    `json:"prompted,omitempty"`
+	PromptLabel            string                  `json:"promptlabel,omitempty"`
+	PromptLabelDescription string                  `json:"promptlabeldescription,omitempty"`
+	PromptRequired         string                  `json:"promptrequired,omitempty"`
 }
 
 func NewViewFlags() *ViewFlags {
@@ -71,9 +98,9 @@ func NewCmdView(f factory.Factory) *cobra.Command {
 			opts := &ViewOptions{
 				client,
 				f.GetCurrentHost(),
-				cmd.OutOrStdout(),
 				args[0],
 				viewFlags,
+				cmd,
 			}
 
 			return viewRun(opts)
@@ -113,55 +140,150 @@ func viewRun(opts *ViewOptions) error {
 		return fmt.Errorf("cannot find variable '%s'", opts.name)
 	}
 
-	fmt.Fprintln(opts.out, output.Bold(filteredVars[0].Name))
+	outputFormat, err := opts.cmd.Flags().GetString(constants.FlagOutputFormat)
 
-	for _, v := range filteredVars {
-		data := []*output.DataRow{}
+	if err != nil { // should never happen, but fallback if it does
+		outputFormat = constants.OutputFormatTable
+	}
 
-		data = append(data, output.NewDataRow("Id", output.Dim(v.GetID())))
-		if v.IsSensitive {
-			data = append(data, output.NewDataRow("Value", output.Bold("*** (sensitive)")))
-		} else {
-			data = append(data, output.NewDataRow("Value", output.Bold(v.Value)))
+	out := opts.cmd.OutOrStdout()
+
+	switch strings.ToLower(outputFormat) {
+	case constants.OutputFormatBasic, constants.OutputFormatTable:
+		fmt.Fprintln(out, output.Bold(filteredVars[0].Name))
+		for _, v := range filteredVars {
+			data := []*output.DataRow{}
+			if outputFormat == constants.OutputFormatTable {
+				data = append(data, output.NewDataRow(output.Bold("KEY"), output.Bold("VALUE")))
+			}
+			data = append(data, output.NewDataRow("Id", output.Dim(v.GetID())))
+			if v.IsSensitive {
+				data = append(data, output.NewDataRow("Value", output.Bold("*** (sensitive)")))
+			} else {
+				data = append(data, output.NewDataRow("Value", output.Bold(v.Value)))
+			}
+
+			if v.Description == "" {
+				v.Description = constants.NoDescription
+			}
+			data = append(data, output.NewDataRow("Description", output.Dim(v.Description)))
+
+			scopeValues, err := variableShared.ToScopeValues(v, allVars.ScopeValues)
+			if err != nil {
+				return err
+			}
+
+			data = addScope(scopeValues.Environments, "Environment scope", data, nil)
+			data = addScope(scopeValues.Roles, "Role scope", data, nil)
+			data = addScope(scopeValues.Channels, "Channel scope", data, nil)
+			data = addScope(scopeValues.Machines, "Machine scope", data, nil)
+			data = addScope(scopeValues.TenantTags, "Tenant tag scope", data, func(item *resources.ReferenceDataItem) string {
+				return item.ID
+			})
+			data = addScope(scopeValues.Actions, "Step scope", data, nil)
+			data = addScope(
+				util.SliceTransform(scopeValues.Processes, func(item *resources.ProcessReferenceDataItem) *resources.ReferenceDataItem {
+					return &resources.ReferenceDataItem{
+						ID:   item.ID,
+						Name: item.Name,
+					}
+				}),
+				"Process scope",
+				data,
+				nil)
+
+			if v.Prompt != nil {
+				data = append(data, output.NewDataRow("Prompted", "true"))
+				data = append(data, output.NewDataRow("Prompt Label", v.Prompt.Label))
+				data = append(data, output.NewDataRow("Prompt Description", output.Dim(v.Prompt.Description)))
+				data = append(data, output.NewDataRow("Prompt Required", strconv.FormatBool(v.Prompt.IsRequired)))
+			}
+
+			fmt.Fprintln(out)
+			output.PrintRows(data, out)
 		}
+	case constants.OutputFormatJson:
 
-		if v.Description == "" {
-			v.Description = constants.NoDescription
+		viewItems := make([]VariableViewData, 0, len(filteredVars))
+		for _, v := range filteredVars {
+
+			scopeValues, err := variableShared.ToScopeValues(v, allVars.ScopeValues)
+			if err != nil {
+				return err
+			}
+
+			vd := VariableViewData{}
+			vd.Id = v.ID
+			if v.IsSensitive {
+				vd.Value = "*** (sensitive)"
+			} else {
+				vd.Value = v.Value
+			}
+			vd.Description = v.Description
+
+			if util.Any(scopeValues.Environments) {
+				vd.EnvironmentScope = util.SliceTransform(scopeValues.Environments, func(e *resources.ReferenceDataItem) *VarScopedItem {
+					return &VarScopedItem{
+						Id:   e.ID,
+						Name: e.Name,
+					}
+				})
+			}
+			if util.Any(scopeValues.Roles) {
+				vd.RoleScope = util.SliceTransform(scopeValues.Roles, func(e *resources.ReferenceDataItem) *VarScopedItem {
+					return &VarScopedItem{
+						Id:   e.ID,
+						Name: e.Name,
+					}
+				})
+			}
+			if util.Any(scopeValues.Machines) {
+				vd.MachineScope = util.SliceTransform(scopeValues.Machines, func(e *resources.ReferenceDataItem) *VarScopedItem {
+					return &VarScopedItem{
+						Id:   e.ID,
+						Name: e.Name,
+					}
+				})
+			}
+			if util.Any(scopeValues.Processes) {
+				vd.ProcessScope = util.SliceTransform(scopeValues.Processes, func(e *resources.ProcessReferenceDataItem) *VarProcessScopedItem {
+					return &VarProcessScopedItem{
+						VarScopedItem: VarScopedItem{
+							Id:   e.ID,
+							Name: e.Name,
+						},
+						ProcessType: e.ProcessType,
+					}
+				})
+			}
+			if util.Any(scopeValues.Actions) {
+				vd.StepScope = util.SliceTransform(scopeValues.Actions, func(e *resources.ReferenceDataItem) *VarScopedItem {
+					return &VarScopedItem{
+						Id:   e.ID,
+						Name: e.Name,
+					}
+				})
+			}
+			if util.Any(scopeValues.Channels) {
+				vd.ChannelScope = util.SliceTransform(scopeValues.Channels, func(e *resources.ReferenceDataItem) *VarScopedItem {
+					return &VarScopedItem{
+						Id:   e.ID,
+						Name: e.Name,
+					}
+				})
+			}
+			if v.Prompt != nil {
+				vd.Prompted = true
+				vd.PromptLabel = v.Prompt.Label
+				vd.PromptLabelDescription = v.Prompt.Description
+				vd.PromptRequired = strconv.FormatBool(v.Prompt.IsRequired)
+			} else {
+				vd.Prompted = false
+			}
+			viewItems = append(viewItems, vd)
 		}
-		data = append(data, output.NewDataRow("Description", output.Dim(v.Description)))
-
-		scopeValues, err := variableShared.ToScopeValues(v, allVars.ScopeValues)
-		if err != nil {
-			return err
-		}
-		data = addScope(scopeValues.Environments, "Environment scope", data, nil)
-		data = addScope(scopeValues.Roles, "Role scope", data, nil)
-		data = addScope(scopeValues.Channels, "Channel scope", data, nil)
-		data = addScope(scopeValues.Machines, "Machine scope", data, nil)
-		data = addScope(scopeValues.TenantTags, "Tenant tag scope", data, func(item *resources.ReferenceDataItem) string {
-			return item.ID
-		})
-		data = addScope(scopeValues.Actions, "Step scope", data, nil)
-		data = addScope(
-			util.SliceTransform(scopeValues.Processes, func(item *resources.ProcessReferenceDataItem) *resources.ReferenceDataItem {
-				return &resources.ReferenceDataItem{
-					ID:   item.ID,
-					Name: item.Name,
-				}
-			}),
-			"Process scope",
-			data,
-			nil)
-
-		if v.Prompt != nil {
-			data = append(data, output.NewDataRow("Prompted", "true"))
-			data = append(data, output.NewDataRow("Prompt Label", v.Prompt.Label))
-			data = append(data, output.NewDataRow("Prompt Description", output.Dim(v.Prompt.Description)))
-			data = append(data, output.NewDataRow("Prompt Required", strconv.FormatBool(v.Prompt.IsRequired)))
-		}
-
-		fmt.Fprintln(opts.out)
-		output.PrintRows(data, opts.out)
+		data, _ := json.MarshalIndent(viewItems, "", "  ")
+		opts.cmd.Println(string(data))
 	}
 
 	return nil
