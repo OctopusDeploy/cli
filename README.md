@@ -206,7 +206,7 @@ If successful, the go compiler does not output anything. You should now have an 
 
 **Makefile**
 
-If you are using a sytem that has `make` installed, then you can also simpl run `make` in the cli root folder.
+If you are using a system that has `make` installed, then you can also simpl run `make` in the cli root folder.
 The default action for the `Makefile` is to run `go build`, as above.
 
 ## Running the CLI
@@ -289,7 +289,7 @@ We find `gotestsum` provides a nice wrapper around the underlying go test functi
 ### Integration Tests
 
 Integration tests live outside the pkg structure and operate outside the app.
-They launch the CLI as a seperate process, and interact with it using stdout and stderr.
+They launch the CLI as a separate process, and interact with it using stdout and stderr.
 
 **Important:** Integration tests assume that an Octopus Deploy server is running and accessible.
 Before running the integration tests you must set the following environment variables, or the tests will fail.
@@ -352,7 +352,7 @@ type TaskOptionsCreateAccount struct {
 ```
 
 Back in your `cmd` file, write some code which maps values from the command flags, and puts them into the `Task` structure,
-then submit it to the excutor which will do the work when you call `ProcessTasks`
+then submit it to the executor which will do the work when you call `ProcessTasks`
 
 ```go
 RunE: func(cmd *cobra.Command, args []string) error {
