@@ -3,7 +3,6 @@ package view
 import (
 	"fmt"
 	"github.com/OctopusDeploy/cli/pkg/apiclient"
-	"io"
 	"strings"
 
 	"github.com/OctopusDeploy/cli/pkg/factory"
@@ -20,9 +19,8 @@ import (
 type ViewOptions struct {
 	Client   *client.Client
 	Host     string
-	IO       io.Writer
 	Selector string
-	Space    *spaces.Space
+	Command  *cobra.Command
 }
 
 func NewCmdView(f factory.Factory) *cobra.Command {
@@ -45,8 +43,8 @@ func NewCmdView(f factory.Factory) *cobra.Command {
 
 			opts.Client = client
 			opts.Host = f.GetCurrentHost()
-			opts.IO = cmd.OutOrStdout()
 			opts.Selector = args[0]
+			opts.Command = cmd
 
 			return viewRun(opts)
 		},
@@ -61,35 +59,80 @@ func viewRun(opts *ViewOptions) error {
 		return err
 	}
 
-	return printHumanSpacePreview(opts.Host, space, opts.IO)
+	host := opts.Host
+	return output.PrintResource(space, opts.Command, output.Mappers[*spaces.Space]{
+		Json: func(item *spaces.Space) any {
+			return SpaceAsJson{
+				Id:          item.GetID(),
+				Name:        item.Name,
+				Description: item.Description,
+				TaskQueue:   getTaskQueueStatus(item),
+				WebUrl:      generateWebUrl(host, item),
+			}
+		},
+		Table: output.TableDefinition[*spaces.Space]{
+			Header: []string{"NAME", "DESCRIPTION", "TASK QUEUE", "WEB URL"},
+			Row: func(item *spaces.Space) []string {
+				description := item.Description
+				if description == "" {
+					description = constants.NoDescription
+				}
+
+				return []string{output.Bold(item.Name), description, getTaskQueueStatusColored(item), output.Blue(generateWebUrl(host, item))}
+			},
+		},
+		Basic: func(item *spaces.Space) string {
+			return formatSpaceForBasic(host, item)
+		},
+	})
 }
 
-func printHumanSpacePreview(host string, space *spaces.Space, out io.Writer) error {
+type SpaceAsJson struct {
+	Id          string `json:"Id"`
+	Name        string `json:"Name"`
+	Description string `json:"Description"`
+	TaskQueue   string `json:"TaskQueue"`
+	WebUrl      string `json:"WebUrl"`
+}
+
+func getTaskQueueStatus(space *spaces.Space) string {
+	if space.TaskQueueStopped {
+		return "Stopped"
+	}
+	return "Running"
+}
+
+func getTaskQueueStatusColored(space *spaces.Space) string {
+	if space.TaskQueueStopped {
+		return output.Yellow("Stopped")
+	}
+	return output.Green("Running")
+}
+
+func generateWebUrl(host string, space *spaces.Space) string {
+	link := strings.Split(space.Links["Web"], "/app#/")
+	webLink := "/app#/configuration/" + link[1]
+	return host + webLink
+}
+
+func formatSpaceForBasic(host string, space *spaces.Space) string {
+	var result strings.Builder
+	
 	// header
-	fmt.Fprintf(out, "%s %s\n", output.Bold(space.Name), output.Dimf("(%s)", space.GetID()))
+	result.WriteString(fmt.Sprintf("%s %s\n", output.Bold(space.Name), output.Dimf("(%s)", space.GetID())))
 
 	// metadata
 	if len(space.Description) == 0 {
-		fmt.Fprintln(out, output.Dim(constants.NoDescription))
-
+		result.WriteString(fmt.Sprintf("%s\n", output.Dim(constants.NoDescription)))
 	} else {
-		fmt.Fprintln(out, output.Dim(space.Description))
+		result.WriteString(fmt.Sprintf("%s\n", output.Dim(space.Description)))
 	}
 
 	// task processing
-	taskQueue := output.Green("Running")
-	if space.TaskQueueStopped {
-		taskQueue = output.Yellow("Stopped")
-	}
-	fmt.Fprintf(out, "Task Processing Status: %s\n", taskQueue)
-
-	// BUG: the hypermedia link, "Web" is not represented correctly in Octopus REST API
-	link := strings.Split(space.Links["Web"], "/app#/")
-	webLink := "/app#/configuration/" + link[1]
-	spaceURL := host + webLink
+	result.WriteString(fmt.Sprintf("Task Processing Status: %s\n", getTaskQueueStatusColored(space)))
 
 	// footer
-	fmt.Fprintf(out, "View this space in Octopus Deploy: %s\n", output.Blue(spaceURL))
+	result.WriteString(fmt.Sprintf("View this space in Octopus Deploy: %s", output.Blue(generateWebUrl(host, space))))
 
-	return nil
+	return result.String()
 }
