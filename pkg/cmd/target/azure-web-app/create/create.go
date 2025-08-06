@@ -24,9 +24,9 @@ import (
 	"github.com/spf13/cobra"
 )
 
-type GetAllAzureAccounts func() ([]*accounts.AzureServicePrincipalAccount, error)
-type GetAllAzureWebApps func(account *accounts.AzureServicePrincipalAccount) ([]*azure.AzureWebApp, error)
-type GetAllAzureWebAppSlots func(account *accounts.AzureServicePrincipalAccount, app *azure.AzureWebApp) ([]*azure.AzureWebAppSlot, error)
+type GetAllAzureAccounts func() ([]accounts.IAccount, error)
+type GetAllAzureWebApps func(account accounts.IAccount) ([]*azure.AzureWebApp, error)
+type GetAllAzureWebAppSlots func(account accounts.IAccount, app *azure.AzureWebApp) ([]*azure.AzureWebAppSlot, error)
 
 const (
 	FlagName          = "name"
@@ -85,13 +85,13 @@ func NewCreateOptions(createFlags *CreateFlags, dependencies *cmd.Dependencies) 
 		CreateTargetEnvironmentOptions: shared.NewCreateTargetEnvironmentOptions(dependencies),
 		CreateTargetTenantOptions:      shared.NewCreateTargetTenantOptions(dependencies),
 		WorkerPoolOptions:              shared.NewWorkerPoolOptionsForCreateTarget(dependencies),
-		GetAllAzureAccounts: func() ([]*accounts.AzureServicePrincipalAccount, error) {
+		GetAllAzureAccounts: func() ([]accounts.IAccount, error) {
 			return getAllAzureAccounts(*dependencies.Client)
 		},
-		GetAllAzureWebApps: func(account *accounts.AzureServicePrincipalAccount) ([]*azure.AzureWebApp, error) {
+		GetAllAzureWebApps: func(account accounts.IAccount) ([]*azure.AzureWebApp, error) {
 			return getAllAzureWebapps(*dependencies.Client, account)
 		},
-		GetAllAzureWebAppSlots: func(account *accounts.AzureServicePrincipalAccount, webapp *azure.AzureWebApp) ([]*azure.AzureWebAppSlot, error) {
+		GetAllAzureWebAppSlots: func(account accounts.IAccount, webapp *azure.AzureWebApp) ([]*azure.AzureWebAppSlot, error) {
 			return getAllAzureWebAppSlots(*dependencies.Client, account, webapp)
 		},
 	}
@@ -115,7 +115,7 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 
 	flags := cmd.Flags()
 	flags.StringVarP(&createFlags.Name.Value, createFlags.Name.Name, "n", "", "A short, memorable, unique name for this Azure Web App.")
-	flags.StringVar(&createFlags.Account.Value, createFlags.Account.Name, "", "The name or ID of the Azure Service Principal account")
+	flags.StringVar(&createFlags.Account.Value, createFlags.Account.Name, "", "The name or ID of the Azure account")
 	flags.StringVar(&createFlags.ResourceGroup.Value, createFlags.ResourceGroup.Name, "", "The resource group of the Azure Web App")
 	flags.StringVar(&createFlags.WebApp.Value, createFlags.WebApp.Name, "", "The name of the Azure Web App for this deployment target")
 	flags.StringVar(&createFlags.Slot.Value, createFlags.Slot.Name, "", "The name of the Azure Web App Slot for this deployment target")
@@ -143,6 +143,10 @@ func createRun(opts *CreateOptions) error {
 	account, err := getAzureAccount(opts)
 	if err != nil {
 		return err
+	}
+
+	if !isAzureAccount(account) {
+		return fmt.Errorf("account '%s' is not a valid Azure account", account.GetName())
 	}
 
 	endpoint := machines.NewAzureWebAppEndpoint()
@@ -212,15 +216,15 @@ func PromptMissing(opts *CreateOptions) error {
 	return nil
 }
 
-func PromptForAccount(opts *CreateOptions) (*accounts.AzureServicePrincipalAccount, error) {
-	var account *accounts.AzureServicePrincipalAccount
+func PromptForAccount(opts *CreateOptions) (accounts.IAccount, error) {
+	var account accounts.IAccount
 	if opts.Account.Value == "" {
 		selectedAccount, err := selectors.Select(
 			opts.Ask,
 			"Select the Azure Account to use\n",
 			opts.GetAllAzureAccounts,
-			func(p *accounts.AzureServicePrincipalAccount) string {
-				return (*p).GetName()
+			func(p accounts.IAccount) string {
+				return fmt.Sprintf("%s (%s)", p.GetName(), getAzureAccountTypeName(p))
 			})
 		if err != nil {
 			return nil, err
@@ -234,11 +238,11 @@ func PromptForAccount(opts *CreateOptions) (*accounts.AzureServicePrincipalAccou
 		account = a
 	}
 
-	opts.Account.Value = account.Name
+	opts.Account.Value = account.GetName()
 	return account, nil
 }
 
-func PromptForWebApp(opts *CreateOptions, account *accounts.AzureServicePrincipalAccount) error {
+func PromptForWebApp(opts *CreateOptions, account accounts.IAccount) error {
 	webapps, err := opts.GetAllAzureWebApps(account)
 	if err != nil {
 		return err
@@ -309,8 +313,34 @@ func PromptForWebApp(opts *CreateOptions, account *accounts.AzureServicePrincipa
 	return nil
 }
 
-func getAllAzureWebAppSlots(client client.Client, spAccount *accounts.AzureServicePrincipalAccount, webapp *azure.AzureWebApp) ([]*azure.AzureWebAppSlot, error) {
-	slots, err := azure.GetWebSiteSlots(client, spAccount, webapp)
+func isAzureAccount(account accounts.IAccount) bool {
+	switch account.GetAccountType() {
+	case accounts.AccountTypeAzureServicePrincipal,
+		accounts.AccountTypeAzureOIDC:
+		return true
+	default:
+		return false
+	}
+}
+
+func getAzureAccountTypeName(account accounts.IAccount) string {
+	switch account.GetAccountType() {
+	case accounts.AccountTypeAzureServicePrincipal:
+		return "Azure Service Principal"
+	case accounts.AccountTypeAzureOIDC:
+		return "Azure OIDC"
+	default:
+		return "Unknown"
+	}
+}
+
+func getAllAzureWebAppSlots(client client.Client, account accounts.IAccount, webapp *azure.AzureWebApp) ([]*azure.AzureWebAppSlot, error) {
+	if !isAzureAccount(account) {
+		return nil, fmt.Errorf("account '%s' is not an Azure account (type: %s)",
+			account.GetName(), account.GetAccountType())
+	}
+
+	slots, err := azure.GetWebSiteSlots(client, account, webapp)
 	if err != nil {
 		return nil, err
 	}
@@ -318,7 +348,12 @@ func getAllAzureWebAppSlots(client client.Client, spAccount *accounts.AzureServi
 	return slots, nil
 }
 
-func getAllAzureWebapps(client client.Client, account *accounts.AzureServicePrincipalAccount) ([]*azure.AzureWebApp, error) {
+func getAllAzureWebapps(client client.Client, account accounts.IAccount) ([]*azure.AzureWebApp, error) {
+	if !isAzureAccount(account) {
+		return nil, fmt.Errorf("account '%s' is not an Azure account (type: %s)",
+			account.GetName(), account.GetAccountType())
+	}
+
 	sites, err := azure.GetWebSites(client, account)
 	if err != nil {
 		return nil, err
@@ -327,23 +362,23 @@ func getAllAzureWebapps(client client.Client, account *accounts.AzureServicePrin
 	return sites, nil
 }
 
-func getAllAzureAccounts(client client.Client) ([]*accounts.AzureServicePrincipalAccount, error) {
+func getAllAzureAccounts(client client.Client) ([]accounts.IAccount, error) {
 	allAccounts, err := client.Accounts.GetAll()
 	if err != nil {
 		return nil, err
 	}
 
-	var spAccounts []*accounts.AzureServicePrincipalAccount
+	var azureAccounts []accounts.IAccount
 	for _, a := range allAccounts {
-		if s, ok := a.(*accounts.AzureServicePrincipalAccount); ok {
-			spAccounts = append(spAccounts, s)
+		if isAzureAccount(a) {
+			azureAccounts = append(azureAccounts, a)
 		}
 	}
 
-	return spAccounts, nil
+	return azureAccounts, nil
 }
 
-func getAzureAccount(opts *CreateOptions) (*accounts.AzureServicePrincipalAccount, error) {
+func getAzureAccount(opts *CreateOptions) (accounts.IAccount, error) {
 	idOrName := opts.Account.Value
 	allAccounts, err := opts.GetAllAzureAccounts()
 	if err != nil {
@@ -352,9 +387,12 @@ func getAzureAccount(opts *CreateOptions) (*accounts.AzureServicePrincipalAccoun
 
 	for _, a := range allAccounts {
 		if strings.EqualFold(a.GetID(), idOrName) || strings.EqualFold(a.GetName(), idOrName) {
+			if !isAzureAccount(a) {
+				return nil, fmt.Errorf("account %s is not an Azure account (type: %s)", idOrName, a.GetAccountType())
+			}
 			return a, nil
 		}
 	}
 
-	return nil, fmt.Errorf("cannot find account %s", idOrName)
+	return nil, fmt.Errorf("cannot find Azure account %s", idOrName)
 }
