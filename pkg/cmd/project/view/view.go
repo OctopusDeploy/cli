@@ -22,6 +22,13 @@ const (
 	FlagWeb = "web"
 )
 
+// joinURL joins host and path, ensuring there's exactly one slash between them
+func joinURL(host, path string) string {
+	host = strings.TrimSuffix(host, "/")
+	path = strings.TrimPrefix(path, "/")
+	return host + "/" + path
+}
+
 type ViewFlags struct {
 	Web *flag.Flag[bool]
 }
@@ -98,7 +105,7 @@ func viewRun(opts *ViewOptions) error {
 				Description:           p.Description,
 				IsVersionControlled:   p.IsVersionControlled,
 				VersionControlBranch:  cacBranch,
-				WebUrl:               opts.Host + p.Links["Web"],
+				WebUrl:               joinURL(opts.Host, p.Links["Web"]),
 			}
 		},
 		Table: output.TableDefinition[*projects.Project]{
@@ -119,7 +126,7 @@ func viewRun(opts *ViewOptions) error {
 					p.Slug,
 					description,
 					cacBranch,
-					output.Blue(opts.Host + p.Links["Web"]),
+					output.Blue(joinURL(opts.Host, p.Links["Web"])),
 				}
 			},
 		},
@@ -160,7 +167,7 @@ func formatProjectForBasic(opts *ViewOptions, project *projects.Project) string 
 	}
 	
 	// footer with web URL
-	url := opts.Host + project.Links["Web"]
+	url := joinURL(opts.Host, project.Links["Web"])
 	result.WriteString(fmt.Sprintf("View this project in Octopus Deploy: %s\n", output.Blue(url)))
 	
 	if opts.flags.Web.Value {
