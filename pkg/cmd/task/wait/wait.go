@@ -119,6 +119,7 @@ func WaitRun(opts *WaitOptions) error {
 	pendingTaskIDs := make([]string, 0)
 	failedTaskIDs := make([]string, 0)
 	formatter := NewTaskOutputFormatter(opts.Out)
+	tableHeaderPrinted := false
 
 	for _, t := range serverTasks {
 		if t.IsCompleted == nil || !*t.IsCompleted {
@@ -132,7 +133,16 @@ func WaitRun(opts *WaitOptions) error {
 		if opts.Command.Flags().Changed(constants.FlagOutputFormat) &&
 			(outputFormat == constants.OutputFormatJson || outputFormat == constants.OutputFormatTable) &&
 			(!opts.ShowProgress || (t.IsCompleted != nil && *t.IsCompleted)) {
-			_ = output.PrintResource(t, opts.Command, getTaskMappers())
+			if outputFormat == constants.OutputFormatJson {
+				_ = output.PrintResource(t, opts.Command, getTaskMappers())
+			} else if outputFormat == constants.OutputFormatTable {
+				mappers := getTaskMappers()
+				if tableHeaderPrinted {
+					mappers.Table.Header = nil // Don't print header for subsequent updates
+				}
+				_ = output.PrintResource(t, opts.Command, mappers)
+				tableHeaderPrinted = true
+			}
 		} else {
 			formatter.PrintTaskInfo(t)
 		}
@@ -180,7 +190,16 @@ func WaitRun(opts *WaitOptions) error {
 					outputFormat, _ := opts.Command.Flags().GetString(constants.FlagOutputFormat)
 					if opts.Command.Flags().Changed(constants.FlagOutputFormat) &&
 						(outputFormat == constants.OutputFormatJson || outputFormat == constants.OutputFormatTable) {
-						_ = output.PrintResource(t, opts.Command, getTaskMappers())
+						if outputFormat == constants.OutputFormatJson {
+							_ = output.PrintResource(t, opts.Command, getTaskMappers())
+						} else if outputFormat == constants.OutputFormatTable {
+							mappers := getTaskMappers()
+							if tableHeaderPrinted {
+								mappers.Table.Header = nil // Don't print header for subsequent updates
+							}
+							_ = output.PrintResource(t, opts.Command, mappers)
+							tableHeaderPrinted = true
+						}
 					} else {
 						formatter.PrintTaskInfo(t)
 					}
