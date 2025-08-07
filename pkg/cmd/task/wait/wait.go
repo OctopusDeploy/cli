@@ -129,24 +129,10 @@ func WaitRun(opts *WaitOptions) error {
 			failedTaskIDs = append(failedTaskIDs, t.ID)
 		}
 
-		outputFormat := ""
-		if opts.Command != nil {
-			outputFormat, _ = opts.Command.Flags().GetString(constants.FlagOutputFormat)
-		}
-		if opts.Command != nil && opts.Command.Flags().Changed(constants.FlagOutputFormat) &&
-			(outputFormat == constants.OutputFormatJson || outputFormat == constants.OutputFormatTable) &&
-			(!opts.ShowProgress || (t.IsCompleted != nil && *t.IsCompleted)) {
-			if outputFormat == constants.OutputFormatJson {
-				_ = output.PrintResource(t, opts.Command, getTaskMappers())
-			} else if outputFormat == constants.OutputFormatTable {
-				mappers := getTaskMappers()
-				if tableHeaderPrinted {
-					mappers.Table.Header = nil // Don't print header for subsequent updates
-				}
-				_ = output.PrintResource(t, opts.Command, mappers)
-				tableHeaderPrinted = true
-			}
+		if shouldUseCustomOutputFormat(opts, t) {
+			printTaskWithCustomFormat(opts, t, &tableHeaderPrinted)
 		} else {
+			// Use existing formatter for default, basic, and progress display
 			formatter.PrintTaskInfo(t)
 		}
 	}
@@ -190,23 +176,10 @@ func WaitRun(opts *WaitOptions) error {
 						failedTaskIDs = append(failedTaskIDs, t.ID)
 					}
 
-					outputFormat := ""
-					if opts.Command != nil {
-						outputFormat, _ = opts.Command.Flags().GetString(constants.FlagOutputFormat)
-					}
-					if opts.Command != nil && opts.Command.Flags().Changed(constants.FlagOutputFormat) &&
-						(outputFormat == constants.OutputFormatJson || outputFormat == constants.OutputFormatTable) {
-						if outputFormat == constants.OutputFormatJson {
-							_ = output.PrintResource(t, opts.Command, getTaskMappers())
-						} else if outputFormat == constants.OutputFormatTable {
-							mappers := getTaskMappers()
-							if tableHeaderPrinted {
-								mappers.Table.Header = nil // Don't print header for subsequent updates
-							}
-							_ = output.PrintResource(t, opts.Command, mappers)
-							tableHeaderPrinted = true
-						}
+					if shouldUseCustomOutputFormat(opts, t) {
+						printTaskWithCustomFormat(opts, t, &tableHeaderPrinted)
 					} else {
+						// Use existing formatter for default, basic, and progress display
 						formatter.PrintTaskInfo(t)
 					}
 
@@ -334,5 +307,33 @@ func getTaskMappers() output.Mappers[*tasks.Task] {
 			},
 		},
 		Basic: nil, // Not used - we use the existing formatter for basic output
+	}
+}
+
+func shouldUseCustomOutputFormat(opts *WaitOptions, t *tasks.Task) bool {
+	if opts.Command == nil {
+		return false
+	}
+	
+	outputFormat, _ := opts.Command.Flags().GetString(constants.FlagOutputFormat)
+	isFormatSpecified := opts.Command.Flags().Changed(constants.FlagOutputFormat)
+	isJsonOrTable := outputFormat == constants.OutputFormatJson || outputFormat == constants.OutputFormatTable
+	isTaskReady := !opts.ShowProgress || (t.IsCompleted != nil && *t.IsCompleted)
+	
+	return isFormatSpecified && isJsonOrTable && isTaskReady
+}
+
+func printTaskWithCustomFormat(opts *WaitOptions, t *tasks.Task, tableHeaderPrinted *bool) {
+	outputFormat, _ := opts.Command.Flags().GetString(constants.FlagOutputFormat)
+	
+	if outputFormat == constants.OutputFormatJson {
+		_ = output.PrintResource(t, opts.Command, getTaskMappers())
+	} else if outputFormat == constants.OutputFormatTable {
+		mappers := getTaskMappers()
+		if *tableHeaderPrinted {
+			mappers.Table.Header = nil // Don't print header for subsequent updates
+		}
+		_ = output.PrintResource(t, opts.Command, mappers)
+		*tableHeaderPrinted = true
 	}
 }
