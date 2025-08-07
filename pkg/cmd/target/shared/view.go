@@ -96,8 +96,6 @@ func ViewRun(opts *ViewOptions, contributeEndpoint ContributeEndpointCallback, d
 	fmt.Fprintf(opts.Out, "\n")
 	machinescommon.DoWebForTargets(target, opts.Dependencies, opts.WebFlags, description)
 	return nil
-
-	return nil
 }
 
 func ContributeProxy(opts *ViewOptions, proxyID string) ([]*output.DataRow, error) {

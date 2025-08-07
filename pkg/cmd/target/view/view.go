@@ -44,11 +44,6 @@ func ViewRun(opts *shared.ViewOptions) error {
 		return err
 	}
 
-	// Use basic format as default for deployment target view when no -f flag is specified
-	if !opts.Command.Flags().Changed(constants.FlagOutputFormat) {
-		opts.Command.Flags().Set(constants.FlagOutputFormat, constants.OutputFormatBasic)
-	}
-
 	return output.PrintResource(target, opts.Command, output.Mappers[*machines.DeploymentTarget]{
 		Json: func(t *machines.DeploymentTarget) any {
 			return getDeploymentTargetAsJson(opts, t)
@@ -66,28 +61,28 @@ func ViewRun(opts *shared.ViewOptions) error {
 }
 
 type DeploymentTargetAsJson struct {
-	Id                   string            `json:"Id"`
-	Name                 string            `json:"Name"`
-	HealthStatus         string            `json:"HealthStatus"`
-	StatusSummary        string            `json:"StatusSummary"`
-	CommunicationStyle   string            `json:"CommunicationStyle"`
-	Environments         []string          `json:"Environments"`
-	Roles                []string          `json:"Roles"`
-	Tenants              []string          `json:"Tenants"`
-	TenantTags           []string          `json:"TenantTags"`
-	EndpointDetails      map[string]string `json:"EndpointDetails"`
-	WebUrl               string            `json:"WebUrl"`
+	Id                 string            `json:"Id"`
+	Name               string            `json:"Name"`
+	HealthStatus       string            `json:"HealthStatus"`
+	StatusSummary      string            `json:"StatusSummary"`
+	CommunicationStyle string            `json:"CommunicationStyle"`
+	Environments       []string          `json:"Environments"`
+	Roles              []string          `json:"Roles"`
+	Tenants            []string          `json:"Tenants"`
+	TenantTags         []string          `json:"TenantTags"`
+	EndpointDetails    map[string]string `json:"EndpointDetails"`
+	WebUrl             string            `json:"WebUrl"`
 }
 
 func getDeploymentTargetAsJson(opts *shared.ViewOptions, target *machines.DeploymentTarget) DeploymentTargetAsJson {
 	environmentMap, _ := shared.GetEnvironmentMap(opts)
 	tenantMap, _ := shared.GetTenantMap(opts)
-	
+
 	environments := resolveValues(target.EnvironmentIDs, environmentMap)
 	tenants := resolveValues(target.TenantIDs, tenantMap)
-	
+
 	endpointDetails := getEndpointDetails(target)
-	
+
 	return DeploymentTargetAsJson{
 		Id:                 target.GetID(),
 		Name:               target.Name,
@@ -106,10 +101,10 @@ func getDeploymentTargetAsJson(opts *shared.ViewOptions, target *machines.Deploy
 func getDeploymentTargetAsTableRow(opts *shared.ViewOptions, target *machines.DeploymentTarget) []string {
 	environmentMap, _ := shared.GetEnvironmentMap(opts)
 	environments := resolveValues(target.EnvironmentIDs, environmentMap)
-	
+
 	healthStatus := getHealthStatusFormatted(target.HealthStatus)
 	targetType := getTargetTypeDisplayName(target.Endpoint.GetCommunicationStyle())
-	
+
 	// Handle tenants
 	tenants := "None"
 	if !util.Empty(target.TenantIDs) {
@@ -117,13 +112,13 @@ func getDeploymentTargetAsTableRow(opts *shared.ViewOptions, target *machines.De
 		tenantNames := resolveValues(target.TenantIDs, tenantMap)
 		tenants = strings.Join(tenantNames, ", ")
 	}
-	
+
 	// Handle tenant tags
 	tenantTags := "None"
 	if !util.Empty(target.TenantTags) {
 		tenantTags = strings.Join(target.TenantTags, ", ")
 	}
-	
+
 	// Handle endpoint details
 	endpointDetails := getEndpointDetails(target)
 	var endpointDetailsStr strings.Builder
@@ -139,7 +134,7 @@ func getDeploymentTargetAsTableRow(opts *shared.ViewOptions, target *machines.De
 	if endpointDetailsString == "" {
 		endpointDetailsString = "-"
 	}
-	
+
 	return []string{
 		output.Bold(target.Name),
 		targetType,
@@ -192,35 +187,35 @@ func getTargetTypeDisplayName(communicationStyle string) string {
 
 func getDeploymentTargetAsBasic(opts *shared.ViewOptions, target *machines.DeploymentTarget) string {
 	var result strings.Builder
-	
+
 	// Header
 	result.WriteString(fmt.Sprintf("%s %s\n", output.Bold(target.Name), output.Dimf("(%s)", target.GetID())))
-	
+
 	// Health status
 	healthStatus := getHealthStatusFormatted(target.HealthStatus)
 	result.WriteString(fmt.Sprintf("Health status: %s\n", healthStatus))
-	
+
 	// Current status
 	result.WriteString(fmt.Sprintf("Current status: %s\n", target.StatusSummary))
-	
+
 	// Target type and endpoint details
 	targetType := getTargetTypeDisplayName(target.Endpoint.GetCommunicationStyle())
 	result.WriteString(fmt.Sprintf("Type: %s\n", output.Cyan(targetType)))
-	
+
 	// Add endpoint-specific details
 	endpointDetails := getEndpointDetails(target)
 	for key, value := range endpointDetails {
 		result.WriteString(fmt.Sprintf("%s: %s\n", key, value))
 	}
-	
+
 	// Environments
 	environmentMap, _ := shared.GetEnvironmentMap(opts)
 	environments := resolveValues(target.EnvironmentIDs, environmentMap)
 	result.WriteString(fmt.Sprintf("Environments: %s\n", output.FormatAsList(environments)))
-	
+
 	// Roles
 	result.WriteString(fmt.Sprintf("Roles: %s\n", output.FormatAsList(target.Roles)))
-	
+
 	// Tenants
 	if !util.Empty(target.TenantIDs) {
 		tenantMap, _ := shared.GetTenantMap(opts)
@@ -229,23 +224,23 @@ func getDeploymentTargetAsBasic(opts *shared.ViewOptions, target *machines.Deplo
 	} else {
 		result.WriteString("Tenants: None\n")
 	}
-	
+
 	// Tenant Tags
 	if !util.Empty(target.TenantTags) {
 		result.WriteString(fmt.Sprintf("Tenant Tags: %s\n", output.FormatAsList(target.TenantTags)))
 	} else {
 		result.WriteString("Tenant Tags: None\n")
 	}
-	
+
 	// Web URL
 	url := util.GenerateWebURL(opts.Host, target.SpaceID, fmt.Sprintf("infrastructure/machines/%s/settings", target.GetID()))
 	result.WriteString(fmt.Sprintf("\nView this deployment target in Octopus Deploy: %s\n", output.Blue(url)))
-	
+
 	// Handle web flag
 	if opts.WebFlags != nil && opts.WebFlags.Web.Value {
 		machinescommon.DoWebForTargets(target, opts.Dependencies, opts.WebFlags, targetType)
 	}
-	
+
 	return result.String()
 }
 
@@ -263,7 +258,7 @@ func resolveValues(keys []string, lookup map[string]string) []string {
 
 func getEndpointDetails(target *machines.DeploymentTarget) map[string]string {
 	details := make(map[string]string)
-	
+
 	switch target.Endpoint.GetCommunicationStyle() {
 	case "AzureWebApp":
 		if endpoint, ok := target.Endpoint.(*machines.AzureWebAppEndpoint); ok {
@@ -301,6 +296,6 @@ func getEndpointDetails(target *machines.DeploymentTarget) map[string]string {
 	case "OfflineDrop", "StepPackage", "AzureCloudService", "AzureServiceFabricCluster":
 		// These endpoints don't have specific details we can easily extract
 	}
-	
+
 	return details
 }
