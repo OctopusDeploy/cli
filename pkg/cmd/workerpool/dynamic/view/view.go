@@ -25,7 +25,7 @@ func NewCmdView(f factory.Factory) *cobra.Command {
 			$ %[1]s worker-pool dynamic view 'Hosted Workers'
 		`, constants.ExecutableName),
 		RunE: func(c *cobra.Command, args []string) error {
-			return ViewRun(shared.NewViewOptions(flags, cmd.NewDependencies(f, c), args))
+			return ViewRun(shared.NewViewOptions(flags, cmd.NewDependencies(f, c), args, c))
 		},
 	}
 
