@@ -14,6 +14,7 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/OctopusDeploy/cli/pkg/output"
 	"github.com/OctopusDeploy/cli/pkg/usage"
+	"github.com/OctopusDeploy/cli/pkg/util"
 	"github.com/OctopusDeploy/cli/pkg/util/flag"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/tenants"
@@ -145,7 +146,7 @@ func viewRun(opts *ViewOptions, cmd *cobra.Command) error {
 				s.WriteString(fmt.Sprintln("Tenant is enabled"))
 			}
 
-			link := fmt.Sprintf("%s/app#/%s/tenants/%s/overview", opts.Host, tenant.SpaceID, tenant.ID)
+			link := util.GenerateWebURL(opts.Host, tenant.SpaceID, fmt.Sprintf("tenants/%s/overview", tenant.ID))
 			// footer
 			s.WriteString(fmt.Sprintf("View this tenant in Octopus Deploy: %s\n", output.Blue(link)))
 

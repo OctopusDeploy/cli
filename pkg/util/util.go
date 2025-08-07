@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"slices"
 	"sort"
+	"strings"
 )
 
 // SliceContains returns true if it finds an item in the slice that is equal to the target
@@ -292,4 +293,16 @@ func SplitString(s string, delimiters []rune) []string {
 func PrintJSON(obj interface{}) {
 	bytes, _ := json.MarshalIndent(obj, "\t", "\t")
 	fmt.Println(string(bytes))
+}
+
+// GenerateWebURL creates a web URL for Octopus Deploy resources
+// host: base URL (e.g., "http://localhost:8066")
+// spaceID: space identifier (e.g., "Spaces-1")
+// path: resource-specific path (e.g., "projects?projectGroupId=ProjectGroups-1")
+func GenerateWebURL(host, spaceID, path string) string {
+	// Ensure host doesn't end with slash
+	host = strings.TrimSuffix(host, "/")
+	// Ensure path doesn't start with slash
+	path = strings.TrimPrefix(path, "/")
+	return fmt.Sprintf("%s/app#/%s/%s", host, spaceID, path)
 }

@@ -11,6 +11,7 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/OctopusDeploy/cli/pkg/output"
 	"github.com/OctopusDeploy/cli/pkg/usage"
+	"github.com/OctopusDeploy/cli/pkg/util"
 	"github.com/OctopusDeploy/cli/pkg/util/flag"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
@@ -21,13 +22,6 @@ import (
 const (
 	FlagWeb = "web"
 )
-
-// joinURL joins host and path, ensuring there's exactly one slash between them
-func joinURL(host, path string) string {
-	host = strings.TrimSuffix(host, "/")
-	path = strings.TrimPrefix(path, "/")
-	return host + "/" + path
-}
 
 type ViewFlags struct {
 	Web *flag.Flag[bool]
@@ -91,21 +85,26 @@ func viewRun(opts *ViewOptions) error {
 		return err
 	}
 
+	// Use basic format as default for project view when no -f flag is specified
+	if !opts.Command.Flags().Changed(constants.FlagOutputFormat) {
+		opts.Command.Flags().Set(constants.FlagOutputFormat, constants.OutputFormatBasic)
+	}
+
 	return output.PrintResource(project, opts.Command, output.Mappers[*projects.Project]{
 		Json: func(p *projects.Project) any {
 			cacBranch := "Not version controlled"
 			if p.IsVersionControlled {
 				cacBranch = p.PersistenceSettings.(projects.GitPersistenceSettings).DefaultBranch()
 			}
-			
+
 			return ProjectAsJson{
-				Id:                    p.GetID(),
-				Name:                  p.Name,
-				Slug:                  p.Slug,
-				Description:           p.Description,
-				IsVersionControlled:   p.IsVersionControlled,
-				VersionControlBranch:  cacBranch,
-				WebUrl:               joinURL(opts.Host, p.Links["Web"]),
+				Id:                   p.GetID(),
+				Name:                 p.Name,
+				Slug:                 p.Slug,
+				Description:          p.Description,
+				IsVersionControlled:  p.IsVersionControlled,
+				VersionControlBranch: cacBranch,
+				WebUrl:               util.GenerateWebURL(opts.Host, p.SpaceID, fmt.Sprintf("projects/%s", p.GetID())),
 			}
 		},
 		Table: output.TableDefinition[*projects.Project]{
@@ -115,18 +114,18 @@ func viewRun(opts *ViewOptions) error {
 				if description == "" {
 					description = constants.NoDescription
 				}
-				
+
 				cacBranch := "Not version controlled"
 				if p.IsVersionControlled {
 					cacBranch = p.PersistenceSettings.(projects.GitPersistenceSettings).DefaultBranch()
 				}
-				
+
 				return []string{
 					output.Bold(p.Name),
 					p.Slug,
 					description,
 					cacBranch,
-					output.Blue(joinURL(opts.Host, p.Links["Web"])),
+					output.Blue(util.GenerateWebURL(opts.Host, p.SpaceID, fmt.Sprintf("projects/%s", p.GetID()))),
 				}
 			},
 		},
@@ -143,36 +142,36 @@ type ProjectAsJson struct {
 	Description          string `json:"Description"`
 	IsVersionControlled  bool   `json:"IsVersionControlled"`
 	VersionControlBranch string `json:"VersionControlBranch"`
-	WebUrl              string `json:"WebUrl"`
+	WebUrl               string `json:"WebUrl"`
 }
 
 func formatProjectForBasic(opts *ViewOptions, project *projects.Project) string {
 	var result strings.Builder
-	
+
 	// header
 	result.WriteString(fmt.Sprintf("%s %s\n", output.Bold(project.Name), output.Dimf("(%s)", project.Slug)))
-	
+
 	// version control branch
 	cacBranch := "Not version controlled"
 	if project.IsVersionControlled {
 		cacBranch = project.PersistenceSettings.(projects.GitPersistenceSettings).DefaultBranch()
 	}
 	result.WriteString(fmt.Sprintf("Version control branch: %s\n", output.Cyan(cacBranch)))
-	
+
 	// description
 	if project.Description == "" {
 		result.WriteString(fmt.Sprintln(output.Dim(constants.NoDescription)))
 	} else {
 		result.WriteString(fmt.Sprintln(output.Dim(project.Description)))
 	}
-	
+
 	// footer with web URL
-	url := joinURL(opts.Host, project.Links["Web"])
+	url := util.GenerateWebURL(opts.Host, project.SpaceID, fmt.Sprintf("projects/%s", project.GetID()))
 	result.WriteString(fmt.Sprintf("View this project in Octopus Deploy: %s\n", output.Blue(url)))
-	
+
 	if opts.flags.Web.Value {
 		browser.OpenURL(url)
 	}
-	
+
 	return result.String()
 }
