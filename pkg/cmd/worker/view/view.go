@@ -21,7 +21,7 @@ func NewCmdView(f factory.Factory) *cobra.Command {
 	flags := shared.NewViewFlags()
 	cmd := &cobra.Command{
 		Args:  usage.ExactArgs(1),
-		Use:   "view {<n> | <id>}",
+		Use:   "view {<name> | <id>}",
 		Short: "View a worker",
 		Long:  "View a worker in Octopus Deploy",
 		Example: heredoc.Docf(`
@@ -44,11 +44,6 @@ func ViewRun(opts *shared.ViewOptions) error {
 		return err
 	}
 
-	// Use basic format as default for worker view when no -f flag is specified
-	if !opts.Command.Flags().Changed(constants.FlagOutputFormat) {
-		opts.Command.Flags().Set(constants.FlagOutputFormat, constants.OutputFormatBasic)
-	}
-
 	return output.PrintResource(worker, opts.Command, output.Mappers[*machines.Worker]{
 		Json: func(w *machines.Worker) any {
 			return getWorkerAsJson(opts, w)
@@ -66,22 +61,22 @@ func ViewRun(opts *shared.ViewOptions) error {
 }
 
 type WorkerAsJson struct {
-	Id               string            `json:"Id"`
-	Name             string            `json:"Name"`
-	HealthStatus     string            `json:"HealthStatus"`
-	StatusSummary    string            `json:"StatusSummary"`
-	CommunicationStyle string          `json:"CommunicationStyle"`
-	WorkerPools      []string          `json:"WorkerPools"`
-	EndpointDetails  map[string]string `json:"EndpointDetails"`
-	WebUrl           string            `json:"WebUrl"`
+	Id                 string            `json:"Id"`
+	Name               string            `json:"Name"`
+	HealthStatus       string            `json:"HealthStatus"`
+	StatusSummary      string            `json:"StatusSummary"`
+	CommunicationStyle string            `json:"CommunicationStyle"`
+	WorkerPools        []string          `json:"WorkerPools"`
+	EndpointDetails    map[string]string `json:"EndpointDetails"`
+	WebUrl             string            `json:"WebUrl"`
 }
 
 func getWorkerAsJson(opts *shared.ViewOptions, worker *machines.Worker) WorkerAsJson {
 	workerPoolMap, _ := shared.GetWorkerPoolMap(opts)
 	workerPoolNames := resolveValues(worker.WorkerPoolIDs, workerPoolMap)
-	
+
 	endpointDetails := getEndpointDetails(worker)
-	
+
 	return WorkerAsJson{
 		Id:                 worker.GetID(),
 		Name:               worker.Name,
@@ -97,10 +92,10 @@ func getWorkerAsJson(opts *shared.ViewOptions, worker *machines.Worker) WorkerAs
 func getWorkerAsTableRow(opts *shared.ViewOptions, worker *machines.Worker) []string {
 	workerPoolMap, _ := shared.GetWorkerPoolMap(opts)
 	workerPoolNames := resolveValues(worker.WorkerPoolIDs, workerPoolMap)
-	
+
 	endpointDetails := getEndpointDetails(worker)
 	endpointDetailsStr := formatEndpointDetailsForTable(endpointDetails)
-	
+
 	return []string{
 		worker.Name,
 		getWorkerTypeDisplayName(worker.Endpoint.GetCommunicationStyle()),
@@ -113,31 +108,31 @@ func getWorkerAsTableRow(opts *shared.ViewOptions, worker *machines.Worker) []st
 
 func getWorkerAsBasic(opts *shared.ViewOptions, worker *machines.Worker) string {
 	var result strings.Builder
-	
+
 	result.WriteString(fmt.Sprintf("%s %s\n", output.Bold(worker.Name), output.Dimf("(%s)", worker.GetID())))
 	result.WriteString(fmt.Sprintf("Health status: %s\n", getHealthStatusFormatted(worker.HealthStatus)))
 	result.WriteString(fmt.Sprintf("Current status: %s\n", worker.StatusSummary))
 	result.WriteString(fmt.Sprintf("Communication style: %s\n", getWorkerTypeDisplayName(worker.Endpoint.GetCommunicationStyle())))
-	
+
 	workerPoolMap, _ := shared.GetWorkerPoolMap(opts)
 	workerPoolNames := resolveValues(worker.WorkerPoolIDs, workerPoolMap)
 	result.WriteString(fmt.Sprintf("Worker Pools: %s\n", output.FormatAsList(workerPoolNames)))
-	
+
 	// Add endpoint-specific details
 	endpointDetails := getEndpointDetails(worker)
 	for key, value := range endpointDetails {
 		result.WriteString(fmt.Sprintf("%s: %s\n", key, value))
 	}
-	
+
 	// Web URL
 	url := util.GenerateWebURL(opts.Host, worker.SpaceID, fmt.Sprintf("infrastructure/workers/%s/settings", worker.GetID()))
 	result.WriteString(fmt.Sprintf("\nView this worker in Octopus Deploy: %s\n", output.Blue(url)))
-	
+
 	// Handle web flag
 	if opts.WebFlags != nil && opts.WebFlags.Web.Value {
 		machinescommon.DoWebForWorkers(worker, opts.Dependencies, opts.WebFlags, getWorkerTypeDisplayName(worker.Endpoint.GetCommunicationStyle()))
 	}
-	
+
 	return result.String()
 }
 
@@ -171,7 +166,7 @@ func getWorkerTypeDisplayName(communicationStyle string) string {
 
 func getEndpointDetails(worker *machines.Worker) map[string]string {
 	details := make(map[string]string)
-	
+
 	switch endpoint := worker.Endpoint.(type) {
 	case *machines.ListeningTentacleEndpoint:
 		details["URI"] = endpoint.URI.String()
@@ -188,7 +183,7 @@ func getEndpointDetails(worker *machines.Worker) map[string]string {
 			details["Platform"] = endpoint.DotNetCorePlatform
 		}
 	}
-	
+
 	return details
 }
 

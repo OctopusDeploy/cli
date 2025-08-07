@@ -45,11 +45,6 @@ func ViewRun(opts *shared.ViewOptions) error {
 		return err
 	}
 
-	// Use basic format as default for worker pool view when no -f flag is specified
-	if !opts.Command.Flags().Changed(constants.FlagOutputFormat) {
-		opts.Command.Flags().Set(constants.FlagOutputFormat, constants.OutputFormatBasic)
-	}
-
 	return output.PrintResource(workerPool, opts.Command, output.Mappers[workerpools.IWorkerPool]{
 		Json: func(wp workerpools.IWorkerPool) any {
 			return getWorkerPoolAsJson(opts, wp)
