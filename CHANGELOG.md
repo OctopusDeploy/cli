@@ -1,5 +1,15 @@
 # Changelog
 
+## [2.19.0](https://github.com/OctopusDeploy/cli/compare/v2.18.0...v2.19.0) (2025-08-07)
+
+
+### Features
+
+* add oidc account support for azure web app deployment target ([#534](https://github.com/OctopusDeploy/cli/issues/534)) ([6254eb8](https://github.com/OctopusDeploy/cli/commit/6254eb88cbbd7dc1aff646ede9a52c82b894a8dd))
+* project-group view command support -f options ([#536](https://github.com/OctopusDeploy/cli/issues/536)) ([dcce548](https://github.com/OctopusDeploy/cli/commit/dcce548ec9c70f0253ff3e529d665b934c109663))
+* Space view command support -f param ([#531](https://github.com/OctopusDeploy/cli/issues/531)) ([3408f2d](https://github.com/OctopusDeploy/cli/commit/3408f2d7f13bb9b15d522ad85c9c0b20fa4f6768))
+* support project view -f for project view ([#533](https://github.com/OctopusDeploy/cli/issues/533)) ([e6a5343](https://github.com/OctopusDeploy/cli/commit/e6a53430e2f5fee1d0bb1c715a28330e811f9f5e))
+
 ## [2.18.0](https://github.com/OctopusDeploy/cli/compare/v2.17.0...v2.18.0) (2025-05-28)
 
 
