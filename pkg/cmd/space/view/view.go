@@ -59,11 +59,6 @@ func viewRun(opts *ViewOptions) error {
 		return err
 	}
 
-	// Use basic format as default for space view when no -f flag is specified
-	if !opts.Command.Flags().Changed(constants.FlagOutputFormat) {
-		opts.Command.Flags().Set(constants.FlagOutputFormat, constants.OutputFormatBasic)
-	}
-
 	host := opts.Host
 	return output.PrintResource(space, opts.Command, output.Mappers[*spaces.Space]{
 		Json: func(item *spaces.Space) any {

@@ -85,11 +85,6 @@ func viewRun(opts *ViewOptions) error {
 		return err
 	}
 
-	// Use basic format as default for project view when no -f flag is specified
-	if !opts.Command.Flags().Changed(constants.FlagOutputFormat) {
-		opts.Command.Flags().Set(constants.FlagOutputFormat, constants.OutputFormatBasic)
-	}
-
 	return output.PrintResource(project, opts.Command, output.Mappers[*projects.Project]{
 		Json: func(p *projects.Project) any {
 			cacBranch := "Not version controlled"

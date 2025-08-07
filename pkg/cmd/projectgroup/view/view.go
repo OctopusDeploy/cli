@@ -90,11 +90,6 @@ func viewRun(opts *ViewOptions) error {
 		return err
 	}
 
-	// Use basic format as default for project group view when no -f flag is specified
-	if !opts.Command.Flags().Changed(constants.FlagOutputFormat) {
-		opts.Command.Flags().Set(constants.FlagOutputFormat, constants.OutputFormatBasic)
-	}
-
 	return output.PrintResource(projectGroup, opts.Command, output.Mappers[*projectgroups.ProjectGroup]{
 		Json: func(pg *projectgroups.ProjectGroup) any {
 			projectList := make([]ProjectInfo, 0, len(projects))
