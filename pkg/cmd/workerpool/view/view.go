@@ -71,13 +71,12 @@ func ViewRun(opts *shared.ViewOptions) error {
 }
 
 type WorkerPoolAsJson struct {
-	Id                string            `json:"Id"`
-	Name              string            `json:"Name"`
-	WorkerPoolType    string            `json:"WorkerPoolType"`
-	IsDefault         bool              `json:"IsDefault"`
-	Workers           WorkerStats       `json:"Workers"`
-	WorkerPoolDetails map[string]string `json:"WorkerPoolDetails"`
-	WebUrl            string            `json:"WebUrl"`
+	Id             string      `json:"Id"`
+	Name           string      `json:"Name"`
+	WorkerPoolType string      `json:"WorkerPoolType"`
+	IsDefault      bool        `json:"IsDefault"`
+	Workers        WorkerStats `json:"Workers"`
+	WebUrl         string      `json:"WebUrl"`
 }
 
 type WorkerStats struct {
@@ -96,16 +95,13 @@ func getWorkerPoolAsJson(opts *shared.ViewOptions, workerPool workerpools.IWorke
 	workers, _ := getWorkers(opts, workerPool)
 	workerStats := calculateWorkerStats(workers)
 
-	workerPoolDetails := getWorkerPoolDetails(workerPool)
-
 	return WorkerPoolAsJson{
-		Id:                workerPool.GetID(),
-		Name:              workerPool.GetName(),
-		WorkerPoolType:    getWorkerPoolTypeDescription(workerPool.GetWorkerPoolType()),
-		IsDefault:         workerPool.GetIsDefault(),
-		Workers:           workerStats,
-		WorkerPoolDetails: workerPoolDetails,
-		WebUrl:            util.GenerateWebURL(opts.Host, workerPool.GetSpaceID(), fmt.Sprintf("infrastructure/workerpools/%s", workerPool.GetID())),
+		Id:             workerPool.GetID(),
+		Name:           workerPool.GetName(),
+		WorkerPoolType: string(workerPool.GetWorkerPoolType()),
+		IsDefault:      workerPool.GetIsDefault(),
+		Workers:        workerStats,
+		WebUrl:         util.GenerateWebURL(opts.Host, workerPool.GetSpaceID(), fmt.Sprintf("infrastructure/workerpools/%s", workerPool.GetID())),
 	}
 }
 
@@ -122,7 +118,7 @@ func getWorkerPoolAsTableRow(opts *shared.ViewOptions, workerPool workerpools.IW
 
 	return []string{
 		output.Bold(workerPool.GetName()),
-		getWorkerPoolTypeDescription(workerPool.GetWorkerPoolType()),
+		string(workerPool.GetWorkerPoolType()),
 		defaultStatus,
 		fmt.Sprintf("%d", workerStats.Total),
 		output.Greenf("%d", workerStats.Healthy),
@@ -135,7 +131,7 @@ func getWorkerPoolAsBasic(opts *shared.ViewOptions, workerPool workerpools.IWork
 
 	// Header
 	result.WriteString(fmt.Sprintf("%s %s\n", output.Bold(workerPool.GetName()), output.Dimf("(%s)", workerPool.GetID())))
-	result.WriteString(fmt.Sprintf("Worker Pool Type: %s\n", getWorkerPoolTypeDescription(workerPool.GetWorkerPoolType())))
+	result.WriteString(fmt.Sprintf("Worker Pool Type: %s\n", string(workerPool.GetWorkerPoolType())))
 
 	if workerPool.GetIsDefault() {
 		result.WriteString(fmt.Sprintf("Default: %s\n", output.Green("Yes")))
@@ -171,12 +167,6 @@ func getWorkerPoolAsBasic(opts *shared.ViewOptions, workerPool workerpools.IWork
 	}
 	if workerStats.PollingTentacle > 0 {
 		result.WriteString(fmt.Sprintf("Polling Tentacle workers: %d\n", workerStats.PollingTentacle))
-	}
-
-	// Worker pool specific details
-	workerPoolDetails := getWorkerPoolDetails(workerPool)
-	for key, value := range workerPoolDetails {
-		result.WriteString(fmt.Sprintf("%s: %s\n", key, value))
 	}
 
 	// Web URL
@@ -228,20 +218,4 @@ func calculateWorkerStats(workers []*machines.Worker) WorkerStats {
 	return stats
 }
 
-func getWorkerPoolDetails(workerPool workerpools.IWorkerPool) map[string]string {
-	details := make(map[string]string)
 
-	if workerPool.GetWorkerPoolType() == workerpools.WorkerPoolTypeDynamic {
-		dynamicPool := workerPool.(*workerpools.DynamicWorkerPool)
-		details["Worker Type"] = string(dynamicPool.WorkerType)
-	}
-
-	return details
-}
-
-func getWorkerPoolTypeDescription(poolType workerpools.WorkerPoolType) string {
-	if poolType == workerpools.WorkerPoolTypeDynamic {
-		return "Dynamic"
-	}
-	return "Static"
-}
