@@ -129,8 +129,11 @@ func WaitRun(opts *WaitOptions) error {
 			failedTaskIDs = append(failedTaskIDs, t.ID)
 		}
 
-		outputFormat, _ := opts.Command.Flags().GetString(constants.FlagOutputFormat)
-		if opts.Command.Flags().Changed(constants.FlagOutputFormat) &&
+		outputFormat := ""
+		if opts.Command != nil {
+			outputFormat, _ = opts.Command.Flags().GetString(constants.FlagOutputFormat)
+		}
+		if opts.Command != nil && opts.Command.Flags().Changed(constants.FlagOutputFormat) &&
 			(outputFormat == constants.OutputFormatJson || outputFormat == constants.OutputFormatTable) &&
 			(!opts.ShowProgress || (t.IsCompleted != nil && *t.IsCompleted)) {
 			if outputFormat == constants.OutputFormatJson {
@@ -187,8 +190,11 @@ func WaitRun(opts *WaitOptions) error {
 						failedTaskIDs = append(failedTaskIDs, t.ID)
 					}
 
-					outputFormat, _ := opts.Command.Flags().GetString(constants.FlagOutputFormat)
-					if opts.Command.Flags().Changed(constants.FlagOutputFormat) &&
+					outputFormat := ""
+					if opts.Command != nil {
+						outputFormat, _ = opts.Command.Flags().GetString(constants.FlagOutputFormat)
+					}
+					if opts.Command != nil && opts.Command.Flags().Changed(constants.FlagOutputFormat) &&
 						(outputFormat == constants.OutputFormatJson || outputFormat == constants.OutputFormatTable) {
 						if outputFormat == constants.OutputFormatJson {
 							_ = output.PrintResource(t, opts.Command, getTaskMappers())
