@@ -11,6 +11,7 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/OctopusDeploy/cli/pkg/output"
 	"github.com/OctopusDeploy/cli/pkg/usage"
+	"github.com/OctopusDeploy/cli/pkg/util"
 	"github.com/OctopusDeploy/cli/pkg/util/flag"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projectgroups"
@@ -89,6 +90,11 @@ func viewRun(opts *ViewOptions) error {
 		return err
 	}
 
+	// Use basic format as default for project group view when no -f flag is specified
+	if !opts.Command.Flags().Changed(constants.FlagOutputFormat) {
+		opts.Command.Flags().Set(constants.FlagOutputFormat, constants.OutputFormatBasic)
+	}
+
 	return output.PrintResource(projectGroup, opts.Command, output.Mappers[*projectgroups.ProjectGroup]{
 		Json: func(pg *projectgroups.ProjectGroup) any {
 			projectList := make([]ProjectInfo, 0, len(projects))
@@ -105,7 +111,7 @@ func viewRun(opts *ViewOptions) error {
 				Name:        pg.GetName(),
 				Description: pg.Description,
 				Projects:    projectList,
-				WebUrl:      fmt.Sprintf("%s/app#/%s/projects?projectGroupId=%s", opts.Host, pg.SpaceID, pg.GetID()),
+				WebUrl:      util.GenerateWebURL(opts.Host, pg.SpaceID, fmt.Sprintf("projects?projectGroupId=%s", pg.GetID())),
 			}
 		},
 		Table: output.TableDefinition[*projectgroups.ProjectGroup]{
@@ -116,7 +122,7 @@ func viewRun(opts *ViewOptions) error {
 					description = constants.NoDescription
 				}
 				
-				url := fmt.Sprintf("%s/app#/%s/projects?projectGroupId=%s", opts.Host, pg.SpaceID, pg.GetID())
+				url := util.GenerateWebURL(opts.Host, pg.SpaceID, fmt.Sprintf("projects?projectGroupId=%s", pg.GetID()))
 				
 				return []string{
 					output.Bold(pg.GetName()),
@@ -166,7 +172,7 @@ func formatProjectGroupForBasic(opts *ViewOptions, projectGroup *projectgroups.P
 	}
 	
 	// footer with web URL
-	url := fmt.Sprintf("%s/app#/%s/projects?projectGroupId=%s", opts.Host, projectGroup.SpaceID, projectGroup.GetID())
+	url := util.GenerateWebURL(opts.Host, projectGroup.SpaceID, fmt.Sprintf("projects?projectGroupId=%s", projectGroup.GetID()))
 	result.WriteString(fmt.Sprintf("\nView this project group in Octopus Deploy: %s\n", output.Blue(url)))
 	
 	if opts.flags.Web.Value {
