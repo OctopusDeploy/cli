@@ -4,14 +4,18 @@ import (
 	"fmt"
 	"github.com/OctopusDeploy/cli/pkg/apiclient"
 	"io"
+	"strings"
 
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/OctopusDeploy/cli/pkg/output"
 	"github.com/OctopusDeploy/cli/pkg/usage"
+	"github.com/OctopusDeploy/cli/pkg/util"
 	"github.com/OctopusDeploy/cli/pkg/util/flag"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projectgroups"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
 	"github.com/pkg/browser"
 	"github.com/spf13/cobra"
 )
@@ -36,6 +40,7 @@ type ViewOptions struct {
 	out      io.Writer
 	idOrName string
 	flags    *ViewFlags
+	Command  *cobra.Command
 }
 
 func NewCmdView(f factory.Factory) *cobra.Command {
@@ -61,6 +66,7 @@ func NewCmdView(f factory.Factory) *cobra.Command {
 				cmd.OutOrStdout(),
 				args[0],
 				viewFlags,
+				cmd,
 			}
 
 			return viewRun(opts)
@@ -79,31 +85,99 @@ func viewRun(opts *ViewOptions) error {
 		return err
 	}
 
-	fmt.Fprintf(opts.out, "%s %s\n", output.Bold(projectGroup.GetName()), output.Dimf("(%s)", projectGroup.GetID()))
-
-	if projectGroup.Description == "" {
-		fmt.Fprintln(opts.out, output.Dim(constants.NoDescription))
-	} else {
-		fmt.Fprintln(opts.out, output.Dim(projectGroup.Description))
-	}
-
 	projects, err := opts.Client.ProjectGroups.GetProjects(projectGroup)
 	if err != nil {
 		return err
 	}
-	fmt.Fprintf(opts.out, output.Cyan("\nProjects:\n"))
-	for _, project := range projects {
-		fmt.Fprintf(opts.out, "%s (%s)\n", output.Bold(project.GetName()), project.Slug)
+
+	// Use basic format as default for project group view when no -f flag is specified
+	if !opts.Command.Flags().Changed(constants.FlagOutputFormat) {
+		opts.Command.Flags().Set(constants.FlagOutputFormat, constants.OutputFormatBasic)
 	}
 
-	url := fmt.Sprintf("%s/app#/%s/projects?projectGroupId=%s", opts.Host, projectGroup.SpaceID, projectGroup.GetID())
+	return output.PrintResource(projectGroup, opts.Command, output.Mappers[*projectgroups.ProjectGroup]{
+		Json: func(pg *projectgroups.ProjectGroup) any {
+			projectList := make([]ProjectInfo, 0, len(projects))
+			for _, project := range projects {
+				projectList = append(projectList, ProjectInfo{
+					Id:   project.GetID(),
+					Name: project.GetName(),
+					Slug: project.Slug,
+				})
+			}
+			
+			return ProjectGroupAsJson{
+				Id:          pg.GetID(),
+				Name:        pg.GetName(),
+				Description: pg.Description,
+				Projects:    projectList,
+				WebUrl:      util.GenerateWebURL(opts.Host, pg.SpaceID, fmt.Sprintf("projects?projectGroupId=%s", pg.GetID())),
+			}
+		},
+		Table: output.TableDefinition[*projectgroups.ProjectGroup]{
+			Header: []string{"NAME", "DESCRIPTION", "PROJECTS COUNT", "WEB URL"},
+			Row: func(pg *projectgroups.ProjectGroup) []string {
+				description := pg.Description
+				if description == "" {
+					description = constants.NoDescription
+				}
+				
+				url := util.GenerateWebURL(opts.Host, pg.SpaceID, fmt.Sprintf("projects?projectGroupId=%s", pg.GetID()))
+				
+				return []string{
+					output.Bold(pg.GetName()),
+					description,
+					fmt.Sprintf("%d", len(projects)),
+					output.Blue(url),
+				}
+			},
+		},
+		Basic: func(pg *projectgroups.ProjectGroup) string {
+			return formatProjectGroupForBasic(opts, pg, projects)
+		},
+	})
+}
 
-	// footer
-	fmt.Fprintf(opts.out, "\nView this project group in Octopus Deploy: %s\n", output.Blue(url))
+type ProjectInfo struct {
+	Id   string `json:"Id"`
+	Name string `json:"Name"`
+	Slug string `json:"Slug"`
+}
 
+type ProjectGroupAsJson struct {
+	Id          string        `json:"Id"`
+	Name        string        `json:"Name"`
+	Description string        `json:"Description"`
+	Projects    []ProjectInfo `json:"Projects"`
+	WebUrl      string        `json:"WebUrl"`
+}
+
+func formatProjectGroupForBasic(opts *ViewOptions, projectGroup *projectgroups.ProjectGroup, projects []*projects.Project) string {
+	var result strings.Builder
+	
+	// header
+	result.WriteString(fmt.Sprintf("%s %s\n", output.Bold(projectGroup.GetName()), output.Dimf("(%s)", projectGroup.GetID())))
+	
+	// description
+	if projectGroup.Description == "" {
+		result.WriteString(fmt.Sprintln(output.Dim(constants.NoDescription)))
+	} else {
+		result.WriteString(fmt.Sprintln(output.Dim(projectGroup.Description)))
+	}
+	
+	// projects
+	result.WriteString(fmt.Sprintf(output.Cyan("\nProjects:\n")))
+	for _, project := range projects {
+		result.WriteString(fmt.Sprintf("%s (%s)\n", output.Bold(project.GetName()), project.Slug))
+	}
+	
+	// footer with web URL
+	url := util.GenerateWebURL(opts.Host, projectGroup.SpaceID, fmt.Sprintf("projects?projectGroupId=%s", projectGroup.GetID()))
+	result.WriteString(fmt.Sprintf("\nView this project group in Octopus Deploy: %s\n", output.Blue(url)))
+	
 	if opts.flags.Web.Value {
 		browser.OpenURL(url)
 	}
-
-	return nil
+	
+	return result.String()
 }

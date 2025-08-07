@@ -12,6 +12,7 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/OctopusDeploy/cli/pkg/output"
 	"github.com/OctopusDeploy/cli/pkg/usage"
+	"github.com/OctopusDeploy/cli/pkg/util"
 	"github.com/OctopusDeploy/cli/pkg/util/flag"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/buildinformation"
 	"github.com/pkg/browser"
@@ -160,7 +161,7 @@ func viewRun(opts *ViewOptions, cmd *cobra.Command) error {
 				}
 			}
 
-			link := fmt.Sprintf("%s/app#/%s/library/buildinformation/%s", opts.Host, opts.Client.GetSpaceID(), b.GetID())
+			link := util.GenerateWebURL(opts.Host, opts.Client.GetSpaceID(), fmt.Sprintf("library/buildinformation/%s", b.GetID()))
 			s.WriteString(fmt.Sprintf("\nView this build information in Octopus Deploy: %s\n", output.Blue(link)))
 
 			if opts.Web.Value {
