@@ -44,7 +44,7 @@ func ViewRun(opts *shared.ViewOptions) error {
 		return err
 	}
 
-	return output.PrintResource(worker, opts.Command, output.Mappers[*machines.Worker]{
+	err = output.PrintResource(worker, opts.Command, output.Mappers[*machines.Worker]{
 		Json: func(w *machines.Worker) any {
 			return getWorkerAsJson(opts, w)
 		},
@@ -58,6 +58,15 @@ func ViewRun(opts *shared.ViewOptions) error {
 			return getWorkerAsBasic(opts, w)
 		},
 	})
+	if err != nil {
+		return err
+	}
+
+	if opts.WebFlags != nil && opts.WebFlags.Web.Value {
+		machinescommon.DoWebForWorkers(worker, opts.Dependencies, opts.WebFlags, getWorkerTypeDisplayName(worker.Endpoint.GetCommunicationStyle()))
+	}
+
+	return nil
 }
 
 type WorkerAsJson struct {
@@ -127,11 +136,6 @@ func getWorkerAsBasic(opts *shared.ViewOptions, worker *machines.Worker) string 
 	// Web URL
 	url := util.GenerateWebURL(opts.Host, worker.SpaceID, fmt.Sprintf("infrastructure/workers/%s/settings", worker.GetID()))
 	result.WriteString(fmt.Sprintf("\nView this worker in Octopus Deploy: %s\n", output.Blue(url)))
-
-	// Handle web flag
-	if opts.WebFlags != nil && opts.WebFlags.Web.Value {
-		machinescommon.DoWebForWorkers(worker, opts.Dependencies, opts.WebFlags, getWorkerTypeDisplayName(worker.Endpoint.GetCommunicationStyle()))
-	}
 
 	return result.String()
 }
