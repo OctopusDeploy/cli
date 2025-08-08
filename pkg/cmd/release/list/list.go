@@ -32,6 +32,7 @@ func NewListFlags() *ListFlags {
 }
 
 type ReleaseViewModel struct {
+	ID           string
 	ReleaseNotes string
 	Assembled    time.Time
 	Channel      string
@@ -118,6 +119,7 @@ func listRun(cmd *cobra.Command, f factory.Factory, flags *ListFlags) error {
 		func(item *releases.Release, lookup []string) ReleaseViewModel { // result producer
 			item.Links = nil
 			return ReleaseViewModel{
+				ID:        item.ID,
 				Assembled: item.Assembled,
 				Channel:   lookup[0],
 				Version:   item.Version,

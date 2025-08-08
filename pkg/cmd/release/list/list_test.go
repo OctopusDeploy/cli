@@ -72,8 +72,8 @@ func TestReleaseList(t *testing.T) {
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/Projects-22/releases").
 				RespondWith(resources.Resources[*releases.Release]{
 					Items: []*releases.Release{
-						releases.NewRelease(defaultChannel.ID, fireProjectID, "2.1"),
-						releases.NewRelease(defaultChannel.ID, fireProjectID, "2.0"),
+						fixtures.NewRelease(spaceID, "Releases-1", "2.1", fireProjectID, defaultChannel.ID),
+						fixtures.NewRelease(spaceID, "Releases-2", "2.0", fireProjectID, defaultChannel.ID),
 						releases.NewRelease(betaChannel.ID, fireProjectID, "2.0-beta2"),
 						releases.NewRelease(betaChannel.ID, fireProjectID, "2.0-beta1"),
 					},
@@ -116,8 +116,8 @@ func TestReleaseList(t *testing.T) {
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/Projects-22/releases").
 				RespondWith(resources.Resources[*releases.Release]{
 					Items: []*releases.Release{
-						releases.NewRelease(defaultChannel.ID, fireProjectID, "2.1"),
-						releases.NewRelease(defaultChannel.ID, fireProjectID, "2.0"),
+						fixtures.NewRelease(spaceID, "Releases-1", "2.1", fireProjectID, defaultChannel.ID),
+						fixtures.NewRelease(spaceID, "Releases-2", "2.0", fireProjectID, defaultChannel.ID),
 						releases.NewRelease(betaChannel.ID, fireProjectID, "2.0-beta2"),
 						releases.NewRelease(betaChannel.ID, fireProjectID, "2.0-beta1"),
 					},
@@ -158,7 +158,7 @@ func TestReleaseList(t *testing.T) {
 
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/Projects-22/releases").
 				RespondWith(resources.Resources[*releases.Release]{
-					Items: []*releases.Release{releases.NewRelease(defaultChannel.ID, fireProjectID, "2.1")},
+					Items: []*releases.Release{fixtures.NewRelease(spaceID, "Releases-1", "2.1", fireProjectID, defaultChannel.ID)},
 				})
 
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/channels?ids=Channels-1&take=1").
@@ -191,7 +191,7 @@ func TestReleaseList(t *testing.T) {
 
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/Projects-22/releases").
 				RespondWith(resources.Resources[*releases.Release]{
-					Items: []*releases.Release{releases.NewRelease(defaultChannel.ID, fireProjectID, "2.1")},
+					Items: []*releases.Release{fixtures.NewRelease(spaceID, "Releases-1", "2.1", fireProjectID, defaultChannel.ID)},
 				})
 
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/channels?ids=Channels-1&take=1").
@@ -223,7 +223,7 @@ func TestReleaseList(t *testing.T) {
 
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/Projects-22/releases").
 				RespondWith(resources.Resources[*releases.Release]{
-					Items: []*releases.Release{releases.NewRelease(defaultChannel.ID, fireProjectID, "2.1")},
+					Items: []*releases.Release{fixtures.NewRelease(spaceID, "Releases-1", "2.1", fireProjectID, defaultChannel.ID)},
 				})
 
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/channels?ids=Channels-1&take=1").
@@ -233,6 +233,7 @@ func TestReleaseList(t *testing.T) {
 			assert.Nil(t, err)
 
 			type x struct {
+				ID           string
 				Assembled    time.Time
 				Channel      string
 				Version      string
@@ -243,6 +244,7 @@ func TestReleaseList(t *testing.T) {
 
 			expectedTime, _ := time.Parse(time.RFC1123Z, "Mon, 01 Jan 0001 00:00:00")
 			assert.Equal(t, []x{{
+				ID:           "Releases-1",
 				Channel:      defaultChannel.Name,
 				Version:      "2.1",
 				ReleaseNotes: "",
@@ -268,7 +270,7 @@ func TestReleaseList(t *testing.T) {
 
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/Projects-22/releases").
 				RespondWith(resources.Resources[*releases.Release]{
-					Items: []*releases.Release{releases.NewRelease(defaultChannel.ID, fireProjectID, "2.1")},
+					Items: []*releases.Release{fixtures.NewRelease(spaceID, "Releases-1", "2.1", fireProjectID, defaultChannel.ID)},
 				})
 
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/channels?ids=Channels-1&take=1").
@@ -300,7 +302,7 @@ func TestReleaseList(t *testing.T) {
 
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/Projects-22/releases").
 				RespondWith(resources.Resources[*releases.Release]{
-					Items: []*releases.Release{releases.NewRelease(defaultChannel.ID, fireProjectID, "2.1")},
+					Items: []*releases.Release{fixtures.NewRelease(spaceID, "Releases-1", "2.1", fireProjectID, defaultChannel.ID)},
 				})
 
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/channels?ids=Channels-1&take=1").

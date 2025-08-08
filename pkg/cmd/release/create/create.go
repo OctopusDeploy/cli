@@ -294,6 +294,7 @@ func createRun(cmd *cobra.Command, f factory.Factory, flags *CreateFlags) error 
 				cmd.Printf("%s\n", releaseVersion)
 			case constants.OutputFormatJson:
 				v := &list.ReleaseViewModel{
+					ID:           options.Response.ReleaseID,
 					Version:      releaseVersion,
 					Assembled:    assembled,
 					ReleaseNotes: releaseNotes,
