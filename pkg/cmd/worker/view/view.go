@@ -89,7 +89,7 @@ func getWorkerAsJson(opts *shared.ViewOptions, worker *machines.Worker) WorkerAs
 	return WorkerAsJson{
 		Id:                 worker.GetID(),
 		Name:               worker.Name,
-		HealthStatus:       getHealthStatusFormatted(worker.HealthStatus),
+		HealthStatus:       worker.HealthStatus,
 		StatusSummary:      worker.StatusSummary,
 		CommunicationStyle: worker.Endpoint.GetCommunicationStyle(),
 		WorkerPools:        workerPoolNames,
