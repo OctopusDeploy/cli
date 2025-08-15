@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/OctopusDeploy/cli/pkg/cmd"
 	"github.com/OctopusDeploy/cli/pkg/output"
+	"github.com/OctopusDeploy/cli/pkg/util"
 	"github.com/OctopusDeploy/cli/pkg/util/flag"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/machines"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/workerpools"
@@ -31,17 +32,17 @@ func RegisterWebFlag(cmd *cobra.Command, flags *WebFlags) {
 }
 
 func DoWebForTargets(target *machines.DeploymentTarget, dependencies *cmd.Dependencies, flags *WebFlags, description string) {
-	url := fmt.Sprintf("%s/app#/%s/infrastructure/machines/%s/settings", dependencies.Host, dependencies.Space.GetID(), target.GetID())
+	url := util.GenerateWebURL(dependencies.Host, dependencies.Space.GetID(), fmt.Sprintf("infrastructure/machines/%s/settings", target.GetID()))
 	doWeb(url, description, dependencies.Out, flags)
 }
 
 func DoWebForWorkers(worker *machines.Worker, dependencies *cmd.Dependencies, flags *WebFlags, description string) {
-	url := fmt.Sprintf("%s/app#/%s/infrastructure/workers/%s/settings", dependencies.Host, dependencies.Space.GetID(), worker.GetID())
+	url := util.GenerateWebURL(dependencies.Host, dependencies.Space.GetID(), fmt.Sprintf("infrastructure/workers/%s/settings", worker.GetID()))
 	doWeb(url, description, dependencies.Out, flags)
 }
 
 func DoWebForWorkerPools(workerPool workerpools.IWorkerPool, dependencies *cmd.Dependencies, flags *WebFlags) {
-	url := fmt.Sprintf("%s/app#/%s/infrastructure/workerpools/%s", dependencies.Host, dependencies.Space.GetID(), workerPool.GetID())
+	url := util.GenerateWebURL(dependencies.Host, dependencies.Space.GetID(), fmt.Sprintf("infrastructure/workerpools/%s", workerPool.GetID()))
 	doWeb(url, "Worker Pool", dependencies.Out, flags)
 }
 
