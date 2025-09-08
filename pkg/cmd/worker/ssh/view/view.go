@@ -25,7 +25,7 @@ func NewCmdView(f factory.Factory) *cobra.Command {
 			$ %[1]s worker ssh view Machines-100
 		`, constants.ExecutableName),
 		RunE: func(c *cobra.Command, args []string) error {
-			opts := shared.NewViewOptions(flags, cmd.NewDependencies(f, c), args)
+			opts := shared.NewViewOptions(flags, cmd.NewDependencies(f, c), args, c)
 			return ViewRun(opts)
 		},
 	}
