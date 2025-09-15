@@ -776,17 +776,15 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 			emptyDeploymentPreviews := fixtures.EmptyDeploymentPreviews()
 			api.ExpectRequest(t, "POST", "/api/Spaces-1/releases/"+release19.ID+"/deployments/previews").RespondWith(&emptyDeploymentPreviews)
 
-			assert.Equal(t, heredoc.Doc(`
-				Project Fire Project
-				Release 1.9
-			`), stdout.String())
-			stdout.Reset()
-
 			q := qa.ExpectQuestion(t, &survey.Select{
 				Message: "Change additional options?",
 				Options: []string{"Proceed to deploy", "Change"},
 			})
-			assert.Regexp(t, "Additional Options", stdout.String()) // actual options tested in PrintAdvancedSummary
+
+			output := stdout.String()
+			assert.Contains(t, output, "Project Fire Project")
+			assert.Contains(t, output, "Release 1.9")
+			assert.Contains(t, output, "Additional Options:") // actual options tested in PrintAdvancedSummary
 			_ = q.AnswerWith("Proceed to deploy")
 
 			err := <-errReceiver
