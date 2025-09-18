@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/OctopusDeploy/cli/pkg/apiclient"
@@ -588,6 +589,31 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 			return err
 		}
 	}
+
+	// Prompt for channel custom fields (if any) once channel is selected
+	if len(selectedChannel.CustomFieldDefinitions) > 0 {
+		if options.CustomFields == nil { // ensure map initialised
+			options.CustomFields = make(map[string]string, len(selectedChannel.CustomFieldDefinitions))
+		}
+		for _, def := range selectedChannel.CustomFieldDefinitions {
+			// skip if already provided via automation later (future flag support) or previously answered
+			if _, exists := options.CustomFields[def.FieldName]; exists {
+				continue
+			}
+			// Build prompt message and help text
+			msg := fmt.Sprintf("%s", def.FieldName)
+			helpText := def.Description
+			var answer string
+			if err := asker(&survey.Input{Message: msg, Help: helpText}, &answer); err != nil {
+				return err
+			}
+			// only store non-empty answers; empty answers effectively mean 'omit'
+			if strings.TrimSpace(answer) != "" {
+				options.CustomFields[def.FieldName] = answer
+			}
+		}
+	}
+
 	return nil
 }
 
