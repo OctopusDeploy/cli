@@ -40,6 +40,7 @@ const (
 	FlagChannel            = "channel"
 	FlagPackageVersionSpec = "package"
 	FlagGitResourceRefSpec = "git-resource"
+	FlagCustomField        = "custom-field"
 
 	FlagVersion                  = "version"
 	FlagAliasReleaseNumberLegacy = "releaseNumber" // alias for FlagVersion
@@ -125,6 +126,7 @@ type CreateFlags struct {
 	IgnoreChannelRules  *flag.Flag[bool]
 	PackageVersionSpec  *flag.Flag[[]string]
 	GitResourceRefsSpec *flag.Flag[[]string]
+	CustomFields        *flag.Flag[[]string]
 }
 
 func NewCreateFlags() *CreateFlags {
@@ -141,6 +143,7 @@ func NewCreateFlags() *CreateFlags {
 		IgnoreChannelRules:  flag.New[bool](FlagIgnoreChannelRules, false),
 		PackageVersionSpec:  flag.New[[]string](FlagPackageVersionSpec, false),
 		GitResourceRefsSpec: flag.New[[]string](FlagGitResourceRefSpec, false),
+		CustomFields:        flag.New[[]string](FlagCustomField, false),
 	}
 }
 
@@ -174,6 +177,7 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 	flags.BoolVarP(&createFlags.IgnoreChannelRules.Value, createFlags.IgnoreChannelRules.Name, "", false, "Allow creation of a release where channel rules would otherwise prevent it.")
 	flags.StringArrayVarP(&createFlags.PackageVersionSpec.Value, createFlags.PackageVersionSpec.Name, "", []string{}, "Version specification for a specific package.\nFormat as {package}:{version}, {step}:{version} or {package-ref-name}:{packageOrStep}:{version}\nYou may specify this multiple times")
 	flags.StringArrayVarP(&createFlags.GitResourceRefsSpec.Value, createFlags.GitResourceRefsSpec.Name, "", []string{}, "Git reference for a specific Git resource.\nFormat as {step}:{git-ref}, {step}:{git-resource-name}:{git-ref}\nYou may specify this multiple times")
+	flags.StringArrayVarP(&createFlags.CustomFields.Value, createFlags.CustomFields.Name, "", []string{}, "Custom field value to set on the release.\nFormat as {name}:{value}. You may specify multiple times")
 
 	// we want the help text to display in the above order, rather than alphabetical
 	flags.SortFlags = false
@@ -222,6 +226,24 @@ func createRun(cmd *cobra.Command, f factory.Factory, flags *CreateFlags) error 
 		GitResourceRefs:         flags.GitResourceRefsSpec.Value,
 	}
 
+	if len(flags.CustomFields.Value) > 0 {
+		cfMap := make(map[string]string)
+		for _, raw := range flags.CustomFields.Value {
+			// expect first ':' to split name and value; allow value to contain additional ':' characters
+			parts := strings.SplitN(raw, ":", 2)
+			if len(parts) != 2 {
+				return fmt.Errorf("invalid custom-field value '%s'; expected format name:value", raw)
+			}
+			name := strings.TrimSpace(parts[0])
+			value := strings.TrimSpace(parts[1])
+			if name == "" {
+				return fmt.Errorf("invalid custom-field value '%s'; field name cannot be empty", raw)
+			}
+			cfMap[name] = value
+		}
+		options.CustomFields = cfMap
+	}
+
 	if flags.ReleaseNotesFile.Value != "" {
 		fileContents, err := os.ReadFile(flags.ReleaseNotesFile.Value)
 		if err != nil {
@@ -255,6 +277,11 @@ func createRun(cmd *cobra.Command, f factory.Factory, flags *CreateFlags) error 
 			resolvedFlags.ReleaseNotes.Value = options.ReleaseNotes
 			resolvedFlags.IgnoreExisting.Value = options.IgnoreIfAlreadyExists
 			resolvedFlags.IgnoreChannelRules.Value = options.IgnoreChannelRules
+			if len(options.CustomFields) > 0 {
+				for k, v := range options.CustomFields {
+					resolvedFlags.CustomFields.Value = append(resolvedFlags.CustomFields.Value, fmt.Sprintf("%s: %s", k, v))
+				}
+			}
 
 			autoCmd := flag.GenerateAutomationCmd(constants.ExecutableName+" release create",
 				resolvedFlags.Project,
@@ -266,6 +293,7 @@ func createRun(cmd *cobra.Command, f factory.Factory, flags *CreateFlags) error 
 				resolvedFlags.IgnoreChannelRules,
 				resolvedFlags.PackageVersionSpec,
 				resolvedFlags.GitResourceRefsSpec,
+				resolvedFlags.CustomFields,
 				resolvedFlags.Version,
 			)
 			cmd.Printf("\nAutomation Command: %s\n", autoCmd)
@@ -601,16 +629,21 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 				continue
 			}
 			// Build prompt message and help text
-			msg := fmt.Sprintf("%s", def.FieldName)
+			msg := fmt.Sprint(def.FieldName)
 			helpText := def.Description
 			var answer string
-			if err := asker(&survey.Input{Message: msg, Help: helpText}, &answer); err != nil {
+			// Custom fields are required: enforce non-empty and disallow whitespace-only answers
+			validator := func(val interface{}) error {
+				str, _ := val.(string)
+				if strings.TrimSpace(str) == "" {
+					return fmt.Errorf("%s is required", def.FieldName)
+				}
+				return nil
+			}
+			if err := asker(&survey.Input{Message: msg, Help: helpText}, &answer, survey.WithValidator(validator)); err != nil {
 				return err
 			}
-			// only store non-empty answers; empty answers effectively mean 'omit'
-			if strings.TrimSpace(answer) != "" {
-				options.CustomFields[def.FieldName] = answer
-			}
+			options.CustomFields[def.FieldName] = answer
 		}
 	}
 

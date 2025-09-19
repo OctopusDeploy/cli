@@ -1287,6 +1287,36 @@ func TestReleaseCreate_AutomationMode(t *testing.T) {
 			assert.Equal(t, "", stdErr.String())
 		}},
 
+		{"release creation specifying custom field", func(t *testing.T, api *testutil.MockHttpServer, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
+			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
+				defer api.Close()
+				rootCmd.SetArgs([]string{"release", "create", "--project", cacProject.Name, "--custom-field", "My Field: Some Value"})
+				return rootCmd.ExecuteC()
+			})
+
+			api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+cacProject.GetName()).RespondWith(cacProject)
+
+			req := api.ExpectRequest(t, "POST", "/api/Spaces-1/releases/create/v1")
+
+			requestBody, err := testutil.ReadJson[releases.CreateReleaseCommandV1](req.Request.Body)
+			assert.Nil(t, err)
+
+			assert.Equal(t, map[string]string{"My Field": "Some Value"}, requestBody.CustomFields)
+
+			req.RespondWith(&releases.CreateReleaseResponseV1{ReleaseID: "Releases-999", ReleaseVersion: "1.2.3"})
+
+			// follow-up lookups
+			releaseInfo := releases.NewRelease("Channels-32", cacProject.ID, "1.2.3")
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/releases/Releases-999").RespondWith(releaseInfo)
+			channelInfo := fixtures.NewChannel(space1.ID, "Channels-32", "Alpha channel", cacProject.ID)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/channels/Channels-32").RespondWith(channelInfo)
+
+			_, err = testutil.ReceivePair(cmdReceiver)
+			assert.Nil(t, err)
+		}},
+
 		{"release creation specifying project only (bare minimum)", func(t *testing.T, api *testutil.MockHttpServer, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
 			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
 				defer api.Close()
