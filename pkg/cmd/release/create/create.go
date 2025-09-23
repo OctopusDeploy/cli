@@ -227,7 +227,7 @@ func createRun(cmd *cobra.Command, f factory.Factory, flags *CreateFlags) error 
 	}
 
 	if len(flags.CustomFields.Value) > 0 {
-		cfMap := make(map[string]string)
+		customFields := make(map[string]string)
 		for _, raw := range flags.CustomFields.Value {
 			// expect first ':' to split name and value; allow value to contain additional ':' characters
 			parts := strings.SplitN(raw, ":", 2)
@@ -239,9 +239,9 @@ func createRun(cmd *cobra.Command, f factory.Factory, flags *CreateFlags) error 
 			if name == "" {
 				return fmt.Errorf("invalid custom-field value '%s'; field name cannot be empty", raw)
 			}
-			cfMap[name] = value
+			customFields[name] = value
 		}
-		options.CustomFields = cfMap
+		options.CustomFields = customFields
 	}
 
 	if flags.ReleaseNotesFile.Value != "" {
@@ -618,36 +618,43 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 		}
 	}
 
-	// Prompt for channel custom fields (if any) once channel is selected
 	if len(selectedChannel.CustomFieldDefinitions) > 0 {
 		if options.CustomFields == nil { // ensure map initialised
 			options.CustomFields = make(map[string]string, len(selectedChannel.CustomFieldDefinitions))
 		}
-		for _, def := range selectedChannel.CustomFieldDefinitions {
-			// skip if already provided via automation later (future flag support) or previously answered
-			if _, exists := options.CustomFields[def.FieldName]; exists {
+		for _, customFieldDefinition := range selectedChannel.CustomFieldDefinitions {
+			// skip if already provided via automation
+			if _, exists := options.CustomFields[customFieldDefinition.FieldName]; exists {
 				continue
 			}
-			// Build prompt message and help text
-			msg := fmt.Sprint(def.FieldName)
-			helpText := def.Description
-			var answer string
-			// Custom fields are required: enforce non-empty and disallow whitespace-only answers
-			validator := func(val interface{}) error {
-				str, _ := val.(string)
-				if strings.TrimSpace(str) == "" {
-					return fmt.Errorf("%s is required", def.FieldName)
-				}
-				return nil
-			}
-			if err := asker(&survey.Input{Message: msg, Help: helpText}, &answer, survey.WithValidator(validator)); err != nil {
+
+			customFieldValue, err := askCustomField(customFieldDefinition, asker)
+			if err != nil {
 				return err
 			}
-			options.CustomFields[def.FieldName] = answer
+			options.CustomFields[customFieldDefinition.FieldName] = customFieldValue
 		}
 	}
 
 	return nil
+}
+
+func askCustomField(customFieldDefinition channels.ChannelCustomFieldDefinition, asker question.Asker) (string, error) {
+	msg := fmt.Sprint(customFieldDefinition.FieldName)
+	helpText := customFieldDefinition.Description
+	var answer string
+
+	validator := func(val interface{}) error {
+		str, _ := val.(string)
+		if strings.TrimSpace(str) == "" {
+			return fmt.Errorf("%s is required", customFieldDefinition.FieldName)
+		}
+		return nil
+	}
+	if err := asker(&survey.Input{Message: msg, Help: helpText}, &answer, survey.WithValidator(validator)); err != nil {
+		return "", err
+	}
+	return answer, nil
 }
 
 func askVersion(ask question.Asker, defaultVersion string) (string, error) {
