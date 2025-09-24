@@ -31,7 +31,7 @@ jobs:
           --health-retries 10
           --health-start-period 10s
       octopusserver:
-        image: octopusdeploy/octopusdeploy:latest
+        image: octopusdeploy/octopusdeploy:2025.2
         env:
           ACCEPT_EULA: Y
           DB_CONNECTION_STRING: "Server=sqlserver;Database=OctopusDeploy;User Id=sa;Password=${{ env.SA_PASSWORD }};"
