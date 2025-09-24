@@ -31,7 +31,7 @@ jobs:
           --health-retries 10
           --health-start-period 10s
       octopusserver:
-        image: octopusdeploy/octopusdeploy:latest
+        image: octopusdeploy/octopusdeploy:2025.3
         env:
           ACCEPT_EULA: Y
           DB_CONNECTION_STRING: "Server=sqlserver;Database=OctopusDeploy;User Id=sa;Password=${{ env.SA_PASSWORD }};"
@@ -56,9 +56,9 @@ jobs:
         run: go install gotest.tools/gotestsum@latest
 
       # we don't technically need to run the unit tests but they're fast so why not
-      - name: Unit Tests
-        run: gotestsum --format testname --junitfile ../unit-tests.xml
-        working-directory: ./pkg
+      # - name: Unit Tests
+      #   run: gotestsum --format testname --junitfile ../unit-tests.xml
+      #   working-directory: ./pkg
 
       - name: Integration Tests
         env:
