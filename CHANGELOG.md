@@ -1,5 +1,25 @@
 # Changelog
 
+## [2.19.0](https://github.com/OctopusDeploy/cli/compare/v2.18.0...v2.19.0) (2025-09-25)
+
+
+### Features
+
+* `octopus deployment-target view` support -f parameter ([#538](https://github.com/OctopusDeploy/cli/issues/538)) ([2cd8853](https://github.com/OctopusDeploy/cli/commit/2cd885344360596e86d6e9e6b5b359fabeb0f819))
+* `worker view` and `work-pool view` support -f parameter ([#537](https://github.com/OctopusDeploy/cli/issues/537)) ([4446ba6](https://github.com/OctopusDeploy/cli/commit/4446ba644a7aadfe3fc62860be74156aa4db3a35))
+* add oidc account support for azure web app deployment target ([#534](https://github.com/OctopusDeploy/cli/issues/534)) ([6254eb8](https://github.com/OctopusDeploy/cli/commit/6254eb88cbbd7dc1aff646ede9a52c82b894a8dd))
+* Add support for setting custom fields on releases ([#545](https://github.com/OctopusDeploy/cli/issues/545)) ([4aac03a](https://github.com/OctopusDeploy/cli/commit/4aac03a3bb3254bf7f05ebb5b0923091c3fcbfde))
+* project-group view command support -f options ([#536](https://github.com/OctopusDeploy/cli/issues/536)) ([dcce548](https://github.com/OctopusDeploy/cli/commit/dcce548ec9c70f0253ff3e529d665b934c109663))
+* Space view command support -f param ([#531](https://github.com/OctopusDeploy/cli/issues/531)) ([3408f2d](https://github.com/OctopusDeploy/cli/commit/3408f2d7f13bb9b15d522ad85c9c0b20fa4f6768))
+* support project view -f for project view ([#533](https://github.com/OctopusDeploy/cli/issues/533)) ([e6a5343](https://github.com/OctopusDeploy/cli/commit/e6a53430e2f5fee1d0bb1c715a28330e811f9f5e))
+* task wait command support -f argument ([#535](https://github.com/OctopusDeploy/cli/issues/535)) ([5ac6e6d](https://github.com/OctopusDeploy/cli/commit/5ac6e6d03e3a7070aa9908dbba2dbeedca7cbba2))
+
+
+### Bug Fixes
+
+* default output to table as global config ([#539](https://github.com/OctopusDeploy/cli/issues/539)) ([2fb738a](https://github.com/OctopusDeploy/cli/commit/2fb738ac809be1229a54e1598570ab477e51b42f))
+* issue release id missing in json output ([#540](https://github.com/OctopusDeploy/cli/issues/540)) ([74a0f79](https://github.com/OctopusDeploy/cli/commit/74a0f79b6e72360666d78dcded1ceef987fc9434))
+
 ## [2.18.0](https://github.com/OctopusDeploy/cli/compare/v2.17.0...v2.18.0) (2025-05-28)
 
 
