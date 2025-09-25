@@ -3,12 +3,13 @@ package executor
 import (
 	"errors"
 	"fmt"
+	"strconv"
+	"strings"
+
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/deployments"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/releases"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/spaces"
-	"strconv"
-	"strings"
 )
 
 // ----- Create Release --------------------------------------
@@ -21,17 +22,18 @@ type TaskResultCreateRelease struct {
 // and looking them up for their ID's; we should only deal with strong references at this level
 
 type TaskOptionsCreateRelease struct {
-	ProjectName             string   // Required
-	DefaultPackageVersion   string   // Optional
-	GitCommit               string   // Optional
-	GitReference            string   // Required for version controlled projects
-	Version                 string   // optional
-	ChannelName             string   // optional
-	ReleaseNotes            string   // optional
-	IgnoreIfAlreadyExists   bool     // optional
-	IgnoreChannelRules      bool     // optional
-	PackageVersionOverrides []string // optional
-	GitResourceRefs         []string //optional
+	ProjectName             string            // Required
+	DefaultPackageVersion   string            // Optional
+	GitCommit               string            // Optional
+	GitReference            string            // Required for version controlled projects
+	Version                 string            // optional
+	ChannelName             string            // optional
+	ReleaseNotes            string            // optional
+	IgnoreIfAlreadyExists   bool              // optional
+	IgnoreChannelRules      bool              // optional
+	PackageVersionOverrides []string          // optional
+	GitResourceRefs         []string          //optional
+	CustomFields            map[string]string // optional
 	// if the task succeeds, the resulting output will be stored here
 	Response *releases.CreateReleaseResponseV1
 }
@@ -73,6 +75,10 @@ func releaseCreate(octopus *client.Client, space *spaces.Space, input any) error
 
 	createReleaseParams.IgnoreIfAlreadyExists = params.IgnoreIfAlreadyExists
 	createReleaseParams.IgnoreChannelRules = params.IgnoreChannelRules
+
+	if len(params.CustomFields) > 0 {
+		createReleaseParams.CustomFields = params.CustomFields
+	}
 
 	createReleaseResponse, err := releases.CreateReleaseV1(octopus, createReleaseParams)
 	if err != nil {
