@@ -39,13 +39,21 @@ func NewCmdList(f factory.Factory) *cobra.Command {
 
 			return output.PrintArray(allEnvs, cmd, output.Mappers[*environments.Environment]{
 				Json: func(item *environments.Environment) any {
-					return output.IdAndName{Id: item.GetID(), Name: item.Name}
+					return struct {
+						Id              string   `json:"Id"`
+						Name            string   `json:"Name"`
+						EnvironmentTags []string `json:"EnvironmentTags,omitempty"`
+					}{
+						Id:              item.GetID(),
+						Name:            item.Name,
+						EnvironmentTags: item.EnvironmentTags,
+					}
 				},
 				Table: output.TableDefinition[*environments.Environment]{
-					Header: []string{"NAME", "GUIDED FAILURE"},
+					Header: []string{"NAME", "GUIDED FAILURE", "TAGS"},
 					Row: func(item *environments.Environment) []string {
 
-						return []string{output.Bold(item.Name), strconv.FormatBool(item.UseGuidedFailure)}
+						return []string{output.Bold(item.Name), strconv.FormatBool(item.UseGuidedFailure), output.FormatAsList(item.EnvironmentTags)}
 					},
 				},
 				Basic: func(item *environments.Environment) string {

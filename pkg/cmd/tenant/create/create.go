@@ -3,12 +3,12 @@ package create
 import (
 	"fmt"
 
-	"github.com/AlecAivazis/survey/v2"
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/cmd"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/OctopusDeploy/cli/pkg/question"
+	"github.com/OctopusDeploy/cli/pkg/question/selectors"
 	"github.com/OctopusDeploy/cli/pkg/util/flag"
 	"github.com/spf13/cobra"
 )
@@ -66,6 +66,16 @@ func createRun(opts *CreateOptions) error {
 			return err
 		}
 	} else {
+		// Validate tags when running with --no-prompt
+		if len(opts.Tag.Value) > 0 {
+			tagSets, err := opts.GetAllTagsCallback()
+			if err != nil {
+				return err
+			}
+			if err := selectors.ValidateTags(opts.Tag.Value, tagSets); err != nil {
+				return err
+			}
+		}
 		optsArray = append(optsArray, opts)
 	}
 
@@ -91,7 +101,12 @@ func PromptMissing(opts *CreateOptions) ([]cmd.Dependable, error) {
 	question.AskName(opts.Ask, "", "tenant", &opts.Name.Value)
 	question.AskDescription(opts.Ask, "", "tenant", &opts.Description.Value)
 
-	tags, err := AskTags(opts.Ask, opts.Tag.Value, opts.GetAllTagsCallback)
+	tagSets, err := opts.GetAllTagsCallback()
+	if err != nil {
+		return nil, err
+	}
+
+	tags, err := selectors.Tags(opts.Ask, []string{}, opts.Tag.Value, tagSets)
 	if err != nil {
 		return nil, err
 	}
@@ -101,28 +116,3 @@ func PromptMissing(opts *CreateOptions) ([]cmd.Dependable, error) {
 	return nestedOpts, nil
 }
 
-func AskTags(ask question.Asker, value []string, getAllTagSetsCallback GetAllTagSetsCallback) ([]string, error) {
-	if len(value) > 0 {
-		return value, nil
-	}
-	tagSets, err := getAllTagSetsCallback()
-	if err != nil {
-		return nil, err
-	}
-
-	canonicalTagName := []string{}
-	for _, tagSet := range tagSets {
-		for _, tag := range tagSet.Tags {
-			canonicalTagName = append(canonicalTagName, tag.CanonicalTagName)
-		}
-	}
-	tags := []string{}
-	err = ask(&survey.MultiSelect{
-		Options: canonicalTagName,
-		Message: "Tags",
-	}, &tags)
-	if err != nil {
-		return nil, err
-	}
-	return tags, nil
-}
