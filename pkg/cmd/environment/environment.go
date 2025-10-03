@@ -5,6 +5,7 @@ import (
 	cmdCreate "github.com/OctopusDeploy/cli/pkg/cmd/environment/create"
 	cmdDelete "github.com/OctopusDeploy/cli/pkg/cmd/environment/delete"
 	cmdList "github.com/OctopusDeploy/cli/pkg/cmd/environment/list"
+	cmdTag "github.com/OctopusDeploy/cli/pkg/cmd/environment/tag"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/constants/annotations"
 	"github.com/OctopusDeploy/cli/pkg/factory"
@@ -28,5 +29,6 @@ func NewCmdEnvironment(f factory.Factory) *cobra.Command {
 	cmd.AddCommand(cmdList.NewCmdList(f))
 	cmd.AddCommand(cmdDelete.NewCmdDelete(f))
 	cmd.AddCommand(cmdCreate.NewCmdCreate(f))
+	cmd.AddCommand(cmdTag.NewCmdTag(f))
 	return cmd
 }
