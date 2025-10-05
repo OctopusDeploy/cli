@@ -19,11 +19,19 @@ func ApplySSLIgnoreConfiguration(httpClient *http.Client) {
 	// Handle both direct http.Transport and SpinnerRoundTripper wrapping http.Transport
 	switch transport := httpClient.Transport.(type) {
 	case *http.Transport:
-		transport.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
+		if transport.TLSClientConfig != nil {
+			transport.TLSClientConfig.InsecureSkipVerify = true
+		} else {
+			transport.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
+		}
 	case *SpinnerRoundTripper:
 		// If the SpinnerRoundTripper's Next is an http.Transport, configure it
 		if httpTransport, ok := transport.Next.(*http.Transport); ok {
-			httpTransport.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
+			if httpTransport.TLSClientConfig != nil {
+				httpTransport.TLSClientConfig.InsecureSkipVerify = true
+			} else {
+				httpTransport.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
+			}
 		} else {
 			// If Next is not an http.Transport, replace it with one that has SSL verification disabled
 			transport.Next = &http.Transport{
