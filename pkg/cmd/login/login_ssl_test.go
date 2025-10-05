@@ -1,7 +1,6 @@
 package login_test
 
 import (
-	"crypto/tls"
 	"net/http"
 	"testing"
 
@@ -52,40 +51,12 @@ func TestSSLIgnoreHandling(t *testing.T) {
 				}
 			}()
 			
-			// Apply the SSL ignore logic (extracted from loginRun)
-			applySSLIgnoreLogic(client)
+			// Apply the SSL ignore logic using the shared utility
+			apiclient.ApplySSLIgnoreConfiguration(client)
 			
 			// Verify the SSL configuration was applied correctly
 			verifySSLConfig(t, client)
 		})
-	}
-}
-
-// applySSLIgnoreLogic contains the same logic as in loginRun for handling SSL
-func applySSLIgnoreLogic(httpClient *http.Client) {
-	if httpClient.Transport == nil {
-		httpClient.Transport = &http.Transport{}
-	}
-
-	// Handle both direct http.Transport and SpinnerRoundTripper wrapping http.Transport
-	switch transport := httpClient.Transport.(type) {
-	case *http.Transport:
-		transport.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
-	case *apiclient.SpinnerRoundTripper:
-		// If the SpinnerRoundTripper's Next is an http.Transport, configure it
-		if httpTransport, ok := transport.Next.(*http.Transport); ok {
-			httpTransport.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
-		} else {
-			// If Next is not an http.Transport, replace it with one that has SSL verification disabled
-			transport.Next = &http.Transport{
-				TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-			}
-		}
-	default:
-		// Fallback: replace the transport entirely with one that ignores SSL errors
-		httpClient.Transport = &http.Transport{
-			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-		}
 	}
 }
 
