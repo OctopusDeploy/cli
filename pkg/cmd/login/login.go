@@ -2,7 +2,6 @@ package login
 
 import (
 	"bytes"
-	"crypto/tls"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -126,30 +125,7 @@ func loginRun(cmd *cobra.Command, f factory.Factory, isPromptEnabled bool, ask q
 	}
 
 	if inputs.ignoreSslErrors {
-		if httpClient.Transport == nil {
-			httpClient.Transport = &http.Transport{}
-		}
-
-		// Handle both direct http.Transport and SpinnerRoundTripper wrapping http.Transport
-		switch transport := httpClient.Transport.(type) {
-		case *http.Transport:
-			transport.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
-		case *apiclient.SpinnerRoundTripper:
-			// If the SpinnerRoundTripper's Next is an http.Transport, configure it
-			if httpTransport, ok := transport.Next.(*http.Transport); ok {
-				httpTransport.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
-			} else {
-				// If Next is not an http.Transport, replace it with one that has SSL verification disabled
-				transport.Next = &http.Transport{
-					TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-				}
-			}
-		default:
-			// Fallback: replace the transport entirely with one that ignores SSL errors
-			httpClient.Transport = &http.Transport{
-				TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-			}
-		}
+		apiclient.ApplySSLIgnoreConfiguration(httpClient)
 	}
 
 	if inputs.apiKey != "" {
