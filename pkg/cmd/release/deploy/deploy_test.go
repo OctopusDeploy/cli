@@ -5,10 +5,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/configuration"
 	"net/url"
 	"testing"
 	"time"
+
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/configuration"
 
 	"github.com/AlecAivazis/survey/v2"
 	surveyCore "github.com/AlecAivazis/survey/v2/core"
@@ -53,7 +54,9 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 	space1 := fixtures.NewSpace(spaceID, "Default Space")
 
 	defaultChannel := fixtures.NewChannel(spaceID, "Channels-1", "Fire Project Default Channel", fireProjectID)
+	defaultChannel.Type = channels.ChannelTypeLifecycle
 	altChannel := fixtures.NewChannel(spaceID, "Channels-97", "Fire Project Alt Channel", fireProjectID)
+	altChannel.Type = channels.ChannelTypeLifecycle
 
 	fireProject := fixtures.NewProject(spaceID, fireProjectID, "Fire Project", "Lifecycles-1", "ProjectGroups-1", "deploymentprocess-"+fireProjectID)
 
@@ -135,6 +138,7 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 			})
 
 		api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+fireProjectID+"/releases/"+release.Version).RespondWith(release)
+		api.ExpectRequest(t, "GET", "/api/Spaces-1/channels/"+altChannel.ID).RespondWith(altChannel)
 		api.ExpectRequest(t, "GET", "/api/configuration/feature-toggles?Name=indicate-missing-packages-for-release").RespondWith(&configuration.FeatureToggleConfigurationResponse{
 			FeatureToggles: []configuration.ConfiguredFeatureToggle{
 				{
@@ -287,6 +291,7 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 				})
 
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+fireProjectID+"/releases/"+release19.Version).RespondWith(release19)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/channels/"+altChannel.ID).RespondWith(altChannel)
 			api.ExpectRequest(t, "GET", "/api/configuration/feature-toggles?Name=indicate-missing-packages-for-release").RespondWith(&configuration.FeatureToggleConfigurationResponse{
 				FeatureToggles: []configuration.ConfiguredFeatureToggle{
 					{
@@ -362,6 +367,7 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 				})
 
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+fireProjectID+"/releases/"+release20.Version).RespondWith(release20)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/channels/"+altChannel.ID).RespondWith(altChannel)
 			api.ExpectRequest(t, "GET", "/api/configuration/feature-toggles?Name=indicate-missing-packages-for-release").RespondWith(&configuration.FeatureToggleConfigurationResponse{
 				FeatureToggles: []configuration.ConfiguredFeatureToggle{
 					{
@@ -443,6 +449,7 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 				})
 
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+fireProjectID+"/releases/"+release20.Version).RespondWith(release20)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/channels/"+altChannel.ID).RespondWith(altChannel)
 			api.ExpectRequest(t, "GET", "/api/configuration/feature-toggles?Name=indicate-missing-packages-for-release").RespondWith(&configuration.FeatureToggleConfigurationResponse{
 				FeatureToggles: []configuration.ConfiguredFeatureToggle{
 					{
@@ -521,6 +528,7 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 				})
 
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+fireProjectID+"/releases/"+release19.Version).RespondWith(release19)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/channels/"+altChannel.ID).RespondWith(altChannel)
 			api.ExpectRequest(t, "GET", "/api/configuration/feature-toggles?Name=indicate-missing-packages-for-release").RespondWith(&configuration.FeatureToggleConfigurationResponse{
 				FeatureToggles: []configuration.ConfiguredFeatureToggle{
 					{
@@ -632,6 +640,7 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 			}).AnswerWith("Tenanted")
 
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+fireProjectID+"/releases/"+release19.Version).RespondWith(release19)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/channels/"+altChannel.ID).RespondWith(altChannel)
 			api.ExpectRequest(t, "GET", "/api/configuration/feature-toggles?Name=indicate-missing-packages-for-release").RespondWith(&configuration.FeatureToggleConfigurationResponse{
 				FeatureToggles: []configuration.ConfiguredFeatureToggle{
 					{
@@ -741,6 +750,7 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 			}).AnswerWith("Untenanted")
 
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+fireProjectID+"/releases/"+release19.Version).RespondWith(release19)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/channels/"+altChannel.ID).RespondWith(altChannel)
 			api.ExpectRequest(t, "GET", "/api/configuration/feature-toggles?Name=indicate-missing-packages-for-release").RespondWith(&configuration.FeatureToggleConfigurationResponse{
 				FeatureToggles: []configuration.ConfiguredFeatureToggle{
 					{
@@ -829,6 +839,7 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 			}).AnswerWith("Untenanted")
 
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+fireProjectID+"/releases/"+release19.Version).RespondWith(release19)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/channels/"+altChannel.ID).RespondWith(altChannel)
 			api.ExpectRequest(t, "GET", "/api/configuration/feature-toggles?Name=indicate-missing-packages-for-release").RespondWith(&configuration.FeatureToggleConfigurationResponse{
 				FeatureToggles: []configuration.ConfiguredFeatureToggle{
 					{
@@ -1033,6 +1044,7 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 				})
 
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+fireProjectID+"/releases/"+release19.Version).RespondWith(release19)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/channels/"+altChannel.ID).RespondWith(altChannel)
 			api.ExpectRequest(t, "GET", "/api/configuration/feature-toggles?Name=indicate-missing-packages-for-release").RespondWith(&configuration.FeatureToggleConfigurationResponse{
 				FeatureToggles: []configuration.ConfiguredFeatureToggle{
 					{
@@ -1347,6 +1359,7 @@ func TestDeployCreate_AutomationMode(t *testing.T) {
 	space1 := fixtures.NewSpace(spaceID, "Default Space")
 
 	defaultChannel := fixtures.NewChannel(spaceID, "Channels-1", "Fire Project Default Channel", fireProjectID)
+	defaultChannel.Type = channels.ChannelTypeLifecycle
 
 	fireProject := fixtures.NewProject(spaceID, fireProjectID, "Fire Project", "Lifecycles-1", "ProjectGroups-1", "deploymentprocess-"+fireProjectID)
 	//
@@ -1794,6 +1807,7 @@ func TestDeployCreate_GenerationOfAutomationCommand_MasksSensitiveVariables(t *t
 	space1 := fixtures.NewSpace(spaceID, "Default Space")
 
 	defaultChannel := fixtures.NewChannel(spaceID, "Channels-1", "Fire Project Default Channel", fireProjectID)
+	defaultChannel.Type = channels.ChannelTypeLifecycle
 
 	fireProject := fixtures.NewProject(spaceID, fireProjectID, "Fire Project", "Lifecycles-1", "ProjectGroups-1", "deploymentprocess-"+fireProjectID)
 
@@ -1859,6 +1873,7 @@ func TestDeployCreate_GenerationOfAutomationCommand_MasksSensitiveVariables(t *t
 		})
 
 	api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+fireProjectID+"/releases/"+release20.Version).RespondWith(release20)
+	api.ExpectRequest(t, "GET", "/api/Spaces-1/channels/"+defaultChannel.ID).RespondWith(defaultChannel)
 	api.ExpectRequest(t, "GET", "/api/configuration/feature-toggles?Name=indicate-missing-packages-for-release").RespondWith(&configuration.FeatureToggleConfigurationResponse{
 		FeatureToggles: []configuration.ConfiguredFeatureToggle{
 			{
