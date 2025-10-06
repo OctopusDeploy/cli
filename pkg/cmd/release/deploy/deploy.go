@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/OctopusDeploy/cli/pkg/util/featuretoggle"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/environments/ephemeralenvironments"
 	"golang.org/x/exp/maps"
 
 	"github.com/OctopusDeploy/cli/pkg/apiclient"
@@ -460,7 +461,10 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 			return err
 		}
 	} else if selectedChannel.Type == channels.ChannelTypeEphemeral {
-		deploymentEnvironmentIds = nil
+		deploymentEnvironmentIds, err = selectDeploymentEnvironmentsForEphemeralChannel(octopus, stdout, asker, options, selectedRelease)
+		if err != nil {
+			return err
+		}
 	} else {
 		return errors.New("invalid channel type: " + string(selectedChannel.Type))
 	}
@@ -613,7 +617,6 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 
 func selectDeploymentEnvironmentsForEphemeralChannel(octopus *octopusApiClient.Client, stdout io.Writer, asker question.Asker, options *executor.TaskOptionsDeployRelease, selectedRelease *releases.Release) ([]string, error) {
 	var deploymentEnvironmentIds []string
-	var selectedEnvironments []*environments.Environment
 
 	if len(options.Environments) == 0 {
 		allEphemeralEnvironments, err := environments.GetAllEphemeralEnvironments(octopus, selectedRelease.SpaceID)
@@ -624,9 +627,56 @@ func selectDeploymentEnvironmentsForEphemeralChannel(octopus *octopusApiClient.C
 		if err != nil {
 			return nil, err
 		}
+
+		allowedEnvironmentIds := map[string]bool{}
+		for _, p := range deploymentEnvironmentTemplate.PromoteTo {
+			allowedEnvironmentIds[p.ID] = true
+		}
+
+		var promotableEnvironments []*ephemeralenvironments.EphemeralEnvironment
+		for _, env := range allEphemeralEnvironments.Items {
+			if _, ok := allowedEnvironmentIds[env.ID]; ok {
+				deploymentEnvironmentIds = append(deploymentEnvironmentIds, env.ID)
+			}
+		}
+		if len(deploymentEnvironmentIds) == 0 {
+			return nil, errors.New("no promotable environments found for this release")
+		}
+
+		// Print all promotable environments
+		_, _ = fmt.Fprintf(stdout, "Promotable environments:\n")
+		for _, env := range allEphemeralEnvironments.Items {
+			if _, ok := allowedEnvironmentIds[env.ID]; ok {
+				prefix := "   "
+				if util.SliceContains(deploymentEnvironmentIds, env.ID) {
+					prefix = " * "
+				}
+				_, _ = fmt.Fprintf(stdout, "%s%s\n", prefix, output.Cyan(env.Name))
+			}
+		}
+		_, _ = fmt.Fprintln(stdout, "")
+
+		optionMap, optionsForMap := question.MakeItemMapAndOptions(promotableEnvironments, func(e *ephemeralenvironments.EphemeralEnvironment) string { return e.Name })
+		var selectedKeys []string
+		err = asker(&survey.MultiSelect{
+			Message: "Select environment(s)",
+			Options: optionsForMap,
+		}, &selectedKeys, survey.WithValidator(survey.Required))
+
+		if err != nil {
+			return nil, err
+		}
+		var selectedValues []*ephemeralenvironments.EphemeralEnvironment
+		for _, k := range selectedKeys {
+			if value, ok := optionMap[k]; ok {
+				selectedValues = append(selectedValues, value)
+			} // if we were to somehow get invalid answers, ignore them
+		}
+		deploymentEnvironmentIds = util.SliceTransform(selectedValues, func(env *ephemeralenvironments.EphemeralEnvironment) string { return env.ID })
+		options.Environments = util.SliceTransform(selectedValues, func(env *ephemeralenvironments.EphemeralEnvironment) string { return env.Name })
 	}
 
-	return nil, nil
+	return deploymentEnvironmentIds, nil
 }
 
 func selectDeploymentEnvironmentsForLifecycleChannel(octopus *octopusApiClient.Client, stdout io.Writer, asker question.Asker, options *executor.TaskOptionsDeployRelease, selectedRelease *releases.Release, isTenanted bool) ([]string, error) {
