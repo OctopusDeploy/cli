@@ -16,8 +16,8 @@ func createTestTagSets() []*tagsets.TagSet {
 		tagsets.NewTag("US East", "#000000"),
 		tagsets.NewTag("US West", "#0000FF"),
 	}
-	regionTagSet.Tags[0].CanonicalTagName = "region/us-east"
-	regionTagSet.Tags[1].CanonicalTagName = "region/us-west"
+	regionTagSet.Tags[0].CanonicalTagName = "Region/US East"
+	regionTagSet.Tags[1].CanonicalTagName = "Region/US West"
 
 	// Multi-select tag set
 	envTypeTagSet := tagsets.NewTagSet("Environment Type")
@@ -26,15 +26,15 @@ func createTestTagSets() []*tagsets.TagSet {
 		tagsets.NewTag("Production", "#FF0000"),
 		tagsets.NewTag("Staging", "#00FF00"),
 	}
-	envTypeTagSet.Tags[0].CanonicalTagName = "envtype/production"
-	envTypeTagSet.Tags[1].CanonicalTagName = "envtype/staging"
+	envTypeTagSet.Tags[0].CanonicalTagName = "Environment Type/Production"
+	envTypeTagSet.Tags[1].CanonicalTagName = "Environment Type/Staging"
 
 	return []*tagsets.TagSet{regionTagSet, envTypeTagSet}
 }
 
 func TestValidateTags_ValidSingleSelectTag(t *testing.T) {
 	tagSets := createTestTagSets()
-	tags := []string{"region/us-east"}
+	tags := []string{"Region/US East"}
 
 	err := ValidateTags(tags, tagSets)
 
@@ -43,7 +43,7 @@ func TestValidateTags_ValidSingleSelectTag(t *testing.T) {
 
 func TestValidateTags_ErrorOnMultipleSingleSelectTags(t *testing.T) {
 	tagSets := createTestTagSets()
-	tags := []string{"region/us-east", "region/us-west"}
+	tags := []string{"Region/US East", "Region/US West"}
 
 	err := ValidateTags(tags, tagSets)
 
@@ -53,7 +53,7 @@ func TestValidateTags_ErrorOnMultipleSingleSelectTags(t *testing.T) {
 
 func TestValidateTags_ValidMultiSelectTags(t *testing.T) {
 	tagSets := createTestTagSets()
-	tags := []string{"envtype/production", "envtype/staging"}
+	tags := []string{"Environment Type/Production", "Environment Type/Staging"}
 
 	err := ValidateTags(tags, tagSets)
 
@@ -62,7 +62,7 @@ func TestValidateTags_ValidMultiSelectTags(t *testing.T) {
 
 func TestValidateTags_MixedTags(t *testing.T) {
 	tagSets := createTestTagSets()
-	tags := []string{"region/us-east", "envtype/production", "envtype/staging"}
+	tags := []string{"Region/US East", "Environment Type/Production", "Environment Type/Staging"}
 
 	err := ValidateTags(tags, tagSets)
 
@@ -71,7 +71,7 @@ func TestValidateTags_MixedTags(t *testing.T) {
 
 func TestTags_ReturnsProvidedTagsWhenValid(t *testing.T) {
 	tagSets := createTestTagSets()
-	providedTags := []string{"region/us-east", "envtype/production"}
+	providedTags := []string{"Region/US East", "Environment Type/Production"}
 
 	result, err := Tags(nil, []string{}, providedTags, tagSets)
 
@@ -81,7 +81,7 @@ func TestTags_ReturnsProvidedTagsWhenValid(t *testing.T) {
 
 func TestTags_ReturnsErrorWhenProvidedTagsInvalid(t *testing.T) {
 	tagSets := createTestTagSets()
-	providedTags := []string{"region/us-east", "region/us-west"}
+	providedTags := []string{"Region/US East", "Region/US West"}
 
 	result, err := Tags(nil, []string{}, providedTags, tagSets)
 
@@ -208,7 +208,7 @@ func TestValidateTags_ErrorOnTagNotBelongingToAvailableTagSet(t *testing.T) {
 
 func TestValidateTags_ErrorOnTagNotExistingInTagSet(t *testing.T) {
 	tagSets := createTestTagSets()
-	tags := []string{"region/eu-west"}
+	tags := []string{"Region/EU West"}
 
 	err := ValidateTags(tags, tagSets)
 
