@@ -12,6 +12,44 @@ import (
 // ValidateTags validates that the provided tags follow tag set rules.
 // Returns an error if validation fails.
 func ValidateTags(tags []string, tagSets []*tagsets.TagSet) error {
+	// Validate that each tag belongs to one of the provided tag sets
+	for _, tag := range tags {
+		// Extract tag set name from the tag ("TagSetName/TagName")
+		tagSetName := ""
+		if idx := strings.Index(tag, "/"); idx > 0 {
+			tagSetName = tag[:idx]
+		} else {
+			return fmt.Errorf("tag '%s' is not in the correct format (expected 'TagSetName/TagName')", tag)
+		}
+
+		// Find the tag set
+		var foundTagSet *tagsets.TagSet
+		for _, ts := range tagSets {
+			if strings.EqualFold(ts.Name, tagSetName) {
+				foundTagSet = ts
+				break
+			}
+		}
+
+		if foundTagSet == nil {
+			return fmt.Errorf("tag '%s' does not belong to any tag set available for this resource", tag)
+		}
+
+		// For non-FreeText tag sets, validate that the specific tag exists
+		if foundTagSet.Type != tagsets.TagSetTypeFreeText {
+			tagFound := false
+			for _, t := range foundTagSet.Tags {
+				if strings.EqualFold(t.CanonicalTagName, tag) {
+					tagFound = true
+					break
+				}
+			}
+			if !tagFound {
+				return fmt.Errorf("tag '%s' does not exist in tag set '%s'", tag, foundTagSet.Name)
+			}
+		}
+	}
+
 	for _, tagSet := range tagSets {
 		if tagSet.Type == tagsets.TagSetTypeSingleSelect {
 			// Validate that single-select tag sets only have one tag specified

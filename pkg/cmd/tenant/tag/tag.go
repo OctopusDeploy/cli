@@ -2,11 +2,13 @@ package tag
 
 import (
 	"fmt"
+	"io"
 
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/cmd"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/factory"
+	"github.com/OctopusDeploy/cli/pkg/output"
 	"github.com/OctopusDeploy/cli/pkg/question"
 	"github.com/OctopusDeploy/cli/pkg/question/selectors"
 	"github.com/OctopusDeploy/cli/pkg/util/flag"
@@ -94,7 +96,7 @@ func createRun(opts *TagOptions) error {
 func PromptMissing(opts *TagOptions) ([]cmd.Dependable, error) {
 	nestedOpts := []cmd.Dependable{}
 
-	tenant, err := AskTenants(opts.Ask, opts.Tenant.Value, opts.GetTenantsCallback, opts.GetTenantCallback)
+	tenant, err := AskTenants(opts.Ask, opts.Out, opts.Tenant.Value, opts.GetTenantsCallback, opts.GetTenantCallback)
 	if err != nil {
 		return nil, err
 	}
@@ -116,13 +118,23 @@ func PromptMissing(opts *TagOptions) ([]cmd.Dependable, error) {
 	return nestedOpts, nil
 }
 
-func AskTenants(ask question.Asker, value string, getTenantsCallback GetTenantsCallback, getTenantCallback GetTenantCallback) (*tenants.Tenant, error) {
+func AskTenants(ask question.Asker, out io.Writer, value string, getTenantsCallback GetTenantsCallback, getTenantCallback GetTenantCallback) (*tenants.Tenant, error) {
 	if value != "" {
 		tenant, err := getTenantCallback(value)
 		if err != nil {
 			return nil, err
 		}
 		return tenant, nil
+	}
+
+	// Check if there's only one tenant
+	tns, err := getTenantsCallback()
+	if err != nil {
+		return nil, err
+	}
+	if len(tns) == 1 {
+		fmt.Fprintf(out, "Selecting only available tenant '%s'.\n", output.Cyan(tns[0].Name))
+		return tns[0], nil
 	}
 
 	tenant, err := selectors.Select(ask, "Select the Tenant you would like to update", getTenantsCallback, func(item *tenants.Tenant) string {

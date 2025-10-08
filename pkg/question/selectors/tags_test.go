@@ -195,3 +195,23 @@ func TestTags_FreeTextPromptClearsExistingValue(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Empty(t, result)
 }
+
+func TestValidateTags_ErrorOnTagNotBelongingToAvailableTagSet(t *testing.T) {
+	tagSets := createTestTagSets()
+	tags := []string{"department/engineering"}
+
+	err := ValidateTags(tags, tagSets)
+
+	assert.NotNil(t, err)
+	assert.Contains(t, err.Error(), "does not belong to any tag set available for this resource")
+}
+
+func TestValidateTags_ErrorOnTagNotExistingInTagSet(t *testing.T) {
+	tagSets := createTestTagSets()
+	tags := []string{"region/eu-west"}
+
+	err := ValidateTags(tags, tagSets)
+
+	assert.NotNil(t, err)
+	assert.Contains(t, err.Error(), "does not exist in tag set")
+}

@@ -2,11 +2,13 @@ package tag
 
 import (
 	"fmt"
+	"io"
 
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/cmd"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/factory"
+	"github.com/OctopusDeploy/cli/pkg/output"
 	"github.com/OctopusDeploy/cli/pkg/question"
 	"github.com/OctopusDeploy/cli/pkg/question/selectors"
 	"github.com/OctopusDeploy/cli/pkg/util/flag"
@@ -94,7 +96,7 @@ func createRun(opts *TagOptions) error {
 func PromptMissing(opts *TagOptions) ([]cmd.Dependable, error) {
 	nestedOpts := []cmd.Dependable{}
 
-	environment, err := AskEnvironments(opts.Ask, opts.Environment.Value, opts.GetEnvironmentsCallback, opts.GetEnvironmentCallback)
+	environment, err := AskEnvironments(opts.Ask, opts.Out, opts.Environment.Value, opts.GetEnvironmentsCallback, opts.GetEnvironmentCallback)
 	if err != nil {
 		return nil, err
 	}
@@ -116,13 +118,23 @@ func PromptMissing(opts *TagOptions) ([]cmd.Dependable, error) {
 	return nestedOpts, nil
 }
 
-func AskEnvironments(ask question.Asker, value string, getEnvironmentsCallback GetEnvironmentsCallback, getEnvironmentCallback GetEnvironmentCallback) (*environments.Environment, error) {
+func AskEnvironments(ask question.Asker, out io.Writer, value string, getEnvironmentsCallback GetEnvironmentsCallback, getEnvironmentCallback GetEnvironmentCallback) (*environments.Environment, error) {
 	if value != "" {
 		environment, err := getEnvironmentCallback(value)
 		if err != nil {
 			return nil, err
 		}
 		return environment, nil
+	}
+
+	// Check if there's only one environment
+	envs, err := getEnvironmentsCallback()
+	if err != nil {
+		return nil, err
+	}
+	if len(envs) == 1 {
+		fmt.Fprintf(out, "Selecting only available environment '%s'.\n", output.Cyan(envs[0].Name))
+		return envs[0], nil
 	}
 
 	environment, err := selectors.Select(ask, "Select the Environment you would like to update", getEnvironmentsCallback, func(item *environments.Environment) string {
