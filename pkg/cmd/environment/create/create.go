@@ -9,8 +9,11 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/OctopusDeploy/cli/pkg/output"
 	"github.com/OctopusDeploy/cli/pkg/question"
+	"github.com/OctopusDeploy/cli/pkg/question/selectors"
 	"github.com/OctopusDeploy/cli/pkg/util/flag"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/environments"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/tagsets"
 	"github.com/spf13/cobra"
 )
 
@@ -19,6 +22,7 @@ const (
 	FlagDescription           = "description"
 	FlagUseGuidedFailure      = "use-guided-failure"
 	FlagDynamicInfrastructure = "allow-dynamic-infrastructure"
+	FlagTag                   = "tag"
 )
 
 type CreateFlags struct {
@@ -26,6 +30,7 @@ type CreateFlags struct {
 	Description           *flag.Flag[string]
 	GuidedFailureMode     *flag.Flag[bool]
 	DynamicInfrastructure *flag.Flag[bool]
+	Tag                   *flag.Flag[[]string]
 }
 
 func NewCreateFlags() *CreateFlags {
@@ -34,18 +39,23 @@ func NewCreateFlags() *CreateFlags {
 		Description:           flag.New[string](FlagDescription, false),
 		GuidedFailureMode:     flag.New[bool](FlagUseGuidedFailure, false),
 		DynamicInfrastructure: flag.New[bool](FlagDynamicInfrastructure, false),
+		Tag:                   flag.New[[]string](FlagTag, false),
 	}
 }
+
+type GetAllTagSetsCallback func() ([]*tagsets.TagSet, error)
 
 type CreateOptions struct {
 	*CreateFlags
 	*cmd.Dependencies
+	GetAllTagsCallback GetAllTagSetsCallback
 }
 
 func NewCreateOptions(createFlags *CreateFlags, dependencies *cmd.Dependencies) *CreateOptions {
 	return &CreateOptions{
-		CreateFlags:  createFlags,
-		Dependencies: dependencies,
+		CreateFlags:        createFlags,
+		Dependencies:       dependencies,
+		GetAllTagsCallback: getAllTagSetsCallback(dependencies.Client),
 	}
 }
 
@@ -70,6 +80,7 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 	flags.StringVarP(&createFlags.Description.Value, createFlags.Description.Name, "d", "", "Description of the environment")
 	flags.BoolVar(&createFlags.GuidedFailureMode.Value, createFlags.GuidedFailureMode.Name, false, "Use guided failure mode by default")
 	flags.BoolVar(&createFlags.DynamicInfrastructure.Value, createFlags.DynamicInfrastructure.Name, false, "Allow dynamic infrastructure")
+	flags.StringArrayVarP(&createFlags.Tag.Value, createFlags.Tag.Name, "t", []string{}, "Tag to apply to environment, must use canonical name: <tag_set>/<tag_name>")
 
 	return cmd
 }
@@ -80,12 +91,24 @@ func createRun(opts *CreateOptions) error {
 		if err != nil {
 			return err
 		}
+	} else {
+		// Validate tags when running with --no-prompt
+		if len(opts.Tag.Value) > 0 {
+			tagSets, err := opts.GetAllTagsCallback()
+			if err != nil {
+				return err
+			}
+			if err := selectors.ValidateTags(opts.Tag.Value, tagSets); err != nil {
+				return err
+			}
+		}
 	}
 
 	env := environments.NewEnvironment(opts.Name.Value)
 	env.Description = opts.Description.Value
 	env.AllowDynamicInfrastructure = opts.DynamicInfrastructure.Value
 	env.UseGuidedFailure = opts.GuidedFailureMode.Value
+	env.EnvironmentTags = opts.Tag.Value
 
 	createEnv, err := opts.Client.Environments.Add(env)
 	if err != nil {
@@ -101,7 +124,7 @@ func createRun(opts *CreateOptions) error {
 	fmt.Fprintf(opts.Out, "View this environment on Octopus Deploy: %s\n", link)
 
 	if !opts.NoPrompt {
-		autoCmd := flag.GenerateAutomationCmd(opts.CmdPath, opts.Name, opts.Description, opts.GuidedFailureMode, opts.DynamicInfrastructure)
+		autoCmd := flag.GenerateAutomationCmd(opts.CmdPath, opts.Name, opts.Description, opts.GuidedFailureMode, opts.DynamicInfrastructure, opts.Tag)
 		fmt.Fprintf(opts.Out, "%s\n", autoCmd)
 	}
 
@@ -122,6 +145,17 @@ func PromptMissing(opts *CreateOptions) error {
 	_, err = promptBool(opts, &opts.GuidedFailureMode.Value, false, "Use guided failure", "If guided failure is enabled for an environment, Octopus Deploy will prompt for user intervention if a deployment fails in the environment.")
 	_, err = promptBool(opts, &opts.DynamicInfrastructure.Value, false, "Allow dynamic infrastructure", "If dynamic infrastructure is enabled for an environment, deployments to this environment are allowed to create infrastructure, such as targets and accounts.")
 
+	tagSets, err := opts.GetAllTagsCallback()
+	if err != nil {
+		return err
+	}
+
+	tags, err := selectors.Tags(opts.Ask, []string{}, opts.Tag.Value, tagSets)
+	if err != nil {
+		return err
+	}
+	opts.Tag.Value = tags
+
 	return nil
 }
 
@@ -135,4 +169,17 @@ func promptBool(opts *CreateOptions, value *bool, defaultValue bool, message str
 		Default: defaultValue,
 	}, value)
 	return *value, err
+}
+
+func getAllTagSetsCallback(client *client.Client) GetAllTagSetsCallback {
+	return func() ([]*tagsets.TagSet, error) {
+		query := tagsets.TagSetsQuery{
+			Scopes: []string{string(tagsets.TagSetScopeEnvironment)},
+		}
+		result, err := tagsets.Get(client, client.GetSpaceID(), query)
+		if err != nil {
+			return nil, err
+		}
+		return result.Items, nil
+	}
 }
