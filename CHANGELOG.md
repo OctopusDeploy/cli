@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.19.1](https://github.com/OctopusDeploy/cli/compare/v2.19.0...v2.19.1) (2025-10-09)
+
+
+### Bug Fixes
+
+* Update go version to patch CVE-2025-22871 ([29f0d26](https://github.com/OctopusDeploy/cli/commit/29f0d2668ba46b727d88a265bd01d416d7784d1a))
+
 ## [2.19.0](https://github.com/OctopusDeploy/cli/compare/v2.18.0...v2.19.0) (2025-09-25)
 
 
