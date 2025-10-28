@@ -127,7 +127,7 @@ func viewRun(opts *ViewOptions) error {
 			}
 
 			url := generateWebUrl(opts.Host, env)
-			result.WriteString(fmt.Sprintf("View this project in Octopus Deploy: %s\n", output.Blue(url)))
+			result.WriteString(fmt.Sprintf("View this environment in Octopus Deploy: %s\n", output.Blue(url)))
 
 			if opts.flags.Web.Value {
 				browser.OpenURL(url)
