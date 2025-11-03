@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/OctopusDeploy/cli/pkg/util/featuretoggle"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/environments/ephemeralenvironments"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/environments/v2/ephemeralenvironments"
 	"golang.org/x/exp/maps"
 
 	"github.com/OctopusDeploy/cli/pkg/apiclient"
@@ -620,10 +620,14 @@ func selectDeploymentEnvironmentsForEphemeralChannel(octopus *octopusApiClient.C
 	var selectedEnvironments []*ephemeralenvironments.EphemeralEnvironment
 
 	if len(options.Environments) == 0 {
-		allEphemeralEnvironments, err := environments.GetAllEphemeralEnvironments(octopus, selectedRelease.SpaceID)
+		allEphemeralEnvironments, err := ephemeralenvironments.GetAll(octopus, selectedRelease.SpaceID)
 		if err != nil {
 			return nil, err
 		}
+		if allEphemeralEnvironments == nil || allEphemeralEnvironments.TotalResults == 0 {
+			return nil, errors.New("no ephemeral environments exist to deploy to")
+		}
+
 		deploymentEnvironmentTemplate, err := releases.GetReleaseDeploymentTemplate(octopus, selectedRelease.SpaceID, selectedRelease.ID)
 		if err != nil {
 			return nil, err

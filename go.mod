@@ -1,12 +1,12 @@
 module github.com/OctopusDeploy/cli
 
-go 1.23.0
+go 1.23.12
 
 require (
 	github.com/AlecAivazis/survey/v2 v2.3.7
 	github.com/MakeNowJust/heredoc/v2 v2.0.1
 	github.com/OctopusDeploy/go-octodiff v1.0.0
-	github.com/OctopusDeploy/go-octopusdeploy/v2 v2.84.2-0.20251006201940-df6027c5e647
+	github.com/OctopusDeploy/go-octopusdeploy/v2 v2.85.2-0.20251102214655-01f4f4d03e21
 	github.com/bmatcuk/doublestar/v4 v4.4.0
 	github.com/briandowns/spinner v1.19.0
 	github.com/google/uuid v1.3.0
