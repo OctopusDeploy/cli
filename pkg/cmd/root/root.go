@@ -7,6 +7,7 @@ import (
 	channelCmd "github.com/OctopusDeploy/cli/pkg/cmd/channel"
 	configCmd "github.com/OctopusDeploy/cli/pkg/cmd/config"
 	environmentCmd "github.com/OctopusDeploy/cli/pkg/cmd/environment"
+	ephemeralEnvironmentCmd "github.com/OctopusDeploy/cli/pkg/cmd/ephemeralenvironment"
 	loginCmd "github.com/OctopusDeploy/cli/pkg/cmd/login"
 	logoutCmd "github.com/OctopusDeploy/cli/pkg/cmd/logout"
 	packageCmd "github.com/OctopusDeploy/cli/pkg/cmd/package"
@@ -51,6 +52,7 @@ func NewCmdRoot(f factory.Factory, clientFactory apiclient.ClientFactory, askPro
 	// infrastructure
 	cmd.AddCommand(accountCmd.NewCmdAccount(f))
 	cmd.AddCommand(environmentCmd.NewCmdEnvironment(f))
+	cmd.AddCommand(ephemeralEnvironmentCmd.NewCmdEphemeralEnvironment(f))
 	cmd.AddCommand(packageCmd.NewCmdPackage(f))
 	cmd.AddCommand(buildInfoCmd.NewCmdBuildInformation(f))
 	cmd.AddCommand(deploymentTargetCmd.NewCmdDeploymentTarget(f))
