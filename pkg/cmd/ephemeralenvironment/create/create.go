@@ -71,7 +71,7 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 	// Set up command-line flags
 	flags := cmd.Flags()
 	flags.StringVarP(&createFlags.Name.Value, createFlags.Name.Name, "n", "", "Name of the environment")   // -n, --name flag
-	flags.StringVarP(&createFlags.Project.Value, createFlags.Project.Name, "p", "", "Name of the project") // -p, --project flag
+	flags.StringVarP(&createFlags.Project.Value, createFlags.Project.Name, "p", "", "Name of the project") // -p, --project flag // cc currently takes the ID!! TODO fix!
 
 	return cmd // Return the configured command
 }
@@ -87,7 +87,7 @@ func createRun(opts *CreateOptions) error {
 	}
 
 	// Create a new environment command and send to Octopus deploy
-	createEnv, err := ephemeralenvironments.Add(opts.Client, opts.Space.Slug, opts.Project.Value, opts.Name.Value)
+	createEnv, err := ephemeralenvironments.Add(opts.Client, opts.Space.ID, opts.Project.Value, opts.Name.Value)
 	if err != nil {
 		return err
 	}
@@ -99,8 +99,8 @@ func createRun(opts *CreateOptions) error {
 	}
 
 	// Generate and display a clickable link to view the environment in Octopus Deploy web UI
-	link := output.Bluef("%s/app#/%s/infrastructure/environments/%s", opts.Host, opts.Space.GetID(), createEnv.Id) // cc check if this link works!
-	fmt.Fprintf(opts.Out, "View this environment on Octopus Deploy: %s\n", link)
+	link := output.Bluef("%s/app#/%s/projects/%s/ephemeral-environments", opts.Host, opts.Space.GetID(), opts.Project.Value)     // cc check link works after you fix project id/name issue
+	fmt.Fprintf(opts.Out, "View this ephemeral environments for project `%s` on Octopus Deploy: %s\n", opts.Project.Value, link) // cc fix text to show project name
 
 	// If prompting is enabled, show the equivalent automation command for future use
 	if !opts.NoPrompt {
