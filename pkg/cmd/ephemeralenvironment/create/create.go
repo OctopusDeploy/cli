@@ -13,6 +13,7 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/question"                                              // Common question prompts
 	"github.com/OctopusDeploy/cli/pkg/util/flag"                                             // Flag management utilities
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/environments/v2/ephemeralenvironments" // Octopus Deploy environments API
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"                              // Octopus Deploy projects API
 	"github.com/spf13/cobra"                                                                 // Command-line interface framework
 )
 
@@ -71,7 +72,7 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 	// Set up command-line flags
 	flags := cmd.Flags()
 	flags.StringVarP(&createFlags.Name.Value, createFlags.Name.Name, "n", "", "Name of the environment")   // -n, --name flag
-	flags.StringVarP(&createFlags.Project.Value, createFlags.Project.Name, "p", "", "Name of the project") // -p, --project flag // cc currently takes the ID!! TODO fix!
+	flags.StringVarP(&createFlags.Project.Value, createFlags.Project.Name, "p", "", "Name of the project") // -p, --project flag
 
 	return cmd // Return the configured command
 }
@@ -86,8 +87,16 @@ func createRun(opts *CreateOptions) error {
 		}
 	}
 
+	// Get the project by name to retrieve its ID
+	projectResource, err := projects.GetByName(opts.Client, opts.Space.ID, opts.Project.Value)
+	if err != nil {
+		return fmt.Errorf("failed to find project '%s': %w", opts.Project.Value, err)
+	}
+	// Update the project value to use the ID instead of name for the API call
+	projectId := projectResource.GetID()
+
 	// Create a new environment command and send to Octopus deploy
-	createEnv, err := ephemeralenvironments.Add(opts.Client, opts.Space.ID, opts.Project.Value, opts.Name.Value)
+	createEnv, err := ephemeralenvironments.Add(opts.Client, opts.Space.ID, projectId, opts.Name.Value)
 	if err != nil {
 		return err
 	}
@@ -99,7 +108,7 @@ func createRun(opts *CreateOptions) error {
 	}
 
 	// Generate and display a clickable link to view the environment in Octopus Deploy web UI
-	link := output.Bluef("%s/app#/%s/projects/%s/ephemeral-environments", opts.Host, opts.Space.GetID(), opts.Project.Value)     // cc check link works after you fix project id/name issue
+	link := output.Bluef("%s/app#/%s/projects/%s/ephemeral-environments", opts.Host, opts.Space.GetID(), projectId)              // cc check link works after you fix project id/name issue
 	fmt.Fprintf(opts.Out, "View this ephemeral environments for project `%s` on Octopus Deploy: %s\n", opts.Project.Value, link) // cc fix text to show project name
 
 	// If prompting is enabled, show the equivalent automation command for future use
@@ -125,7 +134,7 @@ func PromptMissing(opts *CreateOptions) error {
 			Message: "Project Name",
 			Help:    "The name of the environment to associate the ephemeral environment with.",
 		}, &opts.Project.Value, survey.WithValidator(survey.ComposeValidators(
-			survey.Required, // cc can we check the project exists?
+			survey.Required,
 		))); err != nil {
 			return err
 		}
