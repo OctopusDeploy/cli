@@ -73,6 +73,10 @@ func getConfiguredProjects(dependencies *cmd.Dependencies) ([]*projects.Project,
 		}
 	}
 
+	if len(filteredProjects) == 0 {
+		return nil, fmt.Errorf("no configured projects - configure a project with an ephemeral environment channel before creating an ephemeral environment")
+	}
+
 	return filteredProjects, nil
 }
 
