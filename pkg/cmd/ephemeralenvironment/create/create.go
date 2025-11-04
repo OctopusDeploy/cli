@@ -4,17 +4,20 @@ package create
 import (
 	"fmt"
 
-	"github.com/AlecAivazis/survey/v2"  // Interactive prompts for user input
+	// "github.com/AlecAivazis/survey/v2"  // Interactive prompts for user input
 	"github.com/MakeNowJust/heredoc/v2" // Multi-line string formatting
 	"github.com/OctopusDeploy/cli/pkg/cmd"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/OctopusDeploy/cli/pkg/output"                                                // Output formatting utilities
 	"github.com/OctopusDeploy/cli/pkg/question"                                              // Common question prompts
+	"github.com/OctopusDeploy/cli/pkg/question/selectors"                                    // Project selectors
 	"github.com/OctopusDeploy/cli/pkg/util/flag"                                             // Flag management utilities
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/environments/v2/ephemeralenvironments" // Octopus Deploy environments API
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"                              // Octopus Deploy projects API
 	"github.com/spf13/cobra"                                                                 // Command-line interface framework
+
+	"github.com/OctopusDeploy/cli/pkg/cmd/runbook/shared" // For GetAllProjects function
 )
 
 // Constants defining the command-line flag names
@@ -39,15 +42,17 @@ func NewCreateFlags() *CreateFlags {
 
 // CreateOptions combines the command flags with common dependencies like API client and output
 type CreateOptions struct {
-	*CreateFlags      // Embeds all the command flags
-	*cmd.Dependencies // Embeds common dependencies (API client, output writer, etc.)
+	*CreateFlags                                               // Embeds all the command flags
+	*cmd.Dependencies                                          // Embeds common dependencies (API client, output writer, etc.)
+	GetAllProjectsCallback func() ([]*projects.Project, error) // Callback to retrieve all projects
 }
 
 // NewCreateOptions creates a new CreateOptions struct with the provided flags and dependencies
 func NewCreateOptions(createFlags *CreateFlags, dependencies *cmd.Dependencies) *CreateOptions {
 	return &CreateOptions{
-		CreateFlags:  createFlags,  // Store the command flags
-		Dependencies: dependencies, // Store the common dependencies
+		CreateFlags:            createFlags,  // Store the command flags
+		Dependencies:           dependencies, // Store the common dependencies
+		GetAllProjectsCallback: func() ([]*projects.Project, error) { return shared.GetAllProjects(dependencies.Client) },
 	}
 }
 
@@ -130,14 +135,11 @@ func PromptMissing(opts *CreateOptions) error {
 
 	// Ask for project name if not provided
 	if opts.Project.Value == "" {
-		if err := opts.Ask(&survey.Input{
-			Message: "Project Name",
-			Help:    "The name of the project to associate the ephemeral environment with.",
-		}, &opts.Project.Value, survey.WithValidator(survey.ComposeValidators(
-			survey.Required,
-		))); err != nil {
+		project, err := selectors.Select(opts.Ask, "Select the project to associate the ephemeral environment with:", opts.GetAllProjectsCallback, func(project *projects.Project) string { return project.GetName() })
+		if err != nil {
 			return err
 		}
+		opts.Project.Value = project.GetName()
 	}
 
 	return nil
