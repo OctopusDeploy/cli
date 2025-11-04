@@ -37,15 +37,42 @@ func NewCreateFlags() *CreateFlags {
 type CreateOptions struct {
 	*CreateFlags
 	*cmd.Dependencies
-	GetAllProjectsCallback func() ([]*projects.Project, error)
+	GetConfiguredProjectsCallback func() ([]*projects.Project, error)
 }
 
 func NewCreateOptions(createFlags *CreateFlags, dependencies *cmd.Dependencies) *CreateOptions {
 	return &CreateOptions{
-		CreateFlags:            createFlags,
-		Dependencies:           dependencies,
-		GetAllProjectsCallback: func() ([]*projects.Project, error) { return shared.GetAllProjects(dependencies.Client) },
+		CreateFlags:  createFlags,
+		Dependencies: dependencies,
+		GetConfiguredProjectsCallback: func() ([]*projects.Project, error) {
+			return getProjectsWithEphemeralEnvironmentChannels(dependencies)
+		},
 	}
+}
+
+func getProjectsWithEphemeralEnvironmentChannels(dependencies *cmd.Dependencies) ([]*projects.Project, error) {
+	allProjects, err := shared.GetAllProjects(dependencies.Client)
+	if err != nil {
+		return nil, err
+	}
+
+	var filteredProjects []*projects.Project
+
+	for _, project := range allProjects {
+		projectChannels, err := dependencies.Client.Projects.GetChannels(project)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get channels for project '%s': %w", project.GetName(), err)
+		}
+
+		for _, channel := range projectChannels {
+			if channel.Type == "EphemeralEnvironment" {
+				filteredProjects = append(filteredProjects, project)
+				break
+			}
+		}
+	}
+
+	return filteredProjects, nil
 }
 
 func NewCmdCreate(f factory.Factory) *cobra.Command {
@@ -115,7 +142,7 @@ func PromptMissing(opts *CreateOptions) error {
 	}
 
 	if opts.Project.Value == "" {
-		project, err := selectors.Select(opts.Ask, "Select the project to associate the ephemeral environment with:", opts.GetAllProjectsCallback, func(project *projects.Project) string { return project.GetName() })
+		project, err := selectors.Select(opts.Ask, "Select an ephemeral environments configured project to associate with the environment:", opts.GetConfiguredProjectsCallback, func(project *projects.Project) string { return project.GetName() })
 		if err != nil {
 			return err
 		}

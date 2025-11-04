@@ -28,7 +28,7 @@ func TestPromptMissing_AllOptionsSupplied(t *testing.T) {
 		CreateFlags:  flags,
 		Dependencies: &cmd.Dependencies{Ask: asker},
 	}
-	opts.GetAllProjectsCallback = func() ([]*projects.Project, error) {
+	opts.GetConfiguredProjectsCallback = func() ([]*projects.Project, error) {
 		return []*projects.Project{project1, project2}, nil
 	}
 
@@ -43,7 +43,7 @@ func TestPromptMissing_NoOptionsSupplied(t *testing.T) {
 
 	pa := []*testutil.PA{
 		testutil.NewInputPrompt("Name", "A short, memorable, unique name for this ephemeral environment.", "Hello Ephemeral Environment"),
-		testutil.NewSelectPrompt("Select the project to associate the ephemeral environment with:", "", []string{project1.Name, project2.Name}, project1.Name),
+		testutil.NewSelectPrompt("Select an ephemeral environments configured project to associate with the environment:", "", []string{project1.Name, project2.Name}, project1.Name),
 	}
 
 	asker, checkRemainingPrompts := testutil.NewMockAsker(t, pa)
@@ -53,7 +53,7 @@ func TestPromptMissing_NoOptionsSupplied(t *testing.T) {
 	opts := &create.CreateOptions{
 		CreateFlags:  flags,
 		Dependencies: &cmd.Dependencies{Ask: asker},
-		GetAllProjectsCallback: func() ([]*projects.Project, error) {
+		GetConfiguredProjectsCallback: func() ([]*projects.Project, error) {
 			return []*projects.Project{project1, project2}, nil
 		},
 	}
