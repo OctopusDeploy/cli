@@ -2,6 +2,7 @@ package create
 
 import (
 	"fmt"
+	"slices"
 
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/cmd"
@@ -12,6 +13,7 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/question"
 	"github.com/OctopusDeploy/cli/pkg/question/selectors"
 	"github.com/OctopusDeploy/cli/pkg/util/flag"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/channels"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/environments/v2/ephemeralenvironments"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
 	"github.com/spf13/cobra"
@@ -45,12 +47,12 @@ func NewCreateOptions(createFlags *CreateFlags, dependencies *cmd.Dependencies) 
 		CreateFlags:  createFlags,
 		Dependencies: dependencies,
 		GetConfiguredProjectsCallback: func() ([]*projects.Project, error) {
-			return getProjectsWithEphemeralEnvironmentChannels(dependencies)
+			return getConfiguredProjects(dependencies)
 		},
 	}
 }
 
-func getProjectsWithEphemeralEnvironmentChannels(dependencies *cmd.Dependencies) ([]*projects.Project, error) {
+func getConfiguredProjects(dependencies *cmd.Dependencies) ([]*projects.Project, error) {
 	allProjects, err := shared.GetAllProjects(dependencies.Client)
 	if err != nil {
 		return nil, err
@@ -64,11 +66,10 @@ func getProjectsWithEphemeralEnvironmentChannels(dependencies *cmd.Dependencies)
 			return nil, fmt.Errorf("failed to get channels for project '%s': %w", project.GetName(), err)
 		}
 
-		for _, channel := range projectChannels {
-			if channel.Type == "EphemeralEnvironment" {
-				filteredProjects = append(filteredProjects, project)
-				break
-			}
+		if slices.ContainsFunc(projectChannels, func(channel *channels.Channel) bool {
+			return channel.Type == "EphemeralEnvironment"
+		}) {
+			filteredProjects = append(filteredProjects, project)
 		}
 	}
 
