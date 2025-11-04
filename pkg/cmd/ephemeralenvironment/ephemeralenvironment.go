@@ -11,11 +11,11 @@ import (
 
 func NewCmdEphemeralEnvironment(f factory.Factory) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "ephemeralenvironment <command>",
+		Use:   "ephemeral-environment <command>",
 		Short: "Manage ephemeral environments",
 		Long:  "Manage ephemeral environments in Octopus Deploy",
 		Example: heredoc.Docf(`
-			$ %[1]s ephemeralenvironment create --name "EE1" --project "MyProject"
+			$ %[1]s ephemeral-environment create --name "MyEphemeralEnvironment" --project "MyProject"
 		`, constants.ExecutableName),
 		Annotations: map[string]string{
 			annotations.IsInfrastructure: "true",
