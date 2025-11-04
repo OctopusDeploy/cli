@@ -123,7 +123,7 @@ func createRun(opts *CreateOptions) error {
 // PromptMissing prompts the user for any missing required values
 func PromptMissing(opts *CreateOptions) error {
 	// Ask for environment name if not provided
-	err := question.AskName(opts.Ask, "", "environment", &opts.Name.Value)
+	err := question.AskName(opts.Ask, "", "ephemeral environment", &opts.Name.Value)
 	if err != nil {
 		return err
 	}
@@ -132,7 +132,7 @@ func PromptMissing(opts *CreateOptions) error {
 	if opts.Project.Value == "" {
 		if err := opts.Ask(&survey.Input{
 			Message: "Project Name",
-			Help:    "The name of the environment to associate the ephemeral environment with.",
+			Help:    "The name of the project to associate the ephemeral environment with.",
 		}, &opts.Project.Value, survey.WithValidator(survey.ComposeValidators(
 			survey.Required,
 		))); err != nil {
@@ -141,20 +141,4 @@ func PromptMissing(opts *CreateOptions) error {
 	}
 
 	return nil
-}
-
-// cc repurpose this for confirmation check!
-// promptBool shows a yes/no prompt to the user for boolean values
-func promptBool(opts *CreateOptions, value *bool, defaultValue bool, message string, help string) (bool, error) {
-	// If the value is already different from default, don't prompt (it was set via flag)
-	if *value != defaultValue {
-		return *value, nil
-	}
-	// Show interactive confirmation prompt
-	err := opts.Ask(&survey.Confirm{
-		Message: message,      // The question to display
-		Help:    help,         // Help text explaining the option
-		Default: defaultValue, // Default value if user just presses Enter
-	}, value)
-	return *value, err // Return the user's choice and any error
 }
