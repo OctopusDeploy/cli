@@ -5,10 +5,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/configuration"
 	"net/url"
 	"testing"
 	"time"
+
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/configuration"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/environments/v2/ephemeralenvironments"
 
 	"github.com/AlecAivazis/survey/v2"
 	surveyCore "github.com/AlecAivazis/survey/v2/core"
@@ -53,7 +55,10 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 	space1 := fixtures.NewSpace(spaceID, "Default Space")
 
 	defaultChannel := fixtures.NewChannel(spaceID, "Channels-1", "Fire Project Default Channel", fireProjectID)
+	defaultChannel.Type = channels.ChannelTypeLifecycle
 	altChannel := fixtures.NewChannel(spaceID, "Channels-97", "Fire Project Alt Channel", fireProjectID)
+	altChannel.Type = channels.ChannelTypeLifecycle
+	ephemeralChannel := fixtures.NewEphemeralChannel(spaceID, "Channels-98", "Fire Project Ephemeral Channel", fireProjectID, "EphemeralEnvironment", false)
 
 	fireProject := fixtures.NewProject(spaceID, fireProjectID, "Fire Project", "Lifecycles-1", "ProjectGroups-1", "deploymentprocess-"+fireProjectID)
 
@@ -107,9 +112,14 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 	release19.ProjectDeploymentProcessSnapshotID = depProcessSnapshot.ID
 	release19.ProjectVariableSetSnapshotID = variableSnapshotNoVars.ID
 
+	release21 := fixtures.NewRelease(spaceID, "Releases-212", "2.1", fireProjectID, ephemeralChannel.ID)
+	release21.ProjectDeploymentProcessSnapshotID = depProcessSnapshot.ID
+	release21.ProjectVariableSetSnapshotID = variableSnapshotNoVars.ID
+
 	devEnvironment := fixtures.NewEnvironment(spaceID, "Environments-12", "dev")
 	scratchEnvironment := fixtures.NewEnvironment(spaceID, "Environments-82", "scratch")
 	prodEnvironment := fixtures.NewEnvironment(spaceID, "Environments-13", "production")
+	ephemeralEnvironment := fixtures.NewEphemeralEnvironment(spaceID, "Environments-123", "Ephemeral Environment", "Environments-12")
 
 	cokeTenant := fixtures.NewTenant(spaceID, "Tenants-29", "Coke", "Regions/us-east", "Importance/High")
 	cokeTenant.ProjectEnvironments = map[string][]string{
@@ -135,6 +145,7 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 			})
 
 		api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+fireProjectID+"/releases/"+release.Version).RespondWith(release)
+		api.ExpectRequest(t, "GET", "/api/Spaces-1/channels/"+altChannel.ID).RespondWith(altChannel)
 		api.ExpectRequest(t, "GET", "/api/configuration/feature-toggles?Name=indicate-missing-packages-for-release").RespondWith(&configuration.FeatureToggleConfigurationResponse{
 			FeatureToggles: []configuration.ConfiguredFeatureToggle{
 				{
@@ -263,6 +274,99 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 			}, options)
 		}},
 
+		{"default ephemeral environment deployment asking for standard things (non-tenanted, no advanced options)", func(t *testing.T, api *testutil.MockHttpServer, qa *testutil.AskMocker, stdout *bytes.Buffer) {
+			options := &executor.TaskOptionsDeployRelease{}
+
+			errReceiver := testutil.GoBegin(func() error {
+				defer testutil.Close(api, qa)
+				// NewClient makes network calls so we have to run it in the goroutine
+				octopus, _ := octopusApiClient.NewClient(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "")
+				return deploy.AskQuestions(octopus, stdout, qa.AsAsker(), space1, options, now)
+			})
+
+			api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/spaces").RespondWith(rootResource)
+
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/all").RespondWith([]*projects.Project{fireProject})
+
+			_ = qa.ExpectQuestion(t, &survey.Select{
+				Message: "Select project",
+				Options: []string{"Fire Project"},
+			}).AnswerWith("Fire Project")
+
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+fireProjectID+"/channels").RespondWith(resources.Resources[*channels.Channel]{
+				Items: []*channels.Channel{defaultChannel, altChannel, ephemeralChannel},
+			})
+
+			_ = qa.ExpectQuestion(t, &survey.Select{
+				Message: "Select channel",
+				Options: []string{defaultChannel.Name, altChannel.Name, ephemeralChannel.Name},
+			}).AnswerWith("Fire Project Ephemeral Channel")
+
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+fireProjectID+"/channels/"+ephemeralChannel.ID+"/releases").RespondWith(resources.Resources[*releases.Release]{
+				Items: []*releases.Release{release21, release20, release19},
+			})
+
+			_ = qa.ExpectQuestion(t, &survey.Select{
+				Message: "Select a release to deploy",
+				Options: []string{release21.Version, release20.Version, release19.Version},
+			}).AnswerWith(release21.Version)
+
+			api.ExpectRequest(t, "GET", "/api/configuration/feature-toggles?Name=indicate-missing-packages-for-release").RespondWith(&configuration.FeatureToggleConfigurationResponse{
+				FeatureToggles: []configuration.ConfiguredFeatureToggle{
+					{
+						Name:      "indicate-missing-packages-for-release",
+						IsEnabled: false,
+					},
+				},
+			})
+
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/environments/v2?skip=0&take=2147483647&type=Ephemeral").RespondWith(resources.Resources[*ephemeralenvironments.EphemeralEnvironment]{
+				Items: []*ephemeralenvironments.EphemeralEnvironment{ephemeralEnvironment},
+				PagedResults: resources.PagedResults{
+					TotalResults: 1,
+				},
+			})
+
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/releases/Releases-212/deployments/template").RespondWith(&releases.ReleaseDeploymentTemplate{
+				PromoteTo: []releases.DeploymentPromotionTarget{
+					{ID: ephemeralEnvironment.ID, Name: ephemeralEnvironment.Name},
+				},
+			})
+
+			_ = qa.ExpectQuestion(t, &survey.MultiSelect{
+				Message: "Select environment(s)",
+				Options: []string{ephemeralEnvironment.Name},
+			}).AnswerWith([]surveyCore.OptionAnswer{
+				{Value: ephemeralEnvironment.Name, Index: 0},
+			})
+
+			// now it's going to go looking for prompted variables; we don't have any prompted variables here so it skips
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/variables/"+variableSnapshotNoVars.ID).RespondWith(&variableSnapshotNoVars)
+			emptyDeploymentPreviews := fixtures.EmptyDeploymentPreviews()
+			api.ExpectRequest(t, "POST", "/api/Spaces-1/releases/"+release21.ID+"/deployments/previews").RespondWith(&emptyDeploymentPreviews)
+
+			q := qa.ExpectQuestion(t, &survey.Select{
+				Message: "Change additional options?",
+				Options: []string{"Proceed to deploy", "Change"},
+			})
+			assert.Regexp(t, "Additional Options", stdout.String()) // actual options tested in PrintAdvancedSummary
+			_ = q.AnswerWith("Proceed to deploy")
+
+			err := <-errReceiver
+			assert.Nil(t, err)
+
+			// check that the question-asking process has filled out the things we told it to
+			assert.Equal(t, &executor.TaskOptionsDeployRelease{
+				ProjectName:       "Fire Project",
+				ReleaseVersion:    "2.1",
+				Environments:      []string{"Ephemeral Environment"},
+				GuidedFailureMode: "",
+				Variables:         make(map[string]string, 0),
+				ReleaseID:         release21.ID,
+			}, options)
+		}},
+
 		{"default process picking up standard things from cmdline (non-tenanted, no advanced options)", func(t *testing.T, api *testutil.MockHttpServer, qa *testutil.AskMocker, stdout *bytes.Buffer) {
 			options := &executor.TaskOptionsDeployRelease{
 				ProjectName:    "fire project",
@@ -287,6 +391,7 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 				})
 
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+fireProjectID+"/releases/"+release19.Version).RespondWith(release19)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/channels/"+altChannel.ID).RespondWith(altChannel)
 			api.ExpectRequest(t, "GET", "/api/configuration/feature-toggles?Name=indicate-missing-packages-for-release").RespondWith(&configuration.FeatureToggleConfigurationResponse{
 				FeatureToggles: []configuration.ConfiguredFeatureToggle{
 					{
@@ -336,6 +441,83 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 			}, options)
 		}},
 
+		{"default process picking up standard things from cmdline for ephemeral environments", func(t *testing.T, api *testutil.MockHttpServer, qa *testutil.AskMocker, stdout *bytes.Buffer) {
+			options := &executor.TaskOptionsDeployRelease{
+				ProjectName:    "fire project",
+				ReleaseVersion: "2.1",
+				Environments:   []string{"Ephemeral Environment"},
+			}
+
+			errReceiver := testutil.GoBegin(func() error {
+				defer testutil.Close(api, qa)
+				// NewClient makes network calls so we have to run it in the goroutine
+				octopus, _ := octopusApiClient.NewClient(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "")
+				return deploy.AskQuestions(octopus, stdout, qa.AsAsker(), space1, options, now)
+			})
+
+			api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/spaces").RespondWith(rootResource)
+
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/fire project").RespondWithStatus(404, "NotFound", nil)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects?partialName=fire+project").
+				RespondWith(resources.Resources[*projects.Project]{
+					Items: []*projects.Project{fireProject},
+				})
+
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+fireProjectID+"/releases/"+release21.Version).RespondWith(release21)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/channels/"+ephemeralChannel.ID).RespondWith(ephemeralChannel)
+			api.ExpectRequest(t, "GET", "/api/configuration/feature-toggles?Name=indicate-missing-packages-for-release").RespondWith(&configuration.FeatureToggleConfigurationResponse{
+				FeatureToggles: []configuration.ConfiguredFeatureToggle{
+					{
+						Name:      "indicate-missing-packages-for-release",
+						IsEnabled: false,
+					},
+				},
+			})
+
+			// doesn't lookup the progression or env names because it already has them
+
+			// now it's going to go looking for prompted variables; we don't have any prompted variables here so it skips
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/variables/"+variableSnapshotNoVars.ID).RespondWith(&variableSnapshotNoVars)
+
+			assert.Equal(t, heredoc.Doc(`
+				Project Fire Project
+				Release 2.1
+				Environments Ephemeral Environment
+			`), stdout.String())
+			stdout.Reset()
+
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/environments/v2?skip=0&take=2147483647&type=Ephemeral").RespondWith(resources.Resources[*ephemeralenvironments.EphemeralEnvironment]{
+				Items: []*ephemeralenvironments.EphemeralEnvironment{ephemeralEnvironment},
+				PagedResults: resources.PagedResults{
+					TotalResults: 1,
+				},
+			})
+
+			deploymentPreviews := fixtures.EmptyDeploymentPreviews()
+			api.ExpectRequest(t, "POST", "/api/Spaces-1/releases/"+release21.ID+"/deployments/previews").RespondWith(&deploymentPreviews)
+
+			q := qa.ExpectQuestion(t, &survey.Select{
+				Message: "Change additional options?",
+				Options: []string{"Proceed to deploy", "Change"},
+			})
+			assert.Regexp(t, "Additional Options", stdout.String()) // actual options tested in PrintAdvancedSummary
+			_ = q.AnswerWith("Proceed to deploy")
+
+			err := <-errReceiver
+			assert.Nil(t, err)
+
+			// check that the question-asking process has filled out the things we told it to
+			assert.Equal(t, &executor.TaskOptionsDeployRelease{
+				ProjectName:       "Fire Project",
+				ReleaseVersion:    "2.1",
+				Environments:      []string{"Ephemeral Environment"},
+				GuidedFailureMode: "",
+				Variables:         make(map[string]string, 0),
+				ReleaseID:         release21.ID,
+			}, options)
+		}},
+
 		{"prompted variable", func(t *testing.T, api *testutil.MockHttpServer, qa *testutil.AskMocker, stdout *bytes.Buffer) {
 			// we don't need to fully test prompted variables; AskPromptedVariables already has all its own tests, we just
 			// need to very it's wired up properly
@@ -362,6 +544,7 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 				})
 
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+fireProjectID+"/releases/"+release20.Version).RespondWith(release20)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/channels/"+altChannel.ID).RespondWith(altChannel)
 			api.ExpectRequest(t, "GET", "/api/configuration/feature-toggles?Name=indicate-missing-packages-for-release").RespondWith(&configuration.FeatureToggleConfigurationResponse{
 				FeatureToggles: []configuration.ConfiguredFeatureToggle{
 					{
@@ -443,6 +626,7 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 				})
 
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+fireProjectID+"/releases/"+release20.Version).RespondWith(release20)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/channels/"+altChannel.ID).RespondWith(altChannel)
 			api.ExpectRequest(t, "GET", "/api/configuration/feature-toggles?Name=indicate-missing-packages-for-release").RespondWith(&configuration.FeatureToggleConfigurationResponse{
 				FeatureToggles: []configuration.ConfiguredFeatureToggle{
 					{
@@ -521,6 +705,7 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 				})
 
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+fireProjectID+"/releases/"+release19.Version).RespondWith(release19)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/channels/"+altChannel.ID).RespondWith(altChannel)
 			api.ExpectRequest(t, "GET", "/api/configuration/feature-toggles?Name=indicate-missing-packages-for-release").RespondWith(&configuration.FeatureToggleConfigurationResponse{
 				FeatureToggles: []configuration.ConfiguredFeatureToggle{
 					{
@@ -632,6 +817,7 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 			}).AnswerWith("Tenanted")
 
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+fireProjectID+"/releases/"+release19.Version).RespondWith(release19)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/channels/"+altChannel.ID).RespondWith(altChannel)
 			api.ExpectRequest(t, "GET", "/api/configuration/feature-toggles?Name=indicate-missing-packages-for-release").RespondWith(&configuration.FeatureToggleConfigurationResponse{
 				FeatureToggles: []configuration.ConfiguredFeatureToggle{
 					{
@@ -741,6 +927,7 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 			}).AnswerWith("Untenanted")
 
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+fireProjectID+"/releases/"+release19.Version).RespondWith(release19)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/channels/"+altChannel.ID).RespondWith(altChannel)
 			api.ExpectRequest(t, "GET", "/api/configuration/feature-toggles?Name=indicate-missing-packages-for-release").RespondWith(&configuration.FeatureToggleConfigurationResponse{
 				FeatureToggles: []configuration.ConfiguredFeatureToggle{
 					{
@@ -829,6 +1016,7 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 			}).AnswerWith("Untenanted")
 
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+fireProjectID+"/releases/"+release19.Version).RespondWith(release19)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/channels/"+altChannel.ID).RespondWith(altChannel)
 			api.ExpectRequest(t, "GET", "/api/configuration/feature-toggles?Name=indicate-missing-packages-for-release").RespondWith(&configuration.FeatureToggleConfigurationResponse{
 				FeatureToggles: []configuration.ConfiguredFeatureToggle{
 					{
@@ -1033,6 +1221,7 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 				})
 
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+fireProjectID+"/releases/"+release19.Version).RespondWith(release19)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/channels/"+altChannel.ID).RespondWith(altChannel)
 			api.ExpectRequest(t, "GET", "/api/configuration/feature-toggles?Name=indicate-missing-packages-for-release").RespondWith(&configuration.FeatureToggleConfigurationResponse{
 				FeatureToggles: []configuration.ConfiguredFeatureToggle{
 					{
@@ -1347,6 +1536,7 @@ func TestDeployCreate_AutomationMode(t *testing.T) {
 	space1 := fixtures.NewSpace(spaceID, "Default Space")
 
 	defaultChannel := fixtures.NewChannel(spaceID, "Channels-1", "Fire Project Default Channel", fireProjectID)
+	defaultChannel.Type = channels.ChannelTypeLifecycle
 
 	fireProject := fixtures.NewProject(spaceID, fireProjectID, "Fire Project", "Lifecycles-1", "ProjectGroups-1", "deploymentprocess-"+fireProjectID)
 	//
@@ -1453,6 +1643,56 @@ func TestDeployCreate_AutomationMode(t *testing.T) {
 				Items: []*projects.Project{fireProject},
 			})
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+fireProjectID+"/releases/1.0").RespondWith(release10)
+
+			_, err = testutil.ReceivePair(cmdReceiver)
+			assert.Nil(t, err)
+
+			assert.Equal(t, heredoc.Docf(`
+				Successfully started 2 deployment(s)
+				
+				View this release on Octopus Deploy: http://server/app#/Spaces-1/releases/%s
+				`, release10.ID), stdOut.String())
+			assert.Equal(t, "", stdErr.String())
+		}},
+
+		{"release deploy specifying project, version, ephemeral env only (bare minimum)", func(t *testing.T, api *testutil.MockHttpServer, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
+			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
+				defer api.Close()
+				rootCmd.SetArgs([]string{"release", "deploy", "--project", fireProject.Name, "--version", "2.1", "--environment", "Ephemeral Environment"})
+				return rootCmd.ExecuteC()
+			})
+
+			api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+fireProject.GetName()).RespondWith(fireProject)
+
+			// Note: because we didn't specify --tenant or --tenant-tag, automation-mode code is going to assume untenanted
+			req := api.ExpectRequest(t, "POST", "/api/Spaces-1/deployments/create/untenanted/v1")
+			requestBody, err := testutil.ReadJson[deployments.CreateDeploymentUntenantedCommandV1](req.Request.Body)
+			assert.Nil(t, err)
+
+			assert.Equal(t, deployments.CreateDeploymentUntenantedCommandV1{
+				ReleaseVersion:   "2.1",
+				EnvironmentNames: []string{"Ephemeral Environment"},
+				CreateExecutionAbstractCommandV1: deployments.CreateExecutionAbstractCommandV1{
+					SpaceID:         "Spaces-1",
+					ProjectIDOrName: fireProject.Name,
+				},
+			}, requestBody)
+
+			req.RespondWith(&deployments.CreateDeploymentResponseV1{
+				DeploymentServerTasks: []*deployments.DeploymentServerTask{
+					{DeploymentID: "Deployments-203", ServerTaskID: "ServerTasks-29394"},
+					{DeploymentID: "Deployments-204", ServerTaskID: "ServerTasks-55312"},
+				},
+			})
+
+			// now it's going to try and look up the project/version to generate the web URL
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/Fire Project").RespondWithStatus(404, "NotFound", nil)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects?partialName=Fire+Project").RespondWith(resources.Resources[*projects.Project]{
+				Items: []*projects.Project{fireProject},
+			})
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+fireProjectID+"/releases/2.1").RespondWith(release10)
 
 			_, err = testutil.ReceivePair(cmdReceiver)
 			assert.Nil(t, err)
@@ -1794,6 +2034,7 @@ func TestDeployCreate_GenerationOfAutomationCommand_MasksSensitiveVariables(t *t
 	space1 := fixtures.NewSpace(spaceID, "Default Space")
 
 	defaultChannel := fixtures.NewChannel(spaceID, "Channels-1", "Fire Project Default Channel", fireProjectID)
+	defaultChannel.Type = channels.ChannelTypeLifecycle
 
 	fireProject := fixtures.NewProject(spaceID, fireProjectID, "Fire Project", "Lifecycles-1", "ProjectGroups-1", "deploymentprocess-"+fireProjectID)
 
@@ -1859,6 +2100,7 @@ func TestDeployCreate_GenerationOfAutomationCommand_MasksSensitiveVariables(t *t
 		})
 
 	api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+fireProjectID+"/releases/"+release20.Version).RespondWith(release20)
+	api.ExpectRequest(t, "GET", "/api/Spaces-1/channels/"+defaultChannel.ID).RespondWith(defaultChannel)
 	api.ExpectRequest(t, "GET", "/api/configuration/feature-toggles?Name=indicate-missing-packages-for-release").RespondWith(&configuration.FeatureToggleConfigurationResponse{
 		FeatureToggles: []configuration.ConfiguredFeatureToggle{
 			{

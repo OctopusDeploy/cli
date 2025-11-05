@@ -2,12 +2,15 @@ package fixtures
 
 import (
 	"fmt"
+	"net/url"
+
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/channels"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/constants"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/core"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/credentials"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/deployments"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/environments"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/environments/v2/ephemeralenvironments"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/releases"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/resources"
@@ -15,7 +18,6 @@ import (
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/spaces"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/tenants"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/variables"
-	"net/url"
 )
 
 // This file contains utility functions for creating mock objects used in unit tests.
@@ -105,6 +107,16 @@ func NewChannel(spaceID string, channelID string, channelName string, projectID 
 	return result
 }
 
+func NewEphemeralChannel(spaceID string, channelID string, channelName string, projectID string, ephemeralEnvironmentNameTemplate string, autoDeploy bool) *channels.Channel {
+	result := channels.NewChannel(channelName, projectID)
+	result.Type = channels.ChannelTypeEphemeral
+	result.ID = channelID
+	result.SpaceID = spaceID
+	result.EphemeralEnvironmentNameTemplate = ephemeralEnvironmentNameTemplate
+	result.AutomaticEphemeralEnvironmentDeployments = autoDeploy
+	return result
+}
+
 func NewRelease(spaceID string, releaseID string, releaseVersion string, projectID string, channelID string) *releases.Release {
 	result := releases.NewRelease(channelID, projectID, releaseVersion)
 	result.ID = releaseID
@@ -119,6 +131,13 @@ func NewEnvironment(spaceID string, envID string, name string) *environments.Env
 	result := environments.NewEnvironment(name)
 	result.ID = envID
 	result.SpaceID = spaceID
+	return result
+}
+
+func NewEphemeralEnvironment(spaceID string, envID string, name string, parentEnvironmentID string) *ephemeralenvironments.EphemeralEnvironment {
+	result := ephemeralenvironments.NewEphemeralEnvironment(name, parentEnvironmentID, spaceID)
+	result.ID = envID
+
 	return result
 }
 
