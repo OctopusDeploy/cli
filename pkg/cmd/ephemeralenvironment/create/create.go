@@ -147,7 +147,8 @@ func PromptMissing(opts *CreateOptions) error {
 	}
 
 	if opts.Project.Value == "" {
-		project, err := selectors.Select(opts.Ask, "Select a project: \n(Showing only projects configured with an ephemeral environment channel.).", opts.GetConfiguredProjectsCallback, func(project *projects.Project) string { return project.GetName() })
+		fmt.Fprintf(opts.Out, "  Choose from projects configured with an ephemeral environment channel.\n")
+		project, err := selectors.Select(opts.Ask, "Select a project:", opts.GetConfiguredProjectsCallback, func(project *projects.Project) string { return project.GetName() })
 		if err != nil {
 			return err
 		}

@@ -1,6 +1,7 @@
 package create_test
 
 import (
+	"bytes"
 	"testing"
 
 	"github.com/OctopusDeploy/cli/pkg/cmd"
@@ -43,7 +44,7 @@ func TestPromptMissing_NoOptionsSupplied(t *testing.T) {
 
 	pa := []*testutil.PA{
 		testutil.NewInputPrompt("Name", "A short, memorable, unique name for this ephemeral environment.", "Hello Ephemeral Environment"),
-		testutil.NewSelectPrompt("Select an ephemeral environments configured project to associate with the environment:", "", []string{project1.Name, project2.Name}, project1.Name),
+		testutil.NewSelectPrompt("Select a project:", "", []string{project1.Name, project2.Name}, project1.Name),
 	}
 
 	asker, checkRemainingPrompts := testutil.NewMockAsker(t, pa)
@@ -52,7 +53,7 @@ func TestPromptMissing_NoOptionsSupplied(t *testing.T) {
 
 	opts := &create.CreateOptions{
 		CreateFlags:  flags,
-		Dependencies: &cmd.Dependencies{Ask: asker},
+		Dependencies: &cmd.Dependencies{Ask: asker, Out: &bytes.Buffer{}},
 		GetConfiguredProjectsCallback: func() ([]*projects.Project, error) {
 			return []*projects.Project{project1, project2}, nil
 		},
