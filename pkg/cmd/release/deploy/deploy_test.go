@@ -401,8 +401,6 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 				},
 			})
 
-			// doesn't lookup the progression or env names because it already has them
-
 			// now it's going to go looking for prompted variables; we don't have any prompted variables here so it skips
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/variables/"+variableSnapshotNoVars.ID).RespondWith(&variableSnapshotNoVars)
 
@@ -445,7 +443,7 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 			options := &executor.TaskOptionsDeployRelease{
 				ProjectName:    "fire project",
 				ReleaseVersion: "2.1",
-				Environments:   []string{"Ephemeral Environment"},
+				Environments:   []string{"ephemeral environment"},
 			}
 
 			errReceiver := testutil.GoBegin(func() error {
@@ -483,7 +481,7 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 			assert.Equal(t, heredoc.Doc(`
 				Project Fire Project
 				Release 2.1
-				Environments Ephemeral Environment
+				Environments ephemeral environment
 			`), stdout.String())
 			stdout.Reset()
 
@@ -511,7 +509,7 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 			assert.Equal(t, &executor.TaskOptionsDeployRelease{
 				ProjectName:       "Fire Project",
 				ReleaseVersion:    "2.1",
-				Environments:      []string{"Ephemeral Environment"},
+				Environments:      []string{"ephemeral environment"},
 				GuidedFailureMode: "",
 				Variables:         make(map[string]string, 0),
 				ReleaseID:         release21.ID,
