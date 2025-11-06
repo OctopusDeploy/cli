@@ -641,12 +641,12 @@ func findEphemeralEnvironmentIDs(octopus *octopusApiClient.Client, space *spaces
 
 	envMap := make(map[string]*ephemeralenvironments.EphemeralEnvironment, len(allEphemeralEnvironments.Items)*2)
 	for _, ephemeralEnv := range allEphemeralEnvironments.Items {
-		envMap[ephemeralEnv.ID] = ephemeralEnv
-		envMap[ephemeralEnv.Name] = ephemeralEnv
+		envMap[strings.ToLower(ephemeralEnv.ID)] = ephemeralEnv
+		envMap[strings.ToLower(ephemeralEnv.Name)] = ephemeralEnv
 	}
 
 	for _, envIdentifier := range environments {
-		ephemeralEnv, found := envMap[envIdentifier]
+		ephemeralEnv, found := envMap[strings.ToLower(envIdentifier)]
 		if !found {
 			return nil, fmt.Errorf("environment '%s' not found in ephemeral environments", envIdentifier)
 		}
