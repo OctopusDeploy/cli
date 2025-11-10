@@ -4,6 +4,7 @@ import (
 	"github.com/MakeNowJust/heredoc/v2"
 	cmdCreate "github.com/OctopusDeploy/cli/pkg/cmd/ephemeralenvironment/create"
 	cmdDeprovisionEnvironment "github.com/OctopusDeploy/cli/pkg/cmd/ephemeralenvironment/deprovision-environment"
+	cmdDeprovisionProject "github.com/OctopusDeploy/cli/pkg/cmd/ephemeralenvironment/deprovision-project"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/constants/annotations"
 	"github.com/OctopusDeploy/cli/pkg/factory"
@@ -25,6 +26,7 @@ func NewCmdEphemeralEnvironment(f factory.Factory) *cobra.Command {
 
 	cmd.AddCommand(cmdCreate.NewCmdCreate(f))
 	cmd.AddCommand(cmdDeprovisionEnvironment.NewCmdDeprovisionEnvironment(f))
+	cmd.AddCommand(cmdDeprovisionProject.NewCmdDeprovisionProject(f))
 
 	return cmd
 }
