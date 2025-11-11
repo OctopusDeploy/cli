@@ -1,7 +1,6 @@
 package deprovision_environment
 
 import (
-	"encoding/json"
 	"fmt"
 
 	"github.com/MakeNowJust/heredoc/v2"
@@ -9,7 +8,6 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/cmd/ephemeralenvironment/util"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/factory"
-	"github.com/OctopusDeploy/cli/pkg/output"
 	"github.com/OctopusDeploy/cli/pkg/question/selectors"
 	"github.com/OctopusDeploy/cli/pkg/util/flag"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/environments/v2/ephemeralenvironments"
@@ -107,51 +105,9 @@ func DeprovisionEnvironmentRun(deprovisionEnvironmentOptions *DeprovisionEnviron
 		return err
 	}
 
-	outputResult(deprovisionEnvironmentOptions, command, response)
+	util.OutPutDeprovisionResult(deprovisionEnvironmentOptions.Name.Value, command, response.DeprovisioningRuns)
 
 	return nil
-}
-
-func outputResult(deprovisionEnvironmentOptions *DeprovisionEnvironmentOptions, command *cobra.Command, response *ephemeralenvironments.DeprovisionEphemeralEnvironmentResponse) {
-	command.Println("Deprovisioning environment: " + deprovisionEnvironmentOptions.Name.Value)
-
-	outputFormat, err := command.Flags().GetString(constants.FlagOutputFormat)
-	if err != nil { // should never happen, but fallback if it does
-		outputFormat = constants.OutputFormatTable
-	}
-
-	switch outputFormat {
-	case constants.OutputFormatBasic:
-		if response.DeprovisioningRuns == nil || len(response.DeprovisioningRuns) == 0 {
-			command.Println("Environment deprovisioned without running a runbook.")
-		} else {
-			for _, run := range response.DeprovisioningRuns {
-				command.Printf("Runbook Run ID: %s \nServer Task ID %s \n", run.RunbookRunID, run.TaskId)
-			}
-		}
-	case constants.OutputFormatJson:
-		data, err := json.Marshal(response.DeprovisioningRuns)
-		if err != nil { // shouldn't happen but fallback in case
-			command.PrintErrln(err)
-		} else {
-			_, _ = command.OutOrStdout().Write(data)
-			command.Println()
-		}
-	default: // table
-		if response.DeprovisioningRuns == nil || len(response.DeprovisioningRuns) == 0 {
-			command.Println("Environment deprovisioned without running a runbook.")
-		} else {
-			t := output.NewTable(command.OutOrStdout())
-			t.AddRow(output.Bold("Runbook Run ID"), output.Bold("Server Task ID"))
-			for _, run := range response.DeprovisioningRuns {
-				t.AddRow(run.RunbookRunID, run.TaskId)
-			}
-			err := t.Print()
-			if err != nil {
-				command.PrintErrln(err)
-			}
-		}
-	}
 }
 
 func deprovisionEnvironment(deprovisionEnvironmentOptions *DeprovisionEnvironmentOptions, environment *ephemeralenvironments.EphemeralEnvironment) (*ephemeralenvironments.DeprovisionEphemeralEnvironmentResponse, error) {
