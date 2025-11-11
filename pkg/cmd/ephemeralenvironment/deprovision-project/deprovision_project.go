@@ -1,7 +1,6 @@
 package deprovision_project
 
 import (
-	"encoding/json"
 	"fmt"
 	"slices"
 
@@ -11,7 +10,6 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/cmd/runbook/shared"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/factory"
-	"github.com/OctopusDeploy/cli/pkg/output"
 	"github.com/OctopusDeploy/cli/pkg/question/selectors"
 	"github.com/OctopusDeploy/cli/pkg/util/flag"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/channels"
@@ -165,39 +163,9 @@ func DeprovisionEphemeralEnvironmentProject(cmd *cobra.Command, opts *Deprovisio
 
 	cmd.Printf("\nSuccessfully deprovisioned ephemeral environment for project '%s' with id '%s'.\n", opts.Project.Value, environmentId)
 
-	outputResult(opts, cmd, deprovisionedEnv)
+	util.OutPutDeprovisionResult(opts.Name.Value, cmd, []ephemeralenvironments.DeprovisioningRunbookRun{deprovisionedEnv.DeprovisioningRun})
 
 	return nil
-}
-
-func outputResult(deprovisionEnvironmentOptions *DeprovisionProjectOptions, command *cobra.Command, response *ephemeralenvironments.DeprovisionEphemeralEnvironmentProjectResponse) {
-	outputFormat, err := command.Flags().GetString(constants.FlagOutputFormat)
-
-	if err != nil {
-		outputFormat = constants.OutputFormatTable
-	}
-
-	switch outputFormat {
-	case constants.OutputFormatBasic:
-		command.Printf("%s \t %s \n", response.DeprovisioningRun.RunbookRunID, response.DeprovisioningRun.TaskId)
-	case constants.OutputFormatJson:
-		data, err := json.Marshal(response)
-		if err != nil { // shouldn't happen but fallback in case
-			command.PrintErrln(err)
-		} else {
-			_, _ = command.OutOrStdout().Write(data)
-			command.Println()
-		}
-	default: // table
-		t := output.NewTable(command.OutOrStdout())
-		t.AddRow(output.Bold("Runbook Run ID"), output.Bold("Server Task ID"))
-		t.AddRow(response.DeprovisioningRun.RunbookRunID, response.DeprovisioningRun.TaskId)
-
-		err := t.Print()
-		if err != nil {
-			command.PrintErrln(err)
-		}
-	}
 }
 
 func PromptMissing(opts *DeprovisionProjectOptions) error {
