@@ -164,7 +164,7 @@ func DeprovisionEphemeralEnvironmentProject(cmd *cobra.Command, opts *Deprovisio
 		return err
 	}
 
-	cmd.Printf("\nSuccessfully deprovisioned ephemeral environment for project '%s' with id '%s'.\n", opts.Project.Value, opts.Name.Value)
+	cmd.Printf("\nSuccessfully deprovisioned ephemeral environment for project '%s' with id '%s'.\n", opts.Project.Value, environmentId)
 
 	outputResult(opts, cmd, deprovisionedEnv)
 
