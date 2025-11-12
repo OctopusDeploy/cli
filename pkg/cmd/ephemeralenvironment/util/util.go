@@ -40,9 +40,7 @@ func GetByName(client *client.Client, name string, spaceID string) (*ephemeralen
 	}
 }
 
-func OutPutDeprovisionResult(environmentName string, command *cobra.Command, deprovisioningRuns []ephemeralenvironments.DeprovisioningRunbookRun) {
-	command.Println("Deprovisioning environment: " + environmentName)
-
+func OutputDeprovisionResult(command *cobra.Command, deprovisioningRuns []ephemeralenvironments.DeprovisioningRunbookRun) {
 	outputFormat, err := command.Flags().GetString(constants.FlagOutputFormat)
 	if err != nil {
 		outputFormat = constants.OutputFormatTable
