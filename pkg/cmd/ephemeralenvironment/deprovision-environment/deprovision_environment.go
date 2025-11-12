@@ -105,7 +105,9 @@ func DeprovisionEnvironmentRun(deprovisionEnvironmentOptions *DeprovisionEnviron
 		return err
 	}
 
-	util.OutPutDeprovisionResult(deprovisionEnvironmentOptions.Name.Value, command, response.DeprovisioningRuns)
+	command.Printf("Deprovisioning ephemeral environment '%s' with id '%s'...\n", deprovisionEnvironmentOptions.Name.Value, environment.ID)
+
+	util.OutputDeprovisionResult(command, response.DeprovisioningRuns)
 
 	return nil
 }

@@ -72,7 +72,7 @@ func getConfiguredProjects(dependencies *cmd.Dependencies) ([]*projects.Project,
 		}
 
 		if slices.ContainsFunc(projectChannels, func(channel *channels.Channel) bool {
-			return channel.Type == "EphemeralEnvironment"
+			return channel.Type == channels.ChannelTypeEphemeral
 		}) {
 			filteredProjects = append(filteredProjects, project)
 		}
@@ -162,8 +162,13 @@ func DeprovisionEphemeralEnvironmentProject(cmd *cobra.Command, opts *Deprovisio
 	}
 
 	cmd.Printf("\nSuccessfully deprovisioned ephemeral environment for project '%s' with id '%s'.\n", opts.Project.Value, environmentId)
+	runs := []ephemeralenvironments.DeprovisioningRunbookRun{}
 
-	util.OutPutDeprovisionResult(opts.Name.Value, cmd, []ephemeralenvironments.DeprovisioningRunbookRun{deprovisionedEnv.DeprovisioningRun})
+	if deprovisionedEnv.DeprovisioningRun.RunbookRunID != "" {
+		runs = append(runs, deprovisionedEnv.DeprovisioningRun)
+	}
+
+	util.OutputDeprovisionResult(cmd, runs)
 
 	return nil
 }
