@@ -4,12 +4,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/OctopusDeploy/cli/pkg/util/featuretoggle"
-	"golang.org/x/exp/maps"
 	"io"
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/OctopusDeploy/cli/pkg/util/featuretoggle"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/environments/v2/ephemeralenvironments"
+	"golang.org/x/exp/maps"
 
 	"github.com/OctopusDeploy/cli/pkg/apiclient"
 
@@ -414,9 +416,10 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 	// select release
 
 	var selectedRelease *releases.Release
+	var selectedChannel *channels.Channel
 	if options.ReleaseVersion == "" {
 		// first we want to ask them to pick a channel just to narrow down the search space for releases (not sent to server)
-		selectedChannel, err := selectors.Channel(octopus, asker, stdout, "Select channel", selectedProject)
+		selectedChannel, err = selectors.Channel(octopus, asker, stdout, "Select channel", selectedProject)
 		if err != nil {
 			return err
 		}
@@ -426,6 +429,10 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 		}
 	} else {
 		selectedRelease, err = releases.GetReleaseInProject(octopus, space.ID, selectedProject.ID, options.ReleaseVersion)
+		if err != nil {
+			return err
+		}
+		selectedChannel, err = channels.GetByID(octopus, space.ID, selectedRelease.ChannelID)
 		if err != nil {
 			return err
 		}
@@ -439,7 +446,7 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 
 	indicateMissingPackagesForReleaseFeatureToggleValue, err := featuretoggle.IsToggleEnabled(octopus, "indicate-missing-packages-for-release")
 	if indicateMissingPackagesForReleaseFeatureToggleValue {
-		proceed := promptMissingPackages(octopus, stdout, asker, selectedRelease);
+		proceed := promptMissingPackages(octopus, stdout, asker, selectedRelease)
 		if !proceed {
 			return errors.New("aborting deployment creation as requested")
 		}
@@ -447,61 +454,19 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 
 	// machine selection later on needs to refer back to the environments.
 	// NOTE: this is allowed to remain nil; environments will get looked up later on if needed
-	var selectedEnvironments []*environments.Environment
-	if isTenanted {
-		var selectedEnvironment *environments.Environment
-		if len(options.Environments) == 0 {
-			deployableEnvironmentIDs, nextEnvironmentID, err := FindDeployableEnvironmentIDs(octopus, selectedRelease)
-			if err != nil {
-				return err
-			}
-			selectedEnvironment, err = selectDeploymentEnvironment(asker, octopus, deployableEnvironmentIDs, nextEnvironmentID)
-			if err != nil {
-				return err
-			}
-			options.Environments = []string{selectedEnvironment.Name} // executions api allows env names, so let's use these instead so they look nice in generated automationcmd
-		} else {
-			selectedEnvironment, err = selectors.FindEnvironment(octopus, options.Environments[0])
-			if err != nil {
-				return err
-			}
-			_, _ = fmt.Fprintf(stdout, "Environment %s\n", output.Cyan(selectedEnvironment.Name))
+	var deploymentEnvironmentIDs []string
+	if selectedChannel.Type == channels.ChannelTypeLifecycle {
+		deploymentEnvironmentIDs, err = selectDeploymentEnvironmentsForLifecycleChannel(octopus, stdout, asker, options, selectedRelease, isTenanted)
+		if err != nil {
+			return err
 		}
-		selectedEnvironments = []*environments.Environment{selectedEnvironment}
-
-		// ask for tenants and/or tags unless some were specified on the command line
-		if len(options.Tenants) == 0 && len(options.TenantTags) == 0 {
-			options.Tenants, options.TenantTags, err = executionscommon.AskTenantsAndTags(asker, octopus, selectedRelease.ProjectID, selectedEnvironments, true)
-			if len(options.Tenants) == 0 && len(options.TenantTags) == 0 {
-				return errors.New("no tenants or tags available; cannot deploy")
-			}
-			if err != nil {
-				return err
-			}
-		} else {
-			if len(options.Tenants) > 0 {
-				_, _ = fmt.Fprintf(stdout, "Tenants %s\n", output.Cyan(strings.Join(options.Tenants, ",")))
-			}
-			if len(options.TenantTags) > 0 {
-				_, _ = fmt.Fprintf(stdout, "Tenant Tags %s\n", output.Cyan(strings.Join(options.TenantTags, ",")))
-			}
+	} else if selectedChannel.Type == channels.ChannelTypeEphemeral {
+		deploymentEnvironmentIDs, err = selectDeploymentEnvironmentsForEphemeralChannel(octopus, stdout, asker, options, selectedRelease)
+		if err != nil {
+			return err
 		}
 	} else {
-		if len(options.Environments) == 0 {
-			deployableEnvironmentIDs, nextEnvironmentID, err := FindDeployableEnvironmentIDs(octopus, selectedRelease)
-			if err != nil {
-				return err
-			}
-			selectedEnvironments, err = selectDeploymentEnvironments(asker, octopus, deployableEnvironmentIDs, nextEnvironmentID)
-			if err != nil {
-				return err
-			}
-			options.Environments = util.SliceTransform(selectedEnvironments, func(env *environments.Environment) string { return env.Name })
-		} else {
-			if len(options.Environments) > 0 {
-				_, _ = fmt.Fprintf(stdout, "Environments %s\n", output.Cyan(strings.Join(options.Environments, ",")))
-			}
-		}
+		return errors.New("invalid channel type: " + string(selectedChannel.Type))
 	}
 
 	variableSet, err := variables.GetVariableSet(octopus, space.ID, selectedRelease.ProjectVariableSetSnapshotID)
@@ -509,17 +474,27 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 		return err
 	}
 
-	if len(selectedEnvironments) == 0 { // if the Q&A process earlier hasn't loaded environments already, we need to load them now
-		selectedEnvironments, err = executionscommon.FindEnvironments(octopus, options.Environments)
-		if err != nil {
-			return err
+	if len(deploymentEnvironmentIDs) == 0 { // if the Q&A process earlier hasn't loaded environments already, we need to load them now
+		if selectedChannel.Type == channels.ChannelTypeLifecycle {
+			selectedEnvironments, err := executionscommon.FindEnvironments(octopus, options.Environments)
+			if err != nil {
+				return err
+			}
+
+			deploymentEnvironmentIDs = util.SliceTransform(selectedEnvironments, func(env *environments.Environment) string { return env.ID })
+		} else if selectedChannel.Type == channels.ChannelTypeEphemeral {
+			deploymentEnvironmentIDs, err = findEphemeralEnvironmentIDs(octopus, space, options.Environments)
+
+			if err != nil {
+				return err
+			}
 		}
 	}
 
 	var deploymentPreviewRequests []deployments.DeploymentPreviewRequest
-	for _, environment := range selectedEnvironments {
+	for _, environmentId := range deploymentEnvironmentIDs {
 		preview := deployments.DeploymentPreviewRequest{
-			EnvironmentId: environment.ID,
+			EnvironmentId: environmentId,
 			// We ignore the TenantId here as we're just using the deployments previews for prompted variables.
 			// Tenant variables do not support prompted variables
 			TenantId: "",
@@ -632,13 +607,14 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 		}
 
 		if !isDeploymentTargetsSpecified {
-			if len(selectedEnvironments) == 0 { // if the Q&A process earlier hasn't loaded environments already, we need to load them now
-				selectedEnvironments, err = executionscommon.FindEnvironments(octopus, options.Environments)
+			if len(deploymentEnvironmentIDs) == 0 { // if the Q&A process earlier hasn't loaded environments already, we need to load them now
+				selectedEnvironments, err := executionscommon.FindEnvironments(octopus, options.Environments)
 				if err != nil {
 					return err
 				}
+				deploymentEnvironmentIDs = util.SliceTransform(selectedEnvironments, func(env *environments.Environment) string { return env.ID })
 			}
-			options.DeploymentTargets, err = askDeploymentTargets(octopus, asker, space.ID, selectedRelease.ID, selectedEnvironments)
+			options.DeploymentTargets, err = askDeploymentTargets(octopus, asker, space.ID, selectedRelease.ID, deploymentEnvironmentIDs)
 			if err != nil {
 				return err
 			}
@@ -646,6 +622,148 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 	}
 	// DONE
 	return nil
+}
+
+func findEphemeralEnvironmentIDs(octopus *octopusApiClient.Client, space *spaces.Space, environments []string) ([]string, error) {
+	allEphemeralEnvironments, err := ephemeralenvironments.GetAll(octopus, space.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	if allEphemeralEnvironments == nil || allEphemeralEnvironments.TotalResults == 0 {
+		return nil, errors.New("no ephemeral environments exist to deploy to")
+	}
+
+	var selectedEnvironments []string
+	if len(environments) == 0 {
+		return nil, nil
+	}
+
+	envMap := make(map[string]*ephemeralenvironments.EphemeralEnvironment, len(allEphemeralEnvironments.Items)*2)
+	for _, ephemeralEnv := range allEphemeralEnvironments.Items {
+		envMap[strings.ToLower(ephemeralEnv.ID)] = ephemeralEnv
+		envMap[strings.ToLower(ephemeralEnv.Name)] = ephemeralEnv
+	}
+
+	for _, envIdentifier := range environments {
+		ephemeralEnv, found := envMap[strings.ToLower(envIdentifier)]
+		if !found {
+			return nil, fmt.Errorf("environment '%s' not found in ephemeral environments", envIdentifier)
+		}
+		selectedEnvironments = append(selectedEnvironments, ephemeralEnv.ID)
+	}
+
+	return selectedEnvironments, nil
+}
+
+func selectDeploymentEnvironmentsForEphemeralChannel(octopus *octopusApiClient.Client, stdout io.Writer, asker question.Asker, options *executor.TaskOptionsDeployRelease, selectedRelease *releases.Release) ([]string, error) {
+	var deploymentEnvironmentIds []string
+	var selectedEnvironments []*ephemeralenvironments.EphemeralEnvironment
+
+	if len(options.Environments) == 0 {
+		allEphemeralEnvironments, err := ephemeralenvironments.GetAll(octopus, selectedRelease.SpaceID)
+		if err != nil {
+			return nil, err
+		}
+		if allEphemeralEnvironments == nil || allEphemeralEnvironments.TotalResults == 0 {
+			return nil, errors.New("no ephemeral environments exist to deploy to")
+		}
+
+		deploymentEnvironmentTemplate, err := releases.GetReleaseDeploymentTemplate(octopus, selectedRelease.SpaceID, selectedRelease.ID)
+		if err != nil {
+			return nil, err
+		}
+
+		allowedEnvironmentIds := map[string]bool{}
+		for _, p := range deploymentEnvironmentTemplate.PromoteTo {
+			allowedEnvironmentIds[p.ID] = true
+		}
+
+		var availableEnvironments []*ephemeralenvironments.EphemeralEnvironment
+		for _, env := range allEphemeralEnvironments.Items {
+			if _, ok := allowedEnvironmentIds[env.ID]; ok {
+				availableEnvironments = append(availableEnvironments, env)
+			}
+		}
+
+		if len(availableEnvironments) > 0 {
+			selectedEnvironments, err = selectEphemeralDeploymentEnvironments(asker, availableEnvironments)
+			if err != nil {
+				return nil, err
+			}
+			deploymentEnvironmentIds = util.SliceTransform(selectedEnvironments, func(env *ephemeralenvironments.EphemeralEnvironment) string { return env.ID })
+			options.Environments = util.SliceTransform(selectedEnvironments, func(env *ephemeralenvironments.EphemeralEnvironment) string { return env.Name })
+		}
+	} else {
+		_, _ = fmt.Fprintf(stdout, "Environments %s\n", output.Cyan(strings.Join(options.Environments, ",")))
+	}
+
+	return deploymentEnvironmentIds, nil
+}
+
+func selectDeploymentEnvironmentsForLifecycleChannel(octopus *octopusApiClient.Client, stdout io.Writer, asker question.Asker, options *executor.TaskOptionsDeployRelease, selectedRelease *releases.Release, isTenanted bool) ([]string, error) {
+	var deploymentEnvironmentIds []string
+	var selectedEnvironments []*environments.Environment
+	var err error
+
+	if isTenanted {
+		var selectedEnvironment *environments.Environment
+		if len(options.Environments) == 0 {
+			deployableEnvironmentIDs, nextEnvironmentID, err := FindDeployableEnvironmentIDs(octopus, selectedRelease)
+			if err != nil {
+				return nil, err
+			}
+			selectedEnvironment, err = selectDeploymentEnvironment(asker, octopus, deployableEnvironmentIDs, nextEnvironmentID)
+			if err != nil {
+				return nil, err
+			}
+			options.Environments = []string{selectedEnvironment.Name} // executions api allows env names, so let's use these instead so they look nice in generated automationcmd
+		} else {
+			selectedEnvironment, err = selectors.FindEnvironment(octopus, options.Environments[0])
+			if err != nil {
+				return nil, err
+			}
+			_, _ = fmt.Fprintf(stdout, "Environment %s\n", output.Cyan(selectedEnvironment.Name))
+		}
+		selectedEnvironments = []*environments.Environment{selectedEnvironment}
+		deploymentEnvironmentIds = util.SliceTransform(selectedEnvironments, func(env *environments.Environment) string { return env.ID })
+
+		// ask for tenants and/or tags unless some were specified on the command line
+		if len(options.Tenants) == 0 && len(options.TenantTags) == 0 {
+			options.Tenants, options.TenantTags, err = executionscommon.AskTenantsAndTags(asker, octopus, selectedRelease.ProjectID, selectedEnvironments, true)
+			if len(options.Tenants) == 0 && len(options.TenantTags) == 0 {
+				return nil, errors.New("no tenants or tags available; cannot deploy")
+			}
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			if len(options.Tenants) > 0 {
+				_, _ = fmt.Fprintf(stdout, "Tenants %s\n", output.Cyan(strings.Join(options.Tenants, ",")))
+			}
+			if len(options.TenantTags) > 0 {
+				_, _ = fmt.Fprintf(stdout, "Tenant Tags %s\n", output.Cyan(strings.Join(options.TenantTags, ",")))
+			}
+		}
+	} else {
+		if len(options.Environments) == 0 {
+			deployableEnvironmentIDs, nextEnvironmentID, err := FindDeployableEnvironmentIDs(octopus, selectedRelease)
+			if err != nil {
+				return nil, err
+			}
+			selectedEnvironments, err = selectDeploymentEnvironments(asker, octopus, deployableEnvironmentIDs, nextEnvironmentID)
+			if err != nil {
+				return nil, err
+			}
+			deploymentEnvironmentIds = util.SliceTransform(selectedEnvironments, func(env *environments.Environment) string { return env.ID })
+			options.Environments = util.SliceTransform(selectedEnvironments, func(env *environments.Environment) string { return env.Name })
+		} else {
+			if len(options.Environments) > 0 {
+				_, _ = fmt.Fprintf(stdout, "Environments %s\n", output.Cyan(strings.Join(options.Environments, ",")))
+			}
+		}
+	}
+	return deploymentEnvironmentIds, nil
 }
 
 func validateDeployment(isTenanted bool, environments []string) error {
@@ -656,12 +774,12 @@ func validateDeployment(isTenanted bool, environments []string) error {
 	return nil
 }
 
-func askDeploymentTargets(octopus *octopusApiClient.Client, asker question.Asker, spaceID string, releaseID string, selectedEnvironments []*environments.Environment) ([]string, error) {
+func askDeploymentTargets(octopus *octopusApiClient.Client, asker question.Asker, spaceID string, releaseID string, deploymentEnvironmentIDs []string) ([]string, error) {
 	var results []string
 
 	// this is what the portal does. Can we do it better? I don't know
-	for _, env := range selectedEnvironments {
-		preview, err := deployments.GetReleaseDeploymentPreview(octopus, spaceID, releaseID, env.ID, true)
+	for _, envID := range deploymentEnvironmentIDs {
+		preview, err := deployments.GetReleaseDeploymentPreview(octopus, spaceID, releaseID, envID, true)
 		if err != nil {
 			return nil, err
 		}
@@ -762,7 +880,7 @@ func promptMissingPackages(octopus *octopusApiClient.Client, stdout io.Writer, a
 		return true
 	}
 
-	_, _ = fmt.Fprintf(stdout ,"Warning: The following packages are missing from the built-in feed for this release:\n")
+	_, _ = fmt.Fprintf(stdout, "Warning: The following packages are missing from the built-in feed for this release:\n")
 	for _, p := range missingPackages {
 		_, _ = fmt.Fprintf(stdout, " - %s (Version: %s)\n", p.ID, p.Version)
 	}
@@ -855,6 +973,28 @@ func selectDeploymentEnvironment(asker question.Asker, octopus *octopusApiClient
 		return nil, fmt.Errorf("selectDeploymentEnvironment did not get valid answer (selectedKey=%s)", selectedKey)
 	}
 	return selectedValue, nil
+}
+
+func selectEphemeralDeploymentEnvironments(asker question.Asker, deployableEnvironments []*ephemeralenvironments.EphemeralEnvironment) ([]*ephemeralenvironments.EphemeralEnvironment, error) {
+	var err error
+	optionMap, options := question.MakeItemMapAndOptions(deployableEnvironments, func(e *ephemeralenvironments.EphemeralEnvironment) string { return e.Name })
+	var selectedKeys []string
+	err = asker(&survey.MultiSelect{
+		Message: "Select environment(s)",
+		Options: options,
+		Default: nil,
+	}, &selectedKeys, survey.WithValidator(survey.Required))
+
+	if err != nil {
+		return nil, err
+	}
+	var selectedValues []*ephemeralenvironments.EphemeralEnvironment
+	for _, k := range selectedKeys {
+		if value, ok := optionMap[k]; ok {
+			selectedValues = append(selectedValues, value)
+		} // if we were to somehow get invalid answers, ignore them
+	}
+	return selectedValues, nil
 }
 
 func selectDeploymentEnvironments(asker question.Asker, octopus *octopusApiClient.Client, deployableEnvironmentIDs []string, nextDeployEnvironmentID string) ([]*environments.Environment, error) {
