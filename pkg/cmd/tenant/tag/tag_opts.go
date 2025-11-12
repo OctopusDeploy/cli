@@ -86,10 +86,13 @@ func getTenantsCallback(client *client.Client) GetTenantsCallback {
 
 func getAllTagSetsCallback(client *client.Client) GetAllTagSetsCallback {
 	return func() ([]*tagsets.TagSet, error) {
-		tagSets, err := client.TagSets.GetAll()
+		query := tagsets.TagSetsQuery{
+			Scopes: []string{string(tagsets.TagSetScopeTenant)},
+		}
+		result, err := tagsets.Get(client, client.GetSpaceID(), query)
 		if err != nil {
 			return nil, err
 		}
-		return tagSets, nil
+		return result.Items, nil
 	}
 }

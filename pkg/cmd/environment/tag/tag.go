@@ -12,24 +12,24 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/question"
 	"github.com/OctopusDeploy/cli/pkg/question/selectors"
 	"github.com/OctopusDeploy/cli/pkg/util/flag"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/tenants"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/environments"
 	"github.com/spf13/cobra"
 )
 
 const (
-	FlagTag    = "tag"
-	FlagTenant = "tenant"
+	FlagTag         = "tag"
+	FlagEnvironment = "environment"
 )
 
 type TagFlags struct {
-	Tag    *flag.Flag[[]string]
-	Tenant *flag.Flag[string]
+	Tag         *flag.Flag[[]string]
+	Environment *flag.Flag[string]
 }
 
 func NewTagFlags() *TagFlags {
 	return &TagFlags{
-		Tag:    flag.New[[]string](FlagTag, false),
-		Tenant: flag.New[string](FlagTenant, false),
+		Tag:         flag.New[[]string](FlagTag, false),
+		Environment: flag.New[string](FlagEnvironment, false),
 	}
 }
 
@@ -38,9 +38,9 @@ func NewCmdTag(f factory.Factory) *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:     "tag",
-		Short:   "Override tags for a tenant",
-		Long:    "Override tags for a tenant in Octopus Deploy",
-		Example: heredoc.Docf("$ %s tenant tag Tenant-1", constants.ExecutableName),
+		Short:   "Override tags for an environment",
+		Long:    "Override tags for an environment in Octopus Deploy",
+		Example: heredoc.Docf("$ %s environment tag Environment-1", constants.ExecutableName),
 		RunE: func(c *cobra.Command, _ []string) error {
 			opts := NewTagOptions(createFlags, cmd.NewDependencies(f, c))
 
@@ -49,8 +49,8 @@ func NewCmdTag(f factory.Factory) *cobra.Command {
 	}
 
 	flags := cmd.Flags()
-	flags.StringArrayVarP(&createFlags.Tag.Value, createFlags.Tag.Name, "t", []string{}, "Tag to apply to tenant, must use canonical name: <tag_set>/<tag_name>")
-	flags.StringVar(&createFlags.Tenant.Value, createFlags.Tenant.Name, "", "Name or ID of the tenant you wish to update")
+	flags.StringArrayVarP(&createFlags.Tag.Value, createFlags.Tag.Name, "t", []string{}, "Tag to apply to environment, must use canonical name: <tag_set>/<tag_name>")
+	flags.StringVar(&createFlags.Environment.Value, createFlags.Environment.Name, "", "Name or ID of the environment you wish to update")
 
 	return cmd
 }
@@ -96,19 +96,19 @@ func createRun(opts *TagOptions) error {
 func PromptMissing(opts *TagOptions) ([]cmd.Dependable, error) {
 	nestedOpts := []cmd.Dependable{}
 
-	tenant, err := AskTenants(opts.Ask, opts.Out, opts.Tenant.Value, opts.GetTenantsCallback, opts.GetTenantCallback)
+	environment, err := AskEnvironments(opts.Ask, opts.Out, opts.Environment.Value, opts.GetEnvironmentsCallback, opts.GetEnvironmentCallback)
 	if err != nil {
 		return nil, err
 	}
-	opts.tenant = tenant
-	opts.Tenant.Value = tenant.Name
+	opts.environment = environment
+	opts.Environment.Value = environment.Name
 
 	tagSets, err := opts.GetAllTagsCallback()
 	if err != nil {
 		return nil, err
 	}
 
-	tags, err := selectors.Tags(opts.Ask, opts.tenant.TenantTags, opts.Tag.Value, tagSets)
+	tags, err := selectors.Tags(opts.Ask, opts.environment.EnvironmentTags, opts.Tag.Value, tagSets)
 	if err != nil {
 		return nil, err
 	}
@@ -118,32 +118,32 @@ func PromptMissing(opts *TagOptions) ([]cmd.Dependable, error) {
 	return nestedOpts, nil
 }
 
-func AskTenants(ask question.Asker, out io.Writer, value string, getTenantsCallback GetTenantsCallback, getTenantCallback GetTenantCallback) (*tenants.Tenant, error) {
+func AskEnvironments(ask question.Asker, out io.Writer, value string, getEnvironmentsCallback GetEnvironmentsCallback, getEnvironmentCallback GetEnvironmentCallback) (*environments.Environment, error) {
 	if value != "" {
-		tenant, err := getTenantCallback(value)
+		environment, err := getEnvironmentCallback(value)
 		if err != nil {
 			return nil, err
 		}
-		return tenant, nil
+		return environment, nil
 	}
 
-	// Check if there's only one tenant
-	tns, err := getTenantsCallback()
+	// Check if there's only one environment
+	envs, err := getEnvironmentsCallback()
 	if err != nil {
 		return nil, err
 	}
-	if len(tns) == 1 {
-		fmt.Fprintf(out, "Selecting only available tenant '%s'.\n", output.Cyan(tns[0].Name))
-		return tns[0], nil
+	if len(envs) == 1 {
+		fmt.Fprintf(out, "Selecting only available environment '%s'.\n", output.Cyan(envs[0].Name))
+		return envs[0], nil
 	}
 
-	tenant, err := selectors.Select(ask, "Select the Tenant you would like to update", getTenantsCallback, func(item *tenants.Tenant) string {
+	environment, err := selectors.Select(ask, "Select the Environment you would like to update", getEnvironmentsCallback, func(item *environments.Environment) string {
 		return item.Name
 	})
 	if err != nil {
 		return nil, err
 	}
 
-	return tenant, nil
+	return environment, nil
 }
 
