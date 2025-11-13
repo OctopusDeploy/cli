@@ -165,9 +165,14 @@ func DeprovisionEphemeralEnvironmentProject(cmd *cobra.Command, opts *Deprovisio
 		runs = append(runs, deprovisionedEnv.DeprovisioningRun)
 	}
 
-	var message = fmt.Sprintf("Deprovisioning ephemeral environment '%s' with id '%s' for project '%s'...\n", opts.Name.Value, environmentId, opts.Project.Value)
+	message := fmt.Sprintf("Deprovisioning ephemeral environment '%s' with id '%s' for project '%s'...\n", opts.Name.Value, environmentId, opts.Project.Value)
 
 	util.OutputDeprovisionResult(message, cmd, runs)
+
+	if !opts.NoPrompt {
+		autoCmd := flag.GenerateAutomationCmd(opts.CmdPath, opts.Name, opts.Project)
+		fmt.Fprintf(opts.Out, "\nAutomation Command: %s\n", autoCmd)
+	}
 
 	return nil
 }
