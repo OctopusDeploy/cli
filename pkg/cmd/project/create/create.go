@@ -21,6 +21,7 @@ const (
 	FlagDescription  = "description"
 	FlagLifecycle    = "lifecycle"
 	FlagConfigAsCode = "process-vcs"
+	FlagTag          = "tag"
 )
 
 type CreateFlags struct {
@@ -29,6 +30,7 @@ type CreateFlags struct {
 	Description  *flag.Flag[string]
 	Lifecycle    *flag.Flag[string]
 	ConfigAsCode *flag.Flag[bool]
+	Tag          *flag.Flag[[]string]
 
 	ProjectConvertFlags *convert.ConvertFlags
 }
@@ -40,6 +42,7 @@ func NewCreateFlags() *CreateFlags {
 		Description:         flag.New[string](FlagDescription, false),
 		Lifecycle:           flag.New[string](FlagLifecycle, false),
 		ConfigAsCode:        flag.New[bool](FlagConfigAsCode, false),
+		Tag:                 flag.New[[]string](FlagTag, false),
 		ProjectConvertFlags: convert.NewConvertFlags(),
 	}
 }
@@ -69,6 +72,7 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 	flags.StringVarP(&createFlags.Group.Value, createFlags.Group.Name, "g", "", "Project group of the project")
 	flags.StringVarP(&createFlags.Lifecycle.Value, createFlags.Lifecycle.Name, "l", "", "Lifecycle of the project")
 	flags.BoolVar(&createFlags.ConfigAsCode.Value, createFlags.ConfigAsCode.Name, false, "Use Config As Code for the project")
+	flags.StringArrayVarP(&createFlags.Tag.Value, createFlags.Tag.Name, "t", []string{}, "Tag to apply to project, must use canonical name: <tag_set>/<tag_name>")
 	convert.RegisterCacFlags(flags, createFlags.ProjectConvertFlags)
 	flags.SortFlags = false
 
@@ -84,6 +88,17 @@ func createRun(opts *CreateOptions) error {
 			return err
 		}
 	} else {
+		// Validate tags when running with --no-prompt
+		if len(opts.Tag.Value) > 0 {
+			tagSets, err := opts.GetAllTagsCallback()
+			if err != nil {
+				return err
+			}
+			if err := selectors.ValidateTags(opts.Tag.Value, tagSets); err != nil {
+				return err
+			}
+		}
+
 		optsArray = append(optsArray, opts)
 		if opts.ConfigAsCode.Value {
 			opts.ConvertOptions.Project.Value = opts.Name.Value
@@ -130,6 +145,17 @@ func PromptMissing(opts *CreateOptions) ([]cmd.Dependable, error) {
 	}
 
 	nestedOpts = append(nestedOpts, opts)
+
+	tagSets, err := opts.GetAllTagsCallback()
+	if err != nil {
+		return nil, err
+	}
+
+	tags, err := selectors.Tags(opts.Ask, []string{}, opts.Tag.Value, tagSets)
+	if err != nil {
+		return nil, err
+	}
+	opts.Tag.Value = tags
 
 	configAsCodeOpts, err := PromptForConfigAsCode(opts)
 	opts.ConvertOptions.Project.Value = opts.Name.Value

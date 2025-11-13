@@ -12,6 +12,7 @@ import (
 	cmdDisconnect "github.com/OctopusDeploy/cli/pkg/cmd/project/disconnect"
 	cmdEnable "github.com/OctopusDeploy/cli/pkg/cmd/project/enable"
 	cmdList "github.com/OctopusDeploy/cli/pkg/cmd/project/list"
+	cmdTag "github.com/OctopusDeploy/cli/pkg/cmd/project/tag"
 	cmdVariables "github.com/OctopusDeploy/cli/pkg/cmd/project/variables"
 	cmdView "github.com/OctopusDeploy/cli/pkg/cmd/project/view"
 	"github.com/OctopusDeploy/cli/pkg/constants"
@@ -47,6 +48,7 @@ func NewCmdProject(f factory.Factory) *cobra.Command {
 	cmd.AddCommand(cmdVariables.NewCmdVariables(f))
 	cmd.AddCommand(cmdClone.NewCmdClone(f))
 	cmd.AddCommand(cmdBranch.NewCmdBranch(f))
+	cmd.AddCommand(cmdTag.NewCmdTag(f))
 
 	return cmd
 }

@@ -7,13 +7,17 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/cmd/project/shared"
 	"github.com/OctopusDeploy/cli/pkg/output"
 	"github.com/OctopusDeploy/cli/pkg/util/flag"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projectgroups"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/tagsets"
 )
 
 type ConvertProjectToConfigAsCodeCallback func() (cmd.Dependable, error)
 
 type GetAllGroupsCallback func() ([]*projectgroups.ProjectGroup, error)
+
+type GetAllTagSetsCallback func() ([]*tagsets.TagSet, error)
 
 type CreateOptions struct {
 	*CreateFlags
@@ -22,6 +26,7 @@ type CreateOptions struct {
 	GetAllGroupsCallback       shared.GetAllGroupsCallback
 	CreateProjectGroupCallback shared.CreateProjectGroupCallback
 	ConvertProjectCallback     ConvertProjectToConfigAsCodeCallback
+	GetAllTagsCallback         GetAllTagSetsCallback
 }
 
 func NewCreateOptions(createFlags *CreateFlags, dependencies *cmd.Dependencies) *CreateOptions {
@@ -34,6 +39,7 @@ func NewCreateOptions(createFlags *CreateFlags, dependencies *cmd.Dependencies) 
 		GetAllGroupsCallback:       func() ([]*projectgroups.ProjectGroup, error) { return shared.GetAllGroups(*dependencies.Client) },
 		CreateProjectGroupCallback: func() (string, cmd.Dependable, error) { return shared.CreateProjectGroup(dependencies) },
 		ConvertProjectCallback:     func() (cmd.Dependable, error) { return convertProjectCallback(convertOptions) },
+		GetAllTagsCallback:         getAllTagSetsCallback(dependencies.Client),
 	}
 }
 
@@ -57,6 +63,7 @@ func (co *CreateOptions) Commit() error {
 
 	project := projects.NewProject(co.Name.Value, lifecycle.GetID(), projectGroup.GetID())
 	project.Description = co.Description.Value
+	project.ProjectTags = co.Tag.Value
 
 	createdProject, err := co.Client.Projects.Add(project)
 	if err != nil {
@@ -76,7 +83,20 @@ func (co *CreateOptions) Commit() error {
 
 func (co *CreateOptions) GenerateAutomationCmd() {
 	if !co.NoPrompt {
-		autoCmd := flag.GenerateAutomationCmd(co.CmdPath, co.Name, co.Description, co.Group, co.Lifecycle)
+		autoCmd := flag.GenerateAutomationCmd(co.CmdPath, co.Name, co.Description, co.Group, co.Lifecycle, co.Tag)
 		fmt.Fprintf(co.Out, "%s\n", autoCmd)
+	}
+}
+
+func getAllTagSetsCallback(client *client.Client) GetAllTagSetsCallback {
+	return func() ([]*tagsets.TagSet, error) {
+		query := tagsets.TagSetsQuery{
+			Scopes: []string{string(tagsets.TagSetScopeProject)},
+		}
+		result, err := tagsets.Get(client, client.GetSpaceID(), query)
+		if err != nil {
+			return nil, err
+		}
+		return result.Items, nil
 	}
 }
