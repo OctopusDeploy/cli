@@ -40,7 +40,7 @@ func GetByName(client *client.Client, name string, spaceID string) (*ephemeralen
 	}
 }
 
-func OutputDeprovisionResult(command *cobra.Command, deprovisioningRuns []ephemeralenvironments.DeprovisioningRunbookRun) {
+func OutputDeprovisionResult(message string, command *cobra.Command, deprovisioningRuns []ephemeralenvironments.DeprovisioningRunbookRun) {
 	outputFormat, err := command.Flags().GetString(constants.FlagOutputFormat)
 	if err != nil {
 		outputFormat = constants.OutputFormatTable
@@ -52,6 +52,8 @@ func OutputDeprovisionResult(command *cobra.Command, deprovisioningRuns []epheme
 
 	switch outputFormat {
 	case constants.OutputFormatBasic:
+		command.Print(message)
+
 		if len(deprovisioningRuns) == 0 {
 			command.Println("Environment deprovisioned without running a runbook.")
 		} else {
@@ -68,6 +70,8 @@ func OutputDeprovisionResult(command *cobra.Command, deprovisioningRuns []epheme
 			command.Println()
 		}
 	default:
+		command.Print(message)
+
 		if len(deprovisioningRuns) == 0 {
 			command.Println("Environment deprovisioned without running a runbook.")
 		} else {

@@ -152,8 +152,6 @@ func DeprovisionEphemeralEnvironmentProject(cmd *cobra.Command, opts *Deprovisio
 
 	environmentId := environmentResource.ID
 
-	cmd.Printf("Deprovisioning ephemeral environment '%s' with id '%s' for project '%s'...\n", opts.Name.Value, environmentId, opts.Project.Value)
-
 	projectId := projectResource.GetID()
 
 	deprovisionedEnv, err := ephemeralenvironments.DeprovisionForProject(opts.Client, opts.Space.ID, environmentId, projectId)
@@ -161,14 +159,20 @@ func DeprovisionEphemeralEnvironmentProject(cmd *cobra.Command, opts *Deprovisio
 		return err
 	}
 
-	cmd.Printf("\nSuccessfully deprovisioned ephemeral environment for project '%s' with id '%s'.\n", opts.Project.Value, environmentId)
 	runs := []ephemeralenvironments.DeprovisioningRunbookRun{}
 
 	if deprovisionedEnv.DeprovisioningRun.RunbookRunID != "" {
 		runs = append(runs, deprovisionedEnv.DeprovisioningRun)
 	}
 
-	util.OutputDeprovisionResult(cmd, runs)
+	message := fmt.Sprintf("Deprovisioning ephemeral environment '%s' with id '%s' for project '%s'...\n", opts.Name.Value, environmentId, opts.Project.Value)
+
+	util.OutputDeprovisionResult(message, cmd, runs)
+
+	if !opts.NoPrompt {
+		autoCmd := flag.GenerateAutomationCmd(opts.CmdPath, opts.Name, opts.Project)
+		fmt.Fprintf(cmd.OutOrStdout(), "\nAutomation Command: %s\n", autoCmd)
+	}
 
 	return nil
 }

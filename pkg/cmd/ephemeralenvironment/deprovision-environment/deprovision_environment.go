@@ -105,9 +105,14 @@ func DeprovisionEnvironmentRun(deprovisionEnvironmentOptions *DeprovisionEnviron
 		return err
 	}
 
-	command.Printf("Deprovisioning ephemeral environment '%s' with id '%s'...\n", deprovisionEnvironmentOptions.Name.Value, environment.ID)
+	message := fmt.Sprintf("Deprovisioning ephemeral environment '%s' with id '%s'...\n", deprovisionEnvironmentOptions.Name.Value, environment.ID)
 
-	util.OutputDeprovisionResult(command, response.DeprovisioningRuns)
+	util.OutputDeprovisionResult(message, command, response.DeprovisioningRuns)
+
+	if !deprovisionEnvironmentOptions.NoPrompt {
+		autoCmd := flag.GenerateAutomationCmd(deprovisionEnvironmentOptions.CmdPath, deprovisionEnvironmentOptions.Name)
+		fmt.Fprintf(command.OutOrStdout(), "\nAutomation Command: %s\n", autoCmd)
+	}
 
 	return nil
 }
