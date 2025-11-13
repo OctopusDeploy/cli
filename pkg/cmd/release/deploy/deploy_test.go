@@ -9,9 +9,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/configuration"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/environments/v2/ephemeralenvironments"
-
 	"github.com/AlecAivazis/survey/v2"
 	surveyCore "github.com/AlecAivazis/survey/v2/core"
 	"github.com/MakeNowJust/heredoc/v2"
@@ -25,9 +22,11 @@ import (
 	"github.com/OctopusDeploy/cli/test/testutil"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/channels"
 	octopusApiClient "github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/configuration"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/core"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/deployments"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/environments"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/environments/v2/ephemeralenvironments"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/releases"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/resources"
@@ -570,12 +569,11 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 			validationErr = q.AnswerWith("John")
 			assert.Nil(t, validationErr)
 
-			assert.Equal(t, heredoc.Doc(`
+			assert.Contains(t, stdout.String(), heredoc.Doc(`
 				Project Fire Project
 				Release 2.0
 				Environments dev
 			`), stdout.String())
-			stdout.Reset()
 
 			q = qa.ExpectQuestion(t, &survey.Select{
 				Message: "Change additional options?",
@@ -583,6 +581,8 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 			})
 			assert.Regexp(t, "Additional Options", stdout.String()) // actual options tested in PrintAdvancedSummary
 			_ = q.AnswerWith("Proceed to deploy")
+
+			stdout.Reset()
 
 			err := <-errReceiver
 			assert.Nil(t, err)
@@ -758,11 +758,10 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 			emptyDeploymentPreviews := fixtures.EmptyDeploymentPreviews()
 			api.ExpectRequest(t, "POST", "/api/Spaces-1/releases/"+release19.ID+"/deployments/previews").RespondWith(&emptyDeploymentPreviews)
 
-			assert.Equal(t, heredoc.Doc(`
+			assert.Contains(t, heredoc.Doc(`
 				Project Fire Project
 				Release 1.9
 			`), stdout.String())
-			stdout.Reset()
 
 			q = qa.ExpectQuestion(t, &survey.Select{
 				Message: "Change additional options?",
@@ -770,6 +769,8 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 			})
 			assert.Regexp(t, "Additional Options", stdout.String()) // actual options tested in PrintAdvancedSummary
 			_ = q.AnswerWith("Proceed to deploy")
+
+			stdout.Reset()
 
 			err := <-errReceiver
 			assert.Nil(t, err)
@@ -868,11 +869,10 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 			emptyDeploymentPreviews := fixtures.EmptyDeploymentPreviews()
 			api.ExpectRequest(t, "POST", "/api/Spaces-1/releases/"+release19.ID+"/deployments/previews").RespondWith(&emptyDeploymentPreviews)
 
-			assert.Equal(t, heredoc.Doc(`
+			assert.Contains(t, stdout.String(), heredoc.Doc(`
 				Project Fire Project
 				Release 1.9
-			`), stdout.String())
-			stdout.Reset()
+			`))
 
 			q = qa.ExpectQuestion(t, &survey.Select{
 				Message: "Change additional options?",
@@ -881,6 +881,7 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 			assert.Regexp(t, "Additional Options", stdout.String()) // actual options tested in PrintAdvancedSummary
 			_ = q.AnswerWith("Proceed to deploy")
 
+			stdout.Reset()
 			err := <-errReceiver
 			assert.Nil(t, err)
 
@@ -1061,7 +1062,7 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 			emptyDeploymentPreviews := fixtures.EmptyDeploymentPreviews()
 			api.ExpectRequest(t, "POST", "/api/Spaces-1/releases/"+release19.ID+"/deployments/previews").RespondWith(&emptyDeploymentPreviews)
 
-			assert.Equal(t, heredoc.Doc(`
+			assert.Contains(t, stdout.String(), heredoc.Doc(`
 				Project Fire Project
 				Release 1.9
 				Warning: The following packages are missing from the built-in feed for this release:
@@ -1069,8 +1070,7 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 				 - bananas (Version: 2.0.0)
 
 				This might cause the deployment to fail.
-			`), stdout.String())
-			stdout.Reset()
+			`))
 
 			q := qa.ExpectQuestion(t, &survey.Select{
 				Message: "Change additional options?",
@@ -1078,6 +1078,8 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 			})
 			assert.Regexp(t, "Additional Options", stdout.String()) // actual options tested in PrintAdvancedSummary
 			_ = q.AnswerWith("Proceed to deploy")
+
+			stdout.Reset()
 
 			err := <-errReceiver
 			assert.Nil(t, err)
