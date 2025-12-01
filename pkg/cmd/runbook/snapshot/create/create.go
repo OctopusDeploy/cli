@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
+
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/cmd"
@@ -24,7 +26,6 @@ import (
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/releases"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/runbooks"
 	"github.com/spf13/cobra"
-	"os"
 )
 
 const (
@@ -253,7 +254,7 @@ func createRun(opts *CreateOptions, outputFormat string) error {
 		if err != nil {
 			return err
 		}
-		fmt.Fprintf(opts.Out, string(data))
+		fmt.Fprint(opts.Out, string(data))
 	default:
 		if opts.Publish.Value {
 			_, _ = fmt.Fprintf(opts.Out, "\nSuccessfully created and published runbook snapshot '%s' (%s) for runbook '%s'\n", snapshot.Name, snapshot.GetID(), runbook.Name)

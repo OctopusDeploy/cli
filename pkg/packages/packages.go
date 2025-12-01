@@ -589,7 +589,7 @@ outerLoop:
 		case "y": // YES these are the packages they want
 			break outerLoop
 		case "?": // help text
-			_, _ = fmt.Fprintf(stdout, output.FormatDoc(packageOverrideLoopHelpText))
+			_, _ = fmt.Fprint(stdout, output.FormatDoc(packageOverrideLoopHelpText))
 		case "u": // undo!
 			if len(packageVersionOverrides) > 0 {
 				packageVersionOverrides = packageVersionOverrides[:len(packageVersionOverrides)-1]

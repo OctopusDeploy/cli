@@ -2,9 +2,10 @@ package view
 
 import (
 	"fmt"
-	"github.com/OctopusDeploy/cli/pkg/apiclient"
 	"io"
 	"strings"
+
+	"github.com/OctopusDeploy/cli/pkg/apiclient"
 
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/constants"
@@ -100,7 +101,7 @@ func viewRun(opts *ViewOptions) error {
 					Slug: project.Slug,
 				})
 			}
-			
+
 			return ProjectGroupAsJson{
 				Id:          pg.GetID(),
 				Name:        pg.GetName(),
@@ -116,9 +117,9 @@ func viewRun(opts *ViewOptions) error {
 				if description == "" {
 					description = constants.NoDescription
 				}
-				
+
 				url := util.GenerateWebURL(opts.Host, pg.SpaceID, fmt.Sprintf("projects?projectGroupId=%s", pg.GetID()))
-				
+
 				return []string{
 					output.Bold(pg.GetName()),
 					description,
@@ -149,30 +150,30 @@ type ProjectGroupAsJson struct {
 
 func formatProjectGroupForBasic(opts *ViewOptions, projectGroup *projectgroups.ProjectGroup, projects []*projects.Project) string {
 	var result strings.Builder
-	
+
 	// header
 	result.WriteString(fmt.Sprintf("%s %s\n", output.Bold(projectGroup.GetName()), output.Dimf("(%s)", projectGroup.GetID())))
-	
+
 	// description
 	if projectGroup.Description == "" {
 		result.WriteString(fmt.Sprintln(output.Dim(constants.NoDescription)))
 	} else {
 		result.WriteString(fmt.Sprintln(output.Dim(projectGroup.Description)))
 	}
-	
+
 	// projects
-	result.WriteString(fmt.Sprintf(output.Cyan("\nProjects:\n")))
+	result.WriteString(fmt.Sprint(output.Cyan("\nProjects:\n")))
 	for _, project := range projects {
 		result.WriteString(fmt.Sprintf("%s (%s)\n", output.Bold(project.GetName()), project.Slug))
 	}
-	
+
 	// footer with web URL
 	url := util.GenerateWebURL(opts.Host, projectGroup.SpaceID, fmt.Sprintf("projects?projectGroupId=%s", projectGroup.GetID()))
 	result.WriteString(fmt.Sprintf("\nView this project group in Octopus Deploy: %s\n", output.Blue(url)))
-	
+
 	if opts.flags.Web.Value {
 		browser.OpenURL(url)
 	}
-	
+
 	return result.String()
 }
