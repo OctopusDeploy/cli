@@ -1,5 +1,20 @@
 # Changelog
 
+## [2.20.0](https://github.com/OctopusDeploy/cli/compare/v2.19.1...v2.20.0) (2025-12-01)
+
+
+### Features
+
+* Add ephemeral environment create command ([#559](https://github.com/OctopusDeploy/cli/issues/559)) ([0fc0cdd](https://github.com/OctopusDeploy/cli/commit/0fc0cddda3f30343a1f6f72d4bf3429d7e729a48))
+* Add support to deprovision environment ([#562](https://github.com/OctopusDeploy/cli/issues/562)) ([8d430ef](https://github.com/OctopusDeploy/cli/commit/8d430eff2abf280fe5c53036932e8c3d74df26c3))
+* Add support to view/add/update project tags ([#567](https://github.com/OctopusDeploy/cli/issues/567)) ([2e2340a](https://github.com/OctopusDeploy/cli/commit/2e2340ab1494e1846bdf454e094aa5392243ee8e))
+* Extend tag sets and add environment tags ([#548](https://github.com/OctopusDeploy/cli/issues/548)) ([4dbefbd](https://github.com/OctopusDeploy/cli/commit/4dbefbd3059c1d023c0441855ca64f6f57497b6b))
+
+
+### Bug Fixes
+
+* Bump go version ([f5b6927](https://github.com/OctopusDeploy/cli/commit/f5b692704de454cbce3fc3df2345d3c18ad7f6ba))
+
 ## [2.19.1](https://github.com/OctopusDeploy/cli/compare/v2.19.0...v2.19.1) (2025-10-09)
 
 
