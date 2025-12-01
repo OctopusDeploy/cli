@@ -112,11 +112,11 @@ func includeRun(opts *IncludeOptions) error {
 		}
 
 		if util.SliceContainsAny(project.IncludedLibraryVariableSets, func(item string) bool { return item == targetVariableSet[0].ID }) {
-			fmt.Fprintf(opts.Out, output.Yellowf("'%s' is already included, skipping\n", targetVariableSet[0].Name))
+			fmt.Fprint(opts.Out, output.Yellowf("'%s' is already included, skipping\n", targetVariableSet[0].Name))
 		} else {
 			project.IncludedLibraryVariableSets = append(project.IncludedLibraryVariableSets, targetVariableSet[0].ID)
 			projectModified = true
-			fmt.Fprintf(opts.Out, output.Cyanf("Including '%s' library variable set\n", targetVariableSet[0].Name))
+			fmt.Fprint(opts.Out, output.Cyanf("Including '%s' library variable set\n", targetVariableSet[0].Name))
 		}
 	}
 

@@ -137,7 +137,7 @@ outerLoop:
 		case "y": // YES these are the git resources they want
 			break outerLoop
 		case "?": // help text
-			_, _ = fmt.Fprintf(stdout, output.FormatDoc(gitResourceGitRefLoopHelpText))
+			_, _ = fmt.Fprint(stdout, output.FormatDoc(gitResourceGitRefLoopHelpText))
 		case "u": // undo!
 			if len(overriddenGitResourceGitRefs) > 0 {
 				//strip the last override from the list

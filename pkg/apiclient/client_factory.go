@@ -159,13 +159,11 @@ func ValidateMandatoryEnvironment(host string, apiKey string, accessToken string
 
 		if isInteractive {
 			err := GetInteractiveMandatoryEnvironmentErrorMessage()
-
-			return fmt.Errorf(err)
+			return errors.New(err)
 		}
 
 		err := GetNonInteractiveMandatoryEnvironmentErrorMessage()
-
-		return fmt.Errorf(err)
+		return errors.New(err)
 	}
 
 	return nil
