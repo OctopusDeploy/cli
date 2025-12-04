@@ -37,7 +37,6 @@ jobs:
           DB_CONNECTION_STRING: "Server=sqlserver;Database=OctopusDeploy;User Id=sa;Password=${{ env.SA_PASSWORD }};"
           ADMIN_API_KEY: ${{ env.ADMIN_API_KEY }}
           ENABLE_USAGE: N
-          OCTOPUS_SERVER_BASE64_LICENSE: ${{ secrets.OCTOPUS_SERVER_BASE64_LICENSE }}
         ports:
           - 8080:8080
         options: >-
