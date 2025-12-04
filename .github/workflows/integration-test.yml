@@ -30,7 +30,6 @@ jobs:
           --health-timeout 3s
           --health-retries 10
           --health-start-period 10s
-          --skipLicenseCheck
       octopusserver:
         image: octopusdeploy/octopusdeploy:latest
         env:
@@ -40,7 +39,9 @@ jobs:
           ENABLE_USAGE: N
           OCTOPUS_SERVER_BASE64_LICENSE: ${{ secrets.OCTOPUS_SERVER_BASE64_LICENSE }}
         ports:
-          - 8080:8080         
+          - 8080:8080
+        options: >-
+          --skipLicenseCheck      
 
     permissions: # https://github.com/dorny/test-reporter/issues/168
       statuses: write
