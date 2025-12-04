@@ -1,6 +1,6 @@
 name: "Check License"
 on:
-  workflow_dispatch:
+  push:
 
 jobs:
   decode-secret:
