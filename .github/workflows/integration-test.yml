@@ -39,8 +39,6 @@ jobs:
           ENABLE_USAGE: N
         ports:
           - 8080:8080
-        options: >-
-          --skipLicenseCheck      
 
     permissions: # https://github.com/dorny/test-reporter/issues/168
       statuses: write
