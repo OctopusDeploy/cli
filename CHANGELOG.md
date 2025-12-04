@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.20.1](https://github.com/OctopusDeploy/cli/compare/v2.20.0...v2.20.1) (2025-12-04)
+
+
+### Bug Fixes
+
+* Update go version to 1.25.5 ([#570](https://github.com/OctopusDeploy/cli/issues/570)) ([30e12e9](https://github.com/OctopusDeploy/cli/commit/30e12e9342f4388f887a0535b8e63c55d8fe6ae1))
+
 ## [2.20.0](https://github.com/OctopusDeploy/cli/compare/v2.19.1...v2.20.0) (2025-12-01)
 
 
