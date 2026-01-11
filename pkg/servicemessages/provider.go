@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 
+	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/spf13/viper"
 )
 
@@ -23,13 +24,17 @@ func NewProvider(printer *Printer) Provider {
 }
 
 func (p *provider) ServiceMessage(messageName string, values any) {
-	serviceMessageEnabled := viper.GetBool("enable-service-messages")
-	teamCityEnvVar := os.Getenv("TEAMCITY_VERSION")
+	serviceMessageEnabled := viper.GetBool(constants.FlagEnableServiceMessages)
+	if !serviceMessageEnabled {
+		return
+	}
 
-	if serviceMessageEnabled && teamCityEnvVar == "" {
+	teamCityEnvVar := os.Getenv("TEAMCITY_VERSION")
+	if teamCityEnvVar == "" {
 		p.printer.Error("service messages are only supported in TeamCity builds")
 		return
 	}
+
 	switch t := values.(type) {
 	case string:
 		p.printer.Println(fmt.Sprintf("##teamcity[%s %s]\n", messageName, t))
@@ -55,9 +60,9 @@ func NewPrinter(out io.Writer, err io.Writer) *Printer {
 }
 
 func (p *Printer) Println(msg string) {
-	fmt.Fprintln(p.Out, msg)
+	fmt.Fprint(p.Out, msg)
 }
 
 func (p *Printer) Error(msg string) {
-	fmt.Fprintln(p.Err, msg)
+	fmt.Fprint(p.Err, msg)
 }
