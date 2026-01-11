@@ -3,13 +3,15 @@ package main
 import (
 	_ "embed"
 	"fmt"
-	"github.com/OctopusDeploy/cli/pkg/util"
 	"os"
 	"strings"
 	"time"
 
+	"github.com/OctopusDeploy/cli/pkg/util"
+
 	"github.com/AlecAivazis/survey/v2/terminal"
 	version "github.com/OctopusDeploy/cli"
+	"github.com/OctopusDeploy/cli/pkg/servicemessages"
 	"github.com/briandowns/spinner"
 	"github.com/spf13/viper"
 
@@ -64,13 +66,17 @@ func main() {
 
 	c := config.New(viper)
 
-	f := factory.New(clientFactory, askProvider, s, buildVersion, c)
+	terminalOut := terminal.NewAnsiStdout(os.Stdout)
+	terminalErr := terminal.NewAnsiStderr(os.Stderr)
+
+	serviceMessageProvider := servicemessages.NewProvider(servicemessages.NewPrinter(terminalOut, terminalErr))
+	f := factory.New(clientFactory, askProvider, s, buildVersion, c, serviceMessageProvider)
 
 	cmd := root.NewCmdRoot(f, clientFactory, askProvider)
 
 	// if we don't do this then cmd.Print will get sent to stderr
-	cmd.SetOut(terminal.NewAnsiStdout(os.Stdout))
-	cmd.SetErr(terminal.NewAnsiStderr(os.Stderr))
+	cmd.SetOut(terminalOut)
+	cmd.SetErr(terminalErr)
 
 	if err := cmd.Execute(); err != nil {
 		cmd.PrintErr(err)

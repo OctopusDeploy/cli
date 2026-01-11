@@ -2,8 +2,6 @@ package main
 
 import (
 	"fmt"
-	"github.com/OctopusDeploy/cli/pkg/config"
-	"github.com/spf13/viper"
 	"io"
 	"os"
 	"os/user"
@@ -12,6 +10,10 @@ import (
 	"strings"
 	"text/template"
 	"time"
+
+	"github.com/OctopusDeploy/cli/pkg/config"
+	"github.com/OctopusDeploy/cli/pkg/servicemessages"
+	"github.com/spf13/viper"
 
 	"github.com/AlecAivazis/survey/v2"
 	version "github.com/OctopusDeploy/cli"
@@ -100,7 +102,7 @@ func run(args []string) error {
 	buildVersion := strings.TrimSpace(version.Version)
 	viper := viper.GetViper()
 	c := config.New(viper)
-	f := factory.New(clientFactory, askProvider, s, buildVersion, c)
+	f := factory.New(clientFactory, askProvider, s, buildVersion, c, servicemessages.NewProvider(servicemessages.NewPrinter(os.Stdout, os.Stderr)))
 
 	cmd := root.NewCmdRoot(f, clientFactory, askProvider)
 	cmd.DisableAutoGenTag = true

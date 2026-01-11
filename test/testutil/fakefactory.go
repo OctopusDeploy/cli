@@ -10,6 +10,7 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/config"
 	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/OctopusDeploy/cli/pkg/question"
+	"github.com/OctopusDeploy/cli/pkg/servicemessages"
 	octopusApiClient "github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/spaces"
 )
@@ -58,13 +59,14 @@ func NewMockFactoryWithSpaceAndPrompt(api *MockHttpServer, space *spaces.Space, 
 }
 
 type MockFactory struct {
-	api               *MockHttpServer          // must not be nil
-	SystemClient      *octopusApiClient.Client // nil; lazily created like with the real factory
-	SpaceScopedClient *octopusApiClient.Client // nil; lazily created like with the real factory
-	CurrentSpace      *spaces.Space
-	RawSpinner        factory.Spinner
-	AskProvider       question.AskProvider
-	ConfigProvider    config.IConfigProvider
+	api                    *MockHttpServer          // must not be nil
+	SystemClient           *octopusApiClient.Client // nil; lazily created like with the real factory
+	SpaceScopedClient      *octopusApiClient.Client // nil; lazily created like with the real factory
+	CurrentSpace           *spaces.Space
+	RawSpinner             factory.Spinner
+	AskProvider            question.AskProvider
+	ConfigProvider         config.IConfigProvider
+	serviceMessageProvider servicemessages.Provider
 }
 
 // refactor this later if there's ever a need for unit tests to vary the server url or API key (why would there be?)
@@ -126,4 +128,7 @@ func (f *MockFactory) Ask(p survey.Prompt, response interface{}, opts ...survey.
 }
 func (f *MockFactory) GetConfigProvider() (config.IConfigProvider, error) {
 	return f.ConfigProvider, nil
+}
+func (f *MockFactory) GetServiceMessageProvider() (servicemessages.Provider, error) {
+	return f.serviceMessageProvider, nil
 }

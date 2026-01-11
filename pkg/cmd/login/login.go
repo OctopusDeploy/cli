@@ -6,10 +6,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/AlecAivazis/survey/v2"
 	"io"
 	"net/http"
 	"time"
+
+	"github.com/AlecAivazis/survey/v2"
 
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/apiclient"
