@@ -14,10 +14,10 @@ type Provider interface {
 }
 
 type provider struct {
-	printer *Printer
+	printer *OutputPrinter
 }
 
-func NewProvider(printer *Printer) Provider {
+func NewProvider(printer *OutputPrinter) Provider {
 	return &provider{
 		printer: printer,
 	}
@@ -37,32 +37,32 @@ func (p *provider) ServiceMessage(messageName string, values any) {
 
 	switch t := values.(type) {
 	case string:
-		p.printer.Println(fmt.Sprintf("##teamcity[%s %s]\n", messageName, t))
+		p.printer.Info(fmt.Sprintf("##teamcity[%s %s]\n", messageName, t))
 	case map[string]string:
 		for key, value := range t {
-			p.printer.Println(fmt.Sprintf("##teamcity[%s %s=%s]\n", messageName, key, value))
+			p.printer.Info(fmt.Sprintf("##teamcity[%s %s=%s]\n", messageName, key, value))
 		}
 	default:
 		p.printer.Error("Unsupported service message value type")
 	}
 }
 
-type Printer struct {
+type OutputPrinter struct {
 	Out io.Writer
 	Err io.Writer
 }
 
-func NewPrinter(out io.Writer, err io.Writer) *Printer {
-	return &Printer{
+func NewOutputPrinter(out io.Writer, err io.Writer) *OutputPrinter {
+	return &OutputPrinter{
 		Out: out,
 		Err: err,
 	}
 }
 
-func (p *Printer) Println(msg string) {
+func (p *OutputPrinter) Info(msg string) {
 	fmt.Fprint(p.Out, msg)
 }
 
-func (p *Printer) Error(msg string) {
+func (p *OutputPrinter) Error(msg string) {
 	fmt.Fprint(p.Err, msg)
 }

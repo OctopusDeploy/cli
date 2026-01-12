@@ -102,7 +102,7 @@ func run(args []string) error {
 	buildVersion := strings.TrimSpace(version.Version)
 	viper := viper.GetViper()
 	c := config.New(viper)
-	f := factory.New(clientFactory, askProvider, s, buildVersion, c, servicemessages.NewProvider(servicemessages.NewPrinter(os.Stdout, os.Stderr)))
+	f := factory.New(clientFactory, askProvider, s, buildVersion, c, servicemessages.NewProvider(servicemessages.NewOutputPrinter(os.Stdout, os.Stderr)))
 
 	cmd := root.NewCmdRoot(f, clientFactory, askProvider)
 	cmd.DisableAutoGenTag = true

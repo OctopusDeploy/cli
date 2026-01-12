@@ -69,7 +69,7 @@ func main() {
 	terminalOut := terminal.NewAnsiStdout(os.Stdout)
 	terminalErr := terminal.NewAnsiStderr(os.Stderr)
 
-	serviceMessageProvider := servicemessages.NewProvider(servicemessages.NewPrinter(terminalOut, terminalErr))
+	serviceMessageProvider := servicemessages.NewProvider(servicemessages.NewOutputPrinter(terminalOut, terminalErr))
 	f := factory.New(clientFactory, askProvider, s, buildVersion, c, serviceMessageProvider)
 
 	cmd := root.NewCmdRoot(f, clientFactory, askProvider)
