@@ -1,6 +1,7 @@
 package testutil
 
 import (
+	"bytes"
 	"errors"
 	"net/http"
 	"net/url"
@@ -55,6 +56,7 @@ func NewMockFactoryWithSpaceAndPrompt(api *MockHttpServer, space *spaces.Space, 
 	result := NewMockFactory(api)
 	result.CurrentSpace = space
 	result.AskProvider = askProvider
+	result.serviceMessageProvider = servicemessages.NewProvider(servicemessages.NewOutputPrinter(&bytes.Buffer{}, &bytes.Buffer{}))
 	return result
 }
 
