@@ -344,6 +344,7 @@ func createRun(cmd *cobra.Command, f factory.Factory, flags *CreateFlags) error 
 				} else {
 					cmd.Printf("Successfully created release version %s\n", releaseVersion)
 				}
+				f.GetServiceMessageProvider().ServiceMessage("setParameter", map[string]string{"name": "octo.releaseNumber", "value": releaseVersion})
 			}
 		}
 

@@ -129,6 +129,6 @@ func (f *MockFactory) Ask(p survey.Prompt, response interface{}, opts ...survey.
 func (f *MockFactory) GetConfigProvider() (config.IConfigProvider, error) {
 	return f.ConfigProvider, nil
 }
-func (f *MockFactory) GetServiceMessageProvider() (servicemessages.Provider, error) {
-	return f.serviceMessageProvider, nil
+func (f *MockFactory) GetServiceMessageProvider() servicemessages.Provider {
+	return f.serviceMessageProvider
 }

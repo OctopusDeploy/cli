@@ -38,7 +38,7 @@ type Factory interface {
 	BuildVersion() string
 	GetHttpClient() (*http.Client, error)
 	GetConfigProvider() (config.IConfigProvider, error)
-	GetServiceMessageProvider() (servicemessages.Provider, error)
+	GetServiceMessageProvider() servicemessages.Provider
 }
 
 func New(clientFactory apiclient.ClientFactory,
@@ -106,8 +106,8 @@ func (f *factory) GetConfigProvider() (config.IConfigProvider, error) {
 	return f.config, nil
 }
 
-func (f *factory) GetServiceMessageProvider() (servicemessages.Provider, error) {
-	return f.serviceMessageProvider, nil
+func (f *factory) GetServiceMessageProvider() servicemessages.Provider {
+	return f.serviceMessageProvider
 }
 
 // NoSpinner is a static singleton "does nothing" stand-in for spinner if you want to

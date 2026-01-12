@@ -22,7 +22,7 @@ func TestServiceMessage(t *testing.T) {
 		wantErr         string
 	}{
 		{"service message flag is not enabled", false, false, "testMessage", "key1", "value1", &bytes.Buffer{}, &bytes.Buffer{}, "", ""},
-		{"service message enabled with teamcity envvar and map value", true, true, "testMessage", "key1", map[string]string{"key": "value"}, &bytes.Buffer{}, &bytes.Buffer{}, "##teamcity[testMessage key=value]\n", ""},
+		{"service message enabled with teamcity envvar and map value", true, true, "testMessage", "key1", map[string]string{"key": "value"}, &bytes.Buffer{}, &bytes.Buffer{}, "##teamcity[testMessage key=value]", ""},
 		{"service message enabled without teamcity envvar", true, false, "testMessage", "key1", "value1", &bytes.Buffer{}, &bytes.Buffer{}, "", "service messages are only supported in TeamCity builds"},
 		{"service message enabled with teamcity envvar and string value", true, true, "testMessage", "key1", "value", &bytes.Buffer{}, &bytes.Buffer{}, "##teamcity[testMessage value]\n", ""},
 		{"service message enabled with teamcity envvar and unsupported value", true, true, "testMessage", "key1", []string{"dsdsd"}, &bytes.Buffer{}, &bytes.Buffer{}, "", "Unsupported service message value type"},

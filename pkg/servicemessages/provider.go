@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/spf13/viper"
@@ -39,9 +40,8 @@ func (p *provider) ServiceMessage(messageName string, values any) {
 	case string:
 		p.printer.Info(fmt.Sprintf("##teamcity[%s %s]\n", messageName, t))
 	case map[string]string:
-		for key, value := range t {
-			p.printer.Info(fmt.Sprintf("##teamcity[%s %s=%s]\n", messageName, key, value))
-		}
+		mapMsg := p.mapToStringMsg(t, messageName)
+		p.printer.Info(mapMsg)
 	default:
 		p.printer.Error("Unsupported service message value type")
 	}
@@ -65,4 +65,14 @@ func (p *OutputPrinter) Info(msg string) {
 
 func (p *OutputPrinter) Error(msg string) {
 	fmt.Fprint(p.Err, msg)
+}
+
+func (p *provider) mapToStringMsg(m map[string]string, messageName string) string {
+	var builder strings.Builder
+	builder.WriteString(fmt.Sprintf("##teamcity[%s", messageName))
+	for key, value := range m {
+		builder.WriteString(fmt.Sprintf(" %s=%s", key, value))
+	}
+	builder.WriteString("]")
+	return builder.String()
 }
