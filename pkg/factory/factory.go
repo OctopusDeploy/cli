@@ -7,6 +7,7 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/apiclient"
 	"github.com/OctopusDeploy/cli/pkg/config"
 	"github.com/OctopusDeploy/cli/pkg/question"
+	"github.com/OctopusDeploy/cli/pkg/servicemessages"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/spaces"
 )
@@ -18,11 +19,12 @@ type Spinner interface {
 }
 
 type factory struct {
-	client       apiclient.ClientFactory
-	asker        question.AskProvider
-	spinner      Spinner
-	buildVersion string
-	config       config.IConfigProvider
+	client                 apiclient.ClientFactory
+	asker                  question.AskProvider
+	spinner                Spinner
+	buildVersion           string
+	config                 config.IConfigProvider
+	serviceMessageProvider servicemessages.Provider
 }
 
 type Factory interface {
@@ -36,15 +38,22 @@ type Factory interface {
 	BuildVersion() string
 	GetHttpClient() (*http.Client, error)
 	GetConfigProvider() (config.IConfigProvider, error)
+	GetServiceMessageProvider() servicemessages.Provider
 }
 
-func New(clientFactory apiclient.ClientFactory, asker question.AskProvider, s Spinner, buildVersion string, config config.IConfigProvider) Factory {
+func New(clientFactory apiclient.ClientFactory,
+	asker question.AskProvider,
+	s Spinner,
+	buildVersion string,
+	config config.IConfigProvider,
+	serviceMessageProvider servicemessages.Provider) Factory {
 	return &factory{
-		client:       clientFactory,
-		asker:        asker,
-		spinner:      s,
-		buildVersion: buildVersion,
-		config:       config,
+		client:                 clientFactory,
+		asker:                  asker,
+		spinner:                s,
+		buildVersion:           buildVersion,
+		config:                 config,
+		serviceMessageProvider: serviceMessageProvider,
 	}
 }
 
@@ -95,6 +104,10 @@ func (f *factory) BuildVersion() string {
 
 func (f *factory) GetConfigProvider() (config.IConfigProvider, error) {
 	return f.config, nil
+}
+
+func (f *factory) GetServiceMessageProvider() servicemessages.Provider {
+	return f.serviceMessageProvider
 }
 
 // NoSpinner is a static singleton "does nothing" stand-in for spinner if you want to
