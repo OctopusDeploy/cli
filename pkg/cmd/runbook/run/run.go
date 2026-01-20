@@ -46,6 +46,8 @@ const (
 	FlagRunbookName        = "name"
 	FlagAliasRunbookLegacy = "runbook"
 
+	FlagRunbookTag = "runbook-tag" // can be specified multiple times
+
 	FlagSnapshot = "snapshot"
 
 	FlagEnvironment = "environment" // can be specified multiple times; but only once if tenanted
@@ -93,6 +95,7 @@ const (
 type RunFlags struct {
 	Project              *flag.Flag[string]
 	RunbookName          *flag.Flag[string] // the runbook to run
+	RunbookTags          *flag.Flag[[]string]
 	Environments         *flag.Flag[[]string]
 	Tenants              *flag.Flag[[]string]
 	TenantTags           *flag.Flag[[]string]
@@ -115,6 +118,7 @@ func NewRunFlags() *RunFlags {
 	return &RunFlags{
 		Project:              flag.New[string](FlagProject, false),
 		RunbookName:          flag.New[string](FlagRunbookName, false),
+		RunbookTags:          flag.New[[]string](FlagRunbookTag, false),
 		Environments:         flag.New[[]string](FlagEnvironment, false),
 		Tenants:              flag.New[[]string](FlagTenant, false),
 		TenantTags:           flag.New[[]string](FlagTenantTag, false),
@@ -156,6 +160,7 @@ func NewCmdRun(f factory.Factory) *cobra.Command {
 	flags := cmd.Flags()
 	flags.StringVarP(&runFlags.Project.Value, runFlags.Project.Name, "p", "", "Name or ID of the project to run the runbook from")
 	flags.StringVarP(&runFlags.RunbookName.Value, runFlags.RunbookName.Name, "n", "", "Name of the runbook to run")
+	flags.StringArrayVarP(&runFlags.RunbookTags.Value, runFlags.RunbookTags.Name, "", nil, "Run all runbooks matching this tag (can be specified multiple times). Format is 'Tag Set Name/Tag Name'. Mutually exclusive with --name.")
 	flags.StringArrayVarP(&runFlags.Environments.Value, runFlags.Environments.Name, "e", nil, "Run in this environment (can be specified multiple times)")
 	flags.StringArrayVarP(&runFlags.Tenants.Value, runFlags.Tenants.Name, "", nil, "Run for this tenant (can be specified multiple times)")
 	flags.StringArrayVarP(&runFlags.TenantTags.Value, runFlags.TenantTags.Name, "", nil, "Run for tenants matching this tag (can be specified multiple times). Format is 'Tag Set Name/Tag Name', such as 'Regions/South'.")
@@ -195,6 +200,10 @@ func NewCmdRun(f factory.Factory) *cobra.Command {
 }
 
 func runbookRun(cmd *cobra.Command, f factory.Factory, flags *RunFlags) error {
+	if flags.RunbookName.Value != "" && len(flags.RunbookTags.Value) > 0 {
+		return errors.New("--name and --runbook-tag are mutually exclusive. Please specify either a runbook name or runbook tags, not both")
+	}
+
 	outputFormat, err := cmd.Flags().GetString(constants.FlagOutputFormat)
 	if err != nil { // should never happen, but fallback if it does
 		outputFormat = constants.OutputFormatTable
@@ -217,6 +226,34 @@ func runbookRun(cmd *cobra.Command, f factory.Factory, flags *RunFlags) error {
 	}
 
 	flags.Project.Value = project.Name
+
+	if f.IsPromptEnabled() && flags.RunbookName.Value == "" && len(flags.RunbookTags.Value) == 0 {
+		var runBySelection string
+		err = f.Ask(&survey.Select{
+			Message: "How do you want to run runbooks?",
+			Options: []string{"By name", "By tag"},
+		}, &runBySelection)
+		if err != nil {
+			return err
+		}
+
+		if runBySelection == "By tag" {
+			tags, err := selectRunbookTags(octopus, f.Ask, f.GetCurrentSpace(), project)
+			if err != nil {
+				return err
+			}
+			flags.RunbookTags.Value = tags
+		}
+	}
+
+	if len(flags.RunbookTags.Value) > 0 {
+		if shared.AreRunbooksInGit(project) {
+			return runRunbooksByTag(cmd, f, flags, octopus, project, parsedVariables, outputFormat, true)
+		} else {
+			return runRunbooksByTag(cmd, f, flags, octopus, project, parsedVariables, outputFormat, false)
+		}
+	}
+
 	if shared.AreRunbooksInGit(project) {
 		return runGitRunbook(cmd, f, flags, octopus, project, parsedVariables, outputFormat)
 	} else {
@@ -1294,4 +1331,292 @@ func findGitRunbook(octopus *octopusApiClient.Client, spaceID string, projectID 
 		return nil, fmt.Errorf("no runbook found with Name of %s", runbookName)
 	}
 	return result, err
+}
+
+func filterRunbooksByTags(allRunbooks []*runbooks.Runbook, tags []string) []*runbooks.Runbook {
+	var matchingRunbooks []*runbooks.Runbook
+	for _, runbook := range allRunbooks {
+		for _, tag := range tags {
+			if util.SliceContains(runbook.RunbookTags, tag) {
+				matchingRunbooks = append(matchingRunbooks, runbook)
+				break
+			}
+		}
+	}
+	return matchingRunbooks
+}
+
+func selectRunbookTags(octopus *octopusApiClient.Client, asker question.Asker, space *spaces.Space, project *projects.Project) ([]string, error) {
+	allRunbooks, err := shared.GetAllRunbooks(octopus, project.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	tagMap := make(map[string]bool)
+	for _, runbook := range allRunbooks {
+		for _, tag := range runbook.RunbookTags {
+			tagMap[tag] = true
+		}
+	}
+
+	if len(tagMap) == 0 {
+		return nil, fmt.Errorf("no runbooks with tags found in project %s", project.Name)
+	}
+
+	availableTags := make([]string, 0, len(tagMap))
+	for tag := range tagMap {
+		availableTags = append(availableTags, tag)
+	}
+	sort.Strings(availableTags)
+
+	var selectedTags []string
+	err = asker(&survey.MultiSelect{
+		Message: "Select runbook tags (space to select, enter to confirm):",
+		Options: availableTags,
+	}, &selectedTags)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(selectedTags) == 0 {
+		return nil, fmt.Errorf("at least one tag must be selected")
+	}
+
+	return selectedTags, nil
+}
+
+type runbookTaskResult struct {
+	runbookName          string
+	environments         []string
+	runbookRunServerTasks []*runbooks.RunbookRunServerTask
+	err                  error
+}
+
+func processRunbookTasks(octopus *octopusApiClient.Client, space *spaces.Space, tasks []*executor.Task) []runbookTaskResult {
+	results := make([]runbookTaskResult, len(tasks))
+
+	for i, task := range tasks {
+		var runbookName string
+		var environments []string
+		var serverTasks []*runbooks.RunbookRunServerTask
+		var err error
+
+		switch task.Type {
+		case executor.TaskTypeRunbookRun:
+			params, ok := task.Options.(*executor.TaskOptionsRunbookRun)
+			if ok {
+				runbookName = params.RunbookName
+				environments = params.Environments
+				err = executor.ProcessTasks(octopus, space, []*executor.Task{task})
+				if params.Response != nil {
+					serverTasks = params.Response.RunbookRunServerTasks
+				}
+			} else {
+				err = fmt.Errorf("invalid task options type for RunbookRun")
+			}
+		case executor.TaskTypeGitRunbookRun:
+			params, ok := task.Options.(*executor.TaskOptionsGitRunbookRun)
+			if ok {
+				runbookName = params.RunbookName
+				environments = params.Environments
+				err = executor.ProcessTasks(octopus, space, []*executor.Task{task})
+				if params.Response != nil {
+					serverTasks = params.Response.RunbookRunServerTasks
+				}
+			} else {
+				err = fmt.Errorf("invalid task options type for GitRunbookRun")
+			}
+		default:
+			err = fmt.Errorf("unhandled task type %s", task.Type)
+		}
+
+		results[i] = runbookTaskResult{
+			runbookName:          runbookName,
+			environments:         environments,
+			runbookRunServerTasks: serverTasks,
+			err:                  err,
+		}
+	}
+
+	return results
+}
+
+func runRunbooksByTag(cmd *cobra.Command, f factory.Factory, flags *RunFlags, octopus *octopusApiClient.Client, project *projects.Project, parsedVariables map[string]string, outputFormat string, isGit bool) error {
+	var allRunbooks []*runbooks.Runbook
+	var err error
+
+	if isGit {
+		if flags.GitRef.Value == "" {
+			return errors.New("--git-ref is required when running runbooks by tag in a git-based project")
+		}
+		allRunbooks, err = shared.GetAllGitRunbooks(octopus, project.ID, flags.GitRef.Value)
+	} else {
+		allRunbooks, err = shared.GetAllRunbooks(octopus, project.ID)
+	}
+
+	if err != nil {
+		return err
+	}
+
+	matchingRunbooks := filterRunbooksByTags(allRunbooks, flags.RunbookTags.Value)
+
+	if len(matchingRunbooks) == 0 {
+		return fmt.Errorf("no runbooks found matching tags: %s", strings.Join(flags.RunbookTags.Value, ", "))
+	}
+
+	if !constants.IsProgrammaticOutputFormat(outputFormat) {
+		cmd.Printf("Found %d runbook(s) matching tags:\n", len(matchingRunbooks))
+		for _, rb := range matchingRunbooks {
+			cmd.Printf("  - %s\n", rb.Name)
+		}
+		cmd.Println()
+	}
+
+	var selectedEnvironments []*environments.Environment
+	if f.IsPromptEnabled() {
+		if len(flags.Environments.Value) == 0 {
+			if isGit {
+				selectedEnvironments, err = selectGitRunEnvironments(f.Ask, octopus, f.GetCurrentSpace(), project, matchingRunbooks[0], flags.GitRef.Value)
+			} else {
+				selectedEnvironments, err = selectRunEnvironments(f.Ask, octopus, f.GetCurrentSpace(), project, matchingRunbooks[0])
+			}
+			if err != nil {
+				return err
+			}
+			flags.Environments.Value = util.SliceTransform(selectedEnvironments, func(env *environments.Environment) string { return env.Name })
+		}
+
+		if len(flags.Tenants.Value) == 0 && len(flags.TenantTags.Value) == 0 {
+			tenantedDeploymentMode := false
+			if project.TenantedDeploymentMode == core.TenantedDeploymentModeTenanted {
+				tenantedDeploymentMode = true
+			}
+			flags.Tenants.Value, flags.TenantTags.Value, _ = executionscommon.AskTenantsAndTags(f.Ask, octopus, matchingRunbooks[0].ProjectID, selectedEnvironments, tenantedDeploymentMode)
+		}
+	}
+
+	if len(flags.Environments.Value) == 0 {
+		return errors.New("environment(s) must be specified")
+	}
+
+	tasks := make([]*executor.Task, 0, len(matchingRunbooks))
+	for _, runbook := range matchingRunbooks {
+		commonOptions := &executor.TaskOptionsRunbookRunBase{
+			ProjectName:          project.Name,
+			RunbookName:          runbook.Name,
+			Environments:         flags.Environments.Value,
+			Tenants:              flags.Tenants.Value,
+			TenantTags:           flags.TenantTags.Value,
+			ScheduledStartTime:   flags.RunAt.Value,
+			ScheduledExpiryTime:  flags.MaxQueueTime.Value,
+			ExcludedSteps:        flags.ExcludedSteps.Value,
+			GuidedFailureMode:    flags.GuidedFailureMode.Value,
+			ForcePackageDownload: flags.ForcePackageDownload.Value,
+			RunTargets:           flags.RunTargets.Value,
+			ExcludeTargets:       flags.ExcludeTargets.Value,
+			Variables:            parsedVariables,
+		}
+
+		if isGit {
+			gitOptions := &executor.TaskOptionsGitRunbookRun{
+				GitReference:            flags.GitRef.Value,
+				DefaultPackageVersion:   flags.PackageVersion.Value,
+				PackageVersionOverrides: flags.PackageVersionSpec.Value,
+				GitResourceRefs:         flags.GitResourceRefsSpec.Value,
+			}
+			gitOptions.TaskOptionsRunbookRunBase = *commonOptions
+			tasks = append(tasks, executor.NewTask(executor.TaskTypeGitRunbookRun, gitOptions))
+		} else {
+			dbOptions := &executor.TaskOptionsRunbookRun{
+				Snapshot: flags.Snapshot.Value,
+			}
+			dbOptions.TaskOptionsRunbookRunBase = *commonOptions
+			if cmd.Flags().Lookup(FlagForcePackageDownload).Changed {
+				dbOptions.ForcePackageDownloadWasSpecified = true
+			}
+			tasks = append(tasks, executor.NewTask(executor.TaskTypeRunbookRun, dbOptions))
+		}
+	}
+
+	results := processRunbookTasks(octopus, f.GetCurrentSpace(), tasks)
+
+	type runbookRunResult struct {
+		RunbookName string `json:"runbookName"`
+		Environment string `json:"environment"`
+		Status      string `json:"status"`
+		TaskID      string `json:"taskId"`
+	}
+
+	var flatResults []runbookRunResult
+	successCount := 0
+	failCount := 0
+
+	for _, result := range results {
+		if result.err != nil {
+			failCount++
+			for _, env := range result.environments {
+				flatResults = append(flatResults, runbookRunResult{
+					RunbookName: result.runbookName,
+					Environment: env,
+					Status:      fmt.Sprintf("Failed: %v", result.err),
+					TaskID:      "",
+				})
+			}
+		} else {
+			for i, task := range result.runbookRunServerTasks {
+				successCount++
+				env := "Unknown"
+				if i < len(result.environments) {
+					env = result.environments[i]
+				} else if len(result.environments) > 0 {
+					env = result.environments[0]
+				}
+				flatResults = append(flatResults, runbookRunResult{
+					RunbookName: result.runbookName,
+					Environment: env,
+					Status:      "Started",
+					TaskID:      task.ServerTaskID,
+				})
+			}
+		}
+	}
+
+	switch outputFormat {
+	case constants.OutputFormatBasic:
+		for _, result := range flatResults {
+			if result.Status == "Success" {
+				cmd.Printf("%s\n", result.TaskID)
+			}
+		}
+	case constants.OutputFormatJson:
+		data, err := json.Marshal(flatResults)
+		if err != nil {
+			cmd.PrintErrln(err)
+		} else {
+			_, _ = cmd.OutOrStdout().Write(data)
+			cmd.Println()
+		}
+	default:
+		cmd.Println()
+		t := output.NewTable(cmd.OutOrStdout())
+		t.AddRow(output.Bold("RUNBOOK"), output.Bold("ENVIRONMENT"), output.Bold("STATUS"), output.Bold("TASK ID"))
+		for _, result := range flatResults {
+			statusDisplay := result.Status
+			if result.Status == "Started" {
+				statusDisplay = output.Cyan(result.Status)
+			} else {
+				statusDisplay = output.Red(result.Status)
+			}
+			t.AddRow(result.RunbookName, result.Environment, statusDisplay, result.TaskID)
+		}
+		t.Print()
+		cmd.Println()
+		cmd.Printf("Successfully started: %d, Failed: %d\n", successCount, failCount)
+	}
+
+	if failCount > 0 {
+		return fmt.Errorf("%d runbook run(s) failed to start", failCount)
+	}
+
+	return nil
 }
