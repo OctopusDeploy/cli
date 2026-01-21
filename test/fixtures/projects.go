@@ -130,6 +130,18 @@ func AsServerResponse(project *projects.Project) []byte {
 	return projectJSON
 }
 
+func AsServerResponsePlainArray(projectList []*projects.Project) []byte {
+	var result []json.RawMessage
+	for _, project := range projectList {
+		result = append(result, AsServerResponse(project))
+	}
+	arrayJSON, err := json.Marshal(result)
+	if err != nil {
+		panic(err)
+	}
+	return arrayJSON
+}
+
 func AsServerResponseArray(projectList []*projects.Project) []byte {
 	projectsJSON, err := json.Marshal(resources.Resources[*projects.Project]{
 		Items: projectList,
