@@ -238,11 +238,26 @@ func runbookRun(cmd *cobra.Command, f factory.Factory, flags *RunFlags) error {
 		}
 
 		if runBySelection == "By tag" {
-			tags, err := selectRunbookTags(octopus, f.Ask, f.GetCurrentSpace(), project)
-			if err != nil {
-				return err
+			if shared.AreRunbooksInGit(project) {
+				if flags.GitRef.Value == "" {
+					gitRef, err := selectors.GitReference("Select the Git Reference to run for", octopus, f.Ask, project)
+					if err != nil {
+						return err
+					}
+					flags.GitRef.Value = gitRef.CanonicalName
+				}
+				tags, err := selectGitRunbookTags(octopus, f.Ask, f.GetCurrentSpace(), project, flags.GitRef.Value)
+				if err != nil {
+					return err
+				}
+				flags.RunbookTags.Value = tags
+			} else {
+				tags, err := selectRunbookTags(octopus, f.Ask, f.GetCurrentSpace(), project)
+				if err != nil {
+					return err
+				}
+				flags.RunbookTags.Value = tags
 			}
-			flags.RunbookTags.Value = tags
 		}
 	}
 
@@ -1385,6 +1400,45 @@ func selectRunbookTags(octopus *octopusApiClient.Client, asker question.Asker, s
 	return selectedTags, nil
 }
 
+func selectGitRunbookTags(octopus *octopusApiClient.Client, asker question.Asker, space *spaces.Space, project *projects.Project, gitRef string) ([]string, error) {
+	allRunbooks, err := shared.GetAllGitRunbooks(octopus, project.ID, gitRef)
+	if err != nil {
+		return nil, err
+	}
+
+	tagMap := make(map[string]bool)
+	for _, runbook := range allRunbooks {
+		for _, tag := range runbook.RunbookTags {
+			tagMap[tag] = true
+		}
+	}
+
+	if len(tagMap) == 0 {
+		return nil, fmt.Errorf("no runbooks with tags found in project %s", project.Name)
+	}
+
+	availableTags := make([]string, 0, len(tagMap))
+	for tag := range tagMap {
+		availableTags = append(availableTags, tag)
+	}
+	sort.Strings(availableTags)
+
+	var selectedTags []string
+	err = asker(&survey.MultiSelect{
+		Message: "Select runbook tags (space to select, enter to confirm):",
+		Options: availableTags,
+	}, &selectedTags)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(selectedTags) == 0 {
+		return nil, fmt.Errorf("at least one tag must be selected")
+	}
+
+	return selectedTags, nil
+}
+
 type runbookTaskResult struct {
 	runbookName          string
 	environments         []string
@@ -1499,6 +1553,37 @@ func runRunbooksByTag(cmd *cobra.Command, f factory.Factory, flags *RunFlags, oc
 		return errors.New("environment(s) must be specified")
 	}
 
+	if f.IsPromptEnabled() && !constants.IsProgrammaticOutputFormat(outputFormat) {
+		resolvedFlags := NewRunFlags()
+		resolvedFlags.Project.Value = flags.Project.Value
+		resolvedFlags.RunbookTags.Value = flags.RunbookTags.Value
+		resolvedFlags.Environments.Value = flags.Environments.Value
+		resolvedFlags.Tenants.Value = flags.Tenants.Value
+		resolvedFlags.TenantTags.Value = flags.TenantTags.Value
+
+		if isGit {
+			resolvedFlags.GitRef.Value = flags.GitRef.Value
+			autoCmd := flag.GenerateAutomationCmd(constants.ExecutableName+" runbook run",
+				resolvedFlags.Project,
+				resolvedFlags.RunbookTags,
+				resolvedFlags.GitRef,
+				resolvedFlags.Environments,
+				resolvedFlags.Tenants,
+				resolvedFlags.TenantTags,
+			)
+			cmd.Printf("\nAutomation Command: %s\n", autoCmd)
+		} else {
+			autoCmd := flag.GenerateAutomationCmd(constants.ExecutableName+" runbook run",
+				resolvedFlags.Project,
+				resolvedFlags.RunbookTags,
+				resolvedFlags.Environments,
+				resolvedFlags.Tenants,
+				resolvedFlags.TenantTags,
+			)
+			cmd.Printf("\nAutomation Command: %s\n", autoCmd)
+		}
+	}
+
 	tasks := make([]*executor.Task, 0, len(matchingRunbooks))
 	for _, runbook := range matchingRunbooks {
 		commonOptions := &executor.TaskOptionsRunbookRunBase{
@@ -1584,7 +1669,7 @@ func runRunbooksByTag(cmd *cobra.Command, f factory.Factory, flags *RunFlags, oc
 	switch outputFormat {
 	case constants.OutputFormatBasic:
 		for _, result := range flatResults {
-			if result.Status == "Success" {
+			if result.Status == "Started" {
 				cmd.Printf("%s\n", result.TaskID)
 			}
 		}
