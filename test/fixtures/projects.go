@@ -1,6 +1,7 @@
 package fixtures
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/url"
 
@@ -98,6 +99,86 @@ func NewVersionControlledProject(spaceID string, projectID string, projectName s
 	result.Links["Branches"] = fmt.Sprintf("/api/%s/projects/%s/git/branches{/name}{?skip,take,searchByName,refresh}", spaceID, projectID)
 	result.Links["Commits"] = fmt.Sprintf("/api/%s/projects/%s/git/commits{/hash}{?skip,take,refresh}", spaceID, projectID)
 	return result
+}
+
+func AsServerResponse(project *projects.Project) []byte {
+	projectJSON, err := json.Marshal(project)
+	if err != nil {
+		panic(err)
+	}
+
+	if gitSettings, ok := project.PersistenceSettings.(projects.GitPersistenceSettings); ok {
+		var projectMap map[string]interface{}
+		if err := json.Unmarshal(projectJSON, &projectMap); err != nil {
+			panic(err)
+		}
+
+		if persistenceSettings, ok := projectMap["PersistenceSettings"].(map[string]interface{}); ok {
+			persistenceSettings["ConversionState"] = map[string]interface{}{
+				"VariablesAreInGit": gitSettings.VariablesAreInGit(),
+				"RunbooksAreInGit":  gitSettings.RunbooksAreInGit(),
+			}
+		}
+
+		modifiedJSON, err := json.Marshal(projectMap)
+		if err != nil {
+			panic(err)
+		}
+		return modifiedJSON
+	}
+
+	return projectJSON
+}
+
+func AsServerResponsePlainArray(projectList []*projects.Project) []byte {
+	var result []json.RawMessage
+	for _, project := range projectList {
+		result = append(result, AsServerResponse(project))
+	}
+	arrayJSON, err := json.Marshal(result)
+	if err != nil {
+		panic(err)
+	}
+	return arrayJSON
+}
+
+func AsServerResponseArray(projectList []*projects.Project) []byte {
+	projectsJSON, err := json.Marshal(resources.Resources[*projects.Project]{
+		Items: projectList,
+	})
+	if err != nil {
+		panic(err)
+	}
+
+	var wrapper map[string]interface{}
+	if err := json.Unmarshal(projectsJSON, &wrapper); err != nil {
+		panic(err)
+	}
+
+	if items, ok := wrapper["Items"].([]interface{}); ok {
+		for i, item := range items {
+			if projectMap, ok := item.(map[string]interface{}); ok {
+				if persistenceSettings, ok := projectMap["PersistenceSettings"].(map[string]interface{}); ok {
+					if persistenceSettings["Type"] == "VersionControlled" {
+						if i < len(projectList) {
+							if gitSettings, ok := projectList[i].PersistenceSettings.(projects.GitPersistenceSettings); ok {
+								persistenceSettings["ConversionState"] = map[string]interface{}{
+									"VariablesAreInGit": gitSettings.VariablesAreInGit(),
+									"RunbooksAreInGit":  gitSettings.RunbooksAreInGit(),
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	modifiedJSON, err := json.Marshal(wrapper)
+	if err != nil {
+		panic(err)
+	}
+	return modifiedJSON
 }
 
 func NewChannel(spaceID string, channelID string, channelName string, projectID string) *channels.Channel {
