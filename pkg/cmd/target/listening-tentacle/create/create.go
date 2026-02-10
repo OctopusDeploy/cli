@@ -111,14 +111,6 @@ func createRun(opts *CreateOptions) error {
 		}
 	}
 
-	if len(opts.Roles.Value) > 0 || len(opts.Tags.Value) > 0 {
-		combined, err := shared.CombineRolesAndTags(opts.Client, opts.Roles.Value, opts.Tags.Value)
-		if err != nil {
-			return err
-		}
-		opts.Roles.Value = combined
-	}
-
 	url, err := url.Parse(opts.URL.Value)
 	if err != nil {
 		return err
@@ -130,6 +122,11 @@ func createRun(opts *CreateOptions) error {
 	}
 	environmentIds := util.SliceTransform(envs, func(e *environments.Environment) string { return e.ID })
 
+	combinedRoles, err := shared.CombineRolesAndTags(opts.Client, opts.Roles.Value, opts.Tags.Value)
+	if err != nil {
+		return err
+	}
+
 	endpoint := machines.NewListeningTentacleEndpoint(url, opts.Thumbprint.Value)
 	if opts.Proxy.Value != "" {
 		proxy, err := machinescommon.FindProxy(opts.CreateTargetProxyOptions, opts.CreateTargetProxyFlags)
@@ -139,7 +136,7 @@ func createRun(opts *CreateOptions) error {
 		endpoint.ProxyID = proxy.GetID()
 	}
 
-	deploymentTarget := machines.NewDeploymentTarget(opts.Name.Value, endpoint, environmentIds, util.SliceDistinct(opts.Roles.Value))
+	deploymentTarget := machines.NewDeploymentTarget(opts.Name.Value, endpoint, environmentIds, util.SliceDistinct(combinedRoles))
 	machinePolicy, err := machinescommon.FindMachinePolicy(opts.GetAllMachinePoliciesCallback, opts.MachinePolicy.Value)
 	if err != nil {
 		return err
@@ -157,7 +154,7 @@ func createRun(opts *CreateOptions) error {
 
 	fmt.Fprintf(opts.Out, "Successfully created listening tenatcle '%s'.\n", deploymentTarget.Name)
 	if !opts.NoPrompt {
-		autoCmd := flag.GenerateAutomationCmd(opts.CmdPath, opts.Name, opts.URL, opts.Thumbprint, opts.Environments, opts.Roles, opts.Proxy, opts.MachinePolicy, opts.TenantedDeploymentMode, opts.Tenants, opts.TenantTags)
+		autoCmd := flag.GenerateAutomationCmd(opts.CmdPath, opts.Name, opts.URL, opts.Thumbprint, opts.Environments, opts.Roles, opts.Tags, opts.Proxy, opts.MachinePolicy, opts.TenantedDeploymentMode, opts.Tenants, opts.TenantTags)
 		fmt.Fprintf(opts.Out, "\nAutomation Command: %s\n", autoCmd)
 	}
 
