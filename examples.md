@@ -108,12 +108,15 @@ fi
 Target tag sets provide organized tagging with validation. Use `--tag` with canonical format (TagSetName/TagName):
 
 ```
-octopus deployment-target kubernetes create \
-  --name "Production K8s Cluster" \
-  --cluster-url https://k8s.example.com \
+octopus deployment-target ssh create \
+  --account "TheAccount" \
+  --name "MySshTargetName" \
+  --host $localIp \
+  --fingerprint $fingerprint \
   --environment Production \
+  --tag "[System] Target Tags/web-server" \
   --tag Region/US-East \
-  --tag Environment-Type/Production \
+  --runtime mono \
   --no-prompt
 ```
 

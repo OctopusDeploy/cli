@@ -134,19 +134,16 @@ func createRun(opts *CreateOptions) error {
 		}
 	}
 
-	if len(opts.Roles.Value) > 0 || len(opts.Tags.Value) > 0 {
-		combined, err := shared.CombineRolesAndTags(opts.Client, opts.Roles.Value, opts.Tags.Value)
-		if err != nil {
-			return err
-		}
-		opts.Roles.Value = combined
-	}
-
 	envs, err := executionscommon.FindEnvironments(opts.Client, opts.Environments.Value)
 	if err != nil {
 		return err
 	}
 	environmentIds := util.SliceTransform(envs, func(e *environments.Environment) string { return e.ID })
+
+	combinedRoles, err := shared.CombineRolesAndTags(opts.Client, opts.Roles.Value, opts.Tags.Value)
+	if err != nil {
+		return err
+	}
 
 	account, err := getAzureAccount(opts)
 	if err != nil {
@@ -162,7 +159,7 @@ func createRun(opts *CreateOptions) error {
 	endpoint.WebAppName = opts.WebApp.Value
 	endpoint.ResourceGroupName = opts.ResourceGroup.Value
 	endpoint.WebAppSlotName = opts.Slot.Value
-	deploymentTarget := machines.NewDeploymentTarget(opts.Name.Value, endpoint, environmentIds, util.SliceDistinct(opts.Roles.Value))
+	deploymentTarget := machines.NewDeploymentTarget(opts.Name.Value, endpoint, environmentIds, util.SliceDistinct(combinedRoles))
 
 	err = shared.ConfigureTenant(deploymentTarget, opts.CreateTargetTenantFlags, opts.CreateTargetTenantOptions)
 	if err != nil {
@@ -176,7 +173,7 @@ func createRun(opts *CreateOptions) error {
 
 	fmt.Fprintf(opts.Out, "Successfully created Azure web app '%s'.\n", deploymentTarget.Name)
 	if !opts.NoPrompt {
-		autoCmd := flag.GenerateAutomationCmd(opts.CmdPath, opts.Name, opts.Account, opts.WebApp, opts.ResourceGroup, opts.Slot, opts.Environments, opts.Roles, opts.TenantedDeploymentMode, opts.Tenants, opts.TenantTags)
+		autoCmd := flag.GenerateAutomationCmd(opts.CmdPath, opts.Name, opts.Account, opts.WebApp, opts.ResourceGroup, opts.Slot, opts.Environments, opts.Roles, opts.Tags, opts.TenantedDeploymentMode, opts.Tenants, opts.TenantTags)
 		fmt.Fprintf(opts.Out, "\nAutomation Command: %s\n", autoCmd)
 	}
 
