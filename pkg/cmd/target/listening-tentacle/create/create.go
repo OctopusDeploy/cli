@@ -111,6 +111,14 @@ func createRun(opts *CreateOptions) error {
 		}
 	}
 
+	if len(opts.Roles.Value) > 0 || len(opts.Tags.Value) > 0 {
+		combined, err := shared.CombineRolesAndTags(opts.Client, opts.Roles.Value, opts.Tags.Value)
+		if err != nil {
+			return err
+		}
+		opts.Roles.Value = combined
+	}
+
 	url, err := url.Parse(opts.URL.Value)
 	if err != nil {
 		return err

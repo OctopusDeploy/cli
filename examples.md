@@ -97,11 +97,27 @@ fingerprint=$(ssh-keygen -E md5 -lf /etc/ssh/ssh_host_rsa_key.pub | cut -d' ' -f
 monoExists=$(command -v mono)
 if [ $monoExists ]
 then
-  octopus deployment-target ssh create --account "TheAccount" --name "MySshTargetName" --host $localIp --fingerprint $fingerprint--role linux --runtime mono --no-prompt
+  octopus deployment-target ssh create --account "TheAccount" --name "MySshTargetName" --host $localIp --fingerprint $fingerprint --role linux --runtime mono --no-prompt
 else
-  octopus deployment-target ssh create --account "TheAccount" --name "MySshTargetName" --host $localIp --fingerprint $fingerprint--role linux --runtime self-contained --platform linux-x64 --no-prompt
+  octopus deployment-target ssh create --account "TheAccount" --name "MySshTargetName" --host $localIp --fingerprint $fingerprint --role linux --runtime self-contained --platform linux-x64 --no-prompt
 fi
 ```
+
+# Create deployment target with target tags
+
+Target tag sets provide organized tagging with validation. Use `--tag` with canonical format (TagSetName/TagName):
+
+```
+octopus deployment-target kubernetes create \
+  --name "Production K8s Cluster" \
+  --cluster-url https://k8s.example.com \
+  --environment Production \
+  --tag Region/US-East \
+  --tag Environment-Type/Production \
+  --no-prompt
+```
+
+Note: The `--role` flag continues to work for backwards compatibility but will be deprecated in favor of `--tag` once target tag sets are widely adopted.
 
 # Bulk deleting releases by created date
 
