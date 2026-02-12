@@ -230,7 +230,7 @@ func runbookRun(cmd *cobra.Command, f factory.Factory, flags *RunFlags) error {
 	if f.IsPromptEnabled() && flags.RunbookName.Value == "" && len(flags.RunbookTags.Value) == 0 {
 		var runBySelection string
 		err = f.Ask(&survey.Select{
-			Message: "How do you want to run runbooks?",
+			Message: "How do you want to select which runbook(s) to run?",
 			Options: []string{"By name", "By tag"},
 		}, &runBySelection)
 		if err != nil {
@@ -1367,7 +1367,7 @@ func selectRunbookTags(octopus *octopusApiClient.Client, asker question.Asker, s
 		return nil, err
 	}
 
-	tagMap := make(map[string]bool)
+	tagMap := make(map[string]bool) // deduplicate tags across all runbooks
 	for _, runbook := range allRunbooks {
 		for _, tag := range runbook.RunbookTags {
 			tagMap[tag] = true
@@ -1406,7 +1406,7 @@ func selectGitRunbookTags(octopus *octopusApiClient.Client, asker question.Asker
 		return nil, err
 	}
 
-	tagMap := make(map[string]bool)
+	tagMap := make(map[string]bool) // deduplicate tags across all runbooks
 	for _, runbook := range allRunbooks {
 		for _, tag := range runbook.RunbookTags {
 			tagMap[tag] = true
@@ -1551,6 +1551,137 @@ func runRunbooksByTag(cmd *cobra.Command, f factory.Factory, flags *RunFlags, oc
 
 	if len(flags.Environments.Value) == 0 {
 		return errors.New("environment(s) must be specified")
+	}
+
+	// Check if any runbooks have prompted variables - block execution if found
+	if len(parsedVariables) == 0 {
+		hasPromptedVars := false
+		var runbookWithPrompts string
+		for _, runbook := range matchingRunbooks {
+			var preview *runbooks.RunPreview
+			if isGit {
+				// Get preview for first environment to check for prompted variables
+				if len(flags.Environments.Value) > 0 {
+					envs, err := executionscommon.FindEnvironments(octopus, flags.Environments.Value[:1])
+					if err == nil && len(envs) > 0 {
+						preview, _ = runbooks.GetGitRunbookRunPreview(octopus, f.GetCurrentSpace().ID, project.ID, runbook.ID, flags.GitRef.Value, envs[0].ID, true)
+					}
+				}
+			} else {
+				// For DB runbooks, we need the published snapshot
+				if runbook.PublishedRunbookSnapshotID != "" {
+					if len(flags.Environments.Value) > 0 {
+						envs, err := executionscommon.FindEnvironments(octopus, flags.Environments.Value[:1])
+						if err == nil && len(envs) > 0 {
+							preview, _ = runbooks.GetRunbookSnapshotRunPreview(octopus, f.GetCurrentSpace().ID, runbook.PublishedRunbookSnapshotID, envs[0].ID, true)
+						}
+					}
+				}
+			}
+			if preview != nil && len(preview.Form.Elements) > 0 {
+				for _, element := range preview.Form.Elements {
+					if element.Control.Required {
+						hasPromptedVars = true
+						runbookWithPrompts = runbook.Name
+						break
+					}
+				}
+			}
+			if hasPromptedVars {
+				break
+			}
+		}
+
+		if hasPromptedVars {
+			return fmt.Errorf("cannot run multiple runbooks by tag when prompted variables are present. Runbook '%s' has required prompted variables. Please run runbooks individually by name, or specify all required variables via --variable flag", runbookWithPrompts)
+		}
+	}
+
+	// Ask for advanced options that apply to all runbooks
+	if f.IsPromptEnabled() {
+		now := time.Now
+		if cmd.Context() != nil {
+			if n, ok := cmd.Context().Value(constants.ContextKeyTimeNow).(func() time.Time); ok {
+				now = n
+			}
+		}
+
+		isRunAtSpecified := flags.RunAt.Value != ""
+		isExcludedStepsSpecified := len(flags.ExcludedSteps.Value) > 0
+		isGuidedFailureModeSpecified := flags.GuidedFailureMode.Value != ""
+		isForcePackageDownloadSpecified := cmd.Flags().Lookup(FlagForcePackageDownload).Changed
+		isRunTargetsSpecified := len(flags.RunTargets.Value) > 0 || len(flags.ExcludeTargets.Value) > 0
+
+		allAdvancedOptionsSpecified := isRunAtSpecified && isExcludedStepsSpecified && isGuidedFailureModeSpecified && isForcePackageDownloadSpecified && isRunTargetsSpecified
+
+		shouldAskAdvancedQuestions := false
+		if !allAdvancedOptionsSpecified {
+			var changeOptionsAnswer string
+			err = f.Ask(&survey.Select{
+				Message: "Change additional options? (will apply to all matching runbooks)",
+				Options: []string{"Proceed to run", "Change"},
+			}, &changeOptionsAnswer)
+			if err != nil {
+				return err
+			}
+			shouldAskAdvancedQuestions = changeOptionsAnswer == "Change"
+		}
+
+		if shouldAskAdvancedQuestions {
+			if !isRunAtSpecified {
+				referenceNow := now()
+				maxSchedStartTime := referenceNow.Add(30 * 24 * time.Hour)
+
+				var answer surveyext.DatePickerAnswer
+				err = f.Ask(&surveyext.DatePicker{
+					Message:         "Scheduled start time",
+					Help:            "Enter the date and time that this runbook should run. A value less than 1 minute in the future means 'now'",
+					Default:         referenceNow,
+					Min:             referenceNow,
+					Max:             maxSchedStartTime,
+					OverrideNow:     referenceNow,
+					AnswerFormatter: executionscommon.ScheduledStartTimeAnswerFormatter,
+				}, &answer)
+				if err != nil {
+					return err
+				}
+				scheduledStartTime := answer.Time
+				if scheduledStartTime.After(referenceNow.Add(1 * time.Minute)) {
+					flags.RunAt.Value = scheduledStartTime.Format(time.RFC3339)
+
+					startPlusFiveMin := scheduledStartTime.Add(5 * time.Minute)
+					err = f.Ask(&surveyext.DatePicker{
+						Message:     "Scheduled expiry time",
+						Help:        "At the start time, the run will be queued. If it does not begin before 'expiry' time, it will be cancelled. Minimum of 5 minutes after start time",
+						Default:     startPlusFiveMin,
+						Min:         startPlusFiveMin,
+						Max:         maxSchedStartTime.Add(24 * time.Hour),
+						OverrideNow: referenceNow,
+					}, &answer)
+					if err != nil {
+						return err
+					}
+					flags.MaxQueueTime.Value = answer.Time.Format(time.RFC3339)
+				}
+			}
+
+			if !isGuidedFailureModeSpecified {
+				flags.GuidedFailureMode.Value, err = executionscommon.AskGuidedFailureMode(f.Ask)
+				if err != nil {
+					return err
+				}
+			}
+
+			if !isForcePackageDownloadSpecified {
+				flags.ForcePackageDownload.Value, err = executionscommon.AskPackageDownload(f.Ask)
+				if err != nil {
+					return err
+				}
+			}
+
+			// Note: We skip ExcludedSteps and RunTargets for multi-runbook runs as they may differ per runbook
+			// Users can specify these via command line flags if needed
+		}
 	}
 
 	if f.IsPromptEnabled() && !constants.IsProgrammaticOutputFormat(outputFormat) {
