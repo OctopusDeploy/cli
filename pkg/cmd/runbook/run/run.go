@@ -46,6 +46,8 @@ const (
 	FlagRunbookName        = "name"
 	FlagAliasRunbookLegacy = "runbook"
 
+	FlagRunbookTag = "runbook-tag" // can be specified multiple times
+
 	FlagSnapshot = "snapshot"
 
 	FlagEnvironment = "environment" // can be specified multiple times; but only once if tenanted
@@ -93,6 +95,7 @@ const (
 type RunFlags struct {
 	Project              *flag.Flag[string]
 	RunbookName          *flag.Flag[string] // the runbook to run
+	RunbookTags          *flag.Flag[[]string]
 	Environments         *flag.Flag[[]string]
 	Tenants              *flag.Flag[[]string]
 	TenantTags           *flag.Flag[[]string]
@@ -115,6 +118,7 @@ func NewRunFlags() *RunFlags {
 	return &RunFlags{
 		Project:              flag.New[string](FlagProject, false),
 		RunbookName:          flag.New[string](FlagRunbookName, false),
+		RunbookTags:          flag.New[[]string](FlagRunbookTag, false),
 		Environments:         flag.New[[]string](FlagEnvironment, false),
 		Tenants:              flag.New[[]string](FlagTenant, false),
 		TenantTags:           flag.New[[]string](FlagTenantTag, false),
@@ -156,6 +160,7 @@ func NewCmdRun(f factory.Factory) *cobra.Command {
 	flags := cmd.Flags()
 	flags.StringVarP(&runFlags.Project.Value, runFlags.Project.Name, "p", "", "Name or ID of the project to run the runbook from")
 	flags.StringVarP(&runFlags.RunbookName.Value, runFlags.RunbookName.Name, "n", "", "Name of the runbook to run")
+	flags.StringArrayVarP(&runFlags.RunbookTags.Value, runFlags.RunbookTags.Name, "", nil, "Run all runbooks matching this tag (can be specified multiple times). Format is 'Tag Set Name/Tag Name'. Mutually exclusive with --name.")
 	flags.StringArrayVarP(&runFlags.Environments.Value, runFlags.Environments.Name, "e", nil, "Run in this environment (can be specified multiple times)")
 	flags.StringArrayVarP(&runFlags.Tenants.Value, runFlags.Tenants.Name, "", nil, "Run for this tenant (can be specified multiple times)")
 	flags.StringArrayVarP(&runFlags.TenantTags.Value, runFlags.TenantTags.Name, "", nil, "Run for tenants matching this tag (can be specified multiple times). Format is 'Tag Set Name/Tag Name', such as 'Regions/South'.")
@@ -195,6 +200,10 @@ func NewCmdRun(f factory.Factory) *cobra.Command {
 }
 
 func runbookRun(cmd *cobra.Command, f factory.Factory, flags *RunFlags) error {
+	if flags.RunbookName.Value != "" && len(flags.RunbookTags.Value) > 0 {
+		return errors.New("--name and --runbook-tag are mutually exclusive. Please specify either a runbook name or runbook tags, not both")
+	}
+
 	outputFormat, err := cmd.Flags().GetString(constants.FlagOutputFormat)
 	if err != nil { // should never happen, but fallback if it does
 		outputFormat = constants.OutputFormatTable
@@ -217,6 +226,49 @@ func runbookRun(cmd *cobra.Command, f factory.Factory, flags *RunFlags) error {
 	}
 
 	flags.Project.Value = project.Name
+
+	if f.IsPromptEnabled() && flags.RunbookName.Value == "" && len(flags.RunbookTags.Value) == 0 {
+		var runBySelection string
+		err = f.Ask(&survey.Select{
+			Message: "How do you want to select which runbook(s) to run?",
+			Options: []string{"By name", "By tag"},
+		}, &runBySelection)
+		if err != nil {
+			return err
+		}
+
+		if runBySelection == "By tag" {
+			if shared.AreRunbooksInGit(project) {
+				if flags.GitRef.Value == "" {
+					gitRef, err := selectors.GitReference("Select the Git Reference to run for", octopus, f.Ask, project)
+					if err != nil {
+						return err
+					}
+					flags.GitRef.Value = gitRef.CanonicalName
+				}
+				tags, err := selectGitRunbookTags(octopus, f.Ask, f.GetCurrentSpace(), project, flags.GitRef.Value)
+				if err != nil {
+					return err
+				}
+				flags.RunbookTags.Value = tags
+			} else {
+				tags, err := selectRunbookTags(octopus, f.Ask, f.GetCurrentSpace(), project)
+				if err != nil {
+					return err
+				}
+				flags.RunbookTags.Value = tags
+			}
+		}
+	}
+
+	if len(flags.RunbookTags.Value) > 0 {
+		if shared.AreRunbooksInGit(project) {
+			return runRunbooksByTag(cmd, f, flags, octopus, project, parsedVariables, outputFormat, true)
+		} else {
+			return runRunbooksByTag(cmd, f, flags, octopus, project, parsedVariables, outputFormat, false)
+		}
+	}
+
 	if shared.AreRunbooksInGit(project) {
 		return runGitRunbook(cmd, f, flags, octopus, project, parsedVariables, outputFormat)
 	} else {
@@ -510,6 +562,99 @@ func selectProject(octopus *octopusApiClient.Client, f factory.Factory, projectN
 	}
 }
 
+// shouldAskAdvancedOptions determines if we should prompt the user to change advanced options.
+// Returns true if the user wants to change options, false otherwise.
+func shouldAskAdvancedOptions(
+	asker question.Asker,
+	message string,
+	allOptionsSpecified bool,
+) (bool, error) {
+	if allOptionsSpecified {
+		return false, nil
+	}
+
+	var changeOptionsAnswer string
+	err := asker(&survey.Select{
+		Message: message,
+		Options: []string{"Proceed to run", "Change"},
+	}, &changeOptionsAnswer)
+	if err != nil {
+		return false, err
+	}
+
+	return changeOptionsAnswer == "Change", nil
+}
+
+// askCommonAdvancedOptions prompts for advanced options that are common across all runbook run scenarios.
+// This includes schedule time, guided failure mode, and package download options.
+// It does NOT handle excluded steps or run targets as those are runbook-specific.
+func askCommonAdvancedOptions(
+	asker question.Asker,
+	now func() time.Time,
+	scheduledStartTime *string,
+	scheduledExpiryTime *string,
+	guidedFailureMode *string,
+	forcePackageDownload *bool,
+	isScheduledStartTimeSpecified bool,
+	isGuidedFailureModeSpecified bool,
+	isForcePackageDownloadSpecified bool,
+) error {
+	if !isScheduledStartTimeSpecified {
+		referenceNow := now()
+		maxSchedStartTime := referenceNow.Add(30 * 24 * time.Hour)
+
+		var answer surveyext.DatePickerAnswer
+		err := asker(&surveyext.DatePicker{
+			Message:         "Scheduled start time",
+			Help:            "Enter the date and time that this runbook should run. A value less than 1 minute in the future means 'now'",
+			Default:         referenceNow,
+			Min:             referenceNow,
+			Max:             maxSchedStartTime,
+			OverrideNow:     referenceNow,
+			AnswerFormatter: executionscommon.ScheduledStartTimeAnswerFormatter,
+		}, &answer)
+		if err != nil {
+			return err
+		}
+		schedTime := answer.Time
+		if schedTime.After(referenceNow.Add(1 * time.Minute)) {
+			*scheduledStartTime = schedTime.Format(time.RFC3339)
+
+			startPlusFiveMin := schedTime.Add(5 * time.Minute)
+			err = asker(&surveyext.DatePicker{
+				Message:     "Scheduled expiry time",
+				Help:        "At the start time, the run will be queued. If it does not begin before 'expiry' time, it will be cancelled. Minimum of 5 minutes after start time",
+				Default:     startPlusFiveMin,
+				Min:         startPlusFiveMin,
+				Max:         maxSchedStartTime.Add(24 * time.Hour),
+				OverrideNow: referenceNow,
+			}, &answer)
+			if err != nil {
+				return err
+			}
+			*scheduledExpiryTime = answer.Time.Format(time.RFC3339)
+		}
+	}
+
+	if !isGuidedFailureModeSpecified {
+		gfm, err := executionscommon.AskGuidedFailureMode(asker)
+		if err != nil {
+			return err
+		}
+		*guidedFailureMode = gfm
+	}
+
+	if !isForcePackageDownloadSpecified {
+		fpd, err := executionscommon.AskPackageDownload(asker)
+		if err != nil {
+			return err
+		}
+		*forcePackageDownload = fpd
+	}
+
+	return nil
+}
+
 func AskDbRunbookRunQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker question.Asker, space *spaces.Space, project *projects.Project, options *executor.TaskOptionsRunbookRun, now func() time.Time) error {
 	if octopus == nil {
 		return cliErrors.NewArgumentNullOrEmptyError("octopus")
@@ -621,62 +766,26 @@ func AskDbRunbookRunQuestions(octopus *octopusApiClient.Client, stdout io.Writer
 
 	allAdvancedOptionsSpecified := isRunAtSpecified && isExcludedStepsSpecified && isGuidedFailureModeSpecified && isForcePackageDownloadSpecified && isRunTargetsSpecified
 
-	shouldAskAdvancedQuestions := false
-	if !allAdvancedOptionsSpecified {
-		var changeOptionsAnswer string
-		err = asker(&survey.Select{
-			Message: "Change additional options?",
-			Options: []string{"Proceed to run", "Change"},
-		}, &changeOptionsAnswer)
-		if err != nil {
-			return err
-		}
-		if changeOptionsAnswer == "Change" {
-			shouldAskAdvancedQuestions = true
-		} else {
-			shouldAskAdvancedQuestions = false
-		}
+	shouldAskAdvancedQuestions, err := shouldAskAdvancedOptions(asker, "Change additional options?", allAdvancedOptionsSpecified)
+	if err != nil {
+		return err
 	}
 
 	if shouldAskAdvancedQuestions {
-		if !isRunAtSpecified {
-			referenceNow := now()
-			maxSchedStartTime := referenceNow.Add(30 * 24 * time.Hour) // octopus server won't let you schedule things more than 30d in the future
-
-			var answer surveyext.DatePickerAnswer
-			err = asker(&surveyext.DatePicker{
-				Message:         "Scheduled start time",
-				Help:            "Enter the date and time that this runbook should run. A value less than 1 minute in the future means 'now'",
-				Default:         referenceNow,
-				Min:             referenceNow,
-				Max:             maxSchedStartTime,
-				OverrideNow:     referenceNow,
-				AnswerFormatter: executionscommon.ScheduledStartTimeAnswerFormatter,
-			}, &answer)
-			if err != nil {
-				return err
-			}
-			scheduledStartTime := answer.Time
-			// if they enter a time within 1 minute, assume 'now', else we need to pick it up.
-			// note: the server has some code in it which attempts to detect past
-			if scheduledStartTime.After(referenceNow.Add(1 * time.Minute)) {
-				options.ScheduledStartTime = scheduledStartTime.Format(time.RFC3339)
-
-				// only ask for an expiry if they didn't pick "now"
-				startPlusFiveMin := scheduledStartTime.Add(5 * time.Minute)
-				err = asker(&surveyext.DatePicker{
-					Message:     "Scheduled expiry time",
-					Help:        "At the start time, the run will be queued. If it does not begin before 'expiry' time, it will be cancelled. Minimum of 5 minutes after start time",
-					Default:     startPlusFiveMin,
-					Min:         startPlusFiveMin,
-					Max:         maxSchedStartTime.Add(24 * time.Hour), // the octopus server doesn't enforce any upper bound for schedule expiry, so we make a minor judgement call and pick 1d extra here.
-					OverrideNow: referenceNow,
-				}, &answer)
-				if err != nil {
-					return err
-				}
-				options.ScheduledExpiryTime = answer.Time.Format(time.RFC3339)
-			}
+		// Ask common advanced options (schedule, guided failure, package download)
+		err = askCommonAdvancedOptions(
+			asker,
+			now,
+			&options.ScheduledStartTime,
+			&options.ScheduledExpiryTime,
+			&options.GuidedFailureMode,
+			&options.ForcePackageDownload,
+			isRunAtSpecified,
+			isGuidedFailureModeSpecified,
+			isForcePackageDownloadSpecified,
+		)
+		if err != nil {
+			return err
 		}
 
 		if !isExcludedStepsSpecified {
@@ -686,20 +795,6 @@ func AskDbRunbookRunQuestions(octopus *octopusApiClient.Client, stdout io.Writer
 				return err
 			}
 			options.ExcludedSteps, err = executionscommon.AskExcludedSteps(asker, runbookProcess.Steps)
-			if err != nil {
-				return err
-			}
-		}
-
-		if !isGuidedFailureModeSpecified { // if they deliberately specified false, don't ask them
-			options.GuidedFailureMode, err = executionscommon.AskGuidedFailureMode(asker)
-			if err != nil {
-				return err
-			}
-		}
-
-		if !isForcePackageDownloadSpecified { // if they deliberately specified false, don't ask them
-			options.ForcePackageDownload, err = executionscommon.AskPackageDownload(asker)
 			if err != nil {
 				return err
 			}
@@ -879,62 +974,26 @@ func AskGitRunbookRunQuestions(octopus *octopusApiClient.Client, stdout io.Write
 
 	allAdvancedOptionsSpecified := isRunAtSpecified && isExcludedStepsSpecified && isGuidedFailureModeSpecified && isForcePackageDownloadSpecified && isRunTargetsSpecified
 
-	shouldAskAdvancedQuestions := false
-	if !allAdvancedOptionsSpecified {
-		var changeOptionsAnswer string
-		err = asker(&survey.Select{
-			Message: "Change additional options?",
-			Options: []string{"Proceed to run", "Change"},
-		}, &changeOptionsAnswer)
-		if err != nil {
-			return err
-		}
-		if changeOptionsAnswer == "Change" {
-			shouldAskAdvancedQuestions = true
-		} else {
-			shouldAskAdvancedQuestions = false
-		}
+	shouldAskAdvancedQuestions, err := shouldAskAdvancedOptions(asker, "Change additional options?", allAdvancedOptionsSpecified)
+	if err != nil {
+		return err
 	}
 
 	if shouldAskAdvancedQuestions {
-		if !isRunAtSpecified {
-			referenceNow := now()
-			maxSchedStartTime := referenceNow.Add(30 * 24 * time.Hour) // octopus server won't let you schedule things more than 30d in the future
-
-			var answer surveyext.DatePickerAnswer
-			err = asker(&surveyext.DatePicker{
-				Message:         "Scheduled start time",
-				Help:            "Enter the date and time that this runbook should run. A value less than 1 minute in the future means 'now'",
-				Default:         referenceNow,
-				Min:             referenceNow,
-				Max:             maxSchedStartTime,
-				OverrideNow:     referenceNow,
-				AnswerFormatter: executionscommon.ScheduledStartTimeAnswerFormatter,
-			}, &answer)
-			if err != nil {
-				return err
-			}
-			scheduledStartTime := answer.Time
-			// if they enter a time within 1 minute, assume 'now', else we need to pick it up.
-			// note: the server has some code in it which attempts to detect past
-			if scheduledStartTime.After(referenceNow.Add(1 * time.Minute)) {
-				options.ScheduledStartTime = scheduledStartTime.Format(time.RFC3339)
-
-				// only ask for an expiry if they didn't pick "now"
-				startPlusFiveMin := scheduledStartTime.Add(5 * time.Minute)
-				err = asker(&surveyext.DatePicker{
-					Message:     "Scheduled expiry time",
-					Help:        "At the start time, the run will be queued. If it does not begin before 'expiry' time, it will be cancelled. Minimum of 5 minutes after start time",
-					Default:     startPlusFiveMin,
-					Min:         startPlusFiveMin,
-					Max:         maxSchedStartTime.Add(24 * time.Hour), // the octopus server doesn't enforce any upper bound for schedule expiry, so we make a minor judgement call and pick 1d extra here.
-					OverrideNow: referenceNow,
-				}, &answer)
-				if err != nil {
-					return err
-				}
-				options.ScheduledExpiryTime = answer.Time.Format(time.RFC3339)
-			}
+		// Ask common advanced options (schedule, guided failure, package download)
+		err = askCommonAdvancedOptions(
+			asker,
+			now,
+			&options.ScheduledStartTime,
+			&options.ScheduledExpiryTime,
+			&options.GuidedFailureMode,
+			&options.ForcePackageDownload,
+			isRunAtSpecified,
+			isGuidedFailureModeSpecified,
+			isForcePackageDownloadSpecified,
+		)
+		if err != nil {
+			return err
 		}
 
 		if !isExcludedStepsSpecified {
@@ -944,20 +1003,6 @@ func AskGitRunbookRunQuestions(octopus *octopusApiClient.Client, stdout io.Write
 				return err
 			}
 			options.ExcludedSteps, err = executionscommon.AskExcludedSteps(asker, runbookProcess.Steps)
-			if err != nil {
-				return err
-			}
-		}
-
-		if !isGuidedFailureModeSpecified { // if they deliberately specified false, don't ask them
-			options.GuidedFailureMode, err = executionscommon.AskGuidedFailureMode(asker)
-			if err != nil {
-				return err
-			}
-		}
-
-		if !isForcePackageDownloadSpecified { // if they deliberately specified false, don't ask them
-			options.ForcePackageDownload, err = executionscommon.AskPackageDownload(asker)
 			if err != nil {
 				return err
 			}
@@ -1295,3 +1340,4 @@ func findGitRunbook(octopus *octopusApiClient.Client, spaceID string, projectID 
 	}
 	return result, err
 }
+

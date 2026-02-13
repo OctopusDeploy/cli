@@ -164,6 +164,17 @@ func (r *RequestWrapper) RespondWith(responseObject any) *RequestWrapper {
 	return r
 }
 
+func (r *RequestWrapper) RespondWithJSON(jsonBytes []byte) *RequestWrapper {
+	r.Server.Respond(&http.Response{
+		StatusCode:    http.StatusOK,
+		Status:        "200 OK",
+		Body:          io.NopCloser(bytes.NewReader(jsonBytes)),
+		ContentLength: int64(len(jsonBytes)),
+		Header:        make(http.Header),
+	}, nil)
+	return r
+}
+
 func (r *RequestWrapper) ExpectHeader(t *testing.T, name string, value string) *RequestWrapper {
 	assert.Contains(t, r.Request.Header, name)
 	headerValues := r.Request.Header[name]
