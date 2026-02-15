@@ -3,7 +3,6 @@ package executor
 import (
 	"errors"
 	"fmt"
-
 	"strconv"
 	"strings"
 
@@ -171,6 +170,7 @@ func releaseDeploy(octopus *client.Client, space *spaces.Space, input any) error
 			return fmt.Errorf("'%s' is not a valid value for guided failure mode", params.GuidedFailureMode)
 		}
 	}
+	
 	// If either tenants or tenantTags are specified then it must be a tenanted deployment.
 	// Otherwise it must be untenanted.
 	// If the server has a tenanted deployment and both TenantNames+Tags are empty, the request fails,
@@ -218,8 +218,8 @@ func releaseDeploy(octopus *client.Client, space *spaces.Space, input any) error
 
 type TaskOptionsPromoteRelease struct {
 	TaskOptionsDeployRelease
-	SourceEnvironment              string   // the source environment to promote from
-	LatestSuccessful               bool
+	SourceEnvironment string // the source environment to promote from
+	LatestSuccessful  bool
 	// After we send the request to the server, the response is stored here
 	Response *deployments.CreateDeploymentResponseV1
 }

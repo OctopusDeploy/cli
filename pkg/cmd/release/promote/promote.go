@@ -1026,43 +1026,6 @@ func PrintAdvancedSummary(stdout io.Writer, options *executor.TaskOptionsPromote
 	`)), deployAtStr, skipStepsStr, gfmStr, pkgDownloadStr, depTargetsStr)
 }
 
-// findReleaseFromSourceEnvironment finds the release deployed to the source environment using the dashboard API
-func findReleaseFromSourceEnvironment(octopus *octopusApiClient.Client, space *spaces.Space, project *projects.Project, sourceEnvironmentName string, latestSuccessful bool) (*releases.Release, error) {
-	// Find the source environment
-	sourceEnv, err := selectors.FindEnvironment(octopus, sourceEnvironmentName)
-	if err != nil {
-		return nil, err
-	}
-
-	// Get dashboard items for the project and source environment
-	dashboardItem, err := dashboard.GetDynamicDashboardItem(octopus, space.ID, dashboard.DashboardDynamicQuery{
-		Environments:    []string{sourceEnv.ID},
-		Projects:        []string{project.ID},
-		IncludePrevious: latestSuccessful,
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	if len(dashboardItem.Items) == 0 {
-		return nil, fmt.Errorf("no releases found in source environment '%s'", sourceEnvironmentName)
-	}
-
-	// Sort by release version (ascending) to get the latest
-	sort.Slice(dashboardItem.Items, func(i, j int) bool {
-		return dashboardItem.Items[i].ReleaseVersion < dashboardItem.Items[j].ReleaseVersion
-	})
-
-	// Get the latest (last) release
-	latestReleaseVersion := dashboardItem.Items[len(dashboardItem.Items)-1].ReleaseVersion
-	selectedRelease, err := releases.GetReleaseInProject(octopus, space.ID, project.ID, latestReleaseVersion)
-	if err != nil {
-		return nil, err
-	}
-
-	return selectedRelease, nil
-}
-
 // determineIsTenanted returns true if we are going to do a tenanted deployment, false if untenanted
 // NOTE: Tenant can be disabled or forced. In these cases we know what to do.
 // The middle case is "allowed, but not forced", in which case we don't know ahead of time what to do WRT tenants,
