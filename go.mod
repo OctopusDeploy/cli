@@ -61,3 +61,5 @@ require (
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
+
+replace github.com/OctopusDeploy/go-octopusdeploy/v2 => github.com/chen-keinan/go-octopusdeploy/v2 v2.0.0-20260215141226-f0761d37b8a3

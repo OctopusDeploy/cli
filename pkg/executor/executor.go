@@ -14,6 +14,7 @@ const (
 	TaskTypeCreateAccount = TaskType("CreateAccount")
 	TaskTypeCreateRelease = TaskType("CreateRelease")
 	TaskTypeDeployRelease = TaskType("DeployRelease")
+	TaskTypePromoteRelease = TaskType("PromoteRelease")
 	TaskTypeRunbookRun    = TaskType("RunbookRun")
 	TaskTypeGitRunbookRun = TaskType("GitRunbookRun")
 )
@@ -51,6 +52,10 @@ func ProcessTasks(octopus *client.Client, space *spaces.Space, tasks []*Task) er
 			}
 		case TaskTypeDeployRelease:
 			if err := releaseDeploy(octopus, space, task.Options); err != nil {
+				return err
+			}
+		case TaskTypePromoteRelease:
+			if err := releasePromote(octopus, space, task.Options); err != nil {
 				return err
 			}
 		case TaskTypeRunbookRun:

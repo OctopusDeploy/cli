@@ -213,3 +213,24 @@ func releaseDeploy(octopus *client.Client, space *spaces.Space, input any) error
 
 	return nil
 }
+
+// ----- Promote Release --------------------------------------
+
+type TaskOptionsPromoteRelease struct {
+	TaskOptionsDeployRelease
+	SourceEnvironment string // the source environment to promote from
+	LatestSuccessful  bool
+	// After we send the request to the server, the response is stored here
+	Response *deployments.CreateDeploymentResponseV1
+}
+
+func releasePromote(octopus *client.Client, space *spaces.Space, input any) error {
+	params, ok := input.(*TaskOptionsPromoteRelease)
+	if !ok {
+		return errors.New("invalid input type; expecting TaskOptionsPromoteRelease")
+	}
+	if params.SourceEnvironment == "" {
+		return errors.New("source environment must be specified")
+	}
+	return releaseDeploy(octopus, space, &params.TaskOptionsDeployRelease)
+}
