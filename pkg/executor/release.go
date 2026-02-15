@@ -170,7 +170,7 @@ func releaseDeploy(octopus *client.Client, space *spaces.Space, input any) error
 			return fmt.Errorf("'%s' is not a valid value for guided failure mode", params.GuidedFailureMode)
 		}
 	}
-	
+
 	// If either tenants or tenantTags are specified then it must be a tenanted deployment.
 	// Otherwise it must be untenanted.
 	// If the server has a tenanted deployment and both TenantNames+Tags are empty, the request fails,
