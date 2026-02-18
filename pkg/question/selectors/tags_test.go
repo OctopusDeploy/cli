@@ -206,12 +206,11 @@ func TestValidateTags_ErrorOnTagNotBelongingToAvailableTagSet(t *testing.T) {
 	assert.Contains(t, err.Error(), "does not belong to any tag set available for this resource")
 }
 
-func TestValidateTags_ErrorOnTagNotExistingInTagSet(t *testing.T) {
+func TestValidateTags_NewTagInExistingTagSet(t *testing.T) {
 	tagSets := createTestTagSets()
 	tags := []string{"Region/EU West"}
 
 	err := ValidateTags(tags, tagSets)
 
-	assert.NotNil(t, err)
-	assert.Contains(t, err.Error(), "does not exist in tag set")
+	assert.Nil(t, err)
 }
