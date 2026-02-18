@@ -230,7 +230,7 @@ func runbookRun(cmd *cobra.Command, f factory.Factory, flags *RunFlags) error {
 	if f.IsPromptEnabled() && flags.RunbookName.Value == "" && len(flags.RunbookTags.Value) == 0 {
 		var runBySelection string
 		err = f.Ask(&survey.Select{
-			Message: "How do you want to run runbooks?",
+			Message: "How do you want to select which runbook(s) to run?",
 			Options: []string{"By name", "By tag"},
 		}, &runBySelection)
 		if err != nil {
@@ -562,6 +562,99 @@ func selectProject(octopus *octopusApiClient.Client, f factory.Factory, projectN
 	}
 }
 
+// shouldAskAdvancedOptions determines if we should prompt the user to change advanced options.
+// Returns true if the user wants to change options, false otherwise.
+func shouldAskAdvancedOptions(
+	asker question.Asker,
+	message string,
+	allOptionsSpecified bool,
+) (bool, error) {
+	if allOptionsSpecified {
+		return false, nil
+	}
+
+	var changeOptionsAnswer string
+	err := asker(&survey.Select{
+		Message: message,
+		Options: []string{"Proceed to run", "Change"},
+	}, &changeOptionsAnswer)
+	if err != nil {
+		return false, err
+	}
+
+	return changeOptionsAnswer == "Change", nil
+}
+
+// askCommonAdvancedOptions prompts for advanced options that are common across all runbook run scenarios.
+// This includes schedule time, guided failure mode, and package download options.
+// It does NOT handle excluded steps or run targets as those are runbook-specific.
+func askCommonAdvancedOptions(
+	asker question.Asker,
+	now func() time.Time,
+	scheduledStartTime *string,
+	scheduledExpiryTime *string,
+	guidedFailureMode *string,
+	forcePackageDownload *bool,
+	isScheduledStartTimeSpecified bool,
+	isGuidedFailureModeSpecified bool,
+	isForcePackageDownloadSpecified bool,
+) error {
+	if !isScheduledStartTimeSpecified {
+		referenceNow := now()
+		maxSchedStartTime := referenceNow.Add(30 * 24 * time.Hour)
+
+		var answer surveyext.DatePickerAnswer
+		err := asker(&surveyext.DatePicker{
+			Message:         "Scheduled start time",
+			Help:            "Enter the date and time that this runbook should run. A value less than 1 minute in the future means 'now'",
+			Default:         referenceNow,
+			Min:             referenceNow,
+			Max:             maxSchedStartTime,
+			OverrideNow:     referenceNow,
+			AnswerFormatter: executionscommon.ScheduledStartTimeAnswerFormatter,
+		}, &answer)
+		if err != nil {
+			return err
+		}
+		schedTime := answer.Time
+		if schedTime.After(referenceNow.Add(1 * time.Minute)) {
+			*scheduledStartTime = schedTime.Format(time.RFC3339)
+
+			startPlusFiveMin := schedTime.Add(5 * time.Minute)
+			err = asker(&surveyext.DatePicker{
+				Message:     "Scheduled expiry time",
+				Help:        "At the start time, the run will be queued. If it does not begin before 'expiry' time, it will be cancelled. Minimum of 5 minutes after start time",
+				Default:     startPlusFiveMin,
+				Min:         startPlusFiveMin,
+				Max:         maxSchedStartTime.Add(24 * time.Hour),
+				OverrideNow: referenceNow,
+			}, &answer)
+			if err != nil {
+				return err
+			}
+			*scheduledExpiryTime = answer.Time.Format(time.RFC3339)
+		}
+	}
+
+	if !isGuidedFailureModeSpecified {
+		gfm, err := executionscommon.AskGuidedFailureMode(asker)
+		if err != nil {
+			return err
+		}
+		*guidedFailureMode = gfm
+	}
+
+	if !isForcePackageDownloadSpecified {
+		fpd, err := executionscommon.AskPackageDownload(asker)
+		if err != nil {
+			return err
+		}
+		*forcePackageDownload = fpd
+	}
+
+	return nil
+}
+
 func AskDbRunbookRunQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker question.Asker, space *spaces.Space, project *projects.Project, options *executor.TaskOptionsRunbookRun, now func() time.Time) error {
 	if octopus == nil {
 		return cliErrors.NewArgumentNullOrEmptyError("octopus")
@@ -673,62 +766,26 @@ func AskDbRunbookRunQuestions(octopus *octopusApiClient.Client, stdout io.Writer
 
 	allAdvancedOptionsSpecified := isRunAtSpecified && isExcludedStepsSpecified && isGuidedFailureModeSpecified && isForcePackageDownloadSpecified && isRunTargetsSpecified
 
-	shouldAskAdvancedQuestions := false
-	if !allAdvancedOptionsSpecified {
-		var changeOptionsAnswer string
-		err = asker(&survey.Select{
-			Message: "Change additional options?",
-			Options: []string{"Proceed to run", "Change"},
-		}, &changeOptionsAnswer)
-		if err != nil {
-			return err
-		}
-		if changeOptionsAnswer == "Change" {
-			shouldAskAdvancedQuestions = true
-		} else {
-			shouldAskAdvancedQuestions = false
-		}
+	shouldAskAdvancedQuestions, err := shouldAskAdvancedOptions(asker, "Change additional options?", allAdvancedOptionsSpecified)
+	if err != nil {
+		return err
 	}
 
 	if shouldAskAdvancedQuestions {
-		if !isRunAtSpecified {
-			referenceNow := now()
-			maxSchedStartTime := referenceNow.Add(30 * 24 * time.Hour) // octopus server won't let you schedule things more than 30d in the future
-
-			var answer surveyext.DatePickerAnswer
-			err = asker(&surveyext.DatePicker{
-				Message:         "Scheduled start time",
-				Help:            "Enter the date and time that this runbook should run. A value less than 1 minute in the future means 'now'",
-				Default:         referenceNow,
-				Min:             referenceNow,
-				Max:             maxSchedStartTime,
-				OverrideNow:     referenceNow,
-				AnswerFormatter: executionscommon.ScheduledStartTimeAnswerFormatter,
-			}, &answer)
-			if err != nil {
-				return err
-			}
-			scheduledStartTime := answer.Time
-			// if they enter a time within 1 minute, assume 'now', else we need to pick it up.
-			// note: the server has some code in it which attempts to detect past
-			if scheduledStartTime.After(referenceNow.Add(1 * time.Minute)) {
-				options.ScheduledStartTime = scheduledStartTime.Format(time.RFC3339)
-
-				// only ask for an expiry if they didn't pick "now"
-				startPlusFiveMin := scheduledStartTime.Add(5 * time.Minute)
-				err = asker(&surveyext.DatePicker{
-					Message:     "Scheduled expiry time",
-					Help:        "At the start time, the run will be queued. If it does not begin before 'expiry' time, it will be cancelled. Minimum of 5 minutes after start time",
-					Default:     startPlusFiveMin,
-					Min:         startPlusFiveMin,
-					Max:         maxSchedStartTime.Add(24 * time.Hour), // the octopus server doesn't enforce any upper bound for schedule expiry, so we make a minor judgement call and pick 1d extra here.
-					OverrideNow: referenceNow,
-				}, &answer)
-				if err != nil {
-					return err
-				}
-				options.ScheduledExpiryTime = answer.Time.Format(time.RFC3339)
-			}
+		// Ask common advanced options (schedule, guided failure, package download)
+		err = askCommonAdvancedOptions(
+			asker,
+			now,
+			&options.ScheduledStartTime,
+			&options.ScheduledExpiryTime,
+			&options.GuidedFailureMode,
+			&options.ForcePackageDownload,
+			isRunAtSpecified,
+			isGuidedFailureModeSpecified,
+			isForcePackageDownloadSpecified,
+		)
+		if err != nil {
+			return err
 		}
 
 		if !isExcludedStepsSpecified {
@@ -738,20 +795,6 @@ func AskDbRunbookRunQuestions(octopus *octopusApiClient.Client, stdout io.Writer
 				return err
 			}
 			options.ExcludedSteps, err = executionscommon.AskExcludedSteps(asker, runbookProcess.Steps)
-			if err != nil {
-				return err
-			}
-		}
-
-		if !isGuidedFailureModeSpecified { // if they deliberately specified false, don't ask them
-			options.GuidedFailureMode, err = executionscommon.AskGuidedFailureMode(asker)
-			if err != nil {
-				return err
-			}
-		}
-
-		if !isForcePackageDownloadSpecified { // if they deliberately specified false, don't ask them
-			options.ForcePackageDownload, err = executionscommon.AskPackageDownload(asker)
 			if err != nil {
 				return err
 			}
@@ -931,62 +974,26 @@ func AskGitRunbookRunQuestions(octopus *octopusApiClient.Client, stdout io.Write
 
 	allAdvancedOptionsSpecified := isRunAtSpecified && isExcludedStepsSpecified && isGuidedFailureModeSpecified && isForcePackageDownloadSpecified && isRunTargetsSpecified
 
-	shouldAskAdvancedQuestions := false
-	if !allAdvancedOptionsSpecified {
-		var changeOptionsAnswer string
-		err = asker(&survey.Select{
-			Message: "Change additional options?",
-			Options: []string{"Proceed to run", "Change"},
-		}, &changeOptionsAnswer)
-		if err != nil {
-			return err
-		}
-		if changeOptionsAnswer == "Change" {
-			shouldAskAdvancedQuestions = true
-		} else {
-			shouldAskAdvancedQuestions = false
-		}
+	shouldAskAdvancedQuestions, err := shouldAskAdvancedOptions(asker, "Change additional options?", allAdvancedOptionsSpecified)
+	if err != nil {
+		return err
 	}
 
 	if shouldAskAdvancedQuestions {
-		if !isRunAtSpecified {
-			referenceNow := now()
-			maxSchedStartTime := referenceNow.Add(30 * 24 * time.Hour) // octopus server won't let you schedule things more than 30d in the future
-
-			var answer surveyext.DatePickerAnswer
-			err = asker(&surveyext.DatePicker{
-				Message:         "Scheduled start time",
-				Help:            "Enter the date and time that this runbook should run. A value less than 1 minute in the future means 'now'",
-				Default:         referenceNow,
-				Min:             referenceNow,
-				Max:             maxSchedStartTime,
-				OverrideNow:     referenceNow,
-				AnswerFormatter: executionscommon.ScheduledStartTimeAnswerFormatter,
-			}, &answer)
-			if err != nil {
-				return err
-			}
-			scheduledStartTime := answer.Time
-			// if they enter a time within 1 minute, assume 'now', else we need to pick it up.
-			// note: the server has some code in it which attempts to detect past
-			if scheduledStartTime.After(referenceNow.Add(1 * time.Minute)) {
-				options.ScheduledStartTime = scheduledStartTime.Format(time.RFC3339)
-
-				// only ask for an expiry if they didn't pick "now"
-				startPlusFiveMin := scheduledStartTime.Add(5 * time.Minute)
-				err = asker(&surveyext.DatePicker{
-					Message:     "Scheduled expiry time",
-					Help:        "At the start time, the run will be queued. If it does not begin before 'expiry' time, it will be cancelled. Minimum of 5 minutes after start time",
-					Default:     startPlusFiveMin,
-					Min:         startPlusFiveMin,
-					Max:         maxSchedStartTime.Add(24 * time.Hour), // the octopus server doesn't enforce any upper bound for schedule expiry, so we make a minor judgement call and pick 1d extra here.
-					OverrideNow: referenceNow,
-				}, &answer)
-				if err != nil {
-					return err
-				}
-				options.ScheduledExpiryTime = answer.Time.Format(time.RFC3339)
-			}
+		// Ask common advanced options (schedule, guided failure, package download)
+		err = askCommonAdvancedOptions(
+			asker,
+			now,
+			&options.ScheduledStartTime,
+			&options.ScheduledExpiryTime,
+			&options.GuidedFailureMode,
+			&options.ForcePackageDownload,
+			isRunAtSpecified,
+			isGuidedFailureModeSpecified,
+			isForcePackageDownloadSpecified,
+		)
+		if err != nil {
+			return err
 		}
 
 		if !isExcludedStepsSpecified {
@@ -996,20 +1003,6 @@ func AskGitRunbookRunQuestions(octopus *octopusApiClient.Client, stdout io.Write
 				return err
 			}
 			options.ExcludedSteps, err = executionscommon.AskExcludedSteps(asker, runbookProcess.Steps)
-			if err != nil {
-				return err
-			}
-		}
-
-		if !isGuidedFailureModeSpecified { // if they deliberately specified false, don't ask them
-			options.GuidedFailureMode, err = executionscommon.AskGuidedFailureMode(asker)
-			if err != nil {
-				return err
-			}
-		}
-
-		if !isForcePackageDownloadSpecified { // if they deliberately specified false, don't ask them
-			options.ForcePackageDownload, err = executionscommon.AskPackageDownload(asker)
 			if err != nil {
 				return err
 			}
@@ -1348,360 +1341,3 @@ func findGitRunbook(octopus *octopusApiClient.Client, spaceID string, projectID 
 	return result, err
 }
 
-func filterRunbooksByTags(allRunbooks []*runbooks.Runbook, tags []string) []*runbooks.Runbook {
-	var matchingRunbooks []*runbooks.Runbook
-	for _, runbook := range allRunbooks {
-		for _, tag := range tags {
-			if util.SliceContains(runbook.RunbookTags, tag) {
-				matchingRunbooks = append(matchingRunbooks, runbook)
-				break
-			}
-		}
-	}
-	return matchingRunbooks
-}
-
-func selectRunbookTags(octopus *octopusApiClient.Client, asker question.Asker, space *spaces.Space, project *projects.Project) ([]string, error) {
-	allRunbooks, err := shared.GetAllRunbooks(octopus, project.ID)
-	if err != nil {
-		return nil, err
-	}
-
-	tagMap := make(map[string]bool)
-	for _, runbook := range allRunbooks {
-		for _, tag := range runbook.RunbookTags {
-			tagMap[tag] = true
-		}
-	}
-
-	if len(tagMap) == 0 {
-		return nil, fmt.Errorf("no runbooks with tags found in project %s", project.Name)
-	}
-
-	availableTags := make([]string, 0, len(tagMap))
-	for tag := range tagMap {
-		availableTags = append(availableTags, tag)
-	}
-	sort.Strings(availableTags)
-
-	var selectedTags []string
-	err = asker(&survey.MultiSelect{
-		Message: "Select runbook tags (space to select, enter to confirm):",
-		Options: availableTags,
-	}, &selectedTags)
-	if err != nil {
-		return nil, err
-	}
-
-	if len(selectedTags) == 0 {
-		return nil, fmt.Errorf("at least one tag must be selected")
-	}
-
-	return selectedTags, nil
-}
-
-func selectGitRunbookTags(octopus *octopusApiClient.Client, asker question.Asker, space *spaces.Space, project *projects.Project, gitRef string) ([]string, error) {
-	allRunbooks, err := shared.GetAllGitRunbooks(octopus, project.ID, gitRef)
-	if err != nil {
-		return nil, err
-	}
-
-	tagMap := make(map[string]bool)
-	for _, runbook := range allRunbooks {
-		for _, tag := range runbook.RunbookTags {
-			tagMap[tag] = true
-		}
-	}
-
-	if len(tagMap) == 0 {
-		return nil, fmt.Errorf("no runbooks with tags found in project %s", project.Name)
-	}
-
-	availableTags := make([]string, 0, len(tagMap))
-	for tag := range tagMap {
-		availableTags = append(availableTags, tag)
-	}
-	sort.Strings(availableTags)
-
-	var selectedTags []string
-	err = asker(&survey.MultiSelect{
-		Message: "Select runbook tags (space to select, enter to confirm):",
-		Options: availableTags,
-	}, &selectedTags)
-	if err != nil {
-		return nil, err
-	}
-
-	if len(selectedTags) == 0 {
-		return nil, fmt.Errorf("at least one tag must be selected")
-	}
-
-	return selectedTags, nil
-}
-
-type runbookTaskResult struct {
-	runbookName          string
-	environments         []string
-	runbookRunServerTasks []*runbooks.RunbookRunServerTask
-	err                  error
-}
-
-func processRunbookTasks(octopus *octopusApiClient.Client, space *spaces.Space, tasks []*executor.Task) []runbookTaskResult {
-	results := make([]runbookTaskResult, len(tasks))
-
-	for i, task := range tasks {
-		var runbookName string
-		var environments []string
-		var serverTasks []*runbooks.RunbookRunServerTask
-		var err error
-
-		switch task.Type {
-		case executor.TaskTypeRunbookRun:
-			params, ok := task.Options.(*executor.TaskOptionsRunbookRun)
-			if ok {
-				runbookName = params.RunbookName
-				environments = params.Environments
-				err = executor.ProcessTasks(octopus, space, []*executor.Task{task})
-				if params.Response != nil {
-					serverTasks = params.Response.RunbookRunServerTasks
-				}
-			} else {
-				err = fmt.Errorf("invalid task options type for RunbookRun")
-			}
-		case executor.TaskTypeGitRunbookRun:
-			params, ok := task.Options.(*executor.TaskOptionsGitRunbookRun)
-			if ok {
-				runbookName = params.RunbookName
-				environments = params.Environments
-				err = executor.ProcessTasks(octopus, space, []*executor.Task{task})
-				if params.Response != nil {
-					serverTasks = params.Response.RunbookRunServerTasks
-				}
-			} else {
-				err = fmt.Errorf("invalid task options type for GitRunbookRun")
-			}
-		default:
-			err = fmt.Errorf("unhandled task type %s", task.Type)
-		}
-
-		results[i] = runbookTaskResult{
-			runbookName:          runbookName,
-			environments:         environments,
-			runbookRunServerTasks: serverTasks,
-			err:                  err,
-		}
-	}
-
-	return results
-}
-
-func runRunbooksByTag(cmd *cobra.Command, f factory.Factory, flags *RunFlags, octopus *octopusApiClient.Client, project *projects.Project, parsedVariables map[string]string, outputFormat string, isGit bool) error {
-	var allRunbooks []*runbooks.Runbook
-	var err error
-
-	if isGit {
-		if flags.GitRef.Value == "" {
-			return errors.New("--git-ref is required when running runbooks by tag in a git-based project")
-		}
-		allRunbooks, err = shared.GetAllGitRunbooks(octopus, project.ID, flags.GitRef.Value)
-	} else {
-		allRunbooks, err = shared.GetAllRunbooks(octopus, project.ID)
-	}
-
-	if err != nil {
-		return err
-	}
-
-	matchingRunbooks := filterRunbooksByTags(allRunbooks, flags.RunbookTags.Value)
-
-	if len(matchingRunbooks) == 0 {
-		return fmt.Errorf("no runbooks found matching tags: %s", strings.Join(flags.RunbookTags.Value, ", "))
-	}
-
-	if !constants.IsProgrammaticOutputFormat(outputFormat) {
-		cmd.Printf("Found %d runbook(s) matching tags:\n", len(matchingRunbooks))
-		for _, rb := range matchingRunbooks {
-			cmd.Printf("  - %s\n", rb.Name)
-		}
-		cmd.Println()
-	}
-
-	var selectedEnvironments []*environments.Environment
-	if f.IsPromptEnabled() {
-		if len(flags.Environments.Value) == 0 {
-			if isGit {
-				selectedEnvironments, err = selectGitRunEnvironments(f.Ask, octopus, f.GetCurrentSpace(), project, matchingRunbooks[0], flags.GitRef.Value)
-			} else {
-				selectedEnvironments, err = selectRunEnvironments(f.Ask, octopus, f.GetCurrentSpace(), project, matchingRunbooks[0])
-			}
-			if err != nil {
-				return err
-			}
-			flags.Environments.Value = util.SliceTransform(selectedEnvironments, func(env *environments.Environment) string { return env.Name })
-		}
-
-		if len(flags.Tenants.Value) == 0 && len(flags.TenantTags.Value) == 0 {
-			tenantedDeploymentMode := false
-			if project.TenantedDeploymentMode == core.TenantedDeploymentModeTenanted {
-				tenantedDeploymentMode = true
-			}
-			flags.Tenants.Value, flags.TenantTags.Value, _ = executionscommon.AskTenantsAndTags(f.Ask, octopus, matchingRunbooks[0].ProjectID, selectedEnvironments, tenantedDeploymentMode)
-		}
-	}
-
-	if len(flags.Environments.Value) == 0 {
-		return errors.New("environment(s) must be specified")
-	}
-
-	if f.IsPromptEnabled() && !constants.IsProgrammaticOutputFormat(outputFormat) {
-		resolvedFlags := NewRunFlags()
-		resolvedFlags.Project.Value = flags.Project.Value
-		resolvedFlags.RunbookTags.Value = flags.RunbookTags.Value
-		resolvedFlags.Environments.Value = flags.Environments.Value
-		resolvedFlags.Tenants.Value = flags.Tenants.Value
-		resolvedFlags.TenantTags.Value = flags.TenantTags.Value
-
-		if isGit {
-			resolvedFlags.GitRef.Value = flags.GitRef.Value
-			autoCmd := flag.GenerateAutomationCmd(constants.ExecutableName+" runbook run",
-				resolvedFlags.Project,
-				resolvedFlags.RunbookTags,
-				resolvedFlags.GitRef,
-				resolvedFlags.Environments,
-				resolvedFlags.Tenants,
-				resolvedFlags.TenantTags,
-			)
-			cmd.Printf("\nAutomation Command: %s\n", autoCmd)
-		} else {
-			autoCmd := flag.GenerateAutomationCmd(constants.ExecutableName+" runbook run",
-				resolvedFlags.Project,
-				resolvedFlags.RunbookTags,
-				resolvedFlags.Environments,
-				resolvedFlags.Tenants,
-				resolvedFlags.TenantTags,
-			)
-			cmd.Printf("\nAutomation Command: %s\n", autoCmd)
-		}
-	}
-
-	tasks := make([]*executor.Task, 0, len(matchingRunbooks))
-	for _, runbook := range matchingRunbooks {
-		commonOptions := &executor.TaskOptionsRunbookRunBase{
-			ProjectName:          project.Name,
-			RunbookName:          runbook.Name,
-			Environments:         flags.Environments.Value,
-			Tenants:              flags.Tenants.Value,
-			TenantTags:           flags.TenantTags.Value,
-			ScheduledStartTime:   flags.RunAt.Value,
-			ScheduledExpiryTime:  flags.MaxQueueTime.Value,
-			ExcludedSteps:        flags.ExcludedSteps.Value,
-			GuidedFailureMode:    flags.GuidedFailureMode.Value,
-			ForcePackageDownload: flags.ForcePackageDownload.Value,
-			RunTargets:           flags.RunTargets.Value,
-			ExcludeTargets:       flags.ExcludeTargets.Value,
-			Variables:            parsedVariables,
-		}
-
-		if isGit {
-			gitOptions := &executor.TaskOptionsGitRunbookRun{
-				GitReference:            flags.GitRef.Value,
-				DefaultPackageVersion:   flags.PackageVersion.Value,
-				PackageVersionOverrides: flags.PackageVersionSpec.Value,
-				GitResourceRefs:         flags.GitResourceRefsSpec.Value,
-			}
-			gitOptions.TaskOptionsRunbookRunBase = *commonOptions
-			tasks = append(tasks, executor.NewTask(executor.TaskTypeGitRunbookRun, gitOptions))
-		} else {
-			dbOptions := &executor.TaskOptionsRunbookRun{
-				Snapshot: flags.Snapshot.Value,
-			}
-			dbOptions.TaskOptionsRunbookRunBase = *commonOptions
-			if cmd.Flags().Lookup(FlagForcePackageDownload).Changed {
-				dbOptions.ForcePackageDownloadWasSpecified = true
-			}
-			tasks = append(tasks, executor.NewTask(executor.TaskTypeRunbookRun, dbOptions))
-		}
-	}
-
-	results := processRunbookTasks(octopus, f.GetCurrentSpace(), tasks)
-
-	type runbookRunResult struct {
-		RunbookName string `json:"runbookName"`
-		Environment string `json:"environment"`
-		Status      string `json:"status"`
-		TaskID      string `json:"taskId"`
-	}
-
-	var flatResults []runbookRunResult
-	successCount := 0
-	failCount := 0
-
-	for _, result := range results {
-		if result.err != nil {
-			failCount++
-			for _, env := range result.environments {
-				flatResults = append(flatResults, runbookRunResult{
-					RunbookName: result.runbookName,
-					Environment: env,
-					Status:      fmt.Sprintf("Failed: %v", result.err),
-					TaskID:      "",
-				})
-			}
-		} else {
-			for i, task := range result.runbookRunServerTasks {
-				successCount++
-				env := "Unknown"
-				if i < len(result.environments) {
-					env = result.environments[i]
-				} else if len(result.environments) > 0 {
-					env = result.environments[0]
-				}
-				flatResults = append(flatResults, runbookRunResult{
-					RunbookName: result.runbookName,
-					Environment: env,
-					Status:      "Started",
-					TaskID:      task.ServerTaskID,
-				})
-			}
-		}
-	}
-
-	switch outputFormat {
-	case constants.OutputFormatBasic:
-		for _, result := range flatResults {
-			if result.Status == "Started" {
-				cmd.Printf("%s\n", result.TaskID)
-			}
-		}
-	case constants.OutputFormatJson:
-		data, err := json.Marshal(flatResults)
-		if err != nil {
-			cmd.PrintErrln(err)
-		} else {
-			_, _ = cmd.OutOrStdout().Write(data)
-			cmd.Println()
-		}
-	default:
-		cmd.Println()
-		t := output.NewTable(cmd.OutOrStdout())
-		t.AddRow(output.Bold("RUNBOOK"), output.Bold("ENVIRONMENT"), output.Bold("STATUS"), output.Bold("TASK ID"))
-		for _, result := range flatResults {
-			statusDisplay := result.Status
-			if result.Status == "Started" {
-				statusDisplay = output.Cyan(result.Status)
-			} else {
-				statusDisplay = output.Red(result.Status)
-			}
-			t.AddRow(result.RunbookName, result.Environment, statusDisplay, result.TaskID)
-		}
-		t.Print()
-		cmd.Println()
-		cmd.Printf("Successfully started: %d, Failed: %d\n", successCount, failCount)
-	}
-
-	if failCount > 0 {
-		return fmt.Errorf("%d runbook run(s) failed to start", failCount)
-	}
-
-	return nil
-}
