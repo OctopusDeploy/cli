@@ -1,5 +1,14 @@
 # Changelog
 
+## [2.21.0](https://github.com/OctopusDeploy/cli/compare/v2.20.1...v2.21.0) (2026-02-19)
+
+
+### Features
+
+* Add --runbook-tag flag to run multiple runbooks by tag ([#576](https://github.com/OctopusDeploy/cli/issues/576)) ([7eb348a](https://github.com/OctopusDeploy/cli/commit/7eb348a5643095f3f7b78f24217f06c2a2e0fa54))
+* service message flag support ([#574](https://github.com/OctopusDeploy/cli/issues/574)) ([e1ccf99](https://github.com/OctopusDeploy/cli/commit/e1ccf99c7fcfc0f02b9c583e9e3545e66956bc70))
+* Support custom AWS region for accounts ([#581](https://github.com/OctopusDeploy/cli/issues/581)) ([a22dd0f](https://github.com/OctopusDeploy/cli/commit/a22dd0fb1aa1dee9c98047109b9be486667969da))
+
 ## [2.20.1](https://github.com/OctopusDeploy/cli/compare/v2.20.0...v2.20.1) (2025-12-04)
 
 
