@@ -78,6 +78,11 @@ func TestAWSAccountCreatePromptMissing(t *testing.T) {
 		Help:    "The AWS secret key to use when authenticating against Amazon Web Services.",
 	}).AnswerWith("testpassword124")
 
+	_ = qa.ExpectQuestion(t, &survey.Input{
+		Message: "Region",
+		Help:    "The AWS region to use for this account.",
+	}).AnswerWith("us-east-1")
+
 	_ = qa.ExpectQuestion(t, &survey.MultiSelect{
 		Message: "Choose the environments that are allowed to use this account.\nIf nothing is selected, the account can be used for deployments to any environment.",
 		Options: []string{"testenv"},
@@ -89,6 +94,7 @@ func TestAWSAccountCreatePromptMissing(t *testing.T) {
 	assert.Equal(t, []string{envID}, opts.Environments.Value)
 	assert.Equal(t, "testpassword124", opts.SecretKey.Value)
 	assert.Equal(t, "testaccesskey123", opts.AccessKey.Value)
+	assert.Equal(t, "us-east-1", opts.Region.Value)
 	assert.Equal(t, "test 123", opts.Description.Value)
 	assert.Equal(t, "TestAccount", opts.Name.Value)
 }
@@ -108,6 +114,7 @@ func TestAWSAccountCreateNoPrompt(t *testing.T) {
 	opts.Name.Value = "testaccount"
 	opts.AccessKey.Value = "testaccesskey123"
 	opts.SecretKey.Value = "testsecretkey123"
+	opts.Region.Value = "us-west-2"
 
 	errReceiver := testutil.GoBegin(func() error {
 		defer testutil.Close(api, qa)
@@ -128,6 +135,7 @@ func TestAWSAccountCreateNoPrompt(t *testing.T) {
 	testAccount.ID = "Account-1"
 	testAccount.Slug = "testaccount"
 	testAccount.SpaceID = spaceID
+	testAccount.Region = opts.Region.Value
 
 	api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
 	api.ExpectRequest(t, "GET", "/api/spaces").RespondWith(rootResource)

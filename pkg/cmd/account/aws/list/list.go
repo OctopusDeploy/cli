@@ -50,18 +50,20 @@ func listAwsAccounts(client *client.Client, cmd *cobra.Command) error {
 				Slug      string
 				Name      string
 				AccessKey string
+				Region    string
 			}{
 				Id:        acc.GetID(),
 				Slug:      acc.GetSlug(),
 				Name:      acc.GetName(),
 				AccessKey: acc.AccessKey,
+				Region:    acc.Region,
 			}
 		},
 		Table: output.TableDefinition[accounts.IAccount]{
-			Header: []string{"NAME", "SLUG", "ACCESS KEY"},
+			Header: []string{"NAME", "SLUG", "ACCESS KEY", "REGION"},
 			Row: func(item accounts.IAccount) []string {
 				acc := item.(*accounts.AmazonWebServicesAccount)
-				return []string{output.Bold(acc.GetName()), acc.GetSlug(), acc.AccessKey}
+				return []string{output.Bold(acc.GetName()), acc.GetSlug(), acc.AccessKey, acc.Region}
 			}},
 		Basic: func(item accounts.IAccount) string {
 			return item.GetName()
