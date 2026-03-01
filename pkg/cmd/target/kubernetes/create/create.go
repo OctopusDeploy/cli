@@ -329,6 +329,11 @@ func (opts *CreateOptions) Commit() error {
 	}
 	environmentIds := util.SliceTransform(envs, func(e *environments.Environment) string { return e.ID })
 
+	combinedRoles, err := shared.CombineRolesAndTags(opts.Client, opts.Roles.Value, opts.Tags.Value)
+	if err != nil {
+		return err
+	}
+
 	kubernetesUrl, err := url.Parse(opts.KubernetesClusterURL.Value)
 	if err != nil {
 		return err
@@ -446,7 +451,7 @@ func (opts *CreateOptions) Commit() error {
 		endpoint.Authentication = auth
 	}
 
-	deploymentTarget := machines.NewDeploymentTarget(opts.Name.Value, endpoint, environmentIds, util.SliceDistinct(opts.Roles.Value))
+	deploymentTarget := machines.NewDeploymentTarget(opts.Name.Value, endpoint, environmentIds, util.SliceDistinct(combinedRoles))
 
 	machinePolicy, err := machinescommon.FindDefaultMachinePolicy(opts.GetAllMachinePoliciesCallback)
 	if err != nil {
@@ -511,6 +516,7 @@ func (opts *CreateOptions) Commit() error {
 
 			opts.Environments,
 			opts.Roles,
+			opts.Tags,
 			opts.TenantedDeploymentMode,
 			opts.Tenants,
 			opts.TenantTags,

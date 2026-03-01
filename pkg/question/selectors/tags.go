@@ -34,33 +34,18 @@ func ValidateTags(tags []string, tagSets []*tagsets.TagSet) error {
 		if foundTagSet == nil {
 			return fmt.Errorf("tag '%s' does not belong to any tag set available for this resource", tag)
 		}
-
-		// For non-FreeText tag sets, validate that the specific tag exists
-		if foundTagSet.Type != tagsets.TagSetTypeFreeText {
-			tagFound := false
-			for _, t := range foundTagSet.Tags {
-				if strings.EqualFold(t.CanonicalTagName, tag) {
-					tagFound = true
-					break
-				}
-			}
-			if !tagFound {
-				return fmt.Errorf("tag '%s' does not exist in tag set '%s'", tag, foundTagSet.Name)
-			}
-		}
 	}
 
 	for _, tagSet := range tagSets {
 		if tagSet.Type == tagsets.TagSetTypeSingleSelect {
 			// Validate that single-select tag sets only have one tag specified
+			tagSetPrefix := strings.ToLower(tagSet.Name) + "/"
 			count := 0
 			var matchedTags []string
 			for _, tag := range tags {
-				for _, t := range tagSet.Tags {
-					if strings.EqualFold(t.CanonicalTagName, tag) {
-						count++
-						matchedTags = append(matchedTags, tag)
-					}
+				if strings.HasPrefix(strings.ToLower(tag), tagSetPrefix) {
+					count++
+					matchedTags = append(matchedTags, tag)
 				}
 			}
 			if count > 1 {
