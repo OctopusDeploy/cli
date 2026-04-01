@@ -81,6 +81,9 @@ const (
 	FlagAliasExcludeTarget      = "exclude-target"
 	FlagAliasExcludeMachines    = "excludeMachines" // octo wants a comma separated list. We prefer specifying --exclude-target multiple times, but CSV also works because pflag does it for free
 
+	FlagSpecificTargetTagName = "specific-target-tag"
+	FlagExcludedTargetTagName = "excluded-target-tag"
+
 	FlagVariable = "variable"
 
 	FlagUpdateVariables            = "update-variables"
@@ -110,6 +113,8 @@ type DeployFlags struct {
 	ForcePackageDownload           *flag.Flag[bool]
 	DeploymentTargets              *flag.Flag[[]string]
 	ExcludeTargets                 *flag.Flag[[]string]
+	SpecificTargetTagNames         *flag.Flag[[]string]
+	ExcludedTargetTagNames         *flag.Flag[[]string]
 	DeploymentFreezeNames          *flag.Flag[[]string]
 	DeploymentFreezeOverrideReason *flag.Flag[string]
 }
@@ -130,6 +135,8 @@ func NewDeployFlags() *DeployFlags {
 		ForcePackageDownload:           flag.New[bool](FlagForcePackageDownload, false),
 		DeploymentTargets:              flag.New[[]string](FlagDeploymentTarget, false),
 		ExcludeTargets:                 flag.New[[]string](FlagExcludeDeploymentTarget, false),
+		SpecificTargetTagNames:         flag.New[[]string](FlagSpecificTargetTagName, false),
+		ExcludedTargetTagNames:         flag.New[[]string](FlagExcludedTargetTagName, false),
 		DeploymentFreezeNames:          flag.New[[]string](FlagDeploymentFreezeName, false),
 		DeploymentFreezeOverrideReason: flag.New[string](FlagDeploymentFreezeOverrideReason, false),
 	}
@@ -172,6 +179,8 @@ func NewCmdDeploy(f factory.Factory) *cobra.Command {
 	flags.BoolVarP(&deployFlags.ForcePackageDownload.Value, deployFlags.ForcePackageDownload.Name, "", false, "Force re-download of packages")
 	flags.StringArrayVarP(&deployFlags.DeploymentTargets.Value, deployFlags.DeploymentTargets.Name, "", nil, "Deploy to this target (can be specified multiple times)")
 	flags.StringArrayVarP(&deployFlags.ExcludeTargets.Value, deployFlags.ExcludeTargets.Name, "", nil, "Deploy to targets except for this (can be specified multiple times)")
+	flags.StringArrayVarP(&deployFlags.SpecificTargetTagNames.Value, deployFlags.SpecificTargetTagNames.Name, "", nil, "Deploy to targets matching this tag (can be specified multiple times)")
+	flags.StringArrayVarP(&deployFlags.ExcludedTargetTagNames.Value, deployFlags.ExcludedTargetTagNames.Name, "", nil, "Deploy to targets except for those matching this tag (can be specified multiple times)")
 	flags.StringArrayVarP(&deployFlags.DeploymentFreezeNames.Value, deployFlags.DeploymentFreezeNames.Name, "", nil, "Override this deployment freeze (can be specified multiple times)")
 	flags.StringVarP(&deployFlags.DeploymentFreezeOverrideReason.Value, deployFlags.DeploymentFreezeOverrideReason.Name, "", "", "Reason for overriding a deployment freeze")
 
@@ -226,6 +235,8 @@ func deployRun(cmd *cobra.Command, f factory.Factory, flags *DeployFlags) error 
 		ForcePackageDownload:           flags.ForcePackageDownload.Value,
 		DeploymentTargets:              flags.DeploymentTargets.Value,
 		ExcludeTargets:                 flags.ExcludeTargets.Value,
+		SpecificTargetTagNames:         flags.SpecificTargetTagNames.Value,
+		ExcludedTargetTagNames:         flags.ExcludedTargetTagNames.Value,
 		DeploymentFreezeNames:          flags.DeploymentFreezeNames.Value,
 		DeploymentFreezeOverrideReason: flags.DeploymentFreezeOverrideReason.Value,
 		Variables:                      parsedVariables,
@@ -264,6 +275,8 @@ func deployRun(cmd *cobra.Command, f factory.Factory, flags *DeployFlags) error 
 			resolvedFlags.GuidedFailureMode.Value = options.GuidedFailureMode
 			resolvedFlags.DeploymentTargets.Value = options.DeploymentTargets
 			resolvedFlags.ExcludeTargets.Value = options.ExcludeTargets
+			resolvedFlags.SpecificTargetTagNames.Value = options.SpecificTargetTagNames
+			resolvedFlags.ExcludedTargetTagNames.Value = options.ExcludedTargetTagNames
 			resolvedFlags.DeploymentFreezeNames.Value = options.DeploymentFreezeNames
 			resolvedFlags.DeploymentFreezeOverrideReason.Value = options.DeploymentFreezeOverrideReason
 
@@ -296,6 +309,8 @@ func deployRun(cmd *cobra.Command, f factory.Factory, flags *DeployFlags) error 
 				resolvedFlags.ForcePackageDownload,
 				resolvedFlags.DeploymentTargets,
 				resolvedFlags.ExcludeTargets,
+				resolvedFlags.SpecificTargetTagNames,
+				resolvedFlags.ExcludedTargetTagNames,
 				resolvedFlags.Variables,
 				resolvedFlags.DeploymentFreezeNames,
 				resolvedFlags.DeploymentFreezeOverrideReason,
@@ -619,6 +634,8 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 				return err
 			}
 		}
+
+		// TODO: Add support for isDeploymentTargetTagsSpecified
 	}
 	// DONE
 	return nil
@@ -1065,6 +1082,34 @@ func PrintAdvancedSummary(stdout io.Writer, options *executor.TaskOptionsDeployR
 		depTargetsStr = sb.String()
 	}
 
+	targetTagsStr := "All included"
+	if len(options.SpecificTargetTagNames) != 0 || len(options.ExcludedTargetTagNames) != 0 {
+		sb := strings.Builder{}
+		if len(options.SpecificTargetTagNames) > 0 {
+			sb.WriteString("Include ")
+			for idx, name := range options.SpecificTargetTagNames {
+				if idx > 0 {
+					sb.WriteString(",")
+				}
+				sb.WriteString(name)
+			}
+		}
+		if len(options.ExcludedTargetTagNames) > 0 {
+			if sb.Len() > 0 {
+				sb.WriteString("; ")
+			}
+
+			sb.WriteString("Exclude ")
+			for idx, name := range options.ExcludedTargetTagNames {
+				if idx > 0 {
+					sb.WriteString(",")
+				}
+				sb.WriteString(name)
+			}
+		}
+		targetTagsStr = sb.String()
+	}
+
 	_, _ = fmt.Fprintf(stdout, output.FormatDoc(heredoc.Doc(`
 		bold(Additional Options):
 		  Deploy Time: cyan(%s)
@@ -1072,7 +1117,8 @@ func PrintAdvancedSummary(stdout io.Writer, options *executor.TaskOptionsDeployR
 		  Guided Failure Mode: cyan(%s)
 		  Package Download: cyan(%s)
 		  Deployment Targets: cyan(%s)
-	`)), deployAtStr, skipStepsStr, gfmStr, pkgDownloadStr, depTargetsStr)
+		  Target Tags: cyan(%s)
+	`)), deployAtStr, skipStepsStr, gfmStr, pkgDownloadStr, depTargetsStr, targetTagsStr)
 }
 
 func selectRelease(octopus *octopusApiClient.Client, ask question.Asker, questionText string, space *spaces.Space, project *projects.Project, channel *channels.Channel) (*releases.Release, error) {
