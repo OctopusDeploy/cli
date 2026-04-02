@@ -534,8 +534,9 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 	isGuidedFailureModeSpecified := options.GuidedFailureMode != ""
 	isForcePackageDownloadSpecified := options.ForcePackageDownloadWasSpecified
 	isDeploymentTargetsSpecified := len(options.DeploymentTargets) > 0 || len(options.ExcludeTargets) > 0
+	isDeploymentTargetTagsSpecified := len(options.SpecificTargetTagNames) > 0 || len(options.ExcludedTargetTagNames) > 0
 
-	allAdvancedOptionsSpecified := isDeployAtSpecified && isExcludedStepsSpecified && isGuidedFailureModeSpecified && isForcePackageDownloadSpecified && isDeploymentTargetsSpecified
+	allAdvancedOptionsSpecified := isDeployAtSpecified && isExcludedStepsSpecified && isGuidedFailureModeSpecified && isForcePackageDownloadSpecified && isDeploymentTargetsSpecified && isDeploymentTargetTagsSpecified
 
 	shouldAskAdvancedQuestions := false
 	if !allAdvancedOptionsSpecified {
@@ -635,7 +636,19 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 			}
 		}
 
-		// TODO: Add support for isDeploymentTargetTagsSpecified
+		if !isDeploymentTargetTagsSpecified {
+			if len(deploymentEnvironmentIDs) == 0 { // if the Q&A process earlier hasn't loaded environments already, we need to load them now
+				selectedEnvironments, err := executionscommon.FindEnvironments(octopus, options.Environments)
+				if err != nil {
+					return err
+				}
+				deploymentEnvironmentIDs = util.SliceTransform(selectedEnvironments, func(env *environments.Environment) string { return env.ID })
+			}
+			options.SpecificTargetTagNames, options.ExcludedTargetTagNames, err = askTargetTags(octopus, asker, space.ID, selectedRelease.ID, deploymentEnvironmentIDs)
+			if err != nil {
+				return err
+			}
+		}
 	}
 	// DONE
 	return nil
@@ -827,6 +840,56 @@ func askDeploymentTargets(octopus *octopusApiClient.Client, asker question.Asker
 		return selectedDeploymentTargetNames, nil
 	}
 	return nil, nil
+}
+
+func askTargetTags(octopus *octopusApiClient.Client, asker question.Asker, spaceID string, releaseID string, deploymentEnvironmentIDs []string) ([]string, []string, error) {
+	var results []string
+
+	// collect all available target tags from deployment previews across all environments
+	for _, envID := range deploymentEnvironmentIDs {
+		preview, err := deployments.GetReleaseDeploymentPreview(octopus, spaceID, releaseID, envID, true)
+		if err != nil {
+			return nil, nil, err
+		}
+		for _, step := range preview.StepsToExecute {
+			for _, tagSet := range step.AvailableTagSets {
+				for _, tag := range tagSet.AvailableTags {
+					canonicalName := tagSet.TagSetName + "/" + tag.TagName
+					if !util.SliceContains(results, canonicalName) {
+						results = append(results, canonicalName)
+					}
+				}
+			}
+		}
+	}
+
+	if len(results) == 0 {
+		return nil, nil, nil
+	}
+
+	sort.Strings(results)
+
+	var selectedSpecificTags []string
+	err := asker(&survey.MultiSelect{
+		Message: "Specific target tags to include (If none selected, include all)",
+		Options: results,
+	}, &selectedSpecificTags)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	var selectedExcludedTags []string
+	if len(selectedSpecificTags) == 0 {
+		err = asker(&survey.MultiSelect{
+			Message: "Target tags to exclude (If none selected, exclude none)",
+			Options: results,
+		}, &selectedExcludedTags)
+		if err != nil {
+			return nil, nil, err
+		}
+	}
+
+	return selectedSpecificTags, selectedExcludedTags, nil
 }
 
 func askDeploymentPreviewVariables(octopus *octopusApiClient.Client, variablesFromCmd map[string]string, asker question.Asker, spaceID string, releaseID string, deploymentPreviewsReqests []deployments.DeploymentPreviewRequest) (map[string]string, error) {

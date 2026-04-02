@@ -1517,6 +1517,88 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 				ScheduledExpiryTime:              "2022-09-08T13:31:03+08:00",
 			}, options)
 		}},
+
+		{"target tags with specific and excluded tags", func(t *testing.T, api *testutil.MockHttpServer, qa *testutil.AskMocker, stdout *bytes.Buffer) {
+			options := &executor.TaskOptionsDeployRelease{
+				ProjectName:                      "fire project",
+				ReleaseVersion:                   "1.9",
+				Environments:                     []string{"dev"},
+				ExcludedSteps:                    []string{"Cleanup"},
+				GuidedFailureMode:                "false",
+				ForcePackageDownloadWasSpecified: true,
+				DeploymentTargets:                []string{"vm-1"},
+				ScheduledStartTime:               "now",
+			}
+
+			errReceiver := testutil.GoBegin(func() error {
+				defer testutil.Close(api, qa)
+				octopus, _ := octopusApiClient.NewClient(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "")
+				return deploy.AskQuestions(octopus, stdout, qa.AsAsker(), space1, options, now)
+			})
+
+			doStandardApiResponses(options, api, release19, variableSnapshotNoVars)
+			stdout.Reset()
+
+			_ = qa.ExpectQuestion(t, &survey.Select{
+				Message: "Change additional options?",
+				Options: []string{"Proceed to deploy", "Change"},
+			}).AnswerWith("Change")
+			stdout.Reset()
+
+			api.ExpectRequest(t, "GET", fmt.Sprintf("/api/Spaces-1/releases/%s/deployments/preview/%s?includeDisabledSteps=true", release19.ID, devEnvironment.ID)).RespondWith(&deployments.DeploymentPreview{
+				StepsToExecute: []*deployments.DeploymentTemplateStep{
+					{
+						AvailableTagSets: []*deployments.TagSetPreview{
+							{
+								TagSetName: "Role",
+								AvailableTags: []*deployments.TargetTagPreview{
+									{TagName: "WebServer"},
+									{TagName: "Database"},
+									{TagName: "Legacy"},
+								},
+							},
+							{
+								TagSetName: "Environment",
+								AvailableTags: []*deployments.TargetTagPreview{
+									{TagName: "Production"},
+									{TagName: "Staging"},
+								},
+							},
+						},
+					},
+				},
+			})
+
+			_ = qa.ExpectQuestion(t, &survey.MultiSelect{
+				Message: "Specific target tags to include (If none selected, include all)",
+				Options: []string{"Environment/Production", "Environment/Staging", "Role/Database", "Role/Legacy", "Role/WebServer"},
+			}).AnswerWith([]string{"Role/WebServer", "Environment/Production"})
+
+			_ = qa.ExpectQuestion(t, &survey.MultiSelect{
+				Message: "Target tags to exclude (If none selected, exclude none)",
+				Options: []string{"Environment/Production", "Environment/Staging", "Role/Database", "Role/Legacy", "Role/WebServer"},
+			}).AnswerWith([]string{"Role/Legacy"})
+
+			err := <-errReceiver
+			assert.Nil(t, err)
+
+			// check that the question-asking process has filled out the things we told it to
+			assert.Equal(t, &executor.TaskOptionsDeployRelease{
+				ProjectName:                      "Fire Project",
+				ReleaseVersion:                   "1.9",
+				Environments:                     []string{"dev"},
+				GuidedFailureMode:                "false",
+				ForcePackageDownload:             false,
+				ForcePackageDownloadWasSpecified: true,
+				Variables:                        make(map[string]string, 0),
+				ExcludedSteps:                    []string{"Cleanup"},
+				DeploymentTargets:                []string{"vm-1"},
+				SpecificTargetTagNames:           []string{"Role/WebServer", "Environment/Production"},
+				ExcludedTargetTagNames:           []string{"Role/Legacy"},
+				ReleaseID:                        release19.ID,
+				ScheduledStartTime:               "now",
+			}, options)
+		}},
 	}
 
 	for _, test := range tests {
