@@ -1518,7 +1518,7 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 			}, options)
 		}},
 
-		{"target tags with specific and excluded tags", func(t *testing.T, api *testutil.MockHttpServer, qa *testutil.AskMocker, stdout *bytes.Buffer) {
+		{"target tags with specific tags selected", func(t *testing.T, api *testutil.MockHttpServer, qa *testutil.AskMocker, stdout *bytes.Buffer) {
 			options := &executor.TaskOptionsDeployRelease{
 				ProjectName:                      "fire project",
 				ReleaseVersion:                   "1.9",
@@ -1574,6 +1574,83 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 				Options: []string{"Environment/Production", "Environment/Staging", "Role/Database", "Role/Legacy", "Role/WebServer"},
 			}).AnswerWith([]string{"Role/WebServer", "Environment/Production"})
 
+			err := <-errReceiver
+			assert.Nil(t, err)
+
+			// check that the question-asking process has filled out the things we told it to
+			assert.Equal(t, &executor.TaskOptionsDeployRelease{
+				ProjectName:                      "Fire Project",
+				ReleaseVersion:                   "1.9",
+				Environments:                     []string{"dev"},
+				GuidedFailureMode:                "false",
+				ForcePackageDownload:             false,
+				ForcePackageDownloadWasSpecified: true,
+				Variables:                        make(map[string]string, 0),
+				ExcludedSteps:                    []string{"Cleanup"},
+				DeploymentTargets:                []string{"vm-1"},
+				SpecificTargetTagNames:           []string{"Role/WebServer", "Environment/Production"},
+				ExcludedTargetTagNames:           nil,
+				ReleaseID:                        release19.ID,
+				ScheduledStartTime:               "now",
+			}, options)
+		}},
+
+		{"target tags with excluded tags selected", func(t *testing.T, api *testutil.MockHttpServer, qa *testutil.AskMocker, stdout *bytes.Buffer) {
+			options := &executor.TaskOptionsDeployRelease{
+				ProjectName:                      "fire project",
+				ReleaseVersion:                   "1.9",
+				Environments:                     []string{"dev"},
+				ExcludedSteps:                    []string{"Cleanup"},
+				GuidedFailureMode:                "false",
+				ForcePackageDownloadWasSpecified: true,
+				DeploymentTargets:                []string{"vm-1"},
+				ScheduledStartTime:               "now",
+			}
+
+			errReceiver := testutil.GoBegin(func() error {
+				defer testutil.Close(api, qa)
+				octopus, _ := octopusApiClient.NewClient(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "")
+				return deploy.AskQuestions(octopus, stdout, qa.AsAsker(), space1, options, now)
+			})
+
+			doStandardApiResponses(options, api, release19, variableSnapshotNoVars)
+			stdout.Reset()
+
+			_ = qa.ExpectQuestion(t, &survey.Select{
+				Message: "Change additional options?",
+				Options: []string{"Proceed to deploy", "Change"},
+			}).AnswerWith("Change")
+			stdout.Reset()
+
+			api.ExpectRequest(t, "GET", fmt.Sprintf("/api/Spaces-1/releases/%s/deployments/preview/%s?includeDisabledSteps=true", release19.ID, devEnvironment.ID)).RespondWith(&deployments.DeploymentPreview{
+				StepsToExecute: []*deployments.DeploymentTemplateStep{
+					{
+						AvailableTagSets: []*deployments.TagSetPreview{
+							{
+								TagSetName: "Role",
+								AvailableTags: []*deployments.TargetTagPreview{
+									{TagName: "WebServer"},
+									{TagName: "Database"},
+									{TagName: "Legacy"},
+								},
+							},
+							{
+								TagSetName: "Environment",
+								AvailableTags: []*deployments.TargetTagPreview{
+									{TagName: "Production"},
+									{TagName: "Staging"},
+								},
+							},
+						},
+					},
+				},
+			})
+
+			_ = qa.ExpectQuestion(t, &survey.MultiSelect{
+				Message: "Specific target tags to include (If none selected, include all)",
+				Options: []string{"Environment/Production", "Environment/Staging", "Role/Database", "Role/Legacy", "Role/WebServer"},
+			}).AnswerWith([]string{}) // Selecting no specific tags to allow testing excluded tags
+
 			_ = qa.ExpectQuestion(t, &survey.MultiSelect{
 				Message: "Target tags to exclude (If none selected, exclude none)",
 				Options: []string{"Environment/Production", "Environment/Staging", "Role/Database", "Role/Legacy", "Role/WebServer"},
@@ -1593,7 +1670,7 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 				Variables:                        make(map[string]string, 0),
 				ExcludedSteps:                    []string{"Cleanup"},
 				DeploymentTargets:                []string{"vm-1"},
-				SpecificTargetTagNames:           []string{"Role/WebServer", "Environment/Production"},
+				SpecificTargetTagNames:           nil,
 				ExcludedTargetTagNames:           []string{"Role/Legacy"},
 				ReleaseID:                        release19.ID,
 				ScheduledStartTime:               "now",
