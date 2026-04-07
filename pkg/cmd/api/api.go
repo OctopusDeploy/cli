@@ -3,12 +3,12 @@ package api
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"io"
 	"net/http"
 	"os"
 
 	"github.com/MakeNowJust/heredoc/v2"
+	"github.com/OctopusDeploy/cli/pkg/apiclient"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/constants/annotations"
 	"github.com/OctopusDeploy/cli/pkg/factory"
@@ -21,7 +21,7 @@ var OsExit = os.Exit
 func NewCmdAPI(f factory.Factory) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "api <url>",
-		Short: "Execute a raw API request",
+		Short: "Execute a raw API GET request",
 		Long:  "Execute an authenticated GET request against the Octopus Server API and print the JSON response.",
 		Example: heredoc.Docf(`
 			$ %[1]s api /api
@@ -41,36 +41,17 @@ func NewCmdAPI(f factory.Factory) *cobra.Command {
 }
 
 func apiRun(cmd *cobra.Command, f factory.Factory, path string) error {
-	host := f.GetCurrentHost()
-	fullURL := host + path
-
-	httpClient, err := f.GetHttpClient()
-	if err != nil {
-		return err
-	}
-	if httpClient == nil {
-		httpClient = &http.Client{}
-	}
-
-	req, err := http.NewRequest("GET", fullURL, nil)
+	client, err := f.GetSystemClient(apiclient.NewRequester(cmd))
 	if err != nil {
 		return err
 	}
 
-	configProvider, err := f.GetConfigProvider()
+	req, err := http.NewRequest("GET", path, nil)
 	if err != nil {
 		return err
 	}
 
-	apiKey := configProvider.Get(constants.ConfigApiKey)
-	accessToken := configProvider.Get(constants.ConfigAccessToken)
-	if apiKey != "" {
-		req.Header.Set("X-Octopus-ApiKey", apiKey)
-	} else if accessToken != "" {
-		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", accessToken))
-	}
-
-	resp, err := httpClient.Do(req)
+	resp, err := client.HttpSession().DoRawRequest(req)
 	if err != nil {
 		return err
 	}

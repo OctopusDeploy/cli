@@ -13,6 +13,18 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+// respondToSdkInit handles the two HTTP requests that the Octopus SDK makes
+// when initialising the system client: fetching the root resource and listing
+// spaces to find the default space.
+func respondToSdkInit(t *testing.T, api *testutil.MockHttpServer) {
+	api.ExpectRequest(t, "GET", "/api/").RespondWith(testutil.NewRootResource())
+	api.ExpectRequest(t, "GET", "/api/spaces").RespondWith(map[string]any{
+		"Items":        []any{},
+		"ItemsPerPage": 30,
+		"TotalResults": 0,
+	})
+}
+
 func TestApiCommand(t *testing.T) {
 	tests := []struct {
 		name string
@@ -24,6 +36,8 @@ func TestApiCommand(t *testing.T) {
 				rootCmd.SetArgs([]string{"api", "/api"})
 				return rootCmd.ExecuteC()
 			})
+
+			respondToSdkInit(t, api)
 
 			api.ExpectRequest(t, "GET", "/api").RespondWithStatus(http.StatusOK, "200 OK", map[string]string{
 				"Application": "Octopus Deploy",
@@ -49,6 +63,8 @@ func TestApiCommand(t *testing.T) {
 				return rootCmd.ExecuteC()
 			})
 
+			respondToSdkInit(t, api)
+
 			api.ExpectRequest(t, "GET", "/api/nonexistent").RespondWithStatus(http.StatusNotFound, "404 Not Found", map[string]string{
 				"ErrorMessage": "Not found",
 			})
@@ -65,6 +81,8 @@ func TestApiCommand(t *testing.T) {
 				rootCmd.SetArgs([]string{"api", "/api/health"})
 				return rootCmd.ExecuteC()
 			})
+
+			respondToSdkInit(t, api)
 
 			r, _ := api.ReceiveRequest()
 			assert.Equal(t, "GET", r.Method)
