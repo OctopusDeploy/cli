@@ -473,6 +473,7 @@ func (opts *CreateOptions) Commit() error {
 	if !opts.NoPrompt {
 		autoCmd := flag.GenerateAutomationCmd(
 			opts.CmdPath,
+			opts.GetSpaceNameOrEmpty(),
 			opts.Name,
 			opts.AuthenticationType,
 			opts.Account,

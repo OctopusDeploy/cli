@@ -63,7 +63,7 @@ func createRun(cmd *cobra.Command, opts *pack.PackageCreateOptions) error {
 
 	if !opts.NoPrompt {
 		autoCmd := flag.GenerateAutomationCmd(
-			opts.CmdPath,
+			opts.CmdPath, "",
 			opts.Id,
 			opts.Version,
 			opts.BasePath,

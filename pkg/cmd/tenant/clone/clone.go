@@ -100,7 +100,7 @@ func cloneRun(opts *CloneOptions) error {
 
 	fmt.Fprintf(opts.Out, "Successfully cloned tenant '%s' to '%s'.\n", tenant.Name, clonedTenant.Name)
 	if !opts.NoPrompt {
-		autoCmd := flag.GenerateAutomationCmd(opts.CmdPath, opts.SourceTenant, opts.Name, opts.Description)
+		autoCmd := flag.GenerateAutomationCmd(opts.CmdPath, opts.GetSpaceNameOrEmpty(), opts.SourceTenant, opts.Name, opts.Description)
 		fmt.Fprintf(opts.Out, "\nAutomation Command: %s\n", autoCmd)
 	}
 

@@ -348,7 +348,11 @@ func runDbRunbook(cmd *cobra.Command, f factory.Factory, flags *RunFlags, octopu
 			// but that's fine
 			resolvedFlags.ForcePackageDownload.Value = options.ForcePackageDownload
 
-			autoCmd := flag.GenerateAutomationCmd(constants.ExecutableName+" runbook run",
+			spaceName := ""
+			if s := f.GetCurrentSpace(); s != nil {
+				spaceName = s.GetName()
+			}
+			autoCmd := flag.GenerateAutomationCmd(constants.ExecutableName+" runbook run", spaceName,
 				resolvedFlags.Project,
 				resolvedFlags.RunbookName,
 				resolvedFlags.Snapshot,
@@ -482,7 +486,11 @@ func runGitRunbook(cmd *cobra.Command, f factory.Factory, flags *RunFlags, octop
 			// but that's fine
 			resolvedFlags.ForcePackageDownload.Value = options.ForcePackageDownload
 
-			autoCmd := flag.GenerateAutomationCmd(constants.ExecutableName+" runbook run",
+			spaceName := ""
+			if s := f.GetCurrentSpace(); s != nil {
+				spaceName = s.GetName()
+			}
+			autoCmd := flag.GenerateAutomationCmd(constants.ExecutableName+" runbook run", spaceName,
 				resolvedFlags.Project,
 				resolvedFlags.GitRef,
 				resolvedFlags.RunbookName,

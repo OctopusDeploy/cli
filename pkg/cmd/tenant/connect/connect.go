@@ -153,7 +153,7 @@ func ConnectRun(opts *ConnectOptions) error {
 
 	fmt.Fprintf(opts.Out, "Successfully connected '%s' to '%s'.\n", tenant.Name, project.GetName())
 	if !opts.NoPrompt {
-		autoCmd := flag.GenerateAutomationCmd(opts.CmdPath, opts.Tenant, opts.Project, opts.Environments, opts.EnableTenantDeployments)
+		autoCmd := flag.GenerateAutomationCmd(opts.CmdPath, opts.GetSpaceNameOrEmpty(), opts.Tenant, opts.Project, opts.Environments, opts.EnableTenantDeployments)
 		fmt.Fprintf(opts.Out, "\nAutomation Command: %s\n", autoCmd)
 	}
 	return nil

@@ -123,7 +123,7 @@ func createRun(opts *CreateOptions) error {
 	fmt.Fprintf(opts.Out, "View this channel on Octopus Deploy: %s\n", link)
 
 	if !opts.NoPrompt {
-		autoCmd := flag.GenerateAutomationCmd(opts.CmdPath, opts.Name, opts.Project, opts.Description, opts.Default, opts.Lifecycle)
+		autoCmd := flag.GenerateAutomationCmd(opts.CmdPath, opts.GetSpaceNameOrEmpty(), opts.Name, opts.Project, opts.Description, opts.Default, opts.Lifecycle)
 		fmt.Fprintf(opts.Out, "%s\n", autoCmd)
 	}
 

@@ -220,7 +220,7 @@ func check(value string, defaultValue string) string {
 
 func (co *ConvertOptions) GenerateAutomationCmd() {
 	if !co.NoPrompt {
-		autoCmd := flag.GenerateAutomationCmd(co.CmdPath, co.Project, co.GitStorage, co.GitBasePath, co.GitUrl, co.GitBranch, co.GitInitialCommitMessage, co.GitCredentials, co.GitUsername, co.GitPassword, co.GitInitialCommitBranch, co.GitProtectedBranchPatterns)
+		autoCmd := flag.GenerateAutomationCmd(co.CmdPath, co.GetSpaceNameOrEmpty(), co.Project, co.GitStorage, co.GitBasePath, co.GitUrl, co.GitBranch, co.GitInitialCommitMessage, co.GitCredentials, co.GitUsername, co.GitPassword, co.GitInitialCommitBranch, co.GitProtectedBranchPatterns)
 		fmt.Fprintf(co.Out, "%s\n", autoCmd)
 	}
 }

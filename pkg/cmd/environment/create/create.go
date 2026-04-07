@@ -124,7 +124,7 @@ func createRun(opts *CreateOptions) error {
 	fmt.Fprintf(opts.Out, "View this environment on Octopus Deploy: %s\n", link)
 
 	if !opts.NoPrompt {
-		autoCmd := flag.GenerateAutomationCmd(opts.CmdPath, opts.Name, opts.Description, opts.GuidedFailureMode, opts.DynamicInfrastructure, opts.Tag)
+		autoCmd := flag.GenerateAutomationCmd(opts.CmdPath, opts.GetSpaceNameOrEmpty(), opts.Name, opts.Description, opts.GuidedFailureMode, opts.DynamicInfrastructure, opts.Tag)
 		fmt.Fprintf(opts.Out, "%s\n", autoCmd)
 	}
 

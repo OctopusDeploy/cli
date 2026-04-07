@@ -283,7 +283,11 @@ func deployRun(cmd *cobra.Command, f factory.Factory, flags *DeployFlags) error 
 			// but that's fine
 			resolvedFlags.ForcePackageDownload.Value = options.ForcePackageDownload
 
-			autoCmd := flag.GenerateAutomationCmd(constants.ExecutableName+" release deploy",
+			spaceName := ""
+			if s := f.GetCurrentSpace(); s != nil {
+				spaceName = s.GetName()
+			}
+			autoCmd := flag.GenerateAutomationCmd(constants.ExecutableName+" release deploy", spaceName,
 				resolvedFlags.Project,
 				resolvedFlags.ReleaseVersion,
 				resolvedFlags.Environments,

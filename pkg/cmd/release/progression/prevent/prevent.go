@@ -145,7 +145,7 @@ func createReleaseDefectRun(opts *PreventOptions) error {
 	}
 
 	if !opts.NoPrompt {
-		autoCmd := flag.GenerateAutomationCmd(opts.CmdPath, opts.Project, opts.Version, opts.Reason)
+		autoCmd := flag.GenerateAutomationCmd(opts.CmdPath, opts.GetSpaceNameOrEmpty(), opts.Project, opts.Version, opts.Reason)
 		_, _ = fmt.Fprintf(opts.Out, "\nAutomation Command: %s\n", autoCmd)
 	}
 

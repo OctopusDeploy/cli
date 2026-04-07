@@ -133,7 +133,7 @@ func createRun(cmd *cobra.Command, opts *NuPkgCreateOptions) error {
 
 	if !opts.NoPrompt {
 		autoCmd := flag.GenerateAutomationCmd(
-			opts.CmdPath,
+			opts.CmdPath, "",
 			opts.Author,
 			opts.Title,
 			opts.Description,

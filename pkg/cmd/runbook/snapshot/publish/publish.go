@@ -122,7 +122,7 @@ func publishRun(opts *PublishOptions) error {
 	fmt.Fprintf(opts.Out, "View this snapshot on Octopus Deploy: %s\n", link)
 
 	if !opts.NoPrompt {
-		autoCmd := flag.GenerateAutomationCmd(opts.CmdPath, opts.Project, opts.Runbook, opts.Snapshot)
+		autoCmd := flag.GenerateAutomationCmd(opts.CmdPath, opts.GetSpaceNameOrEmpty(), opts.Project, opts.Runbook, opts.Snapshot)
 		fmt.Fprintf(opts.Out, "\nAutomation Command: %s\n", autoCmd)
 	}
 	return nil

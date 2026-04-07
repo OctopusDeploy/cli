@@ -158,7 +158,7 @@ func uploadRun(opts *UploadOptions) error {
 	}
 
 	if !opts.NoPrompt {
-		autoCmd := flag.GenerateAutomationCmd(opts.CmdPath, opts.PackageId, opts.Version, opts.File, opts.OverwriteMode)
+		autoCmd := flag.GenerateAutomationCmd(opts.CmdPath, opts.GetSpaceNameOrEmpty(), opts.PackageId, opts.Version, opts.File, opts.OverwriteMode)
 		fmt.Fprintf(opts.Out, "%s\n", autoCmd)
 	}
 

@@ -170,7 +170,7 @@ func DeprovisionEphemeralEnvironmentProject(cmd *cobra.Command, opts *Deprovisio
 	util.OutputDeprovisionResult(message, cmd, runs)
 
 	if !opts.NoPrompt {
-		autoCmd := flag.GenerateAutomationCmd(opts.CmdPath, opts.Name, opts.Project)
+		autoCmd := flag.GenerateAutomationCmd(opts.CmdPath, opts.GetSpaceNameOrEmpty(), opts.Name, opts.Project)
 		fmt.Fprintf(cmd.OutOrStdout(), "\nAutomation Command: %s\n", autoCmd)
 	}
 

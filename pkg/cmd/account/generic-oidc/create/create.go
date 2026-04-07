@@ -132,6 +132,7 @@ func CreateRun(opts *CreateOptions) error {
 	if !opts.NoPrompt {
 		autoCmd := flag.GenerateAutomationCmd(
 			opts.CmdPath,
+			opts.GetSpaceNameOrEmpty(),
 			opts.Name,
 			opts.Description,
 			opts.Environments,

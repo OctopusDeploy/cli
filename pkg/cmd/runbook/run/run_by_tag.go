@@ -325,9 +325,13 @@ func runRunbooksByTag(cmd *cobra.Command, f factory.Factory, flags *RunFlags, oc
 		resolvedFlags.Tenants.Value = flags.Tenants.Value
 		resolvedFlags.TenantTags.Value = flags.TenantTags.Value
 
+		spaceName := ""
+		if s := f.GetCurrentSpace(); s != nil {
+			spaceName = s.GetName()
+		}
 		if isGit {
 			resolvedFlags.GitRef.Value = flags.GitRef.Value
-			autoCmd := flag.GenerateAutomationCmd(constants.ExecutableName+" runbook run",
+			autoCmd := flag.GenerateAutomationCmd(constants.ExecutableName+" runbook run", spaceName,
 				resolvedFlags.Project,
 				resolvedFlags.RunbookTags,
 				resolvedFlags.GitRef,
@@ -337,7 +341,7 @@ func runRunbooksByTag(cmd *cobra.Command, f factory.Factory, flags *RunFlags, oc
 			)
 			cmd.Printf("\nAutomation Command: %s\n", autoCmd)
 		} else {
-			autoCmd := flag.GenerateAutomationCmd(constants.ExecutableName+" runbook run",
+			autoCmd := flag.GenerateAutomationCmd(constants.ExecutableName+" runbook run", spaceName,
 				resolvedFlags.Project,
 				resolvedFlags.RunbookTags,
 				resolvedFlags.Environments,

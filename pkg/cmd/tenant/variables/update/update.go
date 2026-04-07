@@ -174,7 +174,7 @@ func updateRunV1(opts *UpdateOptions) error {
 	_, err = fmt.Fprintf(opts.Out, "Successfully updated variable '%s' for tenant '%s'\n", opts.Name.Value, tenant.Name)
 
 	if !opts.NoPrompt {
-		autoCmd := flag.GenerateAutomationCmd(opts.CmdPath, opts.Tenant, opts.Name, opts.Value, opts.Project, opts.LibraryVariableSet, opts.Environments)
+		autoCmd := flag.GenerateAutomationCmd(opts.CmdPath, opts.GetSpaceNameOrEmpty(), opts.Tenant, opts.Name, opts.Value, opts.Project, opts.LibraryVariableSet, opts.Environments)
 		fmt.Fprintf(opts.Out, "\nAutomation Command: %s\n", autoCmd)
 	}
 
@@ -237,7 +237,7 @@ func updateRun(opts *UpdateOptions) error {
 	_, err = fmt.Fprintf(opts.Out, "Successfully updated variable '%s' for tenant '%s'\n", opts.Name.Value, tenant.Name)
 
 	if !opts.NoPrompt {
-		autoCmd := flag.GenerateAutomationCmd(opts.CmdPath, opts.Tenant, opts.Name, opts.Value, opts.Project, opts.LibraryVariableSet, opts.Environments)
+		autoCmd := flag.GenerateAutomationCmd(opts.CmdPath, opts.GetSpaceNameOrEmpty(), opts.Tenant, opts.Name, opts.Value, opts.Project, opts.LibraryVariableSet, opts.Environments)
 		fmt.Fprintf(opts.Out, "\nAutomation Command: %s\n", autoCmd)
 	}
 

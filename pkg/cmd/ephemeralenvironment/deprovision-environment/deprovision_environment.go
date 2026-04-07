@@ -110,7 +110,7 @@ func DeprovisionEnvironmentRun(deprovisionEnvironmentOptions *DeprovisionEnviron
 	util.OutputDeprovisionResult(message, command, response.DeprovisioningRuns)
 
 	if !deprovisionEnvironmentOptions.NoPrompt {
-		autoCmd := flag.GenerateAutomationCmd(deprovisionEnvironmentOptions.CmdPath, deprovisionEnvironmentOptions.Name)
+		autoCmd := flag.GenerateAutomationCmd(deprovisionEnvironmentOptions.CmdPath, deprovisionEnvironmentOptions.GetSpaceNameOrEmpty(), deprovisionEnvironmentOptions.Name)
 		fmt.Fprintf(command.OutOrStdout(), "\nAutomation Command: %s\n", autoCmd)
 	}
 
