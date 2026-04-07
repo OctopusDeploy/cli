@@ -283,7 +283,11 @@ func createRun(cmd *cobra.Command, f factory.Factory, flags *CreateFlags) error 
 				}
 			}
 
-			autoCmd := flag.GenerateAutomationCmd(constants.ExecutableName+" release create",
+			spaceName := ""
+			if s := f.GetCurrentSpace(); s != nil {
+				spaceName = s.GetName()
+			}
+			autoCmd := flag.GenerateAutomationCmd(constants.ExecutableName+" release create", spaceName,
 				resolvedFlags.Project,
 				resolvedFlags.GitCommit,
 				resolvedFlags.GitRef,

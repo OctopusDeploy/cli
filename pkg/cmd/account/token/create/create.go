@@ -126,7 +126,7 @@ func CreateRun(opts *CreateOptions) error {
 	link := output.Bluef("%s/app#/%s/infrastructure/accounts/%s", opts.Host, opts.Space.GetID(), createdAccount.GetID())
 	_, _ = fmt.Fprintf(opts.Out, "\nView this account on Octopus Deploy: %s\n", link)
 	if !opts.NoPrompt {
-		autoCmd := flag.GenerateAutomationCmd(opts.CmdPath, opts.Name, opts.Token, opts.Description, opts.Environments)
+		autoCmd := flag.GenerateAutomationCmd(opts.CmdPath, opts.GetSpaceNameOrEmpty(), opts.Name, opts.Token, opts.Description, opts.Environments)
 		_, _ = fmt.Fprintf(opts.Out, "\nAutomation Command: %s\n", autoCmd)
 	}
 	return nil

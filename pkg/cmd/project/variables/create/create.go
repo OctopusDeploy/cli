@@ -212,7 +212,7 @@ func CreateRun(opts *CreateOptions) error {
 	_, err = fmt.Fprintf(opts.Out, "Successfully created variable '%s' in project '%s'\n", opts.Name.Value, project.GetName())
 
 	if !opts.NoPrompt {
-		autoCmd := flag.GenerateAutomationCmd(opts.CmdPath, opts.Project, opts.Name, opts.Value, opts.Description, opts.Type, opts.EnvironmentsScopes, opts.ChannelScopes, opts.StepScopes, opts.TargetScopes, opts.TagScopes, opts.RoleScopes, opts.ProcessScopes, opts.IsPrompted, opts.PromptType, opts.PromptLabel, opts.PromptDescription, opts.PromptSelectOptions, opts.PromptRequired, opts.GitRef)
+		autoCmd := flag.GenerateAutomationCmd(opts.CmdPath, opts.GetSpaceNameOrEmpty(), opts.Project, opts.Name, opts.Value, opts.Description, opts.Type, opts.EnvironmentsScopes, opts.ChannelScopes, opts.StepScopes, opts.TargetScopes, opts.TagScopes, opts.RoleScopes, opts.ProcessScopes, opts.IsPrompted, opts.PromptType, opts.PromptLabel, opts.PromptDescription, opts.PromptSelectOptions, opts.PromptRequired, opts.GitRef)
 		fmt.Fprintf(opts.Out, "\nAutomation Command: %s\n", autoCmd)
 	}
 

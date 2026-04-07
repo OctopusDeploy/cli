@@ -56,7 +56,7 @@ func (co *CreateOptions) Commit() error {
 
 func (co *CreateOptions) GenerateAutomationCmd() {
 	if !co.NoPrompt {
-		autoCmd := flag.GenerateAutomationCmd(co.CmdPath, co.Name, co.Description)
+		autoCmd := flag.GenerateAutomationCmd(co.CmdPath, co.GetSpaceNameOrEmpty(), co.Name, co.Description)
 		fmt.Fprintf(co.Out, "%s\n", autoCmd)
 	}
 }

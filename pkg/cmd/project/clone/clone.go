@@ -193,7 +193,7 @@ func (co *CloneOptions) Commit() error {
 
 func (co *CloneOptions) GenerateAutomationCmd() {
 	if !co.NoPrompt {
-		autoCmd := flag.GenerateAutomationCmd(co.CmdPath, co.Name, co.Source, co.Group, co.Lifecycle)
+		autoCmd := flag.GenerateAutomationCmd(co.CmdPath, co.GetSpaceNameOrEmpty(), co.Name, co.Source, co.Group, co.Lifecycle)
 		fmt.Fprintf(co.Out, "%s\n", autoCmd)
 	}
 }

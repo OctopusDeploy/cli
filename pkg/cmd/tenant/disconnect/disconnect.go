@@ -128,7 +128,7 @@ func DisconnectRun(opts *DisconnectOptions) error {
 
 	fmt.Fprintf(opts.Out, "Successfully disconnected '%s' from '%s'.\n", tenant.Name, project.GetName())
 	if !opts.NoPrompt {
-		autoCmd := flag.GenerateAutomationCmd(opts.CmdPath, opts.Tenant, opts.Project, opts.Confirm)
+		autoCmd := flag.GenerateAutomationCmd(opts.CmdPath, opts.GetSpaceNameOrEmpty(), opts.Tenant, opts.Project, opts.Confirm)
 		fmt.Fprintf(opts.Out, "\nAutomation Command: %s\n", autoCmd)
 	}
 	return nil

@@ -2205,7 +2205,7 @@ func TestDeployCreate_GenerationOfAutomationCommand_MasksSensitiveVariables(t *t
 		  Package Download: Use cached packages (if available)
 		  Deployment Targets: All included
 		
-		Automation Command: octopus release deploy --project 'Fire Project' --version '2.0' --environment 'dev' --variable 'Boring Variable:BORING' --variable 'Nuclear Launch Codes:*****' --variable 'Secret Password:*****' --no-prompt
+		Automation Command: octopus release deploy --space 'Default Space' --project 'Fire Project' --version '2.0' --environment 'dev' --variable 'Boring Variable:BORING' --variable 'Nuclear Launch Codes:*****' --variable 'Secret Password:*****' --no-prompt
 		Warning: Command includes some sensitive variable values which have been replaced with placeholders.
 		Successfully started 2 deployment(s)
 

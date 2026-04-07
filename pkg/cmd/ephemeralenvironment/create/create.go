@@ -132,7 +132,7 @@ func createRun(opts *CreateOptions) error {
 	fmt.Fprintf(opts.Out, "View this ephemeral environment for project `%s` on Octopus Deploy: %s\n", opts.Project.Value, link)
 
 	if !opts.NoPrompt {
-		autoCmd := flag.GenerateAutomationCmd(opts.CmdPath, opts.Name, opts.Project)
+		autoCmd := flag.GenerateAutomationCmd(opts.CmdPath, opts.GetSpaceNameOrEmpty(), opts.Name, opts.Project)
 		fmt.Fprintf(opts.Out, "%s\n", autoCmd)
 	}
 

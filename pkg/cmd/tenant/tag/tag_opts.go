@@ -59,7 +59,7 @@ func (to *TagOptions) Commit() error {
 
 func (to *TagOptions) GenerateAutomationCmd() {
 	if !to.NoPrompt {
-		autoCmd := flag.GenerateAutomationCmd(to.CmdPath, to.Tenant, to.Tag)
+		autoCmd := flag.GenerateAutomationCmd(to.CmdPath, to.GetSpaceNameOrEmpty(), to.Tenant, to.Tag)
 		fmt.Fprintf(to.Out, "%s\n", autoCmd)
 	}
 }

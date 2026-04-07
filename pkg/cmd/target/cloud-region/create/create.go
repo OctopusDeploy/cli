@@ -128,7 +128,7 @@ func createRun(opts *CreateOptions) error {
 	}
 	fmt.Fprintf(opts.Out, "Successfully created cloud region '%s'.\n", target.Name)
 	if !opts.NoPrompt {
-		autoCmd := flag.GenerateAutomationCmd(opts.CmdPath, opts.Name, opts.WorkerPool, opts.Environments, opts.Roles, opts.Tags, opts.TenantedDeploymentMode, opts.Tenants, opts.TenantTags)
+		autoCmd := flag.GenerateAutomationCmd(opts.CmdPath, opts.GetSpaceNameOrEmpty(), opts.Name, opts.WorkerPool, opts.Environments, opts.Roles, opts.Tags, opts.TenantedDeploymentMode, opts.Tenants, opts.TenantTags)
 		fmt.Fprintf(opts.Out, "\nAutomation Command: %s\n", autoCmd)
 	}
 
