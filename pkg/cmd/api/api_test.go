@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"testing"
 
-	apiPkg "github.com/OctopusDeploy/cli/pkg/cmd/api"
 	cmdRoot "github.com/OctopusDeploy/cli/pkg/cmd/root"
 	"github.com/OctopusDeploy/cli/test/testutil"
 	"github.com/spf13/cobra"
@@ -51,12 +50,6 @@ func TestApiCommand(t *testing.T) {
 		}},
 
 		{"prints error response body on non-2xx status", func(t *testing.T, api *testutil.MockHttpServer, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
-			// Stub os.Exit so the test doesn't terminate the process
-			origExit := apiPkg.OsExit
-			var exitCode int
-			apiPkg.OsExit = func(code int) { exitCode = code }
-			defer func() { apiPkg.OsExit = origExit }()
-
 			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
 				defer api.Close()
 				rootCmd.SetArgs([]string{"api", "/api/nonexistent"})
@@ -70,9 +63,8 @@ func TestApiCommand(t *testing.T) {
 			})
 
 			_, err := testutil.ReceivePair(cmdReceiver)
-			assert.Nil(t, err)
-			assert.Equal(t, http.StatusNotFound, exitCode)
-			assert.Contains(t, stdOut.String(), `"ErrorMessage": "Not found"`)
+			assert.NotNil(t, err)
+			assert.Contains(t, err.Error(), "Not found")
 		}},
 
 		{"outputs raw body when response is not valid JSON", func(t *testing.T, api *testutil.MockHttpServer, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {

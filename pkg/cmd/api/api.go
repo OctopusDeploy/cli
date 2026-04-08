@@ -6,7 +6,6 @@ import (
 	"errors"
 	"io"
 	"net/http"
-	"os"
 
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/apiclient"
@@ -15,9 +14,6 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/spf13/cobra"
 )
-
-// OsExit is a variable so tests can stub it to avoid terminating the process.
-var OsExit = os.Exit
 
 func NewCmdAPI(f factory.Factory) *cobra.Command {
 	cmd := &cobra.Command{
