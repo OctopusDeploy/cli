@@ -4,8 +4,10 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
+	"strings"
 
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/apiclient"
@@ -38,6 +40,10 @@ func NewCmdAPI(f factory.Factory) *cobra.Command {
 }
 
 func apiRun(cmd *cobra.Command, f factory.Factory, path string) error {
+	if err := validateAPIPath(path); err != nil {
+		return err
+	}
+
 	client, err := f.GetSystemClient(apiclient.NewRequester(cmd))
 	if err != nil {
 		return err
@@ -71,5 +77,13 @@ func apiRun(cmd *cobra.Command, f factory.Factory, path string) error {
 		cmd.Print(string(body))
 	}
 
+	return nil
+}
+
+func validateAPIPath(path string) error {
+	trimmed := strings.TrimLeft(path, "/")
+	if !strings.HasPrefix(trimmed, "api") {
+		return fmt.Errorf("the api command only supports paths prefixed with /api (e.g. /api/spaces)")
+	}
 	return nil
 }
