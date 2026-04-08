@@ -1,5 +1,21 @@
 # Changelog
 
+## [2.21.0](https://github.com/OctopusDeploy/cli/compare/v2.20.1...v2.21.0) (2026-04-08)
+
+
+### Features
+
+* Add --runbook-tag flag to run multiple runbooks by tag ([#576](https://github.com/OctopusDeploy/cli/issues/576)) ([7eb348a](https://github.com/OctopusDeploy/cli/commit/7eb348a5643095f3f7b78f24217f06c2a2e0fa54))
+* Add support for target tag sets with --tag flag ([#579](https://github.com/OctopusDeploy/cli/issues/579)) ([f2871d1](https://github.com/OctopusDeploy/cli/commit/f2871d1aa4b4fe001aa47a9da0cf5c3821897ed6))
+* added api command to support a GET request against any octopus api endpoint ([#586](https://github.com/OctopusDeploy/cli/issues/586)) ([8938780](https://github.com/OctopusDeploy/cli/commit/89387809d6f8e3e8f279a4506053165d27134d9c))
+* service message flag support ([#574](https://github.com/OctopusDeploy/cli/issues/574)) ([e1ccf99](https://github.com/OctopusDeploy/cli/commit/e1ccf99c7fcfc0f02b9c583e9e3545e66956bc70))
+* Support custom AWS region for accounts ([#581](https://github.com/OctopusDeploy/cli/issues/581)) ([a22dd0f](https://github.com/OctopusDeploy/cli/commit/a22dd0fb1aa1dee9c98047109b9be486667969da))
+
+
+### Bug Fixes
+
+* extended automation command to include Space ([#587](https://github.com/OctopusDeploy/cli/issues/587)) ([9c835d1](https://github.com/OctopusDeploy/cli/commit/9c835d1f6cf2e297314d624467063d1e4035731a))
+
 ## [2.20.1](https://github.com/OctopusDeploy/cli/compare/v2.20.0...v2.20.1) (2025-12-04)
 
 
