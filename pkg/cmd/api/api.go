@@ -3,6 +3,7 @@ package api
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"os"
@@ -62,16 +63,16 @@ func apiRun(cmd *cobra.Command, f factory.Factory, path string) error {
 		return err
 	}
 
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return errors.New(string(body))
+	}
+
 	// Pretty-print if valid JSON, otherwise output raw
 	var prettyJSON bytes.Buffer
 	if err := json.Indent(&prettyJSON, body, "", "  "); err == nil {
 		cmd.Println(prettyJSON.String())
 	} else {
 		cmd.Print(string(body))
-	}
-
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		OsExit(resp.StatusCode)
 	}
 
 	return nil
