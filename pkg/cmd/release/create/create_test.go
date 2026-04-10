@@ -2422,6 +2422,11 @@ func TestReleaseCreate_ToPackageOverrideString(t *testing.T) {
 		{name: "action-ref-ver", input: &packages.PackageVersionOverride{PackageReferenceName: "pterm-on-install", ActionName: "Install", Version: "6.1.2"}, expect: "Install:pterm-on-install:6.1.2"},
 		{name: "star-ref-ver", input: &packages.PackageVersionOverride{PackageReferenceName: "pterm-on-install", Version: "6.1.2"}, expect: "*:pterm-on-install:6.1.2"},
 		{name: "pkg-action-ref-ver", input: &packages.PackageVersionOverride{PackageReferenceName: "pterm", PackageID: "pterm", ActionName: "Install", Version: "1.2.3"}, expect: "pterm:pterm:1.2.3"},
+		// Maven package IDs with colons get escaped (FD-135)
+		{name: "maven-pkg-ver", input: &packages.PackageVersionOverride{PackageID: "com.yourcompany:project-name", Version: "1.0"}, expect: `com.yourcompany\:project-name:1.0`},
+		{name: "maven-pkg-ref-ver", input: &packages.PackageVersionOverride{PackageID: "com.juliusbaer.fi-master:deployment", PackageReferenceName: "ref", Version: "25.2026.04.1"}, expect: `com.juliusbaer.fi-master\:deployment:ref:25.2026.04.1`},
+		// Step name with slash gets escaped
+		{name: "step-slash-ver", input: &packages.PackageVersionOverride{ActionName: "Deploy Templates/templates", Version: "1.0"}, expect: `Deploy Templates\/templates:1.0`},
 	}
 
 	for _, test := range tests {
@@ -2454,6 +2459,16 @@ func TestReleaseCreate_ParsePackageOverrideString(t *testing.T) {
 
 		{input: "pterm/Push Package=9.7-pre-xyz", expect: &packages.AmbiguousPackageVersionOverride{PackageReferenceName: "Push Package", ActionNameOrPackageID: "pterm", Version: "9.7-pre-xyz"}},
 		{input: "pterm=Push Package/9.7-pre-xyz", expect: &packages.AmbiguousPackageVersionOverride{PackageReferenceName: "Push Package", ActionNameOrPackageID: "pterm", Version: "9.7-pre-xyz"}},
+
+		// Maven packages with escaped colons (FD-135)
+		{input: `com.yourcompany\:project-name:1.0-SNAPSHOT`, expect: &packages.AmbiguousPackageVersionOverride{ActionNameOrPackageID: "com.yourcompany:project-name", Version: "1.0-SNAPSHOT"}},
+		{input: `com.juliusbaer.fi-master\:deployment:25.2026.04.1`, expect: &packages.AmbiguousPackageVersionOverride{ActionNameOrPackageID: "com.juliusbaer.fi-master:deployment", Version: "25.2026.04.1"}},
+		// Maven package with escaped colon and package reference name
+		{input: `com.yourcompany\:project-name:ref:1.0`, expect: &packages.AmbiguousPackageVersionOverride{ActionNameOrPackageID: "com.yourcompany:project-name", PackageReferenceName: "ref", Version: "1.0"}},
+		// Step name with escaped slash (additional packages)
+		{input: `Deploy Templates\/templates:1.0`, expect: &packages.AmbiguousPackageVersionOverride{ActionNameOrPackageID: "Deploy Templates/templates", Version: "1.0"}},
+		// Escaped backslash
+		{input: `foo\\bar:1.0`, expect: &packages.AmbiguousPackageVersionOverride{ActionNameOrPackageID: `foo\bar`, Version: "1.0"}},
 
 		{input: "", expectErr: errors.New("empty package version specification")},
 
