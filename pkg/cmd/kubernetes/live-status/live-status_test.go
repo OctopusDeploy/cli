@@ -169,6 +169,46 @@ func TestKubernetesLiveStatus(t *testing.T) {
 			assert.Contains(t, out, `"Healthy"`)
 		}},
 
+		{"table output shows machine as top-level node", func(t *testing.T, api *testutil.MockHttpServer, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
+			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
+				defer api.Close()
+				rootCmd.SetArgs([]string{"kubernetes", "live-status", "--project", "Fire Project", "--environment", "Production", "--no-prompt", "-f", "table"})
+				return rootCmd.ExecuteC()
+			})
+
+			respondToSpaceScopedInit(t, api)
+
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/Fire Project").RespondWith(fireProject)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/environments?partialName=Production").
+				RespondWith(map[string]any{
+					"Items": []any{
+						map[string]any{
+							"Id":   "Environments-1",
+							"Name": "Production",
+							"Links": map[string]string{
+								"Self": "/api/Spaces-1/environments/Environments-1",
+							},
+						},
+					},
+					"ItemsPerPage": 30,
+					"TotalResults": 1,
+				})
+
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/Projects-22/environments/Environments-1/untenanted/livestatus").
+				RespondWith(liveStatusResponse)
+
+			_, err := testutil.ReceivePair(cmdReceiver)
+			assert.Nil(t, err)
+
+			out := stdOut.String()
+			// Machine should appear as a top-level node
+			assert.Contains(t, out, "Machines-1")
+			assert.Contains(t, out, "Machine")
+			// Resources should be indented under the machine
+			assert.Contains(t, out, "  my-deployment")
+			assert.Contains(t, out, "    my-deployment-abc123")
+		}},
+
 		{"summary-only adds query parameter", func(t *testing.T, api *testutil.MockHttpServer, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
 			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
 				defer api.Close()

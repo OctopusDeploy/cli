@@ -237,7 +237,16 @@ func printSummary(cmd *cobra.Command, summary *StatusSummary) error {
 func printFullStatus(cmd *cobra.Command, response *LiveStatusResponse) error {
 	var allFlat []FlatResource
 	for _, machine := range response.MachineStatuses {
-		allFlat = append(allFlat, flattenResources(machine.Resources, 0)...)
+		// Insert machine/gateway as a top-level grouping node
+		allFlat = append(allFlat, FlatResource{
+			Depth: 0,
+			Resource: KubernetesLiveStatusResource{
+				Name:         machine.MachineId,
+				Kind:         "Machine",
+				HealthStatus: machine.Status,
+			},
+		})
+		allFlat = append(allFlat, flattenResources(machine.Resources, 1)...)
 	}
 
 	if len(allFlat) == 0 {
