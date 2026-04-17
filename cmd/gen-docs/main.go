@@ -201,7 +201,7 @@ navOrder: {{.Position}}
 import SamplesInstance from 'src/shared-content/samples/samples-instance.include.md';
 
 {{.Command.Long}}
-` + "\n```" + `{{define "T1"}}Usage:{{if .Runnable}}
+` + "\n```bash" + `{{define "T1"}}Usage:{{if .Runnable}}
   {{.UseLine}}{{end}}{{if .HasAvailableSubCommands}}
   {{.CommandPath}} [command]{{end}}{{if gt (len .Aliases) 0}}
 
@@ -233,7 +233,7 @@ Use "{{.CommandPath}} [command] --help" for more information about a command.{{e
 ## Examples
 
 <SamplesInstance />
-` + "\n```" + `
+` + "\n```bash" + `
 {{ .Command.Example }}
 ` + "\n```\n" + `
 {{- end }}
@@ -262,8 +262,6 @@ The Octopus CLI is built and maintained by the Octopus Deploy team, but it is al
 :::
 
 ## Commands {#octopusCommandLine-Commands}
-
 ` + "\n`octopus` supports the following commands:\n" +
-	`
-{{range .Pages}}
+	`{{range .Pages}}
 - **[{{.Title}}]({{.RelativePath}})**:  {{.Command.Short}}.{{end}}`
