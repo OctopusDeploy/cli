@@ -241,7 +241,8 @@ Use "{{.CommandPath}} [command] --help" for more information about a command.{{e
 ## Learn more
 
 - [Octopus CLI](/docs/octopus-rest-api/cli)
-- [Creating API keys](/docs/octopus-rest-api/how-to-create-an-api-key)`
+- [Creating API keys](/docs/octopus-rest-api/how-to-create-an-api-key)
+`
 
 const indexTemplate = `---
 layout: src/layouts/Default.astro
@@ -263,7 +264,8 @@ The Octopus CLI is built and maintained by the Octopus Deploy team, but it is al
 
 ## Commands {#octopusCommandLine-Commands}
 
-` + "\n`octopus` supports the following commands:\n" +
+` + "`octopus` supports the following commands:" +
 	`
 {{range .Pages}}
-- **[{{.Title}}]({{.RelativePath}})**:  {{.Command.Short}}.{{end}}`
+- **[{{.Title}}]({{.RelativePath}})**:  {{.Command.Short}}.{{end}}
+`

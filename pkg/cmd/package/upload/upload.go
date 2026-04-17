@@ -4,11 +4,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/OctopusDeploy/cli/pkg/apiclient"
 	"io"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/OctopusDeploy/cli/pkg/apiclient"
 
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/constants"
@@ -63,7 +64,7 @@ func NewCmdUpload(f factory.Factory) *cobra.Command {
 		Example: heredoc.Docf(`
 			$ %[1]s package upload --package SomePackage.1.0.0.zip
 			$ %[1]s package upload SomePackage.1.0.0.tar.gz --overwrite-mode overwrite
-			$ %[1]s package push SomePackage.1.0.0.zip	
+			$ %[1]s package push SomePackage.1.0.0.zip
 			$ %[1]s package upload bin/**/*.zip --continue-on-error
 			$ %[1]s package upload PkgA.1.0.0.zip PkgB.2.0.0.tar.gz PkgC.1.0.0.nupkg
 			$ %[1]s package upload --package SomePackage.2.0.0.zip --use-delta-compression
