@@ -201,7 +201,7 @@ navOrder: {{.Position}}
 import SamplesInstance from 'src/shared-content/samples/samples-instance.include.md';
 
 {{.Command.Long}}
-` + "\n```bash" + `{{define "T1"}}Usage:{{if .Runnable}}
+` + "\n```text" + `{{define "T1"}}Usage:{{if .Runnable}}
   {{.UseLine}}{{end}}{{if .HasAvailableSubCommands}}
   {{.CommandPath}} [command]{{end}}{{if gt (len .Aliases) 0}}
 
