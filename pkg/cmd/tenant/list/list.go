@@ -1,6 +1,8 @@
 package list
 
 import (
+	"strconv"
+
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/apiclient"
 	"github.com/OctopusDeploy/cli/pkg/cmd/tenant/shared"
@@ -9,7 +11,6 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/output"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/tenants"
 	"github.com/spf13/cobra"
-	"strconv"
 )
 
 func NewCmdList(f factory.Factory) *cobra.Command {
@@ -18,8 +19,8 @@ func NewCmdList(f factory.Factory) *cobra.Command {
 		Short: "List tenants",
 		Long:  "List tenants in Octopus Deploy",
 		Example: heredoc.Docf(`
-			$ %[1]s tenant list
-			$ %[1]s tenant ls
+			%[1]s tenant list
+			%[1]s tenant ls
 		`, constants.ExecutableName),
 		Aliases: []string{"ls"},
 		RunE: func(cmd *cobra.Command, args []string) error {

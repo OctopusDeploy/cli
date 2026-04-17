@@ -142,11 +142,11 @@ func NewCmdDeploy(f factory.Factory) *cobra.Command {
 		Short: "Deploy releases",
 		Long:  "Deploy releases in Octopus Deploy",
 		Example: heredoc.Docf(`
-			$ %[1]s release deploy  # fully interactive
-			$ %[1]s release deploy --project MyProject --version 1.0 --environment Dev
-			$ %[1]s release deploy --project MyProject --version 1.0 --tenant-tag Regions/East --tenant-tag Regions/South
-			$ %[1]s release deploy -p MyProject --version 1.0 -e Dev --skip InstallStep --variable VarName:VarValue
-			$ %[1]s release deploy -p MyProject --version 1.0 -e Dev --force-package-download --guided-failure true -f basic
+			%[1]s release deploy  # fully interactive
+			%[1]s release deploy --project MyProject --version 1.0 --environment Dev
+			%[1]s release deploy --project MyProject --version 1.0 --tenant-tag Regions/East --tenant-tag Regions/South
+			%[1]s release deploy -p MyProject --version 1.0 -e Dev --skip InstallStep --variable VarName:VarValue
+			%[1]s release deploy -p MyProject --version 1.0 -e Dev --force-package-download --guided-failure true -f basic
 		`, constants.ExecutableName),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) > 0 && deployFlags.Project.Value == "" {

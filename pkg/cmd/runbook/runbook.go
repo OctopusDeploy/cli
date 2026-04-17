@@ -18,8 +18,8 @@ func NewCmdRunbook(f factory.Factory) *cobra.Command {
 		Short: "Manage runbooks",
 		Long:  "Manage runbooks in Octopus Deploy",
 		Example: heredoc.Docf(`
-			$ %[1]s runbook list
-			$ %[1]s runbook run
+			%[1]s runbook list
+			%[1]s runbook run
 		`, constants.ExecutableName),
 		Annotations: map[string]string{
 			annotations.IsCore: "true",

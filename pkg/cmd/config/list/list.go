@@ -19,7 +19,7 @@ func NewCmdList(_ factory.Factory) *cobra.Command {
 		Short: "List values from config file",
 		Long:  "List values from config file.",
 		Example: heredoc.Docf(`
-			$ %s config list"
+			%s config list"
 		`, constants.ExecutableName),
 		Aliases: []string{"ls"},
 		RunE: func(cmd *cobra.Command, args []string) error {

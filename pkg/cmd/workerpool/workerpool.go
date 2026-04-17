@@ -19,8 +19,8 @@ func NewCmdWorkerPool(f factory.Factory) *cobra.Command {
 		Short: "Manage worker pools",
 		Long:  "Manage worker pools in Octopus Deploy",
 		Example: heredoc.Docf(`
-			$ %[1]s worker-pool list
-			$ %[1]s worker-pool ls
+			%[1]s worker-pool list
+			%[1]s worker-pool ls
 		`, constants.ExecutableName),
 		Annotations: map[string]string{
 			annotations.IsCore: "true",

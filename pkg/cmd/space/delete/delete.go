@@ -2,6 +2,7 @@ package delete
 
 import (
 	"fmt"
+
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/apiclient"
 	"github.com/OctopusDeploy/cli/pkg/constants"
@@ -23,8 +24,8 @@ func NewCmdDelete(f factory.Factory) *cobra.Command {
 		Long:    "Delete a space in Octopus Deploy",
 		Aliases: []string{"del", "rm", "remove"},
 		Example: heredoc.Docf(`
-			$ %[1]s space delete
-			$ %[1]s space rm
+			%[1]s space delete
+			%[1]s space rm
 		`, constants.ExecutableName),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) == 0 {

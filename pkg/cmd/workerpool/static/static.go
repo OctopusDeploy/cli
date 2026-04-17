@@ -14,7 +14,7 @@ func NewCmdStatic(f factory.Factory) *cobra.Command {
 		Use:     "static <command>",
 		Short:   "Manage static worker pools",
 		Long:    "Manage static worker pools in Octopus Deploy",
-		Example: heredoc.Docf("$ %s worker-pool static view", constants.ExecutableName),
+		Example: heredoc.Docf("%s worker-pool static view", constants.ExecutableName),
 	}
 
 	cmd.AddCommand(cmdView.NewCmdView(f))

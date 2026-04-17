@@ -22,7 +22,7 @@ func NewCmdDeploymentTarget(f factory.Factory) *cobra.Command {
 		Use:     "deployment-target <command>",
 		Short:   "Manage deployment targets",
 		Long:    "Manage deployment targets in Octopus Deploy",
-		Example: heredoc.Docf("$ %s deployment-target list", constants.ExecutableName),
+		Example: heredoc.Docf("%s deployment-target list", constants.ExecutableName),
 		Annotations: map[string]string{
 			annotations.IsCore: "true",
 		},

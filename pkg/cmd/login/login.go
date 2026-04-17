@@ -6,10 +6,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/AlecAivazis/survey/v2"
 	"io"
 	"net/http"
 	"time"
+
+	"github.com/AlecAivazis/survey/v2"
 
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/apiclient"
@@ -60,9 +61,9 @@ func NewCmdLogin(f factory.Factory) *cobra.Command {
 		Short: "Login to Octopus",
 		Long:  "Login to your Octopus server using OpenID Connect (OIDC) or an API key. If no arguments are provided then login will be done interactively allowing creation of an API key.",
 		Example: heredoc.Docf(`
-			$ %[1]s login
-			$ %[1]s login --server https://my.octopus.app --service-account-id b1a6f20f-0ec7-4e9a-938e-db800f945b37 --id-token eyJhbGciOiJQUzI1NiIs...
-			$ %[1]s login --server https://my.octopus.app --api-key API-APIKEY123
+			%[1]s login
+			%[1]s login --server https://my.octopus.app --service-account-id b1a6f20f-0ec7-4e9a-938e-db800f945b37 --id-token eyJhbGciOiJQUzI1NiIs...
+			%[1]s login --server https://my.octopus.app --api-key API-APIKEY123
 		`, constants.ExecutableName),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return loginRun(cmd, f, f.IsPromptEnabled(), f.Ask, loginFlags)

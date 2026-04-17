@@ -59,8 +59,8 @@ func NewCmdView(f factory.Factory) *cobra.Command {
 		Short: "View all values of a project variable",
 		Long:  "View all values of a project variable in Octopus Deploy",
 		Example: heredoc.Docf(`
-			$ %[1]s project variable view
-			$ %[1]s project variable view DatabaseName --project "Vet Clinic"
+			%[1]s project variable view
+			%[1]s project variable view DatabaseName --project "Vet Clinic"
 		`, constants.ExecutableName),
 		Aliases: []string{"ls"},
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -158,14 +158,14 @@ func viewRun(opts *ViewOptions) error {
 }
 
 type VariableValueAsJson struct {
-	Id           string                           `json:"Id"`
-	Name         string                           `json:"Name"`
-	Value        string                           `json:"Value"`
-	IsSensitive  bool                             `json:"IsSensitive"`
-	Description  string                           `json:"Description"`
-	Scope        *variables.VariableScopeValues   `json:"Scope"`
-	Prompt       *variables.VariablePromptOptions `json:"Prompt,omitempty"`
-	WebUrl       string                           `json:"WebUrl"`
+	Id          string                           `json:"Id"`
+	Name        string                           `json:"Name"`
+	Value       string                           `json:"Value"`
+	IsSensitive bool                             `json:"IsSensitive"`
+	Description string                           `json:"Description"`
+	Scope       *variables.VariableScopeValues   `json:"Scope"`
+	Prompt      *variables.VariablePromptOptions `json:"Prompt,omitempty"`
+	WebUrl      string                           `json:"WebUrl"`
 }
 
 func getVariableValueAsJson(opts *ViewOptions, item *VariableValueWithScope) VariableValueAsJson {

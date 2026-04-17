@@ -20,8 +20,8 @@ func NewCmdWorker(f factory.Factory) *cobra.Command {
 		Short: "Manage workers",
 		Long:  "Manage workers in Octopus Deploy",
 		Example: heredoc.Docf(`
-			$ %[1]s worker list
-			$ %[1]s worker ls
+			%[1]s worker list
+			%[1]s worker ls
 		`, constants.ExecutableName),
 		Annotations: map[string]string{
 			annotations.IsCore: "true",

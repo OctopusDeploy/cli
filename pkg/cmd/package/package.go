@@ -20,7 +20,7 @@ func NewCmdPackage(f factory.Factory) *cobra.Command {
 		Use:     "package <command>",
 		Short:   "Manage packages",
 		Long:    "Manage packages in Octopus Deploy",
-		Example: fmt.Sprintf("$ %s package upload", constants.ExecutableName),
+		Example: fmt.Sprintf("%s package upload", constants.ExecutableName),
 		Annotations: map[string]string{
 			annotations.IsCore: "true",
 		},

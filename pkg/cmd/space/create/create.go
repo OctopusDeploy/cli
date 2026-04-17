@@ -78,7 +78,7 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 		Use:     "create",
 		Short:   "Create a space",
 		Long:    "Create a space in Octopus Deploy",
-		Example: heredoc.Docf("$ %s space create", constants.ExecutableName),
+		Example: heredoc.Docf("%s space create", constants.ExecutableName),
 		Aliases: []string{"new"},
 		RunE: func(c *cobra.Command, args []string) error {
 			opts := NewCreateOptions(f, createFlags, c)
