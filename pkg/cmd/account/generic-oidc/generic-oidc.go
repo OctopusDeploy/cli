@@ -14,7 +14,7 @@ func NewCmdGenericOidc(f factory.Factory) *cobra.Command {
 		Use:     "generic-oidc <command>",
 		Short:   "Manage Generic OpenID Connect accounts",
 		Long:    "Manage Generic OpenID Connect accounts in Octopus Deploy",
-		Example: heredoc.Docf("$ %s account generic-oidc list", constants.ExecutableName),
+		Example: heredoc.Docf("%s account generic-oidc list", constants.ExecutableName),
 	}
 
 	cmd.AddCommand(cmdList.NewCmdList(f))

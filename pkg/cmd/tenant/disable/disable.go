@@ -2,6 +2,7 @@ package disable
 
 import (
 	"fmt"
+
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/cmd"
 	"github.com/OctopusDeploy/cli/pkg/constants"
@@ -29,8 +30,8 @@ func NewCmdDisable(f factory.Factory) *cobra.Command {
 		Short: "Disable a tenant",
 		Long:  "Disable a tenant in Octopus Deploy",
 		Example: heredoc.Docf(`
-			$ %[1]s tenant disable Tenants-1
-			$ %[1]s tenant disable 'Tenant'
+			%[1]s  tenant disable Tenants-1
+			%[1]s  tenant disable 'Tenant'
 		`, constants.ExecutableName),
 		RunE: func(c *cobra.Command, args []string) error {
 			if len(args) == 0 {

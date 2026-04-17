@@ -71,7 +71,7 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 		Short: "Create a listening tentacle worker",
 		Long:  "Create a listening tentacle worker in Octopus Deploy",
 		Example: heredoc.Docf(`
-			$ %s worker listening-tentacle create
+			%s worker listening-tentacle create
 		`, constants.ExecutableName),
 		RunE: func(c *cobra.Command, _ []string) error {
 			opts := NewCreateOptions(createFlags, cmd.NewDependencies(f, c))

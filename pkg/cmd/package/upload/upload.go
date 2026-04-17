@@ -62,13 +62,13 @@ func NewCmdUpload(f factory.Factory) *cobra.Command {
 		Long:    "Upload one or more packages to Octopus Deploy. Glob patterns are supported. Delta compression is off by default.",
 		Aliases: []string{"push"},
 		Example: heredoc.Docf(`
-			$ %[1]s package upload --package SomePackage.1.0.0.zip
-			$ %[1]s package upload SomePackage.1.0.0.tar.gz --overwrite-mode overwrite
-			$ %[1]s package push SomePackage.1.0.0.zip
-			$ %[1]s package upload bin/**/*.zip --continue-on-error
-			$ %[1]s package upload PkgA.1.0.0.zip PkgB.2.0.0.tar.gz PkgC.1.0.0.nupkg
-			$ %[1]s package upload --package SomePackage.2.0.0.zip --use-delta-compression
-			$ %[1]s package upload SomePackage.2.0.0.zip --delta # alias for --use-delta-compression
+			%[1]s  package upload --package SomePackage.1.0.0.zip
+			%[1]s  package upload SomePackage.1.0.0.tar.gz --overwrite-mode overwrite
+			%[1]s  package push SomePackage.1.0.0.zip
+			%[1]s  package upload bin/**/*.zip --continue-on-error
+			%[1]s  package upload PkgA.1.0.0.zip PkgB.2.0.0.tar.gz PkgC.1.0.0.nupkg
+			%[1]s  package upload --package SomePackage.2.0.0.zip --use-delta-compression
+			%[1]s  package upload SomePackage.2.0.0.zip --delta # alias for --use-delta-compression
 		`, constants.ExecutableName),
 		Annotations: map[string]string{annotations.IsCore: "true"},
 		RunE: func(cmd *cobra.Command, args []string) error {

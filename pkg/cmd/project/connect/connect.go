@@ -16,8 +16,8 @@ func NewCmdConnect(f factory.Factory) *cobra.Command {
 		Short: "Connect a tenant to a project",
 		Long:  "Connect a tenant to a project in Octopus Deploy",
 		Example: heredoc.Docf(`
-			$ %[1]s project connect
-			$ %[1]s project connect --tenant "Bobs Wood Shop" --project "Deploy web site" --environment "Production"
+			%[1]s  project connect
+			%[1]s  project connect --tenant "Bobs Wood Shop" --project "Deploy web site" --environment "Production"
 		`, constants.ExecutableName),
 		RunE: func(c *cobra.Command, args []string) error {
 			opts := connectTenant.NewConnectOptions(connectFlags, cmd.NewDependencies(f, c))

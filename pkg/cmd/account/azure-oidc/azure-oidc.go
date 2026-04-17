@@ -14,7 +14,7 @@ func NewCmdAzureOidc(f factory.Factory) *cobra.Command {
 		Use:     "azure-oidc <command>",
 		Short:   "Manage Azure OpenID Connect accounts",
 		Long:    "Manage Azure OpenID Connect accounts in Octopus Deploy",
-		Example: heredoc.Docf("$ %s account azure-oidc list", constants.ExecutableName),
+		Example: heredoc.Docf("%s account azure-oidc list", constants.ExecutableName),
 	}
 
 	cmd.AddCommand(cmdList.NewCmdList(f))

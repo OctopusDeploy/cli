@@ -2,6 +2,8 @@ package create
 
 import (
 	"fmt"
+	"strings"
+
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/cmd"
@@ -18,7 +20,6 @@ import (
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/resources"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/variables"
 	"github.com/spf13/cobra"
-	"strings"
 )
 
 const (
@@ -114,11 +115,11 @@ func NewCreateCmd(f factory.Factory) *cobra.Command {
 		Long:    "Create a variable for a project in Octopus Deploy",
 		Aliases: []string{"add"},
 		Example: heredoc.Docf(`
-			$ %[1]s project variable create
-			$ %[1]s project variable create --project "Deploy Website" --name "variable name" --value "abc"
-			$ %[1]s project variable create --name "variable name" --value "passwordABC" --type sensitive
-			$ %[1]s project variable create --name "variable name" --value "abc" --scope environment='test'
-			$ %[1]s project variable create --name "variable name" --value "abc" --scope environment='test' --git-ref refs/heads/main
+			%[1]s  project variable create
+			%[1]s  project variable create --project "Deploy Website" --name "variable name" --value "abc"
+			%[1]s  project variable create --name "variable name" --value "passwordABC" --type sensitive
+			%[1]s  project variable create --name "variable name" --value "abc" --scope environment='test'
+			%[1]s  project variable create --name "variable name" --value "abc" --scope environment='test' --git-ref refs/heads/main
 		`, constants.ExecutableName),
 		RunE: func(c *cobra.Command, args []string) error {
 			opts := NewCreateOptions(createFlags, cmd.NewDependencies(f, c))

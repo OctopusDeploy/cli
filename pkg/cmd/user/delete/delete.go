@@ -2,6 +2,8 @@ package delete
 
 import (
 	"fmt"
+	"strings"
+
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/apiclient"
 	"github.com/OctopusDeploy/cli/pkg/constants"
@@ -11,7 +13,6 @@ import (
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/users"
 	"github.com/spf13/cobra"
-	"strings"
 )
 
 type DeleteOptions struct {
@@ -30,8 +31,8 @@ func NewCmdDelete(f factory.Factory) *cobra.Command {
 		Long:    "Delete a user in Octopus Deploy",
 		Aliases: []string{"del", "rm", "remove"},
 		Example: heredoc.Docf(`
-			$ %[1]s user delete some-user-name
-			$ %[1]s user rm Users-123
+			%[1]s  user delete some-user-name
+			%[1]s  user rm Users-123
 		`, constants.ExecutableName),
 		RunE: func(c *cobra.Command, args []string) error {
 			octopus, err := f.GetSpacedClient(apiclient.NewRequester(c))

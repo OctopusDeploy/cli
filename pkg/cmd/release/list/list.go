@@ -2,6 +2,8 @@ package list
 
 import (
 	"errors"
+	"time"
+
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/apiclient"
 	"github.com/OctopusDeploy/cli/pkg/constants"
@@ -14,7 +16,6 @@ import (
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/releases"
 	"github.com/spf13/cobra"
-	"time"
 )
 
 const (
@@ -46,9 +47,9 @@ func NewCmdList(f factory.Factory) *cobra.Command {
 		Short: "List releases",
 		Long:  "List releases in Octopus Deploy",
 		Example: heredoc.Docf(`
-			$ %[1]s release list myProject
-			$ %[1]s release ls "Other Project"
-			$ %[1]s release list --project myProject
+			%[1]s  release list myProject
+			%[1]s  release ls "Other Project"
+			%[1]s  release list --project myProject
 		`, constants.ExecutableName),
 		Aliases: []string{"ls"},
 		RunE: func(cmd *cobra.Command, args []string) error {

@@ -37,8 +37,8 @@ func NewCmdList(f factory.Factory) *cobra.Command {
 		Short: "List deployment targets",
 		Long:  "List deployment targets in Octopus Deploy",
 		Example: heredoc.Docf(`
-			$ %[1]s deployment-target list
-			$ %[1]s deployment-target ls
+			%[1]s  deployment-target list
+			%[1]s  deployment-target ls
 		`, constants.ExecutableName),
 		Aliases: []string{"ls"},
 		RunE: func(c *cobra.Command, args []string) error {

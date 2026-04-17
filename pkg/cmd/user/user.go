@@ -16,8 +16,8 @@ func NewCmdUser(f factory.Factory) *cobra.Command {
 		Short: "Manage users",
 		Long:  "Manage user in Octopus Deploy",
 		Example: heredoc.Docf(`
-			$ %[1]s user list
-			$ %[1]s user ls
+			%[1]s  user list
+			%[1]s  user ls
 		`, constants.ExecutableName),
 		Annotations: map[string]string{
 			annotations.IsCore: "true",

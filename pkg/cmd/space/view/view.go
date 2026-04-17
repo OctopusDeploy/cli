@@ -2,8 +2,9 @@ package view
 
 import (
 	"fmt"
-	"github.com/OctopusDeploy/cli/pkg/apiclient"
 	"strings"
+
+	"github.com/OctopusDeploy/cli/pkg/apiclient"
 
 	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/OctopusDeploy/cli/pkg/usage"
@@ -32,8 +33,8 @@ func NewCmdView(f factory.Factory) *cobra.Command {
 		Short: "View a space",
 		Long:  "View a space in Octopus Deploy",
 		Example: heredoc.Docf(`
-			$ %[1]s space view 'Pattern - Blue-Green'
-			$ %[1]s space view Spaces-302
+			%[1]s  space view 'Pattern - Blue-Green'
+			%[1]s  space view Spaces-302
 		`, constants.ExecutableName),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			client, err := f.GetSystemClient(apiclient.NewRequester(cmd))
@@ -117,7 +118,7 @@ func generateWebUrl(host string, space *spaces.Space) string {
 
 func formatSpaceForBasic(host string, space *spaces.Space) string {
 	var result strings.Builder
-	
+
 	// header
 	result.WriteString(fmt.Sprintf("%s %s\n", output.Bold(space.Name), output.Dimf("(%s)", space.GetID())))
 

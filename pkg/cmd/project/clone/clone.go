@@ -2,6 +2,7 @@ package clone
 
 import (
 	"fmt"
+
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/cmd"
 	projectShared "github.com/OctopusDeploy/cli/pkg/cmd/project/shared"
@@ -70,9 +71,9 @@ func NewCmdClone(f factory.Factory) *cobra.Command {
 		Short: "Clone a project",
 		Long:  "Clone a project in Octopus Deploy",
 		Example: heredoc.Docf(`
-			$ %[1]s project clone
-			$ %[1]s project clone --name 'New Project' --source 'Old Project'
-			$ %[1]s project clone --name 'Deploy web app 2' --source 'Deploy web app' --lifecycle 'Test Only Lifecycle' --group 'Web App Project Group'
+			%[1]s  project clone
+			%[1]s  project clone --name 'New Project' --source 'Old Project'
+			%[1]s  project clone --name 'Deploy web app 2' --source 'Deploy web app' --lifecycle 'Test Only Lifecycle' --group 'Web App Project Group'
 		`, constants.ExecutableName),
 		RunE: func(c *cobra.Command, _ []string) error {
 			opts := NewCloneOptions(createFlags, cmd.NewDependencies(f, c))

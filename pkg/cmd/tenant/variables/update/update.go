@@ -2,6 +2,9 @@ package update
 
 import (
 	"fmt"
+	"sort"
+	"strings"
+
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/cmd"
 	"github.com/OctopusDeploy/cli/pkg/cmd/tenant/shared"
@@ -23,8 +26,6 @@ import (
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/variables"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/workerpools"
 	"github.com/spf13/cobra"
-	"sort"
-	"strings"
 )
 
 const (
@@ -104,9 +105,9 @@ func NewCmdUpdate(f factory.Factory) *cobra.Command {
 		Short: "Update the value of a tenant variable",
 		Long:  "Update the value of a tenant variable in Octopus Deploy",
 		Example: heredoc.Docf(`
-			$ %[1]s tenant variables update
-			$ %[1]s tenant variables update --tenant "Bobs Fish Shack" --name "site-name" --value "Bob's Fish Shack" --project "Awesome Web Site" --environment "Test"
-			$ %[1]s tenant variables update --tenant "Sally's Tackle Truck" --name dbPassword --value "12345" --library-variable-set "Shared Variables"
+			%[1]s  tenant variables update
+			%[1]s  tenant variables update --tenant "Bobs Fish Shack" --name "site-name" --value "Bob's Fish Shack" --project "Awesome Web Site" --environment "Test"
+			%[1]s  tenant variables update --tenant "Sally's Tackle Truck" --name dbPassword --value "12345" --library-variable-set "Shared Variables"
 			`, constants.ExecutableName),
 		RunE: func(c *cobra.Command, args []string) error {
 			opts := NewUpdateOptions(updateFlags, cmd.NewDependencies(f, c))

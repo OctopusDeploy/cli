@@ -24,7 +24,7 @@ func NewCmdAccount(f factory.Factory) *cobra.Command {
 		Use:     "account <command>",
 		Short:   "Manage accounts",
 		Long:    "Manage accounts in Octopus Deploy",
-		Example: heredoc.Docf("$ %s account list", constants.ExecutableName),
+		Example: heredoc.Docf("%s account list", constants.ExecutableName),
 		Annotations: map[string]string{
 			annotations.IsInfrastructure: "true",
 		},

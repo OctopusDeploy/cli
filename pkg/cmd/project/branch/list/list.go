@@ -2,6 +2,8 @@ package list
 
 import (
 	"fmt"
+	"strconv"
+
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/cmd"
 	sharedBranches "github.com/OctopusDeploy/cli/pkg/cmd/project/branch/shared"
@@ -13,7 +15,6 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/util/flag"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
 	"github.com/spf13/cobra"
-	"strconv"
 )
 
 const (
@@ -65,8 +66,8 @@ func NewCmdList(f factory.Factory) *cobra.Command {
 		Short: "List project branches",
 		Long:  "List project branches in Octopus Deploy",
 		Example: heredoc.Docf(`
-			$ %[1]s project branch list "Deploy Website"
-			$ %[1]s project variable ls
+			%[1]s  project branch list "Deploy Website"
+			%[1]s  project variable ls
 		`, constants.ExecutableName),
 		Aliases: []string{"ls"},
 		RunE: func(c *cobra.Command, args []string) error {

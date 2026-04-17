@@ -14,7 +14,7 @@ func NewCmdAzure(f factory.Factory) *cobra.Command {
 		Use:     "azure <command>",
 		Short:   "Manage Azure subscription accounts",
 		Long:    "Manage Azure subscription accounts in Octopus Deploy",
-		Example: heredoc.Docf("$ %s account azure list", constants.ExecutableName),
+		Example: heredoc.Docf("%s account azure list", constants.ExecutableName),
 	}
 
 	cmd.AddCommand(cmdList.NewCmdList(f))

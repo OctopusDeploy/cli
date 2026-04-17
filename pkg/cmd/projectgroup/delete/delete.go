@@ -28,8 +28,8 @@ func NewCmdList(f factory.Factory) *cobra.Command {
 		Long:    "Delete a project group in Octopus Deploy",
 		Aliases: []string{"del", "rm", "remove"},
 		Example: heredoc.Docf(`
-			$ %[1]s project-group delete
-			$ %[1]s project-group rm
+			%[1]s  project-group delete
+			%[1]s  project-group rm
 		`, constants.ExecutableName),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			client, err := f.GetSpacedClient(apiclient.NewRequester(cmd))

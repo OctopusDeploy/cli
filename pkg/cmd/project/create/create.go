@@ -2,6 +2,7 @@ package create
 
 import (
 	"fmt"
+
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/cmd"
@@ -55,9 +56,9 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 		Short: "Create a project",
 		Long:  "Create a project in Octopus Deploy",
 		Example: heredoc.Docf(`
-			$ %[1]s project create
-			$ %[1]s project create --process-vcs
-			$ %[1]s project create --name 'Deploy web app' --lifecycle 'Default Lifecycle' --group 'Default Project Group'
+			%[1]s  project create
+			%[1]s  project create --process-vcs
+			%[1]s  project create --name 'Deploy web app' --lifecycle 'Default Lifecycle' --group 'Default Project Group'
 		`, constants.ExecutableName),
 		RunE: func(c *cobra.Command, _ []string) error {
 			opts := NewCreateOptions(createFlags, cmd.NewDependencies(f, c))

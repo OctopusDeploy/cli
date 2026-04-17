@@ -63,7 +63,7 @@ func NewCmdDeprovisionEnvironment(factory factory.Factory) *cobra.Command {
 		Use:     "deprovision-environment",
 		Short:   "Deprovision an environment",
 		Long:    "Deprovision an environment",
-		Example: heredoc.Docf("$ %s ephemeral-environment deprovision-environment --name PR-1234", constants.ExecutableName),
+		Example: heredoc.Docf("%s ephemeral-environment deprovision-environment --name PR-1234", constants.ExecutableName),
 		RunE: func(c *cobra.Command, _ []string) error {
 			deprovisionEnvironmentOptions := NewDeprovisionEnvironmentOptions(deprovisionEnvironmentFlags, cmd.NewDependencies(factory, c), c)
 

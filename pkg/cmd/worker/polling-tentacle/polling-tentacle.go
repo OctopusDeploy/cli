@@ -15,7 +15,7 @@ func NewCmdPollingTentacle(f factory.Factory) *cobra.Command {
 		Use:     "polling-tentacle <command>",
 		Short:   "Manage Polling Tentacle workers",
 		Long:    "Manage Polling Tentacle workers in Octopus Deploy",
-		Example: fmt.Sprintf("$ %s worker polling-tentacle list", constants.ExecutableName),
+		Example: fmt.Sprintf("%s worker polling-tentacle list", constants.ExecutableName),
 	}
 
 	cmd.AddCommand(cmdList.NewCmdList(f))

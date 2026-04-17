@@ -44,11 +44,11 @@ func NewCmdList(f factory.Factory) *cobra.Command {
 		Short: "List build information",
 		Long:  "List build information in Octopus Deploy",
 		Example: heredoc.Docf(`
-			$ %[1]s build-information list
-			$ %[1]s build-information ls
-			$ %[1]s build-info list
-			$ %[1]s build-info ls --package-id ThePackage
-			$ %[1]s build-info ls --package-id ThePackage --filter 1.2.3
+			%[1]s  build-information list
+			%[1]s  build-information ls
+			%[1]s  build-info list
+			%[1]s  build-info ls --package-id ThePackage
+			%[1]s  build-info ls --package-id ThePackage --filter 1.2.3
 		`, constants.ExecutableName),
 		Aliases: []string{"ls"},
 		RunE: func(cmd *cobra.Command, args []string) error {

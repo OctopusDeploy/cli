@@ -87,7 +87,7 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 		Use:     "create",
 		Short:   "Create an ephemeral environment",
 		Long:    "Create an ephemeral environment in Octopus Deploy",
-		Example: heredoc.Docf("$ %s ephemeral-environment create", constants.ExecutableName),
+		Example: heredoc.Docf("%s ephemeral-environment create", constants.ExecutableName),
 		Aliases: []string{"new"},
 		RunE: func(c *cobra.Command, _ []string) error {
 			opts := NewCreateOptions(createFlags, cmd.NewDependencies(f, c))

@@ -1,8 +1,9 @@
 package list
 
 import (
-	"github.com/OctopusDeploy/cli/pkg/apiclient"
 	"math"
+
+	"github.com/OctopusDeploy/cli/pkg/apiclient"
 
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/constants"
@@ -38,9 +39,9 @@ func NewCmdList(f factory.Factory) *cobra.Command {
 		Short: "List packages",
 		Long:  "List packages in Octopus Deploy",
 		Example: heredoc.Docf(`
-			$ %[1]s package list
-			$ %[1]s package list --limit 50 --filter SomePackage
-			$ %[1]s package ls -n 30 -q SomePackage
+			%[1]s  package list
+			%[1]s  package list --limit 50 --filter SomePackage
+			%[1]s  package ls -n 30 -q SomePackage
 		`, constants.ExecutableName),
 		Aliases: []string{"ls"},
 		RunE: func(cmd *cobra.Command, args []string) error {

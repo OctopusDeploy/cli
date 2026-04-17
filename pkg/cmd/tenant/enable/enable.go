@@ -2,6 +2,7 @@ package enable
 
 import (
 	"fmt"
+
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/cmd"
 	"github.com/OctopusDeploy/cli/pkg/constants"
@@ -29,8 +30,8 @@ func NewCmdEnable(f factory.Factory) *cobra.Command {
 		Short: "Enable a tenant",
 		Long:  "Enable a tenant in Octopus Deploy",
 		Example: heredoc.Docf(`
-			$ %[1]s tenant enable Tenants-1
-			$ %[1]s tenant enable 'Tenant'
+			%[1]s  tenant enable Tenants-1
+			%[1]s  tenant enable 'Tenant'
 		`, constants.ExecutableName),
 		RunE: func(c *cobra.Command, args []string) error {
 			if len(args) == 0 {

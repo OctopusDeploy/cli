@@ -2,6 +2,7 @@ package view
 
 import (
 	"fmt"
+
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/cmd"
 	"github.com/OctopusDeploy/cli/pkg/cmd/workerpool/shared"
@@ -24,8 +25,8 @@ func NewCmdView(f factory.Factory) *cobra.Command {
 		Short: "View a static worker pool",
 		Long:  "View a static worker pool in Octopus Deploy",
 		Example: heredoc.Docf(`
-			$ %[1]s worker-pool static view WorkerPools-3
-			$ %[1]s worker-pool static view 'windows workers'
+			%[1]s  worker-pool static view WorkerPools-3
+			%[1]s  worker-pool static view 'windows workers'
 		`, constants.ExecutableName),
 		RunE: func(c *cobra.Command, args []string) error {
 			return ViewRun(shared.NewViewOptions(flags, cmd.NewDependencies(f, c), args, c))

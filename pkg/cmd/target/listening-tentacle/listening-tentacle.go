@@ -15,7 +15,7 @@ func NewCmdListeningTentacle(f factory.Factory) *cobra.Command {
 		Use:     "listening-tentacle <command>",
 		Short:   "Manage Listening Tentacle deployment targets",
 		Long:    "Manage Listening Tentacle deployment targets in Octopus Deploy",
-		Example: heredoc.Docf("$ %s deployment-target listening-tentacle list", constants.ExecutableName),
+		Example: heredoc.Docf("%s deployment-target listening-tentacle list", constants.ExecutableName),
 	}
 
 	cmd.AddCommand(cmdList.NewCmdList(f))

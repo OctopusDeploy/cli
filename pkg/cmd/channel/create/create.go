@@ -63,8 +63,8 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 		Short: "Create a channel",
 		Long:  "Create a channel in Octopus Deploy",
 		Example: heredoc.Docf(`
-			$ %[1]s channel create
-			$ %[1]s channel create --name "The Channel" --project "The Project" --lifecycle "Default Lifecycle" --default
+			%[1]s  channel create
+			%[1]s  channel create --name "The Channel" --project "The Project" --lifecycle "Default Lifecycle" --default
 		`, constants.ExecutableName),
 		RunE: func(c *cobra.Command, args []string) error {
 			opts := NewCreateOptions(createFlags, cmd.NewDependencies(f, c))
