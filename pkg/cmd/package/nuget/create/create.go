@@ -59,7 +59,7 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 		Short: "Create nuget",
 		Long:  "Create nuget package",
 		Example: heredoc.Docf(`
-			%[1]s  package nuget create --id SomePackage --version 1.0.0
+			%[1]s package nuget create --id SomePackage --version 1.0.0
 		`, constants.ExecutableName),
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			opts := &NuPkgCreateOptions{

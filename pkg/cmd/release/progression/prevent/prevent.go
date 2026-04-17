@@ -61,9 +61,9 @@ func NewCmdPrevent(f factory.Factory) *cobra.Command {
 		Short: "Prevents a release from progression to the next phase",
 		Long:  "Prevents a release from progression to the next phase in Octopus Deploy",
 		Example: heredoc.Docf(`
-			%[1]s  release progression prevent --project MyProject --version 1.2.3 --reason "It's broken"
-			%[1]s  release progression prevent -p MyProject -v 1.2.3 -r "It's broken"
-			%[1]s  release progression prevent -p MyProject -v 1.2.3 -r "It's broken" --no-prompt
+			%[1]s release progression prevent --project MyProject --version 1.2.3 --reason "It's broken"
+			%[1]s release progression prevent -p MyProject -v 1.2.3 -r "It's broken"
+			%[1]s release progression prevent -p MyProject -v 1.2.3 -r "It's broken" --no-prompt
 		`, constants.ExecutableName),
 		Aliases: []string{"prevent-releaseprogression"},
 		RunE: func(c *cobra.Command, _ []string) error {

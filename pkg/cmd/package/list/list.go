@@ -39,9 +39,9 @@ func NewCmdList(f factory.Factory) *cobra.Command {
 		Short: "List packages",
 		Long:  "List packages in Octopus Deploy",
 		Example: heredoc.Docf(`
-			%[1]s  package list
-			%[1]s  package list --limit 50 --filter SomePackage
-			%[1]s  package ls -n 30 -q SomePackage
+			%[1]s package list
+			%[1]s package list --limit 50 --filter SomePackage
+			%[1]s package ls -n 30 -q SomePackage
 		`, constants.ExecutableName),
 		Aliases: []string{"ls"},
 		RunE: func(cmd *cobra.Command, args []string) error {

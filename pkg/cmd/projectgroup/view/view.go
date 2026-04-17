@@ -52,8 +52,8 @@ func NewCmdView(f factory.Factory) *cobra.Command {
 		Short: "View a project group",
 		Long:  "View a project group in Octopus Deploy",
 		Example: heredoc.Docf(`
-			%[1]s  project-group view 'Default Project Group'
-			%[1]s  project-group view ProjectGroups-9000
+			%[1]s project-group view 'Default Project Group'
+			%[1]s project-group view ProjectGroups-9000
 		`, constants.ExecutableName),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			client, err := f.GetSpacedClient(apiclient.NewRequester(cmd))

@@ -48,9 +48,9 @@ func NewCmdVersions(f factory.Factory) *cobra.Command {
 		Short: "List versions of a package",
 		Long:  "List versions of a package.",
 		Example: heredoc.Docf(`
-			%[1]s  package versions --package SomePackage
-			%[1]s  package versions SomePackage --filter beta --limit 5
-			%[1]s  package show SomePackage -n 2
+			%[1]s package versions --package SomePackage
+			%[1]s package versions SomePackage --filter beta --limit 5
+			%[1]s package show SomePackage -n 2
 		`, constants.ExecutableName),
 		Aliases: []string{"show"},
 		RunE: func(cmd *cobra.Command, args []string) error {

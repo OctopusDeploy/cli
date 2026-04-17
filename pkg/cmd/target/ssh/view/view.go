@@ -21,8 +21,8 @@ func NewCmdView(f factory.Factory) *cobra.Command {
 		Short: "View a SSH deployment target",
 		Long:  "View a SSH deployment target in Octopus Deploy",
 		Example: heredoc.Docf(`
-			%[1]s  deployment-target ssh view 'linux-web-server'
-			%[1]s  deployment-target ssh view Machines-100
+			%[1]s deployment-target ssh view 'linux-web-server'
+			%[1]s deployment-target ssh view Machines-100
 		`, constants.ExecutableName),
 		RunE: func(c *cobra.Command, args []string) error {
 			opts := shared.NewViewOptions(flags, cmd.NewDependencies(f, c), args, c)

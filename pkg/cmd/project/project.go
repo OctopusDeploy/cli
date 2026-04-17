@@ -28,8 +28,8 @@ func NewCmdProject(f factory.Factory) *cobra.Command {
 		Short:   "Manage projects",
 		Long:    "Manage projects in Octopus Deploy",
 		Example: heredoc.Docf(`
-			%[1]s  project list
-			%[1]s  project ls
+			%[1]s project list
+			%[1]s project ls
 		`, constants.ExecutableName),
 		Annotations: map[string]string{
 			annotations.IsCore: "true",

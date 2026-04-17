@@ -46,9 +46,9 @@ func NewCmdDelete(f factory.Factory) *cobra.Command {
 		Short: "Delete a release",
 		Long:  "Delete a release in Octopus Deploy",
 		Example: heredoc.Docf(`
-			%[1]s  release delete myProject 2.0
-			%[1]s  release delete --project myProject --version 2.0
-			%[1]s  release rm "Other Project" -v 2.0
+			%[1]s release delete myProject 2.0
+			%[1]s release delete --project myProject --version 2.0
+			%[1]s release rm "Other Project" -v 2.0
 		`, constants.ExecutableName),
 		Aliases: []string{"del", "rm"},
 		RunE: func(cmd *cobra.Command, args []string) error {

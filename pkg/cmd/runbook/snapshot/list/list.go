@@ -51,8 +51,8 @@ func NewCmdList(f factory.Factory) *cobra.Command {
 		Short: "List runbook snapshots",
 		Long:  "List runbook snapshots in Octopus Deploy",
 		Example: heredoc.Docf(`
-			%[1]s  runbook snapshot list --project "Deploy Web App" --runbook "Run maintenance"
-			%[1]s  runbook snapshot ls
+			%[1]s runbook snapshot list --project "Deploy Web App" --runbook "Run maintenance"
+			%[1]s runbook snapshot ls
 		`, constants.ExecutableName),
 		Aliases: []string{"ls"},
 		RunE: func(cmd *cobra.Command, args []string) error {

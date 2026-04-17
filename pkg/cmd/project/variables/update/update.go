@@ -81,12 +81,12 @@ func NewUpdateCmd(f factory.Factory) *cobra.Command {
 		Short: "Update the value of a project variable",
 		Long:  "Update the value of a project variable in Octopus Deploy",
 		Example: heredoc.Docf(`
-			%[1]s  project variable update
-			%[1]s  project variable update --name "variable name" --value "abc"
-			%[1]s  project variable update --name "variable name" --value "password"
-			%[1]s  project variable update --name "variable name" --unscoped
-			%[1]s  project variable update --name "variable name" --environment-scope test
-			%[1]s  project variable update -p "Deploy Website" --name "variable name" --value "updated" --git-ref refs/heads/main
+			%[1]s project variable update
+			%[1]s project variable update --name "variable name" --value "abc"
+			%[1]s project variable update --name "variable name" --value "password"
+			%[1]s project variable update --name "variable name" --unscoped
+			%[1]s project variable update --name "variable name" --environment-scope test
+			%[1]s project variable update -p "Deploy Website" --name "variable name" --value "updated" --git-ref refs/heads/main
 		`, constants.ExecutableName),
 		RunE: func(c *cobra.Command, args []string) error {
 			opts := NewUpdateOptions(updateFlags, cmd.NewDependencies(f, c))

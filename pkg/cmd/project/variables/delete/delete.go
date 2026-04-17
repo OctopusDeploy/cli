@@ -71,9 +71,9 @@ func NewDeleteCmd(f factory.Factory) *cobra.Command {
 		Short:   "Delete a project variable",
 		Long:    "Delete a project variable in Octopus Deploy",
 		Example: heredoc.Docf(`
-			%[1]s  project variable delete --name "variable Name" --project "Deploy Site" 
-			%[1]s  project variable delete --name "variable Name" --id 26a58596-4cd9-e072-7215-7e15cb796dd2 --project "Deploy Site" --confirm 
-			%[1]s  project variable delete --name "variable Name" --project "Deploy Site" --git-ref "refs/heads/main"
+			%[1]s project variable delete --name "variable Name" --project "Deploy Site" 
+			%[1]s project variable delete --name "variable Name" --id 26a58596-4cd9-e072-7215-7e15cb796dd2 --project "Deploy Site" --confirm 
+			%[1]s project variable delete --name "variable Name" --project "Deploy Site" --git-ref "refs/heads/main"
 		`, constants.ExecutableName),
 		RunE: func(c *cobra.Command, args []string) error {
 			opts := NewDeleteOptions(deleteFlags, cmd.NewDependencies(f, c))

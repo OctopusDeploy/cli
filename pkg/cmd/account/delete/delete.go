@@ -22,8 +22,8 @@ func NewCmdDelete(f factory.Factory) *cobra.Command {
 		Long:    "Delete an account in Octopus Deploy",
 		Aliases: []string{"del", "rm", "remove"},
 		Example: heredoc.Docf(`
-			%[1]s  account delete
-			%[1]s  account rm
+			%[1]s account delete
+			%[1]s account rm
 		`, constants.ExecutableName),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) == 0 {

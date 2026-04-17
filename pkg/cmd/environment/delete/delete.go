@@ -22,8 +22,8 @@ func NewCmdDelete(f factory.Factory) *cobra.Command {
 		Long:    "Delete an environment in Octopus Deploy",
 		Aliases: []string{"del", "rm", "remove"},
 		Example: heredoc.Docf(`
-			%[1]s  environment delete
-			%[1]s  environment rm
+			%[1]s environment delete
+			%[1]s environment rm
 		`, constants.ExecutableName),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) == 0 {

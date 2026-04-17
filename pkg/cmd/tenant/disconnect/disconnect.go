@@ -71,8 +71,8 @@ func NewCmdDisconnect(f factory.Factory) *cobra.Command {
 		Short: "Disconnect a tenant from a project",
 		Long:  "Disconnect a tenant from a project in Octopus Deploy",
 		Example: heredoc.Docf(`
-			%[1]s  tenant disconnect
-			%[1]s  tenant disconnect --tenant "Test Tenant" --project "Deploy web site" --confirm
+			%[1]s tenant disconnect
+			%[1]s tenant disconnect --tenant "Test Tenant" --project "Deploy web site" --confirm
 		`, constants.ExecutableName),
 		RunE: func(c *cobra.Command, args []string) error {
 			opts := NewDisconnectOptions(disconnectFlags, cmd.NewDependencies(f, c))

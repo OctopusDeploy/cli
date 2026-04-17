@@ -63,9 +63,9 @@ func NewCmdList(f factory.Factory) *cobra.Command {
 		Short: "List project variables",
 		Long:  "List project variables in Octopus Deploy",
 		Example: heredoc.Docf(`
-			%[1]s  project variable list "Deploy Website"
-			%[1]s  project variable list -p "Deploy Website" --git-ref refs/heads/main
-			%[1]s  project variable ls
+			%[1]s project variable list "Deploy Website"
+			%[1]s project variable list -p "Deploy Website" --git-ref refs/heads/main
+			%[1]s project variable ls
 		`, constants.ExecutableName),
 		Aliases: []string{"ls"},
 		RunE: func(c *cobra.Command, args []string) error {

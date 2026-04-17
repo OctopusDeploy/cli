@@ -18,8 +18,8 @@ func NewCmdEnvironment(f factory.Factory) *cobra.Command {
 		Short: "Manage environments",
 		Long:  "Manage environments in Octopus Deploy",
 		Example: heredoc.Docf(`
-			%[1]s  environment list
-			%[1]s  environment ls
+			%[1]s environment list
+			%[1]s environment ls
 		`, constants.ExecutableName),
 		Annotations: map[string]string{
 			annotations.IsInfrastructure: "true",

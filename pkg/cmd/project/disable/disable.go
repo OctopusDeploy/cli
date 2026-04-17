@@ -29,7 +29,7 @@ func NewCmdDisable(f factory.Factory) *cobra.Command {
 		Use:     "disable",
 		Short:   "Disable a project",
 		Long:    "Disable a project in Octopus Deploy",
-		Example: heredoc.Docf("%[1]s  project disable", constants.ExecutableName),
+		Example: heredoc.Docf("%[1]s project disable", constants.ExecutableName),
 		RunE: func(c *cobra.Command, args []string) error {
 			if len(args) == 0 {
 				args = append(args, "")

@@ -16,8 +16,8 @@ func NewCmdList(f factory.Factory) *cobra.Command {
 		Short: "List SSH deployment targets",
 		Long:  "List SSH deployment targets in Octopus Deploy",
 		Example: heredoc.Docf(`
-			%[1]s  deployment-target ssh list
-			%[1]s  deployment-target ssh ls
+			%[1]s deployment-target ssh list
+			%[1]s deployment-target ssh ls
 		`, constants.ExecutableName),
 		Aliases: []string{"ls"},
 		RunE: func(c *cobra.Command, args []string) error {

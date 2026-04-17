@@ -15,8 +15,8 @@ func NewCmdProgression(f factory.Factory) *cobra.Command {
 		Short: "Manage progression of a release",
 		Long:  "Manage progression of a release in Octopus Deploy",
 		Example: heredoc.Docf(`
-			%[1]s  release progression prevent
-			%[1]s  release progression allow
+			%[1]s release progression prevent
+			%[1]s release progression allow
 		`, constants.ExecutableName),
 	}
 

@@ -65,8 +65,8 @@ func NewIncludeVariableSetCmd(f factory.Factory) *cobra.Command {
 		Short: "Include a variable set in a project",
 		Long:  "Include a variable set in a project in Octopus Deploy",
 		Example: heredoc.Docf(`
-			%[1]s  project variable include
-			%[1]s  project variable include --variable-set "Slack Variables"
+			%[1]s project variable include
+			%[1]s project variable include --variable-set "Slack Variables"
 		`, constants.ExecutableName),
 		RunE: func(c *cobra.Command, args []string) error {
 			opts := NewIncludeOptions(createFlags, cmd.NewDependencies(f, c))

@@ -66,8 +66,8 @@ func NewCmdList(f factory.Factory) *cobra.Command {
 		Short: "List project branches",
 		Long:  "List project branches in Octopus Deploy",
 		Example: heredoc.Docf(`
-			%[1]s  project branch list "Deploy Website"
-			%[1]s  project variable ls
+			%[1]s project branch list "Deploy Website"
+			%[1]s project variable ls
 		`, constants.ExecutableName),
 		Aliases: []string{"ls"},
 		RunE: func(c *cobra.Command, args []string) error {

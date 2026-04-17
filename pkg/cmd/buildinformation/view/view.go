@@ -54,8 +54,8 @@ func NewCmdView(f factory.Factory) *cobra.Command {
 		Short: "View a build information",
 		Long:  "View a build information in Octopus Deploy",
 		Example: heredoc.Docf(`
-			%[1]s  build-information view BuildInformation-1
-			%[1]s  build-info view BuildInformation-1
+			%[1]s build-information view BuildInformation-1
+			%[1]s build-info view BuildInformation-1
 		`, constants.ExecutableName),
 		RunE: func(c *cobra.Command, args []string) error {
 			opts := NewViewOptions(viewFlags, cmd.NewDependencies(f, c))

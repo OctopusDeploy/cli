@@ -25,8 +25,8 @@ func NewCmdView(f factory.Factory) *cobra.Command {
 		Short: "View an Azure Web App deployment target",
 		Long:  "View an Azure Web App deployment target in Octopus Deploy",
 		Example: heredoc.Docf(`
-			%[1]s  deployment-target azure-web-app view 'Shop Api'
-			%[1]s  deployment-target azure-web-app view Machines-100
+			%[1]s deployment-target azure-web-app view 'Shop Api'
+			%[1]s deployment-target azure-web-app view Machines-100
 		`, constants.ExecutableName),
 		RunE: func(c *cobra.Command, args []string) error {
 			opts := shared.NewViewOptions(flags, cmd.NewDependencies(f, c), args, c)

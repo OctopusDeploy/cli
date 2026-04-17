@@ -155,10 +155,10 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 		Short: "Create a release",
 		Long:  "Create a release in Octopus Deploy",
 		Example: heredoc.Docf(`
-			%[1]s  release create --project MyProject --channel Beta --version 1.2.3
-			%[1]s  release create -p MyProject -c Beta -v 1.2.3
-			%[1]s  release create -p MyProject -c default --package "utils:1.2.3" --package "utils:InstallOnly:5.6.7"
-			%[1]s  release create -p MyProject -c Beta --no-prompt
+			%[1]s release create --project MyProject --channel Beta --version 1.2.3
+			%[1]s release create -p MyProject -c Beta -v 1.2.3
+			%[1]s release create -p MyProject -c default --package "utils:1.2.3" --package "utils:InstallOnly:5.6.7"
+			%[1]s release create -p MyProject -c Beta --no-prompt
 		`, constants.ExecutableName),
 		RunE: func(cmd *cobra.Command, args []string) error { return createRun(cmd, f, createFlags) },
 	}

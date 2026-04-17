@@ -109,8 +109,8 @@ func NewCmdConvert(f factory.Factory) *cobra.Command {
 		Short: "Convert a project to use Config As Code",
 		Long:  "Convert a project to use Config As Code in Octopus Deploy",
 		Example: heredoc.Docf(`
-			%[1]s  project convert
-			%[1]s  project convert --project "Deploy web site" --git-url https://github.com/orgname/reponame"
+			%[1]s project convert
+			%[1]s project convert --project "Deploy web site" --git-url https://github.com/orgname/reponame"
 		`, constants.ExecutableName),
 		RunE: func(c *cobra.Command, args []string) error {
 			opts := NewConvertOptions(convertProjectFlags, cmd.NewDependencies(f, c))

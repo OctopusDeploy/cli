@@ -59,8 +59,8 @@ func NewCmdView(f factory.Factory) *cobra.Command {
 		Short: "View all values of a project variable",
 		Long:  "View all values of a project variable in Octopus Deploy",
 		Example: heredoc.Docf(`
-			%[1]s  project variable view
-			%[1]s  project variable view DatabaseName --project "Vet Clinic"
+			%[1]s project variable view
+			%[1]s project variable view DatabaseName --project "Vet Clinic"
 		`, constants.ExecutableName),
 		Aliases: []string{"ls"},
 		RunE: func(cmd *cobra.Command, args []string) error {

@@ -31,8 +31,8 @@ func NewCmdDelete(f factory.Factory) *cobra.Command {
 		Long:    "Delete a tenant in Octopus Deploy",
 		Aliases: []string{"del", "rm", "remove"},
 		Example: heredoc.Docf(`
-			%[1]s  tenant delete
-			%[1]s  tenant rm
+			%[1]s tenant delete
+			%[1]s tenant rm
 		`, constants.ExecutableName),
 		RunE: func(c *cobra.Command, args []string) error {
 			client, err := f.GetSpacedClient(apiclient.NewRequester(c))

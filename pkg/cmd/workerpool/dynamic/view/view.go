@@ -21,8 +21,8 @@ func NewCmdView(f factory.Factory) *cobra.Command {
 		Short: "View a dynamic worker pool",
 		Long:  "View a dynamic worker pool in Octopus Deploy",
 		Example: heredoc.Docf(`
-			%[1]s  worker-pool dynamic view WorkerPools-3
-			%[1]s  worker-pool dynamic view 'Hosted Workers'
+			%[1]s worker-pool dynamic view WorkerPools-3
+			%[1]s worker-pool dynamic view 'Hosted Workers'
 		`, constants.ExecutableName),
 		RunE: func(c *cobra.Command, args []string) error {
 			return ViewRun(shared.NewViewOptions(flags, cmd.NewDependencies(f, c), args, c))

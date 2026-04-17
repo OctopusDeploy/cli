@@ -23,9 +23,9 @@ func NewCmdAPI(f factory.Factory) *cobra.Command {
 		Short: "Execute a raw API GET request",
 		Long:  "Execute an authenticated GET request against the Octopus Server API and print the JSON response.",
 		Example: heredoc.Docf(`
-			%[1]s  api /api
-			%[1]s  api /api/spaces
-			%[1]s  api /api/Spaces-1/projects
+			%[1]s api /api
+			%[1]s api /api/spaces
+			%[1]s api /api/Spaces-1/projects
 		`, constants.ExecutableName),
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
