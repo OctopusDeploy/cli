@@ -4,14 +4,15 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/OctopusDeploy/cli/pkg/cmd/runbook/shared"
-	"github.com/OctopusDeploy/cli/pkg/packages"
-	"golang.org/x/exp/maps"
 	"io"
 	"math"
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/OctopusDeploy/cli/pkg/cmd/runbook/shared"
+	"github.com/OctopusDeploy/cli/pkg/packages"
+	"golang.org/x/exp/maps"
 
 	"github.com/OctopusDeploy/cli/pkg/apiclient"
 
@@ -145,8 +146,8 @@ func NewCmdRun(f factory.Factory) *cobra.Command {
 		Short: "Run runbooks in Octopus Deploy",
 		Long:  "Run runbooks in Octopus Deploy",
 		Example: heredoc.Docf(`
-			$ %[1]s runbook run  # fully interactive
-			$ %[1]s runbook run --project MyProject --runbook "Rebuild DB indexes"
+			%[1]s runbook run  # fully interactive
+			%[1]s runbook run --project MyProject --runbook "Rebuild DB indexes"
 		`, constants.ExecutableName),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) > 0 && runFlags.Project.Value == "" {
@@ -1348,4 +1349,3 @@ func findGitRunbook(octopus *octopusApiClient.Client, spaceID string, projectID 
 	}
 	return result, err
 }
-

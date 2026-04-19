@@ -14,7 +14,7 @@ func NewCmdGcp(f factory.Factory) *cobra.Command {
 		Use:     "gcp <command>",
 		Short:   "Manage Google Cloud accounts",
 		Long:    "Manage Google Cloud accounts in Octopus Deploy",
-		Example: heredoc.Docf("$ %s account gcp list", constants.ExecutableName),
+		Example: heredoc.Docf("%s account gcp list", constants.ExecutableName),
 	}
 
 	cmd.AddCommand(cmdList.NewCmdList(f))

@@ -2,6 +2,8 @@ package create
 
 import (
 	"fmt"
+	"os"
+
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/cmd"
@@ -18,7 +20,6 @@ import (
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/accounts"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/environments"
 	"github.com/spf13/cobra"
-	"os"
 )
 
 type CreateFlags struct {
@@ -63,7 +64,7 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 		Use:     "create",
 		Short:   "Create an Generic OpenID Connect account",
 		Long:    "Create an Generic OpenID Connect account in Octopus Deploy",
-		Example: heredoc.Docf("$ %s account generic-oidc create", constants.ExecutableName),
+		Example: heredoc.Docf("%s account generic-oidc create", constants.ExecutableName),
 		Aliases: []string{"new"},
 		RunE: func(c *cobra.Command, _ []string) error {
 			opts := NewCreateOptions(createFlags, cmd.NewDependencies(f, c))

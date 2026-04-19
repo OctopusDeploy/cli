@@ -2,6 +2,7 @@ package create
 
 import (
 	"fmt"
+
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/cmd"
 	"github.com/OctopusDeploy/cli/pkg/cmd/target/shared"
@@ -81,7 +82,7 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 		Use:     "create",
 		Short:   "Create a SSH deployment target",
 		Long:    "Create a SSH deployment target in Octopus Deploy",
-		Example: heredoc.Docf("$ %s deployment-target ssh create", constants.ExecutableName),
+		Example: heredoc.Docf("%s deployment-target ssh create", constants.ExecutableName),
 		Aliases: []string{"new"},
 		RunE: func(c *cobra.Command, _ []string) error {
 			opts := NewCreateOptions(createFlags, cmd.NewDependencies(f, c))

@@ -16,7 +16,7 @@ func NewCmdList(f factory.Factory) *cobra.Command {
 		Use:     "list",
 		Short:   "List Azure OpenID Connect accounts",
 		Long:    "List Azure OpenID Connect accounts in Octopus Deploy",
-		Example: heredoc.Docf("$ %s account azure-oidc list", constants.ExecutableName),
+		Example: heredoc.Docf("%s account azure-oidc list", constants.ExecutableName),
 		Aliases: []string{"ls"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			client, err := f.GetSpacedClient(apiclient.NewRequester(cmd))

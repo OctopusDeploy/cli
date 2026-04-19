@@ -15,7 +15,7 @@ func NewCmdList(f factory.Factory) *cobra.Command {
 		Use:     "list",
 		Short:   "List accounts",
 		Long:    "List accounts in Octopus Deploy",
-		Example: heredoc.Docf("$ %s account list", constants.ExecutableName),
+		Example: heredoc.Docf("%s account list", constants.ExecutableName),
 		Aliases: []string{"ls"},
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			client, err := f.GetSpacedClient(apiclient.NewRequester(cmd))

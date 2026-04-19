@@ -66,10 +66,10 @@ func NewCmdUpload(f factory.Factory) *cobra.Command {
 		Long:    "upload build information one or more packages to Octopus Deploy.",
 		Aliases: []string{"push"},
 		Example: heredoc.Docf(`
-			$ %[1]s build-information upload --package-id SomePackage --version 1.0.0 --file buildinfo.octopus
-			$ %[1]s build-information upload SomePackage --version 1.0.0 --file buildinfo.octopus --overwrite-mode overwrite
-			$ %[1]s build-information push SomePackage --version 1.0.0 --file buildinfo.octopus
-			$ %[1]s build-information upload PkgA PkgB PkgC --version 1.0.0 --file buildinfo.octopus
+			%[1]s build-information upload --package-id SomePackage --version 1.0.0 --file buildinfo.octopus
+			%[1]s build-information upload SomePackage --version 1.0.0 --file buildinfo.octopus --overwrite-mode overwrite
+			%[1]s build-information push SomePackage --version 1.0.0 --file buildinfo.octopus
+			%[1]s build-information upload PkgA PkgB PkgC --version 1.0.0 --file buildinfo.octopus
 		`, constants.ExecutableName),
 		Annotations: map[string]string{annotations.IsCore: "true"},
 		RunE: func(c *cobra.Command, args []string) error {

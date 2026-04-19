@@ -39,8 +39,8 @@ func NewCmdDelete(f factory.Factory) *cobra.Command {
 		Long:    "Delete a worker in Octopus Deploy",
 		Aliases: []string{"del", "rm", "remove"},
 		Example: heredoc.Docf(`
-			$ %[1]s worker delete
-			$ %[1]s worker rm
+			%[1]s worker delete
+			%[1]s worker rm
 		`, constants.ExecutableName),
 		RunE: func(c *cobra.Command, args []string) error {
 			deps := cmd.NewDependencies(f, c)

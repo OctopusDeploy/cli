@@ -2,6 +2,7 @@ package clone
 
 import (
 	"fmt"
+
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/cmd"
 	"github.com/OctopusDeploy/cli/pkg/cmd/tenant/shared"
@@ -64,8 +65,8 @@ func NewCmdClone(f factory.Factory) *cobra.Command {
 		Short: "Clone a tenant",
 		Long:  "Clone a tenant in Octopus Deploy",
 		Example: heredoc.Docf(`
-			$ %[1]s tenant clone
-			$ %[1]s tenant clone --name "Gary's Cakes" --source-tenant "Bob's Wood Shop" 
+			%[1]s tenant clone
+			%[1]s tenant clone --name "Gary's Cakes" --source-tenant "Bob's Wood Shop" 
 		`, constants.ExecutableName),
 		RunE: func(c *cobra.Command, args []string) error {
 			opts := NewCloneOptions(cloneFlags, cmd.NewDependencies(f, c))

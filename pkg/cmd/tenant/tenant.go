@@ -25,8 +25,8 @@ func NewCmdTenant(f factory.Factory) *cobra.Command {
 		Short: "Manage tenants",
 		Long:  "Manage tenants in Octopus Deploy",
 		Example: heredoc.Docf(`
-			$ %[1]s tenant list
-			$ %[1]s tenant ls
+			%[1]s tenant list
+			%[1]s tenant ls
 		`, constants.ExecutableName),
 		Annotations: map[string]string{
 			annotations.IsCore: "true",

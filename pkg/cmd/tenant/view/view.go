@@ -52,8 +52,8 @@ func NewCmdView(f factory.Factory) *cobra.Command {
 		Short: "View a tenant",
 		Long:  "View a tenant in Octopus Deploy",
 		Example: heredoc.Docf(`
-			$ %[1]s tenant view Tenants-1
-			$ %[1]s tenant view 'Tenant'
+			%[1]s tenant view Tenants-1
+			%[1]s tenant view 'Tenant'
 		`, constants.ExecutableName),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			client, err := f.GetSpacedClient(apiclient.NewRequester(cmd))

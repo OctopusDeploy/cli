@@ -57,9 +57,9 @@ func NewCmdAllow(f factory.Factory) *cobra.Command {
 		Short: "Allows a release to progress to the next phase.",
 		Long:  "Allows a release to progress to the next phase in Octopus Deploy.",
 		Example: heredoc.Docf(`
-			$ %[1]s release progression allow --project MyProject --version 1.2.3
-			$ %[1]s release progression allow -p MyProject -v 1.2.3
-			$ %[1]s release progression allow -p MyProject -v 1.2.3 --no-prompt
+			%[1]s release progression allow --project MyProject --version 1.2.3
+			%[1]s release progression allow -p MyProject -v 1.2.3
+			%[1]s release progression allow -p MyProject -v 1.2.3 --no-prompt
 		`, constants.ExecutableName),
 		Aliases: []string{"allow-releaseprogression"},
 		RunE: func(c *cobra.Command, _ []string) error {

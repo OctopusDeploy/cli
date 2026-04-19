@@ -15,7 +15,7 @@ func NewCmdCloudRegion(f factory.Factory) *cobra.Command {
 		Use:     "cloud-region <command>",
 		Short:   "Manage Cloud Region deployment targets",
 		Long:    "Manage Cloud Region deployment targets in Octopus Deploy",
-		Example: heredoc.Docf("$ %s deployment-target cloud-region list", constants.ExecutableName),
+		Example: heredoc.Docf("%s deployment-target cloud-region list", constants.ExecutableName),
 	}
 
 	cmd.AddCommand(cmdCreate.NewCmdCreate(f))

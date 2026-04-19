@@ -15,7 +15,7 @@ func NewCmdList(f factory.Factory) *cobra.Command {
 		Use:     "list",
 		Short:   "List spaces",
 		Long:    "List spaces in Octopus Deploy",
-		Example: heredoc.Docf("$ %s space list", constants.ExecutableName),
+		Example: heredoc.Docf("%s space list", constants.ExecutableName),
 		Aliases: []string{"ls"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return listRun(f, cmd)

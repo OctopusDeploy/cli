@@ -65,8 +65,8 @@ func NewExcludeVariableSetCmd(f factory.Factory) *cobra.Command {
 		Short: "Exclude a variable set from a project",
 		Long:  "Exclude a variable set from a project in Octopus Deploy",
 		Example: heredoc.Docf(`
-			$ %[1]s project variable exclude
-			$ %[1]s project variable exclude --variable-set "Slack Variables"
+			%[1]s project variable exclude
+			%[1]s project variable exclude --variable-set "Slack Variables"
 		`, constants.ExecutableName),
 		RunE: func(c *cobra.Command, args []string) error {
 			opts := NewExcludeOptions(createFlags, cmd.NewDependencies(f, c))

@@ -16,8 +16,8 @@ func NewCmdSnapshot(f factory.Factory) *cobra.Command {
 		Short: "Manage runbook snapshots",
 		Long:  "Manage runbook snapshots in Octopus Deploy",
 		Example: heredoc.Docf(`
-			$ %[1]s runbook snapshot create
-			$ %[1]s runbook snapshot list
+			%[1]s runbook snapshot create
+			%[1]s runbook snapshot list
 		`, constants.ExecutableName),
 	}
 

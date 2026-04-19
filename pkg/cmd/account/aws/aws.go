@@ -14,7 +14,7 @@ func NewCmdAws(f factory.Factory) *cobra.Command {
 		Use:     "aws <command>",
 		Short:   "Manage AWS accounts",
 		Long:    "Manage AWS accounts in Octopus Deploy",
-		Example: heredoc.Docf("$ %s account aws list", constants.ExecutableName),
+		Example: heredoc.Docf("%s account aws list", constants.ExecutableName),
 	}
 
 	cmd.AddCommand(cmdList.NewCmdList(f))

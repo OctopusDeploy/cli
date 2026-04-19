@@ -2,9 +2,10 @@ package view
 
 import (
 	"fmt"
-	"github.com/OctopusDeploy/cli/pkg/apiclient"
 	"io"
 	"strings"
+
+	"github.com/OctopusDeploy/cli/pkg/apiclient"
 
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/constants"
@@ -50,9 +51,9 @@ func NewCmdView(f factory.Factory) *cobra.Command {
 		Short: "View a project",
 		Long:  "View a project in Octopus Deploy",
 		Example: heredoc.Docf(`
-			$ %[1]s project view 'Deploy Web App'
-			$ %[1]s project view Projects-9000
-			$ %[1]s project view deploy-web-app
+			%[1]s project view 'Deploy Web App'
+			%[1]s project view Projects-9000
+			%[1]s project view deploy-web-app
 		`, constants.ExecutableName),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			client, err := f.GetSpacedClient(apiclient.NewRequester(cmd))

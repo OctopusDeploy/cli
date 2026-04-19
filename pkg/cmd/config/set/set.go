@@ -18,6 +18,7 @@ func NewCmdSet(f factory.Factory) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "set [key] [value]",
 		Short: "Set will write the value for given key to Octopus CLI config file",
+		Long:  "Set will write the value for given key to Octopus CLI config file.",
 		RunE: func(_ *cobra.Command, args []string) error {
 			key := ""
 			value := ""

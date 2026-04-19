@@ -18,8 +18,8 @@ func NewCmdProjectGroup(f factory.Factory) *cobra.Command {
 		Short: "Manage project groups",
 		Long:  "Manage project groups in Octopus Deploy",
 		Example: heredoc.Docf(`
-			$ %[1]s project-group list
-			$ %[1]s project-group ls
+			%[1]s project-group list
+			%[1]s project-group ls
 		`, constants.ExecutableName),
 		Annotations: map[string]string{
 			annotations.IsCore: "true",
