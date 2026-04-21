@@ -1,6 +1,9 @@
 name: 'Generate Docs'
 on:
   workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
 env:
   DOCS_TOKEN: ${{ secrets.DOCS_TOKEN }}
 jobs:
