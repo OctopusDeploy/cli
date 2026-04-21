@@ -1,11 +1,13 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"os"
 	"os/user"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 	"text/template"
@@ -176,18 +178,39 @@ func GenMarkdownTreeCustom(cmd *cobra.Command, dir string, relativeBasePath stri
 	}
 
 	info := NewTemplateInformation(cmd, dir, relativeBasePath, myPosition)
-	f, err := os.Create(info.OutputFile)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
 
 	*pageCollection.Pages = append(*pageCollection.Pages, info)
 
-	if err := GenMarkdownCustom(cmd, f, info); err != nil {
+	// Generate new content to buffer
+	var buf bytes.Buffer
+	if err := GenMarkdownCustom(cmd, &buf, info); err != nil {
 		return err
 	}
-	return nil
+	updatedContent := buf.Bytes()
+
+	// Only write if content actually changed (ignoring modDate line)
+	if existingContent, err := os.ReadFile(info.OutputFile); err == nil {
+		if contentEqualIgnoringModDate(existingContent, updatedContent) {
+			return nil
+		}
+	}
+
+	return os.WriteFile(info.OutputFile, updatedContent, 0644)
+}
+
+var modDatePattern = regexp.MustCompile(`(?m)^modDate: .+$`)
+
+// contentEqualIgnoringModDate compares two file contents, treating the modDate
+// frontmatter line as identical regardless of actual date value.
+// Normalizes CRLF to LF before comparing so existing files with different
+// line endings don't cause false mismatches.
+func contentEqualIgnoringModDate(a, b []byte) bool {
+	placeholder := []byte("modDate: PLACEHOLDER")
+	cr := []byte("\r\n")
+	lf := []byte("\n")
+	normA := bytes.ReplaceAll(modDatePattern.ReplaceAll(a, placeholder), cr, lf)
+	normB := bytes.ReplaceAll(modDatePattern.ReplaceAll(b, placeholder), cr, lf)
+	return bytes.Equal(normA, normB)
 }
 
 const documentationTemplate = `---
