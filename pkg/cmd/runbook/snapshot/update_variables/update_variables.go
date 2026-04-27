@@ -86,6 +86,13 @@ func updateVariablesRun(opts *UpdateVariablesOptions) error {
 		}
 	}
 
+	if opts.Project.Value == "" {
+		return errors.New("project must be specified")
+	}
+	if opts.Runbook.Value == "" {
+		return errors.New("runbook must be specified")
+	}
+
 	project, err := selectors.FindProject(opts.Client, opts.Project.Value)
 	if err != nil {
 		return err

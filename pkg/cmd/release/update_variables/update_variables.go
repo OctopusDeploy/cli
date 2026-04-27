@@ -1,6 +1,7 @@
 package update_variables
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -87,6 +88,13 @@ func updateVariablesRun(opts *UpdateVariablesOptions) error {
 		if err := PromptMissing(opts); err != nil {
 			return err
 		}
+	}
+
+	if opts.Project.Value == "" {
+		return errors.New("project must be specified")
+	}
+	if opts.Version.Value == "" {
+		return errors.New("version must be specified")
 	}
 
 	releaseID, err := shared.GetReleaseID(opts.Client, opts.Client.GetSpaceID(), opts.Project.Value, opts.Version.Value)
