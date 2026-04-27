@@ -106,9 +106,13 @@ func updateVariablesRun(opts *UpdateVariablesOptions) error {
 		return errors.New("unable to find runbook")
 	}
 
-	snapshotID, snapshotName, err := resolveSnapshot(opts, runbook)
+	snapshotID, snapshotName, defaultedToPublished, err := resolveSnapshot(opts, runbook)
 	if err != nil {
 		return err
+	}
+
+	if defaultedToPublished {
+		fmt.Fprintf(opts.Out, "Updating variables for published snapshot '%s' (%s)\n", snapshotName, output.Dim(snapshotID))
 	}
 
 	path := fmt.Sprintf("/api/%s/runbookSnapshots/%s/snapshot-variables", opts.Space.GetID(), snapshotID)
@@ -125,13 +129,13 @@ func updateVariablesRun(opts *UpdateVariablesOptions) error {
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		body, readErr := io.ReadAll(resp.Body)
- 		if readErr != nil {
- 			return fmt.Errorf("failed to update variable snapshot (HTTP %d) and failed to read response body: %w", resp.StatusCode, readErr)
- 		}
+		if readErr != nil {
+			return fmt.Errorf("failed to update variable snapshot (HTTP %d) and failed to read response body: %w", resp.StatusCode, readErr)
+		}
 		return fmt.Errorf("failed to update variable snapshot (HTTP %d): %s", resp.StatusCode, string(body))
 	}
 
-	fmt.Fprintf(opts.Out, "Successfully updated variable snapshot for '%s'\n", snapshotName)
+	fmt.Fprintf(opts.Out, "Successfully updated variable snapshot '%s' (%s) for runbook '%s'\n", snapshotName, output.Dim(snapshotID), runbook.Name)
 	link := output.Bluef("%s/app#/%s/projects/%s/operations/runbooks/%s/snapshots/%s", opts.Host, opts.Space.GetID(), project.GetID(), runbook.GetID(), snapshotID)
 	fmt.Fprintf(opts.Out, "View this snapshot on Octopus Deploy: %s\n", link)
 
@@ -143,30 +147,30 @@ func updateVariablesRun(opts *UpdateVariablesOptions) error {
 	return nil
 }
 
-func resolveSnapshot(opts *UpdateVariablesOptions, runbook *runbooks.Runbook) (id string, name string, err error) {
+func resolveSnapshot(opts *UpdateVariablesOptions, runbook *runbooks.Runbook) (id string, name string, defaultedToPublished bool, err error) {
 	if opts.Snapshot.Value != "" {
 		snapshot, err := runbooks.GetSnapshot(opts.Client, opts.Space.GetID(), runbook.ProjectID, opts.Snapshot.Value)
 		if err != nil {
-			return "", "", err
+			return "", "", false, err
 		}
 		if snapshot == nil {
-			return "", "", errors.New("unable to find snapshot")
+			return "", "", false, errors.New("unable to find snapshot")
 		}
-		return snapshot.GetID(), snapshot.Name, nil
+		return snapshot.GetID(), snapshot.Name, false, nil
 	}
 
 	if runbook.PublishedRunbookSnapshotID == "" {
-		return "", "", errors.New("runbook has no published snapshot; specify a snapshot with --snapshot")
+		return "", "", false, errors.New("runbook has no published snapshot; specify a snapshot with --snapshot")
 	}
 
 	snapshot, err := runbooks.GetSnapshot(opts.Client, opts.Space.GetID(), runbook.ProjectID, runbook.PublishedRunbookSnapshotID)
 	if err != nil {
-		return "", "", err
+		return "", "", false, err
 	}
 	if snapshot == nil {
-		return "", "", fmt.Errorf("unable to find published snapshot '%s'", runbook.PublishedRunbookSnapshotID)
+		return "", "", false, fmt.Errorf("unable to find published snapshot '%s'", runbook.PublishedRunbookSnapshotID)
 	}
-	return snapshot.GetID(), snapshot.Name, nil
+	return snapshot.GetID(), snapshot.Name, true, nil
 }
 
 func PromptMissing(opts *UpdateVariablesOptions) error {
@@ -198,11 +202,14 @@ func getProject(opts *UpdateVariablesOptions) (*projects.Project, error) {
 		project, err = opts.GetProjectCallback(opts.Project.Value)
 	}
 
+	if err != nil {
+		return nil, err
+	}
 	if project == nil {
 		return nil, errors.New("unable to find project")
 	}
 
-	return project, err
+	return project, nil
 }
 
 func getRunbook(opts *UpdateVariablesOptions, project *projects.Project) (*runbooks.Runbook, error) {
@@ -214,9 +221,12 @@ func getRunbook(opts *UpdateVariablesOptions, project *projects.Project) (*runbo
 		runbook, err = opts.GetDbRunbookCallback(project.GetID(), opts.Runbook.Value)
 	}
 
+	if err != nil {
+		return nil, err
+	}
 	if runbook == nil {
 		return nil, errors.New("unable to find runbook")
 	}
 
-	return runbook, err
+	return runbook, nil
 }
