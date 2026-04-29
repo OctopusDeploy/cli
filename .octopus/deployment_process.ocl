@@ -270,7 +270,7 @@ step "publish-winget-update-pr" {
         }
 
         packages "cli" {
-            acquisition_location = "Server"
+            acquisition_location = "NotAcquired"
             feed = "octopus-server-built-in"
             package_id = "octopus-cli"
             properties = {
