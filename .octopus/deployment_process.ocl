@@ -242,7 +242,7 @@ step "publish-winget-update-pr" {
                 # Install winget-create
                 Invoke-WebRequest https://aka.ms/wingetcreate/latest -OutFile wingetcreate.exe
                 
-                $version = $OctopusParameters["Octopus.Release.Number"]
+                $version = $OctopusParameters["Octopus.Action.Package[cli].PackageVersion"]
                 
                 $packageUrls = "https://github.com/OctopusDeploy/cli/releases/download/v$version/octopus_$($version)_windows_amd64.msi|x64"
                 
@@ -267,6 +267,16 @@ step "publish-winget-update-pr" {
         container {
             feed = "docker-hub"
             image = "octopusdeploy/worker-tools:6.4-windows.ltsc2022"
+        }
+
+        packages "cli" {
+            acquisition_location = "Server"
+            feed = "octopus-server-built-in"
+            package_id = "octopus-cli"
+            properties = {
+                Extract = "False"
+                SelectionMode = "immediate"
+            }
         }
     }
 }
