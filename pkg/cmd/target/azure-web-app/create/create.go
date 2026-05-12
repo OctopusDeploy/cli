@@ -159,6 +159,14 @@ func createRun(opts *CreateOptions) error {
 	endpoint.WebAppName = opts.WebApp.Value
 	endpoint.ResourceGroupName = opts.ResourceGroup.Value
 	endpoint.WebAppSlotName = opts.Slot.Value
+	if opts.WorkerPool.Value != "" {
+		workerPoolId, err := shared.FindWorkerPoolId(opts.GetAllWorkerPoolsCallback, opts.WorkerPool.Value)
+		if err != nil {
+			return err
+		}
+		endpoint.DefaultWorkerPoolID = workerPoolId
+	}
+
 	deploymentTarget := machines.NewDeploymentTarget(opts.Name.Value, endpoint, environmentIds, util.SliceDistinct(combinedRoles))
 
 	err = shared.ConfigureTenant(deploymentTarget, opts.CreateTargetTenantFlags, opts.CreateTargetTenantOptions)
