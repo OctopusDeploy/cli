@@ -216,7 +216,8 @@ func (p *PackageVersionOverride) ToPackageOverrideString() string {
 }
 
 // splitPackageOverrideString splits the input string into components based on delimiter characters (:, /, =).
-// Supports escaping delimiters with a backslash (e.g. \: for a literal colon in Maven package IDs).
+// A backslash escapes the next char only when that char is one of : / = \ ; any other "\X" sequence is preserved
+// literally so existing inputs containing backslashes are unaffected.
 // Empty entries are preserved; "::5" and ":pterm:5" both return THREE components.
 func splitPackageOverrideString(s string) []string {
 	type span struct {
@@ -225,18 +226,16 @@ func splitPackageOverrideString(s string) []string {
 	}
 	spans := make([]span, 0, 3)
 	start := 0
-	escaped := false
 
-	for idx, ch := range s {
-		if ch == '\\' && !escaped {
-			escaped = true
+	for i := 0; i < len(s); i++ {
+		ch := s[i]
+		if ch == '\\' && i+1 < len(s) && isEscapableDelimiter(s[i+1]) {
+			i++
 			continue
 		}
-		if (ch == ':' || ch == '/' || ch == '=') && !escaped {
-			spans = append(spans, span{start, idx})
-			start = idx + 1
-		} else {
-			escaped = false
+		if ch == ':' || ch == '/' || ch == '=' {
+			spans = append(spans, span{start, i})
+			start = i + 1
 		}
 	}
 	spans = append(spans, span{start, len(s)})
@@ -249,17 +248,17 @@ func splitPackageOverrideString(s string) []string {
 }
 
 func unescapePackageString(s string) string {
-	result := make([]rune, 0, len(s))
-	escaped := false
-	for _, ch := range s {
-		if ch == '\\' && !escaped {
-			escaped = true
+	var result strings.Builder
+	result.Grow(len(s))
+	for i := 0; i < len(s); i++ {
+		if s[i] == '\\' && i+1 < len(s) && isEscapableDelimiter(s[i+1]) {
+			result.WriteByte(s[i+1])
+			i++
 			continue
 		}
-		result = append(result, ch)
-		escaped = false
+		result.WriteByte(s[i])
 	}
-	return string(result)
+	return result.String()
 }
 
 func escapePackageDelimiters(s string) string {
@@ -271,6 +270,10 @@ func escapePackageDelimiters(s string) string {
 		result.WriteRune(ch)
 	}
 	return result.String()
+}
+
+func isEscapableDelimiter(b byte) bool {
+	return b == ':' || b == '/' || b == '=' || b == '\\'
 }
 
 // AmbiguousPackageVersionOverride tells us that we want to set the version of some package to `Version`

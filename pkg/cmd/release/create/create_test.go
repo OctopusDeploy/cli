@@ -2427,6 +2427,9 @@ func TestReleaseCreate_ToPackageOverrideString(t *testing.T) {
 		{name: "maven-pkg-ref-ver", input: &packages.PackageVersionOverride{PackageID: "com.juliusbaer.fi-master:deployment", PackageReferenceName: "ref", Version: "25.2026.04.1"}, expect: `com.juliusbaer.fi-master\:deployment:ref:25.2026.04.1`},
 		// Step name with slash gets escaped
 		{name: "step-slash-ver", input: &packages.PackageVersionOverride{ActionName: "Deploy Templates/templates", Version: "1.0"}, expect: `Deploy Templates\/templates:1.0`},
+		// Literal backslashes in package IDs/step names get escaped as \\
+		{name: "pkg-with-backslash", input: &packages.PackageVersionOverride{PackageID: `foo\bar`, Version: "1.0"}, expect: `foo\\bar:1.0`},
+		{name: "step-with-trailing-backslash", input: &packages.PackageVersionOverride{ActionName: `step\`, Version: "1.0"}, expect: `step\\:1.0`},
 	}
 
 	for _, test := range tests {
@@ -2469,6 +2472,10 @@ func TestReleaseCreate_ParsePackageOverrideString(t *testing.T) {
 		{input: `Deploy Templates\/templates:1.0`, expect: &packages.AmbiguousPackageVersionOverride{ActionNameOrPackageID: "Deploy Templates/templates", Version: "1.0"}},
 		// Escaped backslash
 		{input: `foo\\bar:1.0`, expect: &packages.AmbiguousPackageVersionOverride{ActionNameOrPackageID: `foo\bar`, Version: "1.0"}},
+		// Backslash before a non-escapable char must be preserved verbatim (no silent strip)
+		{input: `foo\bar:1.0`, expect: &packages.AmbiguousPackageVersionOverride{ActionNameOrPackageID: `foo\bar`, Version: "1.0"}},
+		{input: `path\to\step:1.0`, expect: &packages.AmbiguousPackageVersionOverride{ActionNameOrPackageID: `path\to\step`, Version: "1.0"}},
+		{input: `step:foo\bar:1.0`, expect: &packages.AmbiguousPackageVersionOverride{ActionNameOrPackageID: "step", PackageReferenceName: `foo\bar`, Version: "1.0"}},
 
 		{input: "", expectErr: errors.New("empty package version specification")},
 
