@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.21.1](https://github.com/OctopusDeploy/cli/compare/v2.21.0...v2.21.1) (2026-05-13)
+
+
+### Bug Fixes
+
+* set default worker pool correctly on azure web app target create ([#596](https://github.com/OctopusDeploy/cli/issues/596)) ([fc2df3d](https://github.com/OctopusDeploy/cli/commit/fc2df3d42acfd74340d18cae2f2d77976c00d07b)), closes [#595](https://github.com/OctopusDeploy/cli/issues/595)
+
 ## [2.21.0](https://github.com/OctopusDeploy/cli/compare/v2.20.1...v2.21.0) (2026-04-08)
 
 
