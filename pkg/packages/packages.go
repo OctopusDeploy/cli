@@ -264,7 +264,7 @@ func unescapePackageString(s string) string {
 func escapePackageDelimiters(s string) string {
 	var result strings.Builder
 	for _, ch := range s {
-		if ch == ':' || ch == '/' || ch == '=' || ch == '\\' {
+		if ch == ':' || ch == '/' || ch == '=' {
 			result.WriteRune('\\')
 		}
 		result.WriteRune(ch)
