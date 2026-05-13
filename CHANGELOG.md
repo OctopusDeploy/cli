@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.21.2](https://github.com/OctopusDeploy/cli/compare/v2.21.1...v2.21.2) (2026-05-13)
+
+
+### Bug Fixes
+
+* Support escaped delimiters in --package for Maven packages ([#584](https://github.com/OctopusDeploy/cli/issues/584)) ([5e36aec](https://github.com/OctopusDeploy/cli/commit/5e36aeca23dd9837e95a9566e90cc96ed65c4573)), closes [#547](https://github.com/OctopusDeploy/cli/issues/547)
+
 ## [2.21.1](https://github.com/OctopusDeploy/cli/compare/v2.21.0...v2.21.1) (2026-05-13)
 
 
