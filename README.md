@@ -260,6 +260,7 @@ pkg/
    cmd/ # contains sub-packages for each cobra command
       account/ # contains commands related to accounts
       environment/ # contains commands related to environments
+      kubernetes/ # contains commands related to Kubernetes observability (live status)
       ... # more commands
   constants/ # constant values to avoid duplicated strings, ints, etc
   errors/ # internal error objects
