@@ -2,6 +2,7 @@ package shared
 
 import (
 	"fmt"
+
 	"github.com/OctopusDeploy/cli/pkg/cmd"
 	"github.com/OctopusDeploy/cli/pkg/machinescommon"
 	"github.com/OctopusDeploy/cli/pkg/output"
@@ -87,6 +88,15 @@ func ViewRun(opts *ViewOptions, contributeEndpoint ContributeEndpointCallback, d
 		data = append(data, output.NewDataRow("Tenant Tags", "None"))
 	}
 
+	if endpoint, ok := target.Endpoint.(*machines.AzureWebAppEndpoint); ok {
+		workerPoolName := "None"
+		if endpoint.DefaultWorkerPoolID != "" {
+			workerPoolMap, _ := GetWorkerPoolMap(opts)
+			workerPoolName = resolveValues([]string{endpoint.DefaultWorkerPoolID}, workerPoolMap)[0]
+		}
+		data = append(data, output.NewDataRow("Default Worker Pool", workerPoolName))
+	}
+
 	t := output.NewTable(opts.Out)
 	for _, row := range data {
 		t.AddRow(row.Name, row.Value)
@@ -140,6 +150,18 @@ func GetEnvironmentMap(opts *ViewOptions) (map[string]string, error) {
 		environmentMap[e.GetID()] = e.GetName()
 	}
 	return environmentMap, nil
+}
+
+func GetWorkerPoolMap(opts *ViewOptions) (map[string]string, error) {
+	workerPoolMap := make(map[string]string)
+	allWorkerPools, err := opts.Client.WorkerPools.GetAll()
+	if err != nil {
+		return nil, err
+	}
+	for _, wp := range allWorkerPools {
+		workerPoolMap[wp.ID] = wp.Name
+	}
+	return workerPoolMap, nil
 }
 
 func GetTenantMap(opts *ViewOptions) (map[string]string, error) {

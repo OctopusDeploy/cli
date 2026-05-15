@@ -46,10 +46,13 @@ func ViewRun(opts *shared.ViewOptions) error {
 
 	return output.PrintResource(target, opts.Command, output.Mappers[*machines.DeploymentTarget]{
 		Json: func(t *machines.DeploymentTarget) any {
+			if target.Endpoint.GetCommunicationStyle() == "AzureWebApp" {
+				return getAzureDeploymentTargetAsJson(opts, t)
+			}
 			return getDeploymentTargetAsJson(opts, t)
 		},
 		Table: output.TableDefinition[*machines.DeploymentTarget]{
-			Header: []string{"NAME", "TYPE", "HEALTH", "ENVIRONMENTS", "ROLES", "TENANTS", "TENANT TAGS", "ENDPOINT DETAILS"},
+			Header: []string{"NAME", "TYPE", "HEALTH", "ENVIRONMENTS", "ROLES", "TENANTS", "TENANT TAGS", "ENDPOINT DETAILS", "DEFAULT WORKER POOL"},
 			Row: func(t *machines.DeploymentTarget) []string {
 				return getDeploymentTargetAsTableRow(opts, t)
 			},
@@ -74,6 +77,11 @@ type DeploymentTargetAsJson struct {
 	WebUrl             string            `json:"WebUrl"`
 }
 
+type AzureDeploymentTargetAsJson struct {
+	DeploymentTargetAsJson
+	DefaultWorkerPool string `json:"DefaultWorkerPool"`
+}
+
 func getDeploymentTargetAsJson(opts *shared.ViewOptions, target *machines.DeploymentTarget) DeploymentTargetAsJson {
 	environmentMap, _ := shared.GetEnvironmentMap(opts)
 	tenantMap, _ := shared.GetTenantMap(opts)
@@ -81,7 +89,7 @@ func getDeploymentTargetAsJson(opts *shared.ViewOptions, target *machines.Deploy
 	environments := resolveValues(target.EnvironmentIDs, environmentMap)
 	tenants := resolveValues(target.TenantIDs, tenantMap)
 
-	endpointDetails := getEndpointDetails(target)
+	endpointDetails := getEndpointDetails(target, opts)
 
 	return DeploymentTargetAsJson{
 		Id:                 target.GetID(),
@@ -96,6 +104,17 @@ func getDeploymentTargetAsJson(opts *shared.ViewOptions, target *machines.Deploy
 		EndpointDetails:    endpointDetails,
 		WebUrl:             util.GenerateWebURL(opts.Host, target.SpaceID, fmt.Sprintf("infrastructure/machines/%s/settings", target.GetID())),
 	}
+}
+
+func getAzureDeploymentTargetAsJson(opts *shared.ViewOptions, target *machines.DeploymentTarget) AzureDeploymentTargetAsJson {
+	deploymentTargetAsJson := getDeploymentTargetAsJson(opts, target)
+	workerPool := resolveDefaultWorkerPool(target, opts)
+	var azureTargetAsJson = AzureDeploymentTargetAsJson{
+		DeploymentTargetAsJson: deploymentTargetAsJson,
+		DefaultWorkerPool:      workerPool,
+	}
+	return azureTargetAsJson
+
 }
 
 func getDeploymentTargetAsTableRow(opts *shared.ViewOptions, target *machines.DeploymentTarget) []string {
@@ -120,7 +139,7 @@ func getDeploymentTargetAsTableRow(opts *shared.ViewOptions, target *machines.De
 	}
 
 	// Handle endpoint details
-	endpointDetails := getEndpointDetails(target)
+	endpointDetails := getEndpointDetails(target, opts)
 	var endpointDetailsStr strings.Builder
 	first := true
 	for key, value := range endpointDetails {
@@ -135,6 +154,8 @@ func getDeploymentTargetAsTableRow(opts *shared.ViewOptions, target *machines.De
 		endpointDetailsString = "-"
 	}
 
+	workerPool := resolveDefaultWorkerPool(target, opts)
+
 	return []string{
 		output.Bold(target.Name),
 		targetType,
@@ -144,6 +165,7 @@ func getDeploymentTargetAsTableRow(opts *shared.ViewOptions, target *machines.De
 		tenants,
 		tenantTags,
 		endpointDetailsString,
+		workerPool,
 	}
 }
 
@@ -203,7 +225,7 @@ func getDeploymentTargetAsBasic(opts *shared.ViewOptions, target *machines.Deplo
 	result.WriteString(fmt.Sprintf("Type: %s\n", output.Cyan(targetType)))
 
 	// Add endpoint-specific details
-	endpointDetails := getEndpointDetails(target)
+	endpointDetails := getEndpointDetails(target, opts)
 	for key, value := range endpointDetails {
 		result.WriteString(fmt.Sprintf("%s: %s\n", key, value))
 	}
@@ -232,6 +254,15 @@ func getDeploymentTargetAsBasic(opts *shared.ViewOptions, target *machines.Deplo
 		result.WriteString("Tenant Tags: None\n")
 	}
 
+	// default worker pool
+	if target.Endpoint.GetCommunicationStyle() == "AzureWebApp" {
+		workerPool := resolveDefaultWorkerPool(target, opts)
+		if workerPool == "" {
+			workerPool = "None"
+		}
+		result.WriteString(fmt.Sprintf("Default Worker Pool: %s\n", workerPool))
+	}
+
 	// Web URL
 	url := util.GenerateWebURL(opts.Host, target.SpaceID, fmt.Sprintf("infrastructure/machines/%s/settings", target.GetID()))
 	result.WriteString(fmt.Sprintf("\nView this deployment target in Octopus Deploy: %s\n", output.Blue(url)))
@@ -256,7 +287,7 @@ func resolveValues(keys []string, lookup map[string]string) []string {
 	return values
 }
 
-func getEndpointDetails(target *machines.DeploymentTarget) map[string]string {
+func getEndpointDetails(target *machines.DeploymentTarget, opts *shared.ViewOptions) map[string]string {
 	details := make(map[string]string)
 
 	switch target.Endpoint.GetCommunicationStyle() {
@@ -298,4 +329,17 @@ func getEndpointDetails(target *machines.DeploymentTarget) map[string]string {
 	}
 
 	return details
+}
+
+func resolveDefaultWorkerPool(target *machines.DeploymentTarget, opts *shared.ViewOptions) string {
+	if endpoint, ok := target.Endpoint.(*machines.AzureWebAppEndpoint); ok {
+		if endpoint.DefaultWorkerPoolID != "" {
+			workerPoolMap, _ := shared.GetWorkerPoolMap(opts)
+			return resolveValues([]string{endpoint.DefaultWorkerPoolID}, workerPoolMap)[0]
+		} else {
+			return ""
+		}
+	}
+
+	return "N/A"
 }
