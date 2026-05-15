@@ -2,6 +2,7 @@ package shared
 
 import (
 	"fmt"
+
 	"github.com/OctopusDeploy/cli/pkg/cmd"
 	"github.com/OctopusDeploy/cli/pkg/machinescommon"
 	"github.com/OctopusDeploy/cli/pkg/output"
@@ -140,6 +141,18 @@ func GetEnvironmentMap(opts *ViewOptions) (map[string]string, error) {
 		environmentMap[e.GetID()] = e.GetName()
 	}
 	return environmentMap, nil
+}
+
+func GetWorkerPoolMap(opts *ViewOptions) (map[string]string, error) {
+	workerPoolMap := make(map[string]string)
+	allWorkerPools, err := opts.Client.WorkerPools.GetAll()
+	if err != nil {
+		return nil, err
+	}
+	for _, wp := range allWorkerPools {
+		workerPoolMap[wp.ID] = wp.Name
+	}
+	return workerPoolMap, nil
 }
 
 func GetTenantMap(opts *ViewOptions) (map[string]string, error) {
