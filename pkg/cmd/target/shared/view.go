@@ -88,6 +88,15 @@ func ViewRun(opts *ViewOptions, contributeEndpoint ContributeEndpointCallback, d
 		data = append(data, output.NewDataRow("Tenant Tags", "None"))
 	}
 
+	if endpoint, ok := target.Endpoint.(*machines.AzureWebAppEndpoint); ok {
+		workerPoolName := "None"
+		if endpoint.DefaultWorkerPoolID != "" {
+			workerPoolMap, _ := GetWorkerPoolMap(opts)
+			workerPoolName = resolveValues([]string{endpoint.DefaultWorkerPoolID}, workerPoolMap)[0]
+		}
+		data = append(data, output.NewDataRow("Default Worker Pool", workerPoolName))
+	}
+
 	t := output.NewTable(opts.Out)
 	for _, row := range data {
 		t.AddRow(row.Name, row.Value)
