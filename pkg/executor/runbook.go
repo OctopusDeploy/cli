@@ -22,19 +22,21 @@ type TaskResultRunbookRun struct {
 // and looking them up for their ID's; we should only deal with strong references at this level
 
 type TaskOptionsRunbookRunBase struct {
-	ProjectName          string // required
-	RunbookName          string // the name of the runbook to run
-	Environments         []string
-	Tenants              []string
-	TenantTags           []string
-	ScheduledStartTime   string
-	ScheduledExpiryTime  string
-	ExcludedSteps        []string
-	GuidedFailureMode    string // ["", "true", "false", "default"]. Note default and "" are the same, the only difference is whether interactive mode prompts you
-	ForcePackageDownload bool
-	RunTargets           []string
-	ExcludeTargets       []string
-	Variables            map[string]string
+	ProjectName            string // required
+	RunbookName            string // the name of the runbook to run
+	Environments           []string
+	Tenants                []string
+	TenantTags             []string
+	ScheduledStartTime     string
+	ScheduledExpiryTime    string
+	ExcludedSteps          []string
+	GuidedFailureMode      string // ["", "true", "false", "default"]. Note default and "" are the same, the only difference is whether interactive mode prompts you
+	ForcePackageDownload   bool
+	RunTargets             []string
+	ExcludeTargets         []string
+	SpecificTargetTagNames []string
+	ExcludedTargetTagNames []string
+	Variables              map[string]string
 
 	// extra behaviour commands
 
@@ -75,15 +77,17 @@ func runbookRun(octopus *client.Client, space *spaces.Space, input any) error {
 
 	// common properties
 	abstractCmd := deployments.CreateExecutionAbstractCommandV1{
-		SpaceID:              space.ID,
-		ProjectIDOrName:      params.ProjectName,
-		ForcePackageDownload: params.ForcePackageDownload,
-		SpecificMachineNames: params.RunTargets,
-		ExcludedMachineNames: params.ExcludeTargets,
-		SkipStepNames:        params.ExcludedSteps,
-		RunAt:                params.ScheduledStartTime,
-		NoRunAfter:           params.ScheduledExpiryTime,
-		Variables:            params.Variables,
+		SpaceID:                space.ID,
+		ProjectIDOrName:        params.ProjectName,
+		ForcePackageDownload:   params.ForcePackageDownload,
+		SpecificMachineNames:   params.RunTargets,
+		ExcludedMachineNames:   params.ExcludeTargets,
+		SpecificTargetTagNames: params.SpecificTargetTagNames,
+		ExcludedTargetTagNames: params.ExcludedTargetTagNames,
+		SkipStepNames:          params.ExcludedSteps,
+		RunAt:                  params.ScheduledStartTime,
+		NoRunAfter:             params.ScheduledExpiryTime,
+		Variables:              params.Variables,
 	}
 
 	b, err := strconv.ParseBool(params.GuidedFailureMode)
@@ -149,15 +153,17 @@ func gitRunbookRun(octopus *client.Client, space *spaces.Space, input any) error
 
 	// common properties
 	abstractCmd := deployments.CreateExecutionAbstractCommandV1{
-		SpaceID:              space.ID,
-		ProjectIDOrName:      params.ProjectName,
-		ForcePackageDownload: params.ForcePackageDownload,
-		SpecificMachineNames: params.RunTargets,
-		ExcludedMachineNames: params.ExcludeTargets,
-		SkipStepNames:        params.ExcludedSteps,
-		RunAt:                params.ScheduledStartTime,
-		NoRunAfter:           params.ScheduledExpiryTime,
-		Variables:            params.Variables,
+		SpaceID:                space.ID,
+		ProjectIDOrName:        params.ProjectName,
+		ForcePackageDownload:   params.ForcePackageDownload,
+		SpecificMachineNames:   params.RunTargets,
+		ExcludedMachineNames:   params.ExcludeTargets,
+		SpecificTargetTagNames: params.SpecificTargetTagNames,
+		ExcludedTargetTagNames: params.ExcludedTargetTagNames,
+		SkipStepNames:          params.ExcludedSteps,
+		RunAt:                  params.ScheduledStartTime,
+		NoRunAfter:             params.ScheduledExpiryTime,
+		Variables:              params.Variables,
 	}
 
 	b, err := strconv.ParseBool(params.GuidedFailureMode)
