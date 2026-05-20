@@ -89,7 +89,7 @@ func viewRun(opts *ViewOptions, cmd *cobra.Command) error {
 		return err
 	}
 
-	environmentMap, err := shared.GetEnvironmentMap(opts.Client, []*tenants.Tenant{tenant})
+	environmentMap, err := shared.GetEnvironmentMapForTenants(opts.Client, []*tenants.Tenant{tenant})
 	if err != nil {
 		return err
 	}

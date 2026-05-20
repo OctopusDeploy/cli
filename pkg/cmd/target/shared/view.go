@@ -7,6 +7,7 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/machinescommon"
 	"github.com/OctopusDeploy/cli/pkg/output"
 	"github.com/OctopusDeploy/cli/pkg/util"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/machines"
 	"github.com/spf13/cobra"
 )
@@ -61,7 +62,7 @@ func ViewRun(opts *ViewOptions, contributeEndpoint ContributeEndpointCallback, d
 		}
 	}
 
-	environmentMap, err := GetEnvironmentMap(opts)
+	environmentMap, err := GetEnvironmentMap(opts.Client)
 	if err != nil {
 		return err
 	}
@@ -71,7 +72,7 @@ func ViewRun(opts *ViewOptions, contributeEndpoint ContributeEndpointCallback, d
 	data = append(data, output.NewDataRow("Roles", output.FormatAsList(target.Roles)))
 
 	if !util.Empty(target.TenantIDs) {
-		tenantMap, err := GetTenantMap(opts)
+		tenantMap, err := GetTenantMap(opts.Client)
 		if err != nil {
 			return err
 		}
@@ -88,11 +89,11 @@ func ViewRun(opts *ViewOptions, contributeEndpoint ContributeEndpointCallback, d
 		data = append(data, output.NewDataRow("Tenant Tags", "None"))
 	}
 
-	if endpoint, ok := target.Endpoint.(*machines.AzureWebAppEndpoint); ok {
+	if runsOnAWorker, ok := target.Endpoint.(machines.IRunsOnAWorker); ok {
 		workerPoolName := "None"
-		if endpoint.DefaultWorkerPoolID != "" {
-			workerPoolMap, _ := GetWorkerPoolMap(opts)
-			workerPoolName = resolveValues([]string{endpoint.DefaultWorkerPoolID}, workerPoolMap)[0]
+		if runsOnAWorker.GetDefaultWorkerPoolID() != "" {
+			workerPoolMap, _ := GetWorkerPoolMap(opts.Client)
+			workerPoolName = resolveValues([]string{runsOnAWorker.GetDefaultWorkerPoolID()}, workerPoolMap)[0]
 		}
 		data = append(data, output.NewDataRow("Default Worker Pool", workerPoolName))
 	}
@@ -101,9 +102,9 @@ func ViewRun(opts *ViewOptions, contributeEndpoint ContributeEndpointCallback, d
 	for _, row := range data {
 		t.AddRow(row.Name, row.Value)
 	}
-	t.Print()
+	_ = t.Print()
 
-	fmt.Fprintf(opts.Out, "\n")
+	_, _ = fmt.Fprintf(opts.Out, "\n")
 	machinescommon.DoWebForTargets(target, opts.Dependencies, opts.WebFlags, description)
 	return nil
 }
@@ -140,9 +141,9 @@ func getHealthStatus(target *machines.DeploymentTarget) string {
 	}
 }
 
-func GetEnvironmentMap(opts *ViewOptions) (map[string]string, error) {
+func GetEnvironmentMap(client *client.Client) (map[string]string, error) {
 	environmentMap := make(map[string]string)
-	allEnvs, err := opts.Client.Environments.GetAll()
+	allEnvs, err := client.Environments.GetAll()
 	if err != nil {
 		return nil, err
 	}
@@ -152,9 +153,9 @@ func GetEnvironmentMap(opts *ViewOptions) (map[string]string, error) {
 	return environmentMap, nil
 }
 
-func GetWorkerPoolMap(opts *ViewOptions) (map[string]string, error) {
+func GetWorkerPoolMap(client *client.Client) (map[string]string, error) {
 	workerPoolMap := make(map[string]string)
-	allWorkerPools, err := opts.Client.WorkerPools.GetAll()
+	allWorkerPools, err := client.WorkerPools.GetAll()
 	if err != nil {
 		return nil, err
 	}
@@ -164,9 +165,9 @@ func GetWorkerPoolMap(opts *ViewOptions) (map[string]string, error) {
 	return workerPoolMap, nil
 }
 
-func GetTenantMap(opts *ViewOptions) (map[string]string, error) {
+func GetTenantMap(client *client.Client) (map[string]string, error) {
 	tenantMap := make(map[string]string)
-	allEnvs, err := opts.Client.Tenants.GetAll()
+	allEnvs, err := client.Tenants.GetAll()
 	if err != nil {
 		return nil, err
 	}
@@ -182,4 +183,16 @@ func resolveValues(keys []string, lookup map[string]string) []string {
 		values = append(values, lookup[key])
 	}
 	return values
+}
+
+func ResolveDefaultWorkerPool(target *machines.DeploymentTarget, workerPoolMap map[string]string, emptyValue string) string {
+	if endpoint, ok := target.Endpoint.(machines.IRunsOnAWorker); ok {
+		if endpoint.GetDefaultWorkerPoolID() != "" {
+			return resolveValues([]string{endpoint.GetDefaultWorkerPoolID()}, workerPoolMap)[0]
+		} else {
+			return emptyValue
+		}
+	}
+
+	return "N/A"
 }

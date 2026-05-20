@@ -42,7 +42,7 @@ func ResolveEntities(keys []string, lookup map[string]string) ([]output.IdAndNam
 	return entities, nil
 }
 
-func GetEnvironmentMap(client *client.Client, tenants []*tenants.Tenant) (map[string]string, error) {
+func GetEnvironmentMapForTenants(client *client.Client, tenants []*tenants.Tenant) (map[string]string, error) {
 	var environmentIds []string
 	for _, t := range tenants {
 		for p := range t.ProjectEnvironments {

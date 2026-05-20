@@ -42,7 +42,7 @@ func listRun(cmd *cobra.Command, f factory.Factory) error {
 		return err
 	}
 
-	environmentMap, err := shared.GetEnvironmentMap(client, allTenants)
+	environmentMap, err := shared.GetEnvironmentMapForTenants(client, allTenants)
 	if err != nil {
 		return err
 	}

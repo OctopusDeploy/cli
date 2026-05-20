@@ -55,46 +55,32 @@ func ListRun(opts *ListOptions) error {
 		return err
 	}
 
-	type TargetAsJson struct {
-		Id           string   `json:"Id"`
-		Name         string   `json:"Name"`
-		Type         string   `json:"Type"`
-		Roles        []string `json:"Roles"`
-		Environments []Entity `json:"Environments"`
-		Tenants      []Entity `json:"Tenants"`
-		TenantTags   []string `json:"TenantTags"`
-	}
-
-	environmentMap, err := GetEnvironmentMap(opts)
+	environmentMap, err := shared.GetEnvironmentMap(opts.Client)
 	if err != nil {
 		return err
 	}
 
-	tenantMap, err := GetTenantMap(opts)
+	tenantMap, err := shared.GetTenantMap(opts.Client)
+	if err != nil {
+		return err
+	}
+
+	workerPoolMap, err := shared.GetWorkerPoolMap(opts.Client)
 	if err != nil {
 		return err
 	}
 
 	return output.PrintArray(allTargets, opts.Command, output.Mappers[*machines.DeploymentTarget]{
 		Json: func(item *machines.DeploymentTarget) any {
-			environments := resolveEntities(item.EnvironmentIDs, environmentMap)
-			tenants := resolveEntities(item.TenantIDs, tenantMap)
-			return TargetAsJson{
-				Id:           item.GetID(),
-				Name:         item.Name,
-				Type:         machinescommon.CommunicationStyleToDeploymentTargetTypeMap[item.Endpoint.GetCommunicationStyle()],
-				Roles:        item.Roles,
-				Environments: environments,
-				Tenants:      tenants,
-				TenantTags:   item.TenantTags,
-			}
+			return shared.GetDeploymentTargetAsJson(opts.Dependencies, item)
 		},
 		Table: output.TableDefinition[*machines.DeploymentTarget]{
-			Header: []string{"NAME", "TYPE", "ROLES", "ENVIRONMENTS", "TENANTS", "TAGS"},
+			Header: []string{"NAME", "TYPE", "ROLES", "ENVIRONMENTS", "TENANTS", "TAGS", "DEFAULT WORKER POOL"},
 			Row: func(item *machines.DeploymentTarget) []string {
 				environmentNames := resolveValues(item.EnvironmentIDs, environmentMap)
 				tenantNames := resolveValues(item.TenantIDs, tenantMap)
-				return []string{output.Bold(item.Name), machinescommon.CommunicationStyleToDescriptionMap[item.Endpoint.GetCommunicationStyle()], output.FormatAsList(item.Roles), output.FormatAsList(environmentNames), output.FormatAsList(tenantNames), output.FormatAsList(item.TenantTags)}
+				workerPool := shared.ResolveDefaultWorkerPool(item, workerPoolMap, "None")
+				return []string{output.Bold(item.Name), machinescommon.CommunicationStyleToDescriptionMap[item.Endpoint.GetCommunicationStyle()], output.FormatAsList(item.Roles), output.FormatAsList(environmentNames), output.FormatAsList(tenantNames), output.FormatAsList(item.TenantTags), workerPool}
 			},
 		},
 		Basic: func(item *machines.DeploymentTarget) string {
@@ -109,37 +95,4 @@ func resolveValues(keys []string, lookup map[string]string) []string {
 		values = append(values, lookup[key])
 	}
 	return values
-}
-
-func resolveEntities(keys []string, lookup map[string]string) []Entity {
-	var entities []Entity
-	for _, k := range keys {
-		entities = append(entities, Entity{Id: k, Name: lookup[k]})
-	}
-
-	return entities
-}
-
-func GetEnvironmentMap(opts *ListOptions) (map[string]string, error) {
-	environmentMap := make(map[string]string)
-	allEnvs, err := opts.Client.Environments.GetAll()
-	if err != nil {
-		return nil, err
-	}
-	for _, e := range allEnvs {
-		environmentMap[e.GetID()] = e.GetName()
-	}
-	return environmentMap, nil
-}
-
-func GetTenantMap(opts *ListOptions) (map[string]string, error) {
-	tenantMap := make(map[string]string)
-	allEnvs, err := opts.Client.Tenants.GetAll()
-	if err != nil {
-		return nil, err
-	}
-	for _, e := range allEnvs {
-		tenantMap[e.GetID()] = e.Name
-	}
-	return tenantMap, nil
 }
