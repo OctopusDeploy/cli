@@ -1076,8 +1076,24 @@ func askRunbookPreviewVariables(
 		}
 	}
 
-	// Process variables from command line and prompts
-	result := make(map[string]string)
+	return resolveRunbookPreviewVariables(asker, flattenedControls, flattenedValues, variablesFromCmd)
+}
+
+// resolveRunbookPreviewVariables merges command-line --variable values with the
+// runbook form preview, prompting for any required prompted variables not
+// supplied on the command line. Command-line variables that don't match a
+// preview control are passed through unchanged (issue #582).
+func resolveRunbookPreviewVariables(
+	asker question.Asker,
+	flattenedControls map[string]*deployments.Control,
+	flattenedValues map[string]string,
+	variablesFromCmd map[string]string,
+) (map[string]string, []string, error) {
+	result := make(map[string]string, len(variablesFromCmd))
+	for k, v := range variablesFromCmd {
+		result[k] = v
+	}
+
 	lcaseVarsFromCmd := make(map[string]string, len(variablesFromCmd))
 	for k, v := range variablesFromCmd {
 		lcaseVarsFromCmd[strings.ToLower(k)] = v
@@ -1088,14 +1104,19 @@ func askRunbookPreviewVariables(
 		return keys[i] > keys[j]
 	})
 
-	// Track sensitive variables
 	sensitiveVars := make([]string, 0)
 
 	for _, key := range keys {
 		control := flattenedControls[key]
 		valueFromCmd, foundValueOnCommandLine := lcaseVarsFromCmd[strings.ToLower(control.Name)]
 		if foundValueOnCommandLine {
-			// implicitly fixes up variable casing
+			// Canonicalise to control.Name when the CLI used a different casing,
+			// so we don't end up with both spellings in the result map.
+			for k := range result {
+				if k != control.Name && strings.EqualFold(k, control.Name) {
+					delete(result, k)
+				}
+			}
 			result[control.Name] = valueFromCmd
 		}
 		if control.Required == true && !foundValueOnCommandLine {
@@ -1114,7 +1135,6 @@ func askRunbookPreviewVariables(
 			result[control.Name] = responseString
 		}
 
-		// Track sensitive variables from the preview
 		if control.DisplaySettings.ControlType == "Sensitive" {
 			sensitiveVars = append(sensitiveVars, control.Name)
 		}
