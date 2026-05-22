@@ -2,8 +2,16 @@ name: 'Generate Docs'
 on:
   workflow_dispatch:
   push:
+    branches:
+      - main
     tags:
       - 'v*'
+    paths:
+      - 'cmd/gen-docs/**'
+      - 'pkg/cmd/**'
+      - 'go.mod'
+      - 'go.sum'
+      - '.github/workflows/generate-docs.yml'
 env:
   DOCS_TOKEN: ${{ secrets.DOCS_TOKEN }}
 jobs:
