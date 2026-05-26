@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.21.3](https://github.com/OctopusDeploy/cli/compare/v2.21.2...v2.21.3) (2026-05-26)
+
+
+### Bug Fixes
+
+* Include Default Worker Pool for Azure Web App targets ([#603](https://github.com/OctopusDeploy/cli/issues/603)) ([6502516](https://github.com/OctopusDeploy/cli/commit/65025165bcf9451cd5f06e856d1996c8e575f345)), closes [#600](https://github.com/OctopusDeploy/cli/issues/600)
+
 ## [2.21.1](https://github.com/OctopusDeploy/cli/compare/v2.21.0...v2.21.1) (2026-05-13)
 
 
