@@ -44,14 +44,18 @@ func ViewRun(opts *shared.ViewOptions) error {
 		return err
 	}
 
+	environmentMap, _ := shared.GetEnvironmentMap(opts.Client)
+	workerPoolMap, _ := shared.GetWorkerPoolMap(opts.Client)
+	tenantMap, _ := shared.GetTenantMap(opts.Client)
+
 	return output.PrintResource(target, opts.Command, output.Mappers[*machines.DeploymentTarget]{
 		Json: func(t *machines.DeploymentTarget) any {
-			return getDeploymentTargetAsJson(opts, t)
+			return getDeploymentTargetAsJson(opts.Dependencies, t, environmentMap, tenantMap, workerPoolMap)
 		},
 		Table: output.TableDefinition[*machines.DeploymentTarget]{
-			Header: []string{"NAME", "TYPE", "HEALTH", "ENVIRONMENTS", "ROLES", "TENANTS", "TENANT TAGS", "ENDPOINT DETAILS"},
+			Header: []string{"NAME", "TYPE", "HEALTH", "ENVIRONMENTS", "ROLES", "TENANTS", "TENANT TAGS", "ENDPOINT DETAILS", "DEFAULT WORKER POOL"},
 			Row: func(t *machines.DeploymentTarget) []string {
-				return getDeploymentTargetAsTableRow(opts, t)
+				return getDeploymentTargetAsTableRow(opts, t, environmentMap, tenantMap, workerPoolMap)
 			},
 		},
 		Basic: func(t *machines.DeploymentTarget) string {
@@ -60,30 +64,13 @@ func ViewRun(opts *shared.ViewOptions) error {
 	})
 }
 
-type DeploymentTargetAsJson struct {
-	Id                 string            `json:"Id"`
-	Name               string            `json:"Name"`
-	HealthStatus       string            `json:"HealthStatus"`
-	StatusSummary      string            `json:"StatusSummary"`
-	CommunicationStyle string            `json:"CommunicationStyle"`
-	Environments       []string          `json:"Environments"`
-	Roles              []string          `json:"Roles"`
-	Tenants            []string          `json:"Tenants"`
-	TenantTags         []string          `json:"TenantTags"`
-	EndpointDetails    map[string]string `json:"EndpointDetails"`
-	WebUrl             string            `json:"WebUrl"`
-}
-
-func getDeploymentTargetAsJson(opts *shared.ViewOptions, target *machines.DeploymentTarget) DeploymentTargetAsJson {
-	environmentMap, _ := shared.GetEnvironmentMap(opts)
-	tenantMap, _ := shared.GetTenantMap(opts)
-
+func getDeploymentTargetAsJson(deps *cmd.Dependencies, target *machines.DeploymentTarget, environmentMap map[string]string, tenantMap map[string]string, workerPoolMap map[string]string) any {
 	environments := resolveValues(target.EnvironmentIDs, environmentMap)
 	tenants := resolveValues(target.TenantIDs, tenantMap)
 
-	endpointDetails := getEndpointDetails(target)
+	endpointDetails := shared.GetEndpointDetails(target)
 
-	return DeploymentTargetAsJson{
+	targetJson := shared.DeploymentTargetAsJson{
 		Id:                 target.GetID(),
 		Name:               target.Name,
 		HealthStatus:       target.HealthStatus,
@@ -94,21 +81,27 @@ func getDeploymentTargetAsJson(opts *shared.ViewOptions, target *machines.Deploy
 		Tenants:            tenants,
 		TenantTags:         target.TenantTags,
 		EndpointDetails:    endpointDetails,
-		WebUrl:             util.GenerateWebURL(opts.Host, target.SpaceID, fmt.Sprintf("infrastructure/machines/%s/settings", target.GetID())),
+		WebUrl:             util.GenerateWebURL(deps.Host, target.SpaceID, fmt.Sprintf("infrastructure/machines/%s/settings", target.GetID())),
 	}
+
+	if workerEndpoint, ok := target.Endpoint.(machines.IRunsOnAWorker); ok {
+		return shared.DeploymentTargetWithWorkerPool{
+			DeploymentTargetAsJson: targetJson,
+			DefaultWorkerPool:      workerEndpoint.GetDefaultWorkerPoolID(),
+		}
+	}
+
+	return targetJson
 }
 
-func getDeploymentTargetAsTableRow(opts *shared.ViewOptions, target *machines.DeploymentTarget) []string {
-	environmentMap, _ := shared.GetEnvironmentMap(opts)
+func getDeploymentTargetAsTableRow(opts *shared.ViewOptions, target *machines.DeploymentTarget, environmentMap map[string]string, tenantMap map[string]string, workerPoolMap map[string]string) []string {
 	environments := resolveValues(target.EnvironmentIDs, environmentMap)
-
 	healthStatus := getHealthStatusFormatted(target.HealthStatus)
 	targetType := getTargetTypeDisplayName(target.Endpoint.GetCommunicationStyle())
 
 	// Handle tenants
 	tenants := "None"
 	if !util.Empty(target.TenantIDs) {
-		tenantMap, _ := shared.GetTenantMap(opts)
 		tenantNames := resolveValues(target.TenantIDs, tenantMap)
 		tenants = strings.Join(tenantNames, ", ")
 	}
@@ -120,7 +113,7 @@ func getDeploymentTargetAsTableRow(opts *shared.ViewOptions, target *machines.De
 	}
 
 	// Handle endpoint details
-	endpointDetails := getEndpointDetails(target)
+	endpointDetails := shared.GetEndpointDetails(target)
 	var endpointDetailsStr strings.Builder
 	first := true
 	for key, value := range endpointDetails {
@@ -135,6 +128,8 @@ func getDeploymentTargetAsTableRow(opts *shared.ViewOptions, target *machines.De
 		endpointDetailsString = "-"
 	}
 
+	workerPool := shared.ResolveDefaultWorkerPool(target, workerPoolMap, "")
+
 	return []string{
 		output.Bold(target.Name),
 		targetType,
@@ -144,6 +139,7 @@ func getDeploymentTargetAsTableRow(opts *shared.ViewOptions, target *machines.De
 		tenants,
 		tenantTags,
 		endpointDetailsString,
+		workerPool,
 	}
 }
 
@@ -203,13 +199,13 @@ func getDeploymentTargetAsBasic(opts *shared.ViewOptions, target *machines.Deplo
 	result.WriteString(fmt.Sprintf("Type: %s\n", output.Cyan(targetType)))
 
 	// Add endpoint-specific details
-	endpointDetails := getEndpointDetails(target)
+	endpointDetails := shared.GetEndpointDetails(target)
 	for key, value := range endpointDetails {
 		result.WriteString(fmt.Sprintf("%s: %s\n", key, value))
 	}
 
 	// Environments
-	environmentMap, _ := shared.GetEnvironmentMap(opts)
+	environmentMap, _ := shared.GetEnvironmentMap(opts.Client)
 	environments := resolveValues(target.EnvironmentIDs, environmentMap)
 	result.WriteString(fmt.Sprintf("Environments: %s\n", output.FormatAsList(environments)))
 
@@ -218,7 +214,7 @@ func getDeploymentTargetAsBasic(opts *shared.ViewOptions, target *machines.Deplo
 
 	// Tenants
 	if !util.Empty(target.TenantIDs) {
-		tenantMap, _ := shared.GetTenantMap(opts)
+		tenantMap, _ := shared.GetTenantMap(opts.Client)
 		tenants := resolveValues(target.TenantIDs, tenantMap)
 		result.WriteString(fmt.Sprintf("Tenants: %s\n", output.FormatAsList(tenants)))
 	} else {
@@ -231,6 +227,11 @@ func getDeploymentTargetAsBasic(opts *shared.ViewOptions, target *machines.Deplo
 	} else {
 		result.WriteString("Tenant Tags: None\n")
 	}
+
+	// default worker pool
+	workerPoolMap, _ := shared.GetWorkerPoolMap(opts.Client)
+	workerPool := shared.ResolveDefaultWorkerPool(target, workerPoolMap, "None")
+	result.WriteString(fmt.Sprintf("Default Worker Pool: %s\n", workerPool))
 
 	// Web URL
 	url := util.GenerateWebURL(opts.Host, target.SpaceID, fmt.Sprintf("infrastructure/machines/%s/settings", target.GetID()))
@@ -254,48 +255,4 @@ func resolveValues(keys []string, lookup map[string]string) []string {
 		}
 	}
 	return values
-}
-
-func getEndpointDetails(target *machines.DeploymentTarget) map[string]string {
-	details := make(map[string]string)
-
-	switch target.Endpoint.GetCommunicationStyle() {
-	case "AzureWebApp":
-		if endpoint, ok := target.Endpoint.(*machines.AzureWebAppEndpoint); ok {
-			webApp := endpoint.WebAppName
-			if endpoint.WebAppSlotName != "" {
-				webApp = fmt.Sprintf("%s/%s", webApp, endpoint.WebAppSlotName)
-			}
-			details["Web App"] = webApp
-		}
-	case "Kubernetes":
-		if endpoint, ok := target.Endpoint.(*machines.KubernetesEndpoint); ok {
-			details["Authentication Type"] = endpoint.Authentication.GetAuthenticationType()
-		}
-	case "Ssh":
-		if endpoint, ok := target.Endpoint.(*machines.SSHEndpoint); ok {
-			details["URI"] = endpoint.URI.String()
-			runtime := "Mono"
-			if endpoint.DotNetCorePlatform != "" {
-				runtime = endpoint.DotNetCorePlatform
-			}
-			details["Runtime architecture"] = runtime
-		}
-	case "TentaclePassive":
-		if endpoint, ok := target.Endpoint.(*machines.ListeningTentacleEndpoint); ok {
-			details["URI"] = endpoint.URI.String()
-			details["Tentacle version"] = endpoint.TentacleVersionDetails.Version
-		}
-	case "TentacleActive":
-		if endpoint, ok := target.Endpoint.(*machines.PollingTentacleEndpoint); ok {
-			details["URI"] = endpoint.URI.String()
-			details["Tentacle version"] = endpoint.TentacleVersionDetails.Version
-		}
-	case "None":
-		// Cloud regions typically don't have additional endpoint details
-	case "OfflineDrop", "StepPackage", "AzureCloudService", "AzureServiceFabricCluster":
-		// These endpoints don't have specific details we can easily extract
-	}
-
-	return details
 }
