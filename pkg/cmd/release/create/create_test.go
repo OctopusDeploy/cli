@@ -2284,6 +2284,68 @@ func TestReleaseCreate_BuildPackageVersionBaseline(t *testing.T) {
 		}, packageVersions)
 	})
 
+	t.Run("uses versioningStrategy and versionTagRegex query params when channel rule has MostRecentlyPublished strategy", func(t *testing.T) {
+		api := testutil.NewMockHttpServer()
+		processTemplate := &deployments.DeploymentProcessTemplate{
+			Packages: []releases.ReleaseTemplatePackage{
+				{
+					ActionName:           "Deploy",
+					FeedID:               externalFeedID,
+					PackageID:            "my-app",
+					PackageReferenceName: "my-app-on-deploy",
+					IsResolvable:         true,
+				},
+			},
+			Resource: resources.Resource{},
+		}
+
+		channel := fixtures.NewChannel(spaceID, "Channels-1", "Default", "Projects-1")
+		channel.Rules = []channels.ChannelRule{
+			{
+				VersioningStrategy: "MostRecentlyPublished",
+				VersionTagRegex:    "^feature-",
+				ActionPackages: []octopusPackages.DeploymentActionPackage{
+					{DeploymentAction: "Deploy", PackageReference: "my-app-on-deploy"},
+				},
+			},
+		}
+
+		receiver := testutil.GoBegin2(func() ([]*packages.StepPackageVersion, error) {
+			defer api.Close()
+			octopus, _ := octopusApiClient.NewClient(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "")
+			return create.BuildPackageVersionBaselineForChannel(octopus, processTemplate, channel)
+		})
+
+		api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
+		api.ExpectRequest(t, "GET", "/api/spaces").RespondWith(rootResource)
+
+		api.ExpectRequest(t, "GET", "/api/Spaces-1/feeds?ids=Feeds-1001&take=1").RespondWith(&feeds.Feeds{Items: []feeds.IFeed{
+			&feeds.FeedResource{Name: "External Nuget", FeedType: feeds.FeedTypeNuGet, Resource: resources.Resource{
+				ID: externalFeedID,
+				Links: map[string]string{
+					constants.LinkSearchPackageVersionsTemplate: "/api/Spaces-1/feeds/Feeds-1001/packages/versions{?packageId,take,skip,includePreRelease,versionRange,preReleaseTag,versioningStrategy,versionTagRegex,filter,includeReleaseNotes}",
+				}}},
+		}})
+
+		// must send versioningStrategy and versionTagRegex — must NOT send preReleaseTag or versionRange
+		api.ExpectRequest(t, "GET", "/api/Spaces-1/feeds/Feeds-1001/packages/versions?packageId=my-app&take=1&versionTagRegex=%5Efeature-&versioningStrategy=MostRecentlyPublished").RespondWith(&resources.Resources[*octopusPackages.PackageVersion]{
+			Items: []*octopusPackages.PackageVersion{
+				{PackageID: "my-app", Version: "feature-login-42"},
+			},
+		})
+
+		packageVersions, err := testutil.ReceivePair(receiver)
+		assert.Nil(t, err)
+		assert.Equal(t, []*packages.StepPackageVersion{
+			{
+				PackageID:            "my-app",
+				ActionName:           "Deploy",
+				Version:              "feature-login-42",
+				PackageReferenceName: "my-app-on-deploy",
+			},
+		}, packageVersions)
+	})
+
 	t.Run("still returns a value if the server returns zero available packages", func(t *testing.T) {
 		// note: channel rules can affect which packages the server returns so there might be zero,
 		// but either way the server returns zero items, which is the code path we are testing, so channel rules aren't relevant here
