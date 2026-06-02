@@ -24,6 +24,10 @@ import (
 const (
 	FlagProject = "project"
 	FlagWeb     = "web"
+
+	// inheritedLifecycle is shown when a channel has no lifecycle of its own and
+	// therefore inherits the project's lifecycle (e.g. the default channel).
+	inheritedLifecycle = "Inherited from project"
 )
 
 type ViewFlags struct {
@@ -106,6 +110,7 @@ func viewRun(opts *ViewOptions) error {
 	}
 
 	// Resolve lifecycle name for display (best-effort — fall back to ID on error).
+	// A channel with no LifecycleId (e.g. the default channel) inherits the project's lifecycle.
 	lifecycleName := channel.LifecycleID
 	if channel.LifecycleID != "" {
 		if lc, lcErr := opts.Client.Lifecycles.GetByIDOrName(channel.LifecycleID); lcErr == nil && lc != nil {
@@ -148,11 +153,15 @@ func viewRun(opts *ViewOptions) error {
 				if c.IsDefault {
 					def = "yes"
 				}
+				lifecycleDisplay := lifecycleName
+				if c.LifecycleID == "" {
+					lifecycleDisplay = inheritedLifecycle
+				}
 				return []string{
 					output.Bold(c.Name),
 					string(c.Type),
 					def,
-					lifecycleName,
+					lifecycleDisplay,
 					description,
 					output.Blue(util.GenerateWebURL(opts.Host, c.SpaceID, webPath)),
 				}
@@ -194,7 +203,11 @@ func formatChannelForBasic(opts *ViewOptions, c *channels.Channel, lifecycleName
 	}
 
 	result.WriteString(fmt.Sprintf("Type: %s\n", string(c.Type)))
-	result.WriteString(fmt.Sprintf("Lifecycle: %s %s\n", lifecycleName, output.Dimf("(%s)", c.LifecycleID)))
+	if c.LifecycleID == "" {
+		result.WriteString(fmt.Sprintf("Lifecycle: %s\n", inheritedLifecycle))
+	} else {
+		result.WriteString(fmt.Sprintf("Lifecycle: %s %s\n", lifecycleName, output.Dimf("(%s)", c.LifecycleID)))
+	}
 
 	if c.Description == "" {
 		result.WriteString(fmt.Sprintln(output.Dim(constants.NoDescription)))

@@ -112,6 +112,41 @@ func TestChannelView(t *testing.T) {
 			assert.Equal(t, "", stdErr.String())
 		}},
 
+		{"channel view default channel shows inherited lifecycle (basic)", func(t *testing.T, api *testutil.MockHttpServer, qa *testutil.AskMocker, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
+			// The default channel has no LifecycleId of its own; it inherits the project's lifecycle.
+			defaultChannel := fixtures.NewChannel(spaceID, "Channels-1", "Default", projectID)
+			defaultChannel.IsDefault = true
+			defaultChannel.Type = channels.ChannelTypeLifecycle
+
+			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
+				defer api.Close()
+				rootCmd.SetArgs([]string{"channel", "view", "Channels-1", "-p", "Projects-22", "-f", "basic"})
+				return rootCmd.ExecuteC()
+			})
+
+			api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
+
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/Projects-22").RespondWith(fireProject)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/channels/Channels-1").RespondWith(defaultChannel)
+			// No lifecycle lookup is made because LifecycleId is empty.
+
+			_, err := testutil.ReceivePair(cmdReceiver)
+			assert.Nil(t, err)
+
+			assert.Equal(t, heredoc.Doc(`
+				Default (Channels-1)
+				Default channel
+				Type: Lifecycle
+				Lifecycle: Inherited from project
+				No description provided
+
+				View this channel in Octopus Deploy: http://server/app#/Spaces-1/projects/fire-project/deployments/channels/edit/Channels-1
+
+				`), stdOut.String())
+			assert.Equal(t, "", stdErr.String())
+		}},
+
 		{"outputFormat json", func(t *testing.T, api *testutil.MockHttpServer, qa *testutil.AskMocker, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
 			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
 				defer api.Close()
