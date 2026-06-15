@@ -393,14 +393,15 @@ func BuildPackageVersionBaselineForChannel(octopus *octopusApiClient.Client, dep
 		for _, rule := range channel.Rules {
 			for _, ap := range rule.ActionPackages {
 				if ap.PackageReference == packageRef.PackageReferenceName && ap.DeploymentAction == packageRef.ActionName {
-					// this rule applies to our step/packageref combo
-					if rule.VersioningStrategy == "MostRecentlyPublished" {
-						query.VersioningStrategy = rule.VersioningStrategy
-						query.VersionTagRegex = rule.VersionTagRegex
-					} else {
-						query.PreReleaseTag = rule.Tag
-						query.VersionRange = rule.VersionRange
-					}
+					// this rule applies to our step/packageref combo.
+					// VersionRange, Tag/pre-release and VersionTagRegex are always applied together,
+					// regardless of strategy; VersioningStrategy only changes ordering (publish-date
+					// vs SemVer), not which versions satisfy the rule. (empty fields are dropped by
+					// the query's omitempty uri tags)
+					query.PreReleaseTag = rule.Tag
+					query.VersionRange = rule.VersionRange
+					query.VersionTagRegex = rule.VersionTagRegex
+					query.VersioningStrategy = rule.VersioningStrategy
 					// the octopus server won't let the same package be targeted by more than one rule, so
 					// once we've found the first matching rule for our step+package, we can stop looping
 					break rulesLoop
