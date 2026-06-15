@@ -2284,7 +2284,10 @@ func TestReleaseCreate_BuildPackageVersionBaseline(t *testing.T) {
 		}, packageVersions)
 	})
 
-	t.Run("uses versioningStrategy and versionTagRegex query params when channel rule has MostRecentlyPublished strategy", func(t *testing.T) {
+	t.Run("sends all version-rule filters together along with versioningStrategy, regardless of strategy", func(t *testing.T) {
+		// VersionRange, Tag/pre-release and VersionTagRegex are always applied together; VersioningStrategy
+		// only changes ordering (publish-date vs SemVer), not which versions satisfy the rule. So even with
+		// MostRecentlyPublished set, an accompanying VersionRange and Tag must still be sent.
 		api := testutil.NewMockHttpServer()
 		processTemplate := &deployments.DeploymentProcessTemplate{
 			Packages: []releases.ReleaseTemplatePackage{
@@ -2302,6 +2305,8 @@ func TestReleaseCreate_BuildPackageVersionBaseline(t *testing.T) {
 		channel := fixtures.NewChannel(spaceID, "Channels-1", "Default", "Projects-1")
 		channel.Rules = []channels.ChannelRule{
 			{
+				VersionRange:       "1.0",
+				Tag:                "beta",
 				VersioningStrategy: "MostRecentlyPublished",
 				VersionTagRegex:    "^feature-",
 				ActionPackages: []octopusPackages.DeploymentActionPackage{
@@ -2327,8 +2332,8 @@ func TestReleaseCreate_BuildPackageVersionBaseline(t *testing.T) {
 				}}},
 		}})
 
-		// must send versioningStrategy and versionTagRegex — must NOT send preReleaseTag or versionRange
-		api.ExpectRequest(t, "GET", "/api/Spaces-1/feeds/Feeds-1001/packages/versions?packageId=my-app&take=1&versionTagRegex=%5Efeature-&versioningStrategy=MostRecentlyPublished").RespondWith(&resources.Resources[*octopusPackages.PackageVersion]{
+		// all four filters must be sent; query param order follows the uri template variable order
+		api.ExpectRequest(t, "GET", "/api/Spaces-1/feeds/Feeds-1001/packages/versions?packageId=my-app&take=1&versionRange=1.0&preReleaseTag=beta&versioningStrategy=MostRecentlyPublished&versionTagRegex=%5Efeature-").RespondWith(&resources.Resources[*octopusPackages.PackageVersion]{
 			Items: []*octopusPackages.PackageVersion{
 				{PackageID: "my-app", Version: "feature-login-42"},
 			},

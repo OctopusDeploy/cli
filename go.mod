@@ -6,6 +6,9 @@ require (
 	github.com/AlecAivazis/survey/v2 v2.3.7
 	github.com/MakeNowJust/heredoc/v2 v2.0.1
 	github.com/OctopusDeploy/go-octodiff v1.0.0
+	// TODO: bump to the go-octopusdeploy release that adds VersioningStrategy and VersionTagRegex
+	// to channels.ChannelRule and feeds.SearchPackageVersionsQuery (non-semver-ordering feature).
+	// The current pinned version lacks these fields, so create.go does not yet compile.
 	github.com/OctopusDeploy/go-octopusdeploy/v2 v2.108.1
 	github.com/bmatcuk/doublestar/v4 v4.4.0
 	github.com/briandowns/spinner v1.19.0
