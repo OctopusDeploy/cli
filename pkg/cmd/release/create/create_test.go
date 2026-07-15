@@ -2332,8 +2332,8 @@ func TestReleaseCreate_BuildPackageVersionBaseline(t *testing.T) {
 				}}},
 		}})
 
-		// all four filters must be sent; query param order follows the uri template variable order
-		api.ExpectRequest(t, "GET", "/api/Spaces-1/feeds/Feeds-1001/packages/versions?packageId=my-app&take=1&versionRange=1.0&preReleaseTag=beta&versioningStrategy=MostRecentlyPublished&versionTagRegex=%5Efeature-").RespondWith(&resources.Resources[*octopusPackages.PackageVersion]{
+		// all four filters must be sent; the client emits query params in alphabetical order
+		api.ExpectRequest(t, "GET", "/api/Spaces-1/feeds/Feeds-1001/packages/versions?packageId=my-app&preReleaseTag=beta&take=1&versionRange=1.0&versionTagRegex=%5Efeature-&versioningStrategy=MostRecentlyPublished").RespondWith(&resources.Resources[*octopusPackages.PackageVersion]{
 			Items: []*octopusPackages.PackageVersion{
 				{PackageID: "my-app", Version: "feature-login-42"},
 			},
