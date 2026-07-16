@@ -23,12 +23,12 @@ jobs:
         run: echo "BRANCH_NAME=enh-cliupdate-octopus-$(date +'%Y%m%d-%H%M%S')" >> $GITHUB_ENV
 
       - name: Checkout CLI
-        uses: actions/checkout@v3
+        uses: actions/checkout@v5
         with:
           path: cli
 
       - name: Checkout docs
-        uses: actions/checkout@v3
+        uses: actions/checkout@v5
         with:
           repository: OctopusDeploy/docs
           token: ${{ env.DOCS_TOKEN }}
@@ -43,7 +43,7 @@ jobs:
           git checkout -b $BRANCH_NAME
 
       - name: Set up Go
-        uses: actions/setup-go@v3
+        uses: actions/setup-go@v6
         with:
           go-version: 1.21
 
@@ -52,7 +52,7 @@ jobs:
         run: mkdir -p ../docs/src/pages/docs/octopus-rest-api/cli && go run cmd/gen-docs/main.go --website --doc-path ../docs/src/pages/docs/octopus-rest-api/cli --relative-base-path /docs/octopus-rest-api/cli
 
       - name: Commit
-        uses: EndBug/add-and-commit@v9
+        uses: EndBug/add-and-commit@v10
         with:
           message: 'Update cli docs for octopus(go)'
           author_name: Bob

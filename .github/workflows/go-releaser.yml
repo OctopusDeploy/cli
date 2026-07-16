@@ -18,7 +18,7 @@ jobs:
 
     steps:
     - name: Checkout
-      uses: actions/checkout@v3
+      uses: actions/checkout@v5
       with:
         fetch-depth: 0
 
@@ -26,7 +26,7 @@ jobs:
       run: git fetch --force --tags
 
     - name: Set up Go
-      uses: actions/setup-go@v3
+      uses: actions/setup-go@v6
       with:
           go-version: 1.21
 
@@ -71,7 +71,7 @@ jobs:
         echo "::set-output name=version::$version"
 
     - name: Upload goreleaser built binaries to artifact octopus-cli.${{ steps.calculate-version.outputs.version }}
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v6
       with:
         name: octopus-cli.${{ steps.calculate-version.outputs.version }}
         path: |
@@ -90,13 +90,13 @@ jobs:
       msi_file: ${{ steps.buildmsi.outputs.msi }}
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v5
 
-    - uses: microsoft/setup-msbuild@v1.1
+    - uses: microsoft/setup-msbuild@v3
       id: setupmsbuild
 
     - name: Download goreleaser built binaries from artifact octopus-cli.${{ needs.goreleaser.outputs.version }}
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v7
       with:
         name: octopus-cli.${{ needs.goreleaser.outputs.version }}
         path: artifacts/
@@ -184,7 +184,7 @@ jobs:
       run: cp "${{ steps.buildmsi.outputs.msi }}" "${{ github.workspace }}/artifacts/${{ steps.buildmsi.outputs.msi_name }}"
 
     - name: Re-upload artifacts with MSI to octopus-cli.${{ needs.goreleaser.outputs.version }}
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v6
       with:
         name: octopus-cli.${{ needs.goreleaser.outputs.version }}
         path: artifacts/
@@ -199,18 +199,18 @@ jobs:
       OCTOPUS_SPACE: Integrations
 
     steps:
-    - uses: actions/checkout@v3
-    - uses: nuget/setup-nuget@v1
+    - uses: actions/checkout@v5
+    - uses: nuget/setup-nuget@v3
 
     - name: checkout OctopusDeploy/linux-package-feeds so we can take the package publish scripts from it
-      uses: actions/checkout@v3
+      uses: actions/checkout@v5
       with:
         repository: OctopusDeploy/linux-package-feeds
         token: ${{ secrets.INTEGRATIONS_FNM_BOT_TOKEN }}
         path: linux-package-feeds
 
     - name: Download goreleaser built binaries and MSI from artifact octopus-cli.${{ needs.goreleaser.outputs.version }}
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v7
       with:
         name: octopus-cli.${{ needs.goreleaser.outputs.version }}
         path: artifacts/
@@ -225,7 +225,7 @@ jobs:
     - name: Copy publish-apt.sh and publish-rpm.sh
       run: cp linux-package-feeds/source/publish-*.sh artifacts/
 
-    - uses: OctopusDeploy/create-zip-package-action@v3
+    - uses: OctopusDeploy/create-zip-package-action@v4
       id: package
       with:
         package_id: octopus-cli
@@ -234,7 +234,7 @@ jobs:
         files: '**/*'
         output_folder: .
 
-    - uses: OctopusDeploy/push-package-action@v3
+    - uses: OctopusDeploy/push-package-action@v4
       with:
         packages: ${{ steps.package.outputs.package_file_path }}
 
@@ -249,7 +249,7 @@ jobs:
         gh release view "${{ needs.goreleaser.outputs.tag_name }}" --jq '.body' --json 'body' | sed 's#\r#  #g' > $OUTPUT_FILE
         echo "::set-output name=release-note-file::$OUTPUT_FILE"
 
-    - uses: OctopusDeploy/create-release-action@v3
+    - uses: OctopusDeploy/create-release-action@v4
       if: "!contains(needs.goreleaser.outputs.version, '-')"
       with:
         project: 'cli'
@@ -272,7 +272,7 @@ jobs:
           run: echo "BRANCH_NAME=releases-json-update-$(date +'%Y%m%d-%H%M%S')" >> $GITHUB_ENV
 
         - name: Checkout CLI
-          uses: actions/checkout@v3
+          uses: actions/checkout@v5
           with:
             path: cli
 
@@ -290,7 +290,7 @@ jobs:
           run: curl -s https://api.github.com/repos/OctopusDeploy/cli/releases?per_page=100 > releases.json
 
         - name: Commit
-          uses: EndBug/add-and-commit@v9
+          uses: EndBug/add-and-commit@v10
           with:
             message: 'chore: update cli releases.json'
             author_name: Bob
