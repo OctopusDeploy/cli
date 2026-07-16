@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.21.4](https://github.com/OctopusDeploy/cli/compare/v2.21.3...v2.21.4) (2026-07-16)
+
+
+### Bug Fixes
+
+* allow completion command to run without an Octopus login ([#612](https://github.com/OctopusDeploy/cli/issues/612)) ([a3fe8a9](https://github.com/OctopusDeploy/cli/commit/a3fe8a98e80792c216bdd4644f91be24ad42070e))
+
 ## [2.21.3](https://github.com/OctopusDeploy/cli/compare/v2.21.2...v2.21.3) (2026-05-26)
 
 
