@@ -206,7 +206,7 @@ jobs:
       uses: actions/checkout@v5
       with:
         repository: OctopusDeploy/linux-package-feeds
-        token: ${{ secrets.INTEGRATIONS_FNM_BOT_TOKEN }}
+        token: ${{ secrets.INTEGRATIONS_MD_BOT_TOKEN }}
         path: linux-package-feeds
 
     - name: Download goreleaser built binaries and MSI from artifact octopus-cli.${{ needs.goreleaser.outputs.version }}
@@ -264,7 +264,7 @@ jobs:
     needs: [goreleaser, msi, generate-packages-and-publish]
     runs-on: ubuntu-latest
     env:
-      INTEGRATIONS_TOKEN: ${{ secrets.INTEGRATIONS_FNM_BOT_TOKEN }}
+      INTEGRATIONS_TOKEN: ${{ secrets.INTEGRATIONS_MD_BOT_TOKEN }}
 
     steps:
         - name: Calculate branch name

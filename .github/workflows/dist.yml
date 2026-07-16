@@ -9,7 +9,7 @@ jobs:
     steps:
       - uses: actions/checkout@v5
         with:
-          token: ${{ secrets.INTEGRATIONS_FNM_BOT_TOKEN }}
+          token: ${{ secrets.INTEGRATIONS_MD_BOT_TOKEN }}
       - name: Update Install Script
         run: |-
           NEW_VERSION="v$(cat version.txt)"

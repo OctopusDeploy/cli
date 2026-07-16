@@ -11,7 +11,7 @@ jobs:
         id: release
         with:
           release-type: simple
-          token: ${{ secrets.INTEGRATIONS_FNM_BOT_TOKEN }}
+          token: ${{ secrets.INTEGRATIONS_MD_BOT_TOKEN }}
           command: github-release
   release-please-pr:
     runs-on: ubuntu-latest
@@ -21,6 +21,6 @@ jobs:
       - id: release-pr
         uses: google-github-actions/release-please-action@v3
         with:
-          token: ${{ secrets.INTEGRATIONS_FNM_BOT_TOKEN }}
+          token: ${{ secrets.INTEGRATIONS_MD_BOT_TOKEN }}
           release-type: simple
           command: release-pr
