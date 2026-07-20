@@ -274,7 +274,7 @@ func TestRunbookRun_AutomationMode(t *testing.T) {
 			assert.Equal(t, "", stdErr.String())
 		}},
 
-		{"release deploy specifying all the args", func(t *testing.T, api *testutil.MockHttpServer, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
+		{"runbook run specifying all the args", func(t *testing.T, api *testutil.MockHttpServer, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
 			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
 				defer api.Close()
 				rootCmd.SetArgs([]string{
@@ -290,6 +290,8 @@ func TestRunbookRun_AutomationMode(t *testing.T) {
 					"--force-package-download",
 					"--target", "firstMachine", "--target", "secondMachine",
 					"--exclude-target", "thirdMachine",
+					"--specific-target-tag", "Role/RunbookServer", "--specific-target-tag", "Environment/Production",
+					"--excluded-target-tag", "Role/Database", "--excluded-target-tag", "Maintenance/True",
 					"--variable", "Approver:John", "--variable", "Signoff:Jane",
 					"--output-format", "basic",
 				})
@@ -310,15 +312,17 @@ func TestRunbookRun_AutomationMode(t *testing.T) {
 				EnvironmentNames: []string{"dev", "test"},
 				Snapshot:         "Snapshot FWKMLUX",
 				CreateExecutionAbstractCommandV1: deployments.CreateExecutionAbstractCommandV1{
-					SpaceID:              "Spaces-1",
-					ProjectIDOrName:      fireProject.Name,
-					ForcePackageDownload: true,
-					SpecificMachineNames: []string{"firstMachine", "secondMachine"},
-					ExcludedMachineNames: []string{"thirdMachine"},
-					SkipStepNames:        []string{"Install", "Cleanup"},
-					UseGuidedFailure:     &trueVar,
-					RunAt:                "2022-09-10 13:32:03 +10:00",
-					NoRunAfter:           "2022-09-10 13:37:03 +10:00",
+					SpaceID:                "Spaces-1",
+					ProjectIDOrName:        fireProject.Name,
+					ForcePackageDownload:   true,
+					SpecificMachineNames:   []string{"firstMachine", "secondMachine"},
+					ExcludedMachineNames:   []string{"thirdMachine"},
+					SpecificTargetTagNames: []string{"Role/RunbookServer", "Environment/Production"},
+					ExcludedTargetTagNames: []string{"Role/Database", "Maintenance/True"},
+					SkipStepNames:          []string{"Install", "Cleanup"},
+					UseGuidedFailure:       &trueVar,
+					RunAt:                  "2022-09-10 13:32:03 +10:00",
+					NoRunAfter:             "2022-09-10 13:37:03 +10:00",
 					Variables: map[string]string{
 						"Approver": "John",
 						"Signoff":  "Jane",
@@ -623,7 +627,7 @@ func TestGitRunbookRun_AutomationMode(t *testing.T) {
 			assert.Equal(t, "", stdErr.String())
 		}},
 
-		{"runbook run specifying all the args", func(t *testing.T, api *testutil.MockHttpServer, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
+		{"git runbook run specifying all the args", func(t *testing.T, api *testutil.MockHttpServer, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
 			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
 				defer api.Close()
 				rootCmd.SetArgs([]string{
@@ -639,6 +643,8 @@ func TestGitRunbookRun_AutomationMode(t *testing.T) {
 					"--force-package-download",
 					"--target", "firstMachine", "--target", "secondMachine",
 					"--exclude-target", "thirdMachine",
+					"--specific-target-tag", "Role/GitRunner", "--specific-target-tag", "Version/Latest",
+					"--excluded-target-tag", "Role/Legacy",
 					"--variable", "Approver:John", "--variable", "Signoff:Jane",
 					"--package-version", "1.2.0",
 					"--package", "APackageStep:1.5.0",
@@ -662,15 +668,17 @@ func TestGitRunbookRun_AutomationMode(t *testing.T) {
 				EnvironmentNames: []string{"dev", "test"},
 				GitRef:           "main",
 				CreateExecutionAbstractCommandV1: deployments.CreateExecutionAbstractCommandV1{
-					SpaceID:              "Spaces-1",
-					ProjectIDOrName:      fireProject.Name,
-					ForcePackageDownload: true,
-					SpecificMachineNames: []string{"firstMachine", "secondMachine"},
-					ExcludedMachineNames: []string{"thirdMachine"},
-					SkipStepNames:        []string{"Install", "Cleanup"},
-					UseGuidedFailure:     &trueVar,
-					RunAt:                "2022-09-10 13:32:03 +10:00",
-					NoRunAfter:           "2022-09-10 13:37:03 +10:00",
+					SpaceID:                "Spaces-1",
+					ProjectIDOrName:        fireProject.Name,
+					ForcePackageDownload:   true,
+					SpecificMachineNames:   []string{"firstMachine", "secondMachine"},
+					ExcludedMachineNames:   []string{"thirdMachine"},
+					SpecificTargetTagNames: []string{"Role/GitRunner", "Version/Latest"},
+					ExcludedTargetTagNames: []string{"Role/Legacy"},
+					SkipStepNames:          []string{"Install", "Cleanup"},
+					UseGuidedFailure:       &trueVar,
+					RunAt:                  "2022-09-10 13:32:03 +10:00",
+					NoRunAfter:             "2022-09-10 13:37:03 +10:00",
 					Variables: map[string]string{
 						"Approver": "John",
 						"Signoff":  "Jane",

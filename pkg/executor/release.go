@@ -104,6 +104,8 @@ type TaskOptionsDeployRelease struct {
 	ForcePackageDownload           bool
 	DeploymentTargets              []string
 	ExcludeTargets                 []string
+	SpecificTargetTagNames         []string
+	ExcludedTargetTagNames         []string
 	Variables                      map[string]string
 	UpdateVariables                bool
 	DeploymentFreezeNames          []string
@@ -153,6 +155,8 @@ func releaseDeploy(octopus *client.Client, space *spaces.Space, input any) error
 		ForcePackageDownload:           params.ForcePackageDownload,
 		SpecificMachineNames:           params.DeploymentTargets,
 		ExcludedMachineNames:           params.ExcludeTargets,
+		SpecificTargetTagNames:         params.SpecificTargetTagNames,
+		ExcludedTargetTagNames:         params.ExcludedTargetTagNames,
 		SkipStepNames:                  params.ExcludedSteps,
 		RunAt:                          params.ScheduledStartTime,
 		NoRunAfter:                     params.ScheduledExpiryTime,
