@@ -579,7 +579,9 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 				Message: "Change additional options?",
 				Options: []string{"Proceed to deploy", "Change"},
 			})
-			assert.Regexp(t, "Additional Options", stdout.String()) // actual options tested in PrintAdvancedSummary
+			currentStdOut := stdout.String()
+			fmt.Println(currentStdOut)
+			assert.Regexp(t, "Additional Options", currentStdOut) // actual options tested in PrintAdvancedSummary
 			_ = q.AnswerWith("Proceed to deploy")
 
 			stdout.Reset()
