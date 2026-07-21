@@ -105,7 +105,7 @@ func NewCmdDeprovisionProject(f factory.Factory) *cobra.Command {
 		Use:     "deprovision-project",
 		Short:   "Deprovision an ephemeral environment for a project",
 		Long:    "Deprovision an ephemeral environment in Octopus Deploy for a specific project",
-		Example: heredoc.Docf("$ %s ephemeral-environment deprovision-project", constants.ExecutableName),
+		Example: heredoc.Docf("%s ephemeral-environment deprovision-project", constants.ExecutableName),
 		RunE: func(c *cobra.Command, _ []string) error {
 			opts := NewDeprovisionProjectOptions(createFlags, cmd.NewDependencies(f, c), c)
 

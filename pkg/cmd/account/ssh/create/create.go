@@ -3,8 +3,9 @@ package create
 import (
 	b64 "encoding/base64"
 	"fmt"
-	"github.com/OctopusDeploy/cli/pkg/cmd"
 	"os"
+
+	"github.com/OctopusDeploy/cli/pkg/cmd"
 
 	"github.com/OctopusDeploy/cli/pkg/util"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/environments"
@@ -69,7 +70,7 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 		Use:     "create",
 		Short:   "Create a SSH Key Pair account",
 		Long:    "Create a SSH Key Pair account in Octopus Deploy",
-		Example: heredoc.Docf("$ %s account ssh create", constants.ExecutableName),
+		Example: heredoc.Docf("%s account ssh create", constants.ExecutableName),
 		Aliases: []string{"new"},
 		RunE: func(c *cobra.Command, _ []string) error {
 			opts := NewCreateOptions(createFlags, cmd.NewDependencies(f, c))

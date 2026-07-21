@@ -13,7 +13,7 @@ func NewCmdPackageNuget(f factory.Factory) *cobra.Command {
 		Use:     "nuget <command>",
 		Short:   "Package as NuPkg",
 		Long:    "Package as NuPkg for Octopus Deploy",
-		Example: heredoc.Docf("$ %s package nuget create", constants.ExecutableName),
+		Example: heredoc.Docf("%s package nuget create", constants.ExecutableName),
 	}
 
 	cmd.AddCommand(cmdNugetCreate.NewCmdCreate(f))

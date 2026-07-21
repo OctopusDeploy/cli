@@ -2,8 +2,9 @@ package create
 
 import (
 	"fmt"
-	"github.com/OctopusDeploy/cli/pkg/cmd"
 	"os"
+
+	"github.com/OctopusDeploy/cli/pkg/cmd"
 
 	"github.com/OctopusDeploy/cli/pkg/util"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/environments"
@@ -66,7 +67,7 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 		Short: "Create a Username/Password account",
 		Long:  "Create a Username/Password account in Octopus Deploy",
 		Example: heredoc.Docf(`
-			$ %s account username create"
+			%s account username create"
 		`, constants.ExecutableName),
 		RunE: func(c *cobra.Command, _ []string) error {
 			opts := NewCreateOptions(createFlags, cmd.NewDependencies(f, c))

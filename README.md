@@ -327,7 +327,7 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 		Use:   "create",
 		Short: "Create an account",
 		Long:  "Create an account in Octopus Deploy",
-		Example: heredoc.Docf("$ %s account create", constants.ExecutableName),
+		Example: heredoc.Docf("%s account create", constants.ExecutableName),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return nil // TODO
 		},

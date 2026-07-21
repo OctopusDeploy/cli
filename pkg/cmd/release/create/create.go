@@ -155,10 +155,10 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 		Short: "Create a release",
 		Long:  "Create a release in Octopus Deploy",
 		Example: heredoc.Docf(`
-			$ %[1]s release create --project MyProject --channel Beta --version 1.2.3
-			$ %[1]s release create -p MyProject -c Beta -v 1.2.3
-			$ %[1]s release create -p MyProject -c default --package "utils:1.2.3" --package "utils:InstallOnly:5.6.7"
-			$ %[1]s release create -p MyProject -c Beta --no-prompt
+			%[1]s release create --project MyProject --channel Beta --version 1.2.3
+			%[1]s release create -p MyProject -c Beta -v 1.2.3
+			%[1]s release create -p MyProject -c default --package "utils:1.2.3" --package "utils:InstallOnly:5.6.7"
+			%[1]s release create -p MyProject -c Beta --no-prompt
 		`, constants.ExecutableName),
 		RunE: func(cmd *cobra.Command, args []string) error { return createRun(cmd, f, createFlags) },
 	}
@@ -393,9 +393,15 @@ func BuildPackageVersionBaselineForChannel(octopus *octopusApiClient.Client, dep
 		for _, rule := range channel.Rules {
 			for _, ap := range rule.ActionPackages {
 				if ap.PackageReference == packageRef.PackageReferenceName && ap.DeploymentAction == packageRef.ActionName {
-					// this rule applies to our step/packageref combo
+					// this rule applies to our step/packageref combo.
+					// VersionRange, Tag/pre-release and VersionTagRegex are always applied together,
+					// regardless of strategy; VersioningStrategy only changes ordering (publish-date
+					// vs SemVer), not which versions satisfy the rule. (empty fields are dropped by
+					// the query's omitempty uri tags)
 					query.PreReleaseTag = rule.Tag
 					query.VersionRange = rule.VersionRange
+					query.VersionTagRegex = rule.VersionTagRegex
+					query.VersioningStrategy = rule.VersioningStrategy
 					// the octopus server won't let the same package be targeted by more than one rule, so
 					// once we've found the first matching rule for our step+package, we can stop looping
 					break rulesLoop

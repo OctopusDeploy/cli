@@ -81,7 +81,7 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 		Use:     "create",
 		Short:   "Create a Listening Tentacle deployment target",
 		Long:    "Create a Listening Tentacle deployment target in Octopus Deploy",
-		Example: heredoc.Docf("$ %s deployment-target listening-tentacle create", constants.ExecutableName),
+		Example: heredoc.Docf("%s deployment-target listening-tentacle create", constants.ExecutableName),
 		Aliases: []string{"new"},
 		RunE: func(c *cobra.Command, _ []string) error {
 			opts := NewCreateOptions(createFlags, cmd.NewDependencies(f, c))

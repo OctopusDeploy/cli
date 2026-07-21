@@ -45,12 +45,12 @@ jobs:
       statuses: write
       checks: write
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v5
 
       - name: Set up Go
-        uses: actions/setup-go@v3
+        uses: actions/setup-go@v6
         with:
-          go-version: 1.21
+          go-version-file: go.mod
 
       - name: Setup gotestsum
         run: go install gotest.tools/gotestsum@latest
@@ -68,7 +68,7 @@ jobs:
         working-directory: ./test/integration
 
       - name: Test Report
-        uses: dorny/test-reporter@v1
+        uses: dorny/test-reporter@v3
         if: success() || failure()
         with:
           name: Test Results

@@ -17,8 +17,8 @@ func NewCmdBranch(f factory.Factory) *cobra.Command {
 		Short: "Manage project branches",
 		Long:  "Manage project branches in Octopus Deploy",
 		Example: heredoc.Docf(`
-			$ %[1]s project branch list "Deploy Web App"
-			$ %[1]s project branch create -p "Deploy Web App" --new-branch-name add-name-variable --base-branch refs/heads/main -
+			%[1]s project branch list "Deploy Web App"
+			%[1]s project branch create -p "Deploy Web App" --new-branch-name add-name-variable --base-branch refs/heads/main -
 		`, constants.ExecutableName),
 		Annotations: map[string]string{
 			annotations.IsCore: "true",

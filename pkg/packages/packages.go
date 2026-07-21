@@ -12,7 +12,6 @@ import (
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/output"
 	"github.com/OctopusDeploy/cli/pkg/question"
-	"github.com/OctopusDeploy/cli/pkg/util"
 	octopusApiClient "github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/feeds"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/releases"
@@ -193,11 +192,11 @@ type PackageVersionOverride struct {
 func (p *PackageVersionOverride) ToPackageOverrideString() string {
 	components := make([]string, 0, 3)
 
-	// stepNameOrPackageID always comes first if we have it
+	// stepNameOrPackageID always comes first if we have it; escape delimiter chars so the server can parse correctly
 	if p.PackageID != "" {
-		components = append(components, p.PackageID)
+		components = append(components, escapePackageDelimiters(p.PackageID))
 	} else if p.ActionName != "" { // can't have both PackageID and ActionName; PackageID wins
-		components = append(components, p.ActionName)
+		components = append(components, escapePackageDelimiters(p.ActionName))
 	}
 
 	// followed by package reference name if we have it
@@ -205,7 +204,7 @@ func (p *PackageVersionOverride) ToPackageOverrideString() string {
 		if len(components) == 0 { // if we have an explicit packagereference but no packageId or action, we need to express it with *:ref:version
 			components = append(components, "*")
 		}
-		components = append(components, p.PackageReferenceName)
+		components = append(components, escapePackageDelimiters(p.PackageReferenceName))
 	}
 
 	if len(components) == 0 { // the server can't deal with just a number by itself; if we want to override everything we must pass *:Version
@@ -216,12 +215,65 @@ func (p *PackageVersionOverride) ToPackageOverrideString() string {
 	return strings.Join(components, ":")
 }
 
-// splitPackageOverrideString splits the input string into components based on delimiter characters.
-// we want to pick up empty entries here; so "::5" and ":pterm:5" should both return THREE components, rather than one or two
-// and we want to allow for multiple different delimeters.
-// neither the builtin golang strings.Split or strings.FieldsFunc support this. Logic borrowed from strings.FieldsFunc with heavy modifications
+// splitPackageOverrideString splits the input string into components based on delimiter characters (:, /, =).
+// A backslash escapes the next char only when that char is one of : / = \ ; any other "\X" sequence is preserved
+// literally so existing inputs containing backslashes are unaffected.
+// Empty entries are preserved; "::5" and ":pterm:5" both return THREE components.
 func splitPackageOverrideString(s string) []string {
-	return util.SplitString(s, []int32{':', '/', '='})
+	type span struct {
+		start int
+		end   int
+	}
+	spans := make([]span, 0, 3)
+	start := 0
+
+	for i := 0; i < len(s); i++ {
+		ch := s[i]
+		if ch == '\\' && i+1 < len(s) && isEscapableDelimiter(s[i+1]) {
+			i++
+			continue
+		}
+		if ch == ':' || ch == '/' || ch == '=' {
+			spans = append(spans, span{start, i})
+			start = i + 1
+		}
+	}
+	spans = append(spans, span{start, len(s)})
+
+	a := make([]string, len(spans))
+	for i, span := range spans {
+		a[i] = unescapePackageString(s[span.start:span.end])
+	}
+	return a
+}
+
+func unescapePackageString(s string) string {
+	var result strings.Builder
+	result.Grow(len(s))
+	for i := 0; i < len(s); i++ {
+		if s[i] == '\\' && i+1 < len(s) && isEscapableDelimiter(s[i+1]) {
+			result.WriteByte(s[i+1])
+			i++
+			continue
+		}
+		result.WriteByte(s[i])
+	}
+	return result.String()
+}
+
+func escapePackageDelimiters(s string) string {
+	var result strings.Builder
+	for _, ch := range s {
+		if ch == ':' || ch == '/' || ch == '=' {
+			result.WriteRune('\\')
+		}
+		result.WriteRune(ch)
+	}
+	return result.String()
+}
+
+func isEscapableDelimiter(b byte) bool {
+	return b == ':' || b == '/' || b == '=' || b == '\\'
 }
 
 // AmbiguousPackageVersionOverride tells us that we want to set the version of some package to `Version`

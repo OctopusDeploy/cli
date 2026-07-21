@@ -92,10 +92,10 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 		Long:    "Create a runbook snapshot in Octopus Deploy",
 		Aliases: []string{"new"},
 		Example: heredoc.Docf(`
-			$ %[1]s runbook snapshot create --project MyProject --runbook "Rebuild DB Indexes"
-			$ %[1]s runbook snapshot create --project MyProject --runbook "Rebuild DB Indexes" --name "My cool snapshot"
-			$ %[1]s runbook snapshot create -p MyProject -r "Restart App" --package "azure-cli:1.2.3" --no-prompt
-			$ %[1]s runbook snapshot create -p MyProject -r "Restart App" --git-resource "Script step from Git:refs/heads/dev-branch" --publish --no-prompt
+			%[1]s runbook snapshot create --project MyProject --runbook "Rebuild DB Indexes"
+			%[1]s runbook snapshot create --project MyProject --runbook "Rebuild DB Indexes" --name "My cool snapshot"
+			%[1]s runbook snapshot create -p MyProject -r "Restart App" --package "azure-cli:1.2.3" --no-prompt
+			%[1]s runbook snapshot create -p MyProject -r "Restart App" --git-resource "Script step from Git:refs/heads/dev-branch" --publish --no-prompt
 		`, constants.ExecutableName),
 		RunE: func(c *cobra.Command, args []string) error {
 			opts := NewCreateOptions(createFlags, cmd.NewDependencies(f, c))

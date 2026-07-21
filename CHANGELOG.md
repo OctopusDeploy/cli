@@ -1,5 +1,26 @@
 # Changelog
 
+## [2.21.4](https://github.com/OctopusDeploy/cli/compare/v2.21.3...v2.21.4) (2026-07-16)
+
+
+### Bug Fixes
+
+* allow completion command to run without an Octopus login ([#612](https://github.com/OctopusDeploy/cli/issues/612)) ([a3fe8a9](https://github.com/OctopusDeploy/cli/commit/a3fe8a98e80792c216bdd4644f91be24ad42070e))
+
+## [2.21.3](https://github.com/OctopusDeploy/cli/compare/v2.21.2...v2.21.3) (2026-05-26)
+
+
+### Bug Fixes
+
+* Include Default Worker Pool for Azure Web App targets ([#603](https://github.com/OctopusDeploy/cli/issues/603)) ([6502516](https://github.com/OctopusDeploy/cli/commit/65025165bcf9451cd5f06e856d1996c8e575f345)), closes [#600](https://github.com/OctopusDeploy/cli/issues/600)
+
+## [2.21.1](https://github.com/OctopusDeploy/cli/compare/v2.21.0...v2.21.1) (2026-05-13)
+
+
+### Bug Fixes
+
+* set default worker pool correctly on azure web app target create ([#596](https://github.com/OctopusDeploy/cli/issues/596)) ([fc2df3d](https://github.com/OctopusDeploy/cli/commit/fc2df3d42acfd74340d18cae2f2d77976c00d07b)), closes [#595](https://github.com/OctopusDeploy/cli/issues/595)
+
 ## [2.21.0](https://github.com/OctopusDeploy/cli/compare/v2.20.1...v2.21.0) (2026-04-08)
 
 
