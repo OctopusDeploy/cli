@@ -9,6 +9,7 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/question"
 	"github.com/OctopusDeploy/cli/test/fixtures"
 	"github.com/OctopusDeploy/cli/test/testutil"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/core"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/releases"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/resources"
@@ -79,7 +80,7 @@ func TestReleaseUpdateVariables(t *testing.T) {
 
 			expectProjectLookup(t, api)
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/Projects-22/releases/2.1").RespondWith(rDefault21)
-			api.ExpectRequest(t, "POST", "/api/Spaces-1/releases/Releases-21/snapshot-variables").RespondWith(nil)
+			api.ExpectRequest(t, "POST", "/api/Spaces-1/releases/Releases-21/snapshot-variables").RespondWith(rDefault21)
 
 			_, err := testutil.ReceivePair(cmdReceiver)
 			assert.Nil(t, err)
@@ -111,11 +112,11 @@ func TestReleaseUpdateVariables(t *testing.T) {
 			expectProjectLookup(t, api)
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/Projects-22/releases/2.1").RespondWith(rDefault21)
 			api.ExpectRequest(t, "POST", "/api/Spaces-1/releases/Releases-21/snapshot-variables").
-				RespondWithStatus(500, "500 Internal Server Error", "boom")
+				RespondWithStatus(500, "500 Internal Server Error", &core.APIError{ErrorMessage: "boom"})
 
 			_, err := testutil.ReceivePair(cmdReceiver)
 			assert.Error(t, err)
-			assert.Contains(t, err.Error(), "failed to update variable snapshot (HTTP 500)")
+			assert.Contains(t, err.Error(), "Octopus API error")
 			assert.Contains(t, err.Error(), "boom")
 		}},
 
@@ -150,7 +151,7 @@ func TestReleaseUpdateVariables(t *testing.T) {
 					Items: []*projects.Project{fireProject},
 				})
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/Projects-22/releases/2.1").RespondWith(rDefault21)
-			api.ExpectRequest(t, "POST", "/api/Spaces-1/releases/Releases-21/snapshot-variables").RespondWith(nil)
+			api.ExpectRequest(t, "POST", "/api/Spaces-1/releases/Releases-21/snapshot-variables").RespondWith(rDefault21)
 
 			_, err := testutil.ReceivePair(cmdReceiver)
 			assert.Nil(t, err)

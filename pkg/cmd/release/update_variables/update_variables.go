@@ -3,8 +3,6 @@ package update_variables
 import (
 	"errors"
 	"fmt"
-	"io"
-	"net/http"
 
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/cmd"
@@ -15,6 +13,7 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/question/selectors"
 	"github.com/OctopusDeploy/cli/pkg/util/flag"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/releases"
 	"github.com/spf13/cobra"
 )
 
@@ -92,24 +91,8 @@ func updateVariablesRun(opts *UpdateVariablesOptions) error {
 		return err
 	}
 
-	path := fmt.Sprintf("/api/%s/releases/%s/snapshot-variables", opts.Client.GetSpaceID(), releaseID)
-	req, err := http.NewRequest(http.MethodPost, path, nil)
-	if err != nil {
+	if _, err := releases.SnapshotVariables(opts.Client, opts.Client.GetSpaceID(), releaseID); err != nil {
 		return err
-	}
-
-	resp, err := opts.Client.HttpSession().DoRawRequest(req)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		body, readErr := io.ReadAll(resp.Body)
-		if readErr != nil {
-			return fmt.Errorf("failed to update variable snapshot (HTTP %d) and failed to read response body: %w", resp.StatusCode, readErr)
-		}
-		return fmt.Errorf("failed to update variable snapshot (HTTP %d): %s", resp.StatusCode, string(body))
 	}
 
 	fmt.Fprintf(opts.Out, "Successfully updated variable snapshot for release '%s' (%s)\n", opts.Version.Value, output.Dim(releaseID))
