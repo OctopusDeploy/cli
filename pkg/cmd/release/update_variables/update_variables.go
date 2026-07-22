@@ -13,16 +13,14 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/OctopusDeploy/cli/pkg/output"
 	"github.com/OctopusDeploy/cli/pkg/question/selectors"
-	"github.com/OctopusDeploy/cli/pkg/util"
 	"github.com/OctopusDeploy/cli/pkg/util/flag"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
 	"github.com/spf13/cobra"
 )
 
 const (
-	FlagProject                  = "project"
-	FlagVersion                  = "version"
-	FlagAliasReleaseNumberLegacy = "releaseNumber"
+	FlagProject = "project"
+	FlagVersion = "version"
 )
 
 type UpdateVariablesFlags struct {
@@ -71,14 +69,6 @@ func NewCmdUpdateVariables(f factory.Factory) *cobra.Command {
 	flags.StringVarP(&updateVariablesFlags.Version.Value, updateVariablesFlags.Version.Name, "v", "", "Release version/number")
 
 	flags.SortFlags = false
-
-	flagAliases := make(map[string][]string, 1)
-	util.AddFlagAliasesString(flags, FlagVersion, flagAliases, FlagAliasReleaseNumberLegacy)
-
-	cmd.PreRunE = func(cmd *cobra.Command, args []string) error {
-		util.ApplyFlagAliases(cmd.Flags(), flagAliases)
-		return nil
-	}
 
 	return cmd
 }

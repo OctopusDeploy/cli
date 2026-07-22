@@ -89,20 +89,16 @@ func TestReleaseUpdateVariables(t *testing.T) {
 			assert.Equal(t, "", stdErr.String())
 		}},
 
-		{"noprompt: legacy --releaseNumber alias maps to --version", func(t *testing.T, api *testutil.MockHttpServer, qa *testutil.AskMocker, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
+		{"noprompt: --releaseNumber is not a recognized flag", func(t *testing.T, api *testutil.MockHttpServer, qa *testutil.AskMocker, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
 			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
 				defer api.Close()
 				rootCmd.SetArgs([]string{"release", "update-variables", "--project", fireProject.Name, "--releaseNumber", "2.1", "--no-prompt"})
 				return rootCmd.ExecuteC()
 			})
 
-			expectProjectLookup(t, api)
-			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/Projects-22/releases/2.1").RespondWith(rDefault21)
-			api.ExpectRequest(t, "POST", "/api/Spaces-1/releases/Releases-21/snapshot-variables").RespondWith(nil)
-
 			_, err := testutil.ReceivePair(cmdReceiver)
-			assert.Nil(t, err)
-			assert.Contains(t, stdOut.String(), "Successfully updated variable snapshot for release '2.1'")
+			assert.Error(t, err)
+			assert.Contains(t, err.Error(), "unknown flag: --releaseNumber")
 		}},
 
 		{"noprompt: server returns non-2xx status returns wrapped error", func(t *testing.T, api *testutil.MockHttpServer, qa *testutil.AskMocker, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
