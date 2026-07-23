@@ -3,8 +3,6 @@ package update_variables
 import (
 	"errors"
 	"fmt"
-	"io"
-	"net/http"
 
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/cmd"
@@ -122,24 +120,8 @@ func updateVariablesRun(opts *UpdateVariablesOptions) error {
 		fmt.Fprintf(opts.Out, "Updating variables for published snapshot '%s' (%s)\n", snapshotName, output.Dim(snapshotID))
 	}
 
-	path := fmt.Sprintf("/api/%s/runbookSnapshots/%s/snapshot-variables", opts.Space.GetID(), snapshotID)
-	req, err := http.NewRequest(http.MethodPost, path, nil)
-	if err != nil {
+	if _, err := runbooks.SnapshotVariables(opts.Client, opts.Space.GetID(), snapshotID); err != nil {
 		return err
-	}
-
-	resp, err := opts.Client.HttpSession().DoRawRequest(req)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		body, readErr := io.ReadAll(resp.Body)
-		if readErr != nil {
-			return fmt.Errorf("failed to update variable snapshot (HTTP %d) and failed to read response body: %w", resp.StatusCode, readErr)
-		}
-		return fmt.Errorf("failed to update variable snapshot (HTTP %d): %s", resp.StatusCode, string(body))
 	}
 
 	fmt.Fprintf(opts.Out, "Successfully updated variable snapshot '%s' (%s) for runbook '%s'\n", snapshotName, output.Dim(snapshotID), runbook.Name)

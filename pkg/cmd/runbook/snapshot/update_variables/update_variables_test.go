@@ -9,6 +9,7 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/question"
 	"github.com/OctopusDeploy/cli/test/fixtures"
 	"github.com/OctopusDeploy/cli/test/testutil"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/core"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/resources"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/runbooks"
@@ -48,8 +49,8 @@ func TestRunbookSnapshotUpdateVariables(t *testing.T) {
 			})
 		// FindRunbook tries GetByID first, falls back to GetByName
 		api.ExpectRequest(t, "GET", "/api/Spaces-1/runbooks/Rebuild DB Indexes").
-			RespondWithStatus(404, "NotFound", nil)
-		api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/Projects-22/runbooks?partialName=Rebuild+DB+Indexes").
+			RespondWithStatus(404, "NotFound", &core.APIError{ErrorMessage: "not found"})
+		api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/Projects-22/runbooks?partialName=Rebuild%20DB%20Indexes").
 			RespondWith(resources.Resources[*runbooks.Runbook]{
 				Items: []*runbooks.Runbook{rebuildIndexes},
 			})
@@ -101,7 +102,7 @@ func TestRunbookSnapshotUpdateVariables(t *testing.T) {
 			expectProjectAndRunbookLookup(t, api)
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/Projects-22/runbookSnapshots/Snapshot 40C9ENM").
 				RespondWith(otherSnapshot)
-			api.ExpectRequest(t, "POST", "/api/Spaces-1/runbookSnapshots/RunbookSnapshots-2/snapshot-variables").RespondWith(nil)
+			api.ExpectRequest(t, "POST", "/api/Spaces-1/runbookSnapshots/RunbookSnapshots-2/snapshot-variables").RespondWith(otherSnapshot)
 
 			_, err := testutil.ReceivePair(cmdReceiver)
 			assert.Nil(t, err)
@@ -124,7 +125,7 @@ func TestRunbookSnapshotUpdateVariables(t *testing.T) {
 			expectProjectAndRunbookLookup(t, api)
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/Projects-22/runbookSnapshots/RunbookSnapshots-1").
 				RespondWith(publishedSnapshot)
-			api.ExpectRequest(t, "POST", "/api/Spaces-1/runbookSnapshots/RunbookSnapshots-1/snapshot-variables").RespondWith(nil)
+			api.ExpectRequest(t, "POST", "/api/Spaces-1/runbookSnapshots/RunbookSnapshots-1/snapshot-variables").RespondWith(publishedSnapshot)
 
 			_, err := testutil.ReceivePair(cmdReceiver)
 			assert.Nil(t, err)
@@ -150,8 +151,8 @@ func TestRunbookSnapshotUpdateVariables(t *testing.T) {
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/Fire Project").RespondWithStatus(404, "NotFound", nil)
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects?partialName=Fire+Project").
 				RespondWith(resources.Resources[*projects.Project]{Items: []*projects.Project{fireProject}})
-			api.ExpectRequest(t, "GET", "/api/Spaces-1/runbooks/Restart App").RespondWithStatus(404, "NotFound", nil)
-			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/Projects-22/runbooks?partialName=Restart+App").
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/runbooks/Restart App").RespondWithStatus(404, "NotFound", &core.APIError{ErrorMessage: "not found"})
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/Projects-22/runbooks?partialName=Restart%20App").
 				RespondWith(resources.Resources[*runbooks.Runbook]{Items: []*runbooks.Runbook{noPublished}})
 
 			_, err := testutil.ReceivePair(cmdReceiver)
@@ -172,11 +173,11 @@ func TestRunbookSnapshotUpdateVariables(t *testing.T) {
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/Projects-22/runbookSnapshots/RunbookSnapshots-1").
 				RespondWith(publishedSnapshot)
 			api.ExpectRequest(t, "POST", "/api/Spaces-1/runbookSnapshots/RunbookSnapshots-1/snapshot-variables").
-				RespondWithStatus(409, "409 Conflict", "snapshot is locked")
+				RespondWithStatus(409, "409 Conflict", &core.APIError{ErrorMessage: "snapshot is locked"})
 
 			_, err := testutil.ReceivePair(cmdReceiver)
 			assert.Error(t, err)
-			assert.Contains(t, err.Error(), "failed to update variable snapshot (HTTP 409)")
+			assert.Contains(t, err.Error(), "Octopus API error")
 			assert.Contains(t, err.Error(), "snapshot is locked")
 		}},
 
@@ -208,12 +209,12 @@ func TestRunbookSnapshotUpdateVariables(t *testing.T) {
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/Fire Project").RespondWithStatus(404, "NotFound", nil)
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects?partialName=Fire+Project").
 				RespondWith(resources.Resources[*projects.Project]{Items: []*projects.Project{fireProject}})
-			api.ExpectRequest(t, "GET", "/api/Spaces-1/runbooks/Rebuild DB Indexes").RespondWithStatus(404, "NotFound", nil)
-			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/Projects-22/runbooks?partialName=Rebuild+DB+Indexes").
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/runbooks/Rebuild DB Indexes").RespondWithStatus(404, "NotFound", &core.APIError{ErrorMessage: "not found"})
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/Projects-22/runbooks?partialName=Rebuild%20DB%20Indexes").
 				RespondWith(resources.Resources[*runbooks.Runbook]{Items: []*runbooks.Runbook{rebuildIndexes}})
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/Projects-22/runbookSnapshots/RunbookSnapshots-1").
 				RespondWith(publishedSnapshot)
-			api.ExpectRequest(t, "POST", "/api/Spaces-1/runbookSnapshots/RunbookSnapshots-1/snapshot-variables").RespondWith(nil)
+			api.ExpectRequest(t, "POST", "/api/Spaces-1/runbookSnapshots/RunbookSnapshots-1/snapshot-variables").RespondWith(publishedSnapshot)
 
 			_, err := testutil.ReceivePair(cmdReceiver)
 			assert.Nil(t, err)
