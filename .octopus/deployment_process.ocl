@@ -33,6 +33,11 @@ step "push-cli-to-chocolatey" {
         }
         worker_pool = "hosted-windows"
 
+        container {
+            feed = "docker-hub"
+            image = "octopusdeploy/worker-tools:6.6.4-windows.ltsc2025"
+        }
+
         packages "cli" {
             acquisition_location = "Server"
             feed = "octopus-server-built-in"
@@ -115,7 +120,7 @@ step "push-homebrew-formula-updates-to-the-homebrew-taps-repo" {
 
         container {
             feed = "docker-hub"
-            image = "octopusdeploy/worker-tools:6.3.0-ubuntu.22.04"
+            image = "octopusdeploy/worker-tools:6.6.4-ubuntu.24.04"
         }
 
         packages "cli" {
@@ -238,6 +243,9 @@ step "publish-winget-update-pr" {
                     Write-Warning "Failed to delete fork repo '$forkRepo'. If this fork is too far behind its source, winget-create may fail."
                 }
                 
+                # Install dotnet 9 runtime
+                Invoke-WebRequest 'https://dotnet.microsoft.com/download/dotnet/scripts/v1/dotnet-install.ps1' -outFile 'dotnet-install.ps1';
+                .\dotnet-install.ps1 -Channel 9.0 -Runtime dotnet -InstallDir 'C:\Program Files\dotnet';
                 
                 # Install winget-create
                 Invoke-WebRequest https://aka.ms/wingetcreate/latest -OutFile wingetcreate.exe
@@ -266,7 +274,7 @@ step "publish-winget-update-pr" {
 
         container {
             feed = "docker-hub"
-            image = "octopusdeploy/worker-tools:6.4-windows.ltsc2022"
+            image = "octopusdeploy/worker-tools:6.6.4-windows.ltsc2025"
         }
 
         packages "cli" {
