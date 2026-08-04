@@ -24,6 +24,7 @@ const (
 	FlagBasePath  = "base-path"
 	FlagOutFolder = "out-folder"
 	FlagInclude   = "include"
+	FlagExclude   = "exclude"
 	FlagVerbose   = "verbose"
 	FlagOverwrite = "overwrite"
 )
@@ -34,6 +35,7 @@ type PackageCreateFlags struct {
 	BasePath  *flag.Flag[string]
 	OutFolder *flag.Flag[string]
 	Include   *flag.Flag[[]string]
+	Exclude   *flag.Flag[[]string]
 	Verbose   *flag.Flag[bool]
 	Overwrite *flag.Flag[bool]
 }
@@ -53,6 +55,7 @@ func NewPackageCreateFlags() *PackageCreateFlags {
 		BasePath:  flag.New[string](FlagBasePath, false),
 		OutFolder: flag.New[string](FlagOutFolder, false),
 		Include:   flag.New[[]string](FlagInclude, false),
+		Exclude:   flag.New[[]string](FlagExclude, false),
 		Verbose:   flag.New[bool](FlagVerbose, false),
 		Overwrite: flag.New[bool](FlagOverwrite, false),
 	}
@@ -127,6 +130,22 @@ func PackageCreatePromptMissing(opts *PackageCreateOptions) error {
 		}
 	}
 
+	if len(opts.Exclude.Value) == 0 {
+		for {
+			var pattern string
+			if err := opts.Ask(&survey.Input{
+				Message: "Exclude patterns",
+				Help:    "Add a file pattern to exclude, relative to the base path e.g. **/*.config; leave blank to exclude nothing.",
+			}, &pattern); err != nil {
+				return err
+			}
+			if pattern == "" {
+				break
+			}
+			opts.Exclude.Value = append(opts.Exclude.Value, pattern)
+		}
+	}
+
 	if !opts.Verbose.Value {
 		err := opts.Ask(&survey.Confirm{
 			Message: "Verbose",
@@ -178,8 +197,11 @@ func BuildPackage(opts *PackageCreateOptions, outFileName string) (*os.File, err
 	}
 
 	VerboseOut(opts.Writer, opts.Verbose.Value, "Saving \"%s\" to \"%s\"...\nAdding files from \"%s\" matching pattern/s \"%s\"\n", outFileName, outPath, opts.BasePath.Value, strings.Join(opts.Include.Value, ", "))
+	if len(opts.Exclude.Value) > 0 {
+		VerboseOut(opts.Writer, opts.Verbose.Value, "Excluding files matching pattern/s \"%s\"\n", strings.Join(opts.Exclude.Value, ", "))
+	}
 
-	filePaths, err := getDistinctPatternMatches(opts.BasePath.Value, opts.Include.Value)
+	filePaths, err := getDistinctPatternMatches(opts.BasePath.Value, opts.Include.Value, opts.Exclude.Value)
 	if err != nil {
 		return nil, err
 	}
@@ -254,11 +276,11 @@ func buildArchive(out io.Writer, outFilePath string, basePath string, filesToArc
 	return zipFile, nil
 }
 
-func getDistinctPatternMatches(basePath string, patterns []string) ([]string, error) {
+func getDistinctPatternMatches(basePath string, includePatterns []string, excludePatterns []string) ([]string, error) {
 	fileSys := os.DirFS(filepath.Clean(basePath))
 	var filePaths []string
 
-	for _, pattern := range patterns {
+	for _, pattern := range includePatterns {
 		paths, err := doublestar.Glob(fileSys, filepath.ToSlash(pattern))
 		if err != nil {
 			return nil, err
@@ -266,5 +288,52 @@ func getDistinctPatternMatches(basePath string, patterns []string) ([]string, er
 		filePaths = append(filePaths, paths...)
 	}
 
-	return util.SliceDistinct(filePaths), nil
+	filePaths = util.SliceDistinct(filePaths)
+
+	if len(excludePatterns) == 0 {
+		return filePaths, nil
+	}
+
+	var keptPaths []string
+	for _, path := range filePaths {
+		excluded, err := matchesAnyPattern(path, excludePatterns)
+		if err != nil {
+			return nil, err
+		}
+		if !excluded {
+			keptPaths = append(keptPaths, path)
+		}
+	}
+
+	return keptPaths, nil
+}
+
+// matchesAnyPattern reports whether path matches any of the supplied glob
+// patterns. A directory matches when the pattern targets its contents (e.g.
+// "AppData/**" excludes the AppData directory as well as everything inside it)
+// so that excluded directories are not added to the archive as empty entries.
+func matchesAnyPattern(path string, patterns []string) (bool, error) {
+	for _, pattern := range patterns {
+		pattern = filepath.ToSlash(pattern)
+
+		matched, err := doublestar.Match(pattern, path)
+		if err != nil {
+			return false, err
+		}
+		if matched {
+			return true, nil
+		}
+
+		if directoryPrefix, found := strings.CutSuffix(pattern, "/**"); found {
+			matched, err = doublestar.Match(directoryPrefix, path)
+			if err != nil {
+				return false, err
+			}
+			if matched {
+				return true, nil
+			}
+		}
+	}
+
+	return false, nil
 }
