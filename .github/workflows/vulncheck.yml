@@ -1,0 +1,32 @@
+name: govulncheck
+
+# Dependabot cannot bump the Go toolchain (dependabot/dependabot-core#9057), and
+# 44 of the 47 vulnerabilities reachable from the v2.21.4 release binary were in
+# the standard library. This job is what catches those.
+on:
+  workflow_dispatch:
+  pull_request:
+  schedule:
+    # Mondays 02:00 UTC == 12:00 Monday AEST, so a new finding surfaces at the
+    # start of an Australian working day rather than sitting over the weekend.
+    - cron: "0 2 * * 1"
+
+permissions:
+  contents: read
+
+jobs:
+  govulncheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: golang/govulncheck-action@v1
+        with:
+          # Scan the toolchain the release is actually built with: go.mod pins a
+          # full patch version and carries no `toolchain` directive, so goreleaser
+          # builds with exactly this version.
+          go-version-file: go.mod
+          # Must be false. The default (true) installs the newest Go, and
+          # govulncheck then reports standard library findings for THAT version
+          # rather than the pinned one. Scanning main (go.mod 1.25.5) under
+          # go1.26.3 reports 3 findings and misses CVE-2025-68121 entirely, versus
+          # 13 findings including it when the pinned toolchain is used.
+          check-latest: false
