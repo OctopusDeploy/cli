@@ -165,7 +165,32 @@ func BuildOutFileName(packageType, id, version string) string {
 	return fmt.Sprintf("%s.%s.%s", id, version, packageType)
 }
 
+// ArchiveEntry is written into the archive from memory rather than read from
+// disk, for parts that are generated rather than packaged.
+type ArchiveEntry struct {
+	Name    string
+	Content []byte
+}
+
+// PackageContents adjusts how an archive is assembled, for formats that need
+// more than a plain zip of the matched files.
+type PackageContents struct {
+	// ExtraEntries is given the relative paths already selected for the archive
+	// and returns parts to append. Called after the file list is resolved, so a
+	// format can describe its own contents.
+	ExtraEntries func(paths []string) ([]ArchiveEntry, error)
+
+	// ExcludeDirectories omits explicit directory records. Open Packaging
+	// Conventions containers, such as .nupkg, must not contain part names
+	// ending in "/".
+	ExcludeDirectories bool
+}
+
 func BuildPackage(opts *PackageCreateOptions, outFileName string) (*os.File, error) {
+	return BuildPackageContents(opts, outFileName, nil)
+}
+
+func BuildPackageContents(opts *PackageCreateOptions, outFileName string, contents *PackageContents) (*os.File, error) {
 	outFilePath := filepath.Join(opts.OutFolder.Value, outFileName)
 	outPath, err := filepath.Abs(opts.OutFolder.Value)
 	if err != nil {
@@ -188,10 +213,47 @@ func BuildPackage(opts *PackageCreateOptions, outFileName string) (*os.File, err
 		return nil, errors.New("no files identified to package")
 	}
 
-	return buildArchive(opts.Writer, outFilePath, opts.BasePath.Value, filePaths, opts.Verbose.Value)
+	var extraEntries []ArchiveEntry
+	if contents != nil {
+		// filter before the hook runs, so a format describing its own contents
+		// is given the paths that will actually be in the archive
+		if contents.ExcludeDirectories {
+			filePaths, err = withoutDirectories(opts.BasePath.Value, filePaths)
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		if contents.ExtraEntries != nil {
+			extraEntries, err = contents.ExtraEntries(filePaths)
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+
+	return buildArchive(opts.Writer, outFilePath, opts.BasePath.Value, filePaths, opts.Verbose.Value, extraEntries)
 }
 
-func buildArchive(out io.Writer, outFilePath string, basePath string, filesToArchive []string, isVerbose bool) (*os.File, error) {
+// withoutDirectories drops directory entries from a resolved file list. OPC
+// containers such as .nupkg must not contain part names ending in "/".
+func withoutDirectories(basePath string, paths []string) ([]string, error) {
+	var files []string
+	for _, path := range paths {
+		fileInfo, err := os.Stat(filepath.Join(basePath, path))
+		if err != nil {
+			return nil, err
+		}
+
+		if !fileInfo.IsDir() {
+			files = append(files, path)
+		}
+	}
+
+	return files, nil
+}
+
+func buildArchive(out io.Writer, outFilePath string, basePath string, filesToArchive []string, isVerbose bool, extraEntries []ArchiveEntry) (*os.File, error) {
 	_, outFile := filepath.Split(outFilePath)
 	zipFile, err := os.Create(outFilePath)
 	if err != nil {
@@ -249,6 +311,22 @@ func buildArchive(out io.Writer, outFilePath string, basePath string, filesToArc
 		if err != nil {
 			return nil, err
 		}
+	}
+
+	for _, entry := range extraEntries {
+		header := &zip.FileHeader{Name: entry.Name, Method: zip.Deflate}
+		header.SetMode(0644)
+
+		headerWriter, err := writer.CreateHeader(header)
+		if err != nil {
+			return nil, err
+		}
+
+		if _, err = headerWriter.Write(entry.Content); err != nil {
+			return nil, err
+		}
+
+		VerboseOut(out, isVerbose, "Added file: %s\n", entry.Name)
 	}
 
 	return zipFile, nil
