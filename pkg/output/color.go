@@ -10,7 +10,7 @@ import (
 )
 
 var (
-	IsColorEnabled = os.Getenv("NO_COLOR") == "" && term.IsTerminal(int(os.Stdout.Fd()))
+	IsColorEnabled = isColorEnabled()
 	magenta        = ansi.ColorFunc("magenta")
 	cyan           = ansi.ColorFunc("cyan")
 	red            = ansi.ColorFunc("red")
@@ -20,6 +20,32 @@ var (
 	bold           = ansi.ColorFunc("default+b")
 	dim            = ansi.ColorFunc("default+d")
 )
+
+// isColorEnabled decides whether ANSI colour codes should be emitted, following
+// the widely adopted no-color.org and bixense.com/clicolors conventions:
+//
+//   - NO_COLOR set to anything non-empty disables colour outright.
+//   - CLICOLOR_FORCE or FORCE_COLOR set to anything other than "0" forces colour
+//     on even when stdout is not a terminal. CI systems such as GitHub Actions
+//     and GitLab CI render ANSI codes but do not attach a TTY, so terminal
+//     detection alone can never enable colour there.
+//   - Otherwise colour is used only when stdout is a terminal.
+func isColorEnabled() bool {
+	if os.Getenv("NO_COLOR") != "" {
+		return false
+	}
+
+	if isColorForced("CLICOLOR_FORCE") || isColorForced("FORCE_COLOR") {
+		return true
+	}
+
+	return term.IsTerminal(int(os.Stdout.Fd()))
+}
+
+func isColorForced(name string) bool {
+	value := os.Getenv(name)
+	return value != "" && value != "0"
+}
 
 func Blue(s string) string {
 	if !IsColorEnabled {
