@@ -2,9 +2,12 @@ package support
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
+	"github.com/OctopusDeploy/cli/pkg/constants"
 	flag "github.com/OctopusDeploy/cli/pkg/util/flag"
 	"github.com/OctopusDeploy/cli/test/testutil"
+	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"os"
 	"path/filepath"
@@ -12,6 +15,41 @@ import (
 	"testing"
 	"time"
 )
+
+const windowsPackagePath = `c:\temp\test.package.0.0.1.zip`
+
+func capturePrintPackageCreated(outputFormat string, path string) string {
+	buf := &bytes.Buffer{}
+	cmd := &cobra.Command{}
+	cmd.SetOut(buf)
+
+	PrintPackageCreated(cmd, outputFormat, path)
+
+	return buf.String()
+}
+
+func TestPrintPackageCreated_JsonEscapesBackslashes(t *testing.T) {
+	output := capturePrintPackageCreated(constants.OutputFormatJson, windowsPackagePath)
+
+	// The output must be legal JSON; previously the path was interpolated
+	// directly into a string literal, leaving raw backslashes behind.
+	var result PackageCreatedOutput
+	assert.NoError(t, json.Unmarshal([]byte(output), &result))
+	assert.Equal(t, windowsPackagePath, result.Path)
+	assert.Contains(t, output, `c:\\temp\\test.package.0.0.1.zip`)
+}
+
+func TestPrintPackageCreated_BasicIsUnescaped(t *testing.T) {
+	output := capturePrintPackageCreated(constants.OutputFormatBasic, windowsPackagePath)
+
+	assert.Equal(t, windowsPackagePath+"\n", output)
+}
+
+func TestPrintPackageCreated_TableIsUnescaped(t *testing.T) {
+	output := capturePrintPackageCreated(constants.OutputFormatTable, windowsPackagePath)
+
+	assert.Equal(t, "Successfully created package "+windowsPackagePath+"\n", output)
+}
 
 func TestVerboseOut_WithVerboseEnabled(t *testing.T) {
 	result := testutil.CaptureConsoleOutput(func() {

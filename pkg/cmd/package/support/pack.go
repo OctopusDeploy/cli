@@ -2,9 +2,11 @@ package support
 
 import (
 	"archive/zip"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/AlecAivazis/survey/v2"
+	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/OctopusDeploy/cli/pkg/question"
 	"github.com/OctopusDeploy/cli/pkg/util"
@@ -153,6 +155,27 @@ func PackageCreatePromptMissing(opts *PackageCreateOptions) error {
 func VerboseOut(out io.Writer, isVerbose bool, messageTemplate string, messageArgs ...any) {
 	if isVerbose {
 		fmt.Fprintf(out, messageTemplate, messageArgs...)
+	}
+}
+
+// PackageCreatedOutput is the JSON shape written after a package is created.
+type PackageCreatedOutput struct {
+	Path string
+}
+
+// PrintPackageCreated writes the path of a newly created package in the
+// requested output format. The JSON form is marshalled rather than assembled by
+// hand so that paths containing backslashes, such as Windows paths, are escaped
+// correctly and the output remains parseable.
+func PrintPackageCreated(cmd *cobra.Command, outputFormat string, path string) {
+	switch outputFormat {
+	case constants.OutputFormatBasic:
+		cmd.Printf("%s\n", path)
+	case constants.OutputFormatJson:
+		data, _ := json.Marshal(PackageCreatedOutput{Path: path})
+		cmd.Println(string(data))
+	default: // table
+		cmd.Printf("Successfully created package %s\n", path)
 	}
 }
 
