@@ -10,6 +10,7 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/OctopusDeploy/cli/pkg/output"
+	"github.com/OctopusDeploy/cli/pkg/question"
 	"github.com/OctopusDeploy/cli/pkg/question/selectors"
 	"github.com/OctopusDeploy/cli/pkg/usage"
 	"github.com/OctopusDeploy/cli/pkg/util/featuretoggle"
@@ -131,23 +132,14 @@ func resolveTenantIdentifier(tenant string, args []string) string {
 }
 
 // selectTenant prompts for a tenant when none was named on the command line,
-// matching what `tenant variables update` does. With prompting disabled there
-// is nothing to fall back on, so the identifier is required.
-func selectTenant(f factory.Factory, octopus *client.Client) (string, error) {
-	if !f.IsPromptEnabled() {
-		return "", fmt.Errorf("must supply tenant identifier")
-	}
-
-	selectedTenant, err := selectors.Select(
-		f.Ask,
+// matching what `tenant variables update` does. The getter is a parameter so
+// the prompt can be driven from tests, as connect and update do.
+func selectTenant(ask question.Asker, getAllTenants shared.GetAllTenantsCallback) (*tenants.Tenant, error) {
+	return selectors.Select(
+		ask,
 		"You have not specified a Tenant. Please select one:",
-		func() ([]*tenants.Tenant, error) { return shared.GetAllTenants(octopus) },
+		getAllTenants,
 		func(tenant *tenants.Tenant) string { return tenant.Name })
-	if err != nil {
-		return "", err
-	}
-
-	return selectedTenant.Name, nil
 }
 
 func listRun(cmd *cobra.Command, f factory.Factory, id string) error {
@@ -156,14 +148,17 @@ func listRun(cmd *cobra.Command, f factory.Factory, id string) error {
 		return err
 	}
 
+	var tenant *tenants.Tenant
 	if id == "" {
-		id, err = selectTenant(f, client)
-		if err != nil {
-			return err
+		// with prompting disabled there is nothing to select from
+		if !f.IsPromptEnabled() {
+			return fmt.Errorf("must supply tenant identifier")
 		}
-	}
 
-	tenant, err := client.Tenants.GetByIdentifier(id)
+		tenant, err = selectTenant(f.Ask, func() ([]*tenants.Tenant, error) { return shared.GetAllTenants(client) })
+	} else {
+		tenant, err = client.Tenants.GetByIdentifier(id)
+	}
 	if err != nil {
 		return err
 	}
