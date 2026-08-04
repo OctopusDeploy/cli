@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.21.5](https://github.com/OctopusDeploy/cli/compare/v2.21.4...v2.21.5) (2026-08-04)
+
+
+### Bug Fixes
+
+* bump Go to 1.26.5 and golang.org/x deps to clear CVEs ([25ce4fb](https://github.com/OctopusDeploy/cli/commit/25ce4fbe3fe9e9526546d06acd716a68d52ce519)), closes [#583](https://github.com/OctopusDeploy/cli/issues/583)
+
 ## [2.21.4](https://github.com/OctopusDeploy/cli/compare/v2.21.3...v2.21.4) (2026-07-16)
 
 
