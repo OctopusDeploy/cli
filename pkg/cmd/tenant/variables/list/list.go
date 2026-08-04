@@ -11,7 +11,9 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/OctopusDeploy/cli/pkg/output"
 	"github.com/OctopusDeploy/cli/pkg/question/selectors"
+	"github.com/OctopusDeploy/cli/pkg/usage"
 	"github.com/OctopusDeploy/cli/pkg/util/featuretoggle"
+	"github.com/OctopusDeploy/cli/pkg/util/flag"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/actiontemplates"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/core"
@@ -26,6 +28,16 @@ const (
 
 	FlagTenant = "tenant"
 )
+
+type ListFlags struct {
+	Tenant *flag.Flag[string]
+}
+
+func NewListFlags() *ListFlags {
+	return &ListFlags{
+		Tenant: flag.New[string](FlagTenant, false),
+	}
+}
 
 type VariableValue struct {
 	Type            string
@@ -75,7 +87,7 @@ func NewVariableValueProjectAsJson(v *VariableValue) *VariableValueProjectAsJson
 }
 
 func NewCmdList(f factory.Factory) *cobra.Command {
-	var tenant string
+	listFlags := NewListFlags()
 
 	cmd := &cobra.Command{
 		Use:   "list [<name> | <id>]",
@@ -87,44 +99,35 @@ func NewCmdList(f factory.Factory) *cobra.Command {
 			%[1]s tenant variables ls Tenant-123
 		`, constants.ExecutableName),
 		Aliases: []string{"ls"},
-		Args:    cobra.MaximumNArgs(1),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			identifier, err := resolveTenantIdentifier(tenant, args)
-			if err != nil {
-				return err
-			}
-
-			return listRun(cmd, f, identifier)
+		Args:    usage.MaximumNArgs(1),
+		RunE: func(c *cobra.Command, args []string) error {
+			return listRun(c, f, resolveTenantIdentifier(listFlags.Tenant.Value, args))
 		},
 	}
 
 	// `tenant variables update` identifies its tenant with --tenant/-t; accept the
 	// same flag here so the two subcommands can be driven the same way. The
 	// positional argument is kept for backwards compatibility.
-	cmd.Flags().StringVarP(&tenant, FlagTenant, "t", "", "The tenant")
+	flags := cmd.Flags()
+	flags.StringVarP(&listFlags.Tenant.Value, listFlags.Tenant.Name, "t", "", "The tenant")
 
 	return cmd
 }
 
-// resolveTenantIdentifier works out which tenant was named on the command line,
-// through --tenant or a positional argument. Supplying both is treated as an
-// error rather than silently favouring one, since the two could disagree.
+// resolveTenantIdentifier prefers --tenant and falls back to the positional
+// argument, matching how the other commands accepting both forms behave.
 //
 // An empty result means no tenant was named; the caller prompts for one.
-func resolveTenantIdentifier(tenant string, args []string) (string, error) {
-	if tenant != "" && len(args) > 0 {
-		return "", fmt.Errorf("tenant specified as both an argument and with --%s, please use only one", FlagTenant)
-	}
-
+func resolveTenantIdentifier(tenant string, args []string) string {
 	if tenant != "" {
-		return tenant, nil
+		return tenant
 	}
 
 	if len(args) > 0 {
-		return args[0], nil
+		return args[0]
 	}
 
-	return "", nil
+	return ""
 }
 
 // selectTenant prompts for a tenant when none was named on the command line,
