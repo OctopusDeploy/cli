@@ -36,13 +36,14 @@ func TestResolveTenantIdentifier(t *testing.T) {
 			expectedError: "tenant specified as both an argument and with --tenant, please use only one",
 		},
 		{
-			name:          "neither supplied",
-			expectedError: "must supply tenant identifier",
+			// no tenant named, so the caller falls through to prompting for one
+			name:     "neither supplied",
+			expected: "",
 		},
 		{
-			name:          "empty positional argument",
-			args:          []string{""},
-			expectedError: "must supply tenant identifier",
+			name:     "empty positional argument",
+			args:     []string{""},
+			expected: "",
 		},
 	}
 

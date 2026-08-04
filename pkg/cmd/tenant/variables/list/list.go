@@ -6,6 +6,7 @@ import (
 
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/apiclient"
+	"github.com/OctopusDeploy/cli/pkg/cmd/tenant/shared"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/OctopusDeploy/cli/pkg/output"
@@ -105,9 +106,11 @@ func NewCmdList(f factory.Factory) *cobra.Command {
 	return cmd
 }
 
-// resolveTenantIdentifier works out which tenant to list variables for, given
-// the value of --tenant and any positional argument. Supplying both is treated
-// as an error rather than silently favouring one, since the two could disagree.
+// resolveTenantIdentifier works out which tenant was named on the command line,
+// through --tenant or a positional argument. Supplying both is treated as an
+// error rather than silently favouring one, since the two could disagree.
+//
+// An empty result means no tenant was named; the caller prompts for one.
 func resolveTenantIdentifier(tenant string, args []string) (string, error) {
 	if tenant != "" && len(args) > 0 {
 		return "", fmt.Errorf("tenant specified as both an argument and with --%s, please use only one", FlagTenant)
@@ -117,17 +120,44 @@ func resolveTenantIdentifier(tenant string, args []string) (string, error) {
 		return tenant, nil
 	}
 
-	if len(args) > 0 && args[0] != "" {
+	if len(args) > 0 {
 		return args[0], nil
 	}
 
-	return "", fmt.Errorf("must supply tenant identifier")
+	return "", nil
+}
+
+// selectTenant prompts for a tenant when none was named on the command line,
+// matching what `tenant variables update` does. With prompting disabled there
+// is nothing to fall back on, so the identifier is required.
+func selectTenant(f factory.Factory, octopus *client.Client) (string, error) {
+	if !f.IsPromptEnabled() {
+		return "", fmt.Errorf("must supply tenant identifier")
+	}
+
+	selectedTenant, err := selectors.Select(
+		f.Ask,
+		"You have not specified a Tenant. Please select one:",
+		func() ([]*tenants.Tenant, error) { return shared.GetAllTenants(octopus) },
+		func(tenant *tenants.Tenant) string { return tenant.Name })
+	if err != nil {
+		return "", err
+	}
+
+	return selectedTenant.Name, nil
 }
 
 func listRun(cmd *cobra.Command, f factory.Factory, id string) error {
 	client, err := f.GetSpacedClient(apiclient.NewRequester(cmd))
 	if err != nil {
 		return err
+	}
+
+	if id == "" {
+		id, err = selectTenant(f, client)
+		if err != nil {
+			return err
+		}
 	}
 
 	tenant, err := client.Tenants.GetByIdentifier(id)
