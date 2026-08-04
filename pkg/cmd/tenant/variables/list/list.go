@@ -22,6 +22,8 @@ import (
 const (
 	LibraryVariableSetType = "Library"
 	ProjectType            = "Project"
+
+	FlagTenant = "tenant"
 )
 
 type VariableValue struct {
@@ -72,24 +74,54 @@ func NewVariableValueProjectAsJson(v *VariableValue) *VariableValueProjectAsJson
 }
 
 func NewCmdList(f factory.Factory) *cobra.Command {
+	var tenant string
+
 	cmd := &cobra.Command{
-		Use:   "list",
+		Use:   "list [<name> | <id>]",
 		Short: "List tenant variables",
 		Long:  "List tenant variables in Octopus Deploy",
 		Example: heredoc.Docf(`
 			%[1]s tenant variables list "Bobs Wood Shop"
+			%[1]s tenant variables list --tenant "Bobs Wood Shop"
 			%[1]s tenant variables ls Tenant-123
 		`, constants.ExecutableName),
 		Aliases: []string{"ls"},
+		Args:    cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if len(args) == 0 {
-				return fmt.Errorf("must supply tenant identifier")
+			identifier, err := resolveTenantIdentifier(tenant, args)
+			if err != nil {
+				return err
 			}
-			return listRun(cmd, f, args[0])
+
+			return listRun(cmd, f, identifier)
 		},
 	}
 
+	// `tenant variables update` identifies its tenant with --tenant/-t; accept the
+	// same flag here so the two subcommands can be driven the same way. The
+	// positional argument is kept for backwards compatibility.
+	cmd.Flags().StringVarP(&tenant, FlagTenant, "t", "", "The tenant")
+
 	return cmd
+}
+
+// resolveTenantIdentifier works out which tenant to list variables for, given
+// the value of --tenant and any positional argument. Supplying both is treated
+// as an error rather than silently favouring one, since the two could disagree.
+func resolveTenantIdentifier(tenant string, args []string) (string, error) {
+	if tenant != "" && len(args) > 0 {
+		return "", fmt.Errorf("tenant specified as both an argument and with --%s, please use only one", FlagTenant)
+	}
+
+	if tenant != "" {
+		return tenant, nil
+	}
+
+	if len(args) > 0 && args[0] != "" {
+		return args[0], nil
+	}
+
+	return "", fmt.Errorf("must supply tenant identifier")
 }
 
 func listRun(cmd *cobra.Command, f factory.Factory, id string) error {
