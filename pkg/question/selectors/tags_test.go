@@ -214,3 +214,67 @@ func TestValidateTags_NewTagInExistingTagSet(t *testing.T) {
 
 	assert.Nil(t, err)
 }
+
+// A tag set with no tags in it has nothing to offer, so it must not raise a
+// prompt. Presenting a selector with no options fails with "please provide
+// options to select from", which used to abort `tenant create` on any space
+// that had no usable tag sets. An empty prompt-assertion list means the mock
+// asker fails the test if Tags asks anything at all.
+func TestTags_NoTagSetsDoesNotPrompt(t *testing.T) {
+	asker, checkRemainingPrompts := testutil.NewMockAsker(t, []*testutil.PA{})
+
+	result, err := Tags(asker, []string{}, []string{}, []*tagsets.TagSet{})
+
+	checkRemainingPrompts()
+	assert.Nil(t, err)
+	assert.Empty(t, result)
+}
+
+func TestTags_EmptySingleSelectTagSetDoesNotPrompt(t *testing.T) {
+	emptyTagSet := tagsets.NewTagSet("Region")
+	emptyTagSet.Type = tagsets.TagSetTypeSingleSelect
+
+	asker, checkRemainingPrompts := testutil.NewMockAsker(t, []*testutil.PA{})
+
+	result, err := Tags(asker, []string{}, []string{}, []*tagsets.TagSet{emptyTagSet})
+
+	checkRemainingPrompts()
+	assert.Nil(t, err)
+	assert.Empty(t, result)
+}
+
+func TestTags_EmptyMultiSelectTagSetDoesNotPrompt(t *testing.T) {
+	emptyTagSet := tagsets.NewTagSet("Environment Type")
+	emptyTagSet.Type = tagsets.TagSetTypeMultiSelect
+
+	asker, checkRemainingPrompts := testutil.NewMockAsker(t, []*testutil.PA{})
+
+	result, err := Tags(asker, []string{}, []string{}, []*tagsets.TagSet{emptyTagSet})
+
+	checkRemainingPrompts()
+	assert.Nil(t, err)
+	assert.Empty(t, result)
+}
+
+// An empty tag set alongside a populated one must be skipped without
+// disturbing the prompt for the populated one.
+func TestTags_EmptyTagSetSkippedAlongsidePopulatedTagSet(t *testing.T) {
+	emptyTagSet := tagsets.NewTagSet("Unused")
+	emptyTagSet.Type = tagsets.TagSetTypeSingleSelect
+
+	regionTagSet := tagsets.NewTagSet("Region")
+	regionTagSet.Type = tagsets.TagSetTypeSingleSelect
+	regionTagSet.Tags = []*tagsets.Tag{tagsets.NewTag("US East", "#000000")}
+	regionTagSet.Tags[0].CanonicalTagName = "Region/US East"
+
+	pa := []*testutil.PA{
+		testutil.NewSelectPromptWithDefault("Region (Single Select)", "", []string{"(None)", "Region/US East"}, "(None)", "Region/US East"),
+	}
+	asker, checkRemainingPrompts := testutil.NewMockAsker(t, pa)
+
+	result, err := Tags(asker, []string{}, []string{}, []*tagsets.TagSet{emptyTagSet, regionTagSet})
+
+	checkRemainingPrompts()
+	assert.Nil(t, err)
+	assert.Equal(t, []string{"Region/US East"}, result)
+}
