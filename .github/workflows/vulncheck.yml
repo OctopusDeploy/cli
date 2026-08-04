@@ -18,15 +18,30 @@ jobs:
   govulncheck:
     runs-on: ubuntu-latest
     steps:
-      - uses: golang/govulncheck-action@v1
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-go@v6
         with:
-          # Scan the toolchain the release is actually built with: go.mod pins a
-          # full patch version and carries no `toolchain` directive, so goreleaser
-          # builds with exactly this version.
           go-version-file: go.mod
-          # Must be false. The default (true) installs the newest Go, and
-          # govulncheck then reports standard library findings for THAT version
-          # rather than the pinned one. Scanning main (go.mod 1.25.5) under
-          # go1.26.3 reports 3 findings and misses CVE-2025-68121 entirely, versus
-          # 13 findings including it when the pinned toolchain is used.
           check-latest: false
+
+      # govulncheck itself may need a newer toolchain than we ship with, so let
+      # this step switch freely. It only affects the tool, not what gets scanned.
+      - name: Install govulncheck
+        run: go install golang.org/x/vuln/cmd/govulncheck@latest
+        env:
+          GOTOOLCHAIN: auto
+
+      # The version govulncheck reports standard library findings against is the
+      # toolchain it runs under, NOT the `go` directive -- so the scan has to be
+      # pinned to what goreleaser actually builds with, or it reports on the
+      # wrong stdlib. Scanning this repo at go.mod 1.25.5 under go1.26.3 finds 3
+      # vulnerabilities and misses CVE-2025-68121; under the pinned go1.25.5 it
+      # finds 13 including it. GOTOOLCHAIN is set from go.mod rather than left to
+      # setup-go because the resolution is easy to get silently wrong.
+      - name: Run govulncheck against the toolchain releases are built with
+        run: |
+          toolchain="go$(awk '/^go [0-9]/ {print $2; exit}' go.mod)"
+          echo "Scanning with $toolchain (from the go directive in go.mod)"
+          GOTOOLCHAIN="$toolchain" go version
+          GOTOOLCHAIN="$toolchain" govulncheck ./...
