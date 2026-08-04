@@ -82,10 +82,13 @@ func NewCmdDelete(f factory.Factory) *cobra.Command {
 }
 
 func deleteRun(opts *DeleteOptions) error {
-	if !opts.NoPrompt {
-		if err := PromptMissing(opts); err != nil {
-			return err
-		}
+	// Resolve regardless of whether prompting is enabled. --package-id and
+	// --version identify the package just as well as the positional ID does,
+	// and running this only in interactive mode left them ignored under
+	// --no-prompt, which then rejected the command for want of an identifier.
+	// Nothing here prompts while both flags are supplied.
+	if err := PromptMissing(opts); err != nil {
+		return err
 	}
 
 	if opts.ID == "" {
@@ -154,11 +157,15 @@ func selectPackage(opts *DeleteOptions) (*packages.Package, error) {
 			return nil, fmt.Errorf("unable to find a package matching the specifed ID: '%s'", opts.DeleteFlags.PackageId.Value)
 		}
 		return allExistingPackages[idx], nil
-	} else {
-		return question.SelectMap(opts.Ask, "Select the package you wish to delete:", allExistingPackages, func(item *packages.Package) string {
-			return item.PackageID
-		})
 	}
+
+	if opts.NoPrompt {
+		return nil, fmt.Errorf("package identifier is required but was not provided; supply it as an argument, or use --%s together with --%s", FlagPackageId, FlagVersion)
+	}
+
+	return question.SelectMap(opts.Ask, "Select the package you wish to delete:", allExistingPackages, func(item *packages.Package) string {
+		return item.PackageID
+	})
 }
 
 func selectVersion(opts *DeleteOptions, packageID string) (*packages.Package, error) {
@@ -181,6 +188,10 @@ func selectVersion(opts *DeleteOptions, packageID string) (*packages.Package, er
 		}
 		packageVersionToDelete = allPackageVersions[idx]
 	} else {
+		if opts.NoPrompt {
+			return nil, fmt.Errorf("--%s is required alongside --%s while prompting is disabled", FlagVersion, FlagPackageId)
+		}
+
 		packageVersionToDelete, err = question.SelectMap(opts.Ask, "Select the version you wish to delete:", allPackageVersions, func(item *packages.Package) string { return item.Version })
 		if err != nil {
 			return nil, err
