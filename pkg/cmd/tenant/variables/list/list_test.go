@@ -1,8 +1,11 @@
 package list
 
 import (
+	"errors"
 	"testing"
 
+	"github.com/OctopusDeploy/cli/test/testutil"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/tenants"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -52,4 +55,35 @@ func TestResolveTenantIdentifier(t *testing.T) {
 			assert.Equal(t, test.expected, resolveTenantIdentifier(test.tenant, test.args))
 		})
 	}
+}
+
+func testTenants() []*tenants.Tenant {
+	return []*tenants.Tenant{
+		tenants.NewTenant("Tenant 1"),
+		tenants.NewTenant("Tenant 2"),
+	}
+}
+
+func TestSelectTenant_PromptsAndReturnsSelection(t *testing.T) {
+	pa := []*testutil.PA{
+		testutil.NewSelectPrompt("You have not specified a Tenant. Please select one:", "", []string{"Tenant 1", "Tenant 2"}, "Tenant 2"),
+	}
+	asker, checkRemainingPrompts := testutil.NewMockAsker(t, pa)
+
+	result, err := selectTenant(asker, func() ([]*tenants.Tenant, error) { return testTenants(), nil })
+
+	checkRemainingPrompts()
+	assert.NoError(t, err)
+	// the selected tenant is returned whole, so the caller need not look it up again
+	assert.Equal(t, "Tenant 2", result.Name)
+}
+
+func TestSelectTenant_PropagatesLookupFailure(t *testing.T) {
+	asker, checkRemainingPrompts := testutil.NewMockAsker(t, []*testutil.PA{})
+
+	result, err := selectTenant(asker, func() ([]*tenants.Tenant, error) { return nil, errors.New("no tenants for you") })
+
+	checkRemainingPrompts()
+	assert.EqualError(t, err, "no tenants for you")
+	assert.Nil(t, result)
 }
