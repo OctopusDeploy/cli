@@ -8,11 +8,10 @@ import (
 
 func TestResolveTenantIdentifier(t *testing.T) {
 	tests := []struct {
-		name          string
-		tenant        string
-		args          []string
-		expected      string
-		expectedError string
+		name     string
+		tenant   string
+		args     []string
+		expected string
 	}{
 		{
 			name:     "positional argument",
@@ -30,35 +29,27 @@ func TestResolveTenantIdentifier(t *testing.T) {
 			expected: "Tenants-123",
 		},
 		{
-			name:          "both supplied is ambiguous",
-			tenant:        "Bobs Wood Shop",
-			args:          []string{"Sallys Tackle Truck"},
-			expectedError: "tenant specified as both an argument and with --tenant, please use only one",
+			// consistent with the other commands accepting both forms
+			name:     "flag wins when both are supplied",
+			tenant:   "Bobs Wood Shop",
+			args:     []string{"Sallys Tackle Truck"},
+			expected: "Bobs Wood Shop",
 		},
 		{
-			// no tenant named, so the caller falls through to prompting for one
+			// nothing named, so the caller prompts for a tenant
 			name:     "neither supplied",
 			expected: "",
 		},
 		{
-			name:     "empty positional argument",
-			args:     []string{""},
+			name:     "no arguments does not panic",
+			args:     []string{},
 			expected: "",
 		},
 	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			result, err := resolveTenantIdentifier(test.tenant, test.args)
-
-			if test.expectedError != "" {
-				assert.EqualError(t, err, test.expectedError)
-				assert.Empty(t, result)
-				return
-			}
-
-			assert.NoError(t, err)
-			assert.Equal(t, test.expected, result)
+			assert.Equal(t, test.expected, resolveTenantIdentifier(test.tenant, test.args))
 		})
 	}
 }
