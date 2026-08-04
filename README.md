@@ -144,6 +144,18 @@ This command will perform the token exchange and configure the CLI for use.
 
 See the [documentation on OpenID Connect for more information](https://oc.to/ServiceAccountOidcIdentities)
 
+### Colour output
+
+By default the CLI emits colour only when its output is attached to a terminal. CI systems such as
+GitHub Actions and GitLab CI render ANSI colour codes but do not attach a terminal, so colour is
+disabled there unless you ask for it:
+
+```shell
+export FORCE_COLOR=1   # or CLICOLOR_FORCE=1
+```
+
+Setting `NO_COLOR` to any value disables colour entirely, and takes precedence over the above.
+
 ## Overview
 
 This project aims to create a new CLI (written in Go) for communicating with the Octopus Deploy Server.
