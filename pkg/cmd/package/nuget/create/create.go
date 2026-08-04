@@ -154,15 +154,7 @@ func createRun(cmd *cobra.Command, opts *NuPkgCreateOptions) error {
 
 	nuget, err := pack.BuildPackage(opts.PackageCreateOptions, outFilePath)
 	if nuget != nil {
-		switch outputFormat {
-		case constants.OutputFormatBasic:
-			cmd.Printf("%s\n", nuget.Name())
-		case constants.OutputFormatJson:
-			cmd.Printf(`{"Path":"%s"}`, nuget.Name())
-			cmd.Println()
-		default: // table
-			cmd.Printf("Successfully created package %s\n", nuget.Name())
-		}
+		pack.PrintPackageCreated(cmd, outputFormat, nuget.Name())
 	}
 	return err
 }

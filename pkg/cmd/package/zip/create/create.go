@@ -81,15 +81,7 @@ func createRun(cmd *cobra.Command, opts *pack.PackageCreateOptions) error {
 
 	zip, err := pack.BuildPackage(opts, outFilePath)
 	if zip != nil {
-		switch outputFormat {
-		case constants.OutputFormatBasic:
-			cmd.Printf("%s\n", zip.Name())
-		case constants.OutputFormatJson:
-			cmd.Printf(`{"Path":"%s"}`, zip.Name())
-			cmd.Println()
-		default: // table
-			cmd.Printf("Successfully created package %s\n", zip.Name())
-		}
+		pack.PrintPackageCreated(cmd, outputFormat, zip.Name())
 	}
 	return err
 }
