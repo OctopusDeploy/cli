@@ -76,6 +76,7 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 	flags.StringVar(&packFlags.BasePath.Value, packFlags.BasePath.Name, "", "Root folder containing the contents to zip.")
 	flags.StringVar(&packFlags.OutFolder.Value, packFlags.OutFolder.Name, "", "Folder into which the zip file will be written.")
 	flags.StringSliceVar(&packFlags.Include.Value, packFlags.Include.Name, []string{}, "Add a file pattern to include, relative to the base path e.g. /bin/*.dll; defaults to \"**\".")
+	flags.StringSliceVar(&packFlags.Exclude.Value, packFlags.Exclude.Name, []string{}, "Add a file pattern to exclude, relative to the base path e.g. **/*.config; applied after --include.")
 	flags.BoolVar(&packFlags.Verbose.Value, packFlags.Verbose.Name, false, "Verbose output.")
 	flags.BoolVar(&packFlags.Overwrite.Value, packFlags.Overwrite.Name, false, "Allow an existing package file of the same ID/version to be overwritten.")
 	flags.StringSliceVar(&createFlags.Author.Value, createFlags.Author.Name, []string{}, "Add author/s to the package metadata.")
@@ -144,6 +145,7 @@ func createRun(cmd *cobra.Command, opts *NuPkgCreateOptions) error {
 			opts.BasePath,
 			opts.OutFolder,
 			opts.Include,
+			opts.Exclude,
 			opts.Verbose,
 			opts.Overwrite,
 		)
