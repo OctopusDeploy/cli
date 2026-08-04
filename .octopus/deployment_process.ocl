@@ -74,7 +74,11 @@ step "push-homebrew-formula-updates-to-the-homebrew-taps-repo" {
                     [String]$githubtoken
                 )
                 
-                $origin="https://github.com/OctopusDeploy/homebrew-taps"
+                $ErrorActionPreference = "Stop"
+                
+                $repo = "OctopusDeploy/homebrew-taps"
+                $defaultBranch = "master"
+                $origin = "https://github.com/$repo"
                 
                 if ($OctopusParameters) {
                     $packageVersion = $OctopusParameters["Octopus.Action.Package[cli].PackageVersion"]
@@ -83,18 +87,19 @@ step "push-homebrew-formula-updates-to-the-homebrew-taps-repo" {
                     $gitUserEmail = $OctopusParameters["Publish:HomeBrew:UserEmail"]
                 
                     $githubtoken = $OctopusParameters["Publish:HomeBrew:ApiKey"]
-                    $origin="https://$($gitUserName):$($githubtoken)@github.com/OctopusDeploy/homebrew-taps"
+                    $origin = "https://$($gitUserName):$($githubtoken)@github.com/$repo"
                 
                 }
                 
-                if (!$packageVersion || !$extractedPath) {
+                if ([string]::IsNullOrWhiteSpace($packageVersion) -or [string]::IsNullOrWhiteSpace($extractedPath)) {
                     throw "Error: packageVersion or extractedPath are not set"
-                    exit
-                } else {
-                    write-host "Using: packageVersion $packageVersion from $extractedPath"
                 }
+                
+                Write-Host "Using: packageVersion $packageVersion from $extractedPath"
                 
                 git clone --depth 1 $origin octopus-homebrew-taps
+                if ($LASTEXITCODE -ne 0) { throw "Failed to clone $repo" }
+                
                 Set-Location octopus-homebrew-taps
                 
                 if ($gitUserName) {
@@ -104,12 +109,59 @@ step "push-homebrew-formula-updates-to-the-homebrew-taps-repo" {
                 
                 $branchName = "releases/$packageVersion"
                 git checkout -b $branchName
+                if ($LASTEXITCODE -ne 0) { throw "Failed to create branch $branchName" }
                 
                 Copy-Item -Path "$extractedPath/homebrew/*" -Filter "*.rb" -Destination "." -Force
                 
-                git diff-index --quiet HEAD || (git commit -a -m "Update for release $packageVersion" `
-                    && git push --repo $origin --set-upstream origin $branchName `
-                )
+                git diff-index --quiet HEAD
+                if ($LASTEXITCODE -eq 0) {
+                    Write-Host "Formula already matches $packageVersion; nothing to publish."
+                    Set-Location ..
+                    exit 0
+                }
+                
+                git commit -a -m "Update for release $packageVersion"
+                if ($LASTEXITCODE -ne 0) { throw "Failed to commit the formula update" }
+                
+                git push --repo $origin --set-upstream origin $branchName
+                if ($LASTEXITCODE -ne 0) { throw "Failed to push $branchName" }
+                
+                # Pushing the branch on its own leaves the tap untouched, so open a
+                # pull request for it. Without this the formula is never updated and
+                # `brew install octopus-cli` keeps serving the previous release.
+                $headers = @{
+                    "Accept"               = "application/vnd.github+json"
+                    "X-GitHub-Api-Version" = "2022-11-28"
+                    "Authorization"        = "Bearer $githubtoken"
+                }
+                
+                $pullRequest = @{
+                    title = "Update for release $packageVersion"
+                    head  = $branchName
+                    base  = $defaultBranch
+                    body  = "Automated formula update for octopus-cli $packageVersion."
+                } | ConvertTo-Json
+                
+                try {
+                    $response = Invoke-RestMethod -Method Post -Headers $headers `
+                        -Uri "https://api.github.com/repos/$repo/pulls" `
+                        -Body $pullRequest -ContentType "application/json"
+                
+                    Write-Host "Opened pull request $($response.html_url)"
+                }
+                catch {
+                    # A re-run of the same release finds its pull request already open,
+                    # which is not a failure worth stopping the deployment for.
+                    $statusCode = $_.Exception.Response.StatusCode.value__
+                    $alreadyExists = $statusCode -eq 422 -and $_.ErrorDetails.Message -match "already exists"
+                
+                    if ($alreadyExists) {
+                        Write-Host "A pull request for $branchName is already open."
+                    }
+                    else {
+                        throw "Failed to open a pull request against $repo`: $($_.Exception.Message)"
+                    }
+                }
                 
                 Set-Location ..
                 EOT
