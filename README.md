@@ -154,7 +154,15 @@ disabled there unless you ask for it:
 export FORCE_COLOR=1   # or CLICOLOR_FORCE=1
 ```
 
-Setting `NO_COLOR` to any value disables colour entirely, and takes precedence over the above.
+The same variables turn colour off when set to `0`, even in a terminal, and the environment is
+consulted in this order:
+
+| Variable | Effect |
+|---|---|
+| `NO_COLOR` (set to any value) | Colour off. Takes precedence over everything below. |
+| `CLICOLOR_FORCE` / `FORCE_COLOR` | `0` forces colour off, any other value forces it on, regardless of whether output is a terminal. `CLICOLOR_FORCE` wins if both are set. |
+| `CLICOLOR=0` | Colour off. |
+| none of the above | Colour on only when output is attached to a terminal. |
 
 ## Overview
 
