@@ -224,12 +224,17 @@ func TestKubernetesLiveStatus(t *testing.T) {
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/Projects-22/environments/Environments-1/untenanted/livestatus").
 				RespondWith(liveStatusResponse)
 
+			// machine lookup, so the grouping row can show the target name
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/machines/Machines-1").
+				RespondWith(map[string]any{"Id": "Machines-1", "Name": "k8s-agent-1"})
+
 			_, err := testutil.ReceivePair(cmdReceiver)
 			assert.Nil(t, err)
 
 			out := stdOut.String()
-			// Machine should appear as a top-level node
-			assert.Contains(t, out, "Machines-1")
+			// Machine should appear as a top-level node, named as it is elsewhere in the CLI
+			assert.Contains(t, out, "k8s-agent-1")
+			assert.NotContains(t, out, "Machines-1")
 			assert.Contains(t, out, "Machine")
 			// Resources should be indented under the machine
 			assert.Contains(t, out, "  my-deployment")

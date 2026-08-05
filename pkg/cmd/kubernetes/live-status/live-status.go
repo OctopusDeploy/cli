@@ -15,6 +15,7 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/output"
 	"github.com/OctopusDeploy/cli/pkg/question/selectors"
 	"github.com/OctopusDeploy/cli/pkg/util/flag"
+	octopusApiClient "github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/environments"
 	"github.com/spf13/cobra"
 )
@@ -220,7 +221,23 @@ func liveStatusRun(cmd *cobra.Command, f factory.Factory, flags *LiveStatusFlags
 		return printSummary(cmd, &response.Summary)
 	}
 
-	return printFullStatus(cmd, &response)
+	return printFullStatus(cmd, machineNames(client, &response), &response)
+}
+
+// machineNames resolves the machine IDs in the response to target names, so the
+// grouping row reads like the rest of the CLI. Lookup failures fall back to the
+// ID rather than failing the command over a display detail.
+func machineNames(client *octopusApiClient.Client, response *LiveStatusResponse) map[string]string {
+	names := make(map[string]string, len(response.MachineStatuses))
+	for _, machineStatus := range response.MachineStatuses {
+		if machineStatus.MachineId == "" || names[machineStatus.MachineId] != "" {
+			continue
+		}
+		if machine, err := client.Machines.GetByID(machineStatus.MachineId); err == nil {
+			names[machineStatus.MachineId] = machine.Name
+		}
+	}
+	return names
 }
 
 // statusNotSupported is reported for a project and environment whose deployment
@@ -249,14 +266,19 @@ func printSummary(cmd *cobra.Command, summary *StatusSummary) error {
 	return nil
 }
 
-func printFullStatus(cmd *cobra.Command, response *LiveStatusResponse) error {
+func printFullStatus(cmd *cobra.Command, machineNames map[string]string, response *LiveStatusResponse) error {
 	var allFlat []FlatResource
 	for _, machine := range response.MachineStatuses {
+		name := machineNames[machine.MachineId]
+		if name == "" {
+			name = machine.MachineId
+		}
+
 		// Insert machine/gateway as a top-level grouping node
 		allFlat = append(allFlat, FlatResource{
 			Depth: 0,
 			Resource: KubernetesLiveStatusResource{
-				Name:         machine.MachineId,
+				Name:         name,
 				Kind:         "Machine",
 				HealthStatus: machine.Status,
 			},
