@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.23.4](https://github.com/OctopusDeploy/cli/compare/v2.23.3...v2.23.4) (2026-08-05)
+
+
+### Bug Fixes
+
+* **deps:** bump uuid, testify, viper and godotenv ([#645](https://github.com/OctopusDeploy/cli/issues/645)) ([151b469](https://github.com/OctopusDeploy/cli/commit/151b46977d4db6aa16631ea5aa405c07ffceb02e))
+
 ## [2.23.3](https://github.com/OctopusDeploy/cli/compare/v2.23.2...v2.23.3) (2026-08-05)
 
 
