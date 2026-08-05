@@ -33,10 +33,13 @@ func TestPrintPackageCreated_JsonEscapesBackslashes(t *testing.T) {
 
 	// The output must be legal JSON; previously the path was interpolated
 	// directly into a string literal, leaving raw backslashes behind.
+	assert.Equal(t, `{"Path":"c:\\temp\\test.package.0.0.1.zip"}`+"\n", output)
+
+	// And it must parse back to the path we were given, not a mangled one:
+	// unescaped, the \t above would have been read as a tab.
 	var result PackageCreatedOutput
 	assert.NoError(t, json.Unmarshal([]byte(output), &result))
 	assert.Equal(t, windowsPackagePath, result.Path)
-	assert.Contains(t, output, `c:\\temp\\test.package.0.0.1.zip`)
 }
 
 func TestPrintPackageCreated_BasicIsUnescaped(t *testing.T) {
