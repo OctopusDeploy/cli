@@ -1,6 +1,7 @@
 package output
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -120,6 +121,45 @@ func TestColorHelpersHonourIsColorEnabled(t *testing.T) {
 			assert.NotEqual(t, "text", helper.formatted("%s", "text"))
 		})
 	}
+}
+
+// GitHub Actions and other log viewers reset SGR state at every line break, so
+// a multi-line string needs the escape repeated on each line rather than once
+// around the whole block.
+func TestMultiLineTextIsColouredPerLine(t *testing.T) {
+	original := IsColorEnabled
+	t.Cleanup(func() { IsColorEnabled = original })
+
+	IsColorEnabled = true
+	lines := strings.Split(Cyan("one\ntwo\nthree"), "\n")
+
+	assert.Len(t, lines, 3)
+	for _, line := range lines {
+		assert.True(t, strings.HasPrefix(line, "\x1b["), "line should open with an escape: %q", line)
+		assert.True(t, strings.HasSuffix(line, "\x1b[0m"), "line should close with a reset: %q", line)
+	}
+}
+
+// A blank line has nothing to colour, so escapes around it would be the only
+// thing on the line.
+func TestBlankLinesAreNotColoured(t *testing.T) {
+	original := IsColorEnabled
+	t.Cleanup(func() { IsColorEnabled = original })
+
+	IsColorEnabled = true
+	lines := strings.Split(Cyan("one\n\ntwo\n"), "\n")
+
+	assert.Len(t, lines, 4)
+	assert.Equal(t, "", lines[1], "interior blank line should be untouched")
+	assert.Equal(t, "", lines[3], "trailing newline should not gain escapes")
+}
+
+func TestMultiLineTextIsUnchangedWhenColourDisabled(t *testing.T) {
+	original := IsColorEnabled
+	t.Cleanup(func() { IsColorEnabled = original })
+
+	IsColorEnabled = false
+	assert.Equal(t, "one\ntwo\nthree", Cyan("one\ntwo\nthree"))
 }
 
 func TestFormatDocHonoursIsColorEnabled(t *testing.T) {
