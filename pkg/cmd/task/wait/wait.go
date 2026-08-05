@@ -78,7 +78,7 @@ func NewCmdWait(f factory.Factory) *cobra.Command {
 		Long:    "Wait for a provided list of task(s) to finish",
 		Example: heredoc.Docf("%s task wait", constants.ExecutableName),
 		RunE: func(c *cobra.Command, args []string) error {
-			taskIDs := resolveTaskIDs(args, util.ReadValuesFromPipe)
+			taskIDs := ResolveTaskIDs(args, util.ReadValuesFromPipe)
 			dependencies := cmd.NewDependencies(f, c)
 			opts := NewWaitOps(dependencies, taskIDs, timeout, pollInterval, cancelOnTimeout, showProgress, c)
 
@@ -95,7 +95,7 @@ func NewCmdWait(f factory.Factory) *cobra.Command {
 	return cmd
 }
 
-// resolveTaskIDs takes the task IDs named on the command line, falling back to
+// ResolveTaskIDs takes the task IDs named on the command line, falling back to
 // reading them from stdin only when none were given.
 //
 // Reading stdin blocks until the writer closes the pipe. A caller that shells
@@ -103,7 +103,7 @@ func NewCmdWait(f factory.Factory) *cobra.Command {
 // subprocess.Popen, generally holds it open for the lifetime of the child, so
 // consulting it when the task IDs are already known would hang the command
 // until the caller happened to close it.
-func resolveTaskIDs(args []string, readFromPipe func() []string) []string {
+func ResolveTaskIDs(args []string, readFromPipe func() []string) []string {
 	taskIDs := make([]string, len(args))
 	copy(taskIDs, args)
 

@@ -22,18 +22,18 @@ func NewSpinnerRoundTripper(ask question.AskProvider) *SpinnerRoundTripper {
 	}
 }
 
-// shouldSpin is answered per request rather than when the client is built. The
+// ShouldSpin is answered per request rather than when the client is built. The
 // client factory runs before cobra parses flags, so --no-prompt has not been
 // applied yet at construction time; deciding there leaves the spinner running
 // for commands that explicitly asked not to be interactive. The spinner redraws
 // by erasing the current terminal line, which corrupts the display of anything
 // else sharing that terminal.
-func (c *SpinnerRoundTripper) shouldSpin() bool {
+func (c *SpinnerRoundTripper) ShouldSpin() bool {
 	return c.Ask != nil && c.Ask.IsInteractive()
 }
 
 func (c *SpinnerRoundTripper) RoundTrip(r *http.Request) (*http.Response, error) {
-	if !c.shouldSpin() {
+	if !c.ShouldSpin() {
 		return c.Next.RoundTrip(r)
 	}
 
