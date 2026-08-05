@@ -119,12 +119,12 @@ func resolveTenant(f factory.Factory, octopus *client.Client, idOrName string) (
 		return nil, fmt.Errorf("must supply tenant identifier")
 	}
 
-	return selectTenant(f.Ask, func() ([]*tenants.Tenant, error) { return shared.GetAllTenants(octopus) })
+	return promptMissing(f.Ask, func() ([]*tenants.Tenant, error) { return shared.GetAllTenants(octopus) })
 }
 
-// selectTenant prompts for a tenant. The getter is a parameter so the prompt can
+// promptMissing prompts for a tenant. The getter is a parameter so the prompt can
 // be driven from tests, as connect and update do.
-func selectTenant(ask question.Asker, getAllTenants shared.GetAllTenantsCallback) (*tenants.Tenant, error) {
+func promptMissing(ask question.Asker, getAllTenants shared.GetAllTenantsCallback) (*tenants.Tenant, error) {
 	return selectors.Select(
 		ask,
 		"You have not specified a Tenant. Please select one:",
