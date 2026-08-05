@@ -131,10 +131,10 @@ func resolveTenantIdentifier(tenant string, args []string) string {
 	return ""
 }
 
-// selectTenant prompts for a tenant when none was named on the command line,
+// promptMissing prompts for a tenant when none was named on the command line,
 // matching what `tenant variables update` does. The getter is a parameter so
 // the prompt can be driven from tests, as connect and update do.
-func selectTenant(ask question.Asker, getAllTenants shared.GetAllTenantsCallback) (*tenants.Tenant, error) {
+func promptMissing(ask question.Asker, getAllTenants shared.GetAllTenantsCallback) (*tenants.Tenant, error) {
 	return selectors.Select(
 		ask,
 		"You have not specified a Tenant. Please select one:",
@@ -155,7 +155,7 @@ func listRun(cmd *cobra.Command, f factory.Factory, id string) error {
 			return fmt.Errorf("must supply tenant identifier")
 		}
 
-		tenant, err = selectTenant(f.Ask, func() ([]*tenants.Tenant, error) { return shared.GetAllTenants(client) })
+		tenant, err = promptMissing(f.Ask, func() ([]*tenants.Tenant, error) { return shared.GetAllTenants(client) })
 	} else {
 		tenant, err = client.Tenants.GetByIdentifier(id)
 	}

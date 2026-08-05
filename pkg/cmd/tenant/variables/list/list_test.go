@@ -64,13 +64,13 @@ func testTenants() []*tenants.Tenant {
 	}
 }
 
-func TestSelectTenant_PromptsAndReturnsSelection(t *testing.T) {
+func TestPromptMissing_PromptsAndReturnsSelection(t *testing.T) {
 	pa := []*testutil.PA{
 		testutil.NewSelectPrompt("You have not specified a Tenant. Please select one:", "", []string{"Tenant 1", "Tenant 2"}, "Tenant 2"),
 	}
 	asker, checkRemainingPrompts := testutil.NewMockAsker(t, pa)
 
-	result, err := selectTenant(asker, func() ([]*tenants.Tenant, error) { return testTenants(), nil })
+	result, err := promptMissing(asker, func() ([]*tenants.Tenant, error) { return testTenants(), nil })
 
 	checkRemainingPrompts()
 	assert.NoError(t, err)
@@ -78,10 +78,10 @@ func TestSelectTenant_PromptsAndReturnsSelection(t *testing.T) {
 	assert.Equal(t, "Tenant 2", result.Name)
 }
 
-func TestSelectTenant_PropagatesLookupFailure(t *testing.T) {
+func TestPromptMissing_PropagatesLookupFailure(t *testing.T) {
 	asker, checkRemainingPrompts := testutil.NewMockAsker(t, []*testutil.PA{})
 
-	result, err := selectTenant(asker, func() ([]*tenants.Tenant, error) { return nil, errors.New("no tenants for you") })
+	result, err := promptMissing(asker, func() ([]*tenants.Tenant, error) { return nil, errors.New("no tenants for you") })
 
 	checkRemainingPrompts()
 	assert.EqualError(t, err, "no tenants for you")
