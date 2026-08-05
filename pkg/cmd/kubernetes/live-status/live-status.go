@@ -1,6 +1,7 @@
 package livestatus
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -209,11 +210,15 @@ func liveStatusRun(cmd *cobra.Command, f factory.Factory, flags *LiveStatusFlags
 	outputFormat, _ := cmd.Flags().GetString(constants.FlagOutputFormat)
 
 	if strings.EqualFold(outputFormat, constants.OutputFormatJson) {
-		data, err := json.MarshalIndent(response, "", "  ")
-		if err != nil {
+		// Re-print the server's document rather than re-marshalling the structs
+		// above, which only model the fields the table needs. Emitting those
+		// would silently drop everything else the server reports, such as
+		// orphaned and pending-deletion state and Argo CD instance statuses.
+		var indented bytes.Buffer
+		if err := json.Indent(&indented, body, "", "  "); err != nil {
 			return err
 		}
-		cmd.Println(string(data))
+		cmd.Println(indented.String())
 		return nil
 	}
 
@@ -311,11 +316,9 @@ func printFullStatus(cmd *cobra.Command, machineNames map[string]string, respons
 		return nil
 	}
 
-	// Table format
+	// Table format. No Json mapper: the json output format is handled above, from
+	// the server's own document.
 	return output.PrintArray(allFlat, cmd, output.Mappers[FlatResource]{
-		Json: func(fr FlatResource) any {
-			return fr.Resource
-		},
 		Table: output.TableDefinition[FlatResource]{
 			Header: []string{"Name", "Kind", "Namespace", "Health", "Sync", "Last Updated"},
 			Row: func(fr FlatResource) []string {

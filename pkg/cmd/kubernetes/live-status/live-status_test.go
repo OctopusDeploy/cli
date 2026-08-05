@@ -332,6 +332,56 @@ func TestKubernetesLiveStatus(t *testing.T) {
 			assert.NotContains(t, out, "NotSupported")
 		}},
 
+		{"json output preserves fields the command does not model", func(t *testing.T, api *testutil.MockHttpServer, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
+			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
+				defer api.Close()
+				rootCmd.SetArgs([]string{"kubernetes", "live-status", "--project", "Fire Project", "--environment", "Production", "--no-prompt", "-f", "json"})
+				return rootCmd.ExecuteC()
+			})
+
+			respondToSpaceScopedInit(t, api)
+			respondToProjectAndEnvironment(t, api, fireProject)
+
+			// the server reports orphan and deletion state, and Argo CD instances,
+			// none of which the table needs; a programmatic caller still wants them
+			response := map[string]any{
+				"MachineStatuses": []any{
+					map[string]any{
+						"MachineId": "Machines-1",
+						"Status":    "Healthy",
+						"Resources": []any{
+							map[string]any{
+								"Name":              "my-deployment",
+								"Kind":              "Deployment",
+								"HealthStatus":      "Healthy",
+								"ResourceId":        "resource-abc",
+								"DesiredResourceId": "desired-abc",
+								"OrphanedAt":        "2026-01-15T10:30:00Z",
+								"DeletionTaskState": "Queued",
+								"Children":          []any{},
+							},
+						},
+					},
+				},
+				"ArgoCDInstanceStatuses": []any{map[string]any{"Name": "argo-1"}},
+				"Summary": map[string]any{
+					"Status":            "Healthy",
+					"TotalOrphanCount":  1,
+					"SyncStatusMessage": "one resource is orphaned",
+				},
+			}
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/Projects-22/environments/Environments-1/untenanted/livestatus").
+				RespondWith(response)
+
+			_, err := testutil.ReceivePair(cmdReceiver)
+			assert.Nil(t, err)
+
+			out := stdOut.String()
+			for _, field := range []string{"ResourceId", "DesiredResourceId", "OrphanedAt", "DeletionTaskState", "ArgoCDInstanceStatuses", "TotalOrphanCount", "SyncStatusMessage"} {
+				assert.Contains(t, out, field, "%s must survive json output", field)
+			}
+		}},
+
 		{"k8s alias works", func(t *testing.T, api *testutil.MockHttpServer, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
 			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
 				defer api.Close()
