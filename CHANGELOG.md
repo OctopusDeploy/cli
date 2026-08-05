@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.23.0](https://github.com/OctopusDeploy/cli/compare/v2.22.1...v2.23.0) (2026-08-05)
+
+
+### Features
+
+* add --exclude to package create commands ([7e2aca9](https://github.com/OctopusDeploy/cli/commit/7e2aca9e18ed0c61bdc99eaaaa0a46ddd3e0b2b4)), closes [#214](https://github.com/OctopusDeploy/cli/issues/214)
+
 ## [2.22.1](https://github.com/OctopusDeploy/cli/compare/v2.22.0...v2.22.1) (2026-08-05)
 
 
