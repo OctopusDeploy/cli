@@ -1,0 +1,230 @@
+# Demonstration workflow for #506 / #622. Builds the CLI at three points in
+# history and prints `octopus --help` under a matrix of colour environment
+# variables, so the behaviour can be seen in a real CI log rather than described.
+#
+# GitHub Actions renders ANSI colour in logs but does not attach a TTY, which is
+# exactly the situation #506 is about. The second job re-runs the cases that only
+# apply to a terminal under a pty allocated with `script`.
+#
+# This is a demo, not part of the build. It only runs on this branch and on
+# manual dispatch, and can be deleted before merge.
+name: Colour output demo (#506)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [nj/fix-506]
+
+env:
+  # The commit the reviewer tested: the PR before the FORCE_COLOR=0 fix.
+  PR_V1_SHA: ab6d3b5f2dd2d5ebaa4d16a8408ab18085e61516
+
+jobs:
+  build:
+    name: Build the three binaries
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+
+      - name: Build main (before the PR)
+        run: |
+          git worktree add /tmp/src-main origin/main
+          cd /tmp/src-main && go build -o /tmp/octopus-main ./cmd/octopus
+
+      - name: Build the PR as reviewed
+        run: |
+          git worktree add /tmp/src-pr-v1 "$PR_V1_SHA"
+          cd /tmp/src-pr-v1 && go build -o /tmp/octopus-pr-v1 ./cmd/octopus
+
+      - name: Build the PR with the review fix
+        run: go build -o /tmp/octopus-pr-v2 ./cmd/octopus
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: binaries
+          path: /tmp/octopus-*
+          retention-days: 1
+
+  no-tty:
+    name: 'Issue #506: colour in CI (no TTY)'
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: binaries
+          path: /tmp
+      - run: chmod +x /tmp/octopus-*
+
+      # Look at the logo in each step below. Cyan means colour is on.
+
+      - name: 'BEFORE (main) — no env vars — plain, correct'
+        run: /tmp/octopus-main --help | head -22
+
+      - name: 'BEFORE (main) — FORCE_COLOR=1 — still plain, THIS IS THE BUG'
+        env:
+          FORCE_COLOR: '1'
+        run: /tmp/octopus-main --help | head -22
+
+      - name: 'AFTER (PR) — no env vars — plain, deliberately unchanged'
+        run: /tmp/octopus-pr-v2 --help | head -22
+
+      - name: 'AFTER (PR) — FORCE_COLOR=1 — cyan, THIS IS THE FIX'
+        env:
+          FORCE_COLOR: '1'
+        run: /tmp/octopus-pr-v2 --help | head -22
+
+      - name: 'AFTER (PR) — CLICOLOR_FORCE=1 — cyan, equivalent opt-in'
+        env:
+          CLICOLOR_FORCE: '1'
+        run: /tmp/octopus-pr-v2 --help | head -22
+
+      - name: 'AFTER (PR) — FORCE_COLOR=1 + NO_COLOR=1 — plain, NO_COLOR wins'
+        env:
+          FORCE_COLOR: '1'
+          NO_COLOR: '1'
+        run: /tmp/octopus-pr-v2 --help | head -22
+
+      - name: Assert and summarise
+        run: |
+          esc=$'\033['
+          fail=0
+
+          # colour_of <binary> [VAR=VALUE ...] -> "colour" | "plain"
+          colour_of() {
+            local bin="$1"; shift
+            if env "$@" "$bin" --help 2>&1 | grep -qF "$esc"; then
+              echo colour
+            else
+              echo plain
+            fi
+          }
+
+          # expect <expected> <label> <binary> [VAR=VALUE ...]
+          expect() {
+            local want="$1" label="$2"; shift 2
+            local got
+            got=$(colour_of "$@")
+            if [ "$got" = "$want" ]; then
+              echo "  ok   $label -> $got"
+            else
+              echo "  FAIL $label -> $got (expected $want)"
+              fail=1
+            fi
+          }
+
+          expect plain  'main, no env vars'                 /tmp/octopus-main
+          expect plain  'main, FORCE_COLOR=1 (bug #506)'    /tmp/octopus-main   FORCE_COLOR=1
+          expect plain  'PR, no env vars'                   /tmp/octopus-pr-v2
+          expect colour 'PR, FORCE_COLOR=1'                 /tmp/octopus-pr-v2  FORCE_COLOR=1
+          expect colour 'PR, CLICOLOR_FORCE=1'              /tmp/octopus-pr-v2  CLICOLOR_FORCE=1
+          expect plain  'PR, FORCE_COLOR=0'                 /tmp/octopus-pr-v2  FORCE_COLOR=0
+          expect plain  'PR, FORCE_COLOR=1 + NO_COLOR=1'    /tmp/octopus-pr-v2  FORCE_COLOR=1 NO_COLOR=1
+
+          {
+            echo '## Colour in CI (no TTY) — issue #506'
+            echo
+            echo '| environment | `main` | this PR |'
+            echo '|---|---|---|'
+            echo "| _(none)_ | $(colour_of /tmp/octopus-main) | $(colour_of /tmp/octopus-pr-v2) |"
+            echo "| \`FORCE_COLOR=1\` | **$(colour_of /tmp/octopus-main FORCE_COLOR=1)** :point_left: the bug | **$(colour_of /tmp/octopus-pr-v2 FORCE_COLOR=1)** :point_left: the fix |"
+            echo "| \`CLICOLOR_FORCE=1\` | $(colour_of /tmp/octopus-main CLICOLOR_FORCE=1) | $(colour_of /tmp/octopus-pr-v2 CLICOLOR_FORCE=1) |"
+            echo "| \`FORCE_COLOR=0\` | $(colour_of /tmp/octopus-main FORCE_COLOR=0) | $(colour_of /tmp/octopus-pr-v2 FORCE_COLOR=0) |"
+            echo "| \`NO_COLOR=1\` + \`FORCE_COLOR=1\` | $(colour_of /tmp/octopus-main NO_COLOR=1 FORCE_COLOR=1) | $(colour_of /tmp/octopus-pr-v2 NO_COLOR=1 FORCE_COLOR=1) |"
+            echo
+            echo 'Default behaviour is unchanged: CI output stays plain unless you opt in.'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          exit $fail
+
+  tty:
+    name: 'Review comment: turning colour off in a terminal'
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: binaries
+          path: /tmp
+      - run: chmod +x /tmp/octopus-*
+
+      # `script` allocates a pty, so terminal detection reports true. This is the
+      # situation the review comment describes, which CI cannot otherwise reach.
+
+      - name: 'IN A TERMINAL — PR as reviewed, no env vars — cyan, correct'
+        run: script -qec '/tmp/octopus-pr-v1 --help' /dev/null | head -22
+
+      - name: 'IN A TERMINAL — PR as reviewed, FORCE_COLOR=0 — still cyan, THE REPORTED BUG'
+        env:
+          FORCE_COLOR: '0'
+        run: script -qec '/tmp/octopus-pr-v1 --help' /dev/null | head -22
+
+      - name: 'IN A TERMINAL — with review fix, FORCE_COLOR=0 — plain, FIXED'
+        env:
+          FORCE_COLOR: '0'
+        run: script -qec '/tmp/octopus-pr-v2 --help' /dev/null | head -22
+
+      - name: 'IN A TERMINAL — with review fix, CLICOLOR=0 — plain, FIXED'
+        env:
+          CLICOLOR: '0'
+        run: script -qec '/tmp/octopus-pr-v2 --help' /dev/null | head -22
+
+      - name: 'IN A TERMINAL — with review fix, no env vars — cyan, unchanged'
+        run: script -qec '/tmp/octopus-pr-v2 --help' /dev/null | head -22
+
+      - name: Assert and summarise
+        run: |
+          esc=$'\033['
+          fail=0
+
+          colour_of() {
+            local bin="$1"; shift
+            if env "$@" script -qec "$bin --help" /dev/null 2>&1 | grep -qF "$esc"; then
+              echo colour
+            else
+              echo plain
+            fi
+          }
+
+          expect() {
+            local want="$1" label="$2"; shift 2
+            local got
+            got=$(colour_of "$@")
+            if [ "$got" = "$want" ]; then
+              echo "  ok   $label -> $got"
+            else
+              echo "  FAIL $label -> $got (expected $want)"
+              fail=1
+            fi
+          }
+
+          expect colour 'as reviewed, no env vars'          /tmp/octopus-pr-v1
+          expect colour 'as reviewed, FORCE_COLOR=0 (bug)'  /tmp/octopus-pr-v1  FORCE_COLOR=0
+          expect colour 'with fix, no env vars'             /tmp/octopus-pr-v2
+          expect plain  'with fix, FORCE_COLOR=0'           /tmp/octopus-pr-v2  FORCE_COLOR=0
+          expect plain  'with fix, CLICOLOR_FORCE=0'        /tmp/octopus-pr-v2  CLICOLOR_FORCE=0
+          expect plain  'with fix, CLICOLOR=0'              /tmp/octopus-pr-v2  CLICOLOR=0
+          expect plain  'with fix, NO_COLOR=1'              /tmp/octopus-pr-v2  NO_COLOR=1
+
+          {
+            echo '## Turning colour off in a terminal — the review comment'
+            echo
+            echo 'Run under a pty, so terminal detection reports true.'
+            echo
+            echo '| environment | PR as reviewed | with review fix |'
+            echo '|---|---|---|'
+            echo "| _(none)_ | $(colour_of /tmp/octopus-pr-v1) | $(colour_of /tmp/octopus-pr-v2) |"
+            echo "| \`FORCE_COLOR=0\` | **$(colour_of /tmp/octopus-pr-v1 FORCE_COLOR=0)** :point_left: the reported bug | **$(colour_of /tmp/octopus-pr-v2 FORCE_COLOR=0)** |"
+            echo "| \`CLICOLOR_FORCE=0\` | $(colour_of /tmp/octopus-pr-v1 CLICOLOR_FORCE=0) | $(colour_of /tmp/octopus-pr-v2 CLICOLOR_FORCE=0) |"
+            echo "| \`CLICOLOR=0\` | $(colour_of /tmp/octopus-pr-v1 CLICOLOR=0) | $(colour_of /tmp/octopus-pr-v2 CLICOLOR=0) |"
+            echo "| \`NO_COLOR=1\` | $(colour_of /tmp/octopus-pr-v1 NO_COLOR=1) | $(colour_of /tmp/octopus-pr-v2 NO_COLOR=1) |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          exit $fail
