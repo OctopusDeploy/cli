@@ -73,6 +73,14 @@ jobs:
           FORCE_COLOR: '1'
         run: /tmp/octopus-main --help | head -22
 
+      # GitHub's log viewer resets SGR state at every line break. The PR as
+      # reviewed wrapped the whole logo in one escape, so the codes were present
+      # but nothing rendered. Compare the next two steps.
+      - name: 'AS REVIEWED — FORCE_COLOR=1 — escapes emitted, but renders white here'
+        env:
+          FORCE_COLOR: '1'
+        run: /tmp/octopus-pr-v1 --help | head -22
+
       - name: 'AFTER (PR) — no env vars — plain, deliberately unchanged'
         run: /tmp/octopus-pr-v2 --help | head -22
 
@@ -91,6 +99,25 @@ jobs:
           FORCE_COLOR: '1'
           NO_COLOR: '1'
         run: /tmp/octopus-pr-v2 --help | head -22
+
+      # The step above is only convincing if the colour is actually per line, so
+      # check that rather than trusting the screenshot.
+      - name: 'Assert the logo is coloured line by line'
+        env:
+          FORCE_COLOR: '1'
+        run: |
+          esc=$'\033['
+          for label in pr-v1 pr-v2; do
+            total=$(/tmp/octopus-$label --help | grep -cF '####')
+            bare=$(/tmp/octopus-$label --help | grep -F '####' | grep -cvF "$esc" || true)
+            echo "$label: $total logo lines, $bare without an escape of their own"
+          done
+
+          bare=$(/tmp/octopus-pr-v2 --help | grep -F '####' | grep -cvF "$esc" || true)
+          if [ "$bare" -ne 0 ]; then
+            echo "::error::$bare logo lines carry no escape; they will render plain in this log"
+            exit 1
+          fi
 
       - name: Assert and summarise
         run: |
@@ -140,6 +167,17 @@ jobs:
             echo "| \`NO_COLOR=1\` + \`FORCE_COLOR=1\` | $(colour_of /tmp/octopus-main NO_COLOR=1 FORCE_COLOR=1) | $(colour_of /tmp/octopus-pr-v2 NO_COLOR=1 FORCE_COLOR=1) |"
             echo
             echo 'Default behaviour is unchanged: CI output stays plain unless you opt in.'
+            echo
+            echo 'This log viewer resets colour at every line break, so colour has to be'
+            echo 'emitted per line to render. Logo lines carrying their own escape:'
+            echo
+            echo '| build | logo lines tinted |'
+            echo '|---|---|'
+            for label in pr-v1 pr-v2; do
+              total=$(FORCE_COLOR=1 /tmp/octopus-$label --help | grep -cF '####')
+              bare=$(FORCE_COLOR=1 /tmp/octopus-$label --help | grep -F '####' | grep -cvF "$esc" || true)
+              echo "| \`$label\` | $((total - bare)) of $total |"
+            done
           } >> "$GITHUB_STEP_SUMMARY"
 
           exit $fail
