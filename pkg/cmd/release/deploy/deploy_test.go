@@ -47,6 +47,10 @@ var now = func() time.Time {
 }
 var ctxWithFakeNow = context.WithValue(context.TODO(), constants.ContextKeyTimeNow, now)
 
+// AskQuestions runs in a goroutine here, so the stdout buffer is only stable
+// while that goroutine is parked on a question. Read it directly after an
+// ExpectQuestion returns; answering releases the goroutine to write more into
+// the same buffer, and a read taken after that races it.
 func TestDeployCreate_AskQuestions(t *testing.T) {
 	const spaceID = "Spaces-1"
 	const fireProjectID = "Projects-22"
@@ -569,16 +573,15 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 			validationErr = q.AnswerWith("John")
 			assert.Nil(t, validationErr)
 
-			assert.Contains(t, stdout.String(), heredoc.Doc(`
-				Project Fire Project
-				Release 2.0
-				Environments dev
-			`), stdout.String())
-
 			q = qa.ExpectQuestion(t, &survey.Select{
 				Message: "Change additional options?",
 				Options: []string{"Proceed to deploy", "Change"},
 			})
+			assert.Contains(t, stdout.String(), heredoc.Doc(`
+				Project Fire Project
+				Release 2.0
+				Environments dev
+			`))
 			assert.Regexp(t, "Additional Options", stdout.String()) // actual options tested in PrintAdvancedSummary
 			_ = q.AnswerWith("Proceed to deploy")
 
@@ -647,15 +650,15 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 				Message: "Scoped Sensitive",
 				Help:    "",
 			})
-			assert.Regexp(t, "", stdout.String()) // actual options tested in PrintAdvancedSummary
-			_ = promptQuestion.AnswerWith("Secret Value")
-
+			// Exact contents, so this has to precede the answer below.
 			assert.Equal(t, heredoc.Doc(`
 				Project Fire Project
 				Release 2.0
 				Environments dev
 			`), stdout.String())
 			stdout.Reset()
+
+			_ = promptQuestion.AnswerWith("Secret Value")
 
 			q := qa.ExpectQuestion(t, &survey.Select{
 				Message: "Change additional options?",
@@ -758,15 +761,14 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 			emptyDeploymentPreviews := fixtures.EmptyDeploymentPreviews()
 			api.ExpectRequest(t, "POST", "/api/Spaces-1/releases/"+release19.ID+"/deployments/previews").RespondWith(&emptyDeploymentPreviews)
 
-			assert.Contains(t, heredoc.Doc(`
-				Project Fire Project
-				Release 1.9
-			`), stdout.String())
-
 			q = qa.ExpectQuestion(t, &survey.Select{
 				Message: "Change additional options?",
 				Options: []string{"Proceed to deploy", "Change"},
 			})
+			assert.Contains(t, stdout.String(), heredoc.Doc(`
+				Project Fire Project
+				Release 1.9
+			`))
 			assert.Regexp(t, "Additional Options", stdout.String()) // actual options tested in PrintAdvancedSummary
 			_ = q.AnswerWith("Proceed to deploy")
 
@@ -869,15 +871,14 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 			emptyDeploymentPreviews := fixtures.EmptyDeploymentPreviews()
 			api.ExpectRequest(t, "POST", "/api/Spaces-1/releases/"+release19.ID+"/deployments/previews").RespondWith(&emptyDeploymentPreviews)
 
-			assert.Contains(t, stdout.String(), heredoc.Doc(`
-				Project Fire Project
-				Release 1.9
-			`))
-
 			q = qa.ExpectQuestion(t, &survey.Select{
 				Message: "Change additional options?",
 				Options: []string{"Proceed to deploy", "Change"},
 			})
+			assert.Contains(t, stdout.String(), heredoc.Doc(`
+				Project Fire Project
+				Release 1.9
+			`))
 			assert.Regexp(t, "Additional Options", stdout.String()) // actual options tested in PrintAdvancedSummary
 			_ = q.AnswerWith("Proceed to deploy")
 
