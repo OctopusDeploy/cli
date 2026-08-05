@@ -23,12 +23,12 @@ jobs:
         run: echo "BRANCH_NAME=enh-cliupdate-octopus-$(date +'%Y%m%d-%H%M%S')" >> $GITHUB_ENV
 
       - name: Checkout CLI
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
         with:
           path: cli
 
       - name: Checkout docs
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
         with:
           repository: OctopusDeploy/docs
           token: ${{ env.DOCS_TOKEN }}
@@ -43,7 +43,7 @@ jobs:
           git checkout -b $BRANCH_NAME
 
       - name: Set up Go
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@v7
         with:
           go-version-file: cli/go.mod
 
