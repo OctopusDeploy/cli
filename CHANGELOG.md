@@ -1,5 +1,14 @@
 # Changelog
 
+## [2.23.5](https://github.com/OctopusDeploy/cli/compare/v2.23.4...v2.23.5) (2026-08-05)
+
+
+### Bug Fixes
+
+* colour multi-line text one line at a time ([fd9d045](https://github.com/OctopusDeploy/cli/commit/fd9d04541f07092c9d999df46299e3185ed0e653))
+* honour FORCE_COLOR=0, CLICOLOR_FORCE=0 and CLICOLOR=0 as colour off ([8282025](https://github.com/OctopusDeploy/cli/commit/82820258dca5781944b93b29d8a86219b3c8b6ee))
+* support colour output in CI via FORCE_COLOR/CLICOLOR_FORCE ([3ecaa76](https://github.com/OctopusDeploy/cli/commit/3ecaa76056bf15104b6648372d7318e6c3380057)), closes [#506](https://github.com/OctopusDeploy/cli/issues/506)
+
 ## [2.23.4](https://github.com/OctopusDeploy/cli/compare/v2.23.3...v2.23.4) (2026-08-05)
 
 
