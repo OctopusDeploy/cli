@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.23.1](https://github.com/OctopusDeploy/cli/compare/v2.23.0...v2.23.1) (2026-08-05)
+
+
+### Bug Fixes
+
+* indent the --package escape example with spaces, not a tab ([45bcb30](https://github.com/OctopusDeploy/cli/commit/45bcb3037cc6db9facf3a41c348bfc355e7dd1fa))
+* updated escape syntax docs on release create ([2b27030](https://github.com/OctopusDeploy/cli/commit/2b270306054a2bf70047de4335abf2529776852d))
+
 ## [2.23.0](https://github.com/OctopusDeploy/cli/compare/v2.22.1...v2.23.0) (2026-08-05)
 
 
