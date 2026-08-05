@@ -123,7 +123,10 @@ step "push-homebrew-formula-updates-to-the-homebrew-taps-repo" {
                 git commit -a -m "Update for release $packageVersion"
                 if ($LASTEXITCODE -ne 0) { throw "Failed to commit the formula update" }
                 
-                git push --repo $origin --set-upstream origin $branchName
+                # Force, because a re-run branches from master again and so its commit is a
+                # sibling of any existing releases/$packageVersion, not a descendant of it.
+                # A plain push is rejected as non-fast-forward and the release fails.
+                git push --force --repo $origin --set-upstream origin $branchName
                 if ($LASTEXITCODE -ne 0) { throw "Failed to push $branchName" }
                 
                 # Pushing the branch on its own leaves the tap untouched, so open a
@@ -159,7 +162,10 @@ step "push-homebrew-formula-updates-to-the-homebrew-taps-repo" {
                         Write-Host "A pull request for $branchName is already open."
                     }
                     else {
-                        throw "Failed to open a pull request against $repo`: $($_.Exception.Message)"
+                        # Exception.Message is only ever "Response status code does not indicate
+                        # success"; the response body is what says which field GitHub rejected.
+                        $detail = if ($_.ErrorDetails.Message) { $_.ErrorDetails.Message } else { $_.Exception.Message }
+                        throw "Failed to open a pull request against $repo`: $detail"
                     }
                 }
                 
