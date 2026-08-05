@@ -1,5 +1,14 @@
 # Changelog
 
+## [2.22.0](https://github.com/OctopusDeploy/cli/compare/v2.21.6...v2.22.0) (2026-08-05)
+
+
+### Features
+
+* accept --tenant on tenant variables list ([406229d](https://github.com/OctopusDeploy/cli/commit/406229dd54f4eea114fc2ddb85dd625463188048)), closes [#297](https://github.com/OctopusDeploy/cli/issues/297)
+* accept --tenant on tenant view ([d7e88b8](https://github.com/OctopusDeploy/cli/commit/d7e88b874d3af58262a52b50a6a1b888a6a8fa6d))
+* prompt for a tenant when none is supplied to variables list ([a9e8db0](https://github.com/OctopusDeploy/cli/commit/a9e8db0b0fa8125b8aafb9d48cabb00af4838e8f))
+
 ## [2.21.6](https://github.com/OctopusDeploy/cli/compare/v2.21.5...v2.21.6) (2026-08-05)
 
 
