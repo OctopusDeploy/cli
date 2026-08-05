@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.23.2](https://github.com/OctopusDeploy/cli/compare/v2.23.1...v2.23.2) (2026-08-05)
+
+
+### Bug Fixes
+
+* make delete commands usable with --no-prompt ([4f92fc4](https://github.com/OctopusDeploy/cli/commit/4f92fc4e28824a1406feb47e93750aa6c9bdc103)), closes [#490](https://github.com/OctopusDeploy/cli/issues/490) [#530](https://github.com/OctopusDeploy/cli/issues/530)
+
 ## [2.23.1](https://github.com/OctopusDeploy/cli/compare/v2.23.0...v2.23.1) (2026-08-05)
 
 
