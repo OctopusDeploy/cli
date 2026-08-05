@@ -47,10 +47,6 @@ var now = func() time.Time {
 }
 var ctxWithFakeNow = context.WithValue(context.TODO(), constants.ContextKeyTimeNow, now)
 
-// AskQuestions runs in a goroutine here, so the stdout buffer is only stable
-// while that goroutine is parked on a question. Read it directly after an
-// ExpectQuestion returns; answering releases the goroutine to write more into
-// the same buffer, and a read taken after that races it.
 func TestDeployCreate_AskQuestions(t *testing.T) {
 	const spaceID = "Spaces-1"
 	const fireProjectID = "Projects-22"
