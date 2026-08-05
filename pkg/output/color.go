@@ -25,26 +25,37 @@ var (
 // the widely adopted no-color.org and bixense.com/clicolors conventions:
 //
 //   - NO_COLOR set to anything non-empty disables colour outright.
-//   - CLICOLOR_FORCE or FORCE_COLOR set to anything other than "0" forces colour
-//     on even when stdout is not a terminal. CI systems such as GitHub Actions
-//     and GitLab CI render ANSI codes but do not attach a TTY, so terminal
-//     detection alone can never enable colour there.
+//   - CLICOLOR_FORCE or FORCE_COLOR turns colour on even when stdout is not a
+//     terminal. CI systems such as GitHub Actions and GitLab CI render ANSI
+//     codes but do not attach a TTY, so terminal detection alone can never
+//     enable colour there. Setting either to "0" is the opposite instruction and
+//     turns colour off even when stdout is a terminal.
+//   - CLICOLOR set to "0" disables colour.
 //   - Otherwise colour is used only when stdout is a terminal.
 func isColorEnabled() bool {
+	return isColorEnabledFor(term.IsTerminal(int(os.Stdout.Fd())))
+}
+
+// isColorEnabledFor is isColorEnabled with terminal detection supplied by the
+// caller, so the decision table can be tested in both directions.
+func isColorEnabledFor(isTerminal bool) bool {
 	if os.Getenv("NO_COLOR") != "" {
 		return false
 	}
 
-	if isColorForced("CLICOLOR_FORCE") || isColorForced("FORCE_COLOR") {
-		return true
+	// An explicitly set force variable is an instruction in both directions, so it
+	// overrides terminal detection whichever way it points.
+	for _, name := range []string{"CLICOLOR_FORCE", "FORCE_COLOR"} {
+		if value, isSet := os.LookupEnv(name); isSet && value != "" {
+			return value != "0"
+		}
 	}
 
-	return term.IsTerminal(int(os.Stdout.Fd()))
-}
+	if os.Getenv("CLICOLOR") == "0" {
+		return false
+	}
 
-func isColorForced(name string) bool {
-	value := os.Getenv(name)
-	return value != "" && value != "0"
+	return isTerminal
 }
 
 func Blue(s string) string {
