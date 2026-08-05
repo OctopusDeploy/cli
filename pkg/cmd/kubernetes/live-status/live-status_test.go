@@ -11,6 +11,7 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/question"
 	"github.com/OctopusDeploy/cli/test/fixtures"
 	"github.com/OctopusDeploy/cli/test/testutil"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 )
@@ -22,6 +23,32 @@ const spaceID = "Spaces-1"
 func respondToSpaceScopedInit(t *testing.T, api *testutil.MockHttpServer) {
 	api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
 	api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
+}
+
+var notSupportedResponse = map[string]any{
+	"MachineStatuses": []any{},
+	"Summary": map[string]any{
+		"Status":       "NotSupported",
+		"HealthStatus": "NotSupported",
+		"SyncStatus":   "NotApplicable",
+		"LastUpdated":  "1970-01-01T00:00:00Z",
+	},
+}
+
+func respondToProjectAndEnvironment(t *testing.T, api *testutil.MockHttpServer, project *projects.Project) {
+	api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/Fire Project").RespondWith(project)
+	api.ExpectRequest(t, "GET", "/api/Spaces-1/environments?partialName=Production").
+		RespondWith(map[string]any{
+			"Items": []any{
+				map[string]any{
+					"Id":    "Environments-1",
+					"Name":  "Production",
+					"Links": map[string]string{"Self": "/api/Spaces-1/environments/Environments-1"},
+				},
+			},
+			"ItemsPerPage": 30,
+			"TotalResults": 1,
+		})
 }
 
 func TestKubernetesLiveStatus(t *testing.T) {
@@ -254,6 +281,50 @@ func TestKubernetesLiveStatus(t *testing.T) {
 			out := stdOut.String()
 			assert.Contains(t, out, "Healthy")
 			assert.Contains(t, out, "InSync")
+		}},
+
+		{"table output explains an unsupported project rather than reporting no resources", func(t *testing.T, api *testutil.MockHttpServer, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
+			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
+				defer api.Close()
+				rootCmd.SetArgs([]string{"kubernetes", "live-status", "--project", "Fire Project", "--environment", "Production", "--no-prompt"})
+				return rootCmd.ExecuteC()
+			})
+
+			respondToSpaceScopedInit(t, api)
+			respondToProjectAndEnvironment(t, api, fireProject)
+
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/Projects-22/environments/Environments-1/untenanted/livestatus").
+				RespondWith(notSupportedResponse)
+
+			_, err := testutil.ReceivePair(cmdReceiver)
+			assert.Nil(t, err)
+
+			// "no resources" sends the user looking for a data problem; the actual
+			// cause is the deployment process or a disabled monitor
+			out := stdOut.String()
+			assert.Contains(t, out, "Live object status is not available")
+			assert.NotContains(t, out, "No Kubernetes resources found")
+		}},
+
+		{"summary-only explains an unsupported project", func(t *testing.T, api *testutil.MockHttpServer, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
+			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
+				defer api.Close()
+				rootCmd.SetArgs([]string{"kubernetes", "live-status", "--project", "Fire Project", "--environment", "Production", "--summary-only", "--no-prompt"})
+				return rootCmd.ExecuteC()
+			})
+
+			respondToSpaceScopedInit(t, api)
+			respondToProjectAndEnvironment(t, api, fireProject)
+
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/Projects-22/environments/Environments-1/untenanted/livestatus?summaryOnly=true").
+				RespondWith(notSupportedResponse)
+
+			_, err := testutil.ReceivePair(cmdReceiver)
+			assert.Nil(t, err)
+
+			out := stdOut.String()
+			assert.Contains(t, out, "Live object status is not available")
+			assert.NotContains(t, out, "NotSupported")
 		}},
 
 		{"k8s alias works", func(t *testing.T, api *testutil.MockHttpServer, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {

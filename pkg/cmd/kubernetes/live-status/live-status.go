@@ -223,7 +223,22 @@ func liveStatusRun(cmd *cobra.Command, f factory.Factory, flags *LiveStatusFlags
 	return printFullStatus(cmd, &response)
 }
 
+// statusNotSupported is reported for a project and environment whose deployment
+// process cannot produce live object status; script-based Kubernetes steps apply
+// arbitrary commands, so the server has no desired resource set to compare
+// against. It is also reported when no Kubernetes monitor is enabled.
+const statusNotSupported = "NotSupported"
+
+const notSupportedMessage = "Live object status is not available for this project and environment. " +
+	"It requires a deployment made with a Kubernetes step that tracks the resources it applies, " +
+	"to a target whose Kubernetes monitor is enabled."
+
 func printSummary(cmd *cobra.Command, summary *StatusSummary) error {
+	if summary.Status == statusNotSupported {
+		cmd.Println(notSupportedMessage)
+		return nil
+	}
+
 	rows := []*output.DataRow{
 		output.NewDataRow("Status", summary.Status),
 		output.NewDataRow("Health Status", summary.HealthStatus),
@@ -250,7 +265,13 @@ func printFullStatus(cmd *cobra.Command, response *LiveStatusResponse) error {
 	}
 
 	if len(allFlat) == 0 {
-		cmd.Println("No Kubernetes resources found.")
+		// An empty result and an unsupported one are different things, and the
+		// difference is what the user needs to act on.
+		if response.Summary.Status == statusNotSupported {
+			cmd.Println(notSupportedMessage)
+		} else {
+			cmd.Println("No Kubernetes resources found.")
+		}
 		return nil
 	}
 
