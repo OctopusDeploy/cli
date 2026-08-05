@@ -229,10 +229,10 @@ type PackageContents struct {
 }
 
 func BuildPackage(opts *PackageCreateOptions, outFileName string) (*os.File, error) {
-	return BuildPackageContents(opts, outFileName, nil)
+	return BuildPackageWithContents(opts, outFileName, nil)
 }
 
-func BuildPackageContents(opts *PackageCreateOptions, outFileName string, contents *PackageContents) (*os.File, error) {
+func BuildPackageWithContents(opts *PackageCreateOptions, outFileName string, contents *PackageContents) (*os.File, error) {
 	outFilePath := filepath.Join(opts.OutFolder.Value, outFileName)
 	outPath, err := filepath.Abs(opts.OutFolder.Value)
 	if err != nil {

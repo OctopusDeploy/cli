@@ -154,7 +154,7 @@ func createRun(cmd *cobra.Command, opts *NuPkgCreateOptions) error {
 
 	// a .nupkg is an OPC container, not a plain zip; it needs its content types,
 	// relationships and core properties or feeds will reject it
-	nuget, err := pack.BuildPackageContents(opts.PackageCreateOptions, outFilePath, &pack.PackageContents{
+	nuget, err := pack.BuildPackageWithContents(opts.PackageCreateOptions, outFilePath, &pack.PackageContents{
 		ExcludeDirectories: true,
 		ExtraEntries: func(paths []string) ([]pack.ArchiveEntry, error) {
 			return buildOpcParts(opts.Id.Value, opts.Version.Value, opts.Author.Value, opts.Description.Value, paths)
