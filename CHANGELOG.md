@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.22.1](https://github.com/OctopusDeploy/cli/compare/v2.22.0...v2.22.1) (2026-08-05)
+
+
+### Bug Fixes
+
+* **deps:** bump github.com/briandowns/spinner from 1.19.0 to 1.23.2 ([814d700](https://github.com/OctopusDeploy/cli/commit/814d70016f4d22ec879f2cc80f983ad92200a0ef))
+
 ## [2.22.0](https://github.com/OctopusDeploy/cli/compare/v2.21.6...v2.22.0) (2026-08-05)
 
 
