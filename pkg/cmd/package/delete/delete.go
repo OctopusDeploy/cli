@@ -82,17 +82,22 @@ func NewCmdDelete(f factory.Factory) *cobra.Command {
 }
 
 func deleteRun(opts *DeleteOptions) error {
-	// Resolve regardless of whether prompting is enabled. --package-id and
-	// --version identify the package just as well as the positional ID does,
-	// and running this only in interactive mode left them ignored under
+	// --package-id and --version identify the package just as well as the
+	// positional ID does, so they are resolved whether or not prompting is
+	// enabled. Doing this inside PromptMissing left them ignored under
 	// --no-prompt, which then rejected the command for want of an identifier.
-	// Nothing here prompts while both flags are supplied.
-	if err := PromptMissing(opts); err != nil {
+	if err := resolveIdentifier(opts); err != nil {
 		return err
 	}
 
+	if !opts.NoPrompt {
+		if err := PromptMissing(opts); err != nil {
+			return err
+		}
+	}
+
 	if opts.ID == "" {
-		return fmt.Errorf("package identifier is required but was not provided")
+		return fmt.Errorf("package identifier is required but was not provided; supply it as an argument, or use --%s together with --%s", FlagPackageId, FlagVersion)
 	}
 
 	packageToDelete, err := packages.GetByID(opts.Client, opts.Client.GetSpaceID(), opts.ID)
@@ -127,6 +132,29 @@ func deleteRun(opts *DeleteOptions) error {
 	}
 }
 
+// resolveIdentifier turns --package-id and --version into the ID of the package
+// to delete. It never prompts, so it is safe to run with prompting disabled.
+// Either flag on its own does not identify a package, so those are left to
+// PromptMissing to finish off.
+func resolveIdentifier(opts *DeleteOptions) error {
+	if opts.ID != "" || opts.DeleteFlags.PackageId.Value == "" || opts.DeleteFlags.Version.Value == "" {
+		return nil
+	}
+
+	packageToDelete, err := findPackage(opts, opts.DeleteFlags.PackageId.Value)
+	if err != nil {
+		return err
+	}
+
+	packageVersionToDelete, err := findVersion(opts, packageToDelete.PackageID, opts.DeleteFlags.Version.Value)
+	if err != nil {
+		return err
+	}
+
+	opts.ID = packageVersionToDelete.GetID()
+	return nil
+}
+
 func PromptMissing(opts *DeleteOptions) error {
 	if opts.ID == "" {
 		packageToDelete, err := selectPackage(opts)
@@ -146,21 +174,13 @@ func PromptMissing(opts *DeleteOptions) error {
 }
 
 func selectPackage(opts *DeleteOptions) (*packages.Package, error) {
+	if opts.DeleteFlags.PackageId.Value != "" {
+		return findPackage(opts, opts.DeleteFlags.PackageId.Value)
+	}
+
 	allExistingPackages, err := packages.GetAll(opts.Client, opts.Client.GetSpaceID())
 	if err != nil {
 		return nil, err
-	}
-
-	if opts.DeleteFlags.PackageId.Value != "" {
-		idx := slices.IndexFunc(allExistingPackages, func(p *packages.Package) bool { return p.PackageID == opts.DeleteFlags.PackageId.Value })
-		if idx == -1 {
-			return nil, fmt.Errorf("unable to find a package matching the specifed ID: '%s'", opts.DeleteFlags.PackageId.Value)
-		}
-		return allExistingPackages[idx], nil
-	}
-
-	if opts.NoPrompt {
-		return nil, fmt.Errorf("package identifier is required but was not provided; supply it as an argument, or use --%s together with --%s", FlagPackageId, FlagVersion)
 	}
 
 	return question.SelectMap(opts.Ask, "Select the package you wish to delete:", allExistingPackages, func(item *packages.Package) string {
@@ -169,36 +189,55 @@ func selectPackage(opts *DeleteOptions) (*packages.Package, error) {
 }
 
 func selectVersion(opts *DeleteOptions, packageID string) (*packages.Package, error) {
+	if opts.DeleteFlags.Version.Value != "" {
+		return findVersion(opts, packageID, opts.DeleteFlags.Version.Value)
+	}
+
+	allPackageVersions, err := allVersions(opts, packageID)
+	if err != nil {
+		return nil, err
+	}
+
+	return question.SelectMap(opts.Ask, "Select the version you wish to delete:", allPackageVersions, func(item *packages.Package) string { return item.Version })
+}
+
+func findPackage(opts *DeleteOptions, packageID string) (*packages.Package, error) {
+	allExistingPackages, err := packages.GetAll(opts.Client, opts.Client.GetSpaceID())
+	if err != nil {
+		return nil, err
+	}
+
+	idx := slices.IndexFunc(allExistingPackages, func(p *packages.Package) bool { return p.PackageID == packageID })
+	if idx == -1 {
+		return nil, fmt.Errorf("unable to find a package matching the specifed ID: '%s'", packageID)
+	}
+
+	return allExistingPackages[idx], nil
+}
+
+func findVersion(opts *DeleteOptions, packageID string, version string) (*packages.Package, error) {
+	allPackageVersions, err := allVersions(opts, packageID)
+	if err != nil {
+		return nil, err
+	}
+
+	idx := slices.IndexFunc(allPackageVersions, func(p *packages.Package) bool { return p.Version == version })
+	if idx == -1 {
+		return nil, fmt.Errorf("unable to find a version matching the specified version: '%s", version)
+	}
+
+	return allPackageVersions[idx], nil
+}
+
+func allVersions(opts *DeleteOptions, packageID string) ([]*packages.Package, error) {
 	packageVersions, err := packages.Get(opts.Client, opts.Client.GetSpaceID(), packages.PackagesQuery{
 		NuGetPackageID: packageID,
 	})
 	if err != nil {
 		return nil, err
 	}
-	allPackageVersions, err := packageVersions.GetAllPages(opts.Client.Sling())
-	if err != nil {
-		return nil, err
-	}
 
-	var packageVersionToDelete *packages.Package
-	if opts.DeleteFlags.Version.Value != "" {
-		idx := slices.IndexFunc(allPackageVersions, func(p *packages.Package) bool { return p.Version == opts.DeleteFlags.Version.Value })
-		if idx == -1 {
-			return nil, fmt.Errorf("unable to find a version matching the specified version: '%s", opts.DeleteFlags.Version.Value)
-		}
-		packageVersionToDelete = allPackageVersions[idx]
-	} else {
-		if opts.NoPrompt {
-			return nil, fmt.Errorf("--%s is required alongside --%s while prompting is disabled", FlagVersion, FlagPackageId)
-		}
-
-		packageVersionToDelete, err = question.SelectMap(opts.Ask, "Select the version you wish to delete:", allPackageVersions, func(item *packages.Package) string { return item.Version })
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	return packageVersionToDelete, nil
+	return packageVersions.GetAllPages(opts.Client.Sling())
 }
 
 func delete(client *client.Client, packageToDelete *packages.Package) error {
