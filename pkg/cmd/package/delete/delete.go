@@ -84,8 +84,7 @@ func NewCmdDelete(f factory.Factory) *cobra.Command {
 func deleteRun(opts *DeleteOptions) error {
 	// --package-id and --version identify the package just as well as the
 	// positional ID does, so they are resolved whether or not prompting is
-	// enabled. Doing this inside PromptMissing left them ignored under
-	// --no-prompt, which then rejected the command for want of an identifier.
+	// enabled.
 	if err := resolveIdentifier(opts); err != nil {
 		return err
 	}
