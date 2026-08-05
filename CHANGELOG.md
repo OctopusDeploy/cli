@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.21.6](https://github.com/OctopusDeploy/cli/compare/v2.21.5...v2.21.6) (2026-08-05)
+
+
+### Bug Fixes
+
+* stop commands crashing when an optional identifier is omitted ([b02f0df](https://github.com/OctopusDeploy/cli/commit/b02f0dfd5e04afbce773a13c80db7195aa4914fd)), closes [#627](https://github.com/OctopusDeploy/cli/issues/627)
+
 ## [2.21.5](https://github.com/OctopusDeploy/cli/compare/v2.21.4...v2.21.5) (2026-08-04)
 
 
