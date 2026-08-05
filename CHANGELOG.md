@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.23.3](https://github.com/OctopusDeploy/cli/compare/v2.23.2...v2.23.3) (2026-08-05)
+
+
+### Bug Fixes
+
+* emit valid JSON from package create commands ([edf3e99](https://github.com/OctopusDeploy/cli/commit/edf3e99dd6fb2cb6e56ab9178009a1e91fe22738)), closes [#518](https://github.com/OctopusDeploy/cli/issues/518)
+
 ## [2.23.2](https://github.com/OctopusDeploy/cli/compare/v2.23.1...v2.23.2) (2026-08-05)
 
 
