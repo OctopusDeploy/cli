@@ -186,6 +186,28 @@ func TestReleaseNotesAndReleaseNotesFileAreMutuallyExclusive(t *testing.T) {
 	assert.ErrorContains(t, err, "cannot specify both")
 }
 
+// Descriptions and release notes are free text. An unescaped ampersand or angle
+// bracket is enough to make the whole manifest unparseable, which matters more
+// now that one is written for every package.
+func TestMetadataIsXmlEscaped(t *testing.T) {
+	opts := newTestOptions(t, t.TempDir())
+	opts.Description.Value = `Fish & chips <b>bold</b>`
+	opts.Title.Value = `A "quoted" title`
+	opts.ReleaseNotes.Value = `1 < 2 && 3 > 2`
+	opts.Author.Value = []string{"Ada & Grace"}
+
+	parsed, raw := generateAndParse(t, opts)
+
+	assert.NotContains(t, raw, "Fish & chips", "raw ampersand should have been escaped")
+	assert.Contains(t, raw, "&amp;")
+
+	// Round-tripping is the real assertion: what went in is what comes back out.
+	assert.Equal(t, `Fish & chips <b>bold</b>`, parsed.Metadata.Description)
+	assert.Equal(t, `A "quoted" title`, parsed.Metadata.Title)
+	assert.Equal(t, `1 < 2 && 3 > 2`, parsed.Metadata.ReleaseNotes)
+	assert.Equal(t, "Ada & Grace", parsed.Metadata.Authors)
+}
+
 func TestNuSpecIsWrittenIntoTheBasePath(t *testing.T) {
 	basePath := t.TempDir()
 	opts := newTestOptions(t, basePath)
