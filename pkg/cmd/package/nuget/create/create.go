@@ -1,6 +1,8 @@
 package create
 
 import (
+	"bytes"
+	"encoding/xml"
 	"errors"
 	"fmt"
 	"os"
@@ -307,6 +309,18 @@ func getReleaseNotesFromFile(filePath string) (string, error) {
 	return string(notes), nil
 }
 
+// escapeXML makes a value safe to drop between two tags. Release notes and
+// descriptions are free text, and an unescaped ampersand or angle bracket is
+// enough to make the whole manifest unparseable.
+func escapeXML(value string) string {
+	var buf bytes.Buffer
+	if err := xml.EscapeText(&buf, []byte(value)); err != nil {
+		// EscapeText only fails if the writer fails, and bytes.Buffer does not.
+		return value
+	}
+	return buf.String()
+}
+
 // hasSuppliedNuSpec reports whether the base path already contains a manifest
 // for this package. One written by hand is the user's own file: it is theirs to
 // keep, and generating over the top of it would both discard their metadata and
@@ -343,15 +357,15 @@ func GenerateNuSpec(opts *NuPkgCreateOptions) (string, error) {
 	sb.WriteString(`<?xml version="1.0" encoding="utf-8"?>` + "\n")
 	sb.WriteString(`<package xmlns="http://schemas.microsoft.com/packaging/2010/07/nuspec.xsd">` + "\n")
 	sb.WriteString("  <metadata>\n")
-	sb.WriteString("    <id>" + opts.Id.Value + "</id>\n")
-	sb.WriteString("    <version>" + opts.Version.Value + "</version>\n")
+	sb.WriteString("    <id>" + escapeXML(opts.Id.Value) + "</id>\n")
+	sb.WriteString("    <version>" + escapeXML(opts.Version.Value) + "</version>\n")
 	if opts.Title.Value != "" {
-		sb.WriteString("    <title>" + opts.Title.Value + "</title>\n")
+		sb.WriteString("    <title>" + escapeXML(opts.Title.Value) + "</title>\n")
 	}
-	sb.WriteString("    <description>" + opts.Description.Value + "</description>\n")
-	sb.WriteString("    <authors>" + strings.Join(opts.Author.Value, ",") + "</authors>\n")
+	sb.WriteString("    <description>" + escapeXML(opts.Description.Value) + "</description>\n")
+	sb.WriteString("    <authors>" + escapeXML(strings.Join(opts.Author.Value, ",")) + "</authors>\n")
 	if releaseNotes != "" {
-		sb.WriteString("    <releaseNotes>" + releaseNotes + "</releaseNotes>\n")
+		sb.WriteString("    <releaseNotes>" + escapeXML(releaseNotes) + "</releaseNotes>\n")
 	}
 	sb.WriteString("  </metadata>\n")
 	sb.WriteString("</package>\n")
