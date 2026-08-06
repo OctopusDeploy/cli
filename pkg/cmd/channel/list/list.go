@@ -1,7 +1,6 @@
 package list
 
 import (
-	"errors"
 	"strings"
 
 	"github.com/MakeNowJust/heredoc/v2"
@@ -11,7 +10,6 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/output"
 	"github.com/OctopusDeploy/cli/pkg/question/selectors"
 	"github.com/OctopusDeploy/cli/pkg/util/flag"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
 	"github.com/spf13/cobra"
 )
 
@@ -83,30 +81,13 @@ func listRun(cmd *cobra.Command, f factory.Factory, flags *ListFlags) error {
 		return err
 	}
 
-	var selectedProject *projects.Project
-	if f.IsPromptEnabled() {
-		if projectNameOrID == "" {
-			selectedProject, err = selectors.Project("Select the project to list channels for", octopus, f.Ask)
-			if err != nil {
-				return err
-			}
-		} else {
-			selectedProject, err = selectors.FindProject(octopus, projectNameOrID)
-			if err != nil {
-				return err
-			}
-			if !constants.IsProgrammaticOutputFormat(outputFormat) {
-				cmd.Printf("Project %s\n", output.Cyan(selectedProject.Name))
-			}
-		}
-	} else {
-		if projectNameOrID == "" {
-			return errors.New("project must be specified")
-		}
-		selectedProject, err = selectors.FindProject(octopus, projectNameOrID)
-		if err != nil {
-			return err
-		}
+	selectedProject, err := selectors.ResolveProject(octopus, f.Ask, f.IsPromptEnabled(),
+		"Select the project to list channels for", projectNameOrID)
+	if err != nil {
+		return err
+	}
+	if f.IsPromptEnabled() && projectNameOrID != "" && !constants.IsProgrammaticOutputFormat(outputFormat) {
+		cmd.Printf("Project %s\n", output.Cyan(selectedProject.Name))
 	}
 
 	// Projects.GetChannels handles paging internally and returns the project-scoped list.

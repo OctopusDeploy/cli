@@ -436,18 +436,12 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 	// we should emulate that so there is always a line where you can see what the item was when specified on the command line,
 	// however if we support a "quiet mode" then we shouldn't emit those
 
-	var err error
-	var selectedProject *projects.Project
-	if options.ProjectName == "" {
-		selectedProject, err = selectors.Project("Select the project in which the release will be created", octopus, asker)
-		if err != nil {
-			return err
-		}
-	} else { // project name is already provided, fetch the object because it's needed for further questions
-		selectedProject, err = selectors.FindProject(octopus, options.ProjectName)
-		if err != nil {
-			return err
-		}
+	selectedProject, err := selectors.ResolveProject(octopus, asker, true,
+		"Select the project in which the release will be created", options.ProjectName)
+	if err != nil {
+		return err
+	}
+	if options.ProjectName != "" { // project name was already provided; echo it so the choice is always visible
 		_, _ = fmt.Fprintf(stdout, "Project %s\n", output.Cyan(selectedProject.Name))
 	}
 	options.ProjectName = selectedProject.Name
