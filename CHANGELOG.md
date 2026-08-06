@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.23.6](https://github.com/OctopusDeploy/cli/compare/v2.23.5...v2.23.6) (2026-08-06)
+
+
+### Bug Fixes
+
+* produce valid NuGet packages from package nuget create ([47932dc](https://github.com/OctopusDeploy/cli/commit/47932dc5a3f6a0ce02e24912610a9bc939f17191)), closes [#477](https://github.com/OctopusDeploy/cli/issues/477)
+
 ## [2.23.5](https://github.com/OctopusDeploy/cli/compare/v2.23.4...v2.23.5) (2026-08-05)
 
 
