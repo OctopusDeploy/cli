@@ -1,24 +1,38 @@
-﻿package helper
+package helper
 
-import "github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/environments"
+import (
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/core"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/environments"
+)
 
+// GetByIDOrName returns the environment matching the given ID or exact name.
+// The SDK has no environments.GetByIDOrName, so we emulate it here.
+// Returns (nil, nil) when nothing matches; callers must handle that.
 func GetByIDOrName(service *environments.EnvironmentService, idOrName string) (*environments.Environment, error) {
-	// SDK doesn't have accounts.GetByIDOrName so we emulate it here
+	// A 404 here just means the input wasn't an ID; anything else is a real error.
+	environment, err := service.GetByID(idOrName)
+	if err != nil {
+		apiError, ok := err.(*core.APIError)
+		if !ok || apiError.StatusCode != 404 {
+			return nil, err
+		}
+	} else if environment != nil {
+		return environment, nil
+	}
+
+	// The server only offers a partial name match, so we filter for the exact name.
 	foundEnvironments, err := service.Get(environments.EnvironmentsQuery{
-		// TODO we can't lookup by ID here because the server will AND it with the ItemName and produce no results
 		PartialName: idOrName,
 	})
 	if err != nil {
 		return nil, err
 	}
-	// need exact match
-	var matchedItem *environments.Environment
+
 	for _, item := range foundEnvironments.Items {
 		if item.Name == idOrName {
-			matchedItem = item
-			break
+			return item, nil
 		}
 	}
 
-	return matchedItem, nil
+	return nil, nil
 }

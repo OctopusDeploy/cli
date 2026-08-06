@@ -39,6 +39,9 @@ func NewCmdDelete(f factory.Factory) *cobra.Command {
 			}
 
 			itemToDelete, err := helper.GetByIDOrName(client.Environments, itemIDOrName)
+			if err != nil {
+				return err
+			}
 			if itemToDelete == nil {
 				return fmt.Errorf("cannot find an environment with name or ID of '%s'", itemIDOrName)
 			}

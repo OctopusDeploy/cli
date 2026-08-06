@@ -1,4 +1,4 @@
-﻿package view
+package view
 
 import (
 	"fmt"
@@ -54,7 +54,7 @@ func NewCmdView(f factory.Factory) *cobra.Command {
 			$ %[1]s environment view Environments-102
 		`, constants.ExecutableName),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			client, err := f.GetSystemClient(apiclient.NewRequester(cmd))
+			client, err := f.GetSpacedClient(apiclient.NewRequester(cmd))
 			if err != nil {
 				return err
 			}
@@ -82,6 +82,9 @@ func viewRun(opts *ViewOptions) error {
 	if err != nil {
 		return err
 	}
+	if environment == nil {
+		return fmt.Errorf("cannot find an environment with name or ID of '%s'", opts.idOrName)
+	}
 
 	return output.PrintResource(environment, opts.Command, output.Mappers[*environments.Environment]{
 		Json: func(env *environments.Environment) any {
@@ -108,7 +111,7 @@ func viewRun(opts *ViewOptions) error {
 					env.Slug,
 					description,
 					getBoolToString(env.UseGuidedFailure, "Enabled", "Disabled"),
-					getBoolToString(env.UseGuidedFailure, "Allowed", "Disallowed"),
+					getBoolToString(env.AllowDynamicInfrastructure, "Allowed", "Disallowed"),
 					output.Blue(generateWebUrl(opts.Host, env)),
 				}
 			},
