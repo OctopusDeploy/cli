@@ -2,9 +2,10 @@ package integration_test
 
 import (
 	"encoding/json"
+	"testing"
+
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/stretchr/testify/require"
-	"testing"
 
 	"github.com/OctopusDeploy/cli/test/integration"
 	"github.com/OctopusDeploy/cli/test/testutil"

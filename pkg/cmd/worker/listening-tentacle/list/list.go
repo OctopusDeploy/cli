@@ -17,7 +17,7 @@ func NewCmdList(f factory.Factory) *cobra.Command {
 		Long:    "List Listening Tentacle workers in Octopus Deploy",
 		Aliases: []string{"ls"},
 		Example: heredoc.Docf(`
-			$ %s worker listening-tentacle list
+			%s worker listening-tentacle list
 		`, constants.ExecutableName),
 		RunE: func(c *cobra.Command, args []string) error {
 			dependencies := cmd.NewDependencies(f, c)

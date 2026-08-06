@@ -2,6 +2,8 @@ package machinescommon
 
 import (
 	"fmt"
+	"io"
+
 	"github.com/OctopusDeploy/cli/pkg/cmd"
 	"github.com/OctopusDeploy/cli/pkg/output"
 	"github.com/OctopusDeploy/cli/pkg/util"
@@ -10,7 +12,6 @@ import (
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/workerpools"
 	"github.com/pkg/browser"
 	"github.com/spf13/cobra"
-	"io"
 )
 
 const (
@@ -47,7 +48,7 @@ func DoWebForWorkerPools(workerPool workerpools.IWorkerPool, dependencies *cmd.D
 }
 
 func doWeb(url string, description string, out io.Writer, flags *WebFlags) {
-	link := output.Bluef(url)
+	link := output.Blue(url)
 	fmt.Fprintf(out, "View this %s on Octopus Deploy: %s\n", description, link)
 	if flags.Web.Value {
 		browser.OpenURL(url)

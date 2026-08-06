@@ -59,7 +59,7 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 		Short: "Create nuget",
 		Long:  "Create nuget package",
 		Example: heredoc.Docf(`
-			$ %[1]s package nuget create --id SomePackage --version 1.0.0
+			%[1]s package nuget create --id SomePackage --version 1.0.0
 		`, constants.ExecutableName),
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			opts := &NuPkgCreateOptions{
@@ -76,6 +76,7 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 	flags.StringVar(&packFlags.BasePath.Value, packFlags.BasePath.Name, "", "Root folder containing the contents to zip.")
 	flags.StringVar(&packFlags.OutFolder.Value, packFlags.OutFolder.Name, "", "Folder into which the zip file will be written.")
 	flags.StringSliceVar(&packFlags.Include.Value, packFlags.Include.Name, []string{}, "Add a file pattern to include, relative to the base path e.g. /bin/*.dll; defaults to \"**\".")
+	flags.StringSliceVar(&packFlags.Exclude.Value, packFlags.Exclude.Name, []string{}, "Add a file pattern to exclude, relative to the base path e.g. **/*.config; applied after --include.")
 	flags.BoolVar(&packFlags.Verbose.Value, packFlags.Verbose.Name, false, "Verbose output.")
 	flags.BoolVar(&packFlags.Overwrite.Value, packFlags.Overwrite.Name, false, "Allow an existing package file of the same ID/version to be overwritten.")
 	flags.StringSliceVar(&createFlags.Author.Value, createFlags.Author.Name, []string{}, "Add author/s to the package metadata.")
@@ -133,7 +134,7 @@ func createRun(cmd *cobra.Command, opts *NuPkgCreateOptions) error {
 
 	if !opts.NoPrompt {
 		autoCmd := flag.GenerateAutomationCmd(
-			opts.CmdPath,
+			opts.CmdPath, "",
 			opts.Author,
 			opts.Title,
 			opts.Description,
@@ -144,23 +145,23 @@ func createRun(cmd *cobra.Command, opts *NuPkgCreateOptions) error {
 			opts.BasePath,
 			opts.OutFolder,
 			opts.Include,
+			opts.Exclude,
 			opts.Verbose,
 			opts.Overwrite,
 		)
 		fmt.Fprintf(opts.Writer, "\nAutomation Command: %s\n", autoCmd)
 	}
 
-	nuget, err := pack.BuildPackage(opts.PackageCreateOptions, outFilePath)
+	// a .nupkg is an OPC container, not a plain zip; it needs its content types,
+	// relationships and core properties or feeds will reject it
+	nuget, err := pack.BuildPackageWithContents(opts.PackageCreateOptions, outFilePath, &pack.PackageContents{
+		ExcludeDirectories: true,
+		ExtraEntries: func(paths []string) ([]pack.ArchiveEntry, error) {
+			return buildOpcParts(opts.Id.Value, opts.Version.Value, opts.Author.Value, opts.Description.Value, paths)
+		},
+	})
 	if nuget != nil {
-		switch outputFormat {
-		case constants.OutputFormatBasic:
-			cmd.Printf("%s\n", nuget.Name())
-		case constants.OutputFormatJson:
-			cmd.Printf(`{"Path":"%s"}`, nuget.Name())
-			cmd.Println()
-		default: // table
-			cmd.Printf("Successfully created package %s\n", nuget.Name())
-		}
+		pack.PrintPackageCreated(cmd, outputFormat, nuget.Name())
 	}
 	return err
 }

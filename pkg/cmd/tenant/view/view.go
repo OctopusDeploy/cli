@@ -13,6 +13,8 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/OctopusDeploy/cli/pkg/output"
+	"github.com/OctopusDeploy/cli/pkg/question"
+	"github.com/OctopusDeploy/cli/pkg/question/selectors"
 	"github.com/OctopusDeploy/cli/pkg/usage"
 	"github.com/OctopusDeploy/cli/pkg/util"
 	"github.com/OctopusDeploy/cli/pkg/util/flag"
@@ -23,37 +25,41 @@ import (
 )
 
 const (
-	FlagWeb = "web"
+	FlagTenant = "tenant"
+	FlagWeb    = "web"
 )
 
 type ViewFlags struct {
-	Web *flag.Flag[bool]
+	Tenant *flag.Flag[string]
+	Web    *flag.Flag[bool]
 }
 
 func NewViewFlags() *ViewFlags {
 	return &ViewFlags{
-		Web: flag.New[bool](FlagWeb, false),
+		Tenant: flag.New[string](FlagTenant, false),
+		Web:    flag.New[bool](FlagWeb, false),
 	}
 }
 
 type ViewOptions struct {
-	Client   *client.Client
-	Host     string
-	out      io.Writer
-	idOrName string
-	flags    *ViewFlags
+	Client *client.Client
+	Host   string
+	out    io.Writer
+	tenant *tenants.Tenant
+	flags  *ViewFlags
 }
 
 func NewCmdView(f factory.Factory) *cobra.Command {
 	viewFlags := NewViewFlags()
 	cmd := &cobra.Command{
-		Args:  usage.ExactArgs(1),
-		Use:   "view {<name> | <id>}",
+		Args:  usage.MaximumNArgs(1),
+		Use:   "view [<name> | <id>]",
 		Short: "View a tenant",
 		Long:  "View a tenant in Octopus Deploy",
 		Example: heredoc.Docf(`
-			$ %[1]s tenant view Tenants-1
-			$ %[1]s tenant view 'Tenant'
+			%[1]s tenant view Tenants-1
+			%[1]s tenant view 'Tenant'
+			%[1]s tenant view --tenant 'Tenant'
 		`, constants.ExecutableName),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			client, err := f.GetSpacedClient(apiclient.NewRequester(cmd))
@@ -61,15 +67,16 @@ func NewCmdView(f factory.Factory) *cobra.Command {
 				return err
 			}
 
-			if len(args) == 0 {
-				return fmt.Errorf("tenant identifier is required")
+			tenant, err := resolveTenant(f, client, resolveTenantIdentifier(viewFlags.Tenant.Value, args))
+			if err != nil {
+				return err
 			}
 
 			opts := &ViewOptions{
 				client,
 				f.GetCurrentHost(),
 				cmd.OutOrStdout(),
-				args[0],
+				tenant,
 				viewFlags,
 			}
 
@@ -78,18 +85,57 @@ func NewCmdView(f factory.Factory) *cobra.Command {
 	}
 
 	flags := cmd.Flags()
+	flags.StringVarP(&viewFlags.Tenant.Value, viewFlags.Tenant.Name, "t", "", "The tenant")
 	flags.BoolVarP(&viewFlags.Web.Value, viewFlags.Web.Name, "w", false, "Open in web browser")
 
 	return cmd
 }
 
-func viewRun(opts *ViewOptions, cmd *cobra.Command) error {
-	tenant, err := opts.Client.Tenants.GetByIdentifier(opts.idOrName)
-	if err != nil {
-		return err
+// resolveTenantIdentifier prefers --tenant and falls back to the positional
+// argument, matching how the other commands accepting both forms behave.
+//
+// An empty result means no tenant was named; the caller prompts for one.
+func resolveTenantIdentifier(tenant string, args []string) string {
+	if tenant != "" {
+		return tenant
 	}
 
-	environmentMap, err := shared.GetEnvironmentMap(opts.Client, []*tenants.Tenant{tenant})
+	if len(args) > 0 {
+		return args[0]
+	}
+
+	return ""
+}
+
+// resolveTenant looks up the named tenant, or prompts for one when the command
+// line did not name any. With prompting disabled there is nothing to select
+// from, so the identifier is required.
+func resolveTenant(f factory.Factory, octopus *client.Client, idOrName string) (*tenants.Tenant, error) {
+	if idOrName != "" {
+		return octopus.Tenants.GetByIdentifier(idOrName)
+	}
+
+	if !f.IsPromptEnabled() {
+		return nil, fmt.Errorf("must supply tenant identifier")
+	}
+
+	return promptMissing(f.Ask, func() ([]*tenants.Tenant, error) { return shared.GetAllTenants(octopus) })
+}
+
+// promptMissing prompts for a tenant. The getter is a parameter so the prompt can
+// be driven from tests, as connect and update do.
+func promptMissing(ask question.Asker, getAllTenants shared.GetAllTenantsCallback) (*tenants.Tenant, error) {
+	return selectors.Select(
+		ask,
+		"You have not specified a Tenant. Please select one:",
+		getAllTenants,
+		func(tenant *tenants.Tenant) string { return tenant.Name })
+}
+
+func viewRun(opts *ViewOptions, cmd *cobra.Command) error {
+	tenant := opts.tenant
+
+	environmentMap, err := shared.GetEnvironmentMapForTenants(opts.Client, []*tenants.Tenant{tenant})
 	if err != nil {
 		return err
 	}

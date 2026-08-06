@@ -2,9 +2,10 @@ package view
 
 import (
 	"fmt"
-	"github.com/OctopusDeploy/cli/pkg/apiclient"
 	"io"
 	"strings"
+
+	"github.com/OctopusDeploy/cli/pkg/apiclient"
 
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/constants"
@@ -50,9 +51,9 @@ func NewCmdView(f factory.Factory) *cobra.Command {
 		Short: "View a project",
 		Long:  "View a project in Octopus Deploy",
 		Example: heredoc.Docf(`
-			$ %[1]s project view 'Deploy Web App'
-			$ %[1]s project view Projects-9000
-			$ %[1]s project view deploy-web-app
+			%[1]s project view 'Deploy Web App'
+			%[1]s project view Projects-9000
+			%[1]s project view deploy-web-app
 		`, constants.ExecutableName),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			client, err := f.GetSpacedClient(apiclient.NewRequester(cmd))
@@ -99,11 +100,12 @@ func viewRun(opts *ViewOptions) error {
 				Description:          p.Description,
 				IsVersionControlled:  p.IsVersionControlled,
 				VersionControlBranch: cacBranch,
+				ProjectTags:          p.ProjectTags,
 				WebUrl:               util.GenerateWebURL(opts.Host, p.SpaceID, fmt.Sprintf("projects/%s", p.GetID())),
 			}
 		},
 		Table: output.TableDefinition[*projects.Project]{
-			Header: []string{"NAME", "SLUG", "DESCRIPTION", "VERSION CONTROL", "WEB URL"},
+			Header: []string{"NAME", "SLUG", "DESCRIPTION", "VERSION CONTROL", "TAGS", "WEB URL"},
 			Row: func(p *projects.Project) []string {
 				description := p.Description
 				if description == "" {
@@ -120,6 +122,7 @@ func viewRun(opts *ViewOptions) error {
 					p.Slug,
 					description,
 					cacBranch,
+					output.FormatAsList(p.ProjectTags),
 					output.Blue(util.GenerateWebURL(opts.Host, p.SpaceID, fmt.Sprintf("projects/%s", p.GetID()))),
 				}
 			},
@@ -131,13 +134,14 @@ func viewRun(opts *ViewOptions) error {
 }
 
 type ProjectAsJson struct {
-	Id                   string `json:"Id"`
-	Name                 string `json:"Name"`
-	Slug                 string `json:"Slug"`
-	Description          string `json:"Description"`
-	IsVersionControlled  bool   `json:"IsVersionControlled"`
-	VersionControlBranch string `json:"VersionControlBranch"`
-	WebUrl               string `json:"WebUrl"`
+	Id                   string   `json:"Id"`
+	Name                 string   `json:"Name"`
+	Slug                 string   `json:"Slug"`
+	Description          string   `json:"Description"`
+	IsVersionControlled  bool     `json:"IsVersionControlled"`
+	VersionControlBranch string   `json:"VersionControlBranch"`
+	ProjectTags          []string `json:"ProjectTags,omitempty"`
+	WebUrl               string   `json:"WebUrl"`
 }
 
 func formatProjectForBasic(opts *ViewOptions, project *projects.Project) string {
@@ -152,6 +156,11 @@ func formatProjectForBasic(opts *ViewOptions, project *projects.Project) string 
 		cacBranch = project.PersistenceSettings.(projects.GitPersistenceSettings).DefaultBranch()
 	}
 	result.WriteString(fmt.Sprintf("Version control branch: %s\n", output.Cyan(cacBranch)))
+
+	// tags
+	if len(project.ProjectTags) > 0 {
+		result.WriteString(fmt.Sprintf("Tags: %s\n", output.Cyan(output.FormatAsList(project.ProjectTags))))
+	}
 
 	// description
 	if project.Description == "" {

@@ -2,6 +2,8 @@ package list
 
 import (
 	"fmt"
+	"strconv"
+
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/cmd"
 	sharedBranches "github.com/OctopusDeploy/cli/pkg/cmd/project/branch/shared"
@@ -9,11 +11,11 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/OctopusDeploy/cli/pkg/output"
+	"github.com/OctopusDeploy/cli/pkg/question/selectors"
 	sharedVariable "github.com/OctopusDeploy/cli/pkg/question/shared/variables"
 	"github.com/OctopusDeploy/cli/pkg/util/flag"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
 	"github.com/spf13/cobra"
-	"strconv"
 )
 
 const (
@@ -65,20 +67,23 @@ func NewCmdList(f factory.Factory) *cobra.Command {
 		Short: "List project branches",
 		Long:  "List project branches in Octopus Deploy",
 		Example: heredoc.Docf(`
-			$ %[1]s project branch list "Deploy Website"
-			$ %[1]s project variable ls
+			%[1]s project branch list "Deploy Website"
+			%[1]s project variable ls
 		`, constants.ExecutableName),
 		Aliases: []string{"ls"},
 		RunE: func(c *cobra.Command, args []string) error {
 			opts := NewListOptions(listFlags, cmd.NewDependencies(f, c), c)
 
-			if opts.Project.Value == "" {
+			if opts.Project.Value == "" && len(args) > 0 {
 				opts.Project.Value = args[0]
 			}
 
 			if opts.Project.Value == "" {
-				return fmt.Errorf("must supply project identifier")
+				if err := PromptMissing(opts); err != nil {
+					return err
+				}
 			}
+
 			return listRun(opts)
 		},
 	}
@@ -88,6 +93,28 @@ func NewCmdList(f factory.Factory) *cobra.Command {
 	flags.StringVarP(&listFlags.Project.Value, listFlags.Project.Name, "p", "", "The project")
 
 	return cmd
+}
+
+// PromptMissing selects a project when none was named on the command line. With
+// prompting disabled there is nothing to fall back on, so the identifier is
+// required.
+func PromptMissing(opts *ListOptions) error {
+	if opts.NoPrompt {
+		return fmt.Errorf("must supply project identifier")
+	}
+
+	selectedProject, err := selectors.Select(
+		opts.Ask,
+		"You have not specified a Project. Please select one:",
+		func() ([]*projects.Project, error) { return shared.GetAllProjects(opts.Client) },
+		func(project *projects.Project) string { return project.GetName() })
+	if err != nil {
+		return err
+	}
+
+	opts.Project.Value = selectedProject.GetName()
+
+	return nil
 }
 
 func listRun(opts *ListOptions) error {

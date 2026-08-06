@@ -2,6 +2,8 @@ package create
 
 import (
 	"fmt"
+	"strings"
+
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/cmd"
@@ -18,7 +20,6 @@ import (
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/resources"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/variables"
 	"github.com/spf13/cobra"
-	"strings"
 )
 
 const (
@@ -114,11 +115,11 @@ func NewCreateCmd(f factory.Factory) *cobra.Command {
 		Long:    "Create a variable for a project in Octopus Deploy",
 		Aliases: []string{"add"},
 		Example: heredoc.Docf(`
-			$ %[1]s project variable create
-			$ %[1]s project variable create --project "Deploy Website" --name "variable name" --value "abc"
-			$ %[1]s project variable create --name "variable name" --value "passwordABC" --type sensitive
-			$ %[1]s project variable create --name "variable name" --value "abc" --scope environment='test'
-			$ %[1]s project variable create --name "variable name" --value "abc" --scope environment='test' --git-ref refs/heads/main
+			%[1]s project variable create
+			%[1]s project variable create --project "Deploy Website" --name "variable name" --value "abc"
+			%[1]s project variable create --name "variable name" --value "passwordABC" --type sensitive
+			%[1]s project variable create --name "variable name" --value "abc" --scope environment='test'
+			%[1]s project variable create --name "variable name" --value "abc" --scope environment='test' --git-ref refs/heads/main
 		`, constants.ExecutableName),
 		RunE: func(c *cobra.Command, args []string) error {
 			opts := NewCreateOptions(createFlags, cmd.NewDependencies(f, c))
@@ -212,7 +213,7 @@ func CreateRun(opts *CreateOptions) error {
 	_, err = fmt.Fprintf(opts.Out, "Successfully created variable '%s' in project '%s'\n", opts.Name.Value, project.GetName())
 
 	if !opts.NoPrompt {
-		autoCmd := flag.GenerateAutomationCmd(opts.CmdPath, opts.Project, opts.Name, opts.Value, opts.Description, opts.Type, opts.EnvironmentsScopes, opts.ChannelScopes, opts.StepScopes, opts.TargetScopes, opts.TagScopes, opts.RoleScopes, opts.ProcessScopes, opts.IsPrompted, opts.PromptType, opts.PromptLabel, opts.PromptDescription, opts.PromptSelectOptions, opts.PromptRequired, opts.GitRef)
+		autoCmd := flag.GenerateAutomationCmd(opts.CmdPath, opts.GetSpaceNameOrEmpty(), opts.Project, opts.Name, opts.Value, opts.Description, opts.Type, opts.EnvironmentsScopes, opts.ChannelScopes, opts.StepScopes, opts.TargetScopes, opts.TagScopes, opts.RoleScopes, opts.ProcessScopes, opts.IsPrompted, opts.PromptType, opts.PromptLabel, opts.PromptDescription, opts.PromptSelectOptions, opts.PromptRequired, opts.GitRef)
 		fmt.Fprintf(opts.Out, "\nAutomation Command: %s\n", autoCmd)
 	}
 

@@ -249,7 +249,7 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 		Use:     "create",
 		Short:   "Create a Kubernetes deployment target",
 		Long:    "Create a Kubernetes deployment target in Octopus Deploy",
-		Example: heredoc.Docf("$ %s deployment-target kubernetes create", constants.ExecutableName),
+		Example: heredoc.Docf("%s deployment-target kubernetes create", constants.ExecutableName),
 		Aliases: []string{"new"},
 		RunE: func(c *cobra.Command, _ []string) error {
 			opts := NewCreateOptions(createFlags, cmd.NewDependencies(f, c))
@@ -328,6 +328,11 @@ func (opts *CreateOptions) Commit() error {
 		return err
 	}
 	environmentIds := util.SliceTransform(envs, func(e *environments.Environment) string { return e.ID })
+
+	combinedRoles, err := shared.CombineRolesAndTags(opts.Client, opts.Roles.Value, opts.Tags.Value)
+	if err != nil {
+		return err
+	}
 
 	kubernetesUrl, err := url.Parse(opts.KubernetesClusterURL.Value)
 	if err != nil {
@@ -446,7 +451,7 @@ func (opts *CreateOptions) Commit() error {
 		endpoint.Authentication = auth
 	}
 
-	deploymentTarget := machines.NewDeploymentTarget(opts.Name.Value, endpoint, environmentIds, util.SliceDistinct(opts.Roles.Value))
+	deploymentTarget := machines.NewDeploymentTarget(opts.Name.Value, endpoint, environmentIds, util.SliceDistinct(combinedRoles))
 
 	machinePolicy, err := machinescommon.FindDefaultMachinePolicy(opts.GetAllMachinePoliciesCallback)
 	if err != nil {
@@ -468,6 +473,7 @@ func (opts *CreateOptions) Commit() error {
 	if !opts.NoPrompt {
 		autoCmd := flag.GenerateAutomationCmd(
 			opts.CmdPath,
+			opts.GetSpaceNameOrEmpty(),
 			opts.Name,
 			opts.AuthenticationType,
 			opts.Account,
@@ -511,6 +517,7 @@ func (opts *CreateOptions) Commit() error {
 
 			opts.Environments,
 			opts.Roles,
+			opts.Tags,
 			opts.TenantedDeploymentMode,
 			opts.Tenants,
 			opts.TenantTags,

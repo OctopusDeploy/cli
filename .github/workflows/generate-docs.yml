@@ -1,6 +1,17 @@
 name: 'Generate Docs'
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - main
+    tags:
+      - 'v*'
+    paths:
+      - 'cmd/gen-docs/**'
+      - 'pkg/cmd/**'
+      - 'go.mod'
+      - 'go.sum'
+      - '.github/workflows/generate-docs.yml'
 env:
   DOCS_TOKEN: ${{ secrets.DOCS_TOKEN }}
 jobs:
@@ -12,12 +23,12 @@ jobs:
         run: echo "BRANCH_NAME=enh-cliupdate-octopus-$(date +'%Y%m%d-%H%M%S')" >> $GITHUB_ENV
 
       - name: Checkout CLI
-        uses: actions/checkout@v3
+        uses: actions/checkout@v7
         with:
           path: cli
 
       - name: Checkout docs
-        uses: actions/checkout@v3
+        uses: actions/checkout@v7
         with:
           repository: OctopusDeploy/docs
           token: ${{ env.DOCS_TOKEN }}
@@ -32,16 +43,16 @@ jobs:
           git checkout -b $BRANCH_NAME
 
       - name: Set up Go
-        uses: actions/setup-go@v3
+        uses: actions/setup-go@v7
         with:
-          go-version: 1.21
+          go-version-file: cli/go.mod
 
       - name: Generate cli docs
         working-directory: cli
         run: mkdir -p ../docs/src/pages/docs/octopus-rest-api/cli && go run cmd/gen-docs/main.go --website --doc-path ../docs/src/pages/docs/octopus-rest-api/cli --relative-base-path /docs/octopus-rest-api/cli
 
       - name: Commit
-        uses: EndBug/add-and-commit@v9
+        uses: EndBug/add-and-commit@v10
         with:
           message: 'Update cli docs for octopus(go)'
           author_name: Bob

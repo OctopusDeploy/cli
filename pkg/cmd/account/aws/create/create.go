@@ -2,8 +2,9 @@ package create
 
 import (
 	"fmt"
-	"github.com/OctopusDeploy/cli/pkg/cmd"
 	"os"
+
+	"github.com/OctopusDeploy/cli/pkg/cmd"
 
 	"github.com/OctopusDeploy/cli/pkg/util"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/environments"
@@ -28,6 +29,7 @@ type CreateFlags struct {
 	Description  *flag.Flag[string]
 	AccessKey    *flag.Flag[string]
 	SecretKey    *flag.Flag[string]
+	Region       *flag.Flag[string]
 	Environments *flag.Flag[[]string]
 }
 
@@ -43,6 +45,7 @@ func NewCreateFlags() *CreateFlags {
 		Description:  flag.New[string]("description", false),
 		AccessKey:    flag.New[string]("access-key", false),
 		SecretKey:    flag.New[string]("secret-key", true),
+		Region:       flag.New[string]("region", false),
 		Environments: flag.New[[]string]("environment", false),
 	}
 }
@@ -65,7 +68,7 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 		Use:     "create",
 		Short:   "Create an AWS account",
 		Long:    "Create an AWS account in Octopus Deploy",
-		Example: heredoc.Docf("$ %s account aws create", constants.ExecutableName),
+		Example: heredoc.Docf("%s account aws create", constants.ExecutableName),
 		Aliases: []string{"new"},
 		RunE: func(c *cobra.Command, _ []string) error {
 			opts := NewCreateOptions(createFlags, cmd.NewDependencies(f, c))
@@ -95,6 +98,7 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 	flags.StringVarP(&createFlags.Description.Value, createFlags.Description.Name, "d", "", "A summary explaining the use of the account to other users.")
 	flags.StringVar(&createFlags.AccessKey.Value, createFlags.AccessKey.Name, "", "The AWS access key to use when authenticating against Amazon Web Services.")
 	flags.StringVar(&createFlags.SecretKey.Value, createFlags.SecretKey.Name, "", "The AWS secret key to use when authenticating against Amazon Web Services.")
+	flags.StringVar(&createFlags.Region.Value, createFlags.Region.Name, "", "The AWS region to use for this account.")
 	flags.StringArrayVarP(&createFlags.Environments.Value, createFlags.Environments.Name, "e", nil, "The environments that are allowed to use this account")
 	flags.StringVarP(&descriptionFilePath, "description-file", "D", "", "Read the description from `file`")
 
@@ -112,6 +116,7 @@ func CreateRun(opts *CreateOptions) error {
 		return err
 	}
 	awsAccount.Description = opts.Description.Value
+	awsAccount.Region = opts.Region.Value
 	awsAccount.EnvironmentIDs = opts.Environments.Value
 
 	createdAccount, err := opts.Client.Accounts.Add(awsAccount)
@@ -126,7 +131,7 @@ func CreateRun(opts *CreateOptions) error {
 	link := output.Bluef("%s/app#/%s/infrastructure/accounts/%s", opts.Host, opts.Space.GetID(), createdAccount.GetID())
 	fmt.Fprintf(opts.Out, "\nView this account on Octopus Deploy: %s\n", link)
 	if !opts.NoPrompt {
-		autoCmd := flag.GenerateAutomationCmd(opts.CmdPath, opts.Name, opts.AccessKey, opts.SecretKey, opts.Description, opts.Environments)
+		autoCmd := flag.GenerateAutomationCmd(opts.CmdPath, opts.GetSpaceNameOrEmpty(), opts.Name, opts.AccessKey, opts.SecretKey, opts.Region, opts.Description, opts.Environments)
 		fmt.Fprintf(opts.Out, "\nAutomation Command: %s\n", autoCmd)
 	}
 
@@ -178,6 +183,15 @@ func PromptMissing(opts *CreateOptions) error {
 		}, &opts.SecretKey.Value, survey.WithValidator(survey.ComposeValidators(
 			survey.Required,
 		))); err != nil {
+			return err
+		}
+	}
+
+	if opts.Region.Value == "" {
+		if err := opts.Ask(&survey.Input{
+			Message: "Region",
+			Help:    "The AWS region to use for this account.",
+		}, &opts.Region.Value); err != nil {
 			return err
 		}
 	}

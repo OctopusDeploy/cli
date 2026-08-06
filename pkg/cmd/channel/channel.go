@@ -15,7 +15,7 @@ func NewCmdChannel(f factory.Factory) *cobra.Command {
 		Short: "Manage channels",
 		Long:  "Manage channels in Octopus Deploy",
 		Example: heredoc.Docf(`
-			$ %[1]s channel create
+			%[1]s channel create
 		`, constants.ExecutableName),
 		Annotations: map[string]string{
 			annotations.IsCore: "true",

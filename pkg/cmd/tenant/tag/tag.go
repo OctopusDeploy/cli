@@ -2,12 +2,13 @@ package tag
 
 import (
 	"fmt"
+	"io"
 
-	"github.com/AlecAivazis/survey/v2"
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/cmd"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/factory"
+	"github.com/OctopusDeploy/cli/pkg/output"
 	"github.com/OctopusDeploy/cli/pkg/question"
 	"github.com/OctopusDeploy/cli/pkg/question/selectors"
 	"github.com/OctopusDeploy/cli/pkg/util/flag"
@@ -39,7 +40,7 @@ func NewCmdTag(f factory.Factory) *cobra.Command {
 		Use:     "tag",
 		Short:   "Override tags for a tenant",
 		Long:    "Override tags for a tenant in Octopus Deploy",
-		Example: heredoc.Docf("$ %s tenant tag Tenant-1", constants.ExecutableName),
+		Example: heredoc.Docf("%s tenant tag Tenant-1", constants.ExecutableName),
 		RunE: func(c *cobra.Command, _ []string) error {
 			opts := NewTagOptions(createFlags, cmd.NewDependencies(f, c))
 
@@ -63,6 +64,16 @@ func createRun(opts *TagOptions) error {
 			return err
 		}
 	} else {
+		// Validate tags when running with --no-prompt
+		if len(opts.Tag.Value) > 0 {
+			tagSets, err := opts.GetAllTagsCallback()
+			if err != nil {
+				return err
+			}
+			if err := selectors.ValidateTags(opts.Tag.Value, tagSets); err != nil {
+				return err
+			}
+		}
 		optsArray = append(optsArray, opts)
 	}
 
@@ -85,14 +96,19 @@ func createRun(opts *TagOptions) error {
 func PromptMissing(opts *TagOptions) ([]cmd.Dependable, error) {
 	nestedOpts := []cmd.Dependable{}
 
-	tenant, err := AskTenants(opts.Ask, opts.Tenant.Value, opts.GetTenantsCallback, opts.GetTenantCallback)
+	tenant, err := AskTenants(opts.Ask, opts.Out, opts.Tenant.Value, opts.GetTenantsCallback, opts.GetTenantCallback)
 	if err != nil {
 		return nil, err
 	}
 	opts.tenant = tenant
 	opts.Tenant.Value = tenant.Name
 
-	tags, err := AskTags(opts.Ask, opts.tenant.TenantTags, opts.Tag.Value, opts.GetAllTagsCallback)
+	tagSets, err := opts.GetAllTagsCallback()
+	if err != nil {
+		return nil, err
+	}
+
+	tags, err := selectors.Tags(opts.Ask, opts.tenant.TenantTags, opts.Tag.Value, tagSets)
 	if err != nil {
 		return nil, err
 	}
@@ -102,13 +118,23 @@ func PromptMissing(opts *TagOptions) ([]cmd.Dependable, error) {
 	return nestedOpts, nil
 }
 
-func AskTenants(ask question.Asker, value string, getTenantsCallback GetTenantsCallback, getTenantCallback GetTenantCallback) (*tenants.Tenant, error) {
+func AskTenants(ask question.Asker, out io.Writer, value string, getTenantsCallback GetTenantsCallback, getTenantCallback GetTenantCallback) (*tenants.Tenant, error) {
 	if value != "" {
 		tenant, err := getTenantCallback(value)
 		if err != nil {
 			return nil, err
 		}
 		return tenant, nil
+	}
+
+	// Check if there's only one tenant
+	tns, err := getTenantsCallback()
+	if err != nil {
+		return nil, err
+	}
+	if len(tns) == 1 {
+		fmt.Fprintf(out, "Selecting only available tenant '%s'.\n", output.Cyan(tns[0].Name))
+		return tns[0], nil
 	}
 
 	tenant, err := selectors.Select(ask, "Select the Tenant you would like to update", getTenantsCallback, func(item *tenants.Tenant) string {
@@ -119,31 +145,4 @@ func AskTenants(ask question.Asker, value string, getTenantsCallback GetTenantsC
 	}
 
 	return tenant, nil
-}
-
-func AskTags(ask question.Asker, value []string, newValue []string, getAllTagSetsCallback GetAllTagSetsCallback) ([]string, error) {
-	if len(newValue) > 0 {
-		return newValue, nil
-	}
-	tagSets, err := getAllTagSetsCallback()
-	if err != nil {
-		return nil, err
-	}
-
-	canonicalTagName := []string{}
-	for _, tagSet := range tagSets {
-		for _, tag := range tagSet.Tags {
-			canonicalTagName = append(canonicalTagName, tag.CanonicalTagName)
-		}
-	}
-	tags := []string{}
-	err = ask(&survey.MultiSelect{
-		Options: canonicalTagName,
-		Message: "Tags",
-		Default: value,
-	}, &tags)
-	if err != nil {
-		return nil, err
-	}
-	return tags, nil
 }

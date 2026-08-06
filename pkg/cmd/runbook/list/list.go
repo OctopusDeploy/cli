@@ -2,8 +2,9 @@ package list
 
 import (
 	"errors"
-	"github.com/OctopusDeploy/cli/pkg/cmd/runbook/shared"
 	"math"
+
+	"github.com/OctopusDeploy/cli/pkg/cmd/runbook/shared"
 
 	"github.com/OctopusDeploy/cli/pkg/apiclient"
 
@@ -50,9 +51,9 @@ func NewCmdList(f factory.Factory) *cobra.Command {
 		Short: "List runbooks",
 		Long:  "List runbooks in Octopus Deploy",
 		Example: heredoc.Docf(`
-			$ %[1]s runbook list SomeProject
-			$ %[1]s runbook list --project SomeProject --limit 50 --filter SomeKeyword
-			$ %[1]s runbook ls -p SomeProject -n 30 -q SomeKeyword
+			%[1]s runbook list SomeProject
+			%[1]s runbook list --project SomeProject --limit 50 --filter SomeKeyword
+			%[1]s runbook ls -p SomeProject -n 30 -q SomeKeyword
 		`, constants.ExecutableName),
 		Aliases: []string{"ls"},
 		RunE: func(cmd *cobra.Command, args []string) error {

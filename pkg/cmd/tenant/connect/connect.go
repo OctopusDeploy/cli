@@ -87,8 +87,8 @@ func NewCmdConnect(f factory.Factory) *cobra.Command {
 		Short: "Connect a tenant to a project",
 		Long:  "Connect a tenant to a project in Octopus Deploy",
 		Example: heredoc.Docf(`
-			$ %[1]s tenant connect
-			$ %[1]s tenant connect --tenant "Bobs Wood Shop" --project "Deploy web site" --environment "Production"
+			%[1]s tenant connect
+			%[1]s tenant connect --tenant "Bobs Wood Shop" --project "Deploy web site" --environment "Production"
 		`, constants.ExecutableName),
 		RunE: func(c *cobra.Command, args []string) error {
 			opts := NewConnectOptions(connectFlags, cmd.NewDependencies(f, c))
@@ -153,7 +153,7 @@ func ConnectRun(opts *ConnectOptions) error {
 
 	fmt.Fprintf(opts.Out, "Successfully connected '%s' to '%s'.\n", tenant.Name, project.GetName())
 	if !opts.NoPrompt {
-		autoCmd := flag.GenerateAutomationCmd(opts.CmdPath, opts.Tenant, opts.Project, opts.Environments, opts.EnableTenantDeployments)
+		autoCmd := flag.GenerateAutomationCmd(opts.CmdPath, opts.GetSpaceNameOrEmpty(), opts.Tenant, opts.Project, opts.Environments, opts.EnableTenantDeployments)
 		fmt.Fprintf(opts.Out, "\nAutomation Command: %s\n", autoCmd)
 	}
 	return nil

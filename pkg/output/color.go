@@ -4,13 +4,14 @@ import (
 	"fmt"
 	"os"
 	"regexp"
+	"strings"
 
 	"github.com/mgutz/ansi"
 	"golang.org/x/term"
 )
 
 var (
-	IsColorEnabled = os.Getenv("NO_COLOR") == "" && term.IsTerminal(int(os.Stdout.Fd()))
+	IsColorEnabled = isColorEnabled()
 	magenta        = ansi.ColorFunc("magenta")
 	cyan           = ansi.ColorFunc("cyan")
 	red            = ansi.ColorFunc("red")
@@ -21,11 +22,72 @@ var (
 	dim            = ansi.ColorFunc("default+d")
 )
 
-func Blue(s string) string {
+// isColorEnabled decides whether ANSI colour codes should be emitted, following
+// the widely adopted no-color.org and bixense.com/clicolors conventions:
+//
+//   - NO_COLOR set to anything non-empty disables colour outright.
+//   - CLICOLOR_FORCE or FORCE_COLOR turns colour on even when stdout is not a
+//     terminal. CI systems such as GitHub Actions and GitLab CI render ANSI
+//     codes but do not attach a TTY, so terminal detection alone can never
+//     enable colour there. Setting either to "0" is the opposite instruction and
+//     turns colour off even when stdout is a terminal.
+//   - CLICOLOR set to "0" disables colour.
+//   - Otherwise colour is used only when stdout is a terminal.
+func isColorEnabled() bool {
+	return isColorEnabledFor(term.IsTerminal(int(os.Stdout.Fd())))
+}
+
+// isColorEnabledFor is isColorEnabled with terminal detection supplied by the
+// caller, so the decision table can be tested in both directions.
+func isColorEnabledFor(isTerminal bool) bool {
+	if os.Getenv("NO_COLOR") != "" {
+		return false
+	}
+
+	// An explicitly set force variable is an instruction in both directions, so it
+	// overrides terminal detection whichever way it points.
+	for _, name := range []string{"CLICOLOR_FORCE", "FORCE_COLOR"} {
+		if value, isSet := os.LookupEnv(name); isSet && value != "" {
+			return value != "0"
+		}
+	}
+
+	if os.Getenv("CLICOLOR") == "0" {
+		return false
+	}
+
+	return isTerminal
+}
+
+// applyColor wraps s in colorFunc, one line at a time.
+//
+// A multi-line string could be wrapped once, with a single escape at the front
+// and a single reset at the end, and a terminal would render it correctly. Log
+// viewers are less forgiving: GitHub Actions, for one, resets SGR state at every
+// line break, so only the first line of such a block is ever tinted. Emitting
+// the escape on each line renders identically in a terminal and correctly in
+// those viewers. Blank lines are left alone; there is nothing to colour, and the
+// stray escapes would be the only thing on the line.
+func applyColor(colorFunc func(string) string, s string) string {
 	if !IsColorEnabled {
 		return s
 	}
-	return blue(s)
+
+	if !strings.Contains(s, "\n") {
+		return colorFunc(s)
+	}
+
+	lines := strings.Split(s, "\n")
+	for i, line := range lines {
+		if line != "" {
+			lines[i] = colorFunc(line)
+		}
+	}
+	return strings.Join(lines, "\n")
+}
+
+func Blue(s string) string {
+	return applyColor(blue, s)
 }
 
 func Bluef(s string, args ...interface{}) string {
@@ -33,10 +95,7 @@ func Bluef(s string, args ...interface{}) string {
 }
 
 func Magenta(s string) string {
-	if !IsColorEnabled {
-		return s
-	}
-	return magenta(s)
+	return applyColor(magenta, s)
 }
 
 func Magentaf(s string, args ...interface{}) string {
@@ -44,10 +103,7 @@ func Magentaf(s string, args ...interface{}) string {
 }
 
 func Cyan(s string) string {
-	if !IsColorEnabled {
-		return s
-	}
-	return cyan(s)
+	return applyColor(cyan, s)
 }
 
 func Cyanf(s string, args ...interface{}) string {
@@ -55,10 +111,7 @@ func Cyanf(s string, args ...interface{}) string {
 }
 
 func Red(s string) string {
-	if !IsColorEnabled {
-		return s
-	}
-	return red(s)
+	return applyColor(red, s)
 }
 
 func Redf(s string, args ...interface{}) string {
@@ -66,10 +119,7 @@ func Redf(s string, args ...interface{}) string {
 }
 
 func Yellow(s string) string {
-	if !IsColorEnabled {
-		return s
-	}
-	return yellow(s)
+	return applyColor(yellow, s)
 }
 
 func Yellowf(s string, args ...interface{}) string {
@@ -77,10 +127,7 @@ func Yellowf(s string, args ...interface{}) string {
 }
 
 func Green(s string) string {
-	if !IsColorEnabled {
-		return s
-	}
-	return green(s)
+	return applyColor(green, s)
 }
 
 func Greenf(s string, args ...interface{}) string {
@@ -88,10 +135,7 @@ func Greenf(s string, args ...interface{}) string {
 }
 
 func Bold(s string) string {
-	if !IsColorEnabled {
-		return s
-	}
-	return bold(s)
+	return applyColor(bold, s)
 }
 
 func Boldf(s string, args ...interface{}) string {
@@ -99,10 +143,7 @@ func Boldf(s string, args ...interface{}) string {
 }
 
 func Dim(s string) string {
-	if !IsColorEnabled {
-		return s
-	}
-	return dim(s)
+	return applyColor(dim, s)
 }
 
 func Dimf(s string, args ...interface{}) string {

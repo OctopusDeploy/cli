@@ -144,6 +144,26 @@ This command will perform the token exchange and configure the CLI for use.
 
 See the [documentation on OpenID Connect for more information](https://oc.to/ServiceAccountOidcIdentities)
 
+### Colour output
+
+By default the CLI emits colour only when its output is attached to a terminal. CI systems such as
+GitHub Actions and GitLab CI render ANSI colour codes but do not attach a terminal, so colour is
+disabled there unless you ask for it:
+
+```shell
+export FORCE_COLOR=1   # or CLICOLOR_FORCE=1
+```
+
+The same variables turn colour off when set to `0`, even in a terminal, and the environment is
+consulted in this order:
+
+| Variable | Effect |
+|---|---|
+| `NO_COLOR` (set to any value) | Colour off. Takes precedence over everything below. |
+| `CLICOLOR_FORCE` / `FORCE_COLOR` | `0` forces colour off, any other value forces it on, regardless of whether output is a terminal. `CLICOLOR_FORCE` wins if both are set. |
+| `CLICOLOR=0` | Colour off. |
+| none of the above | Colour on only when output is attached to a terminal. |
+
 ## Overview
 
 This project aims to create a new CLI (written in Go) for communicating with the Octopus Deploy Server.
@@ -327,7 +347,7 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 		Use:   "create",
 		Short: "Create an account",
 		Long:  "Create an account in Octopus Deploy",
-		Example: heredoc.Docf("$ %s account create", constants.ExecutableName),
+		Example: heredoc.Docf("%s account create", constants.ExecutableName),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return nil // TODO
 		},

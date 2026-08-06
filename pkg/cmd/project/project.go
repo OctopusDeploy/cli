@@ -12,6 +12,7 @@ import (
 	cmdDisconnect "github.com/OctopusDeploy/cli/pkg/cmd/project/disconnect"
 	cmdEnable "github.com/OctopusDeploy/cli/pkg/cmd/project/enable"
 	cmdList "github.com/OctopusDeploy/cli/pkg/cmd/project/list"
+	cmdTag "github.com/OctopusDeploy/cli/pkg/cmd/project/tag"
 	cmdVariables "github.com/OctopusDeploy/cli/pkg/cmd/project/variables"
 	cmdView "github.com/OctopusDeploy/cli/pkg/cmd/project/view"
 	"github.com/OctopusDeploy/cli/pkg/constants"
@@ -27,8 +28,8 @@ func NewCmdProject(f factory.Factory) *cobra.Command {
 		Short:   "Manage projects",
 		Long:    "Manage projects in Octopus Deploy",
 		Example: heredoc.Docf(`
-			$ %[1]s project list
-			$ %[1]s project ls
+			%[1]s project list
+			%[1]s project ls
 		`, constants.ExecutableName),
 		Annotations: map[string]string{
 			annotations.IsCore: "true",
@@ -47,6 +48,7 @@ func NewCmdProject(f factory.Factory) *cobra.Command {
 	cmd.AddCommand(cmdVariables.NewCmdVariables(f))
 	cmd.AddCommand(cmdClone.NewCmdClone(f))
 	cmd.AddCommand(cmdBranch.NewCmdBranch(f))
+	cmd.AddCommand(cmdTag.NewCmdTag(f))
 
 	return cmd
 }

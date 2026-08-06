@@ -69,7 +69,7 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 		Use:     "create",
 		Short:   "Create a Cloud Region deployment target",
 		Long:    "Create a Cloud Region deployment target in Octopus Deploy",
-		Example: heredoc.Docf("$ %s deployment-target cloud-region create", constants.ExecutableName),
+		Example: heredoc.Docf("%s deployment-target cloud-region create", constants.ExecutableName),
 		Aliases: []string{"new"},
 		RunE: func(c *cobra.Command, _ []string) error {
 			opts := NewCreateOptions(createFlags, cmd.NewDependencies(f, c))
@@ -102,6 +102,11 @@ func createRun(opts *CreateOptions) error {
 	}
 	environmentIds := util.SliceTransform(envs, func(e *environments.Environment) string { return e.ID })
 
+	combinedRoles, err := shared.CombineRolesAndTags(opts.Client, opts.Roles.Value, opts.Tags.Value)
+	if err != nil {
+		return err
+	}
+
 	endpoint := machines.NewCloudRegionEndpoint()
 	if opts.WorkerPool.Value != "" {
 		workerPoolId, err := shared.FindWorkerPoolId(opts.GetAllWorkerPoolsCallback, opts.WorkerPool.Value)
@@ -111,7 +116,7 @@ func createRun(opts *CreateOptions) error {
 		endpoint.DefaultWorkerPoolID = workerPoolId
 	}
 
-	target := machines.NewDeploymentTarget(opts.Name.Value, endpoint, environmentIds, util.SliceDistinct(opts.Roles.Value))
+	target := machines.NewDeploymentTarget(opts.Name.Value, endpoint, environmentIds, util.SliceDistinct(combinedRoles))
 	err = shared.ConfigureTenant(target, opts.CreateTargetTenantFlags, opts.CreateTargetTenantOptions)
 	if err != nil {
 		return err
@@ -123,7 +128,7 @@ func createRun(opts *CreateOptions) error {
 	}
 	fmt.Fprintf(opts.Out, "Successfully created cloud region '%s'.\n", target.Name)
 	if !opts.NoPrompt {
-		autoCmd := flag.GenerateAutomationCmd(opts.CmdPath, opts.Name, opts.WorkerPool, opts.Environments, opts.Roles, opts.TenantedDeploymentMode, opts.Tenants, opts.TenantTags)
+		autoCmd := flag.GenerateAutomationCmd(opts.CmdPath, opts.GetSpaceNameOrEmpty(), opts.Name, opts.WorkerPool, opts.Environments, opts.Roles, opts.Tags, opts.TenantedDeploymentMode, opts.Tenants, opts.TenantTags)
 		fmt.Fprintf(opts.Out, "\nAutomation Command: %s\n", autoCmd)
 	}
 

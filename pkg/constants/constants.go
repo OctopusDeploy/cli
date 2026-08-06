@@ -6,11 +6,12 @@ const (
 
 // flags for command line switches
 const (
-	FlagHelp               = "help"
-	FlagSpace              = "space"
-	FlagOutputFormat       = "output-format"
-	FlagOutputFormatLegacy = "outputFormat"
-	FlagNoPrompt           = "no-prompt"
+	FlagHelp                  = "help"
+	FlagSpace                 = "space"
+	FlagOutputFormat          = "output-format"
+	FlagOutputFormatLegacy    = "outputFormat"
+	FlagNoPrompt              = "no-prompt"
+	FlagEnableServiceMessages = "enable-service-messages"
 )
 
 // flags for storing things in the go context

@@ -20,7 +20,7 @@ func AssertSuccess(t *testing.T, err error, args ...any) bool {
 		for _, arg := range args {
 			t.Log(arg)
 		}
-		t.Errorf(err.Error())
+		t.Error(err.Error())
 		debug.PrintStack()
 
 		return false
@@ -34,7 +34,7 @@ func RequireSuccess(t *testing.T, err error, args ...any) bool {
 			t.Log(arg)
 		}
 		debug.PrintStack()
-		t.Fatalf(err.Error())
+		t.Fatal(err.Error())
 		return false
 	}
 	return true

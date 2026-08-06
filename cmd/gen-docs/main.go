@@ -1,17 +1,21 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
-	"github.com/OctopusDeploy/cli/pkg/config"
-	"github.com/spf13/viper"
 	"io"
 	"os"
 	"os/user"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 	"text/template"
 	"time"
+
+	"github.com/OctopusDeploy/cli/pkg/config"
+	"github.com/OctopusDeploy/cli/pkg/servicemessages"
+	"github.com/spf13/viper"
 
 	"github.com/AlecAivazis/survey/v2"
 	version "github.com/OctopusDeploy/cli"
@@ -100,7 +104,7 @@ func run(args []string) error {
 	buildVersion := strings.TrimSpace(version.Version)
 	viper := viper.GetViper()
 	c := config.New(viper)
-	f := factory.New(clientFactory, askProvider, s, buildVersion, c)
+	f := factory.New(clientFactory, askProvider, s, buildVersion, c, servicemessages.NewProvider(servicemessages.NewOutputPrinter(os.Stdout, os.Stderr)))
 
 	cmd := root.NewCmdRoot(f, clientFactory, askProvider)
 	cmd.DisableAutoGenTag = true
@@ -174,18 +178,39 @@ func GenMarkdownTreeCustom(cmd *cobra.Command, dir string, relativeBasePath stri
 	}
 
 	info := NewTemplateInformation(cmd, dir, relativeBasePath, myPosition)
-	f, err := os.Create(info.OutputFile)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
 
 	*pageCollection.Pages = append(*pageCollection.Pages, info)
 
-	if err := GenMarkdownCustom(cmd, f, info); err != nil {
+	// Generate new content to buffer
+	var buf bytes.Buffer
+	if err := GenMarkdownCustom(cmd, &buf, info); err != nil {
 		return err
 	}
-	return nil
+	updatedContent := buf.Bytes()
+
+	// Only write if content actually changed (ignoring modDate line)
+	if existingContent, err := os.ReadFile(info.OutputFile); err == nil {
+		if contentEqualIgnoringModDate(existingContent, updatedContent) {
+			return nil
+		}
+	}
+
+	return os.WriteFile(info.OutputFile, updatedContent, 0644)
+}
+
+var modDatePattern = regexp.MustCompile(`(?m)^modDate: .+$`)
+
+// contentEqualIgnoringModDate compares two file contents, treating the modDate
+// frontmatter line as identical regardless of actual date value.
+// Normalizes CRLF to LF before comparing so existing files with different
+// line endings don't cause false mismatches.
+func contentEqualIgnoringModDate(a, b []byte) bool {
+	placeholder := []byte("modDate: PLACEHOLDER")
+	cr := []byte("\r\n")
+	lf := []byte("\n")
+	normA := bytes.ReplaceAll(modDatePattern.ReplaceAll(a, placeholder), cr, lf)
+	normB := bytes.ReplaceAll(modDatePattern.ReplaceAll(b, placeholder), cr, lf)
+	return bytes.Equal(normA, normB)
 }
 
 const documentationTemplate = `---
@@ -199,7 +224,7 @@ navOrder: {{.Position}}
 import SamplesInstance from 'src/shared-content/samples/samples-instance.include.md';
 
 {{.Command.Long}}
-` + "\n```" + `{{define "T1"}}Usage:{{if .Runnable}}
+` + "\n```text" + `{{define "T1"}}Usage:{{if .Runnable}}
   {{.UseLine}}{{end}}{{if .HasAvailableSubCommands}}
   {{.CommandPath}} [command]{{end}}{{if gt (len .Aliases) 0}}
 
@@ -231,7 +256,7 @@ Use "{{.CommandPath}} [command] --help" for more information about a command.{{e
 ## Examples
 
 <SamplesInstance />
-` + "\n```" + `
+` + "\n```bash" + `
 {{ .Command.Example }}
 ` + "\n```\n" + `
 {{- end }}
@@ -239,7 +264,8 @@ Use "{{.CommandPath}} [command] --help" for more information about a command.{{e
 ## Learn more
 
 - [Octopus CLI](/docs/octopus-rest-api/cli)
-- [Creating API keys](/docs/octopus-rest-api/how-to-create-an-api-key)`
+- [Creating API keys](/docs/octopus-rest-api/how-to-create-an-api-key)
+`
 
 const indexTemplate = `---
 layout: src/layouts/Default.astro
@@ -261,7 +287,8 @@ The Octopus CLI is built and maintained by the Octopus Deploy team, but it is al
 
 ## Commands {#octopusCommandLine-Commands}
 
-` + "\n`octopus` supports the following commands:\n" +
+` + "`octopus` supports the following commands:" +
 	`
 {{range .Pages}}
-- **[{{.Title}}]({{.RelativePath}})**:  {{.Command.Short}}.{{end}}`
+- **[{{.Title}}]({{.RelativePath}})**:  {{.Command.Short}}.{{end}}
+`

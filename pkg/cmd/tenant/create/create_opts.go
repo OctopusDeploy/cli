@@ -52,17 +52,20 @@ func (co *CreateOptions) Commit() error {
 
 func (co *CreateOptions) GenerateAutomationCmd() {
 	if !co.NoPrompt {
-		autoCmd := flag.GenerateAutomationCmd(co.CmdPath, co.Name, co.Description, co.Tag)
+		autoCmd := flag.GenerateAutomationCmd(co.CmdPath, co.GetSpaceNameOrEmpty(), co.Name, co.Description, co.Tag)
 		fmt.Fprintf(co.Out, "%s\n", autoCmd)
 	}
 }
 
 func getAllTagSetsCallback(client *client.Client) GetAllTagSetsCallback {
 	return func() ([]*tagsets.TagSet, error) {
-		tagSets, err := client.TagSets.GetAll()
+		query := tagsets.TagSetsQuery{
+			Scopes: []string{string(tagsets.TagSetScopeTenant)},
+		}
+		result, err := tagsets.Get(client, client.GetSpaceID(), query)
 		if err != nil {
 			return nil, err
 		}
-		return tagSets, nil
+		return result.Items, nil
 	}
 }

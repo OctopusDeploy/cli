@@ -2,6 +2,8 @@ package create_test
 
 import (
 	"fmt"
+	"testing"
+
 	"github.com/OctopusDeploy/cli/pkg/cmd"
 	"github.com/OctopusDeploy/cli/pkg/cmd/space/create"
 	"github.com/OctopusDeploy/cli/pkg/output"
@@ -10,7 +12,6 @@ import (
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/teams"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/users"
 	"github.com/stretchr/testify/assert"
-	"testing"
 )
 
 func TestPromptMissing_AllOptionsSupplied(t *testing.T) {
@@ -80,7 +81,7 @@ func TestPromptMissing_NoOptionsSupplied(t *testing.T) {
 }
 
 func formatUser(user *users.User) string {
-	return fmt.Sprintf("%s (%s)", user.DisplayName, output.Dimf(user.Username))
+	return fmt.Sprintf("%s (%s)", user.DisplayName, output.Dim(user.Username))
 }
 
 func formatTeam(team *teams.Team) string {

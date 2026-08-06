@@ -16,7 +16,7 @@ func NewCmdList(f factory.Factory) *cobra.Command {
 		Short:   "List SSH workers",
 		Long:    "List SSH workers in Octopus Deploy",
 		Aliases: []string{"ls"},
-		Example: heredoc.Docf("$ %s worker ssh list", constants.ExecutableName),
+		Example: heredoc.Docf("%s worker ssh list", constants.ExecutableName),
 		RunE: func(c *cobra.Command, args []string) error {
 			dependencies := cmd.NewDependencies(f, c)
 			options := list.NewListOptions(dependencies, c, func(worker *machines.Worker) bool {

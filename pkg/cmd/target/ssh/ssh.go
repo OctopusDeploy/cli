@@ -15,7 +15,7 @@ func NewCmdSsh(f factory.Factory) *cobra.Command {
 		Use:     "ssh <command>",
 		Short:   "Manage SSH deployment targets",
 		Long:    "Manage SSH deployment targets in Octopus Deploy",
-		Example: heredoc.Docf("$ %s deployment-target ssh create", constants.ExecutableName),
+		Example: heredoc.Docf("%s deployment-target ssh create", constants.ExecutableName),
 	}
 
 	cmd.AddCommand(cmdCreate.NewCmdCreate(f))

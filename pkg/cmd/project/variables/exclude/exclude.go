@@ -65,8 +65,8 @@ func NewExcludeVariableSetCmd(f factory.Factory) *cobra.Command {
 		Short: "Exclude a variable set from a project",
 		Long:  "Exclude a variable set from a project in Octopus Deploy",
 		Example: heredoc.Docf(`
-			$ %[1]s project variable exclude
-			$ %[1]s project variable exclude --variable-set "Slack Variables"
+			%[1]s project variable exclude
+			%[1]s project variable exclude --variable-set "Slack Variables"
 		`, constants.ExecutableName),
 		RunE: func(c *cobra.Command, args []string) error {
 			opts := NewExcludeOptions(createFlags, cmd.NewDependencies(f, c))
@@ -112,11 +112,11 @@ func excludeRun(opts *ExcludeOptions) error {
 		}
 
 		if !util.SliceContainsAny(project.IncludedLibraryVariableSets, func(item string) bool { return item == targetVariableSet[0].ID }) {
-			fmt.Fprintf(opts.Out, output.Yellowf("'%s' is not currently included, skipping\n", targetVariableSet[0].Name))
+			fmt.Fprint(opts.Out, output.Yellowf("'%s' is not currently included, skipping\n", targetVariableSet[0].Name))
 		} else {
 			project.IncludedLibraryVariableSets = util.SliceFilter(project.IncludedLibraryVariableSets, func(id string) bool { return id != targetVariableSet[0].ID })
 			projectModified = true
-			fmt.Fprintf(opts.Out, output.Cyanf("Removing '%s' library variable set\n", targetVariableSet[0].Name))
+			fmt.Fprint(opts.Out, output.Cyanf("Removing '%s' library variable set\n", targetVariableSet[0].Name))
 		}
 	}
 
@@ -130,7 +130,7 @@ func excludeRun(opts *ExcludeOptions) error {
 	}
 
 	if !opts.NoPrompt {
-		autoCmd := flag.GenerateAutomationCmd(opts.CmdPath, opts.Project, opts.VariableSets)
+		autoCmd := flag.GenerateAutomationCmd(opts.CmdPath, opts.GetSpaceNameOrEmpty(), opts.Project, opts.VariableSets)
 		fmt.Fprintf(opts.Out, "\nAutomation Command: %s\n", autoCmd)
 	}
 

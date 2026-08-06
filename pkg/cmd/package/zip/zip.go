@@ -13,7 +13,7 @@ func NewCmdPackageZip(f factory.Factory) *cobra.Command {
 		Use:     "zip <command>",
 		Short:   "Package as zip",
 		Long:    "Package as zip for Octopus Deploy",
-		Example: heredoc.Docf("$ %s package zip create", constants.ExecutableName),
+		Example: heredoc.Docf("%s package zip create", constants.ExecutableName),
 	}
 
 	cmd.AddCommand(cmdZipCreate.NewCmdCreate(f))

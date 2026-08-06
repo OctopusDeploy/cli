@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
+
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/cmd"
@@ -24,7 +26,6 @@ import (
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/releases"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/runbooks"
 	"github.com/spf13/cobra"
-	"os"
 )
 
 const (
@@ -91,10 +92,10 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 		Long:    "Create a runbook snapshot in Octopus Deploy",
 		Aliases: []string{"new"},
 		Example: heredoc.Docf(`
-			$ %[1]s runbook snapshot create --project MyProject --runbook "Rebuild DB Indexes"
-			$ %[1]s runbook snapshot create --project MyProject --runbook "Rebuild DB Indexes" --name "My cool snapshot"
-			$ %[1]s runbook snapshot create -p MyProject -r "Restart App" --package "azure-cli:1.2.3" --no-prompt
-			$ %[1]s runbook snapshot create -p MyProject -r "Restart App" --git-resource "Script step from Git:refs/heads/dev-branch" --publish --no-prompt
+			%[1]s runbook snapshot create --project MyProject --runbook "Rebuild DB Indexes"
+			%[1]s runbook snapshot create --project MyProject --runbook "Rebuild DB Indexes" --name "My cool snapshot"
+			%[1]s runbook snapshot create -p MyProject -r "Restart App" --package "azure-cli:1.2.3" --no-prompt
+			%[1]s runbook snapshot create -p MyProject -r "Restart App" --git-resource "Script step from Git:refs/heads/dev-branch" --publish --no-prompt
 		`, constants.ExecutableName),
 		RunE: func(c *cobra.Command, args []string) error {
 			opts := NewCreateOptions(createFlags, cmd.NewDependencies(f, c))
@@ -253,7 +254,7 @@ func createRun(opts *CreateOptions, outputFormat string) error {
 		if err != nil {
 			return err
 		}
-		fmt.Fprintf(opts.Out, string(data))
+		fmt.Fprint(opts.Out, string(data))
 	default:
 		if opts.Publish.Value {
 			_, _ = fmt.Fprintf(opts.Out, "\nSuccessfully created and published runbook snapshot '%s' (%s) for runbook '%s'\n", snapshot.Name, snapshot.GetID(), runbook.Name)

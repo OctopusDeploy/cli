@@ -1,13 +1,17 @@
 package fixtures
 
 import (
+	"encoding/json"
 	"fmt"
+	"net/url"
+
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/channels"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/constants"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/core"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/credentials"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/deployments"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/environments"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/environments/v2/ephemeralenvironments"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/releases"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/resources"
@@ -15,7 +19,6 @@ import (
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/spaces"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/tenants"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/variables"
-	"net/url"
 )
 
 // This file contains utility functions for creating mock objects used in unit tests.
@@ -98,10 +101,100 @@ func NewVersionControlledProject(spaceID string, projectID string, projectName s
 	return result
 }
 
+func AsServerResponse(project *projects.Project) []byte {
+	projectJSON, err := json.Marshal(project)
+	if err != nil {
+		panic(err)
+	}
+
+	if gitSettings, ok := project.PersistenceSettings.(projects.GitPersistenceSettings); ok {
+		var projectMap map[string]interface{}
+		if err := json.Unmarshal(projectJSON, &projectMap); err != nil {
+			panic(err)
+		}
+
+		if persistenceSettings, ok := projectMap["PersistenceSettings"].(map[string]interface{}); ok {
+			persistenceSettings["ConversionState"] = map[string]interface{}{
+				"VariablesAreInGit": gitSettings.VariablesAreInGit(),
+				"RunbooksAreInGit":  gitSettings.RunbooksAreInGit(),
+			}
+		}
+
+		modifiedJSON, err := json.Marshal(projectMap)
+		if err != nil {
+			panic(err)
+		}
+		return modifiedJSON
+	}
+
+	return projectJSON
+}
+
+func AsServerResponsePlainArray(projectList []*projects.Project) []byte {
+	var result []json.RawMessage
+	for _, project := range projectList {
+		result = append(result, AsServerResponse(project))
+	}
+	arrayJSON, err := json.Marshal(result)
+	if err != nil {
+		panic(err)
+	}
+	return arrayJSON
+}
+
+func AsServerResponseArray(projectList []*projects.Project) []byte {
+	projectsJSON, err := json.Marshal(resources.Resources[*projects.Project]{
+		Items: projectList,
+	})
+	if err != nil {
+		panic(err)
+	}
+
+	var wrapper map[string]interface{}
+	if err := json.Unmarshal(projectsJSON, &wrapper); err != nil {
+		panic(err)
+	}
+
+	if items, ok := wrapper["Items"].([]interface{}); ok {
+		for i, item := range items {
+			if projectMap, ok := item.(map[string]interface{}); ok {
+				if persistenceSettings, ok := projectMap["PersistenceSettings"].(map[string]interface{}); ok {
+					if persistenceSettings["Type"] == "VersionControlled" {
+						if i < len(projectList) {
+							if gitSettings, ok := projectList[i].PersistenceSettings.(projects.GitPersistenceSettings); ok {
+								persistenceSettings["ConversionState"] = map[string]interface{}{
+									"VariablesAreInGit": gitSettings.VariablesAreInGit(),
+									"RunbooksAreInGit":  gitSettings.RunbooksAreInGit(),
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	modifiedJSON, err := json.Marshal(wrapper)
+	if err != nil {
+		panic(err)
+	}
+	return modifiedJSON
+}
+
 func NewChannel(spaceID string, channelID string, channelName string, projectID string) *channels.Channel {
 	result := channels.NewChannel(channelName, projectID)
 	result.ID = channelID
 	result.SpaceID = spaceID
+	return result
+}
+
+func NewEphemeralChannel(spaceID string, channelID string, channelName string, projectID string, ephemeralEnvironmentNameTemplate string, autoDeploy bool) *channels.Channel {
+	result := channels.NewChannel(channelName, projectID)
+	result.Type = channels.ChannelTypeEphemeral
+	result.ID = channelID
+	result.SpaceID = spaceID
+	result.EphemeralEnvironmentNameTemplate = ephemeralEnvironmentNameTemplate
+	result.AutomaticEphemeralEnvironmentDeployments = autoDeploy
 	return result
 }
 
@@ -119,6 +212,13 @@ func NewEnvironment(spaceID string, envID string, name string) *environments.Env
 	result := environments.NewEnvironment(name)
 	result.ID = envID
 	result.SpaceID = spaceID
+	return result
+}
+
+func NewEphemeralEnvironment(spaceID string, envID string, name string, parentEnvironmentID string) *ephemeralenvironments.EphemeralEnvironment {
+	result := ephemeralenvironments.NewEphemeralEnvironment(name, parentEnvironmentID, spaceID)
+	result.ID = envID
+
 	return result
 }
 

@@ -155,10 +155,11 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 		Short: "Create a release",
 		Long:  "Create a release in Octopus Deploy",
 		Example: heredoc.Docf(`
-			$ %[1]s release create --project MyProject --channel Beta --version 1.2.3
-			$ %[1]s release create -p MyProject -c Beta -v 1.2.3
-			$ %[1]s release create -p MyProject -c default --package "utils:1.2.3" --package "utils:InstallOnly:5.6.7"
-			$ %[1]s release create -p MyProject -c Beta --no-prompt
+			%[1]s release create --project MyProject --channel Beta --version 1.2.3
+			%[1]s release create -p MyProject -c Beta -v 1.2.3
+			%[1]s release create -p MyProject -c default --package "utils:1.2.3" --package "utils:InstallOnly:5.6.7"
+			%[1]s release create -p MyProject --package "com.example\:my-artifact:1.0"
+			%[1]s release create -p MyProject -c Beta --no-prompt
 		`, constants.ExecutableName),
 		RunE: func(cmd *cobra.Command, args []string) error { return createRun(cmd, f, createFlags) },
 	}
@@ -175,7 +176,7 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 	flags.StringVarP(&createFlags.Version.Value, createFlags.Version.Name, "v", "", "Override the Release Version")
 	flags.BoolVarP(&createFlags.IgnoreExisting.Value, createFlags.IgnoreExisting.Name, "x", false, "If a release with the same version exists, do nothing instead of failing.")
 	flags.BoolVarP(&createFlags.IgnoreChannelRules.Value, createFlags.IgnoreChannelRules.Name, "", false, "Allow creation of a release where channel rules would otherwise prevent it.")
-	flags.StringArrayVarP(&createFlags.PackageVersionSpec.Value, createFlags.PackageVersionSpec.Name, "", []string{}, "Version specification for a specific package.\nFormat as {package}:{version}, {step}:{version} or {package-ref-name}:{packageOrStep}:{version}\nYou may specify this multiple times")
+	flags.StringArrayVarP(&createFlags.PackageVersionSpec.Value, createFlags.PackageVersionSpec.Name, "", []string{}, "Version specification for a specific package. You may specify this multiple times.\nFormat as {package}:{version}, {step}:{version} or {package-ref-name}:{packageOrStep}:{version}\nIf the package ID or step name contains a colon, slash, or equals sign (such as Maven coordinates like com.example:my-artifact), escape that character with a backslash:\n    --package \"com.example\\:my-artifact:1.0\"\nThis escape syntax requires Octopus CLI 2.21.2 or later and Octopus Server 2025.4.10680 or later.")
 	flags.StringArrayVarP(&createFlags.GitResourceRefsSpec.Value, createFlags.GitResourceRefsSpec.Name, "", []string{}, "Git reference for a specific Git resource.\nFormat as {step}:{git-ref}, {step}:{git-resource-name}:{git-ref}\nYou may specify this multiple times")
 	flags.StringArrayVarP(&createFlags.CustomFields.Value, createFlags.CustomFields.Name, "", []string{}, "Custom field value to set on the release.\nFormat as {name}:{value}. You may specify multiple times")
 
@@ -283,7 +284,11 @@ func createRun(cmd *cobra.Command, f factory.Factory, flags *CreateFlags) error 
 				}
 			}
 
-			autoCmd := flag.GenerateAutomationCmd(constants.ExecutableName+" release create",
+			spaceName := ""
+			if s := f.GetCurrentSpace(); s != nil {
+				spaceName = s.GetName()
+			}
+			autoCmd := flag.GenerateAutomationCmd(constants.ExecutableName+" release create", spaceName,
 				resolvedFlags.Project,
 				resolvedFlags.GitCommit,
 				resolvedFlags.GitRef,
@@ -344,6 +349,7 @@ func createRun(cmd *cobra.Command, f factory.Factory, flags *CreateFlags) error 
 				} else {
 					cmd.Printf("Successfully created release version %s\n", releaseVersion)
 				}
+				f.GetServiceMessageProvider().ServiceMessage("setParameter", map[string]string{"name": "octo.releaseNumber", "value": releaseVersion})
 			}
 		}
 
@@ -388,9 +394,15 @@ func BuildPackageVersionBaselineForChannel(octopus *octopusApiClient.Client, dep
 		for _, rule := range channel.Rules {
 			for _, ap := range rule.ActionPackages {
 				if ap.PackageReference == packageRef.PackageReferenceName && ap.DeploymentAction == packageRef.ActionName {
-					// this rule applies to our step/packageref combo
+					// this rule applies to our step/packageref combo.
+					// VersionRange, Tag/pre-release and VersionTagRegex are always applied together,
+					// regardless of strategy; VersioningStrategy only changes ordering (publish-date
+					// vs SemVer), not which versions satisfy the rule. (empty fields are dropped by
+					// the query's omitempty uri tags)
 					query.PreReleaseTag = rule.Tag
 					query.VersionRange = rule.VersionRange
+					query.VersionTagRegex = rule.VersionTagRegex
+					query.VersioningStrategy = rule.VersioningStrategy
 					// the octopus server won't let the same package be targeted by more than one rule, so
 					// once we've found the first matching rule for our step+package, we can stop looping
 					break rulesLoop

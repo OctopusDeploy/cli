@@ -16,8 +16,8 @@ func NewCmdList(f factory.Factory) *cobra.Command {
 		Short: "List projects",
 		Long:  "List projects in Octopus Deploy",
 		Example: heredoc.Docf(`
-			$ %[1]s project list
-			$ %[1]s project ls
+			%[1]s project list
+			%[1]s project ls
 		`, constants.ExecutableName),
 		Aliases: []string{"ls"},
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -29,9 +29,10 @@ func NewCmdList(f factory.Factory) *cobra.Command {
 }
 
 type ProjectAsJson struct {
-	Id          string `json:"Id"`
-	Name        string `json:"Name"`
-	Description string `json:"Description"`
+	Id          string   `json:"Id"`
+	Name        string   `json:"Name"`
+	Description string   `json:"Description"`
+	ProjectTags []string `json:"ProjectTags,omitempty"`
 }
 
 func listRun(cmd *cobra.Command, f factory.Factory) error {
@@ -51,12 +52,13 @@ func listRun(cmd *cobra.Command, f factory.Factory) error {
 				Id:          p.GetID(),
 				Name:        p.GetName(),
 				Description: p.Description,
+				ProjectTags: p.ProjectTags,
 			}
 		},
 		Table: output.TableDefinition[*projects.Project]{
-			Header: []string{"NAME", "DESCRIPTION"},
+			Header: []string{"NAME", "DESCRIPTION", "TAGS"},
 			Row: func(p *projects.Project) []string {
-				return []string{output.Bold(p.Name), p.Description}
+				return []string{output.Bold(p.Name), p.Description, output.FormatAsList(p.ProjectTags)}
 			},
 		},
 		Basic: func(p *projects.Project) string {

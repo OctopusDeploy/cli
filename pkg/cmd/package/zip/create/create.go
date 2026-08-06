@@ -21,7 +21,7 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 		Short: "Create zip",
 		Long:  "Create zip package",
 		Example: heredoc.Docf(`
-			$ %[1]s package zip create --id SomePackage --version 1.0.0
+			%[1]s package zip create --id SomePackage --version 1.0.0
 		`, constants.ExecutableName),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			opts := pack.NewPackageCreateOptions(f, createFlags, cmd)
@@ -35,6 +35,7 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 	flags.StringVar(&createFlags.BasePath.Value, createFlags.BasePath.Name, "", "Root folder containing the contents to zip.")
 	flags.StringVar(&createFlags.OutFolder.Value, createFlags.OutFolder.Name, "", "Folder into which the zip file will be written.")
 	flags.StringSliceVar(&createFlags.Include.Value, createFlags.Include.Name, []string{}, "Add a file pattern to include, relative to the base path e.g. /bin/*.dll; defaults to \"**\".")
+	flags.StringSliceVar(&createFlags.Exclude.Value, createFlags.Exclude.Name, []string{}, "Add a file pattern to exclude, relative to the base path e.g. **/*.config; applied after --include.")
 	flags.BoolVar(&createFlags.Verbose.Value, createFlags.Verbose.Name, false, "Verbose output.")
 	flags.BoolVar(&createFlags.Overwrite.Value, createFlags.Overwrite.Name, false, "Allow an existing package file of the same ID/version to be overwritten.")
 	flags.SortFlags = false
@@ -63,12 +64,13 @@ func createRun(cmd *cobra.Command, opts *pack.PackageCreateOptions) error {
 
 	if !opts.NoPrompt {
 		autoCmd := flag.GenerateAutomationCmd(
-			opts.CmdPath,
+			opts.CmdPath, "",
 			opts.Id,
 			opts.Version,
 			opts.BasePath,
 			opts.OutFolder,
 			opts.Include,
+			opts.Exclude,
 			opts.Verbose,
 			opts.Overwrite,
 		)
@@ -79,15 +81,7 @@ func createRun(cmd *cobra.Command, opts *pack.PackageCreateOptions) error {
 
 	zip, err := pack.BuildPackage(opts, outFilePath)
 	if zip != nil {
-		switch outputFormat {
-		case constants.OutputFormatBasic:
-			cmd.Printf("%s\n", zip.Name())
-		case constants.OutputFormatJson:
-			cmd.Printf(`{"Path":"%s"}`, zip.Name())
-			cmd.Println()
-		default: // table
-			cmd.Printf("Successfully created package %s\n", zip.Name())
-		}
+		pack.PrintPackageCreated(cmd, outputFormat, zip.Name())
 	}
 	return err
 }

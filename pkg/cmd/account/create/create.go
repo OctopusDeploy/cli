@@ -2,6 +2,7 @@ package create
 
 import (
 	"fmt"
+
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/cmd"
@@ -32,7 +33,7 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 		Use:     "create",
 		Short:   "Create an account",
 		Long:    "Create an account in Octopus Deploy",
-		Example: heredoc.Docf("$ %s account create", constants.ExecutableName),
+		Example: heredoc.Docf("%s account create", constants.ExecutableName),
 		Aliases: []string{"new"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return createRun(f, cmd)

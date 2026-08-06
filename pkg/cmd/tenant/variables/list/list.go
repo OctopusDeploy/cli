@@ -2,26 +2,43 @@ package list
 
 import (
 	"fmt"
+	"sort"
+
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/apiclient"
+	"github.com/OctopusDeploy/cli/pkg/cmd/tenant/shared"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/OctopusDeploy/cli/pkg/output"
+	"github.com/OctopusDeploy/cli/pkg/question"
 	"github.com/OctopusDeploy/cli/pkg/question/selectors"
+	"github.com/OctopusDeploy/cli/pkg/usage"
 	"github.com/OctopusDeploy/cli/pkg/util/featuretoggle"
+	"github.com/OctopusDeploy/cli/pkg/util/flag"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/actiontemplates"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/core"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/tenants"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/variables"
 	"github.com/spf13/cobra"
-	"sort"
 )
 
 const (
 	LibraryVariableSetType = "Library"
 	ProjectType            = "Project"
+
+	FlagTenant = "tenant"
 )
+
+type ListFlags struct {
+	Tenant *flag.Flag[string]
+}
+
+func NewListFlags() *ListFlags {
+	return &ListFlags{
+		Tenant: flag.New[string](FlagTenant, false),
+	}
+}
 
 type VariableValue struct {
 	Type            string
@@ -71,24 +88,58 @@ func NewVariableValueProjectAsJson(v *VariableValue) *VariableValueProjectAsJson
 }
 
 func NewCmdList(f factory.Factory) *cobra.Command {
+	listFlags := NewListFlags()
+
 	cmd := &cobra.Command{
-		Use:   "list",
+		Use:   "list [<name> | <id>]",
 		Short: "List tenant variables",
 		Long:  "List tenant variables in Octopus Deploy",
 		Example: heredoc.Docf(`
-			$ %[1]s tenant variables list "Bobs Wood Shop"
-			$ %[1]s tenant variables ls Tenant-123
+			%[1]s tenant variables list "Bobs Wood Shop"
+			%[1]s tenant variables list --tenant "Bobs Wood Shop"
+			%[1]s tenant variables ls Tenant-123
 		`, constants.ExecutableName),
 		Aliases: []string{"ls"},
-		RunE: func(cmd *cobra.Command, args []string) error {
-			if len(args) == 0 {
-				return fmt.Errorf("must supply tenant identifier")
-			}
-			return listRun(cmd, f, args[0])
+		Args:    usage.MaximumNArgs(1),
+		RunE: func(c *cobra.Command, args []string) error {
+			return listRun(c, f, resolveTenantIdentifier(listFlags.Tenant.Value, args))
 		},
 	}
 
+	// `tenant variables update` identifies its tenant with --tenant/-t; accept the
+	// same flag here so the two subcommands can be driven the same way. The
+	// positional argument is kept for backwards compatibility.
+	flags := cmd.Flags()
+	flags.StringVarP(&listFlags.Tenant.Value, listFlags.Tenant.Name, "t", "", "The tenant")
+
 	return cmd
+}
+
+// resolveTenantIdentifier prefers --tenant and falls back to the positional
+// argument, matching how the other commands accepting both forms behave.
+//
+// An empty result means no tenant was named; the caller prompts for one.
+func resolveTenantIdentifier(tenant string, args []string) string {
+	if tenant != "" {
+		return tenant
+	}
+
+	if len(args) > 0 {
+		return args[0]
+	}
+
+	return ""
+}
+
+// promptMissing prompts for a tenant when none was named on the command line,
+// matching what `tenant variables update` does. The getter is a parameter so
+// the prompt can be driven from tests, as connect and update do.
+func promptMissing(ask question.Asker, getAllTenants shared.GetAllTenantsCallback) (*tenants.Tenant, error) {
+	return selectors.Select(
+		ask,
+		"You have not specified a Tenant. Please select one:",
+		getAllTenants,
+		func(tenant *tenants.Tenant) string { return tenant.Name })
 }
 
 func listRun(cmd *cobra.Command, f factory.Factory, id string) error {
@@ -97,7 +148,17 @@ func listRun(cmd *cobra.Command, f factory.Factory, id string) error {
 		return err
 	}
 
-	tenant, err := client.Tenants.GetByIdentifier(id)
+	var tenant *tenants.Tenant
+	if id == "" {
+		// with prompting disabled there is nothing to select from
+		if !f.IsPromptEnabled() {
+			return fmt.Errorf("must supply tenant identifier")
+		}
+
+		tenant, err = promptMissing(f.Ask, func() ([]*tenants.Tenant, error) { return shared.GetAllTenants(client) })
+	} else {
+		tenant, err = client.Tenants.GetByIdentifier(id)
+	}
 	if err != nil {
 		return err
 	}

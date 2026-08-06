@@ -56,9 +56,9 @@ func NewCmdDelete(f factory.Factory) *cobra.Command {
 		Long:    "Delete a build information in Octopus Deploy",
 		Aliases: []string{"del", "rm", "remove"},
 		Example: heredoc.Docf(`
-			$ %[1]s build-information delete BuildInformation-1
-			$ %[1]s build-info rm BuildInformation-1
-			$ %[1]s build-info del --package-id ThePackage --version 1.2.3
+			%[1]s build-information delete BuildInformation-1
+			%[1]s build-info rm BuildInformation-1
+			%[1]s build-info del --package-id ThePackage --version 1.2.3
 		`, constants.ExecutableName),
 		RunE: func(c *cobra.Command, args []string) error {
 			if len(args) == 0 {

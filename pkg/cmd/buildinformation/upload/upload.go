@@ -66,10 +66,10 @@ func NewCmdUpload(f factory.Factory) *cobra.Command {
 		Long:    "upload build information one or more packages to Octopus Deploy.",
 		Aliases: []string{"push"},
 		Example: heredoc.Docf(`
-			$ %[1]s build-information upload --package-id SomePackage --version 1.0.0 --file buildinfo.octopus
-			$ %[1]s build-information upload SomePackage --version 1.0.0 --file buildinfo.octopus --overwrite-mode overwrite
-			$ %[1]s build-information push SomePackage --version 1.0.0 --file buildinfo.octopus
-			$ %[1]s build-information upload PkgA PkgB PkgC --version 1.0.0 --file buildinfo.octopus
+			%[1]s build-information upload --package-id SomePackage --version 1.0.0 --file buildinfo.octopus
+			%[1]s build-information upload SomePackage --version 1.0.0 --file buildinfo.octopus --overwrite-mode overwrite
+			%[1]s build-information push SomePackage --version 1.0.0 --file buildinfo.octopus
+			%[1]s build-information upload PkgA PkgB PkgC --version 1.0.0 --file buildinfo.octopus
 		`, constants.ExecutableName),
 		Annotations: map[string]string{annotations.IsCore: "true"},
 		RunE: func(c *cobra.Command, args []string) error {
@@ -158,7 +158,7 @@ func uploadRun(opts *UploadOptions) error {
 	}
 
 	if !opts.NoPrompt {
-		autoCmd := flag.GenerateAutomationCmd(opts.CmdPath, opts.PackageId, opts.Version, opts.File, opts.OverwriteMode)
+		autoCmd := flag.GenerateAutomationCmd(opts.CmdPath, opts.GetSpaceNameOrEmpty(), opts.PackageId, opts.Version, opts.File, opts.OverwriteMode)
 		fmt.Fprintf(opts.Out, "%s\n", autoCmd)
 	}
 

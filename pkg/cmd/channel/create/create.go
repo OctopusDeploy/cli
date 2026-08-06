@@ -63,8 +63,8 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 		Short: "Create a channel",
 		Long:  "Create a channel in Octopus Deploy",
 		Example: heredoc.Docf(`
-			$ %[1]s channel create
-			$ %[1]s channel create --name "The Channel" --project "The Project" --lifecycle "Default Lifecycle" --default
+			%[1]s channel create
+			%[1]s channel create --name "The Channel" --project "The Project" --lifecycle "Default Lifecycle" --default
 		`, constants.ExecutableName),
 		RunE: func(c *cobra.Command, args []string) error {
 			opts := NewCreateOptions(createFlags, cmd.NewDependencies(f, c))
@@ -123,7 +123,7 @@ func createRun(opts *CreateOptions) error {
 	fmt.Fprintf(opts.Out, "View this channel on Octopus Deploy: %s\n", link)
 
 	if !opts.NoPrompt {
-		autoCmd := flag.GenerateAutomationCmd(opts.CmdPath, opts.Name, opts.Project, opts.Description, opts.Default, opts.Lifecycle)
+		autoCmd := flag.GenerateAutomationCmd(opts.CmdPath, opts.GetSpaceNameOrEmpty(), opts.Name, opts.Project, opts.Description, opts.Default, opts.Lifecycle)
 		fmt.Fprintf(opts.Out, "%s\n", autoCmd)
 	}
 

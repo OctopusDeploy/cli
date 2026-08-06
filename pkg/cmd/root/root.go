@@ -3,10 +3,12 @@ package root
 import (
 	"github.com/OctopusDeploy/cli/pkg/apiclient"
 	accountCmd "github.com/OctopusDeploy/cli/pkg/cmd/account"
+	apiCmd "github.com/OctopusDeploy/cli/pkg/cmd/api"
 	buildInfoCmd "github.com/OctopusDeploy/cli/pkg/cmd/buildinformation"
 	channelCmd "github.com/OctopusDeploy/cli/pkg/cmd/channel"
 	configCmd "github.com/OctopusDeploy/cli/pkg/cmd/config"
 	environmentCmd "github.com/OctopusDeploy/cli/pkg/cmd/environment"
+	ephemeralEnvironmentCmd "github.com/OctopusDeploy/cli/pkg/cmd/ephemeralenvironment"
 	loginCmd "github.com/OctopusDeploy/cli/pkg/cmd/login"
 	logoutCmd "github.com/OctopusDeploy/cli/pkg/cmd/logout"
 	packageCmd "github.com/OctopusDeploy/cli/pkg/cmd/package"
@@ -51,6 +53,7 @@ func NewCmdRoot(f factory.Factory, clientFactory apiclient.ClientFactory, askPro
 	// infrastructure
 	cmd.AddCommand(accountCmd.NewCmdAccount(f))
 	cmd.AddCommand(environmentCmd.NewCmdEnvironment(f))
+	cmd.AddCommand(ephemeralEnvironmentCmd.NewCmdEphemeralEnvironment(f))
 	cmd.AddCommand(packageCmd.NewCmdPackage(f))
 	cmd.AddCommand(buildInfoCmd.NewCmdBuildInformation(f))
 	cmd.AddCommand(deploymentTargetCmd.NewCmdDeploymentTarget(f))
@@ -74,6 +77,8 @@ func NewCmdRoot(f factory.Factory, clientFactory apiclient.ClientFactory, askPro
 	cmd.AddCommand(releaseCmd.NewCmdRelease(f))
 	cmd.AddCommand(runbookCmd.NewCmdRunbook(f))
 
+	cmd.AddCommand(apiCmd.NewCmdAPI(f))
+
 	// ----- Configuration -----
 
 	// commands are expected to print their own errors to avoid double-ups
@@ -91,6 +96,9 @@ func NewCmdRoot(f factory.Factory, clientFactory apiclient.ClientFactory, askPro
 
 	cmdPFlags.BoolP(constants.FlagNoPrompt, "", false, "Disable prompting in interactive mode")
 
+	// Enable service messages flag is hidden as it's intended for internal CI/CD use only
+	cmdPFlags.BoolP(constants.FlagEnableServiceMessages, "", false, "Enable service messages for integration with Octopus CI/CD")
+	cmdPFlags.MarkHidden(constants.FlagEnableServiceMessages)
 	// Legacy flags brought across from the .NET CLI.
 	// Consumers of these flags will have to explicitly check for them as well as the new
 	// flags. The pflag documentation says you can use SetNormalizeFunc to translate/alias flag
@@ -104,6 +112,7 @@ func NewCmdRoot(f factory.Factory, clientFactory apiclient.ClientFactory, askPro
 
 	_ = viper.BindPFlag(constants.ConfigNoPrompt, cmdPFlags.Lookup(constants.FlagNoPrompt))
 	_ = viper.BindPFlag(constants.ConfigSpace, cmdPFlags.Lookup(constants.FlagSpace))
+	_ = viper.BindPFlag(constants.FlagEnableServiceMessages, cmdPFlags.Lookup(constants.FlagEnableServiceMessages))
 	// if we attempt to check the flags before Execute is called, cobra hasn't parsed anything yet,
 	// so we'll get bad values. PersistentPreRun is a convenient callback for setting up our
 	// environment after parsing but before execution.

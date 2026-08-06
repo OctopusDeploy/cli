@@ -16,7 +16,7 @@ func NewCmdListeningTentacle(f factory.Factory) *cobra.Command {
 		Use:     "listening-tentacle <command>",
 		Short:   "Manage Listening Tentacle workers",
 		Long:    "Manage Listening Tentacle workers in Octopus Deploy",
-		Example: fmt.Sprintf("$ %s worker listening-tentacle list", constants.ExecutableName),
+		Example: fmt.Sprintf("%s worker listening-tentacle list", constants.ExecutableName),
 	}
 
 	cmd.AddCommand(cmdCreate.NewCmdCreate(f))
