@@ -93,10 +93,10 @@ func NewCmdLiveStatus(f factory.Factory) *cobra.Command {
 		Short: "Get Kubernetes live object status",
 		Long:  "Get the live status of Kubernetes resources for a project and environment in Octopus Deploy",
 		Example: heredoc.Docf(`
-			$ %[1]s kubernetes live-status --project MyProject --environment Production
-			$ %[1]s kubernetes live-status --project MyProject --environment Production --tenant MyTenant
-			$ %[1]s kubernetes live-status --project MyProject --environment Production --summary-only
-			$ %[1]s kubernetes live-status --project MyProject --environment Production -f json
+			%[1]s kubernetes live-status --project MyProject --environment Production
+			%[1]s kubernetes live-status --project MyProject --environment Production --tenant MyTenant
+			%[1]s kubernetes live-status --project MyProject --environment Production --summary-only
+			%[1]s kubernetes live-status --project MyProject --environment Production -f json
 		`, constants.ExecutableName),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return liveStatusRun(cmd, f, flags)

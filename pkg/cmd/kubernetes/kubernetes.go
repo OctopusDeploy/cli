@@ -13,7 +13,7 @@ func NewCmdKubernetes(f factory.Factory) *cobra.Command {
 		Use:     "kubernetes <command>",
 		Short:   "Kubernetes observability commands",
 		Long:    "Commands for observing Kubernetes resources deployed via Octopus Deploy",
-		Example: heredoc.Docf("$ %s kubernetes live-status --project MyProject --environment Production", constants.ExecutableName),
+		Example: heredoc.Docf("%s kubernetes live-status --project MyProject --environment Production", constants.ExecutableName),
 		Aliases: []string{"k8s"},
 	}
 
