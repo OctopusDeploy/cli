@@ -392,17 +392,11 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 	var err error
 
 	// select project
-	var selectedProject *projects.Project
-	if options.ProjectName == "" {
-		selectedProject, err = selectors.Project("Select project", octopus, asker)
-		if err != nil {
-			return err
-		}
-	} else { // project name is already provided, fetch the object because it's needed for further questions
-		selectedProject, err = selectors.FindProject(octopus, options.ProjectName)
-		if err != nil {
-			return err
-		}
+	selectedProject, err := selectors.ResolveProject(octopus, asker, true, "Select project", options.ProjectName)
+	if err != nil {
+		return err
+	}
+	if options.ProjectName != "" { // project name was already provided; echo it so the choice is always visible
 		_, _ = fmt.Fprintf(stdout, "Project %s\n", output.Cyan(selectedProject.Name))
 	}
 	options.ProjectName = selectedProject.Name

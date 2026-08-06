@@ -550,25 +550,7 @@ func runGitRunbook(cmd *cobra.Command, f factory.Factory, flags *RunFlags, octop
 }
 
 func selectProject(octopus *octopusApiClient.Client, f factory.Factory, projectName string) (*projects.Project, error) {
-	if projectName == "" {
-		if f.IsPromptEnabled() {
-			selectedProject, err := selectors.Project("Select project", octopus, f.Ask)
-			if err != nil {
-				return nil, err
-			}
-			return selectedProject, nil
-		} else {
-			// Project name not provided and not asking questions so error out
-			return nil, errors.New("project must be specified")
-		}
-	} else { // project name is already provided, fetch the object because it's needed for further questions
-		selectedProject, err := selectors.FindProject(octopus, projectName)
-		if err != nil {
-			return nil, err
-		}
-
-		return selectedProject, nil
-	}
+	return selectors.ResolveProject(octopus, f.Ask, f.IsPromptEnabled(), "Select project", projectName)
 }
 
 // shouldAskAdvancedOptions determines if we should prompt the user to change advanced options.
