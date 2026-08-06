@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.23.7](https://github.com/OctopusDeploy/cli/compare/v2.23.6...v2.23.7) (2026-08-06)
+
+
+### Bug Fixes
+
+* force-push the release branch and surface GitHub's error detail ([f428cb9](https://github.com/OctopusDeploy/cli/commit/f428cb9cc1f155120b02e16d911c2e5d69ed559d))
+* open a pull request when publishing the homebrew formula ([c8e192d](https://github.com/OctopusDeploy/cli/commit/c8e192d32918827a102137add7d81711edfa5f30)), closes [#541](https://github.com/OctopusDeploy/cli/issues/541)
+
 ## [2.23.6](https://github.com/OctopusDeploy/cli/compare/v2.23.5...v2.23.6) (2026-08-06)
 
 
