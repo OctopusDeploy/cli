@@ -5,6 +5,7 @@ import (
 
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/apiclient"
+	"github.com/OctopusDeploy/cli/pkg/cmd/environment/helper"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/OctopusDeploy/cli/pkg/question"
@@ -37,21 +38,9 @@ func NewCmdDelete(f factory.Factory) *cobra.Command {
 				return err
 			}
 
-			// SDK doesn't have accounts.GetByIDOrName so we emulate it here
-			foundEnvironments, err := client.Environments.Get(environments.EnvironmentsQuery{
-				// TODO we can't lookup by ID here because the server will AND it with the ItemName and produce no results
-				PartialName: itemIDOrName,
-			})
+			itemToDelete, err := helper.GetByIDOrName(client.Environments, itemIDOrName)
 			if err != nil {
 				return err
-			}
-			// need exact match
-			var itemToDelete *environments.Environment
-			for _, item := range foundEnvironments.Items {
-				if item.Name == itemIDOrName {
-					itemToDelete = item
-					break
-				}
 			}
 			if itemToDelete == nil {
 				return fmt.Errorf("cannot find an environment with name or ID of '%s'", itemIDOrName)
