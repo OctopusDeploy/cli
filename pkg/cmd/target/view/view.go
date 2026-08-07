@@ -75,7 +75,7 @@ func getDeploymentTargetAsJson(deps *cmd.Dependencies, target *machines.Deployme
 		Name:               target.Name,
 		HealthStatus:       target.HealthStatus,
 		StatusSummary:      target.StatusSummary,
-		CommunicationStyle: target.Endpoint.GetCommunicationStyle(),
+		CommunicationStyle: shared.GetCommunicationStyle(target),
 		Environments:       environments,
 		Roles:              target.Roles,
 		Tenants:            tenants,
@@ -97,7 +97,7 @@ func getDeploymentTargetAsJson(deps *cmd.Dependencies, target *machines.Deployme
 func getDeploymentTargetAsTableRow(opts *shared.ViewOptions, target *machines.DeploymentTarget, environmentMap map[string]string, tenantMap map[string]string, workerPoolMap map[string]string) []string {
 	environments := resolveValues(target.EnvironmentIDs, environmentMap)
 	healthStatus := getHealthStatusFormatted(target.HealthStatus)
-	targetType := getTargetTypeDisplayName(target.Endpoint.GetCommunicationStyle())
+	targetType := getTargetTypeDisplayName(shared.GetCommunicationStyle(target))
 
 	// Handle tenants
 	tenants := "None"
@@ -176,6 +176,8 @@ func getTargetTypeDisplayName(communicationStyle string) string {
 		return "Kubernetes"
 	case "StepPackage":
 		return "Step Package"
+	case "":
+		return shared.UnknownValue
 	default:
 		return communicationStyle
 	}
@@ -195,7 +197,7 @@ func getDeploymentTargetAsBasic(opts *shared.ViewOptions, target *machines.Deplo
 	result.WriteString(fmt.Sprintf("Current status: %s\n", target.StatusSummary))
 
 	// Target type and endpoint details
-	targetType := getTargetTypeDisplayName(target.Endpoint.GetCommunicationStyle())
+	targetType := getTargetTypeDisplayName(shared.GetCommunicationStyle(target))
 	result.WriteString(fmt.Sprintf("Type: %s\n", output.Cyan(targetType)))
 
 	// Add endpoint-specific details

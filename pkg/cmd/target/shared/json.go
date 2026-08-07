@@ -41,7 +41,7 @@ func GetDeploymentTargetAsJson(deps *cmd.Dependencies, target *machines.Deployme
 		Name:               target.Name,
 		HealthStatus:       target.HealthStatus,
 		StatusSummary:      target.StatusSummary,
-		CommunicationStyle: target.Endpoint.GetCommunicationStyle(),
+		CommunicationStyle: GetCommunicationStyle(target),
 		Environments:       environments,
 		Roles:              target.Roles,
 		Tenants:            tenants,

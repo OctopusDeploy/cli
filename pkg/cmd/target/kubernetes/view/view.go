@@ -40,7 +40,10 @@ func ViewRun(opts *shared.ViewOptions) error {
 
 func contributeEndpoint(_ *shared.ViewOptions, targetEndpoint machines.IEndpoint) ([]*output.DataRow, error) {
 	data := []*output.DataRow{}
-	endpoint := targetEndpoint.(*machines.KubernetesEndpoint)
+	endpoint, err := shared.EndpointAs[*machines.KubernetesEndpoint](targetEndpoint, "Kubernetes")
+	if err != nil {
+		return nil, err
+	}
 
 	data = append(data, output.NewDataRow("Authentication Type", endpoint.Authentication.GetAuthenticationType()))
 

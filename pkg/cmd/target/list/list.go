@@ -80,13 +80,26 @@ func ListRun(opts *ListOptions) error {
 				environmentNames := resolveValues(item.EnvironmentIDs, environmentMap)
 				tenantNames := resolveValues(item.TenantIDs, tenantMap)
 				workerPool := shared.ResolveDefaultWorkerPool(item, workerPoolMap, "None")
-				return []string{output.Bold(item.Name), machinescommon.CommunicationStyleToDescriptionMap[item.Endpoint.GetCommunicationStyle()], output.FormatAsList(item.Roles), output.FormatAsList(environmentNames), output.FormatAsList(tenantNames), output.FormatAsList(item.TenantTags), workerPool}
+				return []string{output.Bold(item.Name), describeTargetType(item), output.FormatAsList(item.Roles), output.FormatAsList(environmentNames), output.FormatAsList(tenantNames), output.FormatAsList(item.TenantTags), workerPool}
 			},
 		},
 		Basic: func(item *machines.DeploymentTarget) string {
 			return item.Name
 		},
 	})
+}
+
+func describeTargetType(target *machines.DeploymentTarget) string {
+	communicationStyle := shared.GetCommunicationStyle(target)
+	if communicationStyle == "" {
+		return shared.UnknownValue
+	}
+
+	if description, ok := machinescommon.CommunicationStyleToDescriptionMap[communicationStyle]; ok {
+		return description
+	}
+
+	return communicationStyle
 }
 
 func resolveValues(keys []string, lookup map[string]string) []string {
