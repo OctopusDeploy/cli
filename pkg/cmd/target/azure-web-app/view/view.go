@@ -45,7 +45,11 @@ func ViewRun(opts *shared.ViewOptions) error {
 
 func contributeEndpoint(opts *shared.ViewOptions, targetEndpoint machines.IEndpoint) ([]*output.DataRow, error) {
 	data := []*output.DataRow{}
-	endpoint := targetEndpoint.(*machines.AzureWebAppEndpoint)
+	endpoint, err := shared.EndpointAs[*machines.AzureWebAppEndpoint](targetEndpoint, "Azure Web App")
+	if err != nil {
+		return nil, err
+	}
+
 	accountRows, err := shared.ContributeAccount(opts, endpoint.AccountID)
 	if err != nil {
 		return nil, err

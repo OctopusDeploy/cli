@@ -40,6 +40,16 @@ func NewViewOptions(viewFlags *ViewFlags, dependencies *cmd.Dependencies, args [
 	}
 }
 
+func EndpointAs[T machines.IEndpoint](endpoint machines.IEndpoint, description string) (T, error) {
+	typedEndpoint, ok := endpoint.(T)
+	if !ok {
+		var zero T
+		return zero, fmt.Errorf("this deployment target is not a %s deployment target", description)
+	}
+
+	return typedEndpoint, nil
+}
+
 func ViewRun(opts *ViewOptions, contributeEndpoint ContributeEndpointCallback, description string) error {
 	var target, err = opts.Client.Machines.GetByIdentifier(opts.IdOrName)
 	if err != nil {
@@ -53,6 +63,10 @@ func ViewRun(opts *ViewOptions, contributeEndpoint ContributeEndpointCallback, d
 	data = append(data, output.NewDataRow("Current status", target.StatusSummary))
 
 	if contributeEndpoint != nil {
+		if machines.IsNil(target.Endpoint) {
+			return fmt.Errorf("cannot view '%s' as a %s deployment target: its target type is not supported by this version of the CLI", target.Name, description)
+		}
+
 		newRows, err := contributeEndpoint(opts, target.Endpoint)
 		if err != nil {
 			return err
