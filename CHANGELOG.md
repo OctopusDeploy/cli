@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.23.8](https://github.com/OctopusDeploy/cli/compare/v2.23.7...v2.23.8) (2026-08-07)
+
+
+### Bug Fixes
+
+* preserve --variable values through interactive runbook run ([#582](https://github.com/OctopusDeploy/cli/issues/582)) ([3d561d8](https://github.com/OctopusDeploy/cli/commit/3d561d86ab6da797cab3161375b82a3c02ea935a))
+
 ## [2.23.7](https://github.com/OctopusDeploy/cli/compare/v2.23.6...v2.23.7) (2026-08-06)
 
 
