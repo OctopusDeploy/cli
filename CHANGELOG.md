@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.23.9](https://github.com/OctopusDeploy/cli/compare/v2.23.8...v2.23.9) (2026-08-11)
+
+
+### Bug Fixes
+
+* always write a nuspec into generated NuGet packages ([5f2aeef](https://github.com/OctopusDeploy/cli/commit/5f2aeefc38a67d400e2b69bd582aa02cb29e0f7c))
+* XML-escape values written into the nuspec ([e5a6f89](https://github.com/OctopusDeploy/cli/commit/e5a6f89795dc54c9663f08862ef46b8ba5b41a8b))
+
 ## [2.23.8](https://github.com/OctopusDeploy/cli/compare/v2.23.7...v2.23.8) (2026-08-07)
 
 
