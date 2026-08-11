@@ -16,6 +16,13 @@ env:
   SERVER_URL: "http://localhost:8080"
 jobs:
   test:
+    # Dependabot-triggered runs cannot read Actions secrets -- GitHub scopes those
+    # to a separate Dependabot secrets store -- so SA_PASSWORD resolves to empty,
+    # SQL Server rejects every login, and the service container never turns
+    # healthy. Skip rather than fail red: the nightly run on main covers merged
+    # bumps, and `gh workflow run integration-test.yml --ref <branch>` still works
+    # on a Dependabot branch, because the triggering actor is then a human.
+    if: github.actor != 'dependabot[bot]'
     runs-on: ubuntu-latest
     services:
       sqlserver:
