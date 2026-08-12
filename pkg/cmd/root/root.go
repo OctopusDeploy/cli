@@ -1,6 +1,9 @@
 package root
 
 import (
+	"fmt"
+	"strings"
+
 	"github.com/OctopusDeploy/cli/pkg/apiclient"
 	accountCmd "github.com/OctopusDeploy/cli/pkg/cmd/account"
 	apiCmd "github.com/OctopusDeploy/cli/pkg/cmd/api"
@@ -27,7 +30,9 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/OctopusDeploy/cli/pkg/question"
+	"github.com/OctopusDeploy/cli/pkg/usage"
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 )
 
@@ -114,9 +119,9 @@ func NewCmdRoot(f factory.Factory, clientFactory apiclient.ClientFactory, askPro
 	_ = viper.BindPFlag(constants.ConfigSpace, cmdPFlags.Lookup(constants.FlagSpace))
 	_ = viper.BindPFlag(constants.FlagEnableServiceMessages, cmdPFlags.Lookup(constants.FlagEnableServiceMessages))
 	// if we attempt to check the flags before Execute is called, cobra hasn't parsed anything yet,
-	// so we'll get bad values. PersistentPreRun is a convenient callback for setting up our
+	// so we'll get bad values. PersistentPreRunE is a convenient callback for setting up our
 	// environment after parsing but before execution.
-	cmd.PersistentPreRun = func(_ *cobra.Command, _ []string) {
+	cmd.PersistentPreRunE = func(cmd *cobra.Command, _ []string) error {
 		// map flag alias values
 		for k, v := range flagAliases {
 			for _, aliasName := range v {
@@ -128,16 +133,28 @@ func NewCmdRoot(f factory.Factory, clientFactory apiclient.ClientFactory, askPro
 			}
 		}
 
-		if noPrompt := viper.GetBool(constants.ConfigNoPrompt); noPrompt {
+		noPrompt := viper.GetBool(constants.ConfigNoPrompt)
+		if noPrompt {
 			askProvider.DisableInteractive()
-			if v, _ := cmdPFlags.GetString(constants.FlagOutputFormat); v == "" {
-				cmdPFlags.Set(constants.FlagOutputFormat, constants.OutputFormatBasic)
-			}
 		}
+
+		// resolve the output format once, here, rather than leaving each command to work it
+		// out for itself; commands (and output.PrintResource / output.PrintArray) then just
+		// read the flag and can trust what they get.
+		configuredFormat := ""
+		if viper.InConfig(strings.ToLower(constants.ConfigOutputFormat)) {
+			configuredFormat = viper.GetString(constants.ConfigOutputFormat)
+		}
+		outputFormat, err := resolveOutputFormat(cmdPFlags, noPrompt, configuredFormat)
+		if err != nil {
+			return usage.NewUsageError(err.Error(), cmd)
+		}
+		_ = cmdPFlags.Set(constants.FlagOutputFormat, outputFormat)
 
 		if spaceNameOrId := viper.GetString(constants.ConfigSpace); spaceNameOrId != "" {
 			clientFactory.SetSpaceNameOrId(spaceNameOrId)
 		}
+		return nil
 	}
 
 	cmd.RunE = func(cmd *cobra.Command, args []string) error {
@@ -149,4 +166,33 @@ func NewCmdRoot(f factory.Factory, clientFactory apiclient.ClientFactory, askPro
 	}
 
 	return cmd
+}
+
+// resolveOutputFormat works out the output format a command should use, in precedence order:
+// an explicit --output-format (or legacy --outputFormat) flag, then the OutputFormat config file
+// setting, then basic when prompting is disabled, and finally table.
+//
+// Note the flag carries a non-empty default, so "did the caller ask for a format?" has to be
+// answered with Changed() rather than by testing the value for emptiness. configuredFormat is
+// the OutputFormat config file setting, or empty if the config file doesn't set one.
+func resolveOutputFormat(flags *pflag.FlagSet, noPrompt bool, configuredFormat string) (string, error) {
+	// the legacy flag is copied onto the new one by value, which doesn't mark it as Changed
+	explicit := flags.Changed(constants.FlagOutputFormat) || flags.Changed(constants.FlagOutputFormatLegacy)
+	outputFormat, _ := flags.GetString(constants.FlagOutputFormat)
+
+	switch {
+	case explicit: // take the flag as given
+	case configuredFormat != "":
+		outputFormat = configuredFormat
+	case noPrompt:
+		outputFormat = constants.OutputFormatBasic
+	default:
+		outputFormat = constants.OutputFormatTable
+	}
+
+	outputFormat = strings.ToLower(strings.TrimSpace(outputFormat))
+	if !constants.IsValidOutputFormat(outputFormat) {
+		return "", fmt.Errorf("unsupported output format %s. Valid values are 'json', 'table', 'basic'. Defaults to table", outputFormat)
+	}
+	return outputFormat, nil
 }
