@@ -84,7 +84,7 @@ func TestChannelList(t *testing.T) {
 			assert.Nil(t, err)
 
 			assert.Equal(t, heredoc.Doc(`
-				NAME     TYPE       DEFAULT  LIFECYCLE ID
+				NAME     TYPE       DEFAULT  LIFECYCLE
 				Default  Lifecycle  *        Lifecycles-1
 				Hotfix   Lifecycle           Lifecycles-1
 				`), stdOut.String())
@@ -112,7 +112,7 @@ func TestChannelList(t *testing.T) {
 			assert.Nil(t, err)
 
 			assert.Equal(t, heredoc.Doc(`
-				NAME     TYPE       DEFAULT  LIFECYCLE ID
+				NAME     TYPE       DEFAULT  LIFECYCLE
 				Default  Lifecycle  *        Lifecycles-1
 				Hotfix   Lifecycle           Lifecycles-1
 				`), stdOut.String())
@@ -140,7 +140,7 @@ func TestChannelList(t *testing.T) {
 			assert.Nil(t, err)
 
 			assert.Equal(t, heredoc.Doc(`
-				NAME    TYPE       DEFAULT  LIFECYCLE ID
+				NAME    TYPE       DEFAULT  LIFECYCLE
 				Hotfix  Lifecycle           Lifecycles-1
 				`), stdOut.String())
 			assert.Equal(t, "", stdErr.String())
@@ -168,7 +168,7 @@ func TestChannelList(t *testing.T) {
 
 			// output.PrintArray always emits the header row, even with no matching items.
 			assert.Equal(t, heredoc.Doc(`
-				NAME  TYPE  DEFAULT  LIFECYCLE ID
+				NAME  TYPE  DEFAULT  LIFECYCLE
 				`), stdOut.String())
 			assert.Equal(t, "", stdErr.String())
 		}},
