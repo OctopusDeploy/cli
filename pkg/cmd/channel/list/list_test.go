@@ -11,6 +11,7 @@ import (
 	"github.com/OctopusDeploy/cli/test/fixtures"
 	"github.com/OctopusDeploy/cli/test/testutil"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/channels"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/lifecycles"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/resources"
 	"github.com/spf13/cobra"
@@ -26,6 +27,9 @@ func TestChannelList(t *testing.T) {
 	space1 := fixtures.NewSpace(spaceID, "Default Space")
 
 	fireProject := fixtures.NewProject(spaceID, projectID, "Fire Project", "Lifecycles-1", "ProjectGroups-1", "")
+
+	lifecycle := lifecycles.NewLifecycle("Default Lifecycle")
+	lifecycle.ID = "Lifecycles-1"
 
 	defaultChannel := fixtures.NewChannel(spaceID, "Channels-1", "Default", projectID)
 	defaultChannel.IsDefault = true
@@ -80,13 +84,15 @@ func TestChannelList(t *testing.T) {
 					Items: []*channels.Channel{defaultChannel, hotfixChannel},
 				})
 
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/lifecycles/all").RespondWith([]*lifecycles.Lifecycle{lifecycle})
+
 			_, err := testutil.ReceivePair(cmdReceiver)
 			assert.Nil(t, err)
 
 			assert.Equal(t, heredoc.Doc(`
 				NAME     TYPE       DEFAULT  LIFECYCLE
-				Default  Lifecycle  *        Lifecycles-1
-				Hotfix   Lifecycle           Lifecycles-1
+				Default  Lifecycle  *        Default Lifecycle
+				Hotfix   Lifecycle           Default Lifecycle
 				`), stdOut.String())
 			assert.Equal(t, "", stdErr.String())
 		}},
@@ -108,13 +114,15 @@ func TestChannelList(t *testing.T) {
 					Items: []*channels.Channel{defaultChannel, hotfixChannel},
 				})
 
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/lifecycles/all").RespondWith([]*lifecycles.Lifecycle{lifecycle})
+
 			_, err := testutil.ReceivePair(cmdReceiver)
 			assert.Nil(t, err)
 
 			assert.Equal(t, heredoc.Doc(`
 				NAME     TYPE       DEFAULT  LIFECYCLE
-				Default  Lifecycle  *        Lifecycles-1
-				Hotfix   Lifecycle           Lifecycles-1
+				Default  Lifecycle  *        Default Lifecycle
+				Hotfix   Lifecycle           Default Lifecycle
 				`), stdOut.String())
 			assert.Equal(t, "", stdErr.String())
 		}},
@@ -136,12 +144,14 @@ func TestChannelList(t *testing.T) {
 					Items: []*channels.Channel{defaultChannel, hotfixChannel},
 				})
 
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/lifecycles/all").RespondWith([]*lifecycles.Lifecycle{lifecycle})
+
 			_, err := testutil.ReceivePair(cmdReceiver)
 			assert.Nil(t, err)
 
 			assert.Equal(t, heredoc.Doc(`
 				NAME    TYPE       DEFAULT  LIFECYCLE
-				Hotfix  Lifecycle           Lifecycles-1
+				Hotfix  Lifecycle           Default Lifecycle
 				`), stdOut.String())
 			assert.Equal(t, "", stdErr.String())
 		}},
@@ -163,12 +173,51 @@ func TestChannelList(t *testing.T) {
 					Items: []*channels.Channel{defaultChannel, hotfixChannel},
 				})
 
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/lifecycles/all").RespondWith([]*lifecycles.Lifecycle{lifecycle})
+
 			_, err := testutil.ReceivePair(cmdReceiver)
 			assert.Nil(t, err)
 
 			// output.PrintArray always emits the header row, even with no matching items.
 			assert.Equal(t, heredoc.Doc(`
 				NAME  TYPE  DEFAULT  LIFECYCLE
+				`), stdOut.String())
+			assert.Equal(t, "", stdErr.String())
+		}},
+
+		{"channel list shows an inherited lifecycle, and the ID when the lifecycle can't be resolved", func(t *testing.T, api *testutil.MockHttpServer, qa *testutil.AskMocker, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
+			inheritingChannel := fixtures.NewChannel(spaceID, "Channels-3", "Inherits", projectID)
+			inheritingChannel.Type = channels.ChannelTypeLifecycle
+
+			unknownLifecycleChannel := fixtures.NewChannel(spaceID, "Channels-4", "Unknown", projectID)
+			unknownLifecycleChannel.LifecycleID = "Lifecycles-99"
+			unknownLifecycleChannel.Type = channels.ChannelTypeLifecycle
+
+			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
+				defer api.Close()
+				rootCmd.SetArgs([]string{"channel", "list", "-p", "Projects-22", "--no-prompt", "-f", "table"})
+				return rootCmd.ExecuteC()
+			})
+
+			api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
+
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/Projects-22").RespondWith(fireProject)
+
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/Projects-22/channels").
+				RespondWith(resources.Resources[*channels.Channel]{
+					Items: []*channels.Channel{inheritingChannel, unknownLifecycleChannel},
+				})
+
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/lifecycles/all").RespondWith([]*lifecycles.Lifecycle{lifecycle})
+
+			_, err := testutil.ReceivePair(cmdReceiver)
+			assert.Nil(t, err)
+
+			assert.Equal(t, heredoc.Doc(`
+				NAME      TYPE       DEFAULT  LIFECYCLE
+				Inherits  Lifecycle           Inherited from project
+				Unknown   Lifecycle           Lifecycles-99
 				`), stdOut.String())
 			assert.Equal(t, "", stdErr.String())
 		}},
@@ -190,23 +239,26 @@ func TestChannelList(t *testing.T) {
 					Items: []*channels.Channel{defaultChannel, hotfixChannel},
 				})
 
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/lifecycles/all").RespondWith([]*lifecycles.Lifecycle{lifecycle})
+
 			_, err := testutil.ReceivePair(cmdReceiver)
 			assert.Nil(t, err)
 
 			type x struct {
-				ID          string
-				Name        string
-				Description string
-				LifecycleID string
-				IsDefault   bool
-				Type        string
+				ID            string
+				Name          string
+				Description   string
+				LifecycleID   string
+				LifecycleName string
+				IsDefault     bool
+				Type          string
 			}
 			parsedStdout, err := testutil.ParseJsonStrict[[]x](stdOut)
 			assert.Nil(t, err)
 
 			assert.Equal(t, []x{
-				{ID: "Channels-1", Name: "Default", Description: "", LifecycleID: "Lifecycles-1", IsDefault: true, Type: "Lifecycle"},
-				{ID: "Channels-2", Name: "Hotfix", Description: "Urgent fixes", LifecycleID: "Lifecycles-1", IsDefault: false, Type: "Lifecycle"},
+				{ID: "Channels-1", Name: "Default", Description: "", LifecycleID: "Lifecycles-1", LifecycleName: "Default Lifecycle", IsDefault: true, Type: "Lifecycle"},
+				{ID: "Channels-2", Name: "Hotfix", Description: "Urgent fixes", LifecycleID: "Lifecycles-1", LifecycleName: "Default Lifecycle", IsDefault: false, Type: "Lifecycle"},
 			}, parsedStdout)
 			assert.Equal(t, "", stdErr.String())
 		}},
@@ -227,6 +279,8 @@ func TestChannelList(t *testing.T) {
 				RespondWith(resources.Resources[*channels.Channel]{
 					Items: []*channels.Channel{defaultChannel, hotfixChannel},
 				})
+
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/lifecycles/all").RespondWith([]*lifecycles.Lifecycle{lifecycle})
 
 			_, err := testutil.ReceivePair(cmdReceiver)
 			assert.Nil(t, err)
