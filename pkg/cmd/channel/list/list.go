@@ -11,6 +11,7 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/output"
 	"github.com/OctopusDeploy/cli/pkg/question/selectors"
 	"github.com/OctopusDeploy/cli/pkg/util/flag"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
 	"github.com/spf13/cobra"
 )
 
@@ -32,12 +33,13 @@ func NewListFlags() *ListFlags {
 }
 
 type ChannelViewModel struct {
-	ID          string
-	Name        string
-	Description string
-	LifecycleID string
-	IsDefault   bool
-	Type        string
+	ID            string
+	Name          string
+	Description   string
+	LifecycleID   string
+	LifecycleName string
+	IsDefault     bool
+	Type          string
 }
 
 func NewCmdList(f factory.Factory) *cobra.Command {
@@ -99,6 +101,9 @@ func listRun(cmd *cobra.Command, f factory.Factory, flags *ListFlags) error {
 		return err
 	}
 
+	// best-effort, as channel view is: listing still works without access to lifecycles
+	lifecycleMap := getLifecycleMap(octopus)
+
 	filter := strings.ToLower(flags.Filter.Value)
 	viewModels := make([]ChannelViewModel, 0, len(allChannels))
 	for _, c := range allChannels {
@@ -106,12 +111,13 @@ func listRun(cmd *cobra.Command, f factory.Factory, flags *ListFlags) error {
 			continue
 		}
 		viewModels = append(viewModels, ChannelViewModel{
-			ID:          c.ID,
-			Name:        c.Name,
-			Description: c.Description,
-			LifecycleID: c.LifecycleID,
-			IsDefault:   c.IsDefault,
-			Type:        string(c.Type),
+			ID:            c.ID,
+			Name:          c.Name,
+			Description:   c.Description,
+			LifecycleID:   c.LifecycleID,
+			LifecycleName: lifecycleMap[c.LifecycleID],
+			IsDefault:     c.IsDefault,
+			Type:          string(c.Type),
 		})
 	}
 
@@ -127,9 +133,11 @@ func listRun(cmd *cobra.Command, f factory.Factory, flags *ListFlags) error {
 					def = "*"
 				}
 				// a channel with no lifecycle of its own inherits the project's
-				lifecycleDisplay := item.LifecycleID
+				lifecycleDisplay := item.LifecycleName
 				if item.LifecycleID == "" {
 					lifecycleDisplay = shared.InheritedLifecycle
+				} else if item.LifecycleName == "" { // the lifecycle couldn't be resolved
+					lifecycleDisplay = item.LifecycleID
 				}
 				return []string{item.Name, item.Type, def, lifecycleDisplay}
 			},
@@ -138,4 +146,16 @@ func listRun(cmd *cobra.Command, f factory.Factory, flags *ListFlags) error {
 			return item.Name
 		},
 	})
+}
+
+func getLifecycleMap(octopus *client.Client) map[string]string {
+	lifecycleMap := make(map[string]string)
+	allLifecycles, err := octopus.Lifecycles.GetAll()
+	if err != nil {
+		return lifecycleMap
+	}
+	for _, l := range allLifecycles {
+		lifecycleMap[l.GetID()] = l.Name
+	}
+	return lifecycleMap
 }
