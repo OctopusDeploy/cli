@@ -37,7 +37,7 @@ func TestReleaseProgressionPrevent(t *testing.T) {
 	}{
 		// Regression: --project supplied interactively used to leave selectedProject nil, which
 		// was then handed to SelectRelease and failed with "invalid parameter project".
-		{"prevent prompts for the release when the project is supplied", func(t *testing.T, api *testutil.MockHttpServer, qa *testutil.AskMocker, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
+		{"prevent prompts for the project when the project is supplied", func(t *testing.T, api *testutil.MockHttpServer, qa *testutil.AskMocker, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
 			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
 				defer api.Close()
 				rootCmd.SetArgs([]string{"release", "progression", "prevent", "--project", projectID, "--reason", "It's broken"})
