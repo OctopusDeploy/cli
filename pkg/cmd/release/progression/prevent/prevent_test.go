@@ -71,7 +71,7 @@ func TestReleaseProgressionPrevent(t *testing.T) {
 			assert.Equal(t, "", stdErr.String())
 		}},
 
-		{"prevent prompts for the project when the version is supplied", func(t *testing.T, api *testutil.MockHttpServer, qa *testutil.AskMocker, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
+		{"prevent prompts for the release when the version is supplied", func(t *testing.T, api *testutil.MockHttpServer, qa *testutil.AskMocker, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
 			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
 				defer api.Close()
 				rootCmd.SetArgs([]string{"release", "progression", "prevent", "--version", "1.0", "--reason", "It's broken"})
