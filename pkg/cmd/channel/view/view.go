@@ -25,10 +25,6 @@ import (
 const (
 	FlagProject = "project"
 	FlagWeb     = "web"
-
-	// inheritedLifecycle is shown when a channel has no lifecycle of its own and
-	// therefore inherits the project's lifecycle (e.g. the default channel).
-	inheritedLifecycle = "Inherited from project"
 )
 
 type ViewFlags struct {
@@ -100,7 +96,8 @@ func viewRun(opts *ViewOptions) error {
 		return err
 	}
 
-	channel, err := shared.ResolveChannel(opts.Client, project, opts.idOrName)
+	channel, err := shared.ResolveChannel(opts.Client, opts.Ask, opts.PromptEnabled,
+		"Select the channel you wish to view:", project, opts.idOrName)
 	if err != nil {
 		return err
 	}
@@ -151,7 +148,7 @@ func viewRun(opts *ViewOptions) error {
 				}
 				lifecycleDisplay := lifecycleName
 				if c.LifecycleID == "" {
-					lifecycleDisplay = inheritedLifecycle
+					lifecycleDisplay = shared.InheritedLifecycle
 				}
 				return []string{
 					output.Bold(c.Name),
@@ -200,7 +197,7 @@ func formatChannelForBasic(opts *ViewOptions, c *channels.Channel, lifecycleName
 
 	result.WriteString(fmt.Sprintf("Type: %s\n", string(c.Type)))
 	if c.LifecycleID == "" {
-		result.WriteString(fmt.Sprintf("Lifecycle: %s\n", inheritedLifecycle))
+		result.WriteString(fmt.Sprintf("Lifecycle: %s\n", shared.InheritedLifecycle))
 	} else {
 		result.WriteString(fmt.Sprintf("Lifecycle: %s %s\n", lifecycleName, output.Dimf("(%s)", c.LifecycleID)))
 	}
