@@ -5,6 +5,7 @@ import (
 
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/apiclient"
+	"github.com/OctopusDeploy/cli/pkg/cmd/channel/shared"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/OctopusDeploy/cli/pkg/output"
@@ -64,7 +65,7 @@ func NewCmdList(f factory.Factory) *cobra.Command {
 
 	flags := cmd.Flags()
 	flags.StringVarP(&listFlags.Project.Value, listFlags.Project.Name, "p", "", "Name or ID of the project to list channels for")
-	flags.StringVarP(&listFlags.Filter.Value, listFlags.Filter.Name, "q", "", "filter channels to match only ones with a name containing the given string")
+	flags.StringVarP(&listFlags.Filter.Value, listFlags.Filter.Name, "q", "", "Filter channels to match only ones with a name containing the given string")
 	return cmd
 }
 
@@ -119,13 +120,18 @@ func listRun(cmd *cobra.Command, f factory.Factory, flags *ListFlags) error {
 			return item
 		},
 		Table: output.TableDefinition[ChannelViewModel]{
-			Header: []string{"NAME", "TYPE", "DEFAULT", "LIFECYCLE ID"},
+			Header: []string{"NAME", "TYPE", "DEFAULT", "LIFECYCLE"},
 			Row: func(item ChannelViewModel) []string {
 				def := ""
 				if item.IsDefault {
 					def = "*"
 				}
-				return []string{item.Name, item.Type, def, item.LifecycleID}
+				// a channel with no lifecycle of its own inherits the project's
+				lifecycleDisplay := item.LifecycleID
+				if item.LifecycleID == "" {
+					lifecycleDisplay = shared.InheritedLifecycle
+				}
+				return []string{item.Name, item.Type, def, lifecycleDisplay}
 			},
 		},
 		Basic: func(item ChannelViewModel) string {

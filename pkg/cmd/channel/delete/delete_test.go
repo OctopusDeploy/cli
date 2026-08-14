@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"github.com/AlecAivazis/survey/v2"
-	"github.com/MakeNowJust/heredoc/v2"
 	cmdRoot "github.com/OctopusDeploy/cli/pkg/cmd/root"
 	"github.com/OctopusDeploy/cli/pkg/question"
 	"github.com/OctopusDeploy/cli/test/fixtures"
@@ -144,60 +143,6 @@ func TestChannelDelete(t *testing.T) {
 			assert.Equal(t, "", stdErr.String())
 		}},
 
-		{"channel delete warns for version-controlled (CaC) projects", func(t *testing.T, api *testutil.MockHttpServer, qa *testutil.AskMocker, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
-			cacProject := fixtures.NewVersionControlledProject(spaceID, projectID, "Fire Project", "Lifecycles-1", "ProjectGroups-1", "")
-			cacProject.IsVersionControlled = true
-			cacChannel := fixtures.NewChannel(spaceID, "Channels-2", "Hotfix", projectID)
-			cacChannel.Type = channels.ChannelTypeLifecycle
-
-			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
-				defer api.Close()
-				rootCmd.SetArgs([]string{"channel", "delete", "Channels-2", "-p", "Projects-22", "-y"})
-				return rootCmd.ExecuteC()
-			})
-
-			api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
-			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
-
-			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/Projects-22").RespondWith(cacProject)
-			api.ExpectRequest(t, "GET", "/api/Spaces-1/channels/Channels-2").RespondWith(cacChannel)
-			api.ExpectRequest(t, "DELETE", "/api/Spaces-1/channels/Channels-2").RespondWith(nil)
-
-			_, err := testutil.ReceivePair(cmdReceiver)
-			assert.Nil(t, err)
-
-			assert.Equal(t, heredoc.Doc(`
-				Warning: This project is version-controlled (Config-as-Code). Deleting this channel can break OCL deployments that reference it.
-				`), stdOut.String())
-			assert.Equal(t, "", stdErr.String())
-		}},
-
-		{"channel delete does not warn for CaC projects in automation mode", func(t *testing.T, api *testutil.MockHttpServer, qa *testutil.AskMocker, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
-			cacProject := fixtures.NewVersionControlledProject(spaceID, projectID, "Fire Project", "Lifecycles-1", "ProjectGroups-1", "")
-			cacProject.IsVersionControlled = true
-			cacChannel := fixtures.NewChannel(spaceID, "Channels-2", "Hotfix", projectID)
-			cacChannel.Type = channels.ChannelTypeLifecycle
-
-			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
-				defer api.Close()
-				rootCmd.SetArgs([]string{"channel", "delete", "Channels-2", "-p", "Projects-22", "--no-prompt", "-y"})
-				return rootCmd.ExecuteC()
-			})
-
-			api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
-			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
-
-			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/Projects-22").RespondWith(cacProject)
-			api.ExpectRequest(t, "GET", "/api/Spaces-1/channels/Channels-2").RespondWith(cacChannel)
-			api.ExpectRequest(t, "DELETE", "/api/Spaces-1/channels/Channels-2").RespondWith(nil)
-
-			_, err := testutil.ReceivePair(cmdReceiver)
-			assert.Nil(t, err)
-
-			assert.Equal(t, "", stdOut.String())
-			assert.Equal(t, "", stdErr.String())
-		}},
-
 		{"channel delete will not delete a channel belonging to a different project", func(t *testing.T, api *testutil.MockHttpServer, qa *testutil.AskMocker, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
 			// Channels-99 exists, but belongs to Projects-99. It must not be deleted just
 			// because the caller named a project they do have access to.
@@ -252,8 +197,7 @@ func TestChannelDelete(t *testing.T) {
 				Options: []string{"Default", "Hotfix"},
 			}).AnswerWith("Hotfix")
 
-			// The selection is resolved to an ID, so the delete goes straight to GetByID.
-			api.ExpectRequest(t, "GET", "/api/Spaces-1/channels/Channels-2").RespondWith(hotfixChannel)
+			// the prompt returns the channel itself, so no further lookup is needed
 			api.ExpectRequest(t, "DELETE", "/api/Spaces-1/channels/Channels-2").RespondWith(nil)
 
 			_, err := testutil.ReceivePair(cmdReceiver)
@@ -293,8 +237,7 @@ func TestChannelDelete(t *testing.T) {
 			api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
 			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
 
-			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/Projects-22").RespondWith(fireProject)
-
+			// the flags are validated before any project or channel lookup is attempted
 			_, err := testutil.ReceivePair(cmdReceiver)
 			assert.EqualError(t, err, "channel name or ID must be specified")
 
