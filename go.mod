@@ -6,7 +6,7 @@ require (
 	github.com/AlecAivazis/survey/v2 v2.3.7
 	github.com/MakeNowJust/heredoc/v2 v2.0.1
 	github.com/OctopusDeploy/go-octodiff v1.0.0
-	github.com/OctopusDeploy/go-octopusdeploy/v2 v2.114.1
+	github.com/OctopusDeploy/go-octopusdeploy/v2 v2.115.0
 	github.com/bmatcuk/doublestar/v4 v4.10.0
 	github.com/briandowns/spinner v1.23.2
 	github.com/google/uuid v1.6.0
