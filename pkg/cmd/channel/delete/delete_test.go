@@ -205,6 +205,31 @@ func TestChannelDelete(t *testing.T) {
 			assert.Equal(t, "", stdErr.String())
 		}},
 
+		{"channel delete auto-selects the only channel in the project", func(t *testing.T, api *testutil.MockHttpServer, qa *testutil.AskMocker, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
+			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
+				defer api.Close()
+				rootCmd.SetArgs([]string{"channel", "delete", "-p", "Projects-22", "-y"})
+				return rootCmd.ExecuteC()
+			})
+
+			api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
+
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/Projects-22").RespondWith(fireProject)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/Projects-22/channels").
+				RespondWith(resources.Resources[*channels.Channel]{
+					Items: []*channels.Channel{hotfixChannel},
+				})
+
+			// the only channel is taken without a prompt, so no question is expected
+			api.ExpectRequest(t, "DELETE", "/api/Spaces-1/channels/Channels-2").RespondWith(nil)
+
+			_, err := testutil.ReceivePair(cmdReceiver)
+			assert.Nil(t, err)
+			assert.Contains(t, stdOut.String(), "Selecting only available channel")
+			assert.Equal(t, "", stdErr.String())
+		}},
+
 		{"channel delete errors when the project has no channels", func(t *testing.T, api *testutil.MockHttpServer, qa *testutil.AskMocker, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
 			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
 				defer api.Close()
@@ -221,8 +246,9 @@ func TestChannelDelete(t *testing.T) {
 					Items: []*channels.Channel{},
 				})
 
+			// selectors.Channel surfaces the empty option list from question.SelectMap
 			_, err := testutil.ReceivePair(cmdReceiver)
-			assert.EqualError(t, err, "project Fire Project has no channels")
+			assert.EqualError(t, err, "Select the channel you wish to delete: - no options available")
 
 			assert.Equal(t, "", stdErr.String())
 		}},

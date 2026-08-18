@@ -96,7 +96,7 @@ func viewRun(opts *ViewOptions) error {
 		return err
 	}
 
-	channel, err := shared.ResolveChannel(opts.Client, opts.Ask, opts.PromptEnabled,
+	channel, err := shared.ResolveChannel(opts.Client, opts.Ask, opts.out, opts.PromptEnabled,
 		"Select the channel you wish to view:", project, opts.idOrName)
 	if err != nil {
 		return err
