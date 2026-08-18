@@ -91,7 +91,7 @@ func deleteRun(opts *DeleteOptions) error {
 		return err
 	}
 
-	itemToDelete, err := shared.ResolveChannel(opts.Client, opts.Ask, !opts.NoPrompt,
+	itemToDelete, err := shared.ResolveChannel(opts.Client, opts.Ask, opts.Out, !opts.NoPrompt,
 		"Select the channel you wish to delete:", project, opts.IdOrName)
 	if err != nil {
 		return err
