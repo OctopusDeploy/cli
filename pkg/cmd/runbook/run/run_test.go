@@ -732,6 +732,7 @@ func TestRunbookRun_PrintAdvancedSummary(t *testing.T) {
 				  Run At: Now
 				  Skipped Steps: None
 				  Guided Failure Mode: Use default setting from the target environment
+				  Priority: Use default setting
 				  Package Download: Use cached packages (if available)
 				  Run Targets: All included
 				`), stdout.String())
@@ -742,6 +743,7 @@ func TestRunbookRun_PrintAdvancedSummary(t *testing.T) {
 				TaskOptionsRunbookRunBase: executor.TaskOptionsRunbookRunBase{
 					ScheduledStartTime:   "2022-09-23",
 					GuidedFailureMode:    "false",
+					Priority:             "true",
 					ForcePackageDownload: true,
 					ExcludedSteps:        []string{"Step 1", "Step 37"},
 					RunTargets:           []string{"vm-1", "vm-2"},
@@ -755,6 +757,7 @@ func TestRunbookRun_PrintAdvancedSummary(t *testing.T) {
 				  Run At: 2022-09-23
 				  Skipped Steps: Step 1,Step 37
 				  Guided Failure Mode: Do not use guided failure mode
+				  Priority: Jump the task queue
 				  Package Download: Re-download packages from feed
 				  Run Targets: Include vm-1,vm-2; Exclude vm-3,vm-4
 				`), stdout.String())
@@ -773,6 +776,7 @@ func TestRunbookRun_PrintAdvancedSummary(t *testing.T) {
 				  Run At: Now
 				  Skipped Steps: None
 				  Guided Failure Mode: Use default setting from the target environment
+				  Priority: Use default setting
 				  Package Download: Use cached packages (if available)
 				  Run Targets: Include vm-2
 				`), stdout.String())
@@ -791,6 +795,7 @@ func TestRunbookRun_PrintAdvancedSummary(t *testing.T) {
 				  Run At: Now
 				  Skipped Steps: None
 				  Guided Failure Mode: Use default setting from the target environment
+				  Priority: Use default setting
 				  Package Download: Use cached packages (if available)
 				  Run Targets: Exclude vm-4
 				`), stdout.String())

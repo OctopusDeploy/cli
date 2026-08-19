@@ -1948,7 +1948,7 @@ func TestDeployCreate_AutomationMode(t *testing.T) {
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+fireProject.GetName()).RespondWith(fireProject)
 
 			_, err := testutil.ReceivePair(cmdReceiver)
-			assert.EqualError(t, err, "'urgent' is not a valid value for priority")
+			assert.EqualError(t, err, "'urgent' is not a valid value for priority, expected true, false or default")
 
 			assert.Equal(t, "", stdOut.String())
 			assert.Equal(t, "", stdErr.String())
@@ -2180,7 +2180,7 @@ func TestDeployCreate_GenerationOfAutomationCommand_MasksSensitiveVariables(t *t
 	// need to very it's wired up properly
 	receiver := testutil.GoBegin2(func() (*cobra.Command, error) {
 		defer testutil.Close(api, qa)
-		rootCmd.SetArgs([]string{"release", "deploy", "--project", "fire project", "--version", "2.0", "--environment", "dev"})
+		rootCmd.SetArgs([]string{"release", "deploy", "--project", "fire project", "--version", "2.0", "--environment", "dev", "--priority", "true"})
 		return rootCmd.ExecuteC()
 	})
 
@@ -2270,6 +2270,7 @@ func TestDeployCreate_GenerationOfAutomationCommand_MasksSensitiveVariables(t *t
 		CreateExecutionAbstractCommandV1: deployments.CreateExecutionAbstractCommandV1{
 			SpaceID:         "Spaces-1",
 			ProjectIDOrName: fireProject.Name,
+			Priority:        "On",
 			Variables: map[string]string{
 				"Boring Variable":      "BORING",
 				"Nuclear Launch Codes": "9001",
@@ -2296,10 +2297,11 @@ func TestDeployCreate_GenerationOfAutomationCommand_MasksSensitiveVariables(t *t
 		  Deploy Time: Now
 		  Skipped Steps: None
 		  Guided Failure Mode: Use default setting from the target environment
+		  Priority: Jump the task queue
 		  Package Download: Use cached packages (if available)
 		  Deployment Targets: All included
 		
-		Automation Command: octopus release deploy --space 'Default Space' --project 'Fire Project' --version '2.0' --environment 'dev' --variable 'Boring Variable:BORING' --variable 'Nuclear Launch Codes:*****' --variable 'Secret Password:*****' --no-prompt
+		Automation Command: octopus release deploy --space 'Default Space' --project 'Fire Project' --version '2.0' --environment 'dev' --priority 'true' --variable 'Boring Variable:BORING' --variable 'Nuclear Launch Codes:*****' --variable 'Secret Password:*****' --no-prompt
 		Warning: Command includes some sensitive variable values which have been replaced with placeholders.
 		Successfully started 2 deployment(s)
 
@@ -2322,6 +2324,7 @@ func TestDeployCreate_PrintAdvancedSummary(t *testing.T) {
 			  Deploy Time: Now
 			  Skipped Steps: None
 			  Guided Failure Mode: Use default setting from the target environment
+			  Priority: Use default setting
 			  Package Download: Use cached packages (if available)
 			  Deployment Targets: All included
 			`), stdout.String())
@@ -2331,6 +2334,7 @@ func TestDeployCreate_PrintAdvancedSummary(t *testing.T) {
 			options := &executor.TaskOptionsDeployRelease{
 				ScheduledStartTime:   "2022-09-23",
 				GuidedFailureMode:    "false",
+				Priority:             "true",
 				ForcePackageDownload: true,
 				ExcludedSteps:        []string{"Step 1", "Step 37"},
 				DeploymentTargets:    []string{"vm-1", "vm-2"},
@@ -2343,6 +2347,7 @@ func TestDeployCreate_PrintAdvancedSummary(t *testing.T) {
 			  Deploy Time: 2022-09-23
 			  Skipped Steps: Step 1,Step 37
 			  Guided Failure Mode: Do not use guided failure mode
+			  Priority: Jump the task queue
 			  Package Download: Re-download packages from feed
 			  Deployment Targets: Include vm-1,vm-2; Exclude vm-3,vm-4
 			`), stdout.String())
@@ -2359,6 +2364,7 @@ func TestDeployCreate_PrintAdvancedSummary(t *testing.T) {
 			  Deploy Time: Now
 			  Skipped Steps: None
 			  Guided Failure Mode: Use default setting from the target environment
+			  Priority: Use default setting
 			  Package Download: Use cached packages (if available)
 			  Deployment Targets: Include vm-2
 			`), stdout.String())
@@ -2375,6 +2381,7 @@ func TestDeployCreate_PrintAdvancedSummary(t *testing.T) {
 			  Deploy Time: Now
 			  Skipped Steps: None
 			  Guided Failure Mode: Use default setting from the target environment
+			  Priority: Use default setting
 			  Package Download: Use cached packages (if available)
 			  Deployment Targets: Exclude vm-4
 			`), stdout.String())

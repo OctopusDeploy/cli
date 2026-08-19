@@ -338,6 +338,19 @@ func LookupGuidedFailureModeString(value string) string {
 	}
 }
 
+func LookupPriorityString(value string) string {
+	switch value {
+	case "", "default":
+		return "Use default setting"
+	case "true", "True":
+		return "Jump the task queue"
+	case "false", "False":
+		return "Do not jump the task queue"
+	default:
+		return fmt.Sprintf("Unknown %s", value)
+	}
+}
+
 func LookupPackageDownloadString(value bool) string {
 	if value {
 		return "Use cached packages (if available)"

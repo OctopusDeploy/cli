@@ -173,7 +173,7 @@ func NewCmdDeploy(f factory.Factory) *cobra.Command {
 	flags.BoolVarP(&deployFlags.UpdateVariables.Value, deployFlags.UpdateVariables.Name, "", false, "Overwrite the release variable snapshot by re-importing variables from the project.")
 	flags.StringArrayVarP(&deployFlags.ExcludedSteps.Value, deployFlags.ExcludedSteps.Name, "", nil, "Exclude specific steps from the deployment")
 	flags.StringVarP(&deployFlags.GuidedFailureMode.Value, deployFlags.GuidedFailureMode.Name, "", "", "Enable Guided failure mode (true/false/default)")
-	flags.StringVarP(&deployFlags.Priority.Value, deployFlags.Priority.Name, "", "", "Jump the task queue ahead of other queued tasks (true/false/default). Requires the Priority Tasks feature and the TaskPrioritize permission.")
+	flags.StringVarP(&deployFlags.Priority.Value, deployFlags.Priority.Name, "", "", "Jump the task queue ahead of other queued tasks (true/false/default). Requires the Priority Tasks feature.")
 	flags.BoolVarP(&deployFlags.ForcePackageDownload.Value, deployFlags.ForcePackageDownload.Name, "", false, "Force re-download of packages")
 	flags.StringArrayVarP(&deployFlags.DeploymentTargets.Value, deployFlags.DeploymentTargets.Name, "", nil, "Deploy to this target (can be specified multiple times)")
 	flags.StringArrayVarP(&deployFlags.ExcludeTargets.Value, deployFlags.ExcludeTargets.Name, "", nil, "Deploy to targets except for this (can be specified multiple times)")
@@ -1041,6 +1041,8 @@ func PrintAdvancedSummary(stdout io.Writer, options *executor.TaskOptionsDeployR
 
 	gfmStr := executionscommon.LookupGuidedFailureModeString(options.GuidedFailureMode)
 
+	priorityStr := executionscommon.LookupPriorityString(options.Priority)
+
 	pkgDownloadStr := executionscommon.LookupPackageDownloadString(!options.ForcePackageDownload)
 
 	depTargetsStr := "All included"
@@ -1076,9 +1078,10 @@ func PrintAdvancedSummary(stdout io.Writer, options *executor.TaskOptionsDeployR
 		  Deploy Time: cyan(%s)
 		  Skipped Steps: cyan(%s)
 		  Guided Failure Mode: cyan(%s)
+		  Priority: cyan(%s)
 		  Package Download: cyan(%s)
 		  Deployment Targets: cyan(%s)
-	`)), deployAtStr, skipStepsStr, gfmStr, pkgDownloadStr, depTargetsStr)
+	`)), deployAtStr, skipStepsStr, gfmStr, priorityStr, pkgDownloadStr, depTargetsStr)
 }
 
 func selectRelease(octopus *octopusApiClient.Client, ask question.Asker, questionText string, space *spaces.Space, project *projects.Project, channel *channels.Channel) (*releases.Release, error) {

@@ -37,7 +37,7 @@ func NewTask(taskType TaskType, options any) *Task {
 }
 
 // parsePriorityMode maps the CLI's tri-state priority value onto the server's PriorityMode.
-// An empty result means 'not specified', which leaves the server to apply the lifecycle default.
+// An empty result is omitted from the request, leaving the server to apply its own default.
 func parsePriorityMode(value string) (string, error) {
 	b, err := strconv.ParseBool(value)
 	if err == nil {
@@ -49,7 +49,7 @@ func parsePriorityMode(value string) (string, error) {
 	if value == "" || strings.EqualFold("default", value) {
 		return "", nil
 	}
-	return "", fmt.Errorf("'%s' is not a valid value for priority", value)
+	return "", fmt.Errorf("'%s' is not a valid value for priority, expected true, false or default", value)
 }
 
 // ProcessTasks iterates over the list of tasks and attempts to run them all.

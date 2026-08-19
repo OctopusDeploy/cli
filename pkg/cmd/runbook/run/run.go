@@ -175,7 +175,7 @@ func NewCmdRun(f factory.Factory) *cobra.Command {
 	flags.StringVarP(&runFlags.Snapshot.Value, runFlags.Snapshot.Name, "", "", "Name or ID of the snapshot to run. If not supplied, the command will attempt to use the published snapshot.")
 	flags.StringArrayVarP(&runFlags.ExcludedSteps.Value, runFlags.ExcludedSteps.Name, "", nil, "Exclude specific steps from the runbook")
 	flags.StringVarP(&runFlags.GuidedFailureMode.Value, runFlags.GuidedFailureMode.Name, "", "", "Enable Guided failure mode (true/false/default)")
-	flags.StringVarP(&runFlags.Priority.Value, runFlags.Priority.Name, "", "", "Jump the task queue ahead of other queued tasks (true/false/default). Requires the Priority Tasks feature and the TaskPrioritize permission.")
+	flags.StringVarP(&runFlags.Priority.Value, runFlags.Priority.Name, "", "", "Jump the task queue ahead of other queued tasks (true/false/default). Requires the Priority Tasks feature. Runbook runs have no lifecycle default, so 'default' behaves as 'false'.")
 	flags.BoolVarP(&runFlags.ForcePackageDownload.Value, runFlags.ForcePackageDownload.Name, "", false, "Force re-download of packages")
 	flags.StringArrayVarP(&runFlags.RunTargets.Value, runFlags.RunTargets.Name, "", nil, "Run on this target (can be specified multiple times)")
 	flags.StringArrayVarP(&runFlags.ExcludeTargets.Value, runFlags.ExcludeTargets.Name, "", nil, "Run on targets except for this (can be specified multiple times)")
@@ -1258,6 +1258,8 @@ func PrintAdvancedSummary(stdout io.Writer, options *executor.TaskOptionsRunbook
 
 	gfmStr := executionscommon.LookupGuidedFailureModeString(options.GuidedFailureMode)
 
+	priorityStr := executionscommon.LookupPriorityString(options.Priority)
+
 	pkgDownloadStr := executionscommon.LookupPackageDownloadString(!options.ForcePackageDownload)
 
 	runTargetsStr := "All included"
@@ -1293,9 +1295,10 @@ func PrintAdvancedSummary(stdout io.Writer, options *executor.TaskOptionsRunbook
 		  Run At: cyan(%s)
 		  Skipped Steps: cyan(%s)
 		  Guided Failure Mode: cyan(%s)
+		  Priority: cyan(%s)
 		  Package Download: cyan(%s)
 		  Run Targets: cyan(%s)
-	`)), runAtStr, skipStepsStr, gfmStr, pkgDownloadStr, runTargetsStr)
+	`)), runAtStr, skipStepsStr, gfmStr, priorityStr, pkgDownloadStr, runTargetsStr)
 }
 
 func selectRunbook(octopus *octopusApiClient.Client, ask question.Asker, questionText string, space *spaces.Space, project *projects.Project) (*runbooks.Runbook, error) {
