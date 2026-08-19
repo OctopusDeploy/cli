@@ -301,6 +301,29 @@ func AskVariableSpecificPrompt(asker question.Asker, message string, variableTyp
 	}
 }
 
+// ExpandCommaSeparated splits each entry on commas so `--flag "A,B"` behaves the same as
+// `--flag A --flag B`. Whitespace around each entry is trimmed and blank entries are dropped.
+// Only apply this to flags whose values cannot legitimately contain a comma; notably NOT to
+// --variable, --skip or the package/git-resource specs.
+func ExpandCommaSeparated(values []string) []string {
+	if len(values) == 0 {
+		return values
+	}
+	result := make([]string, 0, len(values))
+	for _, value := range values {
+		for _, component := range strings.Split(value, ",") {
+			component = strings.TrimSpace(component)
+			if component != "" {
+				result = append(result, component)
+			}
+		}
+	}
+	if len(result) == 0 {
+		return nil
+	}
+	return result
+}
+
 func ParseVariableStringArray(variables []string) (map[string]string, error) {
 	result := make(map[string]string, len(variables))
 	for _, v := range variables {
