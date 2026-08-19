@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/OctopusDeploy/cli/pkg/cmd"
+	"github.com/OctopusDeploy/cli/pkg/machinescommon"
 	"github.com/OctopusDeploy/cli/pkg/util"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/machines"
 )
@@ -41,7 +42,7 @@ func GetDeploymentTargetAsJson(deps *cmd.Dependencies, target *machines.Deployme
 		Name:               target.Name,
 		HealthStatus:       target.HealthStatus,
 		StatusSummary:      target.StatusSummary,
-		CommunicationStyle: GetCommunicationStyle(target),
+		CommunicationStyle: machinescommon.GetCommunicationStyle(target.Endpoint),
 		Environments:       environments,
 		Roles:              target.Roles,
 		Tenants:            tenants,

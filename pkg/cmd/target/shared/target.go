@@ -3,9 +3,9 @@ package shared
 import (
 	"fmt"
 	"math"
-	"net/url"
 
 	"github.com/OctopusDeploy/cli/pkg/cmd"
+	"github.com/OctopusDeploy/cli/pkg/machinescommon"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/machines"
 )
@@ -42,39 +42,10 @@ func GetAllTargets(client client.Client, query machines.MachinesQuery) ([]*machi
 	return res.Items, nil
 }
 
-// Displayed wherever the API or the SDK left us nothing to report.
-const UnknownValue = "Unknown"
-
-// Returns an empty string when the SDK left us no endpoint to read the style from.
-func GetCommunicationStyle(target *machines.DeploymentTarget) string {
-	if target == nil || machines.IsNil(target.Endpoint) {
-		return ""
-	}
-
-	return target.Endpoint.GetCommunicationStyle()
-}
-
-func FormatUri(uri *url.URL) string {
-	if uri == nil {
-		return UnknownValue
-	}
-
-	return uri.String()
-}
-
-// The API omits the version for a Tentacle it has never contacted.
-func FormatTentacleVersion(details *machines.TentacleVersionDetails) string {
-	if details == nil {
-		return UnknownValue
-	}
-
-	return details.Version
-}
-
 func GetEndpointDetails(target *machines.DeploymentTarget) map[string]string {
 	details := make(map[string]string)
 
-	switch GetCommunicationStyle(target) {
+	switch machinescommon.GetCommunicationStyle(target.Endpoint) {
 	case "AzureWebApp":
 		if endpoint, ok := target.Endpoint.(*machines.AzureWebAppEndpoint); ok {
 			webApp := endpoint.WebAppName
@@ -89,7 +60,7 @@ func GetEndpointDetails(target *machines.DeploymentTarget) map[string]string {
 		}
 	case "Ssh":
 		if endpoint, ok := target.Endpoint.(*machines.SSHEndpoint); ok {
-			details["URI"] = FormatUri(endpoint.URI)
+			details["URI"] = machinescommon.FormatUri(endpoint.URI)
 			runtime := "Mono"
 			if endpoint.DotNetCorePlatform != "" {
 				runtime = endpoint.DotNetCorePlatform
@@ -98,13 +69,13 @@ func GetEndpointDetails(target *machines.DeploymentTarget) map[string]string {
 		}
 	case "TentaclePassive":
 		if endpoint, ok := target.Endpoint.(*machines.ListeningTentacleEndpoint); ok {
-			details["URI"] = FormatUri(endpoint.URI)
-			details["Tentacle version"] = FormatTentacleVersion(endpoint.TentacleVersionDetails)
+			details["URI"] = machinescommon.FormatUri(endpoint.URI)
+			details["Tentacle version"] = machinescommon.FormatTentacleVersion(endpoint.TentacleVersionDetails)
 		}
 	case "TentacleActive":
 		if endpoint, ok := target.Endpoint.(*machines.PollingTentacleEndpoint); ok {
-			details["URI"] = FormatUri(endpoint.URI)
-			details["Tentacle version"] = FormatTentacleVersion(endpoint.TentacleVersionDetails)
+			details["URI"] = machinescommon.FormatUri(endpoint.URI)
+			details["Tentacle version"] = machinescommon.FormatTentacleVersion(endpoint.TentacleVersionDetails)
 		}
 	case "None":
 		// Cloud regions typically don't have additional endpoint details

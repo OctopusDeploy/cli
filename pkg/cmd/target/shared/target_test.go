@@ -51,26 +51,6 @@ func TestEcsTargetDeserialisesWithoutAnEndpoint(t *testing.T) {
 	assert.True(t, machines.IsNil(target.Endpoint), "expected the SDK to leave the endpoint nil for an AwsEcsCluster target")
 }
 
-func TestGetCommunicationStyle_EndpointMissing(t *testing.T) {
-	target := parseTarget(t, ecsTargetJson)
-
-	assert.NotPanics(t, func() {
-		assert.Equal(t, "", shared.GetCommunicationStyle(target))
-	})
-}
-
-func TestGetCommunicationStyle_NilTarget(t *testing.T) {
-	assert.NotPanics(t, func() {
-		assert.Equal(t, "", shared.GetCommunicationStyle(nil))
-	})
-}
-
-func TestGetCommunicationStyle_KnownEndpoint(t *testing.T) {
-	target := machines.NewDeploymentTarget("web-01", machines.NewListeningTentacleEndpoint(&url.URL{Scheme: "https", Host: "tentacle:10933"}, "thumbprint"), []string{"Environments-1"}, []string{"web"})
-
-	assert.Equal(t, "TentaclePassive", shared.GetCommunicationStyle(target))
-}
-
 func TestGetEndpointDetails_EndpointMissing(t *testing.T) {
 	target := parseTarget(t, ecsTargetJson)
 
@@ -102,12 +82,6 @@ func TestGetEndpointDetails_TentacleNeverHealthChecked(t *testing.T) {
 	})
 	assert.Equal(t, "Unknown", details["Tentacle version"])
 	assert.Equal(t, "https://tentacle:10933", details["URI"])
-}
-
-func TestFormatUri_Missing(t *testing.T) {
-	assert.NotPanics(t, func() {
-		assert.Equal(t, "Unknown", shared.FormatUri(nil))
-	})
 }
 
 func TestResolveDefaultWorkerPool_EndpointMissing(t *testing.T) {

@@ -42,13 +42,13 @@ func ViewRun(opts *shared.ViewOptions) error {
 func contributeEndpoint(opts *shared.ViewOptions, targetEndpoint machines.IEndpoint) ([]*output.DataRow, error) {
 	data := []*output.DataRow{}
 
-	endpoint, err := shared.EndpointAs[*machines.ListeningTentacleEndpoint](targetEndpoint, "Listening Tentacle")
+	endpoint, err := machinescommon.EndpointAs[*machines.ListeningTentacleEndpoint](targetEndpoint, machinescommon.DeploymentTargetNoun, "Listening Tentacle")
 	if err != nil {
 		return nil, err
 	}
 
-	data = append(data, output.NewDataRow("URI", shared.FormatUri(endpoint.URI)))
-	data = append(data, output.NewDataRow("Tentacle version", shared.FormatTentacleVersion(endpoint.TentacleVersionDetails)))
+	data = append(data, output.NewDataRow("URI", machinescommon.FormatUri(endpoint.URI)))
+	data = append(data, output.NewDataRow("Tentacle version", machinescommon.FormatTentacleVersion(endpoint.TentacleVersionDetails)))
 
 	proxyData, err := shared.ContributeProxy(opts, endpoint.ProxyID)
 	if err != nil {
