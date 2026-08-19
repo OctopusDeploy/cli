@@ -399,6 +399,54 @@ func TestRunbookRun_AutomationMode(t *testing.T) {
 			assert.Contains(t, stdOut.String(), "ServerTasks-29394\n")
 			assert.Equal(t, "", stdErr.String())
 		}},
+
+		{"runbook run accepts comma-separated environments and targets", func(t *testing.T, api *testutil.MockHttpServer, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
+			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
+				defer api.Close()
+				rootCmd.SetArgs([]string{
+					"runbook", "run",
+					"--project", "Fire Project",
+					"--runbook", "Provision Database",
+					"--environment", "dev,test", // comma form
+					// mixed form; names containing spaces are preserved, whitespace around the comma is not
+					"--run-target", "first Machine, second Machine", "--run-target", "third Machine",
+					"--exclude-run-target", "fourthMachine,fifthMachine",
+					"--output-format", "basic",
+				})
+				return rootCmd.ExecuteC()
+			})
+
+			api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/Fire Project").RespondWithJSON(fixtures.AsServerResponse(fireProject))
+
+			req := api.ExpectRequest(t, "POST", "/api/Spaces-1/runbook-runs/create/v1")
+			requestBody, err := testutil.ReadJson[runbooks.RunbookRunCommandV1](req.Request.Body)
+			assert.Nil(t, err)
+
+			assert.Equal(t, runbooks.RunbookRunCommandV1{
+				RunbookName:      "Provision Database",
+				EnvironmentNames: []string{"dev", "test"},
+				CreateExecutionAbstractCommandV1: deployments.CreateExecutionAbstractCommandV1{
+					SpaceID:              "Spaces-1",
+					ProjectIDOrName:      fireProject.Name,
+					SpecificMachineNames: []string{"first Machine", "second Machine", "third Machine"},
+					ExcludedMachineNames: []string{"fourthMachine", "fifthMachine"},
+				},
+			}, requestBody)
+
+			req.RespondWith(&runbooks.RunbookRunResponseV1{
+				RunbookRunServerTasks: []*runbooks.RunbookRunServerTask{
+					{RunbookRunID: "RunbookRun-203", ServerTaskID: "ServerTasks-29394"},
+				},
+			})
+
+			_, err = testutil.ReceivePair(cmdReceiver)
+			assert.Nil(t, err)
+
+			assert.Contains(t, stdOut.String(), "ServerTasks-29394\n")
+			assert.Equal(t, "", stdErr.String())
+		}},
 	}
 
 	for _, test := range tests {
