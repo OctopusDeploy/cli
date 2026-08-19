@@ -54,6 +54,10 @@ func ViewRun(opts *ViewOptions, contributeEndpoint ContributeEndpointCallback, d
 	data = append(data, output.NewDataRow("Worker Pools", output.FormatAsList(workerPoolNames)))
 
 	if contributeEndpoint != nil {
+		if machines.IsNil(worker.Endpoint) {
+			return fmt.Errorf("cannot view '%s' as a %s worker: its communication style is not supported by this version of the CLI", worker.Name, description)
+		}
+
 		newRows, err := contributeEndpoint(opts, worker.Endpoint)
 		if err != nil {
 			return err
@@ -67,8 +71,6 @@ func ViewRun(opts *ViewOptions, contributeEndpoint ContributeEndpointCallback, d
 
 	fmt.Fprintf(opts.Out, "\n")
 	machinescommon.DoWebForWorkers(worker, opts.Dependencies, opts.WebFlags, description)
-	return nil
-
 	return nil
 }
 
