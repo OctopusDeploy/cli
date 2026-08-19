@@ -45,7 +45,7 @@ func ViewRun(opts *shared.ViewOptions) error {
 
 func contributeEndpoint(opts *shared.ViewOptions, targetEndpoint machines.IEndpoint) ([]*output.DataRow, error) {
 	data := []*output.DataRow{}
-	endpoint, err := shared.EndpointAs[*machines.AzureWebAppEndpoint](targetEndpoint, "Azure Web App")
+	endpoint, err := machinescommon.EndpointAs[*machines.AzureWebAppEndpoint](targetEndpoint, machinescommon.DeploymentTargetNoun, "Azure Web App")
 	if err != nil {
 		return nil, err
 	}
