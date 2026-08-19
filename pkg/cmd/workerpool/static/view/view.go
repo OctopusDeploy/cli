@@ -55,9 +55,13 @@ func contributeDetails(opts *shared.ViewOptions, workerPool workerpools.IWorkerP
 	data = append(data, output.NewDataRow("Has Warnings workers", output.Yellowf("%d", len(util.SliceFilter(workers, func(w *machines.Worker) bool { return w.HealthStatus == "HasWarnings" })))))
 	data = append(data, output.NewDataRow("Unhealthy workers", output.Redf("%d", len(util.SliceFilter(workers, func(w *machines.Worker) bool { return w.HealthStatus == "Unhealthy" })))))
 	data = append(data, output.NewDataRow("Unavailable workers", output.Redf("%d", len(util.SliceFilter(workers, func(w *machines.Worker) bool { return w.HealthStatus == "Unavailable" })))))
-	data = append(data, output.NewDataRow("SSH workers", fmt.Sprintf("%d", len(util.SliceFilter(workers, func(w *machines.Worker) bool { return w.Endpoint.GetCommunicationStyle() == "Ssh" })))))
-	data = append(data, output.NewDataRow("Listening Tentacle workers", fmt.Sprintf("%d", len(util.SliceFilter(workers, func(w *machines.Worker) bool { return w.Endpoint.GetCommunicationStyle() == "TentaclePassive" })))))
-	data = append(data, output.NewDataRow("Polling Tentacle workers", fmt.Sprintf("%d", len(util.SliceFilter(workers, func(w *machines.Worker) bool { return w.Endpoint.GetCommunicationStyle() == "TentacleActive" })))))
+	data = append(data, output.NewDataRow("SSH workers", fmt.Sprintf("%d", len(util.SliceFilter(workers, func(w *machines.Worker) bool { return machinescommon.GetCommunicationStyle(w.Endpoint) == "Ssh" })))))
+	data = append(data, output.NewDataRow("Listening Tentacle workers", fmt.Sprintf("%d", len(util.SliceFilter(workers, func(w *machines.Worker) bool {
+		return machinescommon.GetCommunicationStyle(w.Endpoint) == "TentaclePassive"
+	})))))
+	data = append(data, output.NewDataRow("Polling Tentacle workers", fmt.Sprintf("%d", len(util.SliceFilter(workers, func(w *machines.Worker) bool {
+		return machinescommon.GetCommunicationStyle(w.Endpoint) == "TentacleActive"
+	})))))
 
 	return data, nil
 
