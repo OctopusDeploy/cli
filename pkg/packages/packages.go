@@ -180,6 +180,88 @@ func BuildPackageVersionBaseline(octopus *octopusApiClient.Client, packages []re
 	return result, nil
 }
 
+// FindPackagesWithoutVersions returns the deployment process template packages which the server
+// expects to have a version at release creation time, but for which no version could be found in the feed.
+// Packages with a fixed version, or which aren't resolvable until deployment time, are excluded because
+// they don't need one.
+func FindPackagesWithoutVersions(templatePackages []releases.ReleaseTemplatePackage, resolvedVersions []*StepPackageVersion) []releases.ReleaseTemplatePackage {
+	result := make([]releases.ReleaseTemplatePackage, 0)
+	for _, templatePackage := range templatePackages {
+		if templatePackage.FixedVersion != "" || !templatePackage.IsResolvable {
+			continue
+		}
+		for _, resolved := range resolvedVersions {
+			if resolved.PackageID == templatePackage.PackageID &&
+				resolved.ActionName == templatePackage.ActionName &&
+				resolved.PackageReferenceName == templatePackage.PackageReferenceName {
+				if strings.TrimSpace(resolved.Version) == "" {
+					result = append(result, templatePackage)
+				}
+				break
+			}
+		}
+	}
+	return result
+}
+
+// MissingPackageVersionsError is raised when one or more packages referenced by the deployment process
+// have no version available in their feed. The server can't assemble a release in this state; rather than
+// reporting that, it raises a null reference exception, so the CLI detects the situation itself.
+type MissingPackageVersionsError struct {
+	Packages []releases.ReleaseTemplatePackage
+	cause    error
+}
+
+func NewMissingPackageVersionsError(missingPackages []releases.ReleaseTemplatePackage, cause error) *MissingPackageVersionsError {
+	return &MissingPackageVersionsError{Packages: missingPackages, cause: cause}
+}
+
+func (e *MissingPackageVersionsError) Unwrap() error { return e.cause }
+
+func (e *MissingPackageVersionsError) Error() string {
+	sb := &strings.Builder{}
+	sb.WriteString("cannot create release; no version could be found for the following packages:")
+	for _, p := range e.Packages {
+		packageName := p.PackageID
+		if p.PackageReferenceName != "" && p.PackageReferenceName != p.PackageID {
+			packageName = fmt.Sprintf("%s/%s", packageName, p.PackageReferenceName)
+		}
+		feedName := p.FeedName
+		if feedName == "" {
+			feedName = p.FeedID
+		}
+		sb.WriteString(fmt.Sprintf("\n  - '%s' in step '%s' (feed '%s')", packageName, p.ActionName, feedName))
+	}
+	sb.WriteString("\npush the package(s) to the feed, or supply a version with --package or --package-version")
+	return sb.String()
+}
+
+// BuildPackageVersionOverrides converts the --package-version and --package command line flags into
+// resolved overrides, using the baseline to work out which step or package each override refers to.
+// Anything that can't be parsed or resolved is ignored; the server reports those.
+func BuildPackageVersionOverrides(packageVersionBaseline []*StepPackageVersion, defaultPackageVersion string, packageOverrideFlags []string) []*PackageVersionOverride {
+	packageVersionOverrides := make([]*PackageVersionOverride, 0, len(packageOverrideFlags)+1)
+
+	if defaultPackageVersion != "" {
+		// blind apply to everything
+		packageVersionOverrides = append(packageVersionOverrides, &PackageVersionOverride{Version: defaultPackageVersion})
+	}
+
+	for _, s := range packageOverrideFlags {
+		ambOverride, err := ParsePackageOverrideString(s)
+		if err != nil {
+			continue // silently ignore anything that wasn't parseable (should we emit a warning?)
+		}
+		resolvedOverride, err := ResolvePackageOverride(ambOverride, packageVersionBaseline)
+		if err != nil {
+			continue // silently ignore anything that wasn't parseable (should we emit a warning?)
+		}
+		packageVersionOverrides = append(packageVersionOverrides, resolvedOverride)
+	}
+
+	return packageVersionOverrides
+}
+
 type PackageVersionOverride struct {
 	ActionName           string // optional, but one or both of ActionName or PackageID must be supplied
 	PackageID            string // optional, but one or both of ActionName or PackageID must be supplied
@@ -539,25 +621,8 @@ func AskPackageOverrideLoop(
 	initialPackageOverrideFlags []string, // the --package command line flag (multiple occurrences)
 	asker question.Asker,
 	stdout io.Writer) ([]*StepPackageVersion, []*PackageVersionOverride, error) {
-	packageVersionOverrides := make([]*PackageVersionOverride, 0)
-
 	// pickup any partial package specifications that may have arrived on the commandline
-	if defaultPackageVersion != "" {
-		// blind apply to everything
-		packageVersionOverrides = append(packageVersionOverrides, &PackageVersionOverride{Version: defaultPackageVersion})
-	}
-
-	for _, s := range initialPackageOverrideFlags {
-		ambOverride, err := ParsePackageOverrideString(s)
-		if err != nil {
-			continue // silently ignore anything that wasn't parseable (should we emit a warning?)
-		}
-		resolvedOverride, err := ResolvePackageOverride(ambOverride, packageVersionBaseline)
-		if err != nil {
-			continue // silently ignore anything that wasn't parseable (should we emit a warning?)
-		}
-		packageVersionOverrides = append(packageVersionOverrides, resolvedOverride)
-	}
+	packageVersionOverrides := BuildPackageVersionOverrides(packageVersionBaseline, defaultPackageVersion, initialPackageOverrideFlags)
 
 	overriddenPackageVersions := ApplyPackageOverrides(packageVersionBaseline, packageVersionOverrides)
 
