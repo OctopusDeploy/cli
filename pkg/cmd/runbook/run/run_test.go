@@ -287,6 +287,7 @@ func TestRunbookRun_AutomationMode(t *testing.T) {
 					"--skip", "Install", "--skip", "Cleanup",
 					"--snapshot", "Snapshot FWKMLUX",
 					"--guided-failure", "true",
+					"--priority", "true",
 					"--force-package-download",
 					"--target", "firstMachine", "--target", "secondMachine",
 					"--exclude-target", "thirdMachine",
@@ -317,6 +318,7 @@ func TestRunbookRun_AutomationMode(t *testing.T) {
 					ExcludedMachineNames: []string{"thirdMachine"},
 					SkipStepNames:        []string{"Install", "Cleanup"},
 					UseGuidedFailure:     &trueVar,
+					Priority:             "On",
 					RunAt:                "2022-09-10 13:32:03 +10:00",
 					NoRunAfter:           "2022-09-10 13:37:03 +10:00",
 					Variables: map[string]string{
@@ -636,6 +638,7 @@ func TestGitRunbookRun_AutomationMode(t *testing.T) {
 					"--run-at-expiry", "2022-09-10 13:37:03 +10:00",
 					"--skip", "Install", "--skip", "Cleanup",
 					"--guided-failure", "true",
+					"--priority", "true",
 					"--force-package-download",
 					"--target", "firstMachine", "--target", "secondMachine",
 					"--exclude-target", "thirdMachine",
@@ -669,6 +672,7 @@ func TestGitRunbookRun_AutomationMode(t *testing.T) {
 					ExcludedMachineNames: []string{"thirdMachine"},
 					SkipStepNames:        []string{"Install", "Cleanup"},
 					UseGuidedFailure:     &trueVar,
+					Priority:             "On",
 					RunAt:                "2022-09-10 13:32:03 +10:00",
 					NoRunAfter:           "2022-09-10 13:37:03 +10:00",
 					Variables: map[string]string{

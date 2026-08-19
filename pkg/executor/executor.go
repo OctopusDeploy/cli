@@ -2,6 +2,8 @@ package executor
 
 import (
 	"fmt"
+	"strconv"
+	"strings"
 
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/spaces"
@@ -32,6 +34,22 @@ func NewTask(taskType TaskType, options any) *Task {
 		Type:    taskType,
 		Options: options,
 	}
+}
+
+// parsePriorityMode maps the CLI's tri-state priority value onto the server's PriorityMode.
+// An empty result means 'not specified', which leaves the server to apply the lifecycle default.
+func parsePriorityMode(value string) (string, error) {
+	b, err := strconv.ParseBool(value)
+	if err == nil {
+		if b {
+			return "On", nil
+		}
+		return "Off", nil
+	}
+	if value == "" || strings.EqualFold("default", value) {
+		return "", nil
+	}
+	return "", fmt.Errorf("'%s' is not a valid value for priority", value)
 }
 
 // ProcessTasks iterates over the list of tasks and attempts to run them all.

@@ -1861,6 +1861,99 @@ func TestDeployCreate_AutomationMode(t *testing.T) {
 			assert.Equal(t, "", stdErr.String())
 		}},
 
+		{"release deploy with --priority false sends Priority Off", func(t *testing.T, api *testutil.MockHttpServer, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
+			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
+				defer api.Close()
+				rootCmd.SetArgs([]string{"release", "deploy", "--project", fireProject.Name, "--version", "1.0", "--environment", "dev", "--priority", "false", "--output-format", "basic"})
+				return rootCmd.ExecuteC()
+			})
+
+			api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+fireProject.GetName()).RespondWith(fireProject)
+
+			req := api.ExpectRequest(t, "POST", "/api/Spaces-1/deployments/create/untenanted/v1")
+			requestBody, err := testutil.ReadJson[deployments.CreateDeploymentUntenantedCommandV1](req.Request.Body)
+			assert.Nil(t, err)
+
+			assert.Equal(t, deployments.CreateDeploymentUntenantedCommandV1{
+				ReleaseVersion:   "1.0",
+				EnvironmentNames: []string{"dev"},
+				CreateExecutionAbstractCommandV1: deployments.CreateExecutionAbstractCommandV1{
+					SpaceID:         "Spaces-1",
+					ProjectIDOrName: fireProject.Name,
+					Priority:        "Off",
+				},
+			}, requestBody)
+
+			req.RespondWith(&deployments.CreateDeploymentResponseV1{
+				DeploymentServerTasks: []*deployments.DeploymentServerTask{
+					{DeploymentID: "Deployments-203", ServerTaskID: "ServerTasks-29394"},
+				},
+			})
+
+			_, err = testutil.ReceivePair(cmdReceiver)
+			assert.Nil(t, err)
+
+			assert.Equal(t, "ServerTasks-29394\n", stdOut.String())
+			assert.Equal(t, "", stdErr.String())
+		}},
+
+		{"release deploy with --priority default omits Priority so the server uses the lifecycle setting", func(t *testing.T, api *testutil.MockHttpServer, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
+			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
+				defer api.Close()
+				rootCmd.SetArgs([]string{"release", "deploy", "--project", fireProject.Name, "--version", "1.0", "--environment", "dev", "--priority", "default", "--output-format", "basic"})
+				return rootCmd.ExecuteC()
+			})
+
+			api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+fireProject.GetName()).RespondWith(fireProject)
+
+			req := api.ExpectRequest(t, "POST", "/api/Spaces-1/deployments/create/untenanted/v1")
+			requestBody, err := testutil.ReadJson[deployments.CreateDeploymentUntenantedCommandV1](req.Request.Body)
+			assert.Nil(t, err)
+
+			assert.Equal(t, deployments.CreateDeploymentUntenantedCommandV1{
+				ReleaseVersion:   "1.0",
+				EnvironmentNames: []string{"dev"},
+				CreateExecutionAbstractCommandV1: deployments.CreateExecutionAbstractCommandV1{
+					SpaceID:         "Spaces-1",
+					ProjectIDOrName: fireProject.Name,
+				},
+			}, requestBody)
+
+			req.RespondWith(&deployments.CreateDeploymentResponseV1{
+				DeploymentServerTasks: []*deployments.DeploymentServerTask{
+					{DeploymentID: "Deployments-203", ServerTaskID: "ServerTasks-29394"},
+				},
+			})
+
+			_, err = testutil.ReceivePair(cmdReceiver)
+			assert.Nil(t, err)
+
+			assert.Equal(t, "ServerTasks-29394\n", stdOut.String())
+			assert.Equal(t, "", stdErr.String())
+		}},
+
+		{"release deploy rejects an unrecognised --priority value", func(t *testing.T, api *testutil.MockHttpServer, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
+			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
+				defer api.Close()
+				rootCmd.SetArgs([]string{"release", "deploy", "--project", fireProject.Name, "--version", "1.0", "--environment", "dev", "--priority", "urgent"})
+				return rootCmd.ExecuteC()
+			})
+
+			api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+fireProject.GetName()).RespondWith(fireProject)
+
+			_, err := testutil.ReceivePair(cmdReceiver)
+			assert.EqualError(t, err, "'urgent' is not a valid value for priority")
+
+			assert.Equal(t, "", stdOut.String())
+			assert.Equal(t, "", stdErr.String())
+		}},
+
 		{"release deploy specifying all the args; untentanted", func(t *testing.T, api *testutil.MockHttpServer, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
 			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
 				defer api.Close()
@@ -1873,6 +1966,7 @@ func TestDeployCreate_AutomationMode(t *testing.T) {
 					"--deploy-at-expiry", "2022-09-10 13:37:03 +10:00",
 					"--skip", "Install", "--skip", "Cleanup",
 					"--guided-failure", "true",
+					"--priority", "true",
 					"--force-package-download",
 					"--update-variables",
 					"--target", "firstMachine", "--target", "secondMachine",
@@ -1908,6 +2002,7 @@ func TestDeployCreate_AutomationMode(t *testing.T) {
 					ExcludedMachineNames: []string{"thirdMachine"},
 					SkipStepNames:        []string{"Install", "Cleanup"},
 					UseGuidedFailure:     &trueVal,
+					Priority:             "On",
 					RunAt:                "2022-09-10 13:32:03 +10:00",
 					NoRunAfter:           "2022-09-10 13:37:03 +10:00",
 					Variables: map[string]string{
@@ -1947,6 +2042,7 @@ func TestDeployCreate_AutomationMode(t *testing.T) {
 					"--tenant", "Coke", "--tenant", "Pepsi",
 					"--tenant-tag", "Region/us-east",
 					"--guided-failure", "true",
+					"--priority", "true",
 					"--force-package-download",
 					"--update-variables",
 					"--target", "firstMachine", "--target", "secondMachine",
@@ -1983,6 +2079,7 @@ func TestDeployCreate_AutomationMode(t *testing.T) {
 					ExcludedMachineNames: []string{"thirdMachine"},
 					SkipStepNames:        []string{"Install", "Cleanup"},
 					UseGuidedFailure:     &trueVal,
+					Priority:             "On",
 					RunAt:                "2022-09-10 13:32:03 +10:00",
 					NoRunAfter:           "2022-09-10 13:37:03 +10:00",
 					Variables: map[string]string{
