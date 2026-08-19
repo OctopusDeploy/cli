@@ -412,3 +412,33 @@ func TestToVariableStringArray(t *testing.T) {
 		})
 	}
 }
+
+func TestExpandCommaSeparated(t *testing.T) {
+	tests := []struct {
+		name   string
+		input  []string
+		expect []string
+	}{
+		{name: "nil stays nil", input: nil, expect: nil},
+		{name: "single value", input: []string{"ABC"}, expect: []string{"ABC"}},
+
+		{name: "comma form", input: []string{"ABC,XYZ"}, expect: []string{"ABC", "XYZ"}},
+		{name: "repeated form", input: []string{"ABC", "XYZ"}, expect: []string{"ABC", "XYZ"}},
+		{name: "mixed form", input: []string{"ABC,XYZ", "DEF"}, expect: []string{"ABC", "XYZ", "DEF"}},
+
+		{name: "preserves spaces within values", input: []string{"Web Server 01,Web Server 02"}, expect: []string{"Web Server 01", "Web Server 02"}},
+		{name: "trims spaces around values", input: []string{" ABC ,\tXYZ "}, expect: []string{"ABC", "XYZ"}},
+
+		{name: "preserves order and duplicates", input: []string{"ABC,ABC"}, expect: []string{"ABC", "ABC"}},
+		{name: "tenant tags", input: []string{"Regions/us-east,Regions/us-west"}, expect: []string{"Regions/us-east", "Regions/us-west"}},
+
+		{name: "drops blank entries", input: []string{"ABC,,XYZ"}, expect: []string{"ABC", "XYZ"}},
+		{name: "all blank entries returns nil", input: []string{"", " , "}, expect: nil},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			assert.Equal(t, test.expect, executionscommon.ExpandCommaSeparated(test.input))
+		})
+	}
+}
