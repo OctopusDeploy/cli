@@ -8,6 +8,8 @@ github.com/OctopusDeploy/go-octodiff v1.0.0 h1:U+ORg6azniwwYo+O44giOw6TiD5USk8S4
 github.com/OctopusDeploy/go-octodiff v1.0.0/go.mod h1:Mze0+EkOWTgTmi8++fyUc6r0aLZT7qD9gX+31t8MmIU=
 github.com/OctopusDeploy/go-octopusdeploy/v2 v2.114.1 h1:7lrYQSCo2HeixFRBGGKA8a7QjuBw9L+4A4kmUDUEzSE=
 github.com/OctopusDeploy/go-octopusdeploy/v2 v2.114.1/go.mod h1:VkTXDoIPbwGFi5+goo1VSwFNdMVo784cVtJdKIEvfus=
+github.com/OctopusDeploy/go-octopusdeploy/v2 v2.115.1-0.20260819065856-b6f0f290712d h1:iCMRfyFo2hKQ0zu95s5T9FUwQQ3ucvQxrjZ8So6uM5c=
+github.com/OctopusDeploy/go-octopusdeploy/v2 v2.115.1-0.20260819065856-b6f0f290712d/go.mod h1:VkTXDoIPbwGFi5+goo1VSwFNdMVo784cVtJdKIEvfus=
 github.com/bmatcuk/doublestar/v4 v4.10.0 h1:zU9WiOla1YA122oLM6i4EXvGW62DvKZVxIe6TYWexEs=
 github.com/bmatcuk/doublestar/v4 v4.10.0/go.mod h1:xBQ8jztBU6kakFMg+8WGxn0c6z1fTSPVIjEY1Wr7jzc=
 github.com/briandowns/spinner v1.23.2 h1:Zc6ecUnI+YzLmJniCfDNaMbW0Wid1d5+qcTq4L2FW8w=
