@@ -40,14 +40,5 @@ func SelectRelease(octopus *client.Client, project *projects.Project, ask questi
 }
 
 func FindRelease(octopus *client.Client, project *projects.Project, version string) (*releases.Release, error) {
-	existingRelease, err := releases.GetReleaseInProject(octopus, octopus.GetSpaceID(), project.GetID(), version)
-	if err != nil {
-		return nil, err
-	}
-
-	if existingRelease == nil {
-		return nil, fmt.Errorf("unable to locate a release with version/release number '%s'", version)
-	}
-
-	return existingRelease, nil
+	return selectors.FindRelease(octopus, octopus.GetSpaceID(), project, version)
 }
