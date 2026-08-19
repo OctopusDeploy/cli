@@ -29,12 +29,12 @@ const (
 
 // keys for key/value store config file
 const (
-	ConfigUrl         = "Url"
-	ConfigApiKey      = "ApiKey"
-	ConfigAccessToken = "AccessToken"
-	ConfigSpace       = "Space"
-	ConfigNoPrompt    = "NoPrompt"
-	// ConfigProxyUrl     = "ProxyUrl"
+	ConfigUrl          = "Url"
+	ConfigApiKey       = "ApiKey"
+	ConfigAccessToken  = "AccessToken"
+	ConfigSpace        = "Space"
+	ConfigNoPrompt     = "NoPrompt"
+	ConfigProxyUrl     = "ProxyUrl"
 	ConfigEditor       = "Editor"
 	ConfigShowOctopus  = "ShowOctopus"
 	ConfigOutputFormat = "OutputFormat"
@@ -45,9 +45,13 @@ const (
 	EnvOctopusApiKey      = "OCTOPUS_API_KEY"
 	EnvOctopusAccessToken = "OCTOPUS_ACCESS_TOKEN"
 	EnvOctopusSpace       = "OCTOPUS_SPACE"
-	EnvEditor             = "EDITOR"
-	EnvVisual             = "VISUAL"
-	EnvCI                 = "CI"
+	EnvOctopusProxy       = "OCTOPUS_PROXY"
+	// Proxy credentials are environment-only; they are never stored in the config file
+	EnvOctopusProxyUsername = "OCTOPUS_PROXY_USERNAME"
+	EnvOctopusProxyPassword = "OCTOPUS_PROXY_PASSWORD"
+	EnvEditor               = "EDITOR"
+	EnvVisual               = "VISUAL"
+	EnvCI                   = "CI"
 )
 
 const (

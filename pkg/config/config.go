@@ -27,7 +27,7 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault(constants.ConfigApiKey, "")
 	v.SetDefault(constants.ConfigSpace, "")
 	v.SetDefault(constants.ConfigNoPrompt, false)
-	//	v.SetDefault(constants.ConfigProxyUrl, "")
+	v.SetDefault(constants.ConfigProxyUrl, "")
 	v.SetDefault(constants.ConfigShowOctopus, true)
 	v.SetDefault(constants.ConfigOutputFormat, "table")
 
@@ -49,6 +49,9 @@ func bindEnvironment(v *viper.Viper) error {
 		return err
 	}
 	if err := v.BindEnv(constants.ConfigSpace, constants.EnvOctopusSpace); err != nil {
+		return err
+	}
+	if err := v.BindEnv(constants.ConfigProxyUrl, constants.EnvOctopusProxy); err != nil {
 		return err
 	}
 	// Envs will take precedence in the specified order
