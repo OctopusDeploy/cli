@@ -10,6 +10,7 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/OctopusDeploy/cli/pkg/question"
+	"github.com/OctopusDeploy/cli/pkg/util/shell"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -67,13 +68,19 @@ func setRun(isPromptEnabled bool, ask question.Asker, key string, value string) 
 		key = k
 	}
 	key = strings.ToLower(key)
-	if key == strings.ToLower(constants.ConfigNoPrompt) {
+	switch key {
+	case strings.ToLower(constants.ConfigNoPrompt):
 		boolValue, err := strconv.ParseBool(value)
 		if err != nil {
 			return fmt.Errorf("the provided value %s is not valid for NoPrompt, please use true of false", value)
 		}
 		localViper.Set(key, boolValue)
-	} else {
+	case strings.ToLower(constants.ConfigShell):
+		if err := shell.Validate(value); err != nil {
+			return err
+		}
+		localViper.Set(key, value)
+	default:
 		localViper.Set(key, value)
 	}
 	if err := localViper.WriteConfig(); err != nil {
@@ -91,6 +98,7 @@ func promptMissing(ask question.Asker, key string) (string, string, error) {
 		constants.ConfigOutputFormat,
 		constants.ConfigShowOctopus,
 		constants.ConfigEditor,
+		constants.ConfigShell,
 		// constants.ConfigProxyUrl,
 	}
 
