@@ -419,6 +419,7 @@ func TestRunbookRun_AutomationMode(t *testing.T) {
 			api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
 			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/Fire Project").RespondWithJSON(fixtures.AsServerResponse(fireProject))
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/environments/all").RespondWith([]*environments.Environment{devEnvironment, testEnvironment})
 
 			req := api.ExpectRequest(t, "POST", "/api/Spaces-1/runbook-runs/create/v1")
 			requestBody, err := testutil.ReadJson[runbooks.RunbookRunCommandV1](req.Request.Body)

@@ -1706,6 +1706,7 @@ func TestDeployCreate_AutomationMode(t *testing.T) {
 
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/tenants/"+cokeTenant.ID).RespondWith(cokeTenant)
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+fireProjectID).RespondWith(fireProject)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+fireProjectID+"/releases/1.0").RespondWith(release10)
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/environments/all").RespondWith([]*environments.Environment{devEnvironment, testEnvironment})
 
 			req := api.ExpectRequest(t, "POST", "/api/Spaces-1/deployments/create/tenanted/v1")
@@ -1729,13 +1730,6 @@ func TestDeployCreate_AutomationMode(t *testing.T) {
 					{DeploymentID: "Deployments-203", ServerTaskID: "ServerTasks-29394"},
 				},
 			})
-
-			// now it's going to try and look up the project/version to generate the web URL
-			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/Fire Project").RespondWithStatus(404, "NotFound", nil)
-			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects?partialName=Fire+Project").RespondWith(resources.Resources[*projects.Project]{
-				Items: []*projects.Project{fireProject},
-			})
-			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+fireProjectID+"/releases/1.0").RespondWith(release10)
 
 			_, err = testutil.ReceivePair(cmdReceiver)
 			assert.Nil(t, err)
@@ -2137,6 +2131,8 @@ func TestDeployCreate_AutomationMode(t *testing.T) {
 			api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
 			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+fireProject.GetName()).RespondWith(fireProject)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+fireProjectID+"/releases/1.0").RespondWith(release10)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/environments/all").RespondWith([]*environments.Environment{devEnvironment, testEnvironment})
 
 			req := api.ExpectRequest(t, "POST", "/api/Spaces-1/deployments/create/untenanted/v1")
 			requestBody, err := testutil.ReadJson[deployments.CreateDeploymentUntenantedCommandV1](req.Request.Body)
@@ -2183,7 +2179,14 @@ func TestDeployCreate_AutomationMode(t *testing.T) {
 
 			api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
 			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/tenants/Coke").RespondWithStatus(404, "NotFound", nil)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/tenants?partialName=Coke").RespondWith(resources.Resources[*tenants.Tenant]{Items: []*tenants.Tenant{cokeTenant}})
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/tenants/Pepsi").RespondWithStatus(404, "NotFound", nil)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/tenants?partialName=Pepsi").RespondWith(resources.Resources[*tenants.Tenant]{Items: []*tenants.Tenant{pepsiTenant}})
+
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+fireProject.GetName()).RespondWith(fireProject)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+fireProjectID+"/releases/1.0").RespondWith(release10)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/environments/all").RespondWith([]*environments.Environment{devEnvironment, testEnvironment})
 
 			req := api.ExpectRequest(t, "POST", "/api/Spaces-1/deployments/create/tenanted/v1")
 			requestBody, err := testutil.ReadJson[deployments.CreateDeploymentTenantedCommandV1](req.Request.Body)
