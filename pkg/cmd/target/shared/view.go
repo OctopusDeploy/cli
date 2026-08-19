@@ -40,16 +40,6 @@ func NewViewOptions(viewFlags *ViewFlags, dependencies *cmd.Dependencies, args [
 	}
 }
 
-func EndpointAs[T machines.IEndpoint](endpoint machines.IEndpoint, description string) (T, error) {
-	typedEndpoint, ok := endpoint.(T)
-	if !ok {
-		var zero T
-		return zero, fmt.Errorf("this deployment target is not a %s deployment target", description)
-	}
-
-	return typedEndpoint, nil
-}
-
 func ViewRun(opts *ViewOptions, contributeEndpoint ContributeEndpointCallback, description string) error {
 	var target, err = opts.Client.Machines.GetByIdentifier(opts.IdOrName)
 	if err != nil {

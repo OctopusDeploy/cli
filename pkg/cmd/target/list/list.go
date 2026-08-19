@@ -90,16 +90,7 @@ func ListRun(opts *ListOptions) error {
 }
 
 func describeTargetType(target *machines.DeploymentTarget) string {
-	communicationStyle := shared.GetCommunicationStyle(target)
-	if communicationStyle == "" {
-		return shared.UnknownValue
-	}
-
-	if description, ok := machinescommon.CommunicationStyleToDescriptionMap[communicationStyle]; ok {
-		return description
-	}
-
-	return communicationStyle
+	return machinescommon.DescribeCommunicationStyle(target.Endpoint, machinescommon.CommunicationStyleToDescriptionMap)
 }
 
 func resolveValues(keys []string, lookup map[string]string) []string {

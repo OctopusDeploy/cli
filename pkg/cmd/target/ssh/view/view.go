@@ -41,12 +41,12 @@ func ViewRun(opts *shared.ViewOptions) error {
 
 func contributeEndpoint(opts *shared.ViewOptions, targetEndpoint machines.IEndpoint) ([]*output.DataRow, error) {
 	data := []*output.DataRow{}
-	endpoint, err := shared.EndpointAs[*machines.SSHEndpoint](targetEndpoint, "SSH")
+	endpoint, err := machinescommon.EndpointAs[*machines.SSHEndpoint](targetEndpoint, machinescommon.DeploymentTargetNoun, "SSH")
 	if err != nil {
 		return nil, err
 	}
 
-	data = append(data, output.NewDataRow("URI", shared.FormatUri(endpoint.URI)))
+	data = append(data, output.NewDataRow("URI", machinescommon.FormatUri(endpoint.URI)))
 	data = append(data, output.NewDataRow("Runtime architecture", getRuntimeArchitecture(endpoint)))
 	accountRows, err := shared.ContributeAccount(opts, endpoint.AccountID)
 	if err != nil {

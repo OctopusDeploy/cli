@@ -40,7 +40,7 @@ func ViewRun(opts *shared.ViewOptions) error {
 
 func contributeEndpoint(_ *shared.ViewOptions, targetEndpoint machines.IEndpoint) ([]*output.DataRow, error) {
 	data := []*output.DataRow{}
-	endpoint, err := shared.EndpointAs[*machines.KubernetesEndpoint](targetEndpoint, "Kubernetes")
+	endpoint, err := machinescommon.EndpointAs[*machines.KubernetesEndpoint](targetEndpoint, machinescommon.DeploymentTargetNoun, "Kubernetes")
 	if err != nil {
 		return nil, err
 	}
