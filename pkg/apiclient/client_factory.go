@@ -9,6 +9,7 @@ import (
 
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/constants"
+	"github.com/OctopusDeploy/cli/pkg/dryrun"
 	"github.com/OctopusDeploy/cli/pkg/output"
 	"github.com/OctopusDeploy/cli/pkg/question"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/spaces"
@@ -45,6 +46,12 @@ type ClientFactory interface {
 
 	// GetHttpClient returns a raw http client which can be used to query Octopus
 	GetHttpClient() (*http.Client, error)
+
+	// SetDryRun puts the client into dry-run mode, where any request that would change
+	// server state is refused before it is sent. It backstops the per-command --dry-run
+	// implementations; a command which hasn't finished implementing dry run fails loudly
+	// rather than mutating Octopus while claiming it did not.
+	SetDryRun(enabled bool)
 }
 
 type Client struct {
@@ -73,6 +80,9 @@ type Client struct {
 	ActiveSpace *spaces.Space
 
 	Ask question.AskProvider
+
+	// true once the dry-run guard has been installed on HttpClient
+	dryRun bool
 }
 
 func NewClientFactory(httpClient *http.Client, host string, credentials octopusApiClient.ICredential, spaceNameOrID string, ask question.AskProvider) (ClientFactory, error) {
@@ -257,6 +267,21 @@ func (c *Client) GetHttpClient() (*http.Client, error) {
 	return c.HttpClient, nil
 }
 
+// SetDryRun wraps the transport in the dry-run guard. It must be called before the
+// space-scoped or system clients are created, which is why the root command arms it
+// from PersistentPreRun; both clients are built lazily during RunE.
+func (c *Client) SetDryRun(enabled bool) {
+	if !enabled || c.dryRun {
+		return
+	}
+	c.dryRun = true
+
+	if c.HttpClient == nil {
+		c.HttpClient = &http.Client{}
+	}
+	c.HttpClient.Transport = dryrun.NewGuardRoundTripper(c.HttpClient.Transport)
+}
+
 func (c *Client) SetSpaceNameOrId(spaceNameOrId string) {
 	// technically don't need to nil out the SystemClient, but it's cleaner that way
 	// because a SpaceScopedClient can also be a SystemClient
@@ -408,3 +433,5 @@ func (s *stubClientFactory) GetHostUrl() string { return "" }
 func (s *stubClientFactory) GetHttpClient() (*http.Client, error) {
 	return nil, nil
 }
+
+func (s *stubClientFactory) SetDryRun(_ bool) {}
