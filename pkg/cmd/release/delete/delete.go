@@ -9,6 +9,7 @@ import (
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/constants"
+	"github.com/OctopusDeploy/cli/pkg/dryrun"
 	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/OctopusDeploy/cli/pkg/output"
 	"github.com/OctopusDeploy/cli/pkg/question"
@@ -30,12 +31,14 @@ const (
 type Flags struct {
 	Project *flag.Flag[string]
 	Version *flag.Flag[[]string]
+	DryRun  *flag.Flag[bool]
 }
 
 func NewFlags() *Flags {
 	return &Flags{
 		Project: flag.New[string](FlagProject, false),
 		Version: flag.New[[]string](FlagVersion, false),
+		DryRun:  flag.New[bool](constants.FlagDryRun, false),
 	}
 }
 
@@ -49,6 +52,7 @@ func NewCmdDelete(f factory.Factory) *cobra.Command {
 			%[1]s release delete myProject 2.0
 			%[1]s release delete --project myProject --version 2.0
 			%[1]s release rm "Other Project" -v 2.0
+			%[1]s release delete --project myProject --version 2.0 --dry-run
 		`, constants.ExecutableName),
 		Aliases: []string{"del", "rm"},
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -59,6 +63,7 @@ func NewCmdDelete(f factory.Factory) *cobra.Command {
 	flags := cmd.Flags()
 	flags.StringVarP(&cmdFlags.Project.Value, cmdFlags.Project.Name, "p", "", "Name or ID of the project to delete releases in")
 	flags.StringArrayVarP(&cmdFlags.Version.Value, cmdFlags.Version.Name, "v", make([]string, 0), "Release version to delete, can be specified multiple times")
+	dryrun.AddFlag(flags, &cmdFlags.DryRun.Value)
 	return cmd
 }
 
@@ -126,23 +131,25 @@ func deleteRun(cmd *cobra.Command, f factory.Factory, flags *Flags, args []strin
 			return nil // no work to do, just exit
 		}
 
-		// prompt for confirmation
-		cmd.Printf("You are about to delete the following releases:\n")
-		for _, r := range releasesToDelete {
-			cmd.Printf("%s\n", r.Version)
-		}
+		// a dry run never deletes anything, so there is nothing to confirm; the plan
+		// printed below says what would have happened instead
+		if !flags.DryRun.Value {
+			cmd.Printf("You are about to delete the following releases:\n")
+			for _, r := range releasesToDelete {
+				cmd.Printf("%s\n", r.Version)
+			}
 
-		var isConfirmed bool
-		if err = f.Ask(&survey.Confirm{
-			Message: fmt.Sprintf("Confirm delete of %d release(s)", len(releasesToDelete)),
-			Default: false,
-		}, &isConfirmed); err != nil {
-			return err
+			var isConfirmed bool
+			if err = f.Ask(&survey.Confirm{
+				Message: fmt.Sprintf("Confirm delete of %d release(s)", len(releasesToDelete)),
+				Default: false,
+			}, &isConfirmed); err != nil {
+				return err
+			}
+			if !isConfirmed {
+				return nil // nothing to be done here
+			}
 		}
-		if !isConfirmed {
-			return nil // nothing to be done here
-		}
-
 	} else { // we don't have the executions API backing us and allowing NameOrID; we need to do the lookups ourselves
 		releasesToDelete, err = findReleases(octopus, selectedProject, versionsToDelete)
 		if err != nil {
@@ -152,6 +159,11 @@ func deleteRun(cmd *cobra.Command, f factory.Factory, flags *Flags, args []strin
 
 	if len(releasesToDelete) == 0 {
 		// no work to do, just exit
+		return nil
+	}
+
+	if flags.DryRun.Value {
+		printDeletePlan(cmd, selectedProject, releasesToDelete)
 		return nil
 	}
 
@@ -176,6 +188,15 @@ func deleteRun(cmd *cobra.Command, f factory.Factory, flags *Flags, args []strin
 		cmd.Printf("Deleted %d releases. %d releases failed\n", actuallyDeletedCount, failedCount)
 	}
 	return releaseDeleteErrors.ErrorOrNil()
+}
+
+func printDeletePlan(cmd *cobra.Command, project *projects.Project, releasesToDelete []*releases.Release) {
+	dryrun.Header(cmd)
+	cmd.Printf("Would delete %d release(s) from project %s:\n", len(releasesToDelete), output.Cyan(project.GetName()))
+	for _, r := range releasesToDelete {
+		cmd.Printf("  %s\n", r.Version)
+	}
+	dryrun.Footer(cmd, "no releases were deleted.")
 }
 
 func selectReleases(octopus *octopusApiClient.Client, project *projects.Project, ask question.Asker) ([]*releases.Release, error) {

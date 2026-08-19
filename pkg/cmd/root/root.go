@@ -25,6 +25,7 @@ import (
 	workerCmd "github.com/OctopusDeploy/cli/pkg/cmd/worker"
 	workerPoolCmd "github.com/OctopusDeploy/cli/pkg/cmd/workerpool"
 	"github.com/OctopusDeploy/cli/pkg/constants"
+	"github.com/OctopusDeploy/cli/pkg/dryrun"
 	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/OctopusDeploy/cli/pkg/question"
 	"github.com/spf13/cobra"
@@ -116,7 +117,7 @@ func NewCmdRoot(f factory.Factory, clientFactory apiclient.ClientFactory, askPro
 	// if we attempt to check the flags before Execute is called, cobra hasn't parsed anything yet,
 	// so we'll get bad values. PersistentPreRun is a convenient callback for setting up our
 	// environment after parsing but before execution.
-	cmd.PersistentPreRun = func(_ *cobra.Command, _ []string) {
+	cmd.PersistentPreRun = func(executedCmd *cobra.Command, _ []string) {
 		// map flag alias values
 		for k, v := range flagAliases {
 			for _, aliasName := range v {
@@ -137,6 +138,13 @@ func NewCmdRoot(f factory.Factory, clientFactory apiclient.ClientFactory, askPro
 
 		if spaceNameOrId := viper.GetString(constants.ConfigSpace); spaceNameOrId != "" {
 			clientFactory.SetSpaceNameOrId(spaceNameOrId)
+		}
+
+		// --dry-run is declared by the individual commands that support it, not here.
+		// Arming the client guard means that if such a command still reaches a mutating
+		// endpoint, the request is refused rather than quietly going through.
+		if clientFactory != nil && dryrun.IsEnabled(executedCmd) {
+			clientFactory.SetDryRun(true)
 		}
 	}
 
