@@ -1,4 +1,4 @@
-package update_variables_test
+package snapshot_variables_test
 
 import (
 	"bytes"
@@ -19,7 +19,7 @@ import (
 
 var rootResource = testutil.NewRootResource()
 
-func TestRunbookSnapshotUpdateVariables(t *testing.T) {
+func TestRunbookSnapshotVariables(t *testing.T) {
 	const spaceID = "Spaces-1"
 	const fireProjectID = "Projects-22"
 	const waterProjectID = "Projects-23"
@@ -63,7 +63,7 @@ func TestRunbookSnapshotUpdateVariables(t *testing.T) {
 		{"noprompt: missing --project returns clear error", func(t *testing.T, api *testutil.MockHttpServer, qa *testutil.AskMocker, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
 			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
 				defer api.Close()
-				rootCmd.SetArgs([]string{"runbook", "snapshot", "update-variables", "--runbook", rebuildIndexes.Name, "--no-prompt"})
+				rootCmd.SetArgs([]string{"runbook", "snapshot", "snapshot-variables", "--runbook", rebuildIndexes.Name, "--no-prompt"})
 				return rootCmd.ExecuteC()
 			})
 
@@ -77,7 +77,7 @@ func TestRunbookSnapshotUpdateVariables(t *testing.T) {
 		{"noprompt: missing --runbook returns clear error", func(t *testing.T, api *testutil.MockHttpServer, qa *testutil.AskMocker, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
 			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
 				defer api.Close()
-				rootCmd.SetArgs([]string{"runbook", "snapshot", "update-variables", "--project", fireProject.Name, "--no-prompt"})
+				rootCmd.SetArgs([]string{"runbook", "snapshot", "snapshot-variables", "--project", fireProject.Name, "--no-prompt"})
 				return rootCmd.ExecuteC()
 			})
 
@@ -91,7 +91,7 @@ func TestRunbookSnapshotUpdateVariables(t *testing.T) {
 		{"noprompt with --snapshot: posts to named snapshot", func(t *testing.T, api *testutil.MockHttpServer, qa *testutil.AskMocker, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
 			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
 				defer api.Close()
-				rootCmd.SetArgs([]string{"runbook", "snapshot", "update-variables",
+				rootCmd.SetArgs([]string{"runbook", "snapshot", "snapshot-variables",
 					"--project", fireProject.Name,
 					"--runbook", rebuildIndexes.Name,
 					"--snapshot", otherSnapshot.Name,
@@ -115,7 +115,7 @@ func TestRunbookSnapshotUpdateVariables(t *testing.T) {
 		{"noprompt without --snapshot: defaults to published snapshot and announces it", func(t *testing.T, api *testutil.MockHttpServer, qa *testutil.AskMocker, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
 			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
 				defer api.Close()
-				rootCmd.SetArgs([]string{"runbook", "snapshot", "update-variables",
+				rootCmd.SetArgs([]string{"runbook", "snapshot", "snapshot-variables",
 					"--project", fireProject.Name,
 					"--runbook", rebuildIndexes.Name,
 					"--no-prompt"})
@@ -139,7 +139,7 @@ func TestRunbookSnapshotUpdateVariables(t *testing.T) {
 
 			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
 				defer api.Close()
-				rootCmd.SetArgs([]string{"runbook", "snapshot", "update-variables",
+				rootCmd.SetArgs([]string{"runbook", "snapshot", "snapshot-variables",
 					"--project", fireProject.Name,
 					"--runbook", noPublished.Name,
 					"--no-prompt"})
@@ -162,7 +162,7 @@ func TestRunbookSnapshotUpdateVariables(t *testing.T) {
 		{"server returns non-2xx status returns wrapped error including body", func(t *testing.T, api *testutil.MockHttpServer, qa *testutil.AskMocker, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
 			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
 				defer api.Close()
-				rootCmd.SetArgs([]string{"runbook", "snapshot", "update-variables",
+				rootCmd.SetArgs([]string{"runbook", "snapshot", "snapshot-variables",
 					"--project", fireProject.Name,
 					"--runbook", rebuildIndexes.Name,
 					"--no-prompt"})
@@ -184,7 +184,7 @@ func TestRunbookSnapshotUpdateVariables(t *testing.T) {
 		{"interactive: prompts for project and runbook then updates published snapshot with automation command", func(t *testing.T, api *testutil.MockHttpServer, qa *testutil.AskMocker, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
 			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
 				defer api.Close()
-				rootCmd.SetArgs([]string{"runbook", "snapshot", "update-variables"})
+				rootCmd.SetArgs([]string{"runbook", "snapshot", "snapshot-variables"})
 				return rootCmd.ExecuteC()
 			})
 

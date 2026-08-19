@@ -1,4 +1,4 @@
-package update_variables
+package snapshot_variables
 
 import (
 	"errors"
@@ -22,57 +22,57 @@ const (
 	FlagVersion = "version"
 )
 
-type UpdateVariablesFlags struct {
+type SnapshotVariablesFlags struct {
 	Project *flag.Flag[string]
 	Version *flag.Flag[string]
 }
 
-func NewUpdateVariablesFlags() *UpdateVariablesFlags {
-	return &UpdateVariablesFlags{
+func NewSnapshotVariablesFlags() *SnapshotVariablesFlags {
+	return &SnapshotVariablesFlags{
 		Project: flag.New[string](FlagProject, false),
 		Version: flag.New[string](FlagVersion, false),
 	}
 }
 
-type UpdateVariablesOptions struct {
-	*UpdateVariablesFlags
+type SnapshotVariablesOptions struct {
+	*SnapshotVariablesFlags
 	*cmd.Dependencies
 }
 
-func NewUpdateVariablesOptions(flags *UpdateVariablesFlags, dependencies *cmd.Dependencies) *UpdateVariablesOptions {
-	return &UpdateVariablesOptions{
-		UpdateVariablesFlags: flags,
-		Dependencies:         dependencies,
+func NewSnapshotVariablesOptions(flags *SnapshotVariablesFlags, dependencies *cmd.Dependencies) *SnapshotVariablesOptions {
+	return &SnapshotVariablesOptions{
+		SnapshotVariablesFlags: flags,
+		Dependencies:           dependencies,
 	}
 }
 
-func NewCmdUpdateVariables(f factory.Factory) *cobra.Command {
-	updateVariablesFlags := NewUpdateVariablesFlags()
+func NewCmdSnapshotVariables(f factory.Factory) *cobra.Command {
+	snapshotVariablesFlags := NewSnapshotVariablesFlags()
 
 	cmd := &cobra.Command{
-		Use:   "update-variables",
+		Use:   "snapshot-variables",
 		Short: "Update the variable snapshot for a release",
 		Long:  "Update the variable snapshot for a release in Octopus Deploy",
 		Example: heredoc.Docf(`
-			$ %[1]s release update-variables --project MyProject --version 1.2.3
-			$ %[1]s release update-variables -p MyProject -v 1.2.3
+			$ %[1]s release snapshot-variables --project MyProject --version 1.2.3
+			$ %[1]s release snapshot-variables -p MyProject -v 1.2.3
 		`, constants.ExecutableName),
 		RunE: func(c *cobra.Command, args []string) error {
-			opts := NewUpdateVariablesOptions(updateVariablesFlags, cmd.NewDependencies(f, c))
-			return updateVariablesRun(opts)
+			opts := NewSnapshotVariablesOptions(snapshotVariablesFlags, cmd.NewDependencies(f, c))
+			return snapshotVariablesRun(opts)
 		},
 	}
 
 	flags := cmd.Flags()
-	flags.StringVarP(&updateVariablesFlags.Project.Value, updateVariablesFlags.Project.Name, "p", "", "Name or ID of the project")
-	flags.StringVarP(&updateVariablesFlags.Version.Value, updateVariablesFlags.Version.Name, "v", "", "Release version/number")
+	flags.StringVarP(&snapshotVariablesFlags.Project.Value, snapshotVariablesFlags.Project.Name, "p", "", "Name or ID of the project")
+	flags.StringVarP(&snapshotVariablesFlags.Version.Value, snapshotVariablesFlags.Version.Name, "v", "", "Release version/number")
 
 	flags.SortFlags = false
 
 	return cmd
 }
 
-func updateVariablesRun(opts *UpdateVariablesOptions) error {
+func snapshotVariablesRun(opts *SnapshotVariablesOptions) error {
 	if !opts.NoPrompt {
 		if err := PromptMissing(opts); err != nil {
 			return err
@@ -91,7 +91,7 @@ func updateVariablesRun(opts *UpdateVariablesOptions) error {
 		return err
 	}
 
-	if _, err := releases.SnapshotVariables(opts.Client, opts.Client.GetSpaceID(), releaseID); err != nil {
+	if _, err := releases.UpdateSnapshotVariables(opts.Client, opts.Client.GetSpaceID(), releaseID); err != nil {
 		return err
 	}
 
@@ -107,7 +107,7 @@ func updateVariablesRun(opts *UpdateVariablesOptions) error {
 	return nil
 }
 
-func PromptMissing(opts *UpdateVariablesOptions) error {
+func PromptMissing(opts *SnapshotVariablesOptions) error {
 	var selectedProject *projects.Project
 	var err error
 
@@ -121,6 +121,9 @@ func PromptMissing(opts *UpdateVariablesOptions) error {
 		selectedProject, err = selectors.FindProject(opts.Client, opts.Project.Value)
 		if err != nil {
 			return err
+		}
+		if selectedProject == nil {
+			return fmt.Errorf("unable to find project '%s'", opts.Project.Value)
 		}
 	}
 

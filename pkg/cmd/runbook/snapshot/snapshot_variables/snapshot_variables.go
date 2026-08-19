@@ -1,4 +1,4 @@
-package update_variables
+package snapshot_variables
 
 import (
 	"errors"
@@ -23,61 +23,61 @@ const (
 	FlagSnapshot = "snapshot"
 )
 
-type UpdateVariablesFlags struct {
+type SnapshotVariablesFlags struct {
 	Project  *flag.Flag[string]
 	Runbook  *flag.Flag[string]
 	Snapshot *flag.Flag[string]
 }
 
-func NewUpdateVariablesFlags() *UpdateVariablesFlags {
-	return &UpdateVariablesFlags{
+func NewSnapshotVariablesFlags() *SnapshotVariablesFlags {
+	return &SnapshotVariablesFlags{
 		Project:  flag.New[string](FlagProject, false),
 		Runbook:  flag.New[string](FlagRunbook, false),
 		Snapshot: flag.New[string](FlagSnapshot, false),
 	}
 }
 
-type UpdateVariablesOptions struct {
-	*UpdateVariablesFlags
+type SnapshotVariablesOptions struct {
+	*SnapshotVariablesFlags
 	*shared.RunbooksOptions
 	GetAllProjectsCallback shared.GetAllProjectsCallback
 	*cmd.Dependencies
 }
 
-func NewUpdateVariablesOptions(updateVariablesFlags *UpdateVariablesFlags, dependencies *cmd.Dependencies) *UpdateVariablesOptions {
-	return &UpdateVariablesOptions{
-		UpdateVariablesFlags:   updateVariablesFlags,
+func NewSnapshotVariablesOptions(snapshotVariablesFlags *SnapshotVariablesFlags, dependencies *cmd.Dependencies) *SnapshotVariablesOptions {
+	return &SnapshotVariablesOptions{
+		SnapshotVariablesFlags: snapshotVariablesFlags,
 		RunbooksOptions:        shared.NewGetRunbooksOptions(dependencies),
 		GetAllProjectsCallback: func() ([]*projects.Project, error) { return shared.GetAllProjects(dependencies.Client) },
 		Dependencies:           dependencies,
 	}
 }
 
-func NewCmdUpdateVariables(f factory.Factory) *cobra.Command {
-	updateVariablesFlags := NewUpdateVariablesFlags()
+func NewCmdSnapshotVariables(f factory.Factory) *cobra.Command {
+	snapshotVariablesFlags := NewSnapshotVariablesFlags()
 	cmd := &cobra.Command{
-		Use:   "update-variables",
+		Use:   "snapshot-variables",
 		Short: "Update the variable snapshot for a runbook snapshot",
 		Long:  "Update the variable snapshot for a runbook snapshot in Octopus Deploy",
 		Example: heredoc.Docf(`
-			$ %[1]s runbook snapshot update-variables --project MyProject --runbook "Rebuild DB Indexes"
-			$ %[1]s runbook snapshot update-variables --project MyProject --runbook "Rebuild DB Indexes" --snapshot "Snapshot 40C9ENM"
+			$ %[1]s runbook snapshot snapshot-variables --project MyProject --runbook "Rebuild DB Indexes"
+			$ %[1]s runbook snapshot snapshot-variables --project MyProject --runbook "Rebuild DB Indexes" --snapshot "Snapshot 40C9ENM"
 		`, constants.ExecutableName),
 		RunE: func(c *cobra.Command, args []string) error {
-			opts := NewUpdateVariablesOptions(updateVariablesFlags, cmd.NewDependencies(f, c))
-			return updateVariablesRun(opts)
+			opts := NewSnapshotVariablesOptions(snapshotVariablesFlags, cmd.NewDependencies(f, c))
+			return snapshotVariablesRun(opts)
 		},
 	}
 
 	flags := cmd.Flags()
-	flags.StringVarP(&updateVariablesFlags.Project.Value, updateVariablesFlags.Project.Name, "p", "", "Name or ID of the project where the runbook is")
-	flags.StringVarP(&updateVariablesFlags.Runbook.Value, updateVariablesFlags.Runbook.Name, "r", "", "Name or ID of the runbook")
-	flags.StringVar(&updateVariablesFlags.Snapshot.Value, updateVariablesFlags.Snapshot.Name, "", "Name or ID of the snapshot to update variables for (defaults to the published snapshot)")
+	flags.StringVarP(&snapshotVariablesFlags.Project.Value, snapshotVariablesFlags.Project.Name, "p", "", "Name or ID of the project where the runbook is")
+	flags.StringVarP(&snapshotVariablesFlags.Runbook.Value, snapshotVariablesFlags.Runbook.Name, "r", "", "Name or ID of the runbook")
+	flags.StringVar(&snapshotVariablesFlags.Snapshot.Value, snapshotVariablesFlags.Snapshot.Name, "", "Name or ID of the snapshot to update variables for (defaults to the published snapshot)")
 
 	return cmd
 }
 
-func updateVariablesRun(opts *UpdateVariablesOptions) error {
+func snapshotVariablesRun(opts *SnapshotVariablesOptions) error {
 	if !opts.NoPrompt {
 		if err := PromptMissing(opts); err != nil {
 			return err
@@ -120,7 +120,7 @@ func updateVariablesRun(opts *UpdateVariablesOptions) error {
 		fmt.Fprintf(opts.Out, "Updating variables for published snapshot '%s' (%s)\n", snapshotName, output.Dim(snapshotID))
 	}
 
-	if _, err := runbooks.SnapshotVariables(opts.Client, opts.Space.GetID(), snapshotID); err != nil {
+	if _, err := runbooks.UpdateSnapshotVariables(opts.Client, opts.Space.GetID(), snapshotID); err != nil {
 		return err
 	}
 
@@ -136,7 +136,7 @@ func updateVariablesRun(opts *UpdateVariablesOptions) error {
 	return nil
 }
 
-func resolveSnapshot(opts *UpdateVariablesOptions, runbook *runbooks.Runbook) (id string, name string, defaultedToPublished bool, err error) {
+func resolveSnapshot(opts *SnapshotVariablesOptions, runbook *runbooks.Runbook) (id string, name string, defaultedToPublished bool, err error) {
 	if opts.Snapshot.Value != "" {
 		snapshot, err := runbooks.GetSnapshot(opts.Client, opts.Space.GetID(), runbook.ProjectID, opts.Snapshot.Value)
 		if err != nil {
@@ -162,7 +162,7 @@ func resolveSnapshot(opts *UpdateVariablesOptions, runbook *runbooks.Runbook) (i
 	return snapshot.GetID(), snapshot.Name, true, nil
 }
 
-func PromptMissing(opts *UpdateVariablesOptions) error {
+func PromptMissing(opts *SnapshotVariablesOptions) error {
 	project, err := getProject(opts)
 	if err != nil {
 		return err
@@ -182,7 +182,7 @@ func PromptMissing(opts *UpdateVariablesOptions) error {
 	return nil
 }
 
-func getProject(opts *UpdateVariablesOptions) (*projects.Project, error) {
+func getProject(opts *SnapshotVariablesOptions) (*projects.Project, error) {
 	var project *projects.Project
 	var err error
 	if opts.Project.Value == "" {
@@ -201,7 +201,7 @@ func getProject(opts *UpdateVariablesOptions) (*projects.Project, error) {
 	return project, nil
 }
 
-func getRunbook(opts *UpdateVariablesOptions, project *projects.Project) (*runbooks.Runbook, error) {
+func getRunbook(opts *SnapshotVariablesOptions, project *projects.Project) (*runbooks.Runbook, error) {
 	var runbook *runbooks.Runbook
 	var err error
 	if opts.Runbook.Value == "" {

@@ -1,4 +1,4 @@
-package update_variables_test
+package snapshot_variables_test
 
 import (
 	"bytes"
@@ -19,7 +19,7 @@ import (
 
 var rootResource = testutil.NewRootResource()
 
-func TestReleaseUpdateVariables(t *testing.T) {
+func TestReleaseSnapshotVariables(t *testing.T) {
 	const spaceID = "Spaces-1"
 	const fireProjectID = "Projects-22"
 
@@ -46,7 +46,7 @@ func TestReleaseUpdateVariables(t *testing.T) {
 		{"noprompt: missing --project returns clear error", func(t *testing.T, api *testutil.MockHttpServer, qa *testutil.AskMocker, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
 			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
 				defer api.Close()
-				rootCmd.SetArgs([]string{"release", "update-variables", "--version", "2.1", "--no-prompt"})
+				rootCmd.SetArgs([]string{"release", "snapshot-variables", "--version", "2.1", "--no-prompt"})
 				return rootCmd.ExecuteC()
 			})
 
@@ -60,7 +60,7 @@ func TestReleaseUpdateVariables(t *testing.T) {
 		{"noprompt: missing --version returns clear error", func(t *testing.T, api *testutil.MockHttpServer, qa *testutil.AskMocker, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
 			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
 				defer api.Close()
-				rootCmd.SetArgs([]string{"release", "update-variables", "--project", fireProject.Name, "--no-prompt"})
+				rootCmd.SetArgs([]string{"release", "snapshot-variables", "--project", fireProject.Name, "--no-prompt"})
 				return rootCmd.ExecuteC()
 			})
 
@@ -74,7 +74,7 @@ func TestReleaseUpdateVariables(t *testing.T) {
 		{"noprompt: posts to snapshot-variables endpoint and prints success", func(t *testing.T, api *testutil.MockHttpServer, qa *testutil.AskMocker, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
 			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
 				defer api.Close()
-				rootCmd.SetArgs([]string{"release", "update-variables", "--project", fireProject.Name, "--version", "2.1", "--no-prompt"})
+				rootCmd.SetArgs([]string{"release", "snapshot-variables", "--project", fireProject.Name, "--version", "2.1", "--no-prompt"})
 				return rootCmd.ExecuteC()
 			})
 
@@ -93,7 +93,7 @@ func TestReleaseUpdateVariables(t *testing.T) {
 		{"noprompt: --releaseNumber is not a recognized flag", func(t *testing.T, api *testutil.MockHttpServer, qa *testutil.AskMocker, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
 			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
 				defer api.Close()
-				rootCmd.SetArgs([]string{"release", "update-variables", "--project", fireProject.Name, "--releaseNumber", "2.1", "--no-prompt"})
+				rootCmd.SetArgs([]string{"release", "snapshot-variables", "--project", fireProject.Name, "--releaseNumber", "2.1", "--no-prompt"})
 				return rootCmd.ExecuteC()
 			})
 
@@ -105,7 +105,7 @@ func TestReleaseUpdateVariables(t *testing.T) {
 		{"noprompt: server returns non-2xx status returns wrapped error", func(t *testing.T, api *testutil.MockHttpServer, qa *testutil.AskMocker, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
 			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
 				defer api.Close()
-				rootCmd.SetArgs([]string{"release", "update-variables", "--project", fireProject.Name, "--version", "2.1", "--no-prompt"})
+				rootCmd.SetArgs([]string{"release", "snapshot-variables", "--project", fireProject.Name, "--version", "2.1", "--no-prompt"})
 				return rootCmd.ExecuteC()
 			})
 
@@ -123,7 +123,7 @@ func TestReleaseUpdateVariables(t *testing.T) {
 		{"interactive: prompts for project and release then posts", func(t *testing.T, api *testutil.MockHttpServer, qa *testutil.AskMocker, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
 			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
 				defer api.Close()
-				rootCmd.SetArgs([]string{"release", "update-variables"})
+				rootCmd.SetArgs([]string{"release", "snapshot-variables"})
 				return rootCmd.ExecuteC()
 			})
 
