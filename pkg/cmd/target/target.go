@@ -5,6 +5,8 @@ import (
 	cmdAzureWebApp "github.com/OctopusDeploy/cli/pkg/cmd/target/azure-web-app"
 	cmdCloudRegion "github.com/OctopusDeploy/cli/pkg/cmd/target/cloud-region"
 	cmdDelete "github.com/OctopusDeploy/cli/pkg/cmd/target/delete"
+	cmdDisable "github.com/OctopusDeploy/cli/pkg/cmd/target/disable"
+	cmdEnable "github.com/OctopusDeploy/cli/pkg/cmd/target/enable"
 	cmdKubernetes "github.com/OctopusDeploy/cli/pkg/cmd/target/kubernetes"
 	cmdList "github.com/OctopusDeploy/cli/pkg/cmd/target/list"
 	cmdListeningTentacle "github.com/OctopusDeploy/cli/pkg/cmd/target/listening-tentacle"
@@ -35,6 +37,8 @@ func NewCmdDeploymentTarget(f factory.Factory) *cobra.Command {
 	cmd.AddCommand(cmdAzureWebApp.NewCmdAzureWebApp(f))
 	cmd.AddCommand(cmdKubernetes.NewCmdKubernetes(f))
 	cmd.AddCommand(cmdDelete.NewCmdDelete(f))
+	cmd.AddCommand(cmdEnable.NewCmdEnable(f))
+	cmd.AddCommand(cmdDisable.NewCmdDisable(f))
 	cmd.AddCommand(cmdList.NewCmdList(f))
 	cmd.AddCommand(cmdView.NewCmdView(f))
 
