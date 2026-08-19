@@ -1,6 +1,9 @@
 package root
 
 import (
+	"fmt"
+	"strings"
+
 	"github.com/OctopusDeploy/cli/pkg/apiclient"
 	accountCmd "github.com/OctopusDeploy/cli/pkg/cmd/account"
 	apiCmd "github.com/OctopusDeploy/cli/pkg/cmd/api"
@@ -27,6 +30,7 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/OctopusDeploy/cli/pkg/question"
+	"github.com/OctopusDeploy/cli/pkg/util/shell"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -96,6 +100,8 @@ func NewCmdRoot(f factory.Factory, clientFactory apiclient.ClientFactory, askPro
 
 	cmdPFlags.BoolP(constants.FlagNoPrompt, "", false, "Disable prompting in interactive mode")
 
+	cmdPFlags.String(constants.FlagShell, "", fmt.Sprintf(`Specify the shell that generated automation commands are quoted for (%s); defaults to the shell the CLI is running under`, strings.Join(shell.Names, ", ")))
+
 	// Enable service messages flag is hidden as it's intended for internal CI/CD use only
 	cmdPFlags.BoolP(constants.FlagEnableServiceMessages, "", false, "Enable service messages for integration with Octopus CI/CD")
 	cmdPFlags.MarkHidden(constants.FlagEnableServiceMessages)
@@ -112,6 +118,7 @@ func NewCmdRoot(f factory.Factory, clientFactory apiclient.ClientFactory, askPro
 
 	_ = viper.BindPFlag(constants.ConfigNoPrompt, cmdPFlags.Lookup(constants.FlagNoPrompt))
 	_ = viper.BindPFlag(constants.ConfigSpace, cmdPFlags.Lookup(constants.FlagSpace))
+	_ = viper.BindPFlag(constants.ConfigShell, cmdPFlags.Lookup(constants.FlagShell))
 	_ = viper.BindPFlag(constants.FlagEnableServiceMessages, cmdPFlags.Lookup(constants.FlagEnableServiceMessages))
 	// if we attempt to check the flags before Execute is called, cobra hasn't parsed anything yet,
 	// so we'll get bad values. PersistentPreRun is a convenient callback for setting up our

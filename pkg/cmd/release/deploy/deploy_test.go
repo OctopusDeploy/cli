@@ -18,6 +18,7 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/executor"
 	"github.com/OctopusDeploy/cli/pkg/question"
 	"github.com/OctopusDeploy/cli/pkg/surveyext"
+	"github.com/OctopusDeploy/cli/pkg/util/shell"
 	"github.com/OctopusDeploy/cli/test/fixtures"
 	"github.com/OctopusDeploy/cli/test/testutil"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/channels"
@@ -2312,6 +2313,9 @@ func TestDeployCreate_AutomationMode(t *testing.T) {
 
 // this happens outside the scope of the normal AskQuestions flow so warrants its own integration-style test
 func TestDeployCreate_GenerationOfAutomationCommand_MasksSensitiveVariables(t *testing.T) {
+	// pin the shell so the expected command doesn't depend on where the tests are run
+	t.Setenv(constants.EnvOctopusShell, string(shell.Bash))
+
 	const spaceID = "Spaces-1"
 	const fireProjectID = "Projects-22"
 
@@ -2492,7 +2496,7 @@ func TestDeployCreate_GenerationOfAutomationCommand_MasksSensitiveVariables(t *t
 		  Deployment Targets: All included
 		  Target Tags: All included
 		
-		Automation Command: octopus release deploy --space 'Default Space' --project 'Fire Project' --version '2.0' --environment 'dev' --priority 'true' --variable 'Boring Variable:BORING' --variable 'Nuclear Launch Codes:*****' --variable 'Secret Password:*****' --no-prompt
+		Automation Command: octopus release deploy --space 'Default Space' --project 'Fire Project' --version 2.0 --environment dev --priority true --variable 'Boring Variable:BORING' --variable 'Nuclear Launch Codes:*****' --variable 'Secret Password:*****' --no-prompt
 		Warning: Command includes some sensitive variable values which have been replaced with placeholders.
 		Successfully started 2 deployment(s)
 
