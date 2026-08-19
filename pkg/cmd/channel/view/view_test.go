@@ -238,7 +238,7 @@ func TestChannelView(t *testing.T) {
 				})
 
 			_, err := testutil.ReceivePair(cmdReceiver)
-			assert.EqualError(t, err, "no channel found with name of Channels-99")
+			assert.EqualError(t, err, "cannot find a channel in project 'Fire Project' with the ID or name of 'Channels-99'")
 
 			assert.Equal(t, "", stdOut.String())
 			assert.Equal(t, "", stdErr.String())
@@ -262,7 +262,7 @@ func TestChannelView(t *testing.T) {
 				})
 
 			_, err := testutil.ReceivePair(cmdReceiver)
-			assert.EqualError(t, err, "no channel found with name of Nonexistent")
+			assert.EqualError(t, err, "cannot find a channel in project 'Fire Project' with the ID or name of 'Nonexistent'")
 
 			assert.Equal(t, "", stdOut.String())
 			assert.Equal(t, "", stdErr.String())

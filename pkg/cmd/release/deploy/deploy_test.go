@@ -508,7 +508,7 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 			assert.Equal(t, &executor.TaskOptionsDeployRelease{
 				ProjectName:       "Fire Project",
 				ReleaseVersion:    "2.1",
-				Environments:      []string{"ephemeral environment"},
+				Environments:      []string{"Ephemeral Environment"}, // the identifier from the command line is resolved to the canonical name
 				GuidedFailureMode: "",
 				Variables:         make(map[string]string, 0),
 				ReleaseID:         release21.ID,
@@ -1728,7 +1728,12 @@ func TestDeployCreate_AutomationMode(t *testing.T) {
 	////release20.ProjectDeploymentProcessSnapshotID = depProcessSnapshot.ID
 	//release20.ProjectVariableSetSnapshotID = variableSnapshotWithPromptedVariables.ID
 	//
-	//devEnvironment := fixtures.NewEnvironment(spaceID, "Environments-12", "dev")
+	devEnvironment := fixtures.NewEnvironment(spaceID, "Environments-12", "dev")
+	testEnvironment := fixtures.NewEnvironment(spaceID, "Environments-13", "test")
+	ephemeralEnvironment := fixtures.NewEphemeralEnvironment(spaceID, "Environments-123", "Ephemeral Environment", "Environments-12")
+
+	cokeTenant := fixtures.NewTenant(spaceID, "Tenants-29", "Coke", "Regions/us-east", "Importance/High")
+	pepsiTenant := fixtures.NewTenant(spaceID, "Tenants-37", "Pepsi", "Regions/us-east", "Importance/Low")
 
 	// TEST STARTS HERE
 	tests := []struct {
@@ -1798,6 +1803,7 @@ func TestDeployCreate_AutomationMode(t *testing.T) {
 			api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
 			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+fireProject.GetName()).RespondWith(fireProject)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/environments/all").RespondWith([]*environments.Environment{devEnvironment, testEnvironment})
 
 			// Note: because we didn't specify --tenant or --tenant-tag, automation-mode code is going to assume untenanted
 			req := api.ExpectRequest(t, "POST", "/api/Spaces-1/deployments/create/untenanted/v1")
@@ -1838,6 +1844,60 @@ func TestDeployCreate_AutomationMode(t *testing.T) {
 			assert.Equal(t, "", stdErr.String())
 		}},
 
+		{"release deploy specifying project, environment and tenant by ID", func(t *testing.T, api *testutil.MockHttpServer, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
+			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
+				defer api.Close()
+				rootCmd.SetArgs([]string{"release", "deploy", "--project", fireProjectID, "--version", "1.0", "--environment", devEnvironment.ID, "--tenant", cokeTenant.ID})
+				return rootCmd.ExecuteC()
+			})
+
+			api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
+
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/tenants/"+cokeTenant.ID).RespondWith(cokeTenant)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+fireProjectID).RespondWith(fireProject)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/environments/all").RespondWith([]*environments.Environment{devEnvironment, testEnvironment})
+
+			req := api.ExpectRequest(t, "POST", "/api/Spaces-1/deployments/create/tenanted/v1")
+
+			// the executions API only matches environments and tenants by name, so the IDs must have been resolved before we got here
+			requestBody, err := testutil.ReadJson[deployments.CreateDeploymentTenantedCommandV1](req.Request.Body)
+			assert.Nil(t, err)
+
+			assert.Equal(t, deployments.CreateDeploymentTenantedCommandV1{
+				ReleaseVersion:  "1.0",
+				EnvironmentName: devEnvironment.Name,
+				Tenants:         []string{cokeTenant.Name},
+				CreateExecutionAbstractCommandV1: deployments.CreateExecutionAbstractCommandV1{
+					SpaceID:         "Spaces-1",
+					ProjectIDOrName: fireProject.Name,
+				},
+			}, requestBody)
+
+			req.RespondWith(&deployments.CreateDeploymentResponseV1{
+				DeploymentServerTasks: []*deployments.DeploymentServerTask{
+					{DeploymentID: "Deployments-203", ServerTaskID: "ServerTasks-29394"},
+				},
+			})
+
+			// now it's going to try and look up the project/version to generate the web URL
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/Fire Project").RespondWithStatus(404, "NotFound", nil)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects?partialName=Fire+Project").RespondWith(resources.Resources[*projects.Project]{
+				Items: []*projects.Project{fireProject},
+			})
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+fireProjectID+"/releases/1.0").RespondWith(release10)
+
+			_, err = testutil.ReceivePair(cmdReceiver)
+			assert.Nil(t, err)
+
+			assert.Equal(t, heredoc.Docf(`
+				Successfully started 1 deployment(s)
+				
+				View this release on Octopus Deploy: http://server/app#/Spaces-1/releases/%s
+				`, release10.ID), stdOut.String())
+			assert.Equal(t, "", stdErr.String())
+		}},
+
 		{"release deploy specifying project, version, ephemeral env only (bare minimum)", func(t *testing.T, api *testutil.MockHttpServer, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
 			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
 				defer api.Close()
@@ -1848,6 +1908,13 @@ func TestDeployCreate_AutomationMode(t *testing.T) {
 			api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
 			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+fireProject.GetName()).RespondWith(fireProject)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/environments/all").RespondWith([]*environments.Environment{devEnvironment, testEnvironment})
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/environments/v2?skip=0&take=2147483647&type=Ephemeral").RespondWith(resources.Resources[*ephemeralenvironments.EphemeralEnvironment]{
+				Items: []*ephemeralenvironments.EphemeralEnvironment{ephemeralEnvironment},
+				PagedResults: resources.PagedResults{
+					TotalResults: 1,
+				},
+			})
 
 			// Note: because we didn't specify --tenant or --tenant-tag, automation-mode code is going to assume untenanted
 			req := api.ExpectRequest(t, "POST", "/api/Spaces-1/deployments/create/untenanted/v1")
@@ -1898,6 +1965,7 @@ func TestDeployCreate_AutomationMode(t *testing.T) {
 			api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
 			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+fireProject.GetName()).RespondWith(fireProject)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/environments/all").RespondWith([]*environments.Environment{devEnvironment, testEnvironment})
 
 			// Note: because we didn't specify --tenant or --tenant-tag, automation-mode code is going to assume untenanted
 			api.ExpectRequest(t, "POST", "/api/Spaces-1/deployments/create/untenanted/v1").RespondWith(&deployments.CreateDeploymentResponseV1{
@@ -1928,6 +1996,7 @@ func TestDeployCreate_AutomationMode(t *testing.T) {
 			api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
 			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+fireProject.GetName()).RespondWith(fireProject)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/environments/all").RespondWith([]*environments.Environment{devEnvironment, testEnvironment})
 
 			// Note: because we didn't specify --tenant or --tenant-tag, automation-mode code is going to assume untenanted
 			serverTasks := []*deployments.DeploymentServerTask{
@@ -1958,7 +2027,13 @@ func TestDeployCreate_AutomationMode(t *testing.T) {
 
 			api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
 			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/tenants/Coke").RespondWithStatus(404, "NotFound", nil)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/tenants?partialName=Coke").RespondWith(resources.Resources[*tenants.Tenant]{Items: []*tenants.Tenant{cokeTenant}})
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/tenants/Pepsi").RespondWithStatus(404, "NotFound", nil)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/tenants?partialName=Pepsi").RespondWith(resources.Resources[*tenants.Tenant]{Items: []*tenants.Tenant{pepsiTenant}})
+
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+fireProject.GetName()).RespondWith(fireProject)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/environments/all").RespondWith([]*environments.Environment{devEnvironment, testEnvironment})
 
 			req := api.ExpectRequest(t, "POST", "/api/Spaces-1/deployments/create/tenanted/v1")
 			requestBody, err := testutil.ReadJson[deployments.CreateDeploymentTenantedCommandV1](req.Request.Body)
@@ -2008,6 +2083,7 @@ func TestDeployCreate_AutomationMode(t *testing.T) {
 			api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
 			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+fireProject.GetName()).RespondWith(fireProject)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/environments/all").RespondWith([]*environments.Environment{devEnvironment, testEnvironment})
 
 			req := api.ExpectRequest(t, "POST", "/api/Spaces-1/deployments/create/tenanted/v1")
 			requestBody, err := testutil.ReadJson[deployments.CreateDeploymentTenantedCommandV1](req.Request.Body)
@@ -2166,6 +2242,7 @@ func TestDeployCreate_AutomationMode(t *testing.T) {
 			api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
 			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+fireProject.GetName()).RespondWith(fireProject)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/environments/all").RespondWith([]*environments.Environment{devEnvironment, testEnvironment})
 
 			// Note: because we didn't specify --tenant or --tenant-tag, automation-mode code is going to assume untenanted
 			req := api.ExpectRequest(t, "POST", "/api/Spaces-1/deployments/create/untenanted/v1")
@@ -2245,7 +2322,13 @@ func TestDeployCreate_AutomationMode(t *testing.T) {
 
 			api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
 			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/tenants/Coke").RespondWithStatus(404, "NotFound", nil)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/tenants?partialName=Coke").RespondWith(resources.Resources[*tenants.Tenant]{Items: []*tenants.Tenant{cokeTenant}})
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/tenants/Pepsi").RespondWithStatus(404, "NotFound", nil)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/tenants?partialName=Pepsi").RespondWith(resources.Resources[*tenants.Tenant]{Items: []*tenants.Tenant{pepsiTenant}})
+
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+fireProject.GetName()).RespondWith(fireProject)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/environments/all").RespondWith([]*environments.Environment{devEnvironment, testEnvironment})
 
 			req := api.ExpectRequest(t, "POST", "/api/Spaces-1/deployments/create/tenanted/v1")
 			requestBody, err := testutil.ReadJson[deployments.CreateDeploymentTenantedCommandV1](req.Request.Body)
