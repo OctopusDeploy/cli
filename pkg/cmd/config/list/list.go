@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/MakeNowJust/heredoc/v2"
+	"github.com/OctopusDeploy/cli/pkg/apiclient"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/OctopusDeploy/cli/pkg/output"
@@ -43,12 +44,17 @@ func listRun(cmd *cobra.Command) error {
 		configFile.Set(constants.ConfigAccessToken, "***")
 	}
 
+	if configFile.IsSet(constants.ConfigProxyUrl) {
+		configFile.Set(constants.ConfigProxyUrl, apiclient.RedactProxyUrl(configFile.GetString(constants.ConfigProxyUrl)))
+	}
+
 	type ConfigData struct {
 		ApiKey       string `json:"apikey"`
 		Editor       string `json:"editor"`
 		Host         string `json:"host"`
 		NoPrompt     string `json:"noprompt"`
 		OutputFormat string `json:"outputformat"`
+		ProxyUrl     string `json:"proxyurl"`
 		Space        string `json:"space"`
 	}
 
@@ -70,6 +76,8 @@ func listRun(cmd *cobra.Command) error {
 				configData.Host = configFile.GetString(key)
 			case strings.ToLower(constants.ConfigNoPrompt):
 				configData.NoPrompt = configFile.GetString(key)
+			case strings.ToLower(constants.ConfigProxyUrl):
+				configData.ProxyUrl = configFile.GetString(key)
 			case strings.ToLower(constants.ConfigSpace):
 				configData.Space = configFile.GetString(key)
 			case strings.ToLower(constants.ConfigOutputFormat):
