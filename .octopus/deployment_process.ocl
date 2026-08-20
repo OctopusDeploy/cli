@@ -35,7 +35,7 @@ step "push-cli-to-chocolatey" {
 
         container {
             feed = "docker-hub"
-            image = "octopusdeploy/worker-tools:6.6.4-windows.ltsc2025"
+            image = "octopusdeploy/worker-tools:6.6.4-windows.ltsc2022"
         }
 
         packages "cli" {
@@ -332,7 +332,7 @@ step "publish-winget-update-pr" {
 
         container {
             feed = "docker-hub"
-            image = "octopusdeploy/worker-tools:6.6.4-windows.ltsc2025"
+            image = "octopusdeploy/worker-tools:6.6.4-windows.ltsc2022"
         }
 
         packages "cli" {
