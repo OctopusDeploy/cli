@@ -175,7 +175,7 @@ func NewCmdRun(f factory.Factory) *cobra.Command {
 	flags.StringVarP(&runFlags.Snapshot.Value, runFlags.Snapshot.Name, "", "", "Name or ID of the snapshot to run. If not supplied, the command will attempt to use the published snapshot.")
 	flags.StringArrayVarP(&runFlags.ExcludedSteps.Value, runFlags.ExcludedSteps.Name, "", nil, "Exclude specific steps from the runbook")
 	flags.StringVarP(&runFlags.GuidedFailureMode.Value, runFlags.GuidedFailureMode.Name, "", "", "Enable Guided failure mode (true/false/default)")
-	flags.StringVarP(&runFlags.Priority.Value, runFlags.Priority.Name, "", "", "Jump the task queue ahead of other queued tasks (true/false/default). Requires the Priority Tasks feature. Runbook runs have no lifecycle default, so 'default' behaves as 'false'.")
+	flags.StringVarP(&runFlags.Priority.Value, runFlags.Priority.Name, "", "", "Jump the task queue ahead of other queued tasks (true/false/default). Requires the Priority Tasks feature. For runbook runs, 'default' is the same as 'false'.")
 	flags.BoolVarP(&runFlags.ForcePackageDownload.Value, runFlags.ForcePackageDownload.Name, "", false, "Force re-download of packages")
 	flags.StringArrayVarP(&runFlags.RunTargets.Value, runFlags.RunTargets.Name, "", nil, "Run on this target (can be specified multiple times)")
 	flags.StringArrayVarP(&runFlags.ExcludeTargets.Value, runFlags.ExcludeTargets.Name, "", nil, "Run on targets except for this (can be specified multiple times)")
@@ -1258,7 +1258,7 @@ func PrintAdvancedSummary(stdout io.Writer, options *executor.TaskOptionsRunbook
 
 	gfmStr := executionscommon.LookupGuidedFailureModeString(options.GuidedFailureMode)
 
-	priorityStr := executionscommon.LookupPriorityString(options.Priority)
+	priorityStr := executionscommon.LookupPriorityString(options.Priority, "Do not jump the task queue")
 
 	pkgDownloadStr := executionscommon.LookupPackageDownloadString(!options.ForcePackageDownload)
 

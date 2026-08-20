@@ -173,7 +173,7 @@ func NewCmdDeploy(f factory.Factory) *cobra.Command {
 	flags.BoolVarP(&deployFlags.UpdateVariables.Value, deployFlags.UpdateVariables.Name, "", false, "Overwrite the release variable snapshot by re-importing variables from the project.")
 	flags.StringArrayVarP(&deployFlags.ExcludedSteps.Value, deployFlags.ExcludedSteps.Name, "", nil, "Exclude specific steps from the deployment")
 	flags.StringVarP(&deployFlags.GuidedFailureMode.Value, deployFlags.GuidedFailureMode.Name, "", "", "Enable Guided failure mode (true/false/default)")
-	flags.StringVarP(&deployFlags.Priority.Value, deployFlags.Priority.Name, "", "", "Jump the task queue ahead of other queued tasks (true/false/default). Requires the Priority Tasks feature.")
+	flags.StringVarP(&deployFlags.Priority.Value, deployFlags.Priority.Name, "", "", "Jump the task queue ahead of other queued tasks (true/false/default). Requires the Priority Tasks feature, and the TaskPrioritize permission to set true.")
 	flags.BoolVarP(&deployFlags.ForcePackageDownload.Value, deployFlags.ForcePackageDownload.Name, "", false, "Force re-download of packages")
 	flags.StringArrayVarP(&deployFlags.DeploymentTargets.Value, deployFlags.DeploymentTargets.Name, "", nil, "Deploy to this target (can be specified multiple times)")
 	flags.StringArrayVarP(&deployFlags.ExcludeTargets.Value, deployFlags.ExcludeTargets.Name, "", nil, "Deploy to targets except for this (can be specified multiple times)")
@@ -1041,7 +1041,7 @@ func PrintAdvancedSummary(stdout io.Writer, options *executor.TaskOptionsDeployR
 
 	gfmStr := executionscommon.LookupGuidedFailureModeString(options.GuidedFailureMode)
 
-	priorityStr := executionscommon.LookupPriorityString(options.Priority)
+	priorityStr := executionscommon.LookupPriorityString(options.Priority, "Use default setting from the lifecycle phase")
 
 	pkgDownloadStr := executionscommon.LookupPackageDownloadString(!options.ForcePackageDownload)
 

@@ -2324,7 +2324,7 @@ func TestDeployCreate_PrintAdvancedSummary(t *testing.T) {
 			  Deploy Time: Now
 			  Skipped Steps: None
 			  Guided Failure Mode: Use default setting from the target environment
-			  Priority: Use default setting
+			  Priority: Use default setting from the lifecycle phase
 			  Package Download: Use cached packages (if available)
 			  Deployment Targets: All included
 			`), stdout.String())
@@ -2364,7 +2364,7 @@ func TestDeployCreate_PrintAdvancedSummary(t *testing.T) {
 			  Deploy Time: Now
 			  Skipped Steps: None
 			  Guided Failure Mode: Use default setting from the target environment
-			  Priority: Use default setting
+			  Priority: Use default setting from the lifecycle phase
 			  Package Download: Use cached packages (if available)
 			  Deployment Targets: Include vm-2
 			`), stdout.String())
@@ -2381,7 +2381,7 @@ func TestDeployCreate_PrintAdvancedSummary(t *testing.T) {
 			  Deploy Time: Now
 			  Skipped Steps: None
 			  Guided Failure Mode: Use default setting from the target environment
-			  Priority: Use default setting
+			  Priority: Use default setting from the lifecycle phase
 			  Package Download: Use cached packages (if available)
 			  Deployment Targets: Exclude vm-4
 			`), stdout.String())

@@ -732,7 +732,7 @@ func TestRunbookRun_PrintAdvancedSummary(t *testing.T) {
 				  Run At: Now
 				  Skipped Steps: None
 				  Guided Failure Mode: Use default setting from the target environment
-				  Priority: Use default setting
+				  Priority: Do not jump the task queue
 				  Package Download: Use cached packages (if available)
 				  Run Targets: All included
 				`), stdout.String())
@@ -776,7 +776,7 @@ func TestRunbookRun_PrintAdvancedSummary(t *testing.T) {
 				  Run At: Now
 				  Skipped Steps: None
 				  Guided Failure Mode: Use default setting from the target environment
-				  Priority: Use default setting
+				  Priority: Do not jump the task queue
 				  Package Download: Use cached packages (if available)
 				  Run Targets: Include vm-2
 				`), stdout.String())
@@ -795,7 +795,7 @@ func TestRunbookRun_PrintAdvancedSummary(t *testing.T) {
 				  Run At: Now
 				  Skipped Steps: None
 				  Guided Failure Mode: Use default setting from the target environment
-				  Priority: Use default setting
+				  Priority: Do not jump the task queue
 				  Package Download: Use cached packages (if available)
 				  Run Targets: Exclude vm-4
 				`), stdout.String())

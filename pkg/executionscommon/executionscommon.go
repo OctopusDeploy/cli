@@ -338,10 +338,10 @@ func LookupGuidedFailureModeString(value string) string {
 	}
 }
 
-func LookupPriorityString(value string) string {
+func LookupPriorityString(value string, defaultDescription string) string {
 	switch value {
 	case "", "default":
-		return "Use default setting"
+		return defaultDescription
 	case "true", "True":
 		return "Jump the task queue"
 	case "false", "False":
