@@ -338,16 +338,34 @@ func LookupGuidedFailureModeString(value string) string {
 	}
 }
 
+// ParsePriorityMode maps the CLI's tri-state priority value onto the server's PriorityMode.
+// An empty result is omitted from the request, leaving the server to apply its own default.
+func ParsePriorityMode(value string) (string, error) {
+	b, err := strconv.ParseBool(value)
+	if err == nil {
+		if b {
+			return "On", nil
+		}
+		return "Off", nil
+	}
+	if value == "" || strings.EqualFold("default", value) {
+		return "", nil
+	}
+	return "", fmt.Errorf("'%s' is not a valid value for priority, expected true, false or default", value)
+}
+
 func LookupPriorityString(value string, defaultDescription string) string {
-	switch value {
-	case "", "default":
-		return defaultDescription
-	case "true", "True":
+	priority, err := ParsePriorityMode(value)
+	if err != nil {
+		return fmt.Sprintf("Unknown %s", value)
+	}
+	switch priority {
+	case "On":
 		return "Jump the task queue"
-	case "false", "False":
+	case "Off":
 		return "Do not jump the task queue"
 	default:
-		return fmt.Sprintf("Unknown %s", value)
+		return defaultDescription
 	}
 }
 

@@ -208,6 +208,10 @@ func deployRun(cmd *cobra.Command, f factory.Factory, flags *DeployFlags) error 
 		outputFormat = constants.OutputFormatTable
 	}
 
+	if _, err = executionscommon.ParsePriorityMode(flags.Priority.Value); err != nil {
+		return err
+	}
+
 	octopus, err := f.GetSpacedClient(apiclient.NewRequester(cmd))
 	if err != nil {
 		return err

@@ -1936,16 +1936,12 @@ func TestDeployCreate_AutomationMode(t *testing.T) {
 			assert.Equal(t, "", stdErr.String())
 		}},
 
-		{"release deploy rejects an unrecognised --priority value", func(t *testing.T, api *testutil.MockHttpServer, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
+		{"release deploy rejects an unrecognised --priority value before contacting the server", func(t *testing.T, api *testutil.MockHttpServer, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
 			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
 				defer api.Close()
 				rootCmd.SetArgs([]string{"release", "deploy", "--project", fireProject.Name, "--version", "1.0", "--environment", "dev", "--priority", "urgent"})
 				return rootCmd.ExecuteC()
 			})
-
-			api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
-			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
-			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+fireProject.GetName()).RespondWith(fireProject)
 
 			_, err := testutil.ReceivePair(cmdReceiver)
 			assert.EqualError(t, err, "'urgent' is not a valid value for priority, expected true, false or default")

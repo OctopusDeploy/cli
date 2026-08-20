@@ -215,6 +215,10 @@ func runbookRun(cmd *cobra.Command, f factory.Factory, flags *RunFlags) error {
 		outputFormat = constants.OutputFormatTable
 	}
 
+	if _, err = executionscommon.ParsePriorityMode(flags.Priority.Value); err != nil {
+		return err
+	}
+
 	octopus, err := f.GetSpacedClient(apiclient.NewRequester(cmd))
 	if err != nil {
 		return err

@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/OctopusDeploy/cli/pkg/executionscommon"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/deployments"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/runbooks"
@@ -97,7 +98,7 @@ func runbookRun(octopus *client.Client, space *spaces.Space, input any) error {
 		}
 	}
 
-	abstractCmd.Priority, err = parsePriorityMode(params.Priority)
+	abstractCmd.Priority, err = executionscommon.ParsePriorityMode(params.Priority)
 	if err != nil {
 		return err
 	}
@@ -177,7 +178,7 @@ func gitRunbookRun(octopus *client.Client, space *spaces.Space, input any) error
 		}
 	}
 
-	abstractCmd.Priority, err = parsePriorityMode(params.Priority)
+	abstractCmd.Priority, err = executionscommon.ParsePriorityMode(params.Priority)
 	if err != nil {
 		return err
 	}
