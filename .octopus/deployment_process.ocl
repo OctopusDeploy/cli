@@ -31,7 +31,7 @@ step "push-cli-to-chocolatey" {
             Octopus.Action.Script.ScriptSource = "Inline"
             Octopus.Action.Script.Syntax = "PowerShell"
         }
-        worker_pool = "hosted-windows"
+        worker_pool = "hosted-windows-2025"
 
         container {
             feed = "docker-hub"
@@ -328,7 +328,7 @@ step "publish-winget-update-pr" {
             Octopus.Action.Script.Syntax = "PowerShell"
             OctopusUseBundledTooling = "False"
         }
-        worker_pool = "hosted-windows"
+        worker_pool = "hosted-windows-2025"
 
         container {
             feed = "docker-hub"
