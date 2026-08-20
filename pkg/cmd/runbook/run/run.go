@@ -74,6 +74,8 @@ const (
 	FlagAliasGuidedFailureMode       = "guided-failure-mode"
 	FlagAliasGuidedFailureModeLegacy = "guidedFailure"
 
+	FlagPriority = "priority"
+
 	FlagForcePackageDownload            = "force-package-download"
 	FlagAliasForcePackageDownloadLegacy = "forcePackageDownload"
 
@@ -106,6 +108,7 @@ type RunFlags struct {
 	Snapshot             *flag.Flag[string]
 	ExcludedSteps        *flag.Flag[[]string]
 	GuidedFailureMode    *flag.Flag[string] // tri-state: true, false, or "use default". Can we model it with an optional bool?
+	Priority             *flag.Flag[string] // tri-state: true, false, or "use default"
 	ForcePackageDownload *flag.Flag[bool]
 	RunTargets           *flag.Flag[[]string]
 	ExcludeTargets       *flag.Flag[[]string]
@@ -129,6 +132,7 @@ func NewRunFlags() *RunFlags {
 		Snapshot:             flag.New[string](FlagSnapshot, false),
 		ExcludedSteps:        flag.New[[]string](FlagSkip, false),
 		GuidedFailureMode:    flag.New[string](FlagGuidedFailure, false),
+		Priority:             flag.New[string](FlagPriority, false),
 		ForcePackageDownload: flag.New[bool](FlagForcePackageDownload, false),
 		RunTargets:           flag.New[[]string](FlagRunTarget, false),
 		ExcludeTargets:       flag.New[[]string](FlagExcludeRunTarget, false),
@@ -171,6 +175,7 @@ func NewCmdRun(f factory.Factory) *cobra.Command {
 	flags.StringVarP(&runFlags.Snapshot.Value, runFlags.Snapshot.Name, "", "", "Name or ID of the snapshot to run. If not supplied, the command will attempt to use the published snapshot.")
 	flags.StringArrayVarP(&runFlags.ExcludedSteps.Value, runFlags.ExcludedSteps.Name, "", nil, "Exclude specific steps from the runbook")
 	flags.StringVarP(&runFlags.GuidedFailureMode.Value, runFlags.GuidedFailureMode.Name, "", "", "Enable Guided failure mode (true/false/default)")
+	flags.StringVarP(&runFlags.Priority.Value, runFlags.Priority.Name, "", "", "Jump the task queue ahead of other queued tasks (true/false/default). Requires the Priority Tasks feature. For runbook runs, 'default' is the same as 'false'.")
 	flags.BoolVarP(&runFlags.ForcePackageDownload.Value, runFlags.ForcePackageDownload.Name, "", false, "Force re-download of packages")
 	flags.StringArrayVarP(&runFlags.RunTargets.Value, runFlags.RunTargets.Name, "", nil, "Run on this target (can be specified multiple times)")
 	flags.StringArrayVarP(&runFlags.ExcludeTargets.Value, runFlags.ExcludeTargets.Name, "", nil, "Run on targets except for this (can be specified multiple times)")
@@ -208,6 +213,10 @@ func runbookRun(cmd *cobra.Command, f factory.Factory, flags *RunFlags) error {
 	outputFormat, err := cmd.Flags().GetString(constants.FlagOutputFormat)
 	if err != nil { // should never happen, but fallback if it does
 		outputFormat = constants.OutputFormatTable
+	}
+
+	if _, err = executionscommon.ParsePriorityMode(flags.Priority.Value); err != nil {
+		return err
 	}
 
 	octopus, err := f.GetSpacedClient(apiclient.NewRequester(cmd))
@@ -289,6 +298,7 @@ func runDbRunbook(cmd *cobra.Command, f factory.Factory, flags *RunFlags, octopu
 		ScheduledExpiryTime:  flags.MaxQueueTime.Value,
 		ExcludedSteps:        flags.ExcludedSteps.Value,
 		GuidedFailureMode:    flags.GuidedFailureMode.Value,
+		Priority:             flags.Priority.Value,
 		ForcePackageDownload: flags.ForcePackageDownload.Value,
 		RunTargets:           flags.RunTargets.Value,
 		ExcludeTargets:       flags.ExcludeTargets.Value,
@@ -330,6 +340,7 @@ func runDbRunbook(cmd *cobra.Command, f factory.Factory, flags *RunFlags, octopu
 			resolvedFlags.MaxQueueTime.Value = options.ScheduledExpiryTime
 			resolvedFlags.ExcludedSteps.Value = options.ExcludedSteps
 			resolvedFlags.GuidedFailureMode.Value = options.GuidedFailureMode
+			resolvedFlags.Priority.Value = options.Priority
 			resolvedFlags.RunTargets.Value = options.RunTargets
 			resolvedFlags.ExcludeTargets.Value = options.ExcludeTargets
 
@@ -364,6 +375,7 @@ func runDbRunbook(cmd *cobra.Command, f factory.Factory, flags *RunFlags, octopu
 				resolvedFlags.MaxQueueTime,
 				resolvedFlags.ExcludedSteps,
 				resolvedFlags.GuidedFailureMode,
+				resolvedFlags.Priority,
 				resolvedFlags.ForcePackageDownload,
 				resolvedFlags.RunTargets,
 				resolvedFlags.ExcludeTargets,
@@ -420,6 +432,7 @@ func runGitRunbook(cmd *cobra.Command, f factory.Factory, flags *RunFlags, octop
 		ScheduledExpiryTime:  flags.MaxQueueTime.Value,
 		ExcludedSteps:        flags.ExcludedSteps.Value,
 		GuidedFailureMode:    flags.GuidedFailureMode.Value,
+		Priority:             flags.Priority.Value,
 		ForcePackageDownload: flags.ForcePackageDownload.Value,
 		RunTargets:           flags.RunTargets.Value,
 		ExcludeTargets:       flags.ExcludeTargets.Value,
@@ -464,6 +477,7 @@ func runGitRunbook(cmd *cobra.Command, f factory.Factory, flags *RunFlags, octop
 			resolvedFlags.MaxQueueTime.Value = options.ScheduledExpiryTime
 			resolvedFlags.ExcludedSteps.Value = options.ExcludedSteps
 			resolvedFlags.GuidedFailureMode.Value = options.GuidedFailureMode
+			resolvedFlags.Priority.Value = options.Priority
 			resolvedFlags.RunTargets.Value = options.RunTargets
 			resolvedFlags.ExcludeTargets.Value = options.ExcludeTargets
 			resolvedFlags.GitRef.Value = options.GitReference
@@ -502,6 +516,7 @@ func runGitRunbook(cmd *cobra.Command, f factory.Factory, flags *RunFlags, octop
 				resolvedFlags.MaxQueueTime,
 				resolvedFlags.ExcludedSteps,
 				resolvedFlags.GuidedFailureMode,
+				resolvedFlags.Priority,
 				resolvedFlags.ForcePackageDownload,
 				resolvedFlags.RunTargets,
 				resolvedFlags.ExcludeTargets,
@@ -1247,6 +1262,8 @@ func PrintAdvancedSummary(stdout io.Writer, options *executor.TaskOptionsRunbook
 
 	gfmStr := executionscommon.LookupGuidedFailureModeString(options.GuidedFailureMode)
 
+	priorityStr := executionscommon.LookupPriorityString(options.Priority, "Do not jump the task queue")
+
 	pkgDownloadStr := executionscommon.LookupPackageDownloadString(!options.ForcePackageDownload)
 
 	runTargetsStr := "All included"
@@ -1282,9 +1299,10 @@ func PrintAdvancedSummary(stdout io.Writer, options *executor.TaskOptionsRunbook
 		  Run At: cyan(%s)
 		  Skipped Steps: cyan(%s)
 		  Guided Failure Mode: cyan(%s)
+		  Priority: cyan(%s)
 		  Package Download: cyan(%s)
 		  Run Targets: cyan(%s)
-	`)), runAtStr, skipStepsStr, gfmStr, pkgDownloadStr, runTargetsStr)
+	`)), runAtStr, skipStepsStr, gfmStr, priorityStr, pkgDownloadStr, runTargetsStr)
 }
 
 func selectRunbook(octopus *octopusApiClient.Client, ask question.Asker, questionText string, space *spaces.Space, project *projects.Project) (*runbooks.Runbook, error) {
