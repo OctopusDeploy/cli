@@ -36,6 +36,7 @@ import (
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/releases"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/spaces"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/tenants"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/variables"
 	"github.com/spf13/cobra"
 )
@@ -160,9 +161,9 @@ func NewCmdDeploy(f factory.Factory) *cobra.Command {
 	flags := cmd.Flags()
 	flags.StringVarP(&deployFlags.Project.Value, deployFlags.Project.Name, "p", "", "Name or ID of the project to deploy the release from")
 	flags.StringVarP(&deployFlags.ReleaseVersion.Value, deployFlags.ReleaseVersion.Name, "", "", "Release version to deploy")
-	flags.StringArrayVarP(&deployFlags.Environments.Value, deployFlags.Environments.Name, "e", nil, "Deploy to this environment (can be specified multiple times)")
-	flags.StringArrayVarP(&deployFlags.Tenants.Value, deployFlags.Tenants.Name, "", nil, "Deploy to this tenant (can be specified multiple times)")
-	flags.StringArrayVarP(&deployFlags.TenantTags.Value, deployFlags.TenantTags.Name, "", nil, "Deploy to tenants matching this tag (can be specified multiple times). Format is 'Tag Set Name/Tag Name', such as 'Regions/South'.")
+	flags.StringArrayVarP(&deployFlags.Environments.Value, deployFlags.Environments.Name, "e", nil, "Deploy to this environment (can be specified multiple times, or as a comma-separated list)")
+	flags.StringArrayVarP(&deployFlags.Tenants.Value, deployFlags.Tenants.Name, "", nil, "Deploy to this tenant (can be specified multiple times, or as a comma-separated list)")
+	flags.StringArrayVarP(&deployFlags.TenantTags.Value, deployFlags.TenantTags.Name, "", nil, "Deploy to tenants matching this tag (can be specified multiple times, or as a comma-separated list). Format is 'Tag Set Name/Tag Name', such as 'Regions/South'.")
 	flags.StringVarP(&deployFlags.DeployAt.Value, deployFlags.DeployAt.Name, "", "", "Deploy at a later time. Deploy now if omitted. TODO date formats and timezones!")
 	flags.StringVarP(&deployFlags.MaxQueueTime.Value, deployFlags.MaxQueueTime.Name, "", "", "Cancel the deployment if it hasn't started within this time period.")
 	flags.StringArrayVarP(&deployFlags.Variables.Value, deployFlags.Variables.Name, "v", nil, "Set the value for a prompted variable in the format Label:Value")
@@ -170,8 +171,8 @@ func NewCmdDeploy(f factory.Factory) *cobra.Command {
 	flags.StringArrayVarP(&deployFlags.ExcludedSteps.Value, deployFlags.ExcludedSteps.Name, "", nil, "Exclude specific steps from the deployment")
 	flags.StringVarP(&deployFlags.GuidedFailureMode.Value, deployFlags.GuidedFailureMode.Name, "", "", "Enable Guided failure mode (true/false/default)")
 	flags.BoolVarP(&deployFlags.ForcePackageDownload.Value, deployFlags.ForcePackageDownload.Name, "", false, "Force re-download of packages")
-	flags.StringArrayVarP(&deployFlags.DeploymentTargets.Value, deployFlags.DeploymentTargets.Name, "", nil, "Deploy to this target (can be specified multiple times)")
-	flags.StringArrayVarP(&deployFlags.ExcludeTargets.Value, deployFlags.ExcludeTargets.Name, "", nil, "Deploy to targets except for this (can be specified multiple times)")
+	flags.StringArrayVarP(&deployFlags.DeploymentTargets.Value, deployFlags.DeploymentTargets.Name, "", nil, "Deploy to this target (can be specified multiple times, or as a comma-separated list)")
+	flags.StringArrayVarP(&deployFlags.ExcludeTargets.Value, deployFlags.ExcludeTargets.Name, "", nil, "Deploy to targets except for this (can be specified multiple times, or as a comma-separated list)")
 	flags.StringArrayVarP(&deployFlags.DeploymentFreezeNames.Value, deployFlags.DeploymentFreezeNames.Name, "", nil, "Override this deployment freeze (can be specified multiple times)")
 	flags.StringVarP(&deployFlags.DeploymentFreezeOverrideReason.Value, deployFlags.DeploymentFreezeOverrideReason.Name, "", "", "Reason for overriding a deployment freeze")
 
@@ -198,6 +199,13 @@ func NewCmdDeploy(f factory.Factory) *cobra.Command {
 }
 
 func deployRun(cmd *cobra.Command, f factory.Factory, flags *DeployFlags) error {
+	// these flags accept a comma-separated list as well as being specified multiple times
+	flags.Environments.Value = executionscommon.ExpandCommaSeparated(flags.Environments.Value)
+	flags.Tenants.Value = executionscommon.ExpandCommaSeparated(flags.Tenants.Value)
+	flags.TenantTags.Value = executionscommon.ExpandCommaSeparated(flags.TenantTags.Value)
+	flags.DeploymentTargets.Value = executionscommon.ExpandCommaSeparated(flags.DeploymentTargets.Value)
+	flags.ExcludeTargets.Value = executionscommon.ExpandCommaSeparated(flags.ExcludeTargets.Value)
+
 	outputFormat, err := cmd.Flags().GetString(constants.FlagOutputFormat)
 	if err != nil { // should never happen, but fallback if it does
 		outputFormat = constants.OutputFormatTable
@@ -235,6 +243,15 @@ func deployRun(cmd *cobra.Command, f factory.Factory, flags *DeployFlags) error 
 	// special case for FlagForcePackageDownload bool so we can tell if it was set on the cmdline or missing
 	if cmd.Flags().Lookup(FlagForcePackageDownload).Changed {
 		options.ForcePackageDownloadWasSpecified = true
+	}
+
+	// the executions API only matches tenants by name, so resolve any IDs we were given
+	if len(options.Tenants) > 0 {
+		selectedTenants, err := selectors.FindTenants(octopus, options.Tenants)
+		if err != nil {
+			return err
+		}
+		options.Tenants = util.SliceTransform(selectedTenants, func(t *tenants.Tenant) string { return t.Name })
 	}
 
 	if f.IsPromptEnabled() {
@@ -317,8 +334,25 @@ func deployRun(cmd *cobra.Command, f factory.Factory, flags *DeployFlags) error 
 				return err
 			}
 			options.ProjectName = project.GetName()
+
+			if options.ReleaseVersion != "" {
+				// resolve the release up front; the executions API reports an unknown version as an
+				// unhelpful null reference error, and having the ID saves looking it up again later
+				release, err := selectors.FindRelease(octopus, f.GetCurrentSpace().ID, project, options.ReleaseVersion)
+				if err != nil {
+					return err
+				}
+				options.ReleaseID = release.ID
+			}
 		}
 
+		// the executions API only matches environments by name, so resolve any IDs we were given
+		if len(options.Environments) > 0 {
+			options.Environments, err = resolveEnvironmentNames(octopus, f.GetCurrentSpace(), options.Environments)
+			if err != nil {
+				return err
+			}
+		}
 	}
 
 	// the executor will raise errors if any required options are missing
@@ -426,7 +460,7 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 			return err
 		}
 	} else {
-		selectedRelease, err = releases.GetReleaseInProject(octopus, space.ID, selectedProject.ID, options.ReleaseVersion)
+		selectedRelease, err = selectors.FindRelease(octopus, space.ID, selectedProject, options.ReleaseVersion)
 		if err != nil {
 			return err
 		}
@@ -474,18 +508,21 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 
 	if len(deploymentEnvironmentIDs) == 0 { // if the Q&A process earlier hasn't loaded environments already, we need to load them now
 		if selectedChannel.Type == channels.ChannelTypeLifecycle {
-			selectedEnvironments, err := executionscommon.FindEnvironments(octopus, options.Environments)
+			selectedEnvironments, err := selectors.FindEnvironments(octopus, options.Environments)
 			if err != nil {
 				return err
 			}
 
 			deploymentEnvironmentIDs = util.SliceTransform(selectedEnvironments, func(env *environments.Environment) string { return env.ID })
+			options.Environments = util.SliceTransform(selectedEnvironments, func(env *environments.Environment) string { return env.Name })
 		} else if selectedChannel.Type == channels.ChannelTypeEphemeral {
-			deploymentEnvironmentIDs, err = findEphemeralEnvironmentIDs(octopus, space, options.Environments)
-
+			selectedEnvironments, err := findEphemeralEnvironments(octopus, space, options.Environments)
 			if err != nil {
 				return err
 			}
+
+			deploymentEnvironmentIDs = util.SliceTransform(selectedEnvironments, func(env *ephemeralenvironments.EphemeralEnvironment) string { return env.ID })
+			options.Environments = util.SliceTransform(selectedEnvironments, func(env *ephemeralenvironments.EphemeralEnvironment) string { return env.Name })
 		}
 	}
 
@@ -622,7 +659,7 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 	return nil
 }
 
-func findEphemeralEnvironmentIDs(octopus *octopusApiClient.Client, space *spaces.Space, environments []string) ([]string, error) {
+func findEphemeralEnvironments(octopus *octopusApiClient.Client, space *spaces.Space, environmentIdentifiers []string) ([]*ephemeralenvironments.EphemeralEnvironment, error) {
 	allEphemeralEnvironments, err := ephemeralenvironments.GetAll(octopus, space.ID)
 	if err != nil {
 		return nil, err
@@ -632,8 +669,8 @@ func findEphemeralEnvironmentIDs(octopus *octopusApiClient.Client, space *spaces
 		return nil, errors.New("no ephemeral environments exist to deploy to")
 	}
 
-	var selectedEnvironments []string
-	if len(environments) == 0 {
+	var selectedEnvironments []*ephemeralenvironments.EphemeralEnvironment
+	if len(environmentIdentifiers) == 0 {
 		return nil, nil
 	}
 
@@ -643,15 +680,31 @@ func findEphemeralEnvironmentIDs(octopus *octopusApiClient.Client, space *spaces
 		envMap[strings.ToLower(ephemeralEnv.Name)] = ephemeralEnv
 	}
 
-	for _, envIdentifier := range environments {
+	for _, envIdentifier := range environmentIdentifiers {
 		ephemeralEnv, found := envMap[strings.ToLower(envIdentifier)]
 		if !found {
 			return nil, fmt.Errorf("environment '%s' not found in ephemeral environments", envIdentifier)
 		}
-		selectedEnvironments = append(selectedEnvironments, ephemeralEnv.ID)
+		selectedEnvironments = append(selectedEnvironments, ephemeralEnv)
 	}
 
 	return selectedEnvironments, nil
+}
+
+// resolveEnvironmentNames maps environment names or IDs onto canonical environment names, because
+// the executions API only matches environments by name. Ephemeral environments aren't part of the
+// regular environment list, so they're looked up separately when the regular lookup comes up empty.
+func resolveEnvironmentNames(octopus *octopusApiClient.Client, space *spaces.Space, environmentIdentifiers []string) ([]string, error) {
+	selectedEnvironments, err := selectors.FindEnvironments(octopus, environmentIdentifiers)
+	if err == nil {
+		return util.SliceTransform(selectedEnvironments, func(env *environments.Environment) string { return env.Name }), nil
+	}
+
+	ephemeralEnvironments, ephemeralErr := findEphemeralEnvironments(octopus, space, environmentIdentifiers)
+	if ephemeralErr != nil {
+		return nil, err // ephemeral environments are the rarer case; report why the regular lookup failed
+	}
+	return util.SliceTransform(ephemeralEnvironments, func(env *ephemeralenvironments.EphemeralEnvironment) string { return env.Name }), nil
 }
 
 func selectDeploymentEnvironmentsForEphemeralChannel(octopus *octopusApiClient.Client, stdout io.Writer, asker question.Asker, options *executor.TaskOptionsDeployRelease, selectedRelease *releases.Release) ([]string, error) {
@@ -721,6 +774,7 @@ func selectDeploymentEnvironmentsForLifecycleChannel(octopus *octopusApiClient.C
 			if err != nil {
 				return nil, err
 			}
+			options.Environments = []string{selectedEnvironment.Name}
 			_, _ = fmt.Fprintf(stdout, "Environment %s\n", output.Cyan(selectedEnvironment.Name))
 		}
 		selectedEnvironments = []*environments.Environment{selectedEnvironment}

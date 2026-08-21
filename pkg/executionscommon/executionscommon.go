@@ -8,6 +8,7 @@ import (
 	"github.com/AlecAivazis/survey/v2"
 	cliErrors "github.com/OctopusDeploy/cli/pkg/errors"
 	"github.com/OctopusDeploy/cli/pkg/question"
+	"github.com/OctopusDeploy/cli/pkg/question/selectors"
 	"github.com/OctopusDeploy/cli/pkg/surveyext"
 	"github.com/OctopusDeploy/cli/pkg/util"
 	octopusApiClient "github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
@@ -301,6 +302,29 @@ func AskVariableSpecificPrompt(asker question.Asker, message string, variableTyp
 	}
 }
 
+// ExpandCommaSeparated splits each entry on commas so `--flag "A,B"` behaves the same as
+// `--flag A --flag B`. Whitespace around each entry is trimmed and blank entries are dropped.
+// Only apply this to flags whose values cannot legitimately contain a comma; notably NOT to
+// --variable, --skip or the package/git-resource specs.
+func ExpandCommaSeparated(values []string) []string {
+	if len(values) == 0 {
+		return values
+	}
+	result := make([]string, 0, len(values))
+	for _, value := range values {
+		for _, component := range strings.Split(value, ",") {
+			component = strings.TrimSpace(component)
+			if component != "" {
+				result = append(result, component)
+			}
+		}
+	}
+	if len(result) == 0 {
+		return nil
+	}
+	return result
+}
+
 func ParseVariableStringArray(variables []string) (map[string]string, error) {
 	result := make(map[string]string, len(variables))
 	for _, v := range variables {
@@ -431,40 +455,8 @@ func ScheduledStartTimeAnswerFormatter(datePicker *surveyext.DatePicker, t time.
 	}
 }
 
-// given an array of environment names, maps these all to actual objects by querying the server
+// FindEnvironments maps an array of environment names or IDs onto the matching objects.
+// Kept as an alias so existing callers don't have to change; selectors owns the lookup.
 func FindEnvironments(client *octopusApiClient.Client, environmentNamesOrIds []string) ([]*environments.Environment, error) {
-	if len(environmentNamesOrIds) == 0 {
-		return nil, nil
-	}
-	// there's no "bulk lookup" API, so we either need to do a foreach loop to find each environment individually, or load the entire server's worth of environments
-	// it's probably going to be cheaper to just list out all the environments and match them client side, so we'll do that for simplicity's sake
-	allEnvs, err := client.Environments.GetAll()
-	if err != nil {
-		return nil, err
-	}
-
-	nameLookup := make(map[string]*environments.Environment, len(allEnvs))
-	idLookup := make(map[string]*environments.Environment, len(allEnvs))
-
-	for _, env := range allEnvs {
-		nameLookup[strings.ToLower(env.GetName())] = env
-		idLookup[strings.ToLower(env.GetID())] = env
-	}
-
-	var result []*environments.Environment
-	for _, n := range environmentNamesOrIds {
-		nameOrId := strings.ToLower(n)
-		env := nameLookup[nameOrId]
-		if env != nil {
-			result = append(result, env)
-		} else {
-			env = idLookup[nameOrId]
-			if env != nil {
-				result = append(result, env)
-			} else {
-				return nil, fmt.Errorf("cannot find environment %s", nameOrId)
-			}
-		}
-	}
-	return result, nil
+	return selectors.FindEnvironments(client, environmentNamesOrIds)
 }
