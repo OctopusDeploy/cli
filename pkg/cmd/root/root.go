@@ -100,10 +100,15 @@ func NewCmdRoot(f factory.Factory, clientFactory apiclient.ClientFactory, askPro
 	cmdPFlags.BoolP(constants.FlagEnableServiceMessages, "", false, "Enable service messages for integration with Octopus CI/CD")
 	cmdPFlags.MarkHidden(constants.FlagEnableServiceMessages)
 	// Legacy flags brought across from the .NET CLI.
-	// Consumers of these flags will have to explicitly check for them as well as the new
-	// flags. The pflag documentation says you can use SetNormalizeFunc to translate/alias flag
-	// names, however this doesn't actually work; It normalizes both the old and new flag
-	// names to the same thing at configuration time, then panics due to duplicate flag declarations.
+	// Consumers of these flags will have to explicitly check for them as well as the new flags.
+	//
+	// A note replaced here previously said SetNormalizeFunc can't be used to alias flag names
+	// because it panics on duplicate flag declarations. The panic is real, but it only happens if
+	// the alias is ALSO registered as a flag - normalizing two registered names onto one primary is
+	// the duplicate. Registering only the primary works: see util.SetFlagAliases, which release
+	// deploy now uses. This flagset still uses the older copy-the-value approach below; migrating it
+	// (and the other commands still calling util.ApplyFlagAliases) is worthwhile but has not been
+	// done.
 
 	cmdPFlags.String(constants.FlagOutputFormatLegacy, "", "")
 	_ = cmdPFlags.MarkHidden(constants.FlagOutputFormatLegacy)
