@@ -2006,6 +2006,155 @@ func TestDeployCreate_AutomationMode(t *testing.T) {
 			assert.Equal(t, "ServerTasks-29394\n", stdOut.String())
 			assert.Equal(t, "", stdErr.String())
 		}},
+
+		{"release deploy accepts comma-separated environments and targets; untenanted", func(t *testing.T, api *testutil.MockHttpServer, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
+			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
+				defer api.Close()
+				rootCmd.SetArgs([]string{
+					"release", "deploy",
+					"--project", fireProject.Name,
+					"--version", "1.0",
+					"--environment", "dev, test", // comma form, with a space after the comma
+					// mixed form; internal spaces are kept, whitespace around the comma is not
+					"--deployment-target", "first Machine, second Machine", "--deployment-target", "third Machine",
+					"--exclude-deployment-target", "fourthMachine,fifthMachine",
+					"--output-format", "basic",
+				})
+				return rootCmd.ExecuteC()
+			})
+
+			api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+fireProject.GetName()).RespondWith(fireProject)
+
+			req := api.ExpectRequest(t, "POST", "/api/Spaces-1/deployments/create/untenanted/v1")
+			requestBody, err := testutil.ReadJson[deployments.CreateDeploymentUntenantedCommandV1](req.Request.Body)
+			assert.Nil(t, err)
+
+			assert.Equal(t, deployments.CreateDeploymentUntenantedCommandV1{
+				ReleaseVersion:   "1.0",
+				EnvironmentNames: []string{"dev", "test"},
+				CreateExecutionAbstractCommandV1: deployments.CreateExecutionAbstractCommandV1{
+					SpaceID:              "Spaces-1",
+					ProjectIDOrName:      fireProject.Name,
+					SpecificMachineNames: []string{"first Machine", "second Machine", "third Machine"},
+					ExcludedMachineNames: []string{"fourthMachine", "fifthMachine"},
+				},
+			}, requestBody)
+
+			req.RespondWith(&deployments.CreateDeploymentResponseV1{
+				DeploymentServerTasks: []*deployments.DeploymentServerTask{
+					{DeploymentID: "Deployments-203", ServerTaskID: "ServerTasks-29394"},
+				},
+			})
+
+			_, err = testutil.ReceivePair(cmdReceiver)
+			assert.Nil(t, err)
+			assert.Equal(t, "ServerTasks-29394\n", stdOut.String())
+			assert.Equal(t, "", stdErr.String())
+		}},
+
+		{"release deploy keeps a target name that contains a quoted comma", func(t *testing.T, api *testutil.MockHttpServer, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
+			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
+				defer api.Close()
+				rootCmd.SetArgs([]string{
+					"release", "deploy",
+					"--project", fireProject.Name,
+					"--version", "1.0",
+					"--environment", "dev",
+					// CSV quoting is the escape hatch for a name that contains a comma
+					"--deployment-target", `"Web, Prod",Other`,
+					"--output-format", "basic",
+				})
+				return rootCmd.ExecuteC()
+			})
+
+			api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+fireProject.GetName()).RespondWith(fireProject)
+
+			req := api.ExpectRequest(t, "POST", "/api/Spaces-1/deployments/create/untenanted/v1")
+			requestBody, err := testutil.ReadJson[deployments.CreateDeploymentUntenantedCommandV1](req.Request.Body)
+			assert.Nil(t, err)
+			assert.Equal(t, []string{"Web, Prod", "Other"}, requestBody.SpecificMachineNames)
+
+			req.RespondWith(&deployments.CreateDeploymentResponseV1{
+				DeploymentServerTasks: []*deployments.DeploymentServerTask{
+					{DeploymentID: "Deployments-204", ServerTaskID: "ServerTasks-29395"},
+				},
+			})
+
+			_, err = testutil.ReceivePair(cmdReceiver)
+			assert.Nil(t, err)
+		}},
+
+		{"release deploy accepts comma-separated tenants and tenant tags; tenanted", func(t *testing.T, api *testutil.MockHttpServer, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
+			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
+				defer api.Close()
+				rootCmd.SetArgs([]string{
+					"release", "deploy",
+					"--project", fireProject.Name,
+					"--version", "1.0",
+					"--environment", "dev",
+					"--tenant", "Coke,Pepsi",
+					"--tenant-tag", "Region/us-east", "--tenant-tag", "Region/us-west,Region/eu",
+					"--output-format", "basic",
+				})
+				return rootCmd.ExecuteC()
+			})
+
+			api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+fireProject.GetName()).RespondWith(fireProject)
+
+			req := api.ExpectRequest(t, "POST", "/api/Spaces-1/deployments/create/tenanted/v1")
+			requestBody, err := testutil.ReadJson[deployments.CreateDeploymentTenantedCommandV1](req.Request.Body)
+			assert.Nil(t, err)
+			assert.Equal(t, []string{"Coke", "Pepsi"}, requestBody.Tenants)
+			assert.Equal(t, []string{"Region/us-east", "Region/us-west", "Region/eu"}, requestBody.TenantTags)
+
+			req.RespondWith(&deployments.CreateDeploymentResponseV1{
+				DeploymentServerTasks: []*deployments.DeploymentServerTask{
+					{DeploymentID: "Deployments-205", ServerTaskID: "ServerTasks-29396"},
+				},
+			})
+
+			_, err = testutil.ReceivePair(cmdReceiver)
+			assert.Nil(t, err)
+		}},
+
+		{"release deploy drops a trailing comma rather than sending a blank name", func(t *testing.T, api *testutil.MockHttpServer, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
+			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
+				defer api.Close()
+				rootCmd.SetArgs([]string{
+					"release", "deploy",
+					"--project", fireProject.Name,
+					"--version", "1.0",
+					"--environment", "dev",
+					"--deployment-target", "ABC,",
+					"--output-format", "basic",
+				})
+				return rootCmd.ExecuteC()
+			})
+
+			api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+fireProject.GetName()).RespondWith(fireProject)
+
+			req := api.ExpectRequest(t, "POST", "/api/Spaces-1/deployments/create/untenanted/v1")
+			requestBody, err := testutil.ReadJson[deployments.CreateDeploymentUntenantedCommandV1](req.Request.Body)
+			assert.Nil(t, err)
+			assert.Equal(t, []string{"ABC"}, requestBody.SpecificMachineNames)
+
+			req.RespondWith(&deployments.CreateDeploymentResponseV1{
+				DeploymentServerTasks: []*deployments.DeploymentServerTask{
+					{DeploymentID: "Deployments-206", ServerTaskID: "ServerTasks-29397"},
+				},
+			})
+
+			_, err = testutil.ReceivePair(cmdReceiver)
+			assert.Nil(t, err)
+		}},
 	}
 
 	for _, test := range tests {
@@ -2021,6 +2170,205 @@ func TestDeployCreate_AutomationMode(t *testing.T) {
 			test.run(t, api, rootCmd, stdout, stderr)
 		})
 	}
+}
+
+// An empty selection-flag value (e.g. a CI variable that expanded to "") must not be allowed to
+// silently widen or narrow the deployment: pflag's stringSlice parses "" to []string{}, which then
+// looks identical to "flag not specified at all" further down the pipeline - deploying to every
+// target, or flipping a tenanted deployment untenanted. deployRun must reject this in automation
+// mode, which is where this shape actually bites (a CI job with a blank env var).
+func TestDeployCreate_AutomationMode_EmptySelectionFlagFails(t *testing.T) {
+	tests := []struct {
+		name string
+		args []string
+		err  string
+	}{
+		{
+			"--environment resolving to no names",
+			[]string{"release", "deploy", "--project", "Fire Project", "--version", "1.0", "--environment", ""},
+			"--environment was specified but resolved to no names",
+		},
+		{
+			"-e (shorthand for --environment) resolving to no names",
+			[]string{"release", "deploy", "--project", "Fire Project", "--version", "1.0", "-e", ""},
+			"--environment was specified but resolved to no names",
+		},
+		{
+			"--tenant resolving to no names",
+			[]string{"release", "deploy", "--project", "Fire Project", "--version", "1.0", "--environment", "dev", "--tenant", ""},
+			"--tenant was specified but resolved to no names",
+		},
+		{
+			"--tenant-tag resolving to no names",
+			[]string{"release", "deploy", "--project", "Fire Project", "--version", "1.0", "--environment", "dev", "--tenant-tag", ""},
+			"--tenant-tag was specified but resolved to no names",
+		},
+		{
+			"--deployment-target resolving to no names",
+			[]string{"release", "deploy", "--project", "Fire Project", "--version", "1.0", "--environment", "dev", "--deployment-target", ""},
+			"--deployment-target was specified but resolved to no names",
+		},
+		{
+			"--deployment-target set to two literal quote characters (parses to one empty element)",
+			[]string{"release", "deploy", "--project", "Fire Project", "--version", "1.0", "--environment", "dev", "--deployment-target", `""`},
+			"--deployment-target was specified but resolved to no names",
+		},
+		{
+			"--exclude-deployment-target resolving to no names",
+			[]string{"release", "deploy", "--project", "Fire Project", "--version", "1.0", "--environment", "dev", "--exclude-deployment-target", ""},
+			"--exclude-deployment-target was specified but resolved to no names",
+		},
+		{
+			// --specificMachines is a legacy alias for --deployment-target. Because aliases are
+			// normalized onto the primary flag rather than being separate flags, an empty value
+			// arriving this way marks the primary flag Changed just as the primary spelling does,
+			// so it is caught by the same check. Under the old copy-the-value approach it was not.
+			"--specificMachines (legacy alias for --deployment-target) resolving to no names",
+			[]string{"release", "deploy", "--project", "Fire Project", "--version", "1.0", "--environment", "dev", "--specificMachines", ""},
+			"--deployment-target was specified but resolved to no names",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			stdout, stderr := &bytes.Buffer{}, &bytes.Buffer{}
+			api := testutil.NewMockHttpServer()
+
+			rootCmd := cmdRoot.NewCmdRoot(testutil.NewMockFactoryWithSpace(api, fixtures.NewSpace("Spaces-1", "Default Space")), nil, nil)
+			rootCmd.SetContext(ctxWithFakeNow)
+			rootCmd.SetOut(stdout)
+			rootCmd.SetErr(stderr)
+
+			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
+				defer api.Close()
+				rootCmd.SetArgs(test.args)
+				return rootCmd.ExecuteC()
+			})
+
+			// the empty-selection-flag check happens before any request is made, so no HTTP calls
+			// are expected here. In particular, no POST to the deployments endpoint is made.
+			_, err := testutil.ReceivePair(cmdReceiver)
+			assert.EqualError(t, err, test.err)
+
+			assert.Equal(t, "", stdout.String())
+			assert.Equal(t, "", stderr.String())
+		})
+	}
+}
+
+// GenerateAutomationCmd shell-single-quotes each element of a slice flag but does not itself apply
+// CSV quoting, so a target name containing a comma or a double quote must be CSV-quoted by
+// deployRun before it is handed to GenerateAutomationCmd - otherwise the printed command replays
+// as the wrong set of targets (comma case) or fails to parse at all (quote case).
+func TestDeployCreate_GenerationOfAutomationCommand_QuotesElementsThatNeedIt(t *testing.T) {
+	const spaceID = "Spaces-1"
+	const fireProjectID = "Projects-22"
+
+	space1 := fixtures.NewSpace(spaceID, "Default Space")
+
+	defaultChannel := fixtures.NewChannel(spaceID, "Channels-1", "Fire Project Default Channel", fireProjectID)
+	defaultChannel.Type = channels.ChannelTypeLifecycle
+
+	fireProject := fixtures.NewProject(spaceID, fireProjectID, "Fire Project", "Lifecycles-1", "ProjectGroups-1", "deploymentprocess-"+fireProjectID)
+
+	variableSnapshot := fixtures.NewVariableSetForProject(spaceID, fireProjectID)
+
+	release20 := fixtures.NewRelease(spaceID, "Releases-200", "2.0", fireProjectID, defaultChannel.ID)
+	release20.ProjectVariableSetSnapshotID = variableSnapshot.ID
+
+	// TEST STARTS HERE
+
+	api, qa := testutil.NewMockServerAndAsker()
+	stdout, stderr := &bytes.Buffer{}, &bytes.Buffer{}
+	askProvider := question.NewAskProvider(qa.AsAsker())
+
+	rootCmd := cmdRoot.NewCmdRoot(testutil.NewMockFactoryWithSpaceAndPrompt(api, space1, askProvider), nil, askProvider)
+	rootCmd.SetContext(ctxWithFakeNow)
+	rootCmd.SetOut(stdout)
+	rootCmd.SetErr(stderr)
+
+	receiver := testutil.GoBegin2(func() (*cobra.Command, error) {
+		defer testutil.Close(api, qa)
+		rootCmd.SetArgs([]string{
+			"release", "deploy",
+			"--project", "fire project",
+			"--version", "2.0",
+			"--environment", "dev",
+			// CSV quoting is the escape hatch for a comma; use it here too, so the target name that
+			// actually reaches options.DeploymentTargets is "Web, Prod" (one element, comma and all)
+			"--deployment-target", `"Web, Prod"`,
+			// CSV quoting is also the escape hatch for a literal double quote: the interior quote is
+			// doubled, so the target name that reaches options.ExcludeTargets is `He said "hi"`
+			"--exclude-deployment-target", `"He said ""hi"""`,
+		})
+		return rootCmd.ExecuteC()
+	})
+
+	api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
+	api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
+
+	api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/fire project").RespondWithStatus(404, "NotFound", nil)
+	api.ExpectRequest(t, "GET", "/api/Spaces-1/projects?partialName=fire+project").
+		RespondWith(resources.Resources[*projects.Project]{
+			Items: []*projects.Project{fireProject},
+		})
+
+	api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+fireProjectID+"/releases/"+release20.Version).RespondWith(release20)
+	api.ExpectRequest(t, "GET", "/api/Spaces-1/channels/"+defaultChannel.ID).RespondWith(defaultChannel)
+	api.ExpectRequest(t, "GET", "/api/configuration/feature-toggles?Name=indicate-missing-packages-for-release").RespondWith(&configuration.FeatureToggleConfigurationResponse{
+		FeatureToggles: []configuration.ConfiguredFeatureToggle{
+			{
+				Name:      "indicate-missing-packages-for-release",
+				IsEnabled: false,
+			},
+		},
+	})
+
+	// no prompted variables on this project, so this is the last request before the "any prompted
+	// variables?" step falls through with nothing to ask
+	api.ExpectRequest(t, "GET", "/api/Spaces-1/variables/"+variableSnapshot.ID).RespondWith(&variableSnapshot)
+
+	devEnvironment := fixtures.NewEnvironment(spaceID, "Environments-12", "dev")
+	api.ExpectRequest(t, "GET", "/api/Spaces-1/environments/all").RespondWith([]*environments.Environment{
+		devEnvironment,
+	})
+
+	deploymentPreviews := []*deployments.DeploymentPreview{
+		{
+			Form:                          deployments.NewFormWithValuesAndElements(map[string]string{}, []*deployments.Element{}),
+			StepsToExecute:                []*deployments.DeploymentTemplateStep{},
+			UseGuidedFailureModeByDefault: false,
+		},
+	}
+	api.ExpectRequest(t, "POST", "/api/Spaces-1/releases/"+release20.ID+"/deployments/previews").RespondWith(&deploymentPreviews)
+
+	// --deployment-target and --exclude-deployment-target were both specified, but not every
+	// advanced option was, so it still asks whether to change anything before proceeding
+	q := qa.ExpectQuestion(t, &survey.Select{
+		Message: "Change additional options?",
+		Options: []string{"Proceed to deploy", "Change"},
+	})
+	_ = q.AnswerWith("Proceed to deploy")
+
+	req := api.ExpectRequest(t, "POST", "/api/Spaces-1/deployments/create/untenanted/v1")
+
+	requestBody, err := testutil.ReadJson[deployments.CreateDeploymentUntenantedCommandV1](req.Request.Body)
+	assert.Nil(t, err)
+	assert.Equal(t, []string{"Web, Prod"}, requestBody.SpecificMachineNames)
+	assert.Equal(t, []string{`He said "hi"`}, requestBody.ExcludedMachineNames)
+
+	req.RespondWith(&deployments.CreateDeploymentResponseV1{
+		DeploymentServerTasks: []*deployments.DeploymentServerTask{
+			{DeploymentID: "Deployments-1", ServerTaskID: "Tasks-100"},
+		},
+	})
+
+	_, err = testutil.ReceivePair(receiver)
+	assert.Nil(t, err)
+
+	assert.Contains(t, stdout.String(),
+		`Automation Command: octopus release deploy --space 'Default Space' --project 'Fire Project' --version '2.0' --environment 'dev' --deployment-target '"Web, Prod"' --exclude-deployment-target '"He said ""hi"""' --no-prompt`)
+	assert.Equal(t, "", stderr.String())
 }
 
 // this happens outside the scope of the normal AskQuestions flow so warrants its own integration-style test

@@ -145,6 +145,7 @@ func NewCmdDeploy(f factory.Factory) *cobra.Command {
 			%[1]s release deploy  # fully interactive
 			%[1]s release deploy --project MyProject --version 1.0 --environment Dev
 			%[1]s release deploy --project MyProject --version 1.0 --tenant-tag Regions/East --tenant-tag Regions/South
+			%[1]s release deploy --project MyProject --version 1.0 --environment Dev,Test --deployment-target '"Web, Prod"'
 			%[1]s release deploy -p MyProject --version 1.0 -e Dev --skip InstallStep --variable VarName:VarValue
 			%[1]s release deploy -p MyProject --version 1.0 -e Dev --force-package-download --guided-failure true -f basic
 		`, constants.ExecutableName),
@@ -160,9 +161,9 @@ func NewCmdDeploy(f factory.Factory) *cobra.Command {
 	flags := cmd.Flags()
 	flags.StringVarP(&deployFlags.Project.Value, deployFlags.Project.Name, "p", "", "Name or ID of the project to deploy the release from")
 	flags.StringVarP(&deployFlags.ReleaseVersion.Value, deployFlags.ReleaseVersion.Name, "", "", "Release version to deploy")
-	flags.StringArrayVarP(&deployFlags.Environments.Value, deployFlags.Environments.Name, "e", nil, "Deploy to this environment (can be specified multiple times)")
-	flags.StringArrayVarP(&deployFlags.Tenants.Value, deployFlags.Tenants.Name, "", nil, "Deploy to this tenant (can be specified multiple times)")
-	flags.StringArrayVarP(&deployFlags.TenantTags.Value, deployFlags.TenantTags.Name, "", nil, "Deploy to tenants matching this tag (can be specified multiple times). Format is 'Tag Set Name/Tag Name', such as 'Regions/South'.")
+	flags.StringSliceVarP(&deployFlags.Environments.Value, deployFlags.Environments.Name, "e", nil, "Deploy to this environment (can be specified multiple times, or as a comma-separated list; double-quote a name that contains a comma)")
+	flags.StringSliceVarP(&deployFlags.Tenants.Value, deployFlags.Tenants.Name, "", nil, "Deploy to this tenant (can be specified multiple times, or as a comma-separated list; double-quote a name that contains a comma)")
+	flags.StringSliceVarP(&deployFlags.TenantTags.Value, deployFlags.TenantTags.Name, "", nil, "Deploy to tenants matching this tag (can be specified multiple times, or as a comma-separated list; double-quote a tag that contains a comma). Format is 'Tag Set Name/Tag Name', such as 'Regions/South'.")
 	flags.StringVarP(&deployFlags.DeployAt.Value, deployFlags.DeployAt.Name, "", "", "Deploy at a later time. Deploy now if omitted. TODO date formats and timezones!")
 	flags.StringVarP(&deployFlags.MaxQueueTime.Value, deployFlags.MaxQueueTime.Name, "", "", "Cancel the deployment if it hasn't started within this time period.")
 	flags.StringArrayVarP(&deployFlags.Variables.Value, deployFlags.Variables.Name, "v", nil, "Set the value for a prompted variable in the format Label:Value")
@@ -170,34 +171,55 @@ func NewCmdDeploy(f factory.Factory) *cobra.Command {
 	flags.StringArrayVarP(&deployFlags.ExcludedSteps.Value, deployFlags.ExcludedSteps.Name, "", nil, "Exclude specific steps from the deployment")
 	flags.StringVarP(&deployFlags.GuidedFailureMode.Value, deployFlags.GuidedFailureMode.Name, "", "", "Enable Guided failure mode (true/false/default)")
 	flags.BoolVarP(&deployFlags.ForcePackageDownload.Value, deployFlags.ForcePackageDownload.Name, "", false, "Force re-download of packages")
-	flags.StringArrayVarP(&deployFlags.DeploymentTargets.Value, deployFlags.DeploymentTargets.Name, "", nil, "Deploy to this target (can be specified multiple times)")
-	flags.StringArrayVarP(&deployFlags.ExcludeTargets.Value, deployFlags.ExcludeTargets.Name, "", nil, "Deploy to targets except for this (can be specified multiple times)")
+	flags.StringSliceVarP(&deployFlags.DeploymentTargets.Value, deployFlags.DeploymentTargets.Name, "", nil, "Deploy to this target (can be specified multiple times, or as a comma-separated list; double-quote a name that contains a comma)")
+	flags.StringSliceVarP(&deployFlags.ExcludeTargets.Value, deployFlags.ExcludeTargets.Name, "", nil, "Deploy to targets except for this (can be specified multiple times, or as a comma-separated list; double-quote a name that contains a comma)")
 	flags.StringArrayVarP(&deployFlags.DeploymentFreezeNames.Value, deployFlags.DeploymentFreezeNames.Name, "", nil, "Override this deployment freeze (can be specified multiple times)")
 	flags.StringVarP(&deployFlags.DeploymentFreezeOverrideReason.Value, deployFlags.DeploymentFreezeOverrideReason.Name, "", "", "Reason for overriding a deployment freeze")
 
 	flags.SortFlags = false
 
-	// flags aliases for compat with old .NET CLI
-	flagAliases := make(map[string][]string, 10)
-	util.AddFlagAliasesString(flags, FlagReleaseVersion, flagAliases, FlagAliasReleaseNumberLegacy)
-	util.AddFlagAliasesStringSlice(flags, FlagEnvironment, flagAliases, FlagAliasDeployToLegacy, FlagAliasEnv)
-	util.AddFlagAliasesStringSlice(flags, FlagTenantTag, flagAliases, FlagAliasTag, FlagAliasTenantTagLegacy)
-	util.AddFlagAliasesString(flags, FlagDeployAt, flagAliases, FlagAliasWhen, FlagAliasDeployAtLegacy)
-	util.AddFlagAliasesString(flags, FlagDeployAtExpiry, flagAliases, FlagDeployAtExpire, FlagAliasNoDeployAfterLegacy)
-	util.AddFlagAliasesString(flags, FlagUpdateVariables, flagAliases, FlagAliasUpdateVariablesLegacy)
-	util.AddFlagAliasesString(flags, FlagGuidedFailure, flagAliases, FlagAliasGuidedFailureMode, FlagAliasGuidedFailureModeLegacy)
-	util.AddFlagAliasesBool(flags, FlagForcePackageDownload, flagAliases, FlagAliasForcePackageDownloadLegacy)
-	util.AddFlagAliasesStringSlice(flags, FlagDeploymentTarget, flagAliases, FlagAliasTarget, FlagAliasSpecificMachines)
-	util.AddFlagAliasesStringSlice(flags, FlagExcludeDeploymentTarget, flagAliases, FlagAliasExcludeTarget, FlagAliasExcludeMachines)
+	// Flag aliases for compat with the old .NET CLI. These are alternate spellings of the flags
+	// above rather than separate flags, so an alias parses and reports exactly as its primary does.
+	util.SetFlagAliases(flags, map[string][]string{
+		FlagReleaseVersion:          {FlagAliasReleaseNumberLegacy},
+		FlagEnvironment:             {FlagAliasDeployToLegacy, FlagAliasEnv},
+		FlagTenantTag:               {FlagAliasTag, FlagAliasTenantTagLegacy},
+		FlagDeployAt:                {FlagAliasWhen, FlagAliasDeployAtLegacy},
+		FlagDeployAtExpiry:          {FlagDeployAtExpire, FlagAliasNoDeployAfterLegacy},
+		FlagUpdateVariables:         {FlagAliasUpdateVariablesLegacy},
+		FlagGuidedFailure:           {FlagAliasGuidedFailureMode, FlagAliasGuidedFailureModeLegacy},
+		FlagForcePackageDownload:    {FlagAliasForcePackageDownloadLegacy},
+		FlagDeploymentTarget:        {FlagAliasTarget, FlagAliasSpecificMachines},
+		FlagExcludeDeploymentTarget: {FlagAliasExcludeTarget, FlagAliasExcludeMachines},
+	})
 
-	cmd.PreRunE = func(cmd *cobra.Command, _ []string) error {
-		util.ApplyFlagAliases(cmd.Flags(), flagAliases)
-		return nil
-	}
 	return cmd
 }
 
 func deployRun(cmd *cobra.Command, f factory.Factory, flags *DeployFlags) error {
+	// pflag's stringSlice has already split these on commas, honouring CSV quoting so a name
+	// containing a comma can be passed as "Web, Prod". All that is left is to tidy whitespace around
+	// the separators and drop blanks, matching the legacy octo CLI, and to reject a flag that was
+	// given but resolved to nothing rather than letting it widen the deployment. Deliberately no
+	// further splitting here - that would undo the quoting.
+	cmdFlags := cmd.Flags()
+	for _, selection := range []struct {
+		name   string
+		values *[]string
+	}{
+		{FlagEnvironment, &flags.Environments.Value},
+		{FlagTenant, &flags.Tenants.Value},
+		{FlagTenantTag, &flags.TenantTags.Value},
+		{FlagDeploymentTarget, &flags.DeploymentTargets.Value},
+		{FlagExcludeDeploymentTarget, &flags.ExcludeTargets.Value},
+	} {
+		trimmed, err := util.TrimSliceFlagValues(cmdFlags, selection.name, *selection.values)
+		if err != nil {
+			return err
+		}
+		*selection.values = trimmed
+	}
+
 	outputFormat, err := cmd.Flags().GetString(constants.FlagOutputFormat)
 	if err != nil { // should never happen, but fallback if it does
 		outputFormat = constants.OutputFormatTable
@@ -255,15 +277,19 @@ func deployRun(cmd *cobra.Command, f factory.Factory, flags *DeployFlags) error 
 			resolvedFlags := NewDeployFlags()
 			resolvedFlags.Project.Value = options.ProjectName
 			resolvedFlags.ReleaseVersion.Value = options.ReleaseVersion
-			resolvedFlags.Environments.Value = options.Environments
-			resolvedFlags.Tenants.Value = options.Tenants
-			resolvedFlags.TenantTags.Value = options.TenantTags
+			// GenerateAutomationCmd shell-single-quotes each element of a slice flag but doesn't
+			// itself apply CSV quoting, so an element containing a comma or a double quote has to
+			// be CSV-quoted here first - otherwise the printed command wouldn't parse back into the
+			// same values pflag's stringSlice just parsed it from.
+			resolvedFlags.Environments.Value = util.SliceTransform(options.Environments, util.QuoteForCSV)
+			resolvedFlags.Tenants.Value = util.SliceTransform(options.Tenants, util.QuoteForCSV)
+			resolvedFlags.TenantTags.Value = util.SliceTransform(options.TenantTags, util.QuoteForCSV)
 			resolvedFlags.DeployAt.Value = options.ScheduledStartTime
 			resolvedFlags.MaxQueueTime.Value = options.ScheduledExpiryTime
 			resolvedFlags.ExcludedSteps.Value = options.ExcludedSteps
 			resolvedFlags.GuidedFailureMode.Value = options.GuidedFailureMode
-			resolvedFlags.DeploymentTargets.Value = options.DeploymentTargets
-			resolvedFlags.ExcludeTargets.Value = options.ExcludeTargets
+			resolvedFlags.DeploymentTargets.Value = util.SliceTransform(options.DeploymentTargets, util.QuoteForCSV)
+			resolvedFlags.ExcludeTargets.Value = util.SliceTransform(options.ExcludeTargets, util.QuoteForCSV)
 			resolvedFlags.DeploymentFreezeNames.Value = options.DeploymentFreezeNames
 			resolvedFlags.DeploymentFreezeOverrideReason.Value = options.DeploymentFreezeOverrideReason
 
