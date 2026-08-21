@@ -38,6 +38,7 @@ import (
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/releases"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/runbooks"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/spaces"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/tenants"
 	"github.com/spf13/cobra"
 )
 
@@ -227,6 +228,23 @@ func runbookRun(cmd *cobra.Command, f factory.Factory, flags *RunFlags) error {
 	}
 
 	flags.Project.Value = project.Name
+
+	// the executions API only matches environments and tenants by name, so resolve any IDs we were given
+	if len(flags.Environments.Value) > 0 {
+		selectedEnvironments, err := selectors.FindEnvironments(octopus, flags.Environments.Value)
+		if err != nil {
+			return err
+		}
+		flags.Environments.Value = util.SliceTransform(selectedEnvironments, func(env *environments.Environment) string { return env.Name })
+	}
+
+	if len(flags.Tenants.Value) > 0 {
+		selectedTenants, err := selectors.FindTenants(octopus, flags.Tenants.Value)
+		if err != nil {
+			return err
+		}
+		flags.Tenants.Value = util.SliceTransform(selectedTenants, func(t *tenants.Tenant) string { return t.Name })
+	}
 
 	if f.IsPromptEnabled() && flags.RunbookName.Value == "" && len(flags.RunbookTags.Value) == 0 {
 		var runBySelection string
