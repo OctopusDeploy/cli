@@ -317,6 +317,16 @@ func deployRun(cmd *cobra.Command, f factory.Factory, flags *DeployFlags) error 
 				return err
 			}
 			options.ProjectName = project.GetName()
+
+			if options.ReleaseVersion != "" {
+				// resolve the release up front; the executions API reports an unknown version as an
+				// unhelpful null reference error, and having the ID saves looking it up again later
+				release, err := selectors.FindRelease(octopus, f.GetCurrentSpace().ID, project, options.ReleaseVersion)
+				if err != nil {
+					return err
+				}
+				options.ReleaseID = release.ID
+			}
 		}
 
 	}
@@ -426,7 +436,7 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 			return err
 		}
 	} else {
-		selectedRelease, err = releases.GetReleaseInProject(octopus, space.ID, selectedProject.ID, options.ReleaseVersion)
+		selectedRelease, err = selectors.FindRelease(octopus, space.ID, selectedProject, options.ReleaseVersion)
 		if err != nil {
 			return err
 		}
