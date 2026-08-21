@@ -69,3 +69,41 @@ func ApplyFlagAliases(flags *pflag.FlagSet, aliases map[string][]string) {
 		}
 	}
 }
+
+// SetFlagAliases makes each alias in aliasMap an alternate spelling of its primary flag, using
+// pflag's flag-name normalization. Unlike AddFlagAliases*/ApplyFlagAliases there is no second flag
+// and nothing to copy: --specificMachines X and --deployment-target X reach the same flag, so an
+// alias behaves exactly as the primary does - same type, same parsing, same Changed field.
+//
+// That last part is why this is not just tidier. ApplyFlagAliases copies a value across with
+// Value.Set(), which does not set the primary's Changed field (only FlagSet.Set and parsing do
+// that), so a value that arrived through an alias is indistinguishable from one never supplied.
+// With normalization there is only one flag, and its Changed field is the truth.
+//
+// The aliases must NOT also be registered as flags. Normalizing two registered names onto one
+// primary panics inside pflag with "flag redefined" - that is what an earlier attempt hit, leading
+// to the conclusion recorded in pkg/cmd/root/root.go that normalization can't be used for
+// aliasing. Registering only the primary is the point, so this panics early on a name that is
+// already taken rather than leaving a registered flag silently shadowed.
+//
+// aliasMap is keyed by primary flag name, matching the map AddFlagAliases* builds.
+func SetFlagAliases(flags *pflag.FlagSet, aliasMap map[string][]string) {
+	normalized := make(map[string]string, len(aliasMap)*2)
+	for primary, aliases := range aliasMap {
+		if flags.Lookup(primary) == nil {
+			panic("bug! SetFlagAliases couldn't find primary flag " + primary + " in collection")
+		}
+		for _, alias := range aliases {
+			if flags.Lookup(alias) != nil {
+				panic("bug! SetFlagAliases alias " + alias + " is already registered as a flag; aliases must not be registered")
+			}
+			normalized[alias] = primary
+		}
+	}
+	flags.SetNormalizeFunc(func(_ *pflag.FlagSet, name string) pflag.NormalizedName {
+		if primary, ok := normalized[name]; ok {
+			return pflag.NormalizedName(primary)
+		}
+		return pflag.NormalizedName(name)
+	})
+}
