@@ -2006,6 +2006,101 @@ func TestDeployCreate_AutomationMode(t *testing.T) {
 			assert.Equal(t, "ServerTasks-29394\n", stdOut.String())
 			assert.Equal(t, "", stdErr.String())
 		}},
+
+		{"release deploy accepts comma-separated targets and environments; untenanted", func(t *testing.T, api *testutil.MockHttpServer, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
+			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
+				defer api.Close()
+				rootCmd.SetArgs([]string{
+					"release", "deploy",
+					"--project", fireProject.Name,
+					"--version", "1.0",
+					"--environment", "dev,test", // comma form
+					// mixed form; names containing spaces are preserved, whitespace around the comma is not
+					"--deployment-target", "first Machine, second Machine", "--deployment-target", "third Machine",
+					"--exclude-deployment-target", "fourthMachine,fifthMachine",
+					"--output-format", "basic", // not neccessary, just means we don't need the follow up HTTP requests at the end to print the web link
+				})
+				return rootCmd.ExecuteC()
+			})
+
+			api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+fireProject.GetName()).RespondWith(fireProject)
+
+			req := api.ExpectRequest(t, "POST", "/api/Spaces-1/deployments/create/untenanted/v1")
+			requestBody, err := testutil.ReadJson[deployments.CreateDeploymentUntenantedCommandV1](req.Request.Body)
+			assert.Nil(t, err)
+
+			assert.Equal(t, deployments.CreateDeploymentUntenantedCommandV1{
+				ReleaseVersion:   "1.0",
+				EnvironmentNames: []string{"dev", "test"},
+				CreateExecutionAbstractCommandV1: deployments.CreateExecutionAbstractCommandV1{
+					SpaceID:              "Spaces-1",
+					ProjectIDOrName:      fireProject.Name,
+					SpecificMachineNames: []string{"first Machine", "second Machine", "third Machine"},
+					ExcludedMachineNames: []string{"fourthMachine", "fifthMachine"},
+				},
+			}, requestBody)
+
+			req.RespondWith(&deployments.CreateDeploymentResponseV1{
+				DeploymentServerTasks: []*deployments.DeploymentServerTask{
+					{DeploymentID: "Deployments-203", ServerTaskID: "ServerTasks-29394"},
+				},
+			})
+
+			_, err = testutil.ReceivePair(cmdReceiver)
+			assert.Nil(t, err)
+
+			assert.Equal(t, "ServerTasks-29394\n", stdOut.String())
+			assert.Equal(t, "", stdErr.String())
+		}},
+
+		{"release deploy accepts comma-separated tenants and tenant tags; tenanted", func(t *testing.T, api *testutil.MockHttpServer, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
+			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
+				defer api.Close()
+				rootCmd.SetArgs([]string{
+					"release", "deploy",
+					"--project", fireProject.Name,
+					"--version", "1.0",
+					"--environment", "dev",
+					"--tenant", "Coke,Pepsi", // comma form
+					"--tenant-tag", "Region/us-east", "--tenant-tag", "Region/us-west,Region/eu", // mixed form
+					"--output-format", "basic",
+				})
+				return rootCmd.ExecuteC()
+			})
+
+			api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+fireProject.GetName()).RespondWith(fireProject)
+
+			req := api.ExpectRequest(t, "POST", "/api/Spaces-1/deployments/create/tenanted/v1")
+			requestBody, err := testutil.ReadJson[deployments.CreateDeploymentTenantedCommandV1](req.Request.Body)
+			assert.Nil(t, err)
+
+			assert.Equal(t, deployments.CreateDeploymentTenantedCommandV1{
+				ReleaseVersion:  "1.0",
+				EnvironmentName: "dev",
+				Tenants:         []string{"Coke", "Pepsi"},
+				TenantTags:      []string{"Region/us-east", "Region/us-west", "Region/eu"},
+				CreateExecutionAbstractCommandV1: deployments.CreateExecutionAbstractCommandV1{
+					SpaceID:         "Spaces-1",
+					ProjectIDOrName: fireProject.Name,
+				},
+			}, requestBody)
+
+			req.RespondWith(&deployments.CreateDeploymentResponseV1{
+				DeploymentServerTasks: []*deployments.DeploymentServerTask{
+					{DeploymentID: "Deployments-203", ServerTaskID: "ServerTasks-29394"},
+				},
+			})
+
+			_, err = testutil.ReceivePair(cmdReceiver)
+			assert.Nil(t, err)
+
+			assert.Equal(t, "ServerTasks-29394\n", stdOut.String())
+			assert.Equal(t, "", stdErr.String())
+		}},
 	}
 
 	for _, test := range tests {
