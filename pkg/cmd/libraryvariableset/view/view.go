@@ -128,6 +128,10 @@ func viewRun(opts *ViewOptions) error {
 		groups = util.SliceFilter(groups, func(g *shared.VariableGroup) bool {
 			return strings.Contains(strings.ToLower(g.Name), filter)
 		})
+		if groups == nil {
+			// SliceFilter returns nil on no match; keep Variables as [] in json
+			groups = []*shared.VariableGroup{}
+		}
 	}
 
 	webUrl := util.GenerateWebURL(opts.Host, set.SpaceID, fmt.Sprintf("library/variablesets/%s", set.GetID()))
