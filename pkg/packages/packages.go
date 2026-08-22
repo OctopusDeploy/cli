@@ -615,32 +615,6 @@ func printPackageVersions(ioWriter io.Writer, packages []*StepPackageVersion) er
 	return t.Print()
 }
 
-// BuildPackageVersionOverrides resolves the package specifications that arrived on the
-// command line (--package-version and --package) against a baseline. Anything that can't
-// be parsed or resolved is silently ignored.
-func BuildPackageVersionOverrides(packageVersionBaseline []*StepPackageVersion, defaultPackageVersion string, packageOverrideFlags []string) []*PackageVersionOverride {
-	packageVersionOverrides := make([]*PackageVersionOverride, 0)
-
-	if defaultPackageVersion != "" {
-		// blind apply to everything
-		packageVersionOverrides = append(packageVersionOverrides, &PackageVersionOverride{Version: defaultPackageVersion})
-	}
-
-	for _, s := range packageOverrideFlags {
-		ambOverride, err := ParsePackageOverrideString(s)
-		if err != nil {
-			continue
-		}
-		resolvedOverride, err := ResolvePackageOverride(ambOverride, packageVersionBaseline)
-		if err != nil {
-			continue
-		}
-		packageVersionOverrides = append(packageVersionOverrides, resolvedOverride)
-	}
-
-	return packageVersionOverrides
-}
-
 func AskPackageOverrideLoop(
 	packageVersionBaseline []*StepPackageVersion,
 	defaultPackageVersion string, // the --package-version command line flag
