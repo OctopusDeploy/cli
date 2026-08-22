@@ -29,10 +29,10 @@ func NewListFlags() *ListFlags {
 }
 
 type LibraryVariableSetViewModel struct {
-	ID            string
-	Name          string
-	Description   string
-	VariableSetID string
+	ID            string `json:"Id"`
+	Name          string `json:"Name"`
+	Description   string `json:"Description"`
+	VariableSetID string `json:"VariableSetId"`
 }
 
 func NewCmdList(f factory.Factory) *cobra.Command {
