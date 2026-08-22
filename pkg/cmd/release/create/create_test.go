@@ -3167,6 +3167,12 @@ func TestReleaseCreate_DryRun(t *testing.T) {
 					Items: []*channels.Channel{defaultChannel},
 				})
 
+			// the channel is resolved twice: once to canonicalise --channel, once by the dry run preview
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+fireProjectID+"/channels").
+				RespondWith(resources.Resources[*channels.Channel]{
+					Items: []*channels.Channel{defaultChannel},
+				})
+
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/deploymentprocesses/deploymentprocess-"+fireProjectID).RespondWith(depProcess)
 
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+fireProjectID+"/deploymentprocesses/template?channel=Channels-1").
