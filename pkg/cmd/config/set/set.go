@@ -99,7 +99,7 @@ func promptMissing(ask question.Asker, key string) (string, string, error) {
 		constants.ConfigShowOctopus,
 		constants.ConfigEditor,
 		constants.ConfigShell,
-		// constants.ConfigProxyUrl,
+		constants.ConfigProxyUrl,
 	}
 
 	if key == "" {

@@ -1,7 +1,6 @@
 package apiclient
 
 import (
-	"crypto/tls"
 	"errors"
 	"fmt"
 	"net/url"
@@ -121,13 +120,18 @@ func NewClientFactoryFromConfig(ask question.AskProvider) (ClientFactory, error)
 		return nil, errs
 	}
 
-	http.DefaultTransport.(*http.Transport).TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
+	transport, err := NewHttpTransport(ProxySettingsFromConfig(), true)
+	if err != nil {
+		return nil, err
+	}
 
 	// The spinner is only wanted in interactive mode, but that is not settled
 	// yet: this runs before cobra parses --no-prompt. The round-tripper decides
 	// per request instead.
+	spinnerRoundTripper := NewSpinnerRoundTripper(ask)
+	spinnerRoundTripper.Next = transport
 	httpClient := &http.Client{
-		Transport: NewSpinnerRoundTripper(ask),
+		Transport: spinnerRoundTripper,
 	}
 
 	var credentials octopusApiClient.ICredential
