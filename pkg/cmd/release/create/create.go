@@ -15,6 +15,7 @@ import (
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/cmd/release/list"
 	"github.com/OctopusDeploy/cli/pkg/constants"
+	"github.com/OctopusDeploy/cli/pkg/dryrun"
 	cliErrors "github.com/OctopusDeploy/cli/pkg/errors"
 	"github.com/OctopusDeploy/cli/pkg/executor"
 	"github.com/OctopusDeploy/cli/pkg/factory"
@@ -33,6 +34,7 @@ import (
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/feeds"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/releases"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/spaces"
 	"github.com/spf13/cobra"
 )
 
@@ -128,6 +130,7 @@ type CreateFlags struct {
 	PackageVersionSpec  *flag.Flag[[]string]
 	GitResourceRefsSpec *flag.Flag[[]string]
 	CustomFields        *flag.Flag[[]string]
+	DryRun              *flag.Flag[bool]
 }
 
 func NewCreateFlags() *CreateFlags {
@@ -145,6 +148,7 @@ func NewCreateFlags() *CreateFlags {
 		PackageVersionSpec:  flag.New[[]string](FlagPackageVersionSpec, false),
 		GitResourceRefsSpec: flag.New[[]string](FlagGitResourceRefSpec, false),
 		CustomFields:        flag.New[[]string](FlagCustomField, false),
+		DryRun:              flag.New[bool](constants.FlagDryRun, false),
 	}
 }
 
@@ -161,6 +165,7 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 			%[1]s release create -p MyProject -c default --package "utils:1.2.3" --package "utils:InstallOnly:5.6.7"
 			%[1]s release create -p MyProject --package "com.example\:my-artifact:1.0"
 			%[1]s release create -p MyProject -c Beta --no-prompt
+			%[1]s release create -p MyProject -c Beta --dry-run
 		`, constants.ExecutableName),
 		RunE: func(cmd *cobra.Command, args []string) error { return createRun(cmd, f, createFlags) },
 	}
@@ -180,6 +185,7 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 	flags.StringArrayVarP(&createFlags.PackageVersionSpec.Value, createFlags.PackageVersionSpec.Name, "", []string{}, "Version specification for a specific package. You may specify this multiple times.\nFormat as {package}:{version}, {step}:{version} or {package-ref-name}:{packageOrStep}:{version}\nIf the package ID or step name contains a colon, slash, or equals sign (such as Maven coordinates like com.example:my-artifact), escape that character with a backslash:\n    --package \"com.example\\:my-artifact:1.0\"\nThis escape syntax requires Octopus CLI 2.21.2 or later and Octopus Server 2025.4.10680 or later.")
 	flags.StringArrayVarP(&createFlags.GitResourceRefsSpec.Value, createFlags.GitResourceRefsSpec.Name, "", []string{}, "Git reference for a specific Git resource.\nFormat as {step}:{git-ref}, {step}:{git-resource-name}:{git-ref}\nYou may specify this multiple times")
 	flags.StringArrayVarP(&createFlags.CustomFields.Value, createFlags.CustomFields.Name, "", []string{}, "Custom field value to set on the release.\nFormat as {name}:{value}. You may specify multiple times")
+	dryrun.AddFlag(flags, &createFlags.DryRun.Value)
 
 	// we want the help text to display in the above order, rather than alphabetical
 	flags.SortFlags = false
@@ -259,6 +265,9 @@ func createRun(cmd *cobra.Command, f factory.Factory, flags *CreateFlags) error 
 		return err
 	}
 
+	// only populated in automation mode; the interactive Q&A resolves everything as it goes
+	var resolvedProject *projects.Project
+
 	if f.IsPromptEnabled() {
 		err = AskQuestions(octopus, cmd.OutOrStdout(), f.Ask, options)
 		if err != nil {
@@ -319,7 +328,16 @@ func createRun(cmd *cobra.Command, f factory.Factory, flags *CreateFlags) error 
 				}
 				options.ChannelName = channel.Name
 			}
+			resolvedProject = project
 		}
+	}
+
+	if flags.DryRun.Value {
+		preview, err := buildReleasePreview(octopus, f.GetCurrentSpace(), options, resolvedProject)
+		if err != nil {
+			return err
+		}
+		return printReleasePreview(cmd, preview, outputFormat)
 	}
 
 	// the executor will raise errors if any required options are missing
@@ -389,6 +407,220 @@ func createRun(cmd *cobra.Command, f factory.Factory, flags *CreateFlags) error 
 	}
 
 	return nil
+}
+
+// resolveVersioningStrategy loads the project's versioning strategy. Config-as-code projects
+// don't inline it in the project resource, so it has to come from the deployment settings.
+func resolveVersioningStrategy(octopus *octopusApiClient.Client, project *projects.Project, gitReferenceKey string) (*projects.VersioningStrategy, error) {
+	if project.VersioningStrategy != nil {
+		return project.VersioningStrategy, nil
+	}
+
+	deploymentSettings, err := octopus.Deployments.GetDeploymentSettings(project, gitReferenceKey)
+	if err != nil {
+		return nil, err
+	}
+	if deploymentSettings.VersioningStrategy == nil { // not sure if this should ever happen, but best to be defensive
+		return nil, cliErrors.NewInvalidResponseError(fmt.Sprintf("cannot determine versioning strategy for project %s", project.Name))
+	}
+	return deploymentSettings.VersioningStrategy, nil
+}
+
+// ReleasePreview is the release that a dry run would have created, resolved as far as the
+// CLI can resolve it. An empty Channel or Version means the Octopus Server decides it.
+type ReleasePreview struct {
+	// always true; it marks machine-readable output as a plan rather than a result
+	DryRun             bool
+	Space              string
+	Project            string
+	Channel            string
+	GitReference       string `json:",omitempty"`
+	GitCommit          string `json:",omitempty"`
+	Version            string
+	ReleaseNotes       string                         `json:",omitempty"`
+	PackageVersions    []*packages.StepPackageVersion `json:",omitempty"`
+	PackageOverrides   []string                       `json:",omitempty"`
+	GitResources       []string                       `json:",omitempty"`
+	CustomFields       map[string]string              `json:",omitempty"`
+	IgnoreExisting     bool
+	IgnoreChannelRules bool
+}
+
+// buildReleasePreview describes the release that would be created, without creating it.
+// In interactive mode the Q&A has already resolved everything, so resolvedProject is nil
+// and the options are the answer. In automation mode only the project has been resolved,
+// so we go back to the server (read-only) for the channel, packages and version.
+func buildReleasePreview(octopus *octopusApiClient.Client, space *spaces.Space, options *executor.TaskOptionsCreateRelease, resolvedProject *projects.Project) (*ReleasePreview, error) {
+	if options.ProjectName == "" {
+		return nil, errors.New("project must be specified")
+	}
+
+	preview := &ReleasePreview{
+		DryRun:             true,
+		Project:            options.ProjectName,
+		Channel:            options.ChannelName,
+		GitReference:       options.GitReference,
+		GitCommit:          options.GitCommit,
+		Version:            options.Version,
+		ReleaseNotes:       options.ReleaseNotes,
+		PackageOverrides:   options.PackageVersionOverrides,
+		GitResources:       options.GitResourceRefs,
+		CustomFields:       options.CustomFields,
+		IgnoreExisting:     options.IgnoreIfAlreadyExists,
+		IgnoreChannelRules: options.IgnoreChannelRules,
+	}
+	if space != nil {
+		preview.Space = space.GetName()
+	}
+
+	if resolvedProject == nil {
+		return preview, nil
+	}
+
+	// without an explicit channel the server picks one by applying the channel rules, and
+	// both the package versions and the release version follow from that choice; guessing
+	// which channel it would pick risks showing a plan that doesn't match what happens
+	if options.ChannelName == "" {
+		return preview, nil
+	}
+
+	channel, err := selectors.FindChannel(octopus, resolvedProject, options.ChannelName)
+	if err != nil {
+		return nil, err
+	}
+	preview.Channel = channel.Name
+
+	gitReferenceKey := ""
+	if resolvedProject.PersistenceSettings.Type() == projects.PersistenceSettingsTypeVersionControlled {
+		gitReferenceKey = options.GitReference
+		if options.GitCommit != "" { // prefer a specific git commit if one was specified
+			gitReferenceKey = options.GitCommit
+		}
+	}
+
+	deploymentProcess, err := octopus.DeploymentProcesses.Get(resolvedProject, gitReferenceKey)
+	if err != nil {
+		return nil, err
+	}
+
+	deploymentProcessTemplate, err := octopus.DeploymentProcesses.GetTemplate(deploymentProcess, channel.ID, "")
+	if err != nil {
+		return nil, err
+	}
+
+	baseline, err := BuildPackageVersionBaselineForChannel(octopus, deploymentProcessTemplate, channel)
+	if err != nil {
+		return nil, err
+	}
+	overrides := packages.BuildPackageVersionOverrides(baseline, options.DefaultPackageVersion, options.PackageVersionOverrides)
+	preview.PackageVersions = packages.ApplyPackageOverrides(baseline, overrides)
+
+	if preview.Version == "" {
+		preview.Version, err = determineReleaseVersion(octopus, resolvedProject, gitReferenceKey, deploymentProcessTemplate, preview.PackageVersions)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return preview, nil
+}
+
+// determineReleaseVersion works out the version the server would assign, following the same
+// rules as the interactive prompt but without asking anything. An empty string means the
+// version can't be determined up front.
+func determineReleaseVersion(octopus *octopusApiClient.Client, project *projects.Project, gitReferenceKey string, deploymentProcessTemplate *deployments.DeploymentProcessTemplate, packageVersions []*packages.StepPackageVersion) (string, error) {
+	versioningStrategy, err := resolveVersioningStrategy(octopus, project, gitReferenceKey)
+	if err != nil {
+		return "", err
+	}
+
+	if donor := versioningStrategy.DonorPackage; donor != nil {
+		for _, pkg := range packageVersions {
+			if pkg.PackageReferenceName == donor.PackageReference && pkg.ActionName == donor.DeploymentAction {
+				return pkg.Version, nil
+			}
+		}
+		return "", nil
+	}
+	if versioningStrategy.DonorPackageStepID != nil { // a donor step with no package reference; nothing to read a version from
+		return "", nil
+	}
+
+	if versioningStrategy.Template != "" {
+		return deploymentProcessTemplate.NextVersionIncrement, nil
+	}
+
+	return "", nil
+}
+
+func printReleasePreview(cmd *cobra.Command, preview *ReleasePreview, outputFormat string) error {
+	if outputFormat == constants.OutputFormatJson {
+		data, err := json.Marshal(preview)
+		if err != nil {
+			return err
+		}
+		_, _ = cmd.OutOrStdout().Write(data)
+		cmd.Println()
+		return nil
+	}
+
+	dryrun.Header(cmd)
+	cmd.Printf("Would create a release with:\n")
+
+	byServer := output.Dim("(determined by the Octopus Server)")
+	rows := []*output.DataRow{
+		output.NewDataRow("Space", preview.Space),
+		output.NewDataRow("Project", preview.Project),
+		output.NewDataRow("Channel", orDefault(preview.Channel, byServer)),
+		output.NewDataRow("Version", orDefault(preview.Version, byServer)),
+	}
+	if preview.GitReference != "" {
+		rows = append(rows, output.NewDataRow("Git Reference", preview.GitReference))
+	}
+	if preview.GitCommit != "" {
+		rows = append(rows, output.NewDataRow("Git Commit", preview.GitCommit))
+	}
+	rows = append(rows, output.NewDataRow("Release Notes", orDefault(preview.ReleaseNotes, output.Dim("(none)"))))
+	for _, ref := range preview.GitResources {
+		rows = append(rows, output.NewDataRow("Git Resource", ref))
+	}
+	for name, value := range preview.CustomFields {
+		rows = append(rows, output.NewDataRow("Custom Field", fmt.Sprintf("%s: %s", name, value)))
+	}
+	if preview.IgnoreExisting {
+		rows = append(rows, output.NewDataRow("Ignore Existing", "true"))
+	}
+	if preview.IgnoreChannelRules {
+		rows = append(rows, output.NewDataRow("Ignore Channel Rules", "true"))
+	}
+	output.PrintRows(rows, cmd.OutOrStdout())
+
+	if len(preview.PackageVersions) > 0 {
+		cmd.Printf("\nPackages:\n")
+		t := output.NewTable(cmd.OutOrStdout())
+		t.AddRow(output.Bold("PACKAGE"), output.Bold("VERSION"), output.Bold("STEP NAME/PACKAGE REFERENCE"))
+		for _, pkg := range preview.PackageVersions {
+			t.AddRow(pkg.PackageID, orDefault(pkg.Version, output.Yellow("unknown")), fmt.Sprintf("%s/%s", pkg.ActionName, pkg.PackageReferenceName))
+		}
+		if err := t.Print(); err != nil {
+			return err
+		}
+	} else if len(preview.PackageOverrides) > 0 {
+		cmd.Printf("\nPackage overrides:\n")
+		for _, ov := range preview.PackageOverrides {
+			cmd.Printf("  %s\n", ov)
+		}
+	}
+
+	dryrun.Footer(cmd, "no release was created.")
+	return nil
+}
+
+func orDefault(value string, fallback string) string {
+	if value == "" {
+		return fallback
+	}
+	return value
 }
 
 // BuildPackageVersionBaselineForChannel loads the deployment process template from the server, and for each step+package therein,
@@ -666,18 +898,9 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 		// - but we must allow the user to override package versions first.
 		// If the project's VersioningStrategy is null, it means this is a Config-as-code project and we need to
 		// additionally load the deployment settings because the API doesn't inline the strategy in the main project resource for some reason
-		var versioningStrategy *projects.VersioningStrategy
-		if selectedProject.VersioningStrategy != nil {
-			versioningStrategy = selectedProject.VersioningStrategy
-		} else {
-			deploymentSettings, err := octopus.Deployments.GetDeploymentSettings(selectedProject, gitReferenceKey)
-			if err != nil {
-				return err
-			}
-			versioningStrategy = deploymentSettings.VersioningStrategy
-		}
-		if versioningStrategy == nil { // not sure if this should ever happen, but best to be defensive
-			return cliErrors.NewInvalidResponseError(fmt.Sprintf("cannot determine versioning strategy for project %s", selectedProject.Name))
+		versioningStrategy, err := resolveVersioningStrategy(octopus, selectedProject, gitReferenceKey)
+		if err != nil {
+			return err
 		}
 
 		if versioningStrategy.DonorPackageStepID != nil || versioningStrategy.DonorPackage != nil {

@@ -13,6 +13,7 @@ const (
 	FlagNoPrompt              = "no-prompt"
 	FlagEnableServiceMessages = "enable-service-messages"
 	FlagShell                 = "shell"
+	FlagDryRun                = "dry-run"
 )
 
 // flags for storing things in the go context

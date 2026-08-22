@@ -1,6 +1,9 @@
 package apiclient_test
 
 import (
+	"bytes"
+	"io"
+	"net/http"
 	"testing"
 
 	"github.com/OctopusDeploy/cli/pkg/apiclient"
@@ -66,4 +69,33 @@ func TestNewClientFactory_WhenHostAndAccessTokenAreSupplied_ReturnsClientFactory
 	factory, err := apiclient.NewClientFactory(nil, hostUrl, accessTokenCredential, "", qa)
 	testutil.RequireSuccess(t, err)
 	assert.NotNil(t, factory)
+}
+
+type recordingRoundTripper struct {
+	Requests []*http.Request
+}
+
+func (r *recordingRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
+	r.Requests = append(r.Requests, req)
+	return &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(bytes.NewReader(nil))}, nil
+}
+
+func TestClientFactory_SetDryRun_RefusesMutatingRequests(t *testing.T) {
+	transport := &recordingRoundTripper{}
+	apiKeyCredential, _ := client.NewApiKey(apiKey)
+	clientFactory, err := apiclient.NewClientFactory(&http.Client{Transport: transport}, hostUrl, apiKeyCredential, "", qa)
+	testutil.RequireSuccess(t, err)
+
+	clientFactory.SetDryRun(true)
+
+	httpClient, err := clientFactory.GetHttpClient()
+	testutil.RequireSuccess(t, err)
+
+	_, err = httpClient.Post(hostUrl+"/api/Spaces-1/releases/create/v1", "application/json", nil)
+	assert.ErrorContains(t, err, "dry run blocked a POST request to /api/Spaces-1/releases/create/v1")
+	assert.Empty(t, transport.Requests, "a mutating request must not reach the server")
+
+	_, err = httpClient.Get(hostUrl + "/api/Spaces-1/projects/all")
+	assert.Nil(t, err)
+	assert.Len(t, transport.Requests, 1, "read-only requests still go through")
 }
