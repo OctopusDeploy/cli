@@ -33,6 +33,28 @@ func createCloudRegion(t *testing.T, apiClient *octopusApiClient.Client, envName
 	return target
 }
 
+// a second endpoint type, to check the server honours IsDisabled on more than
+// just cloud regions. Needs an explicit machine policy under --no-prompt.
+func createListeningTentacle(t *testing.T, apiClient *octopusApiClient.Client, envName string, name string, thumbprint string, extraArgs ...string) *machines.DeploymentTarget {
+	args := append([]string{
+		"deployment-target", "listening-tentacle", "create",
+		"--name", name, "--environment", envName, "--role", "target-tests",
+		"--machine-policy", "Default Machine Policy",
+		"--thumbprint", thumbprint,
+		"--url", fmt.Sprintf("https://%s.invalid:10933", name),
+	}, extraArgs...)
+
+	stdOut, stdErr, err := integration.RunCli("Default", args...)
+	if !testutil.AssertSuccess(t, err, stdOut, stdErr) {
+		return nil
+	}
+
+	target, err := apiClient.Machines.GetByIdentifier(name)
+	testutil.RequireSuccess(t, err)
+	t.Cleanup(func() { assert.Nil(t, apiClient.Machines.DeleteByID(target.GetID())) })
+	return target
+}
+
 // settings a toggle must not disturb. HealthStatus, Status and StatusSummary are
 // excluded on purpose: the server derives them from IsDisabled.
 type targetSettings struct {
@@ -82,6 +104,13 @@ func TestDeploymentTargetEnableDisable(t *testing.T) {
 		target := createCloudRegion(t, apiClient, env.Name, fmt.Sprintf("tgt-enabled-%s", runId))
 		require.NotNil(t, target)
 		assert.False(t, target.IsDisabled)
+	})
+
+	t.Run("create --disabled on a listening tentacle", func(t *testing.T) {
+		target := createListeningTentacle(t, apiClient, env.Name,
+			fmt.Sprintf("tgt-lt-disabled-%s", runId), "0123456789ABCDEF0123456789ABCDEF01234567", "--disabled")
+		require.NotNil(t, target)
+		assert.True(t, target.IsDisabled)
 	})
 
 	t.Run("enable and disable change nothing else", func(t *testing.T) {
