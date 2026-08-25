@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.24.1](https://github.com/OctopusDeploy/cli/compare/v2.24.0...v2.24.1) (2026-08-25)
+
+
+### Features
+
+* Add --priority to release deploy and runbook run ([#708](https://github.com/OctopusDeploy/cli/issues/708)) ([c7c958f](https://github.com/OctopusDeploy/cli/commit/c7c958f07b066519ebe555e6dbf165b124b33a20))
+
 ## [2.24.0](https://github.com/OctopusDeploy/cli/compare/v2.23.10...v2.24.0) (2026-08-19)
 
 
