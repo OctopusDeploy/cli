@@ -70,6 +70,8 @@ const (
 	FlagAliasGuidedFailureMode       = "guided-failure-mode"
 	FlagAliasGuidedFailureModeLegacy = "guidedFailure"
 
+	FlagPriority = "priority"
+
 	FlagForcePackageDownload            = "force-package-download"
 	FlagAliasForcePackageDownloadLegacy = "forcePackageDownload"
 
@@ -107,6 +109,7 @@ type DeployFlags struct {
 	UpdateVariables                *flag.Flag[bool]
 	ExcludedSteps                  *flag.Flag[[]string]
 	GuidedFailureMode              *flag.Flag[string] // tri-state: true, false, or "use default". Can we model it with an optional bool?
+	Priority                       *flag.Flag[string] // tri-state: true, false, or "use default"
 	ForcePackageDownload           *flag.Flag[bool]
 	DeploymentTargets              *flag.Flag[[]string]
 	ExcludeTargets                 *flag.Flag[[]string]
@@ -127,6 +130,7 @@ func NewDeployFlags() *DeployFlags {
 		UpdateVariables:                flag.New[bool](FlagUpdateVariables, false),
 		ExcludedSteps:                  flag.New[[]string](FlagSkip, false),
 		GuidedFailureMode:              flag.New[string](FlagGuidedFailure, false),
+		Priority:                       flag.New[string](FlagPriority, false),
 		ForcePackageDownload:           flag.New[bool](FlagForcePackageDownload, false),
 		DeploymentTargets:              flag.New[[]string](FlagDeploymentTarget, false),
 		ExcludeTargets:                 flag.New[[]string](FlagExcludeDeploymentTarget, false),
@@ -169,6 +173,7 @@ func NewCmdDeploy(f factory.Factory) *cobra.Command {
 	flags.BoolVarP(&deployFlags.UpdateVariables.Value, deployFlags.UpdateVariables.Name, "", false, "Overwrite the release variable snapshot by re-importing variables from the project.")
 	flags.StringArrayVarP(&deployFlags.ExcludedSteps.Value, deployFlags.ExcludedSteps.Name, "", nil, "Exclude specific steps from the deployment")
 	flags.StringVarP(&deployFlags.GuidedFailureMode.Value, deployFlags.GuidedFailureMode.Name, "", "", "Enable Guided failure mode (true/false/default)")
+	flags.StringVarP(&deployFlags.Priority.Value, deployFlags.Priority.Name, "", "", "Jump the task queue ahead of other queued tasks (true/false/default). Requires the Priority Tasks feature, and the TaskPrioritize permission to set true.")
 	flags.BoolVarP(&deployFlags.ForcePackageDownload.Value, deployFlags.ForcePackageDownload.Name, "", false, "Force re-download of packages")
 	flags.StringArrayVarP(&deployFlags.DeploymentTargets.Value, deployFlags.DeploymentTargets.Name, "", nil, "Deploy to this target (can be specified multiple times)")
 	flags.StringArrayVarP(&deployFlags.ExcludeTargets.Value, deployFlags.ExcludeTargets.Name, "", nil, "Deploy to targets except for this (can be specified multiple times)")
@@ -203,6 +208,10 @@ func deployRun(cmd *cobra.Command, f factory.Factory, flags *DeployFlags) error 
 		outputFormat = constants.OutputFormatTable
 	}
 
+	if _, err = executionscommon.ParsePriorityMode(flags.Priority.Value); err != nil {
+		return err
+	}
+
 	octopus, err := f.GetSpacedClient(apiclient.NewRequester(cmd))
 	if err != nil {
 		return err
@@ -223,6 +232,7 @@ func deployRun(cmd *cobra.Command, f factory.Factory, flags *DeployFlags) error 
 		ScheduledExpiryTime:            flags.MaxQueueTime.Value,
 		ExcludedSteps:                  flags.ExcludedSteps.Value,
 		GuidedFailureMode:              flags.GuidedFailureMode.Value,
+		Priority:                       flags.Priority.Value,
 		ForcePackageDownload:           flags.ForcePackageDownload.Value,
 		DeploymentTargets:              flags.DeploymentTargets.Value,
 		ExcludeTargets:                 flags.ExcludeTargets.Value,
@@ -262,6 +272,7 @@ func deployRun(cmd *cobra.Command, f factory.Factory, flags *DeployFlags) error 
 			resolvedFlags.MaxQueueTime.Value = options.ScheduledExpiryTime
 			resolvedFlags.ExcludedSteps.Value = options.ExcludedSteps
 			resolvedFlags.GuidedFailureMode.Value = options.GuidedFailureMode
+			resolvedFlags.Priority.Value = options.Priority
 			resolvedFlags.DeploymentTargets.Value = options.DeploymentTargets
 			resolvedFlags.ExcludeTargets.Value = options.ExcludeTargets
 			resolvedFlags.DeploymentFreezeNames.Value = options.DeploymentFreezeNames
@@ -297,6 +308,7 @@ func deployRun(cmd *cobra.Command, f factory.Factory, flags *DeployFlags) error 
 				resolvedFlags.MaxQueueTime,
 				resolvedFlags.ExcludedSteps,
 				resolvedFlags.GuidedFailureMode,
+				resolvedFlags.Priority,
 				resolvedFlags.ForcePackageDownload,
 				resolvedFlags.DeploymentTargets,
 				resolvedFlags.ExcludeTargets,
@@ -1033,6 +1045,8 @@ func PrintAdvancedSummary(stdout io.Writer, options *executor.TaskOptionsDeployR
 
 	gfmStr := executionscommon.LookupGuidedFailureModeString(options.GuidedFailureMode)
 
+	priorityStr := executionscommon.LookupPriorityString(options.Priority, "Use default setting from the lifecycle phase")
+
 	pkgDownloadStr := executionscommon.LookupPackageDownloadString(!options.ForcePackageDownload)
 
 	depTargetsStr := "All included"
@@ -1068,9 +1082,10 @@ func PrintAdvancedSummary(stdout io.Writer, options *executor.TaskOptionsDeployR
 		  Deploy Time: cyan(%s)
 		  Skipped Steps: cyan(%s)
 		  Guided Failure Mode: cyan(%s)
+		  Priority: cyan(%s)
 		  Package Download: cyan(%s)
 		  Deployment Targets: cyan(%s)
-	`)), deployAtStr, skipStepsStr, gfmStr, pkgDownloadStr, depTargetsStr)
+	`)), deployAtStr, skipStepsStr, gfmStr, priorityStr, pkgDownloadStr, depTargetsStr)
 }
 
 func selectRelease(octopus *octopusApiClient.Client, ask question.Asker, questionText string, space *spaces.Space, project *projects.Project, channel *channels.Channel) (*releases.Release, error) {
