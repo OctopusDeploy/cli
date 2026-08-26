@@ -248,27 +248,31 @@ func PromptMissing(opts *ConfigureOptions) error {
 		if err := promptGitCredential(opts); err != nil {
 			return err
 		}
+	}
 
-		if opts.GitUrl.Value == "" {
-			if err := opts.Ask(&survey.Input{
-				Message: "Git URL",
-				Help:    "The URL of the Git repository to store Platform Hub configuration.",
-			}, &opts.GitUrl.Value, survey.WithValidator(survey.ComposeValidators(
-				survey.MaxLength(200),
-				survey.Required,
-			))); err != nil {
-				return err
-			}
+	// Reached whether or not a repository was resolved above: resolveGitHubTarget already fills
+	// these from the selected repository, except when the user gave --git-url directly alongside
+	// --github-connection (no --github-repository) - in which case they're still empty here and
+	// need the same fallback prompting as the Git-credential path.
+	if opts.GitUrl.Value == "" {
+		if err := opts.Ask(&survey.Input{
+			Message: "Git URL",
+			Help:    "The URL of the Git repository to store Platform Hub configuration.",
+		}, &opts.GitUrl.Value, survey.WithValidator(survey.ComposeValidators(
+			survey.MaxLength(200),
+			survey.Required,
+		))); err != nil {
+			return err
 		}
+	}
 
-		if opts.GitBranch.Value == "" {
-			if err := opts.Ask(&survey.Input{
-				Message: "Git branch",
-				Help:    fmt.Sprintf("The default branch to use. Default value is '%s'.", DefaultBranch),
-				Default: DefaultBranch,
-			}, &opts.GitBranch.Value, survey.WithValidator(survey.MaxLength(200))); err != nil {
-				return err
-			}
+	if opts.GitBranch.Value == "" {
+		if err := opts.Ask(&survey.Input{
+			Message: "Git branch",
+			Help:    fmt.Sprintf("The default branch to use. Default value is '%s'.", DefaultBranch),
+			Default: DefaultBranch,
+		}, &opts.GitBranch.Value, survey.WithValidator(survey.MaxLength(200))); err != nil {
+			return err
 		}
 	}
 
@@ -285,10 +289,13 @@ func PromptMissing(opts *ConfigureOptions) error {
 	return nil
 }
 
-// resolveGitHubTarget resolves a GitHub connection and repository - from flags where given,
-// otherwise via a required selection - and infers the Git URL and default branch directly from
-// the selected repository. It is used both for interactive prompting and automation mode, since
-// the resolution (and the network calls behind it) is needed either way.
+// resolveGitHubTarget resolves a GitHub connection - from a flag where given, otherwise via a
+// required selection - normalizing it to its Id. If the caller already supplied --git-url
+// directly (permitted as long as --github-repository wasn't also given, see ValidateFlags),
+// that's the user's explicit choice not to pick a repository, so resolution stops there.
+// Otherwise it also resolves a repository and infers the Git URL and default branch directly
+// from it. It is used both for interactive prompting and automation mode, since the resolution
+// (and the network calls behind it) is needed either way.
 func resolveGitHubTarget(opts *ConfigureOptions) error {
 	connections, err := opts.GetAllConnectionsCallback()
 	if err != nil {
@@ -305,6 +312,10 @@ func resolveGitHubTarget(opts *ConfigureOptions) error {
 		return err
 	}
 	opts.GithubConnection.Value = connection.ID
+
+	if opts.GitUrl.Value != "" {
+		return nil
+	}
 
 	repositories, err := opts.GetRepositoriesCallback(connection.ID)
 	if err != nil {
@@ -451,9 +462,13 @@ func (co *ConfigureOptions) buildCredentials() (credentials.GitCredential, error
 
 func (co *ConfigureOptions) GenerateAutomationCmd() {
 	var autoCmd string
-	if co.GithubConnection.Value != "" {
+	switch {
+	case co.GithubRepository.Value != "":
 		autoCmd = flag.GenerateAutomationCmd(co.CmdPath, "", co.GithubConnection, co.GithubRepository, co.GitBasePath)
-	} else {
+	case co.GithubConnection.Value != "":
+		// the --github-connection + --git-url shortcut: no repository was selected
+		autoCmd = flag.GenerateAutomationCmd(co.CmdPath, "", co.GithubConnection, co.GitUrl, co.GitBranch, co.GitBasePath)
+	default:
 		autoCmd = flag.GenerateAutomationCmd(co.CmdPath, "", co.GitUrl, co.GitBranch, co.GitBasePath, co.GitUsername, co.GitPassword)
 	}
 	fmt.Fprintf(co.Out, "%s\n", autoCmd)

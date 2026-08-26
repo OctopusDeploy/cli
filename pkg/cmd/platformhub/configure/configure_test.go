@@ -192,6 +192,29 @@ func TestPromptMissing_GithubConnectionFlagPreset_SkipsConnectionPromptButStillS
 	assert.Equal(t, "develop", opts.GitBranch.Value)
 }
 
+func TestPromptMissing_GithubConnectionWithGitUrl_SkipsRepositorySelection(t *testing.T) {
+	pa := []*testutil.PA{
+		// no "Select a repository" prompt: the explicit --git-url opts out of repository selection
+		testutil.NewInputPromptWithDefault("Git branch", "The default branch to use. Default value is 'main'.", "main", "develop"),
+		testutil.NewInputPromptWithDefault("Git repository base path", "The path in the repository where Platform Hub settings are stored. Default value is '.octopus/'.", ".octopus/", ".octopus/"),
+	}
+
+	opts, checkRemainingPrompts := newOptions(t, pa)
+	opts.GithubConnection.Value = "octo-org"
+	opts.GitUrl.Value = "https://github.com/octo-org/repo.git"
+	opts.GetAllConnectionsCallback = func() ([]*githubconnections.Connection, error) {
+		return []*githubconnections.Connection{newConnection("Connections-1", "octo-org", "Organization", githubconnections.ConnectionStatusConnected)}, nil
+	}
+
+	err := configure.PromptMissing(opts)
+	checkRemainingPrompts()
+	assert.NoError(t, err)
+	assert.Equal(t, "Connections-1", opts.GithubConnection.Value)
+	assert.Equal(t, "", opts.GithubRepository.Value)
+	assert.Equal(t, "https://github.com/octo-org/repo.git", opts.GitUrl.Value)
+	assert.Equal(t, "develop", opts.GitBranch.Value)
+}
+
 func TestPromptMissing_GithubConnectionFlag_MatchesByAccountLoginName(t *testing.T) {
 	pa := []*testutil.PA{
 		testutil.NewInputPromptWithDefault("Git repository base path", "The path in the repository where Platform Hub settings are stored. Default value is '.octopus/'.", ".octopus/", ".octopus/"),
@@ -240,7 +263,7 @@ func TestValidateFlags_GitHubAndCredentialFlagsTogetherIsRejected(t *testing.T) 
 	opts := &configure.ConfigureOptions{ConfigureFlags: flags}
 
 	err := configure.ValidateFlags(opts)
-	assert.EqualError(t, err, "--github-connection/--github-repository cannot be used together with --git-username/--git-password")
+	assert.EqualError(t, err, "GitHub connections do not accept Git credentials")
 }
 
 func TestValidateFlags_GitHubRepositoryAndCredentialPasswordTogetherIsRejected(t *testing.T) {
@@ -250,17 +273,7 @@ func TestValidateFlags_GitHubRepositoryAndCredentialPasswordTogetherIsRejected(t
 	opts := &configure.ConfigureOptions{ConfigureFlags: flags}
 
 	err := configure.ValidateFlags(opts)
-	assert.EqualError(t, err, "--github-connection/--github-repository cannot be used together with --git-username/--git-password")
-}
-
-func TestValidateFlags_GitUrlWithGitHubConnectionIsRejected(t *testing.T) {
-	flags := configure.NewConfigureFlags()
-	flags.GithubConnection.Value = "octo-org"
-	flags.GitUrl.Value = "https://github.com/octo-org/repo.git"
-	opts := &configure.ConfigureOptions{ConfigureFlags: flags}
-
-	err := configure.ValidateFlags(opts)
-	assert.EqualError(t, err, "--git-url and --git-branch cannot be specified together with --github-connection or --github-repository; the selected repository determines them")
+	assert.EqualError(t, err, "GitHub connections do not accept Git credentials")
 }
 
 func TestValidateFlags_GitBranchWithGitHubRepositoryIsRejected(t *testing.T) {
@@ -270,7 +283,19 @@ func TestValidateFlags_GitBranchWithGitHubRepositoryIsRejected(t *testing.T) {
 	opts := &configure.ConfigureOptions{ConfigureFlags: flags}
 
 	err := configure.ValidateFlags(opts)
-	assert.EqualError(t, err, "--git-url and --git-branch cannot be specified together with --github-connection or --github-repository; the selected repository determines them")
+	assert.EqualError(t, err, "--git-url and --git-branch cannot be specified together with --github-repository")
+}
+
+func TestValidateFlags_GitUrlWithGitHubConnectionAloneIsAllowed(t *testing.T) {
+	// no --github-repository, so the user is opting out of repository selection and providing
+	// the Git URL directly
+	flags := configure.NewConfigureFlags()
+	flags.GithubConnection.Value = "octo-org"
+	flags.GitUrl.Value = "https://github.com/octo-org/repo.git"
+	flags.GitBranch.Value = "main"
+	opts := &configure.ConfigureOptions{ConfigureFlags: flags}
+
+	assert.NoError(t, configure.ValidateFlags(opts))
 }
 
 func TestValidateFlags_CredentialUrlAndBranchAlone_Allowed(t *testing.T) {
