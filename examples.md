@@ -187,3 +187,92 @@ fi
 octopus project variables update BlueGreenTarget --project "Random Quotes" --id d8527596-6fa2-4394-94e1-07942d3d0202 --name "" --value $value --no-prompt
 octopus release create --version 1.0.1 --project "Random Quotes" --no-prompt
 ```
+
+# Install the Octopus Argo CD gateway
+
+The gateway connects an Argo CD instance to Octopus. Run it with no arguments and the CLI reads
+what it can from your cluster and from Octopus, asking only for the things it cannot work out:
+
+```
+octopus kubernetes gateway install
+```
+
+It discovers which namespace Argo CD is in, its in-cluster address, and whether it is serving
+TLS; derives the install namespace and Helm release name from the name you give it; and takes
+the Octopus server, space, and credentials from your existing login.
+
+# Preview an Argo CD gateway install without changing anything
+
+```
+octopus kubernetes gateway install --name production --environment Production --dry-run
+```
+
+`--dry-run` renders the manifests Helm would apply and skips the connectivity checks that need
+to run a pod. Add `-o values.yaml` to also write out the resolved Helm values.
+
+# Install the Argo CD gateway unattended
+
+```
+octopus kubernetes gateway install \
+  --name production \
+  --environment Production \
+  --argocd-token "$ARGOCD_TOKEN" \
+  --no-prompt
+```
+
+The Argo CD token and the Octopus credential are written to Kubernetes Secrets and referenced
+from the chart, so neither appears in the Helm release values or in a file written by `-o`.
+Pass `--inline-secrets` if you would rather have them in the values.
+
+# Let the CLI create the Argo CD account it needs
+
+Octopus authenticates to Argo CD as a dedicated account, which normally means editing
+`argocd-cm` and `argocd-rbac-cm` by hand and then running `argocd account generate-token`.
+`--configure-argocd-account` does all three:
+
+```
+octopus kubernetes gateway install \
+  --name production \
+  --environment Production \
+  --configure-argocd-account \
+  --no-prompt
+```
+
+Interactively, the CLI shows you exactly which ConfigMap entries it would add and asks before
+applying them. Add `--allow-sync=false` if Octopus should only observe Argo CD applications
+rather than sync them.
+
+# Install the Argo CD gateway against AWS managed Argo CD (EKS capability)
+
+The [EKS capability for Argo CD](https://octopus.com/docs/argo-cd/instances/aws-managed-argo-cd)
+runs Argo CD in the AWS control plane rather than on your nodes, so there is nothing in the
+cluster to discover. Point the CLI at an EKS context and it works this out for you: it reads the
+cluster name and region from your kubeconfig, asks AWS for the Argo CD capability endpoint, and
+switches on the settings that mode needs — gRPC-Web (AWS's load balancer does not support
+HTTP/2) and full TLS verification (AWS uses a publicly trusted certificate).
+
+```
+octopus kubernetes gateway install --kube-context arn:aws:eks:ap-southeast-2:123456789012:cluster/my-cluster
+```
+
+AWS caps Argo CD account tokens at 12 hours, so managed instances authenticate with project role
+tokens instead — one per Argo CD project. Interactively, the CLI lists the projects in your
+cluster, offers to add the `octopus` role with the right policies to the ones you pick, and links
+you to Argo CD to generate each token. AWS signs those tokens in its own control plane, so that
+last step cannot be automated.
+
+Each token says which project it belongs to, so you only pass the token:
+
+```
+octopus kubernetes gateway install \
+  --name eks-production \
+  --environment Production \
+  --argocd-server-grpc-url grpc://abcd1234.eks-capabilities.ap-southeast-2.amazonaws.com \
+  --argocd-project-token "$DEFAULT_TOKEN" \
+  --argocd-project-token "$TEAM_A_TOKEN" \
+  --no-prompt
+```
+
+Use the project name `octo-gateway-unscoped` for a token to fall back on for Argo CD calls that
+are not project-scoped. If your Argo CD API is not served at the root, add
+`--argocd-grpc-web-root-path /argo/api`.

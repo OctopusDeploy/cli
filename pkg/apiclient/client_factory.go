@@ -5,9 +5,11 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"os"
 	"strings"
 
 	"github.com/MakeNowJust/heredoc/v2"
+	"github.com/OctopusDeploy/cli/pkg/config"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/output"
 	"github.com/OctopusDeploy/cli/pkg/question"
@@ -73,6 +75,10 @@ type Client struct {
 	ActiveSpace *spaces.Space
 
 	Ask question.AskProvider
+
+	// RememberSpace saves an interactively chosen space as the default, so a
+	// person is asked once rather than on every command. Nil in tests.
+	RememberSpace func(spaceNameOrID string) error
 }
 
 func NewClientFactory(httpClient *http.Client, host string, credentials octopusApiClient.ICredential, spaceNameOrID string, ask question.AskProvider) (ClientFactory, error) {
@@ -106,6 +112,24 @@ func NewClientFactory(httpClient *http.Client, host string, credentials octopusA
 		Ask:               ask,
 	}
 	return clientImpl, nil
+}
+
+// rememberSpace saves only a choice the person actually made: a space from
+// --space, the environment, or a server with just one was never asked about.
+func (c *Client) rememberSpace(space *spaces.Space) {
+	if c.RememberSpace == nil {
+		return
+	}
+
+	if err := c.RememberSpace(space.Name); err != nil {
+		// A convenience, so failing at it is not worth stopping for.
+		fmt.Fprintf(os.Stderr, "Could not save %s as your default space: %v\n", space.Name, err)
+		return
+	}
+
+	// Say so rather than quietly editing the config file.
+	fmt.Fprintf(os.Stderr, "Saved %s as your default space. Change it with '%s config set Space <name>'.\n",
+		space.Name, constants.ExecutableName)
 }
 
 // NewClientFactoryFromConfig Creates a new Client wrapper structure by reading the viper config.
@@ -150,7 +174,17 @@ func NewClientFactoryFromConfig(ask question.AskProvider) (ClientFactory, error)
 		credentials = accessTokenCredential
 	}
 
-	return NewClientFactory(httpClient, host, credentials, spaceNameOrID, ask)
+	factory, err := NewClientFactory(httpClient, host, credentials, spaceNameOrID, ask)
+	if err != nil {
+		return nil, err
+	}
+
+	if client, ok := factory.(*Client); ok {
+		client.RememberSpace = func(space string) error {
+			return config.New(viper.GetViper()).Set(constants.ConfigSpace, space)
+		}
+	}
+	return factory, nil
 }
 
 func ValidateMandatoryEnvironment(host string, apiKey string, accessToken string, isInteractive bool) error {
@@ -312,6 +346,8 @@ func (c *Client) GetSpacedClient(requester Requester) (*octopusApiClient.Client,
 			c.ActiveSpace = selectedSpace
 			c.SpaceNameOrID = selectedSpace.ID
 			foundSpaceID = selectedSpace.ID
+
+			c.rememberSpace(selectedSpace)
 		}
 	}
 

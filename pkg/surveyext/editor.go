@@ -171,7 +171,13 @@ func (e *OctoEditor) prompt(initialValue string, config *survey.PromptConfig) (i
 
 	// open the editor
 	cmd := exec.Command(args[0], args[1:]...)
-	cmd.Stdin = stdio.In
+	// The terminal itself, not whatever survey reads through: os/exec only
+	// passes a descriptor straight to the child when given an *os.File.
+	if terminal, ok := TerminalFile(stdio.In); ok {
+		cmd.Stdin = terminal
+	} else {
+		cmd.Stdin = stdio.In
+	}
 	cmd.Stdout = stdio.Out
 	cmd.Stderr = stdio.Err
 	cursor.Show()
