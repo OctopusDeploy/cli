@@ -4,12 +4,14 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"strings"
 
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/cmd"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/factory"
+	"github.com/OctopusDeploy/cli/pkg/question"
 	"github.com/OctopusDeploy/cli/pkg/question/selectors"
 	"github.com/OctopusDeploy/cli/pkg/util/flag"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
@@ -22,12 +24,13 @@ import (
 )
 
 const (
-	FlagGitConnection = "git-connection"
-	FlagGitUrl        = "git-url"
-	FlagGitUsername   = "git-username"
-	FlagGitPassword   = "git-password"
-	FlagGitBasePath   = "git-base-path"
-	FlagGitBranch     = "git-branch"
+	FlagGithubConnection = "github-connection"
+	FlagGithubRepository = "github-repository"
+	FlagGitUrl           = "git-url"
+	FlagGitUsername      = "git-username"
+	FlagGitPassword      = "git-password"
+	FlagGitBasePath      = "git-base-path"
+	FlagGitBranch        = "git-branch"
 
 	DefaultBasePath = ".octopus/"
 	DefaultBranch   = "main"
@@ -47,22 +50,24 @@ type GetAllConnectionsCallback func() ([]*githubconnections.Connection, error)
 type GetRepositoriesCallback func(connectionID string) ([]*githubconnections.Repository, error)
 
 type ConfigureFlags struct {
-	GitConnection *flag.Flag[string]
-	GitUrl        *flag.Flag[string]
-	GitUsername   *flag.Flag[string]
-	GitPassword   *flag.Flag[string]
-	GitBasePath   *flag.Flag[string]
-	GitBranch     *flag.Flag[string]
+	GithubConnection *flag.Flag[string]
+	GithubRepository *flag.Flag[string]
+	GitUrl           *flag.Flag[string]
+	GitUsername      *flag.Flag[string]
+	GitPassword      *flag.Flag[string]
+	GitBasePath      *flag.Flag[string]
+	GitBranch        *flag.Flag[string]
 }
 
 func NewConfigureFlags() *ConfigureFlags {
 	return &ConfigureFlags{
-		GitConnection: flag.New[string](FlagGitConnection, false),
-		GitUrl:        flag.New[string](FlagGitUrl, false),
-		GitUsername:   flag.New[string](FlagGitUsername, false),
-		GitPassword:   flag.New[string](FlagGitPassword, true),
-		GitBasePath:   flag.New[string](FlagGitBasePath, false),
-		GitBranch:     flag.New[string](FlagGitBranch, false),
+		GithubConnection: flag.New[string](FlagGithubConnection, false),
+		GithubRepository: flag.New[string](FlagGithubRepository, false),
+		GitUrl:           flag.New[string](FlagGitUrl, false),
+		GitUsername:      flag.New[string](FlagGitUsername, false),
+		GitPassword:      flag.New[string](FlagGitPassword, true),
+		GitBasePath:      flag.New[string](FlagGitBasePath, false),
+		GitBranch:        flag.New[string](FlagGitBranch, false),
 	}
 }
 
@@ -110,8 +115,8 @@ func NewCmdConfigure(f factory.Factory) *cobra.Command {
 		Long:  "Configure Platform Hub version control settings in Octopus Deploy",
 		Example: heredoc.Docf(`
 			%[1]s platform-hub configure
-			%[1]s platform-hub configure --git-connection Connections-1 --git-url https://github.com/org/repo.git --git-branch main
-			%[1]s platform-hub configure --git-username user --git-password pass --git-url https://github.com/org/repo.git
+			%[1]s platform-hub configure --github-connection octo-org --github-repository my-repo --git-base-path .octopus/
+			%[1]s platform-hub configure --git-username user --git-password pass --git-url https://github.com/org/repo.git --git-branch main
 		`, constants.ExecutableName),
 		RunE: func(c *cobra.Command, args []string) error {
 			opts := NewConfigureOptions(configureFlags, cmd.NewSystemDependencies(f, c))
@@ -120,23 +125,34 @@ func NewCmdConfigure(f factory.Factory) *cobra.Command {
 	}
 
 	flags := cmd.Flags()
-	flags.StringVar(&configureFlags.GitConnection.Value, configureFlags.GitConnection.Name, "", "The Id of the Platform Hub GitHub connection to use")
+	flags.StringVar(&configureFlags.GithubConnection.Value, configureFlags.GithubConnection.Name, "", "The Id or account name of the Platform Hub GitHub connection to use")
+	flags.StringVar(&configureFlags.GithubRepository.Value, configureFlags.GithubRepository.Name, "", "The name of the repository to use")
 	flags.StringVar(&configureFlags.GitUrl.Value, configureFlags.GitUrl.Name, "", "Url of the Git repository for storing Platform Hub configuration")
 	flags.StringVar(&configureFlags.GitUsername.Value, configureFlags.GitUsername.Name, "", "The username to authenticate with Git")
 	flags.StringVar(&configureFlags.GitPassword.Value, configureFlags.GitPassword.Name, "", "The password to authenticate with Git")
 	flags.StringVar(&configureFlags.GitBasePath.Value, configureFlags.GitBasePath.Name, "", fmt.Sprintf("The directory where Octopus should store Platform Hub files in the repository. Default is '%s'", DefaultBasePath))
-	flags.StringVar(&configureFlags.GitBranch.Value, configureFlags.GitBranch.Name, "", fmt.Sprintf("The default branch to use. Default is '%s'.", DefaultBranch))
+	flags.StringVar(&configureFlags.GitBranch.Value, configureFlags.GitBranch.Name, "", fmt.Sprintf("The default branch to use. Default is '%s'", DefaultBranch))
 
 	return cmd
 }
 
 func configureRun(opts *ConfigureOptions) error {
+	if err := ValidateFlags(opts); err != nil {
+		return err
+	}
+
 	current, err := opts.GetSettingsCallback()
 	if err != nil {
 		return err
 	}
 
-	if !opts.NoPrompt {
+	if opts.NoPrompt {
+		if usingGitHubFlags(opts) {
+			if err := resolveGitHubTarget(opts); err != nil {
+				return err
+			}
+		}
+	} else {
 		if isConfigured(current) {
 			fmt.Fprintln(opts.Out, "Platform Hub version control is currently configured to use:")
 			fmt.Fprintf(opts.Out, "  Url: %s\n", current.URL)
@@ -178,11 +194,38 @@ func isConfigured(settings *platformhubversioncontrolsettings.Resource) bool {
 	return settings != nil && settings.URL != ""
 }
 
-func PromptMissing(opts *ConfigureOptions) error {
-	var selectedRepo *githubconnections.Repository
-	useGitHub := opts.GitConnection.Value != ""
+func usingGitHubFlags(opts *ConfigureOptions) bool {
+	return opts.GithubConnection.Value != "" || usingGitHubRepositoryFlag(opts)
+}
 
-	if !useGitHub && opts.GitUsername.Value == "" && opts.GitPassword.Value == "" {
+func usingGitHubRepositoryFlag(opts *ConfigureOptions) bool {
+	return opts.GithubRepository.Value != ""
+}
+
+func usingGitCredentialFlags(opts *ConfigureOptions) bool {
+	return opts.GitUsername.Value != "" || opts.GitPassword.Value != ""
+}
+
+// ValidateFlags enforces that the GitHub-connection and Git-credential flag groups are mutually
+// exclusive, and that --git-url/--git-branch (which only make sense for the credential path) are
+// not combined with --github-connection/--github-repository (which infer them from the
+// selected repository).
+func ValidateFlags(opts *ConfigureOptions) error {
+	if usingGitHubFlags(opts) && usingGitCredentialFlags(opts) {
+		return fmt.Errorf("GitHub connections do not accept Git credentials")
+	}
+
+	if usingGitHubRepositoryFlag(opts) && (opts.GitUrl.Value != "" || opts.GitBranch.Value != "") {
+		return fmt.Errorf("--%s and --%s cannot be specified together with --%s", FlagGitUrl, FlagGitBranch, FlagGithubRepository)
+	}
+
+	return nil
+}
+
+func PromptMissing(opts *ConfigureOptions) error {
+	useGitHub := usingGitHubFlags(opts)
+
+	if !useGitHub && !usingGitCredentialFlags(opts) {
 		settings, err := opts.GetGitHubAppSettingsCallback()
 		if err != nil {
 			return err
@@ -198,31 +241,34 @@ func PromptMissing(opts *ConfigureOptions) error {
 	}
 
 	if useGitHub {
-		repo, err := promptGitHubConnection(opts)
-		if err != nil {
+		if err := resolveGitHubTarget(opts); err != nil {
 			return err
 		}
-		selectedRepo = repo
-	} else if opts.GitConnection.Value == "" {
+	} else {
 		if err := promptGitCredential(opts); err != nil {
 			return err
 		}
-	}
 
-	if opts.GitUrl.Value == "" {
-		defaultUrl := ""
-		if selectedRepo != nil {
-			defaultUrl = selectedRepo.GitURL
+		if opts.GitUrl.Value == "" {
+			if err := opts.Ask(&survey.Input{
+				Message: "Git URL",
+				Help:    "The URL of the Git repository to store Platform Hub configuration.",
+			}, &opts.GitUrl.Value, survey.WithValidator(survey.ComposeValidators(
+				survey.MaxLength(200),
+				survey.Required,
+			))); err != nil {
+				return err
+			}
 		}
-		if err := opts.Ask(&survey.Input{
-			Message: "Git URL",
-			Help:    "The URL of the Git repository to store Platform Hub configuration.",
-			Default: defaultUrl,
-		}, &opts.GitUrl.Value, survey.WithValidator(survey.ComposeValidators(
-			survey.MaxLength(200),
-			survey.Required,
-		))); err != nil {
-			return err
+
+		if opts.GitBranch.Value == "" {
+			if err := opts.Ask(&survey.Input{
+				Message: "Git branch",
+				Help:    fmt.Sprintf("The default branch to use. Default value is '%s'.", DefaultBranch),
+				Default: DefaultBranch,
+			}, &opts.GitBranch.Value, survey.WithValidator(survey.MaxLength(200))); err != nil {
+				return err
+			}
 		}
 	}
 
@@ -236,53 +282,84 @@ func PromptMissing(opts *ConfigureOptions) error {
 		}
 	}
 
-	if opts.GitBranch.Value == "" {
-		defaultBranch := DefaultBranch
-		if selectedRepo != nil && selectedRepo.DefaultBranch != "" {
-			defaultBranch = selectedRepo.DefaultBranch
-		}
-		if err := opts.Ask(&survey.Input{
-			Message: "Git branch",
-			Help:    fmt.Sprintf("The default branch to use. Default value is '%s'.", defaultBranch),
-			Default: defaultBranch,
-		}, &opts.GitBranch.Value, survey.WithValidator(survey.MaxLength(200))); err != nil {
-			return err
-		}
-	}
-
 	return nil
 }
 
-func promptGitHubConnection(opts *ConfigureOptions) (*githubconnections.Repository, error) {
-	if opts.GitConnection.Value != "" {
-		return nil, nil
-	}
-
+// resolveGitHubTarget resolves a GitHub connection and repository - from flags where given,
+// otherwise via a required selection - and infers the Git URL and default branch directly from
+// the selected repository. It is used both for interactive prompting and automation mode, since
+// the resolution (and the network calls behind it) is needed either way.
+func resolveGitHubTarget(opts *ConfigureOptions) error {
 	connections, err := opts.GetAllConnectionsCallback()
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	if len(connections) == 0 {
 		fmt.Fprintf(opts.Out, "No Platform Hub GitHub connections found. Configure one at %s/app#/platform-hub/git-connections\n", opts.Host)
-		return nil, ErrNoGitHubConnections
+		return ErrNoGitHubConnections
 	}
 
-	connection, err := selectors.Select(opts.Ask, "Select a GitHub connection", func() ([]*githubconnections.Connection, error) { return connections, nil }, describeConnection)
+	connection, err := resolveOrSelectConnection(opts, connections)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	opts.GitConnection.Value = connection.ID
+	opts.GithubConnection.Value = connection.ID
 
 	repositories, err := opts.GetRepositoriesCallback(connection.ID)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	if len(repositories) == 0 {
-		return nil, fmt.Errorf("the selected GitHub connection has no accessible repositories")
+		return fmt.Errorf("the selected GitHub connection has no accessible repositories")
 	}
 
-	return selectors.Select(opts.Ask, "Select a repository", func() ([]*githubconnections.Repository, error) { return repositories, nil }, func(r *githubconnections.Repository) string {
+	repository, err := resolveOrSelectRepository(opts, repositories)
+	if err != nil {
+		return err
+	}
+
+	opts.GithubRepository.Value = repository.RepositoryName
+	opts.GitUrl.Value = repository.GitURL
+	opts.GitBranch.Value = repository.DefaultBranch
+
+	return nil
+}
+
+// resolveOrSelectConnection matches --github-connection against connection Id first, then
+// against the connection's GitHub account login, since a connection has no name of its own.
+// There is no server-side filter for this, so it checks the full in-memory list. When the flag
+// isn't set, it requires an explicit selection - never auto-picking a lone connection - so the
+// user always knows what they're configuring.
+func resolveOrSelectConnection(opts *ConfigureOptions, connections []*githubconnections.Connection) (*githubconnections.Connection, error) {
+	if opts.GithubConnection.Value != "" {
+		for _, c := range connections {
+			if strings.EqualFold(c.ID, opts.GithubConnection.Value) {
+				return c, nil
+			}
+			if c.Installation != nil && strings.EqualFold(c.Installation.AccountLogin, opts.GithubConnection.Value) {
+				return c, nil
+			}
+		}
+		return nil, fmt.Errorf("could not find a Platform Hub GitHub connection matching '%s'", opts.GithubConnection.Value)
+	}
+
+	return question.SelectMap(opts.Ask, "Select a GitHub connection", connections, describeConnection)
+}
+
+// resolveOrSelectRepository matches --github-repository against repository name. When the flag
+// isn't set, it requires an explicit selection - never auto-picking a lone repository.
+func resolveOrSelectRepository(opts *ConfigureOptions, repositories []*githubconnections.Repository) (*githubconnections.Repository, error) {
+	if opts.GithubRepository.Value != "" {
+		for _, r := range repositories {
+			if strings.EqualFold(r.RepositoryName, opts.GithubRepository.Value) {
+				return r, nil
+			}
+		}
+		return nil, fmt.Errorf("could not find a repository matching '%s' for the selected GitHub connection", opts.GithubRepository.Value)
+	}
+
+	return question.SelectMap(opts.Ask, "Select a repository", repositories, func(r *githubconnections.Repository) string {
 		return r.RepositoryName
 	})
 }
@@ -361,18 +438,23 @@ func check(value string, defaultValue string) string {
 }
 
 func (co *ConfigureOptions) buildCredentials() (credentials.GitCredential, error) {
-	if co.GitConnection.Value != "" {
-		return credentials.NewGitHubApp(co.GitConnection.Value), nil
+	if co.GithubConnection.Value != "" {
+		return credentials.NewGitHubApp(co.GithubConnection.Value), nil
 	}
 
 	if co.GitUsername.Value == "" || co.GitPassword.Value == "" {
-		return nil, errors.New("either --git-connection or both --git-username and --git-password must be specified")
+		return nil, fmt.Errorf("either --%s or both --%s and --%s must be specified", FlagGithubConnection, FlagGitUsername, FlagGitPassword)
 	}
 
 	return credentials.NewUsernamePassword(co.GitUsername.Value, core.NewSensitiveValue(co.GitPassword.Value)), nil
 }
 
 func (co *ConfigureOptions) GenerateAutomationCmd() {
-	autoCmd := flag.GenerateAutomationCmd(co.CmdPath, "", co.GitConnection, co.GitUrl, co.GitBranch, co.GitBasePath, co.GitUsername, co.GitPassword)
+	var autoCmd string
+	if co.GithubConnection.Value != "" {
+		autoCmd = flag.GenerateAutomationCmd(co.CmdPath, "", co.GithubConnection, co.GithubRepository, co.GitBasePath)
+	} else {
+		autoCmd = flag.GenerateAutomationCmd(co.CmdPath, "", co.GitUrl, co.GitBranch, co.GitBasePath, co.GitUsername, co.GitPassword)
+	}
 	fmt.Fprintf(co.Out, "%s\n", autoCmd)
 }
