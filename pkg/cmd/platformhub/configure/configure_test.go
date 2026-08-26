@@ -73,7 +73,7 @@ func TestPromptMissing_GitHubConnection_MultipleConnectionsAndRepos(t *testing.T
 func TestPromptMissing_GitHubConnection_SingleConnectionAndRepoStillRequireSelection(t *testing.T) {
 	pa := []*testutil.PA{
 		testutil.NewSelectPrompt("Select a Git connection type", "", []string{"GitHub Connection", "Git Credential"}, "GitHub Connection"),
-		// a single connection or repository must still be explicitly selected, never auto-picked
+		// a single connection or repository should still require selection instead of auto-picking it
 		testutil.NewSelectPrompt("Select a GitHub connection", "", []string{"octo-org (Organization) - Connected"}, "octo-org (Organization) - Connected"),
 		testutil.NewSelectPrompt("Select a repository", "", []string{"repo-one"}, "repo-one"),
 		testutil.NewInputPromptWithDefault("Git repository base path", "The path in the repository where Platform Hub settings are stored. Default value is '.octopus/'.", ".octopus/", ".octopus/"),
@@ -102,7 +102,7 @@ func TestPromptMissing_GitHubConnection_SingleConnectionAndRepoStillRequireSelec
 	assert.Equal(t, "main", opts.GitBranch.Value)
 }
 
-func TestPromptMissing_GitHubConnection_NoneConfiguredStopsCleanly(t *testing.T) {
+func TestPromptMissing_GitHubConnection_NoneConfiguredStopsPromptingWithoutErrors(t *testing.T) {
 	pa := []*testutil.PA{
 		testutil.NewSelectPrompt("Select a Git connection type", "", []string{"GitHub Connection", "Git Credential"}, "GitHub Connection"),
 	}
@@ -165,7 +165,7 @@ func TestPromptMissing_CanUseGitHubAppFalse_SkipsConnectionTypePrompt(t *testing
 	assert.Equal(t, "user1", opts.GitUsername.Value)
 }
 
-func TestPromptMissing_GithubConnectionFlagPreset_SkipsConnectionPromptButStillSelectsRepository(t *testing.T) {
+func TestPromptMissing_WithGithubConnectionFlagSet_SkipsConnectionPromptButStillPromptsRepository(t *testing.T) {
 	pa := []*testutil.PA{
 		testutil.NewSelectPrompt("Select a repository", "", []string{"repo-one", "repo-two"}, "repo-two"),
 		testutil.NewInputPromptWithDefault("Git repository base path", "The path in the repository where Platform Hub settings are stored. Default value is '.octopus/'.", ".octopus/", ".octopus/"),
@@ -192,7 +192,7 @@ func TestPromptMissing_GithubConnectionFlagPreset_SkipsConnectionPromptButStillS
 	assert.Equal(t, "develop", opts.GitBranch.Value)
 }
 
-func TestPromptMissing_GithubConnectionWithGitUrl_SkipsRepositorySelection(t *testing.T) {
+func TestPromptMissing_WithGithubConnectionAndGitUrlSet_SkipsRepositorySelection(t *testing.T) {
 	pa := []*testutil.PA{
 		// no "Select a repository" prompt: the explicit --git-url opts out of repository selection
 		testutil.NewInputPromptWithDefault("Git branch", "The default branch to use. Default value is 'main'.", "main", "develop"),
@@ -286,7 +286,7 @@ func TestValidateFlags_GitBranchWithGitHubRepositoryIsRejected(t *testing.T) {
 	assert.EqualError(t, err, "--git-url and --git-branch cannot be specified together with --github-repository")
 }
 
-func TestValidateFlags_GitUrlWithGitHubConnectionAloneIsAllowed(t *testing.T) {
+func TestValidateFlags_GitHubConnectionWithGitUrlIsAllowed(t *testing.T) {
 	// no --github-repository, so the user is opting out of repository selection and providing
 	// the Git URL directly
 	flags := configure.NewConfigureFlags()
@@ -298,7 +298,7 @@ func TestValidateFlags_GitUrlWithGitHubConnectionAloneIsAllowed(t *testing.T) {
 	assert.NoError(t, configure.ValidateFlags(opts))
 }
 
-func TestValidateFlags_CredentialUrlAndBranchAlone_Allowed(t *testing.T) {
+func TestValidateFlags_GitCredentialUrlAndBranch_Allowed(t *testing.T) {
 	flags := configure.NewConfigureFlags()
 	flags.GitUsername.Value = "user1"
 	flags.GitPassword.Value = "password1"
@@ -309,7 +309,7 @@ func TestValidateFlags_CredentialUrlAndBranchAlone_Allowed(t *testing.T) {
 	assert.NoError(t, configure.ValidateFlags(opts))
 }
 
-func TestValidateFlags_GitHubConnectionAlone_Allowed(t *testing.T) {
+func TestValidateFlags_GitHubConnectionWithRepository_Allowed(t *testing.T) {
 	flags := configure.NewConfigureFlags()
 	flags.GithubConnection.Value = "octo-org"
 	flags.GithubRepository.Value = "my-repo"

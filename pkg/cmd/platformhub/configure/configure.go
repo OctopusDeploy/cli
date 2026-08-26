@@ -250,10 +250,6 @@ func PromptMissing(opts *ConfigureOptions) error {
 		}
 	}
 
-	// Reached whether or not a repository was resolved above: resolveGitHubTarget already fills
-	// these from the selected repository, except when the user gave --git-url directly alongside
-	// --github-connection (no --github-repository) - in which case they're still empty here and
-	// need the same fallback prompting as the Git-credential path.
 	if opts.GitUrl.Value == "" {
 		if err := opts.Ask(&survey.Input{
 			Message: "Git URL",
@@ -290,12 +286,9 @@ func PromptMissing(opts *ConfigureOptions) error {
 }
 
 // resolveGitHubTarget resolves a GitHub connection - from a flag where given, otherwise via a
-// required selection - normalizing it to its Id. If the caller already supplied --git-url
-// directly (permitted as long as --github-repository wasn't also given, see ValidateFlags),
-// that's the user's explicit choice not to pick a repository, so resolution stops there.
-// Otherwise it also resolves a repository and infers the Git URL and default branch directly
-// from it. It is used both for interactive prompting and automation mode, since the resolution
-// (and the network calls behind it) is needed either way.
+// required selection - normalizing it to its Id. Resolves a repository and infers the Git URL and default branch directly
+// from it unless --git-url is already provided. Used for both interactive prompting and automation mode as the connections
+// need to be loaded to ensure the specified connection and repository exist.
 func resolveGitHubTarget(opts *ConfigureOptions) error {
 	connections, err := opts.GetAllConnectionsCallback()
 	if err != nil {
@@ -339,9 +332,7 @@ func resolveGitHubTarget(opts *ConfigureOptions) error {
 
 // resolveOrSelectConnection matches --github-connection against connection Id first, then
 // against the connection's GitHub account login, since a connection has no name of its own.
-// There is no server-side filter for this, so it checks the full in-memory list. When the flag
-// isn't set, it requires an explicit selection - never auto-picking a lone connection - so the
-// user always knows what they're configuring.
+// There's no easy server-side filter for the account login, so it checks the full in-memory list.
 func resolveOrSelectConnection(opts *ConfigureOptions, connections []*githubconnections.Connection) (*githubconnections.Connection, error) {
 	if opts.GithubConnection.Value != "" {
 		for _, c := range connections {
@@ -358,8 +349,7 @@ func resolveOrSelectConnection(opts *ConfigureOptions, connections []*githubconn
 	return question.SelectMap(opts.Ask, "Select a GitHub connection", connections, describeConnection)
 }
 
-// resolveOrSelectRepository matches --github-repository against repository name. When the flag
-// isn't set, it requires an explicit selection - never auto-picking a lone repository.
+// resolveOrSelectRepository matches --github-repository against a repository name.
 func resolveOrSelectRepository(opts *ConfigureOptions, repositories []*githubconnections.Repository) (*githubconnections.Repository, error) {
 	if opts.GithubRepository.Value != "" {
 		for _, r := range repositories {
