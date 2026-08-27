@@ -488,7 +488,6 @@ func (opts *InstallOptions) selectInstanceByFlag() (argocd.Instance, error) {
 	return opts.Instances[0], nil
 }
 
-// applyInstanceDefaults fills in whatever the user did not override.
 func (opts *InstallOptions) applyInstanceDefaults() {
 	opts.ArgoCDNamespace.Value = opts.Instance.Namespace
 	if opts.ArgoCDServerGRPCURL.Value == "" {
@@ -505,7 +504,6 @@ func (opts *InstallOptions) applyInstanceDefaults() {
 	}
 }
 
-// resolveNames works the namespace and release name out from the display name.
 func (opts *InstallOptions) resolveNames() error {
 	if opts.Namespace.Value != "" {
 		opts.TargetNamespace = opts.Namespace.Value
@@ -593,8 +591,6 @@ func looksLikeToken(value string) bool {
 	return strings.Count(value, ".") == 2
 }
 
-// addProjectToken records a token, working out which project it belongs to from
-// the token itself.
 func (opts *InstallOptions) addProjectToken(token string) error {
 	claims, err := argocd.ParseProjectToken(token)
 	if err != nil {

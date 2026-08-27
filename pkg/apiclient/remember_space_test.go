@@ -19,7 +19,6 @@ func newSpace(id, name string) *spaces.Space {
 	return space
 }
 
-// rememberingFactory records whatever space the factory decides to save.
 func rememberingFactory(t *testing.T, api *testutil.MockHttpServer, asker *testutil.AskMocker, saved *string) apiclient.ClientFactory {
 	t.Helper()
 

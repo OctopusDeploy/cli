@@ -54,8 +54,6 @@ func connectWithConfig(kubeConfig *KubeConfig, contextName string, restConfig *r
 	return &Cluster{Clientset: clientset, Dynamic: dynamicClient, ContextName: resolved, Server: restConfig.Host}, nil
 }
 
-// NewClusterForTesting lets discovery be exercised against
-// k8s.io/client-go/kubernetes/fake.
 func NewClusterForTesting(clientset kubernetes.Interface, contextName, server string) *Cluster {
 	return &Cluster{Clientset: clientset, ContextName: contextName, Server: server}
 }
@@ -150,7 +148,6 @@ func (p Permission) String() string {
 	return fmt.Sprintf("%s %s", p.Verb, p.Resource)
 }
 
-// InstallPermissions are the accesses a chart install needs.
 func InstallPermissions(namespace string) []Permission {
 	return []Permission{
 		{Verb: "create", Resource: "namespaces", Description: "create the install namespace"},
@@ -285,7 +282,6 @@ func (c *Cluster) SecretKey(ctx context.Context, namespace, name, key string) (s
 	return string(value), true, nil
 }
 
-// FindDeployment returns the single deployment matching a label selector.
 func (c *Cluster) FindDeployment(ctx context.Context, namespace, selector string) (*appsv1.Deployment, bool, error) {
 	list, err := c.Clientset.AppsV1().Deployments(namespace).
 		List(ctx, metav1.ListOptions{LabelSelector: selector})

@@ -39,7 +39,6 @@ const (
 	capabilityLogin  = "login"
 )
 
-// Kind changes almost every connection setting the gateway needs.
 // OperatorInstance is the ArgoCD custom resource an operator manages an
 // installation from, as used by the Argo CD operator and OpenShift GitOps.
 type OperatorInstance struct {
@@ -47,6 +46,7 @@ type OperatorInstance struct {
 	Resource schema.GroupVersionResource
 }
 
+// Kind changes almost every connection setting the gateway needs.
 type Kind string
 
 const (
@@ -193,8 +193,6 @@ func DiscoverInNamespace(ctx context.Context, c *octoK8s.Cluster, namespace stri
 			"so it cannot be used with an Argo CD running in core mode", namespace)
 }
 
-// findServerDeployments works through the selectors, then falls back to the
-// namespaces holding an Argo CD ConfigMap.
 func findServerDeployments(ctx context.Context, c *octoK8s.Cluster) ([]appsv1.Deployment, error) {
 	seen := map[string]bool{}
 	var found []appsv1.Deployment

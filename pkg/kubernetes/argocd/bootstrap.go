@@ -141,7 +141,6 @@ func BeginBootstrapLogin(ctx context.Context, c *octoK8s.Cluster, instance Insta
 		mtimeKey:    time.Now().UTC().Format(time.RFC3339),
 	}, nil)
 	if err != nil {
-		// Leave nothing behind on the way out.
 		_ = bootstrap.Revert(ctx)
 		return nil, err
 	}

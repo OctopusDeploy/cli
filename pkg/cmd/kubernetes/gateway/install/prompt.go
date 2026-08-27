@@ -110,8 +110,6 @@ func promptForInstance(opts *InstallOptions) error {
 	return nil
 }
 
-// tlsDescription is shown rather than decided silently: getting these wrong is
-// a documented cause of a gateway that installs but never connects.
 // promptForManagedEndpoint asks for the address of an Argo CD that is not
 // running in this cluster, which is how the EKS capability for Argo CD works.
 func promptForManagedEndpoint(opts *InstallOptions) error {
@@ -134,6 +132,8 @@ func promptForManagedEndpoint(opts *InstallOptions) error {
 	return nil
 }
 
+// tlsDescription is shown rather than decided silently: getting these wrong is
+// a documented cause of a gateway that installs but never connects.
 func tlsDescription(instance argocd.Instance) string {
 	switch {
 	case instance.Plaintext:
@@ -276,8 +276,6 @@ func promptForProjectTokens(opts *InstallOptions) error {
 	return nil
 }
 
-// promptForProjectToken links straight at the role that needs the token, then
-// takes it.
 func promptForProjectToken(opts *InstallOptions, project string) error {
 	role := opts.accountName()
 
@@ -421,8 +419,6 @@ func printProjectTokenPreamble(opts *InstallOptions) {
 		"tokens at 12 hours.\n")
 }
 
-// PromptForProjectTokenForTest exposes the per-project prompt so its output can
-// be asserted on.
 func PromptForProjectTokenForTest(opts *InstallOptions, project string) error {
 	return promptForProjectToken(opts, project)
 }

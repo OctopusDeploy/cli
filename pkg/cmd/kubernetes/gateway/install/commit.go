@@ -456,16 +456,12 @@ func (opts *InstallOptions) reportSuccess(release helm.Release) {
 	fmt.Fprintf(opts.Out, "\nAutomation Command: %s\n", autoCmd)
 }
 
-// ErrForTest is a sentinel used by tests to check error propagation.
 var ErrForTest = errors.New("install failed")
 
-// RegistrationSecretForTest renders the credential file written for the chart.
 func (opts *InstallOptions) RegistrationSecretForTest() (string, error) {
 	return opts.registrationSecretContents()
 }
 
-// RegisterForTest exposes the registration step.
 func (opts *InstallOptions) RegisterForTest() error { return opts.register() }
 
-// DeregisterForTest exposes the rollback step.
 func (opts *InstallOptions) DeregisterForTest(cause error) error { return opts.deregister(cause) }

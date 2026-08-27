@@ -15,7 +15,6 @@ import (
 
 const template = "/api/{spaceId}/argocdgateways"
 
-// RegisterCommand asks Octopus to register a gateway.
 type RegisterCommand struct {
 	SpaceID      string   `json:"SpaceId"`
 	Name         string   `json:"Name"`

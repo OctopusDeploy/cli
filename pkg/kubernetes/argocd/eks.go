@@ -221,8 +221,6 @@ func firstNonEmpty(values ...string) string {
 	return ""
 }
 
-// ProjectTokenClaims are the parts of an Argo CD project role token Octopus
-// needs to know.
 type ProjectTokenClaims struct {
 	Project string
 	Role    string
@@ -230,7 +228,6 @@ type ProjectTokenClaims struct {
 	Expires time.Time
 }
 
-// Expired reports whether the token has already lapsed.
 func (c ProjectTokenClaims) Expired() bool {
 	return !c.Expires.IsZero() && c.Expires.Before(time.Now())
 }
