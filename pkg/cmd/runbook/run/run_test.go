@@ -743,6 +743,7 @@ func TestRunbookRun_PrintAdvancedSummary(t *testing.T) {
 				  Priority: Do not jump the task queue
 				  Package Download: Use cached packages (if available)
 				  Run Targets: All included
+				  Target Tags: All included
 				`), stdout.String())
 		}},
 
@@ -768,6 +769,7 @@ func TestRunbookRun_PrintAdvancedSummary(t *testing.T) {
 				  Priority: Jump the task queue
 				  Package Download: Re-download packages from feed
 				  Run Targets: Include vm-1,vm-2; Exclude vm-3,vm-4
+				  Target Tags: All included
 				`), stdout.String())
 		}},
 
@@ -787,6 +789,7 @@ func TestRunbookRun_PrintAdvancedSummary(t *testing.T) {
 				  Priority: Do not jump the task queue
 				  Package Download: Use cached packages (if available)
 				  Run Targets: Include vm-2
+				  Target Tags: All included
 				`), stdout.String())
 		}},
 
@@ -806,6 +809,7 @@ func TestRunbookRun_PrintAdvancedSummary(t *testing.T) {
 				  Priority: Do not jump the task queue
 				  Package Download: Use cached packages (if available)
 				  Run Targets: Exclude vm-4
+				  Target Tags: All included
 				`), stdout.String())
 		}},
 	}

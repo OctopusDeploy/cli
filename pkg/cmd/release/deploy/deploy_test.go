@@ -1173,6 +1173,14 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 				Options: []string{"vm-1", "vm-2", "vm-4", "vm-5"},
 			}).AnswerWith([]string{"vm-1", "vm-2"})
 
+			// the previews don't declare any tag sets, so the target tag questions are skipped
+			api.ExpectRequest(t, "GET", fmt.Sprintf("/api/Spaces-1/releases/%s/deployments/preview/%s?includeDisabledSteps=true", release19.ID, devEnvironment.ID)).RespondWith(&deployments.DeploymentPreview{
+				StepsToExecute: []*deployments.DeploymentTemplateStep{},
+			})
+			api.ExpectRequest(t, "GET", fmt.Sprintf("/api/Spaces-1/releases/%s/deployments/preview/%s?includeDisabledSteps=true", release19.ID, scratchEnvironment.ID)).RespondWith(&deployments.DeploymentPreview{
+				StepsToExecute: []*deployments.DeploymentTemplateStep{},
+			})
+
 			err := <-errReceiver
 			assert.Nil(t, err)
 
@@ -1277,6 +1285,11 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 				Options: []string{"vm-1", "vm-2", "vm-4"},
 			}).AnswerWith([]string{"vm-1"})
 
+			// the preview doesn't declare any tag sets, so the target tag questions are skipped
+			api.ExpectRequest(t, "GET", fmt.Sprintf("/api/Spaces-1/releases/%s/deployments/preview/%s?includeDisabledSteps=true", release19.ID, devEnvironment.ID)).RespondWith(&deployments.DeploymentPreview{
+				StepsToExecute: []*deployments.DeploymentTemplateStep{},
+			})
+
 			err := <-errReceiver
 			assert.Nil(t, err)
 
@@ -1307,6 +1320,7 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 				ForcePackageDownload:             true,
 				ForcePackageDownloadWasSpecified: true, // need this as well
 				ExcludeTargets:                   []string{"vm-99"},
+				ExcludedTargetTagNames:           []string{"Role/Legacy"},
 				ScheduledStartTime:               "some-sort-of-garbage(passthru to server)",
 			}
 
@@ -1333,6 +1347,7 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 				Variables:                        make(map[string]string, 0),
 				ExcludedSteps:                    []string{"Cleanup"},
 				ExcludeTargets:                   []string{"vm-99"},
+				ExcludedTargetTagNames:           []string{"Role/Legacy"},
 				ReleaseID:                        release19.ID,
 				ScheduledStartTime:               "some-sort-of-garbage(passthru to server)",
 			}, options)
@@ -1347,7 +1362,8 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 				GuidedFailureMode:                "default",
 				ForcePackageDownload:             false,
 				ForcePackageDownloadWasSpecified: true,
-				ExcludeTargets:                   []string{"vm-99"}, // just to skip the question
+				ExcludeTargets:                   []string{"vm-99"},       // just to skip the question
+				ExcludedTargetTagNames:           []string{"Role/Legacy"}, // just to skip the question
 				ScheduledStartTime:               now().String(),
 			}
 
@@ -1374,6 +1390,7 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 				Variables:                        make(map[string]string, 0),
 				ExcludedSteps:                    []string{"Cleanup"},
 				ExcludeTargets:                   []string{"vm-99"},
+				ExcludedTargetTagNames:           []string{"Role/Legacy"},
 				ReleaseID:                        release19.ID,
 				ScheduledStartTime:               "2022-09-08 13:25:02 +0800 Malaysia",
 			}, options)
@@ -1422,6 +1439,11 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 			}, datePicker)
 			_ = q.AnswerWith(plus59s)
 			// note it doesn't ask for a scheduled end time
+
+			// the preview doesn't declare any tag sets, so the target tag questions are skipped
+			api.ExpectRequest(t, "GET", fmt.Sprintf("/api/Spaces-1/releases/%s/deployments/preview/%s?includeDisabledSteps=true", release19.ID, devEnvironment.ID)).RespondWith(&deployments.DeploymentPreview{
+				StepsToExecute: []*deployments.DeploymentTemplateStep{},
+			})
 
 			err := <-errReceiver
 			assert.Nil(t, err)
@@ -1494,6 +1516,11 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 				Max:         refNow.Add(31 * 24 * time.Hour),
 				OverrideNow: refNow,
 			}).AnswerWith(plus61s5min)
+
+			// the preview doesn't declare any tag sets, so the target tag questions are skipped
+			api.ExpectRequest(t, "GET", fmt.Sprintf("/api/Spaces-1/releases/%s/deployments/preview/%s?includeDisabledSteps=true", release19.ID, devEnvironment.ID)).RespondWith(&deployments.DeploymentPreview{
+				StepsToExecute: []*deployments.DeploymentTemplateStep{},
+			})
 
 			err := <-errReceiver
 			assert.Nil(t, err)
@@ -2463,6 +2490,7 @@ func TestDeployCreate_GenerationOfAutomationCommand_MasksSensitiveVariables(t *t
 		  Priority: Jump the task queue
 		  Package Download: Use cached packages (if available)
 		  Deployment Targets: All included
+		  Target Tags: All included
 		
 		Automation Command: octopus release deploy --space 'Default Space' --project 'Fire Project' --version '2.0' --environment 'dev' --priority 'true' --variable 'Boring Variable:BORING' --variable 'Nuclear Launch Codes:*****' --variable 'Secret Password:*****' --no-prompt
 		Warning: Command includes some sensitive variable values which have been replaced with placeholders.
@@ -2490,6 +2518,7 @@ func TestDeployCreate_PrintAdvancedSummary(t *testing.T) {
 			  Priority: Use default setting from the lifecycle phase
 			  Package Download: Use cached packages (if available)
 			  Deployment Targets: All included
+			  Target Tags: All included
 			`), stdout.String())
 		}},
 
@@ -2513,6 +2542,7 @@ func TestDeployCreate_PrintAdvancedSummary(t *testing.T) {
 			  Priority: Jump the task queue
 			  Package Download: Re-download packages from feed
 			  Deployment Targets: Include vm-1,vm-2; Exclude vm-3,vm-4
+			  Target Tags: All included
 			`), stdout.String())
 		}},
 
@@ -2530,6 +2560,7 @@ func TestDeployCreate_PrintAdvancedSummary(t *testing.T) {
 			  Priority: Use default setting from the lifecycle phase
 			  Package Download: Use cached packages (if available)
 			  Deployment Targets: Include vm-2
+			  Target Tags: All included
 			`), stdout.String())
 		}},
 
@@ -2547,6 +2578,7 @@ func TestDeployCreate_PrintAdvancedSummary(t *testing.T) {
 			  Priority: Use default setting from the lifecycle phase
 			  Package Download: Use cached packages (if available)
 			  Deployment Targets: Exclude vm-4
+			  Target Tags: All included
 			`), stdout.String())
 		}},
 	}
