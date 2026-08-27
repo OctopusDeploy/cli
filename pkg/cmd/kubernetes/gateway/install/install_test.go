@@ -205,21 +205,34 @@ func TestBuildValues_TLSSettingsFollowTheCluster(t *testing.T) {
 	}
 }
 
-func TestBuildValues_CredentialsGoIntoSecretsByDefault(t *testing.T) {
+func TestBuildValues_ArgoCDTokenGoesIntoASecretByDefault(t *testing.T) {
 	opts := completedOptions(t)
 
 	values, err := opts.BuildValues()
 	require.NoError(t, err)
 
 	argo := values["gateway"].(map[string]any)["argocd"].(map[string]any)
-	octopus := values["registration"].(map[string]any)["octopus"].(map[string]any)
-
 	assert.Equal(t, "octopus-argocd-gateway-argocd-token", argo["authenticationTokenSecretName"])
 	assert.Equal(t, "ARGOCD_AUTH_TOKEN", argo["authenticationTokenSecretKey"])
-	assert.Equal(t, "octopus-argocd-gateway-server-token", octopus["serverAccessTokenSecretName"])
-
 	assert.NotContains(t, argo, "authenticationToken", "the Argo CD JWT must not reach the Helm values")
-	assert.NotContains(t, octopus, "serverAccessToken", "the Octopus credential must not reach the Helm values")
+}
+
+// Octopus registers the gateway before the chart is installed, so the chart has
+// no reason to hold an Octopus credential and no reason to register itself.
+func TestBuildValues_NoOctopusCredentialReachesTheCluster(t *testing.T) {
+	opts := completedOptions(t)
+	opts.InlineSecrets.Value = true // even here, there is nothing to inline
+
+	values, err := opts.BuildValues()
+	require.NoError(t, err)
+
+	registration := values["registration"].(map[string]any)
+	assert.Equal(t, false, registration["register"], "the chart must not register itself")
+
+	octopus := registration["octopus"].(map[string]any)
+	for _, key := range []string{"serverAccessToken", "serverAccessTokenSecretName", "serverAccessTokenSecretKey"} {
+		assert.NotContains(t, octopus, key)
+	}
 }
 
 func TestBuildValues_InlineSecretsOptsIn(t *testing.T) {
@@ -230,10 +243,8 @@ func TestBuildValues_InlineSecretsOptsIn(t *testing.T) {
 	require.NoError(t, err)
 
 	argo := values["gateway"].(map[string]any)["argocd"].(map[string]any)
-	octopus := values["registration"].(map[string]any)["octopus"].(map[string]any)
 
 	assert.Equal(t, "eyJhbGciOiJIUzI1NiJ9.token", argo["authenticationToken"])
-	assert.Equal(t, "API-TESTKEY", octopus["serverAccessToken"])
 	assert.NotContains(t, argo, "authenticationTokenSecretName")
 }
 
@@ -279,7 +290,6 @@ func completedOptions(t *testing.T) *install.InstallOptions {
 
 	opts := newOptions(t, flags, asker)
 	opts.Instance = stockInstance()
-	opts.OctopusCredential = "API-TESTKEY"
 	return opts
 }
 
@@ -296,7 +306,6 @@ func managedOptions(t *testing.T) *install.InstallOptions {
 	opts := newOptions(t, flags, asker)
 	opts.Instance = argocd.NewManagedInstance("abcd1234.eks-capabilities.ap-southeast-2.amazonaws.com")
 	opts.Instances = []argocd.Instance{opts.Instance}
-	opts.OctopusCredential = "API-TESTKEY"
 	return opts
 }
 

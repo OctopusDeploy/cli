@@ -8,6 +8,7 @@ import (
 
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/MakeNowJust/heredoc/v2"
+	"github.com/OctopusDeploy/cli/pkg/argocdgateways"
 	"github.com/OctopusDeploy/cli/pkg/cmd"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/factory"
@@ -46,9 +47,13 @@ const (
 const (
 	argoTokenSecretName    = "octopus-argocd-gateway-argocd-token"
 	argoTokenSecretKey     = "ARGOCD_AUTH_TOKEN"
-	octopusTokenSecretName = "octopus-argocd-gateway-server-token"
-	octopusTokenSecretKey  = "OCTOPUS_SERVER_ACCESS_TOKEN"
 	projectTokenSecretName = "octopus-argocd-gateway-project-tokens"
+
+	// The chart's own registration job would write these, and the gateway
+	// reads them from its projected configuration volume. Octopus writes them
+	// instead, so no Octopus credential of the user's ever enters the cluster.
+	registrationSecretName = "octopus-argocd-gateway-octopus-auth-secret"
+	registrationSecretKey  = "octopus-argocd-gateway-octopus-authentication-secret.yaml"
 )
 
 type InstallFlags struct {
@@ -94,8 +99,13 @@ type InstallOptions struct {
 	*InstallFlags
 	*cmd.Dependencies
 
-	GetAllEnvironmentsCallback   selectors.GetAllEnvironmentsCallback
-	GetOctopusCredentialCallback func() (string, error)
+	GetAllEnvironmentsCallback selectors.GetAllEnvironmentsCallback
+	// RegisterCallback registers the gateway with Octopus and returns its own
+	// credential. Injected so the flow can be tested without a server.
+	RegisterCallback func(argocdgateways.RegisterCommand) (*argocdgateways.Registration, error)
+	// DeregisterCallback undoes a registration when the install that followed
+	// it did not work.
+	DeregisterCallback func(id string) error
 
 	// Populated by Discover before prompting. Exported so tests can drive the
 	// prompt flow against a fake cluster.
@@ -105,9 +115,9 @@ type InstallOptions struct {
 	Runner          *helm.Runner
 	KubeContextInfo octoK8s.Context
 
-	TargetNamespace   string
-	TargetRelease     string
-	OctopusCredential string
+	TargetNamespace string
+	TargetRelease   string
+	Registration    *argocdgateways.Registration
 }
 
 func NewInstallOptions(installFlags *InstallFlags, dependencies *cmd.Dependencies) *InstallOptions {
@@ -116,6 +126,12 @@ func NewInstallOptions(installFlags *InstallFlags, dependencies *cmd.Dependencie
 		Dependencies: dependencies,
 		GetAllEnvironmentsCallback: func() ([]*environments.Environment, error) {
 			return selectors.GetAllEnvironments(dependencies.Client)
+		},
+		RegisterCallback: func(command argocdgateways.RegisterCommand) (*argocdgateways.Registration, error) {
+			return argocdgateways.Register(dependencies.Client, command)
+		},
+		DeregisterCallback: func(id string) error {
+			return argocdgateways.DeleteByID(dependencies.Client, dependencies.Space.ID, id)
 		},
 	}
 }
@@ -144,7 +160,6 @@ func NewCmdInstall(f factory.Factory) *cobra.Command {
 		`, constants.ExecutableName),
 		RunE: func(c *cobra.Command, _ []string) error {
 			opts := NewInstallOptions(installFlags, cmd.NewDependencies(f, c))
-			opts.GetOctopusCredentialCallback = func() (string, error) { return octopusCredential(f) }
 			return installRun(c.Context(), opts)
 		},
 	}
@@ -173,10 +188,6 @@ func NewCmdInstall(f factory.Factory) *cobra.Command {
 func installRun(ctx context.Context, opts *InstallOptions) error {
 	if ctx == nil {
 		ctx = context.Background()
-	}
-
-	if err := opts.resolveOctopusCredential(); err != nil {
-		return err
 	}
 
 	if err := opts.Discover(ctx); err != nil {
@@ -518,45 +529,11 @@ func (opts *InstallOptions) resolveNames() error {
 	return nil
 }
 
-// octopusCredential is used once by the chart's registration job; from then on
-// the gateway uses its own credential.
-func octopusCredential(f factory.Factory) (string, error) {
-	configProvider, err := f.GetConfigProvider()
-	if err != nil {
-		return "", err
-	}
-
-	if apiKey := configProvider.Get(constants.ConfigApiKey); apiKey != "" {
-		return apiKey, nil
-	}
-	if accessToken := configProvider.Get(constants.ConfigAccessToken); accessToken != "" {
-		return accessToken, nil
-	}
-
-	return "", fmt.Errorf("no Octopus credential is configured. Run %s login, or set %s",
-		constants.ExecutableName, constants.EnvOctopusApiKey)
-}
-
-func (opts *InstallOptions) resolveOctopusCredential() error {
-	if opts.GetOctopusCredentialCallback == nil {
-		return errors.New("no Octopus credential source was configured")
-	}
-
-	credential, err := opts.GetOctopusCredentialCallback()
-	if err != nil {
-		return err
-	}
-	opts.OctopusCredential = credential
-	return nil
-}
-
 // Run installs the gateway using an existing set of dependencies. The
 // `kubernetes install` wizard uses this to hand off after the user picks a
 // component, so the two entry points share one implementation.
-func Run(f factory.Factory, dependencies *cmd.Dependencies) error {
-	opts := NewInstallOptions(NewInstallFlags(), dependencies)
-	opts.GetOctopusCredentialCallback = func() (string, error) { return octopusCredential(f) }
-	return installRun(context.Background(), opts)
+func Run(_ factory.Factory, dependencies *cmd.Dependencies) error {
+	return installRun(context.Background(), NewInstallOptions(NewInstallFlags(), dependencies))
 }
 
 // accountName is the Argo CD account, or role, Octopus authenticates as.

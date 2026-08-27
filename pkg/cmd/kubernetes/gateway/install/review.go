@@ -174,6 +174,7 @@ func octopusItems(opts *InstallOptions) []reviewItem {
 			},
 		},
 		{Label: "Server", Value: opts.Host, Source: "from your login"},
+		{Label: "Registration", Value: "Octopus registers the gateway before installing", Source: "no Octopus credential is stored in the cluster"},
 		{Label: "Space", Value: opts.Space.Name, Source: "from your login"},
 		{
 			Label: "gRPC address", Value: opts.OctopusGRPCURL.Value, Source: "derived from the server address",
@@ -367,9 +368,9 @@ func projectTokenSummary(opts *InstallOptions) string {
 
 func credentialPlacement(opts *InstallOptions) string {
 	if opts.InlineSecrets.Value {
-		return "in the Helm values"
+		return "Argo CD token in the Helm values"
 	}
-	return "in Kubernetes Secrets"
+	return "Argo CD token in a Kubernetes Secret"
 }
 
 func maskedToken(token string) string {

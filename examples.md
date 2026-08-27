@@ -220,9 +220,13 @@ octopus kubernetes gateway install \
   --no-prompt
 ```
 
-The Argo CD token and the Octopus credential are written to Kubernetes Secrets and referenced
-from the chart, so neither appears in the Helm release values or in a file written by `-o`.
-Pass `--inline-secrets` if you would rather have them in the values.
+Octopus registers the gateway itself before installing the chart, and puts only the gateway's
+own credential into the cluster — your Octopus API key is never stored there. If the install
+fails, the registration is removed again so you are not left with a gateway that never connects.
+
+The Argo CD token is written to a Kubernetes Secret and referenced from the chart, so it does
+not appear in the Helm release values or in a file written by `-o`. Pass `--inline-secrets` if
+you would rather have it in the values.
 
 # Let the CLI create the Argo CD account it needs
 

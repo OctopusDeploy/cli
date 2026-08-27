@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/AlecAivazis/survey/v2"
+	"github.com/OctopusDeploy/cli/pkg/argocdgateways"
 	octoK8s "github.com/OctopusDeploy/cli/pkg/kubernetes"
 	"github.com/OctopusDeploy/cli/pkg/kubernetes/helm"
 	"github.com/OctopusDeploy/cli/pkg/output"
@@ -47,8 +48,12 @@ func (opts *InstallOptions) Commit(ctx context.Context) error {
 		return err
 	}
 
-	if err := opts.storeCredentials(ctx); err != nil {
+	if err := opts.register(); err != nil {
 		return err
+	}
+
+	if err := opts.storeCredentials(ctx); err != nil {
+		return opts.deregister(err)
 	}
 
 	fmt.Fprintf(opts.Out, "\nInstalling the Argo CD gateway into %s...\n", output.Cyan(opts.TargetNamespace))
@@ -69,11 +74,59 @@ func (opts *InstallOptions) Commit(ctx context.Context) error {
 		Timeout:     timeout,
 	})
 	if err != nil {
-		return err
+		return opts.deregister(err)
 	}
 
 	opts.reportSuccess(release)
 	return nil
+}
+
+// register obtains the gateway's own credential from Octopus, so the chart does
+// not have to be given one of the user's to register itself with.
+func (opts *InstallOptions) register() error {
+	if opts.RegisterCallback == nil {
+		return errors.New("no way to register the gateway with Octopus was configured")
+	}
+
+	environments := opts.Environments.Value
+	if environments == nil {
+		environments = []string{}
+	}
+
+	registration, err := opts.RegisterCallback(argocdgateways.RegisterCommand{
+		SpaceID:      opts.Space.ID,
+		Name:         opts.Name.Value,
+		Environments: environments,
+	})
+	if err != nil {
+		return err
+	}
+	if registration.AuthenticationToken == "" {
+		return errors.New("Octopus registered the gateway but returned no credential for it")
+	}
+
+	opts.Registration = registration
+	fmt.Fprintf(opts.Out, "%s Registered %s with Octopus\n", output.Green("✔"), output.Cyan(opts.Name.Value))
+	return nil
+}
+
+// deregister removes the registration when the install it was for did not
+// happen, so a failed attempt does not leave a gateway in Octopus that will
+// never connect.
+func (opts *InstallOptions) deregister(cause error) error {
+	if opts.Registration == nil || opts.DeregisterCallback == nil {
+		return cause
+	}
+
+	if err := opts.DeregisterCallback(opts.Registration.ID); err != nil {
+		fmt.Fprintf(opts.Out, "%s The install failed, and the gateway registration in Octopus could not be removed: %v\n"+
+			"  Delete %s under Infrastructure > Argo CD Instances before trying again.\n",
+			output.Yellow("!"), err, output.Cyan(opts.Name.Value))
+		return cause
+	}
+
+	fmt.Fprintf(opts.Out, "  %s\n", output.Dim("Removed the gateway registration from Octopus."))
+	return cause
 }
 
 func (opts *InstallOptions) chartRef() helm.ChartRef {
@@ -93,6 +146,9 @@ func (opts *InstallOptions) BuildValues() (map[string]any, error) {
 		return nil, errors.New("the Octopus gRPC address could not be determined; specify --" + FlagOctopusGRPCURL)
 	}
 
+	// register is off: Octopus registers the gateway before the chart is
+	// installed, so no Octopus credential of the user's ever reaches the
+	// cluster. The chart still wants these for its own configuration.
 	registrationOctopus := map[string]any{
 		"name":         opts.Name.Value,
 		"serverApiUrl": opts.Host,
@@ -117,13 +173,6 @@ func (opts *InstallOptions) BuildValues() (map[string]any, error) {
 		return nil, err
 	}
 
-	if opts.InlineSecrets.Value {
-		registrationOctopus["serverAccessToken"] = opts.OctopusCredential
-	} else {
-		registrationOctopus["serverAccessTokenSecretName"] = octopusTokenSecretName
-		registrationOctopus["serverAccessTokenSecretKey"] = octopusTokenSecretKey
-	}
-
 	switch {
 	case len(projectTokens) > 0:
 		// AWS caps account tokens at 12 hours, so managed Argo CD authenticates
@@ -140,7 +189,7 @@ func (opts *InstallOptions) BuildValues() (map[string]any, error) {
 		gatewayArgoCD["authenticationTokenSecretKey"] = argoTokenSecretKey
 	}
 
-	registration := map[string]any{"octopus": registrationOctopus}
+	registration := map[string]any{"register": false, "octopus": registrationOctopus}
 	if opts.ArgoCDWebUIURL.Value != "" {
 		registration["argocd"] = map[string]any{"webUiUrl": opts.ArgoCDWebUIURL.Value}
 	}
@@ -328,9 +377,33 @@ func (opts *InstallOptions) storeCredentials(ctx context.Context) error {
 		return err
 	}
 
-	return opts.Cluster.UpsertSecret(ctx, opts.TargetNamespace, octopusTokenSecretName, map[string]string{
-		octopusTokenSecretKey: opts.OctopusCredential,
-	})
+	return opts.storeRegistration(ctx)
+}
+
+// storeRegistration writes the gateway's own credential in the shape the chart
+// expects, taking the place of the registration job it would otherwise run.
+func (opts *InstallOptions) storeRegistration(ctx context.Context) error {
+	contents, err := opts.registrationSecretContents()
+	if err != nil {
+		return err
+	}
+
+	return opts.Cluster.UpsertSecret(ctx, opts.TargetNamespace, registrationSecretName,
+		map[string]string{registrationSecretKey: contents})
+}
+
+func (opts *InstallOptions) registrationSecretContents() (string, error) {
+	if opts.Registration == nil {
+		return "", errors.New("the gateway was not registered with Octopus")
+	}
+
+	var b strings.Builder
+	fmt.Fprintf(&b, "octopus-grpc-authentication-token: %q\n", opts.Registration.AuthenticationToken)
+	fmt.Fprintf(&b, "octopus-grpc-client-id: %q\n", opts.Registration.ClientID)
+	if thumbprint := opts.Registration.Thumb(); thumbprint != "" {
+		fmt.Fprintf(&b, "octopus-grpc-thumbprint: %q\n", thumbprint)
+	}
+	return b.String(), nil
 }
 
 func (opts *InstallOptions) renderOnly(ctx context.Context, values map[string]any, timeout time.Duration) error {
@@ -382,3 +455,17 @@ func (opts *InstallOptions) reportSuccess(release helm.Release) {
 	autoCmd := flag.GenerateAutomationCmd(opts.CmdPath, opts.GetSpaceNameOrEmpty(), generatable...)
 	fmt.Fprintf(opts.Out, "\nAutomation Command: %s\n", autoCmd)
 }
+
+// ErrForTest is a sentinel used by tests to check error propagation.
+var ErrForTest = errors.New("install failed")
+
+// RegistrationSecretForTest renders the credential file written for the chart.
+func (opts *InstallOptions) RegistrationSecretForTest() (string, error) {
+	return opts.registrationSecretContents()
+}
+
+// RegisterForTest exposes the registration step.
+func (opts *InstallOptions) RegisterForTest() error { return opts.register() }
+
+// DeregisterForTest exposes the rollback step.
+func (opts *InstallOptions) DeregisterForTest(cause error) error { return opts.deregister(cause) }

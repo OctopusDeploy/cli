@@ -68,12 +68,21 @@ func TestReview_ShowsEveryDetectedSetting(t *testing.T) {
 		"Default",                      // space
 		"grpc://my.octopus.app:8443",   // derived
 		"grpc://argocd-server.argocd.svc.cluster.local", // detected
-		"v3.4.2",                        // detected Argo CD version
-		"TLS, certificate not verified", // detected TLS posture
-		"in Kubernetes Secrets",         // where credentials go
+		"v3.4.2",                               // detected Argo CD version
+		"TLS, certificate not verified",        // detected TLS posture
+		"Argo CD token in a Kubernetes Secret", // where the credential goes
 	} {
 		assert.Contains(t, review, expected)
 	}
+}
+
+// Registering from Octopus rather than from the cluster is a security property
+// worth stating on the screen someone approves.
+func TestReview_SaysNoOctopusCredentialIsStoredInTheCluster(t *testing.T) {
+	review := reviewOf(t, reviewOptions(t))
+
+	assert.Contains(t, review, "Registration")
+	assert.Contains(t, review, "no Octopus credential is stored in the cluster")
 }
 
 // The review is printed to the terminal, so a token must not appear in it.
