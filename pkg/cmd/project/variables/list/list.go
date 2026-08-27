@@ -12,6 +12,7 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/OctopusDeploy/cli/pkg/output"
+	"github.com/OctopusDeploy/cli/pkg/question/selectors"
 	sharedVariable "github.com/OctopusDeploy/cli/pkg/question/shared/variables"
 	"github.com/OctopusDeploy/cli/pkg/util/flag"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
@@ -63,21 +64,24 @@ func NewCmdList(f factory.Factory) *cobra.Command {
 		Short: "List project variables",
 		Long:  "List project variables in Octopus Deploy",
 		Example: heredoc.Docf(`
-			$ %[1]s project variable list "Deploy Website"
-			$ %[1]s project variable list -p "Deploy Website" --git-ref refs/heads/main
-			$ %[1]s project variable ls
+			%[1]s project variable list "Deploy Website"
+			%[1]s project variable list -p "Deploy Website" --git-ref refs/heads/main
+			%[1]s project variable ls
 		`, constants.ExecutableName),
 		Aliases: []string{"ls"},
 		RunE: func(c *cobra.Command, args []string) error {
 			opts := NewListOptions(listFlags, cmd.NewDependencies(f, c), c)
 
-			if opts.Project.Value == "" {
+			if opts.Project.Value == "" && len(args) > 0 {
 				opts.Project.Value = args[0]
 			}
 
 			if opts.Project.Value == "" {
-				return fmt.Errorf("must supply project identifier")
+				if err := PromptMissing(opts); err != nil {
+					return err
+				}
 			}
+
 			return listRun(opts)
 		},
 	}
@@ -92,6 +96,28 @@ func NewCmdList(f factory.Factory) *cobra.Command {
 type VariableAsJson struct {
 	*variables.Variable
 	Scope variables.VariableScopeValues
+}
+
+// PromptMissing selects a project when none was named on the command line. With
+// prompting disabled there is nothing to fall back on, so the identifier is
+// required.
+func PromptMissing(opts *ListOptions) error {
+	if opts.NoPrompt {
+		return fmt.Errorf("must supply project identifier")
+	}
+
+	selectedProject, err := selectors.Select(
+		opts.Ask,
+		"You have not specified a Project. Please select one:",
+		func() ([]*projects.Project, error) { return shared.GetAllProjects(opts.Client) },
+		func(project *projects.Project) string { return project.GetName() })
+	if err != nil {
+		return err
+	}
+
+	opts.Project.Value = selectedProject.GetName()
+
+	return nil
 }
 
 func listRun(opts *ListOptions) error {

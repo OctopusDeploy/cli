@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/OctopusDeploy/cli/pkg/executionscommon"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/deployments"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/releases"
@@ -101,6 +102,7 @@ type TaskOptionsDeployRelease struct {
 	ScheduledExpiryTime            string
 	ExcludedSteps                  []string
 	GuidedFailureMode              string // ["", "true", "false", "default"]. Note default and "" are the same, the only difference is whether interactive mode prompts you
+	Priority                       string // ["", "true", "false", "default"]. "" and "default" both defer to the lifecycle's priority setting
 	ForcePackageDownload           bool
 	DeploymentTargets              []string
 	ExcludeTargets                 []string
@@ -173,6 +175,11 @@ func releaseDeploy(octopus *client.Client, space *spaces.Space, input any) error
 		if params.GuidedFailureMode != "" && !strings.EqualFold("default", params.GuidedFailureMode) {
 			return fmt.Errorf("'%s' is not a valid value for guided failure mode", params.GuidedFailureMode)
 		}
+	}
+
+	abstractCmd.Priority, err = executionscommon.ParsePriorityMode(params.Priority)
+	if err != nil {
+		return err
 	}
 
 	// If either tenants or tenantTags are specified then it must be a tenanted deployment.

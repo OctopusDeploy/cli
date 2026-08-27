@@ -121,13 +121,13 @@ func NewClientFactoryFromConfig(ask question.AskProvider) (ClientFactory, error)
 		return nil, errs
 	}
 
-	var httpClient *http.Client
 	http.DefaultTransport.(*http.Transport).TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
-	if ask.IsInteractive() {
-		// spinner round-tripper only needed for interactive mode
-		httpClient = &http.Client{
-			Transport: NewSpinnerRoundTripper(),
-		}
+
+	// The spinner is only wanted in interactive mode, but that is not settled
+	// yet: this runs before cobra parses --no-prompt. The round-tripper decides
+	// per request instead.
+	httpClient := &http.Client{
+		Transport: NewSpinnerRoundTripper(ask),
 	}
 
 	var credentials octopusApiClient.ICredential

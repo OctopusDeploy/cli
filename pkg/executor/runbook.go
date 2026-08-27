@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/OctopusDeploy/cli/pkg/executionscommon"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/deployments"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/runbooks"
@@ -31,6 +32,7 @@ type TaskOptionsRunbookRunBase struct {
 	ScheduledExpiryTime    string
 	ExcludedSteps          []string
 	GuidedFailureMode      string // ["", "true", "false", "default"]. Note default and "" are the same, the only difference is whether interactive mode prompts you
+	Priority               string // ["", "true", "false", "default"]. "" and "default" both leave the server to decide
 	ForcePackageDownload   bool
 	RunTargets             []string
 	ExcludeTargets         []string
@@ -99,6 +101,12 @@ func runbookRun(octopus *client.Client, space *spaces.Space, input any) error {
 			return fmt.Errorf("'%s' is not a valid value for guided failure mode", params.GuidedFailureMode)
 		}
 	}
+
+	abstractCmd.Priority, err = executionscommon.ParsePriorityMode(params.Priority)
+	if err != nil {
+		return err
+	}
+
 	runCommand := runbooks.NewRunbookRunCommandV1(space.ID, params.ProjectName)
 	runCommand.RunbookName = params.RunbookName
 	runCommand.EnvironmentNames = params.Environments
@@ -175,6 +183,12 @@ func gitRunbookRun(octopus *client.Client, space *spaces.Space, input any) error
 			return fmt.Errorf("'%s' is not a valid value for guided failure mode", params.GuidedFailureMode)
 		}
 	}
+
+	abstractCmd.Priority, err = executionscommon.ParsePriorityMode(params.Priority)
+	if err != nil {
+		return err
+	}
+
 	runCommand := runbooks.NewGitRunbookRunCommandV1(space.ID, params.ProjectName)
 	runCommand.RunbookName = params.RunbookName
 	runCommand.EnvironmentNames = params.Environments

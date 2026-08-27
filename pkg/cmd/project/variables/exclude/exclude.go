@@ -65,8 +65,8 @@ func NewExcludeVariableSetCmd(f factory.Factory) *cobra.Command {
 		Short: "Exclude a variable set from a project",
 		Long:  "Exclude a variable set from a project in Octopus Deploy",
 		Example: heredoc.Docf(`
-			$ %[1]s project variable exclude
-			$ %[1]s project variable exclude --variable-set "Slack Variables"
+			%[1]s project variable exclude
+			%[1]s project variable exclude --variable-set "Slack Variables"
 		`, constants.ExecutableName),
 		RunE: func(c *cobra.Command, args []string) error {
 			opts := NewExcludeOptions(createFlags, cmd.NewDependencies(f, c))
@@ -130,7 +130,7 @@ func excludeRun(opts *ExcludeOptions) error {
 	}
 
 	if !opts.NoPrompt {
-		autoCmd := flag.GenerateAutomationCmd(opts.CmdPath, opts.Project, opts.VariableSets)
+		autoCmd := flag.GenerateAutomationCmd(opts.CmdPath, opts.GetSpaceNameOrEmpty(), opts.Project, opts.VariableSets)
 		fmt.Fprintf(opts.Out, "\nAutomation Command: %s\n", autoCmd)
 	}
 

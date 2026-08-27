@@ -14,7 +14,6 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/util/flag"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/defects"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/releases"
 	"github.com/spf13/cobra"
 )
 
@@ -57,9 +56,9 @@ func NewCmdAllow(f factory.Factory) *cobra.Command {
 		Short: "Allows a release to progress to the next phase.",
 		Long:  "Allows a release to progress to the next phase in Octopus Deploy.",
 		Example: heredoc.Docf(`
-			$ %[1]s release progression allow --project MyProject --version 1.2.3
-			$ %[1]s release progression allow -p MyProject -v 1.2.3
-			$ %[1]s release progression allow -p MyProject -v 1.2.3 --no-prompt
+			%[1]s release progression allow --project MyProject --version 1.2.3
+			%[1]s release progression allow -p MyProject -v 1.2.3
+			%[1]s release progression allow -p MyProject -v 1.2.3 --no-prompt
 		`, constants.ExecutableName),
 		Aliases: []string{"allow-releaseprogression"},
 		RunE: func(c *cobra.Command, _ []string) error {
@@ -127,7 +126,7 @@ func resolveReleaseDefectRun(opts *AllowOptions) error {
 	}
 
 	if !opts.NoPrompt {
-		autoCmd := flag.GenerateAutomationCmd(opts.CmdPath, opts.Project, opts.Version)
+		autoCmd := flag.GenerateAutomationCmd(opts.CmdPath, opts.GetSpaceNameOrEmpty(), opts.Project, opts.Version)
 		_, _ = fmt.Fprintf(opts.Out, "\nAutomation Command: %s\n", autoCmd)
 	}
 
@@ -142,17 +141,21 @@ func PromptMissing(opts *AllowOptions) error {
 		if err != nil {
 			return err
 		}
-	}
-	opts.Project.Value = selectedProject.GetName()
-
-	var selectedRelease *releases.Release
-	if opts.Version.Value == "" {
-		selectedRelease, err = shared.SelectRelease(opts.Client, selectedProject, opts.Ask, "Allow")
+	} else { // project is already provided, fetch the object because the release prompt needs it
+		selectedProject, err = selectors.FindProject(opts.Client, opts.Project.Value)
 		if err != nil {
 			return err
 		}
 	}
-	opts.Version.Value = selectedRelease.Version
+	opts.Project.Value = selectedProject.GetName()
+
+	if opts.Version.Value == "" {
+		selectedRelease, err := shared.SelectRelease(opts.Client, selectedProject, opts.Ask, "Allow")
+		if err != nil {
+			return err
+		}
+		opts.Version.Value = selectedRelease.Version
+	}
 
 	return nil
 }

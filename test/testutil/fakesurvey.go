@@ -298,6 +298,12 @@ func (m *AskMocker) ReceiveQuestion() *QuestionWrapper {
 }
 
 // ExpectQuestion calls ReceiveQuestion and asserts that the received survey prompt matches `question`
+//
+// It returns once the code under test has asked the question and is blocked waiting for an answer.
+// If that code runs in a goroutine and writes to a buffer the test also reads — captured stdout,
+// typically — this is the only point at which the buffer is stable. Assert on it between here and
+// AnswerWith. AnswerWith releases the code under test to write more into the same buffer, so an
+// assertion made after it races that goroutine and will fail intermittently.
 func (m *AskMocker) ExpectQuestion(t *testing.T, question survey.Prompt) *QuestionWrapper {
 	q := m.ReceiveQuestion()
 	assert.Equal(t, question, q.Question)
@@ -325,6 +331,9 @@ type QuestionWrapper struct {
 //	err := q.AnswerWith("5")
 //	assert.EqualError(t, err, nil)
 //	test sequence should proceed now
+//
+// Sending the answer resumes the code under test, so assert on any captured output before calling
+// this rather than after. A failed validator sends nothing and leaves it blocked.
 func (q *QuestionWrapper) AnswerWith(answer any) error {
 	// run validators, otherwise we won't be able to test them
 	if q.Options != nil && len(q.Options.Validators) > 0 {

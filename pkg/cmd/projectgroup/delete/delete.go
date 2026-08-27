@@ -1,6 +1,8 @@
 package delete
 
 import (
+	"fmt"
+
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/apiclient"
 	"github.com/OctopusDeploy/cli/pkg/constants"
@@ -28,8 +30,8 @@ func NewCmdList(f factory.Factory) *cobra.Command {
 		Long:    "Delete a project group in Octopus Deploy",
 		Aliases: []string{"del", "rm", "remove"},
 		Example: heredoc.Docf(`
-			$ %[1]s project-group delete
-			$ %[1]s project-group rm
+			%[1]s project-group delete
+			%[1]s project-group rm
 		`, constants.ExecutableName),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			client, err := f.GetSpacedClient(apiclient.NewRequester(cmd))
@@ -37,11 +39,17 @@ func NewCmdList(f factory.Factory) *cobra.Command {
 				return err
 			}
 
+			// left empty when no argument is supplied, so PromptMissing selects one
+			idOrName := ""
+			if len(args) > 0 {
+				idOrName = args[0]
+			}
+
 			opts := &DeleteOptions{
 				Client:       client,
 				Ask:          f.Ask,
 				NoPrompt:     !f.IsPromptEnabled(),
-				IdOrName:     args[0],
+				IdOrName:     idOrName,
 				ConfirmFlags: confirmFlags,
 			}
 
@@ -59,6 +67,12 @@ func deleteRun(opts *DeleteOptions) error {
 		if err := PromptMissing(opts); err != nil {
 			return err
 		}
+	}
+
+	// with prompting disabled there is nothing to select from, and looking up an
+	// empty identifier reports an unhelpful error from the API client
+	if opts.IdOrName == "" {
+		return fmt.Errorf("must supply project group identifier")
 	}
 
 	itemToDelete, err := opts.Client.ProjectGroups.GetByIDOrName(opts.IdOrName)

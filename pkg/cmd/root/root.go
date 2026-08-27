@@ -3,6 +3,7 @@ package root
 import (
 	"github.com/OctopusDeploy/cli/pkg/apiclient"
 	accountCmd "github.com/OctopusDeploy/cli/pkg/cmd/account"
+	apiCmd "github.com/OctopusDeploy/cli/pkg/cmd/api"
 	buildInfoCmd "github.com/OctopusDeploy/cli/pkg/cmd/buildinformation"
 	channelCmd "github.com/OctopusDeploy/cli/pkg/cmd/channel"
 	configCmd "github.com/OctopusDeploy/cli/pkg/cmd/config"
@@ -76,6 +77,8 @@ func NewCmdRoot(f factory.Factory, clientFactory apiclient.ClientFactory, askPro
 	cmd.AddCommand(releaseCmd.NewCmdRelease(f))
 	cmd.AddCommand(runbookCmd.NewCmdRunbook(f))
 
+	cmd.AddCommand(apiCmd.NewCmdAPI(f))
+
 	// ----- Configuration -----
 
 	// commands are expected to print their own errors to avoid double-ups
@@ -94,7 +97,7 @@ func NewCmdRoot(f factory.Factory, clientFactory apiclient.ClientFactory, askPro
 	cmdPFlags.BoolP(constants.FlagNoPrompt, "", false, "Disable prompting in interactive mode")
 
 	// Enable service messages flag is hidden as it's intended for internal CI/CD use only
-	cmdPFlags.BoolP(constants.FlagEnableServiceMessages,"", false, "Enable service messages for integration with Octopus CI/CD")
+	cmdPFlags.BoolP(constants.FlagEnableServiceMessages, "", false, "Enable service messages for integration with Octopus CI/CD")
 	cmdPFlags.MarkHidden(constants.FlagEnableServiceMessages)
 	// Legacy flags brought across from the .NET CLI.
 	// Consumers of these flags will have to explicitly check for them as well as the new

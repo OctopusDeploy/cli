@@ -71,7 +71,7 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 		Short: "Create a listening tentacle worker",
 		Long:  "Create a listening tentacle worker in Octopus Deploy",
 		Example: heredoc.Docf(`
-			$ %s worker listening-tentacle create
+			%s worker listening-tentacle create
 		`, constants.ExecutableName),
 		RunE: func(c *cobra.Command, _ []string) error {
 			opts := NewCreateOptions(createFlags, cmd.NewDependencies(f, c))
@@ -133,7 +133,7 @@ func createRun(opts *CreateOptions) error {
 
 	fmt.Fprintf(opts.Out, "Successfully created Listening Tentacle worker '%s'.\n", worker.Name)
 	if !opts.NoPrompt {
-		autoCmd := flag.GenerateAutomationCmd(opts.CmdPath, opts.Name, opts.URL, opts.Thumbprint, opts.Proxy, opts.MachinePolicy, opts.WorkerPools)
+		autoCmd := flag.GenerateAutomationCmd(opts.CmdPath, opts.GetSpaceNameOrEmpty(), opts.Name, opts.URL, opts.Thumbprint, opts.Proxy, opts.MachinePolicy, opts.WorkerPools)
 		fmt.Fprintf(opts.Out, "\nAutomation Command: %s\n", autoCmd)
 	}
 

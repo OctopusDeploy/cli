@@ -1,0 +1,47 @@
+name: govulncheck
+
+# Dependabot cannot bump the Go toolchain (dependabot/dependabot-core#9057), and
+# 44 of the 47 vulnerabilities reachable from the v2.21.4 release binary were in
+# the standard library. This job is what catches those.
+on:
+  workflow_dispatch:
+  pull_request:
+  schedule:
+    # Mondays 02:00 UTC == 12:00 Monday AEST, so a new finding surfaces at the
+    # start of an Australian working day rather than sitting over the weekend.
+    - cron: "0 2 * * 1"
+
+permissions:
+  contents: read
+
+jobs:
+  govulncheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          check-latest: false
+
+      # govulncheck itself may need a newer toolchain than we ship with, so let
+      # this step switch freely. It only affects the tool, not what gets scanned.
+      - name: Install govulncheck
+        run: go install golang.org/x/vuln/cmd/govulncheck@latest
+        env:
+          GOTOOLCHAIN: auto
+
+      # The version govulncheck reports standard library findings against is the
+      # toolchain it runs under, NOT the `go` directive -- so the scan has to be
+      # pinned to what goreleaser actually builds with, or it reports on the
+      # wrong stdlib. Scanning this repo at go.mod 1.25.5 under go1.26.3 finds 3
+      # vulnerabilities and misses CVE-2025-68121; under the pinned go1.25.5 it
+      # finds 13 including it. GOTOOLCHAIN is set from go.mod rather than left to
+      # setup-go because the resolution is easy to get silently wrong.
+      - name: Run govulncheck against the toolchain releases are built with
+        run: |
+          toolchain="go$(awk '/^go [0-9]/ {print $2; exit}' go.mod)"
+          echo "Scanning with $toolchain (from the go directive in go.mod)"
+          GOTOOLCHAIN="$toolchain" go version
+          GOTOOLCHAIN="$toolchain" govulncheck ./...

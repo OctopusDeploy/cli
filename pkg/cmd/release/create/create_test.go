@@ -2284,6 +2284,73 @@ func TestReleaseCreate_BuildPackageVersionBaseline(t *testing.T) {
 		}, packageVersions)
 	})
 
+	t.Run("sends all version-rule filters together along with versioningStrategy, regardless of strategy", func(t *testing.T) {
+		// VersionRange, Tag/pre-release and VersionTagRegex are always applied together; VersioningStrategy
+		// only changes ordering (publish-date vs SemVer), not which versions satisfy the rule. So even with
+		// MostRecentlyPublished set, an accompanying VersionRange and Tag must still be sent.
+		api := testutil.NewMockHttpServer()
+		processTemplate := &deployments.DeploymentProcessTemplate{
+			Packages: []releases.ReleaseTemplatePackage{
+				{
+					ActionName:           "Deploy",
+					FeedID:               externalFeedID,
+					PackageID:            "my-app",
+					PackageReferenceName: "my-app-on-deploy",
+					IsResolvable:         true,
+				},
+			},
+			Resource: resources.Resource{},
+		}
+
+		channel := fixtures.NewChannel(spaceID, "Channels-1", "Default", "Projects-1")
+		channel.Rules = []channels.ChannelRule{
+			{
+				VersionRange:       "1.0",
+				Tag:                "beta",
+				VersioningStrategy: "MostRecentlyPublished",
+				VersionTagRegex:    "^feature-",
+				ActionPackages: []octopusPackages.DeploymentActionPackage{
+					{DeploymentAction: "Deploy", PackageReference: "my-app-on-deploy"},
+				},
+			},
+		}
+
+		receiver := testutil.GoBegin2(func() ([]*packages.StepPackageVersion, error) {
+			defer api.Close()
+			octopus, _ := octopusApiClient.NewClient(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "")
+			return create.BuildPackageVersionBaselineForChannel(octopus, processTemplate, channel)
+		})
+
+		api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
+		api.ExpectRequest(t, "GET", "/api/spaces").RespondWith(rootResource)
+
+		api.ExpectRequest(t, "GET", "/api/Spaces-1/feeds?ids=Feeds-1001&take=1").RespondWith(&feeds.Feeds{Items: []feeds.IFeed{
+			&feeds.FeedResource{Name: "External Nuget", FeedType: feeds.FeedTypeNuGet, Resource: resources.Resource{
+				ID: externalFeedID,
+				Links: map[string]string{
+					constants.LinkSearchPackageVersionsTemplate: "/api/Spaces-1/feeds/Feeds-1001/packages/versions{?packageId,take,skip,includePreRelease,versionRange,preReleaseTag,versioningStrategy,versionTagRegex,filter,includeReleaseNotes}",
+				}}},
+		}})
+
+		// all four filters must be sent; the client emits query params in alphabetical order
+		api.ExpectRequest(t, "GET", "/api/Spaces-1/feeds/Feeds-1001/packages/versions?packageId=my-app&preReleaseTag=beta&take=1&versionRange=1.0&versionTagRegex=%5Efeature-&versioningStrategy=MostRecentlyPublished").RespondWith(&resources.Resources[*octopusPackages.PackageVersion]{
+			Items: []*octopusPackages.PackageVersion{
+				{PackageID: "my-app", Version: "feature-login-42"},
+			},
+		})
+
+		packageVersions, err := testutil.ReceivePair(receiver)
+		assert.Nil(t, err)
+		assert.Equal(t, []*packages.StepPackageVersion{
+			{
+				PackageID:            "my-app",
+				ActionName:           "Deploy",
+				Version:              "feature-login-42",
+				PackageReferenceName: "my-app-on-deploy",
+			},
+		}, packageVersions)
+	})
+
 	t.Run("still returns a value if the server returns zero available packages", func(t *testing.T) {
 		// note: channel rules can affect which packages the server returns so there might be zero,
 		// but either way the server returns zero items, which is the code path we are testing, so channel rules aren't relevant here
@@ -2422,6 +2489,13 @@ func TestReleaseCreate_ToPackageOverrideString(t *testing.T) {
 		{name: "action-ref-ver", input: &packages.PackageVersionOverride{PackageReferenceName: "pterm-on-install", ActionName: "Install", Version: "6.1.2"}, expect: "Install:pterm-on-install:6.1.2"},
 		{name: "star-ref-ver", input: &packages.PackageVersionOverride{PackageReferenceName: "pterm-on-install", Version: "6.1.2"}, expect: "*:pterm-on-install:6.1.2"},
 		{name: "pkg-action-ref-ver", input: &packages.PackageVersionOverride{PackageReferenceName: "pterm", PackageID: "pterm", ActionName: "Install", Version: "1.2.3"}, expect: "pterm:pterm:1.2.3"},
+		// Maven package IDs with colons get escaped (FD-135)
+		{name: "maven-pkg-ver", input: &packages.PackageVersionOverride{PackageID: "com.yourcompany:project-name", Version: "1.0"}, expect: `com.yourcompany\:project-name:1.0`},
+		{name: "maven-pkg-ref-ver", input: &packages.PackageVersionOverride{PackageID: "com.juliusbaer.fi-master:deployment", PackageReferenceName: "ref", Version: "25.2026.04.1"}, expect: `com.juliusbaer.fi-master\:deployment:ref:25.2026.04.1`},
+		// Step name with slash gets escaped
+		{name: "step-slash-ver", input: &packages.PackageVersionOverride{ActionName: "Deploy Templates/templates", Version: "1.0"}, expect: `Deploy Templates\/templates:1.0`},
+		// Literal backslashes pass through unescaped (wire compatibility with pre-FD-135 servers)
+		{name: "pkg-with-backslash", input: &packages.PackageVersionOverride{PackageID: `foo\bar`, Version: "1.0"}, expect: `foo\bar:1.0`},
 	}
 
 	for _, test := range tests {
@@ -2454,6 +2528,20 @@ func TestReleaseCreate_ParsePackageOverrideString(t *testing.T) {
 
 		{input: "pterm/Push Package=9.7-pre-xyz", expect: &packages.AmbiguousPackageVersionOverride{PackageReferenceName: "Push Package", ActionNameOrPackageID: "pterm", Version: "9.7-pre-xyz"}},
 		{input: "pterm=Push Package/9.7-pre-xyz", expect: &packages.AmbiguousPackageVersionOverride{PackageReferenceName: "Push Package", ActionNameOrPackageID: "pterm", Version: "9.7-pre-xyz"}},
+
+		// Maven packages with escaped colons (FD-135)
+		{input: `com.yourcompany\:project-name:1.0-SNAPSHOT`, expect: &packages.AmbiguousPackageVersionOverride{ActionNameOrPackageID: "com.yourcompany:project-name", Version: "1.0-SNAPSHOT"}},
+		{input: `com.juliusbaer.fi-master\:deployment:25.2026.04.1`, expect: &packages.AmbiguousPackageVersionOverride{ActionNameOrPackageID: "com.juliusbaer.fi-master:deployment", Version: "25.2026.04.1"}},
+		// Maven package with escaped colon and package reference name
+		{input: `com.yourcompany\:project-name:ref:1.0`, expect: &packages.AmbiguousPackageVersionOverride{ActionNameOrPackageID: "com.yourcompany:project-name", PackageReferenceName: "ref", Version: "1.0"}},
+		// Step name with escaped slash (additional packages)
+		{input: `Deploy Templates\/templates:1.0`, expect: &packages.AmbiguousPackageVersionOverride{ActionNameOrPackageID: "Deploy Templates/templates", Version: "1.0"}},
+		// Escaped backslash
+		{input: `foo\\bar:1.0`, expect: &packages.AmbiguousPackageVersionOverride{ActionNameOrPackageID: `foo\bar`, Version: "1.0"}},
+		// Backslash before a non-escapable char must be preserved verbatim (no silent strip)
+		{input: `foo\bar:1.0`, expect: &packages.AmbiguousPackageVersionOverride{ActionNameOrPackageID: `foo\bar`, Version: "1.0"}},
+		{input: `path\to\step:1.0`, expect: &packages.AmbiguousPackageVersionOverride{ActionNameOrPackageID: `path\to\step`, Version: "1.0"}},
+		{input: `step:foo\bar:1.0`, expect: &packages.AmbiguousPackageVersionOverride{ActionNameOrPackageID: "step", PackageReferenceName: `foo\bar`, Version: "1.0"}},
 
 		{input: "", expectErr: errors.New("empty package version specification")},
 

@@ -287,6 +287,7 @@ func TestRunbookRun_AutomationMode(t *testing.T) {
 					"--skip", "Install", "--skip", "Cleanup",
 					"--snapshot", "Snapshot FWKMLUX",
 					"--guided-failure", "true",
+					"--priority", "true",
 					"--force-package-download",
 					"--target", "firstMachine", "--target", "secondMachine",
 					"--exclude-target", "thirdMachine",
@@ -321,6 +322,7 @@ func TestRunbookRun_AutomationMode(t *testing.T) {
 					ExcludedTargetTagNames: []string{"Role/Database", "Maintenance/True"},
 					SkipStepNames:          []string{"Install", "Cleanup"},
 					UseGuidedFailure:       &trueVar,
+					Priority:               "On",
 					RunAt:                  "2022-09-10 13:32:03 +10:00",
 					NoRunAfter:             "2022-09-10 13:37:03 +10:00",
 					Variables: map[string]string{
@@ -640,6 +642,7 @@ func TestGitRunbookRun_AutomationMode(t *testing.T) {
 					"--run-at-expiry", "2022-09-10 13:37:03 +10:00",
 					"--skip", "Install", "--skip", "Cleanup",
 					"--guided-failure", "true",
+					"--priority", "true",
 					"--force-package-download",
 					"--target", "firstMachine", "--target", "secondMachine",
 					"--exclude-target", "thirdMachine",
@@ -677,6 +680,7 @@ func TestGitRunbookRun_AutomationMode(t *testing.T) {
 					ExcludedTargetTagNames: []string{"Role/Legacy"},
 					SkipStepNames:          []string{"Install", "Cleanup"},
 					UseGuidedFailure:       &trueVar,
+					Priority:               "On",
 					RunAt:                  "2022-09-10 13:32:03 +10:00",
 					NoRunAfter:             "2022-09-10 13:37:03 +10:00",
 					Variables: map[string]string{
@@ -736,6 +740,7 @@ func TestRunbookRun_PrintAdvancedSummary(t *testing.T) {
 				  Run At: Now
 				  Skipped Steps: None
 				  Guided Failure Mode: Use default setting from the target environment
+				  Priority: Do not jump the task queue
 				  Package Download: Use cached packages (if available)
 				  Run Targets: All included
 				`), stdout.String())
@@ -746,6 +751,7 @@ func TestRunbookRun_PrintAdvancedSummary(t *testing.T) {
 				TaskOptionsRunbookRunBase: executor.TaskOptionsRunbookRunBase{
 					ScheduledStartTime:   "2022-09-23",
 					GuidedFailureMode:    "false",
+					Priority:             "true",
 					ForcePackageDownload: true,
 					ExcludedSteps:        []string{"Step 1", "Step 37"},
 					RunTargets:           []string{"vm-1", "vm-2"},
@@ -759,6 +765,7 @@ func TestRunbookRun_PrintAdvancedSummary(t *testing.T) {
 				  Run At: 2022-09-23
 				  Skipped Steps: Step 1,Step 37
 				  Guided Failure Mode: Do not use guided failure mode
+				  Priority: Jump the task queue
 				  Package Download: Re-download packages from feed
 				  Run Targets: Include vm-1,vm-2; Exclude vm-3,vm-4
 				`), stdout.String())
@@ -777,6 +784,7 @@ func TestRunbookRun_PrintAdvancedSummary(t *testing.T) {
 				  Run At: Now
 				  Skipped Steps: None
 				  Guided Failure Mode: Use default setting from the target environment
+				  Priority: Do not jump the task queue
 				  Package Download: Use cached packages (if available)
 				  Run Targets: Include vm-2
 				`), stdout.String())
@@ -795,6 +803,7 @@ func TestRunbookRun_PrintAdvancedSummary(t *testing.T) {
 				  Run At: Now
 				  Skipped Steps: None
 				  Guided Failure Mode: Use default setting from the target environment
+				  Priority: Do not jump the task queue
 				  Package Download: Use cached packages (if available)
 				  Run Targets: Exclude vm-4
 				`), stdout.String())

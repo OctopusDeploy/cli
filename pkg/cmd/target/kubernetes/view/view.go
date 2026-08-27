@@ -21,7 +21,7 @@ func NewCmdView(f factory.Factory) *cobra.Command {
 		Short: "View a Kubernetes deployment target",
 		Long:  "View a Kubernetes deployment target in Octopus Deploy",
 		Example: heredoc.Docf(`
-			$ %[1]s deployment-target kubernetes view 'target-name'
+			%[1]s deployment-target kubernetes view 'target-name'
 		`, constants.ExecutableName),
 		RunE: func(c *cobra.Command, args []string) error {
 			opts := shared.NewViewOptions(flags, cmd.NewDependencies(f, c), args, c)
@@ -40,7 +40,10 @@ func ViewRun(opts *shared.ViewOptions) error {
 
 func contributeEndpoint(_ *shared.ViewOptions, targetEndpoint machines.IEndpoint) ([]*output.DataRow, error) {
 	data := []*output.DataRow{}
-	endpoint := targetEndpoint.(*machines.KubernetesEndpoint)
+	endpoint, err := machinescommon.EndpointAs[*machines.KubernetesEndpoint](targetEndpoint, machinescommon.DeploymentTargetNoun, "Kubernetes")
+	if err != nil {
+		return nil, err
+	}
 
 	data = append(data, output.NewDataRow("Authentication Type", endpoint.Authentication.GetAuthenticationType()))
 

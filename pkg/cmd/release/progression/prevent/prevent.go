@@ -15,7 +15,6 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/util/flag"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/defects"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/releases"
 	"github.com/spf13/cobra"
 )
 
@@ -61,9 +60,9 @@ func NewCmdPrevent(f factory.Factory) *cobra.Command {
 		Short: "Prevents a release from progression to the next phase",
 		Long:  "Prevents a release from progression to the next phase in Octopus Deploy",
 		Example: heredoc.Docf(`
-			$ %[1]s release progression prevent --project MyProject --version 1.2.3 --reason "It's broken"
-			$ %[1]s release progression prevent -p MyProject -v 1.2.3 -r "It's broken"
-			$ %[1]s release progression prevent -p MyProject -v 1.2.3 -r "It's broken" --no-prompt
+			%[1]s release progression prevent --project MyProject --version 1.2.3 --reason "It's broken"
+			%[1]s release progression prevent -p MyProject -v 1.2.3 -r "It's broken"
+			%[1]s release progression prevent -p MyProject -v 1.2.3 -r "It's broken" --no-prompt
 		`, constants.ExecutableName),
 		Aliases: []string{"prevent-releaseprogression"},
 		RunE: func(c *cobra.Command, _ []string) error {
@@ -145,7 +144,7 @@ func createReleaseDefectRun(opts *PreventOptions) error {
 	}
 
 	if !opts.NoPrompt {
-		autoCmd := flag.GenerateAutomationCmd(opts.CmdPath, opts.Project, opts.Version, opts.Reason)
+		autoCmd := flag.GenerateAutomationCmd(opts.CmdPath, opts.GetSpaceNameOrEmpty(), opts.Project, opts.Version, opts.Reason)
 		_, _ = fmt.Fprintf(opts.Out, "\nAutomation Command: %s\n", autoCmd)
 	}
 
@@ -160,12 +159,16 @@ func PromptMissing(opts *PreventOptions) error {
 		if err != nil {
 			return err
 		}
-		opts.Project.Value = selectedProject.GetName()
+	} else { // project is already provided, fetch the object because the release prompt needs it
+		selectedProject, err = selectors.FindProject(opts.Client, opts.Project.Value)
+		if err != nil {
+			return err
+		}
 	}
+	opts.Project.Value = selectedProject.GetName()
 
-	var selectedRelease *releases.Release
 	if opts.Version.Value == "" {
-		selectedRelease, err = shared.SelectRelease(opts.Client, selectedProject, opts.Ask, "Prevent")
+		selectedRelease, err := shared.SelectRelease(opts.Client, selectedProject, opts.Ask, "Prevent")
 		if err != nil {
 			return err
 		}

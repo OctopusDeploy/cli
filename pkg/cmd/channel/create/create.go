@@ -14,7 +14,6 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/util/flag"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/channels"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/lifecycles"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
 	"github.com/spf13/cobra"
 )
 
@@ -63,8 +62,8 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 		Short: "Create a channel",
 		Long:  "Create a channel in Octopus Deploy",
 		Example: heredoc.Docf(`
-			$ %[1]s channel create
-			$ %[1]s channel create --name "The Channel" --project "The Project" --lifecycle "Default Lifecycle" --default
+			%[1]s channel create
+			%[1]s channel create --name "The Channel" --project "The Project" --lifecycle "Default Lifecycle" --default
 		`, constants.ExecutableName),
 		RunE: func(c *cobra.Command, args []string) error {
 			opts := NewCreateOptions(createFlags, cmd.NewDependencies(f, c))
@@ -123,7 +122,7 @@ func createRun(opts *CreateOptions) error {
 	fmt.Fprintf(opts.Out, "View this channel on Octopus Deploy: %s\n", link)
 
 	if !opts.NoPrompt {
-		autoCmd := flag.GenerateAutomationCmd(opts.CmdPath, opts.Name, opts.Project, opts.Description, opts.Default, opts.Lifecycle)
+		autoCmd := flag.GenerateAutomationCmd(opts.CmdPath, opts.GetSpaceNameOrEmpty(), opts.Name, opts.Project, opts.Description, opts.Default, opts.Lifecycle)
 		fmt.Fprintf(opts.Out, "%s\n", autoCmd)
 	}
 
@@ -136,17 +135,10 @@ func PromptMissing(opts *CreateOptions) error {
 		return err
 	}
 
-	var selectedProject *projects.Project
-	if opts.Project.Value == "" {
-		selectedProject, err = selectors.Project("Select the project in which the channel will be created", opts.Client, opts.Ask)
-		if err != nil {
-			return err
-		}
-	} else {
-		selectedProject, err = selectors.FindProject(opts.Client, opts.Project.Value)
-		if err != nil {
-			return err
-		}
+	selectedProject, err := selectors.ResolveProject(opts.Client, opts.Ask, true,
+		"Select the project in which the channel will be created", opts.Project.Value)
+	if err != nil {
+		return err
 	}
 	opts.Project.Value = selectedProject.Name
 

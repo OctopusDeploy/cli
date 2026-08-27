@@ -18,7 +18,7 @@ func NewCmdRelease(f factory.Factory) *cobra.Command {
 		Use:     "release <command>",
 		Short:   "Manage releases",
 		Long:    "Manage releases in Octopus Deploy",
-		Example: heredoc.Docf("$ %s release list", constants.ExecutableName),
+		Example: heredoc.Docf("%s release list", constants.ExecutableName),
 		Annotations: map[string]string{
 			annotations.IsCore: "true",
 		},

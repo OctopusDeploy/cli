@@ -63,7 +63,7 @@ func NewCmdDeprovisionEnvironment(factory factory.Factory) *cobra.Command {
 		Use:     "deprovision-environment",
 		Short:   "Deprovision an environment",
 		Long:    "Deprovision an environment",
-		Example: heredoc.Docf("$ %s ephemeral-environment deprovision-environment --name PR-1234", constants.ExecutableName),
+		Example: heredoc.Docf("%s ephemeral-environment deprovision-environment --name PR-1234", constants.ExecutableName),
 		RunE: func(c *cobra.Command, _ []string) error {
 			deprovisionEnvironmentOptions := NewDeprovisionEnvironmentOptions(deprovisionEnvironmentFlags, cmd.NewDependencies(factory, c), c)
 
@@ -110,7 +110,7 @@ func DeprovisionEnvironmentRun(deprovisionEnvironmentOptions *DeprovisionEnviron
 	util.OutputDeprovisionResult(message, command, response.DeprovisioningRuns)
 
 	if !deprovisionEnvironmentOptions.NoPrompt {
-		autoCmd := flag.GenerateAutomationCmd(deprovisionEnvironmentOptions.CmdPath, deprovisionEnvironmentOptions.Name)
+		autoCmd := flag.GenerateAutomationCmd(deprovisionEnvironmentOptions.CmdPath, deprovisionEnvironmentOptions.GetSpaceNameOrEmpty(), deprovisionEnvironmentOptions.Name)
 		fmt.Fprintf(command.OutOrStdout(), "\nAutomation Command: %s\n", autoCmd)
 	}
 

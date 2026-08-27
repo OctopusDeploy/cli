@@ -2,8 +2,9 @@ package create
 
 import (
 	"fmt"
-	"github.com/OctopusDeploy/cli/pkg/cmd"
 	"os"
+
+	"github.com/OctopusDeploy/cli/pkg/cmd"
 
 	"github.com/OctopusDeploy/cli/pkg/util"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/environments"
@@ -63,7 +64,7 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 		Use:     "create",
 		Short:   "Create a Token account",
 		Long:    "Create a Token account in Octopus Deploy",
-		Example: heredoc.Docf("$ %s account token create", constants.ExecutableName),
+		Example: heredoc.Docf("%s account token create", constants.ExecutableName),
 		Aliases: []string{"new"},
 		RunE: func(c *cobra.Command, _ []string) error {
 			opts := NewCreateOptions(createFlags, cmd.NewDependencies(f, c))
@@ -126,7 +127,7 @@ func CreateRun(opts *CreateOptions) error {
 	link := output.Bluef("%s/app#/%s/infrastructure/accounts/%s", opts.Host, opts.Space.GetID(), createdAccount.GetID())
 	_, _ = fmt.Fprintf(opts.Out, "\nView this account on Octopus Deploy: %s\n", link)
 	if !opts.NoPrompt {
-		autoCmd := flag.GenerateAutomationCmd(opts.CmdPath, opts.Name, opts.Token, opts.Description, opts.Environments)
+		autoCmd := flag.GenerateAutomationCmd(opts.CmdPath, opts.GetSpaceNameOrEmpty(), opts.Name, opts.Token, opts.Description, opts.Environments)
 		_, _ = fmt.Fprintf(opts.Out, "\nAutomation Command: %s\n", autoCmd)
 	}
 	return nil

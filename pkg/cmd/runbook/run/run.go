@@ -74,6 +74,8 @@ const (
 	FlagAliasGuidedFailureMode       = "guided-failure-mode"
 	FlagAliasGuidedFailureModeLegacy = "guidedFailure"
 
+	FlagPriority = "priority"
+
 	FlagForcePackageDownload            = "force-package-download"
 	FlagAliasForcePackageDownloadLegacy = "forcePackageDownload"
 
@@ -109,6 +111,7 @@ type RunFlags struct {
 	Snapshot               *flag.Flag[string]
 	ExcludedSteps          *flag.Flag[[]string]
 	GuidedFailureMode      *flag.Flag[string] // tri-state: true, false, or "use default". Can we model it with an optional bool?
+	Priority               *flag.Flag[string] // tri-state: true, false, or "use default"
 	ForcePackageDownload   *flag.Flag[bool]
 	RunTargets             *flag.Flag[[]string]
 	ExcludeTargets         *flag.Flag[[]string]
@@ -134,6 +137,7 @@ func NewRunFlags() *RunFlags {
 		Snapshot:               flag.New[string](FlagSnapshot, false),
 		ExcludedSteps:          flag.New[[]string](FlagSkip, false),
 		GuidedFailureMode:      flag.New[string](FlagGuidedFailure, false),
+		Priority:               flag.New[string](FlagPriority, false),
 		ForcePackageDownload:   flag.New[bool](FlagForcePackageDownload, false),
 		RunTargets:             flag.New[[]string](FlagRunTarget, false),
 		ExcludeTargets:         flag.New[[]string](FlagExcludeRunTarget, false),
@@ -153,8 +157,8 @@ func NewCmdRun(f factory.Factory) *cobra.Command {
 		Short: "Run runbooks in Octopus Deploy",
 		Long:  "Run runbooks in Octopus Deploy",
 		Example: heredoc.Docf(`
-			$ %[1]s runbook run  # fully interactive
-			$ %[1]s runbook run --project MyProject --runbook "Rebuild DB indexes"
+			%[1]s runbook run  # fully interactive
+			%[1]s runbook run --project MyProject --runbook "Rebuild DB indexes"
 		`, constants.ExecutableName),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) > 0 && runFlags.Project.Value == "" {
@@ -178,6 +182,7 @@ func NewCmdRun(f factory.Factory) *cobra.Command {
 	flags.StringVarP(&runFlags.Snapshot.Value, runFlags.Snapshot.Name, "", "", "Name or ID of the snapshot to run. If not supplied, the command will attempt to use the published snapshot.")
 	flags.StringArrayVarP(&runFlags.ExcludedSteps.Value, runFlags.ExcludedSteps.Name, "", nil, "Exclude specific steps from the runbook")
 	flags.StringVarP(&runFlags.GuidedFailureMode.Value, runFlags.GuidedFailureMode.Name, "", "", "Enable Guided failure mode (true/false/default)")
+	flags.StringVarP(&runFlags.Priority.Value, runFlags.Priority.Name, "", "", "Jump the task queue ahead of other queued tasks (true/false/default). Requires the Priority Tasks feature. For runbook runs, 'default' is the same as 'false'.")
 	flags.BoolVarP(&runFlags.ForcePackageDownload.Value, runFlags.ForcePackageDownload.Name, "", false, "Force re-download of packages")
 	flags.StringArrayVarP(&runFlags.RunTargets.Value, runFlags.RunTargets.Name, "", nil, "Run on this target (can be specified multiple times)")
 	flags.StringArrayVarP(&runFlags.ExcludeTargets.Value, runFlags.ExcludeTargets.Name, "", nil, "Run on targets except for this (can be specified multiple times)")
@@ -217,6 +222,10 @@ func runbookRun(cmd *cobra.Command, f factory.Factory, flags *RunFlags) error {
 	outputFormat, err := cmd.Flags().GetString(constants.FlagOutputFormat)
 	if err != nil { // should never happen, but fallback if it does
 		outputFormat = constants.OutputFormatTable
+	}
+
+	if _, err = executionscommon.ParsePriorityMode(flags.Priority.Value); err != nil {
+		return err
 	}
 
 	octopus, err := f.GetSpacedClient(apiclient.NewRequester(cmd))
@@ -298,6 +307,7 @@ func runDbRunbook(cmd *cobra.Command, f factory.Factory, flags *RunFlags, octopu
 		ScheduledExpiryTime:    flags.MaxQueueTime.Value,
 		ExcludedSteps:          flags.ExcludedSteps.Value,
 		GuidedFailureMode:      flags.GuidedFailureMode.Value,
+		Priority:               flags.Priority.Value,
 		ForcePackageDownload:   flags.ForcePackageDownload.Value,
 		RunTargets:             flags.RunTargets.Value,
 		ExcludeTargets:         flags.ExcludeTargets.Value,
@@ -341,6 +351,7 @@ func runDbRunbook(cmd *cobra.Command, f factory.Factory, flags *RunFlags, octopu
 			resolvedFlags.MaxQueueTime.Value = options.ScheduledExpiryTime
 			resolvedFlags.ExcludedSteps.Value = options.ExcludedSteps
 			resolvedFlags.GuidedFailureMode.Value = options.GuidedFailureMode
+			resolvedFlags.Priority.Value = options.Priority
 			resolvedFlags.RunTargets.Value = options.RunTargets
 			resolvedFlags.ExcludeTargets.Value = options.ExcludeTargets
 			resolvedFlags.SpecificTargetTagNames.Value = options.SpecificTargetTagNames
@@ -362,7 +373,11 @@ func runDbRunbook(cmd *cobra.Command, f factory.Factory, flags *RunFlags, octopu
 			// but that's fine
 			resolvedFlags.ForcePackageDownload.Value = options.ForcePackageDownload
 
-			autoCmd := flag.GenerateAutomationCmd(constants.ExecutableName+" runbook run",
+			spaceName := ""
+			if s := f.GetCurrentSpace(); s != nil {
+				spaceName = s.GetName()
+			}
+			autoCmd := flag.GenerateAutomationCmd(constants.ExecutableName+" runbook run", spaceName,
 				resolvedFlags.Project,
 				resolvedFlags.RunbookName,
 				resolvedFlags.Snapshot,
@@ -373,6 +388,7 @@ func runDbRunbook(cmd *cobra.Command, f factory.Factory, flags *RunFlags, octopu
 				resolvedFlags.MaxQueueTime,
 				resolvedFlags.ExcludedSteps,
 				resolvedFlags.GuidedFailureMode,
+				resolvedFlags.Priority,
 				resolvedFlags.ForcePackageDownload,
 				resolvedFlags.RunTargets,
 				resolvedFlags.ExcludeTargets,
@@ -431,6 +447,7 @@ func runGitRunbook(cmd *cobra.Command, f factory.Factory, flags *RunFlags, octop
 		ScheduledExpiryTime:    flags.MaxQueueTime.Value,
 		ExcludedSteps:          flags.ExcludedSteps.Value,
 		GuidedFailureMode:      flags.GuidedFailureMode.Value,
+		Priority:               flags.Priority.Value,
 		ForcePackageDownload:   flags.ForcePackageDownload.Value,
 		RunTargets:             flags.RunTargets.Value,
 		ExcludeTargets:         flags.ExcludeTargets.Value,
@@ -477,6 +494,7 @@ func runGitRunbook(cmd *cobra.Command, f factory.Factory, flags *RunFlags, octop
 			resolvedFlags.MaxQueueTime.Value = options.ScheduledExpiryTime
 			resolvedFlags.ExcludedSteps.Value = options.ExcludedSteps
 			resolvedFlags.GuidedFailureMode.Value = options.GuidedFailureMode
+			resolvedFlags.Priority.Value = options.Priority
 			resolvedFlags.RunTargets.Value = options.RunTargets
 			resolvedFlags.ExcludeTargets.Value = options.ExcludeTargets
 			resolvedFlags.SpecificTargetTagNames.Value = options.SpecificTargetTagNames
@@ -502,7 +520,11 @@ func runGitRunbook(cmd *cobra.Command, f factory.Factory, flags *RunFlags, octop
 			// but that's fine
 			resolvedFlags.ForcePackageDownload.Value = options.ForcePackageDownload
 
-			autoCmd := flag.GenerateAutomationCmd(constants.ExecutableName+" runbook run",
+			spaceName := ""
+			if s := f.GetCurrentSpace(); s != nil {
+				spaceName = s.GetName()
+			}
+			autoCmd := flag.GenerateAutomationCmd(constants.ExecutableName+" runbook run", spaceName,
 				resolvedFlags.Project,
 				resolvedFlags.GitRef,
 				resolvedFlags.RunbookName,
@@ -513,6 +535,7 @@ func runGitRunbook(cmd *cobra.Command, f factory.Factory, flags *RunFlags, octop
 				resolvedFlags.MaxQueueTime,
 				resolvedFlags.ExcludedSteps,
 				resolvedFlags.GuidedFailureMode,
+				resolvedFlags.Priority,
 				resolvedFlags.ForcePackageDownload,
 				resolvedFlags.RunTargets,
 				resolvedFlags.ExcludeTargets,
@@ -563,25 +586,7 @@ func runGitRunbook(cmd *cobra.Command, f factory.Factory, flags *RunFlags, octop
 }
 
 func selectProject(octopus *octopusApiClient.Client, f factory.Factory, projectName string) (*projects.Project, error) {
-	if projectName == "" {
-		if f.IsPromptEnabled() {
-			selectedProject, err := selectors.Project("Select project", octopus, f.Ask)
-			if err != nil {
-				return nil, err
-			}
-			return selectedProject, nil
-		} else {
-			// Project name not provided and not asking questions so error out
-			return nil, errors.New("project must be specified")
-		}
-	} else { // project name is already provided, fetch the object because it's needed for further questions
-		selectedProject, err := selectors.FindProject(octopus, projectName)
-		if err != nil {
-			return nil, err
-		}
-
-		return selectedProject, nil
-	}
+	return selectors.ResolveProject(octopus, f.Ask, f.IsPromptEnabled(), "Select project", projectName)
 }
 
 // shouldAskAdvancedOptions determines if we should prompt the user to change advanced options.
@@ -1089,8 +1094,24 @@ func askRunbookPreviewVariables(
 		}
 	}
 
-	// Process variables from command line and prompts
-	result := make(map[string]string)
+	return resolveRunbookPreviewVariables(asker, flattenedControls, flattenedValues, variablesFromCmd)
+}
+
+// resolveRunbookPreviewVariables merges command-line --variable values with the
+// runbook form preview, prompting for any required prompted variables not
+// supplied on the command line. Command-line variables that don't match a
+// preview control are passed through unchanged (issue #582).
+func resolveRunbookPreviewVariables(
+	asker question.Asker,
+	flattenedControls map[string]*deployments.Control,
+	flattenedValues map[string]string,
+	variablesFromCmd map[string]string,
+) (map[string]string, []string, error) {
+	result := make(map[string]string, len(variablesFromCmd))
+	for k, v := range variablesFromCmd {
+		result[k] = v
+	}
+
 	lcaseVarsFromCmd := make(map[string]string, len(variablesFromCmd))
 	for k, v := range variablesFromCmd {
 		lcaseVarsFromCmd[strings.ToLower(k)] = v
@@ -1101,14 +1122,19 @@ func askRunbookPreviewVariables(
 		return keys[i] > keys[j]
 	})
 
-	// Track sensitive variables
 	sensitiveVars := make([]string, 0)
 
 	for _, key := range keys {
 		control := flattenedControls[key]
 		valueFromCmd, foundValueOnCommandLine := lcaseVarsFromCmd[strings.ToLower(control.Name)]
 		if foundValueOnCommandLine {
-			// implicitly fixes up variable casing
+			// Canonicalise to control.Name when the CLI used a different casing,
+			// so we don't end up with both spellings in the result map.
+			for k := range result {
+				if k != control.Name && strings.EqualFold(k, control.Name) {
+					delete(result, k)
+				}
+			}
 			result[control.Name] = valueFromCmd
 		}
 		if control.Required == true && !foundValueOnCommandLine {
@@ -1127,7 +1153,6 @@ func askRunbookPreviewVariables(
 			result[control.Name] = responseString
 		}
 
-		// Track sensitive variables from the preview
 		if control.DisplaySettings.ControlType == "Sensitive" {
 			sensitiveVars = append(sensitiveVars, control.Name)
 		}
@@ -1258,6 +1283,8 @@ func PrintAdvancedSummary(stdout io.Writer, options *executor.TaskOptionsRunbook
 
 	gfmStr := executionscommon.LookupGuidedFailureModeString(options.GuidedFailureMode)
 
+	priorityStr := executionscommon.LookupPriorityString(options.Priority, "Do not jump the task queue")
+
 	pkgDownloadStr := executionscommon.LookupPackageDownloadString(!options.ForcePackageDownload)
 
 	runTargetsStr := "All included"
@@ -1321,10 +1348,11 @@ func PrintAdvancedSummary(stdout io.Writer, options *executor.TaskOptionsRunbook
 		  Run At: cyan(%s)
 		  Skipped Steps: cyan(%s)
 		  Guided Failure Mode: cyan(%s)
+		  Priority: cyan(%s)
 		  Package Download: cyan(%s)
 		  Run Targets: cyan(%s)
 		  Target Tags: cyan(%s)
-	`)), runAtStr, skipStepsStr, gfmStr, pkgDownloadStr, runTargetsStr, targetTagsStr)
+	`)), runAtStr, skipStepsStr, gfmStr, priorityStr, pkgDownloadStr, runTargetsStr, targetTagsStr)
 }
 
 func selectRunbook(octopus *octopusApiClient.Client, ask question.Asker, questionText string, space *spaces.Space, project *projects.Project) (*runbooks.Runbook, error) {

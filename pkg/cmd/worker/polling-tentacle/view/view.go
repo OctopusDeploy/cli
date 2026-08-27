@@ -21,8 +21,8 @@ func NewCmdView(f factory.Factory) *cobra.Command {
 		Short: "View a Polling Tentacle worker",
 		Long:  "View a Polling Tentacle worker in Octopus Deploy",
 		Example: heredoc.Docf(`
-			$ %[1]s worker polling-tentacle view 'WindowsWorker'
-			$ %[1]s worker polling-tentacle view Machines-100
+			%[1]s worker polling-tentacle view 'WindowsWorker'
+			%[1]s worker polling-tentacle view Machines-100
 		`, constants.ExecutableName),
 		RunE: func(c *cobra.Command, args []string) error {
 			opts := shared.NewViewOptions(flags, cmd.NewDependencies(f, c), args, c)
@@ -42,9 +42,13 @@ func ViewRun(opts *shared.ViewOptions) error {
 func contributeEndpoint(opts *shared.ViewOptions, workerEndpoint machines.IEndpoint) ([]*output.DataRow, error) {
 	data := []*output.DataRow{}
 
-	endpoint := workerEndpoint.(*machines.PollingTentacleEndpoint)
-	data = append(data, output.NewDataRow("URI", endpoint.URI.String()))
-	data = append(data, output.NewDataRow("Tentacle version", endpoint.TentacleVersionDetails.Version))
+	endpoint, err := machinescommon.EndpointAs[*machines.PollingTentacleEndpoint](workerEndpoint, machinescommon.WorkerNoun, "Polling Tentacle")
+	if err != nil {
+		return nil, err
+	}
+
+	data = append(data, output.NewDataRow("URI", machinescommon.FormatUri(endpoint.URI)))
+	data = append(data, output.NewDataRow("Tentacle version", machinescommon.FormatTentacleVersion(endpoint.TentacleVersionDetails)))
 
 	return data, nil
 }

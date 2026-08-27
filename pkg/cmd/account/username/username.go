@@ -15,7 +15,7 @@ func NewCmdUsername(f factory.Factory) *cobra.Command {
 		Use:     "username <command>",
 		Short:   "Manage Username/Password accounts",
 		Long:    "Manage Username/Password accounts in Octopus Deploy",
-		Example: fmt.Sprintf("$ %s account username list", constants.ExecutableName),
+		Example: fmt.Sprintf("%s account username list", constants.ExecutableName),
 	}
 
 	cmd.AddCommand(cmdList.NewCmdList(f))

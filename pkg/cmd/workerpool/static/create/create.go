@@ -2,6 +2,7 @@ package create
 
 import (
 	"fmt"
+
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/cmd"
 	"github.com/OctopusDeploy/cli/pkg/constants"
@@ -52,7 +53,7 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 		Short: "Create a static worker pool",
 		Long:  "Create a static worker pool in Octopus Deploy",
 		Example: heredoc.Docf(`
-			$ %s worker-pool static create
+			%s worker-pool static create
 		`, constants.ExecutableName),
 		RunE: func(c *cobra.Command, _ []string) error {
 			opts := NewCreateOptions(createFlags, cmd.NewDependencies(f, c))
@@ -90,7 +91,7 @@ func createRun(opts *CreateOptions) error {
 
 	fmt.Fprintf(opts.Out, "Successfully created worker pool '%s'\n", createdPool.GetName())
 	if !opts.NoPrompt {
-		autoCmd := flag.GenerateAutomationCmd(opts.CmdPath, opts.Name, opts.Description)
+		autoCmd := flag.GenerateAutomationCmd(opts.CmdPath, opts.GetSpaceNameOrEmpty(), opts.Name, opts.Description)
 		fmt.Fprintf(opts.Out, "\nAutomation Command: %s\n", autoCmd)
 	}
 

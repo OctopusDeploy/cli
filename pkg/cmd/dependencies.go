@@ -56,6 +56,13 @@ func newDependencies(f factory.Factory, cmd *cobra.Command, client *client.Clien
 	}
 }
 
+func (d *Dependencies) GetSpaceNameOrEmpty() string {
+	if d.Space != nil {
+		return d.Space.GetName()
+	}
+	return ""
+}
+
 func NewDependenciesFromExisting(opts *Dependencies, cmdPath string) *Dependencies {
 	return &Dependencies{
 		Ask:               opts.Ask,

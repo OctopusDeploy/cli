@@ -104,7 +104,7 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 		Use:     "create",
 		Short:   "Create an Azure Web App deployment target",
 		Long:    "Create an Azure Web App deployment target in Octopus Deploy",
-		Example: heredoc.Docf("$ %s deployment-target azure-web-app create", constants.ExecutableName),
+		Example: heredoc.Docf("%s deployment-target azure-web-app create", constants.ExecutableName),
 		Aliases: []string{"new"},
 		RunE: func(c *cobra.Command, _ []string) error {
 			opts := NewCreateOptions(createFlags, cmd.NewDependencies(f, c))
@@ -159,6 +159,14 @@ func createRun(opts *CreateOptions) error {
 	endpoint.WebAppName = opts.WebApp.Value
 	endpoint.ResourceGroupName = opts.ResourceGroup.Value
 	endpoint.WebAppSlotName = opts.Slot.Value
+	if opts.WorkerPool.Value != "" {
+		workerPoolId, err := shared.FindWorkerPoolId(opts.GetAllWorkerPoolsCallback, opts.WorkerPool.Value)
+		if err != nil {
+			return err
+		}
+		endpoint.DefaultWorkerPoolID = workerPoolId
+	}
+
 	deploymentTarget := machines.NewDeploymentTarget(opts.Name.Value, endpoint, environmentIds, util.SliceDistinct(combinedRoles))
 
 	err = shared.ConfigureTenant(deploymentTarget, opts.CreateTargetTenantFlags, opts.CreateTargetTenantOptions)
@@ -173,7 +181,7 @@ func createRun(opts *CreateOptions) error {
 
 	fmt.Fprintf(opts.Out, "Successfully created Azure web app '%s'.\n", deploymentTarget.Name)
 	if !opts.NoPrompt {
-		autoCmd := flag.GenerateAutomationCmd(opts.CmdPath, opts.Name, opts.Account, opts.WebApp, opts.ResourceGroup, opts.Slot, opts.Environments, opts.Roles, opts.Tags, opts.TenantedDeploymentMode, opts.Tenants, opts.TenantTags)
+		autoCmd := flag.GenerateAutomationCmd(opts.CmdPath, opts.GetSpaceNameOrEmpty(), opts.Name, opts.Account, opts.WebApp, opts.ResourceGroup, opts.Slot, opts.Environments, opts.Roles, opts.Tags, opts.TenantedDeploymentMode, opts.Tenants, opts.TenantTags)
 		fmt.Fprintf(opts.Out, "\nAutomation Command: %s\n", autoCmd)
 	}
 

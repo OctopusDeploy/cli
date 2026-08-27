@@ -1,61 +1,131 @@
 name: 'Generate Docs'
 on:
   workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Skip pushing branch and creating PR, for testing purposes'
+        type: boolean
+        default: false
+  push:
+    branches:
+      - main
+    tags:
+      - 'v*'
+    paths:
+      - 'cmd/gen-docs/**'
+      - 'pkg/cmd/**'
+      - 'go.mod'
+      - 'go.sum'
+      - '.github/workflows/generate-docs.yml'
+
 env:
   DOCS_TOKEN: ${{ secrets.DOCS_TOKEN }}
+  TARGET_REPOSITORY: OctopusDeploy/docs
+  TARGET_DIRECTORY: src/pages/docs/octopus-rest-api/cli
+  # Always sync to the same branch in case there's already an open PR, in which case it'll be updated
+  SYNC_BRANCH: cli-docs-sync
+  PR_LABEL: cli-docs-sync
+
+concurrency:
+  group: generate-docs
+  cancel-in-progress: false
+
 jobs:
   generate-docs:
     runs-on: ubuntu-latest
-    steps:
-      - name: Calculate branch name
-        id: branch-name
-        run: echo "BRANCH_NAME=enh-cliupdate-octopus-$(date +'%Y%m%d-%H%M%S')" >> $GITHUB_ENV
+    permissions:
+      contents: read
 
+    steps:
       - name: Checkout CLI
-        uses: actions/checkout@v3
+        uses: actions/checkout@v7
         with:
           path: cli
 
       - name: Checkout docs
-        uses: actions/checkout@v3
+        uses: actions/checkout@v7
         with:
-          repository: OctopusDeploy/docs
+          repository: ${{ env.TARGET_REPOSITORY }}
           token: ${{ env.DOCS_TOKEN }}
           path: docs
 
-      - name: Setup docs repo
-        working-directory: docs
-        run: |
-          git config user.email 'bob@octopus.com'
-          git config user.name octobob
-          git checkout main
-          git checkout -b $BRANCH_NAME
-
       - name: Set up Go
-        uses: actions/setup-go@v3
+        uses: actions/setup-go@v7
         with:
-          go-version: 1.21
+          go-version-file: cli/go.mod
 
       - name: Generate cli docs
         working-directory: cli
-        run: mkdir -p ../docs/src/pages/docs/octopus-rest-api/cli && go run cmd/gen-docs/main.go --website --doc-path ../docs/src/pages/docs/octopus-rest-api/cli --relative-base-path /docs/octopus-rest-api/cli
+        run: mkdir -p ../docs/$TARGET_DIRECTORY && go run cmd/gen-docs/main.go --website --doc-path ../docs/$TARGET_DIRECTORY --relative-base-path /docs/octopus-rest-api/cli
 
-      - name: Commit
-        uses: EndBug/add-and-commit@v9
-        with:
-          message: 'Update cli docs for octopus(go)'
-          author_name: Bob
-          author_email: bob@octopus.com
-          committer_name: bob
-          cwd: docs
-          add: src/pages/docs/octopus-rest-api/cli
-          push: false
-
-      - run: git push --repo https://octobob:$DOCS_TOKEN@github.com/OctopusDeploy/docs.git --set-upstream origin $BRANCH_NAME
+      - name: Commit and push
+        id: commit
         working-directory: docs
-
-      - name: Create PR
+        env:
+          DRY_RUN: ${{ inputs.dry_run }}
         run: |
-          curl -X POST -H "Accept: application/vnd.github+json" -H "Authorization: Bearer $DOCS_TOKEN" \
-          https://api.github.com/repos/OctopusDeploy/docs/pulls \
-          -d '{"title":"update go-cli docs","body":"An automated update of the command line docs for octopus CLI\nCreated by GitHub Actions [Generate Docs](https://github.com/OctopusDeploy/cli/actions/workflows/generate-docs.yml)","head":"'$BRANCH_NAME'","base":"main"}'
+          set -euo pipefail
+
+          git config user.email 'bob@octopus.com'
+          git config user.name octobob
+
+          git add --all -- "$TARGET_DIRECTORY"
+
+          # Safety net: only the target folder should have been touched
+          unexpected_changes="$(git diff --cached --name-only -- . ":(exclude)$TARGET_DIRECTORY")"
+          if [ -n "$unexpected_changes" ]; then
+            echo "Found unexpected staged changes, aborting" >&2
+            echo "$unexpected_changes" >&2
+            exit 1
+          fi
+
+          if git diff --cached --quiet; then
+            echo "The docs repo is already up-to-date, nothing to do"
+            echo 'changed=false' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          git diff --cached --stat
+
+          git commit \
+            --message 'Update cli docs for octopus(go)' \
+            --message "origin revision: ${GITHUB_SHA:0:8}"
+          if [ "$DRY_RUN" != 'true' ]; then
+            git push --force origin "HEAD:refs/heads/$SYNC_BRANCH"
+          fi
+
+          echo 'changed=true' >> "$GITHUB_OUTPUT"
+
+      - name: Create or update sync PR
+        if: steps.commit.outputs.changed == 'true' && inputs.dry_run != true
+        env:
+          GH_TOKEN: ${{ env.DOCS_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          existing_pr="$(gh pr list \
+            --repo "$TARGET_REPOSITORY" \
+            --state open \
+            --base 'main' \
+            --head "$SYNC_BRANCH" \
+            --label "$PR_LABEL" \
+            --json number \
+            --jq '.[0].number // empty')"
+
+          # Force pushing above would have updated the existing PR if there was one
+          if [ -n "$existing_pr" ]; then
+            echo "PR #$existing_pr is already open"
+          else
+            gh pr create \
+              --repo "$TARGET_REPOSITORY" \
+              --base 'main' \
+              --head "$SYNC_BRANCH" \
+              --label "$PR_LABEL" \
+              --title 'update go-cli docs' \
+              --body 'An automated update of the command line docs for octopus CLI, created by GitHub Actions [Generate Docs](https://github.com/OctopusDeploy/cli/actions/workflows/generate-docs.yml)'
+          fi
+
+          gh pr merge "$SYNC_BRANCH" \
+            --repo "$TARGET_REPOSITORY" \
+            --auto \
+            --squash

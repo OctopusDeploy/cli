@@ -1,9 +1,12 @@
 package create
 
 import (
+	"bytes"
+	"encoding/xml"
 	"errors"
 	"fmt"
 	"os"
+	"os/user"
 	"path/filepath"
 	"strings"
 	"time"
@@ -26,6 +29,11 @@ const (
 	FlagReleaseNotes     = "releaseNotes"
 	FlagReleaseNotesFile = "releaseNotesFile"
 )
+
+// DefaultDescription is used when the caller supplies no description. The nuspec
+// schema requires the element, and this is what the flag help has always
+// promised.
+const DefaultDescription = "A deployment package created from files on disk."
 
 type NuPkgCreateFlags struct {
 	Author           *flag.Flag[[]string] // this need to be multiple and default to current user
@@ -59,7 +67,7 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 		Short: "Create nuget",
 		Long:  "Create nuget package",
 		Example: heredoc.Docf(`
-			$ %[1]s package nuget create --id SomePackage --version 1.0.0
+			%[1]s package nuget create --id SomePackage --version 1.0.0
 		`, constants.ExecutableName),
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			opts := &NuPkgCreateOptions{
@@ -76,6 +84,7 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 	flags.StringVar(&packFlags.BasePath.Value, packFlags.BasePath.Name, "", "Root folder containing the contents to zip.")
 	flags.StringVar(&packFlags.OutFolder.Value, packFlags.OutFolder.Name, "", "Folder into which the zip file will be written.")
 	flags.StringSliceVar(&packFlags.Include.Value, packFlags.Include.Name, []string{}, "Add a file pattern to include, relative to the base path e.g. /bin/*.dll; defaults to \"**\".")
+	flags.StringSliceVar(&packFlags.Exclude.Value, packFlags.Exclude.Name, []string{}, "Add a file pattern to exclude, relative to the base path e.g. **/*.config; applied after --include.")
 	flags.BoolVar(&packFlags.Verbose.Value, packFlags.Verbose.Name, false, "Verbose output.")
 	flags.BoolVar(&packFlags.Overwrite.Value, packFlags.Overwrite.Name, false, "Allow an existing package file of the same ID/version to be overwritten.")
 	flags.StringSliceVar(&createFlags.Author.Value, createFlags.Author.Name, []string{}, "Add author/s to the package metadata.")
@@ -111,29 +120,39 @@ func createRun(cmd *cobra.Command, opts *NuPkgCreateOptions) error {
 		return err
 	}
 
-	nuspecFilePath := ""
-	if shouldGenerateNuSpec(opts) {
-		defer func() {
-			if nuspecFilePath != "" {
-				err := os.Remove(nuspecFilePath)
-				if err != nil {
-					panic(err)
-				}
-			}
-		}()
-		nuspecFilePath, err = GenerateNuSpec(opts)
+	// Every .nupkg needs a manifest: readers locate it by looking for a single
+	// .nuspec in the archive root, so a package without one is not a valid NuGet
+	// package even though it is a perfectly good zip. Generate one unless the
+	// base path already supplies it, in which case that file is authoritative and
+	// must not be touched.
+	nuspecFileName := opts.Id.Value + ".nuspec"
+	suppliedNuSpec, err := hasSuppliedNuSpec(opts.BasePath.Value, nuspecFileName)
+	if err != nil {
+		return err
+	}
+
+	if suppliedNuSpec {
+		pack.VerboseOut(opts.Writer, opts.Verbose.Value, "Using existing nuspec file \"%s\"\n", nuspecFileName)
+	} else {
+		nuspecFilePath, err := GenerateNuSpec(opts)
 		if err != nil {
 			return err
 		}
-		opts.Include.Value = append(opts.Include.Value, opts.Id.Value+".nuspec")
+		defer func() {
+			if err := os.Remove(nuspecFilePath); err != nil {
+				pack.VerboseOut(opts.Writer, opts.Verbose.Value, "Could not remove generated nuspec file \"%s\": %v\n", nuspecFilePath, err)
+			}
+		}()
 	}
+
+	opts.Include.Value = append(opts.Include.Value, nuspecFileName)
 
 	pack.VerboseOut(opts.Writer, opts.Verbose.Value, "Packing \"%s\" version \"%s\"...\n", opts.Id.Value, opts.Version.Value)
 	outFilePath := pack.BuildOutFileName("nupkg", opts.Id.Value, opts.Version.Value)
 
 	if !opts.NoPrompt {
 		autoCmd := flag.GenerateAutomationCmd(
-			opts.CmdPath,
+			opts.CmdPath, "",
 			opts.Author,
 			opts.Title,
 			opts.Description,
@@ -144,23 +163,23 @@ func createRun(cmd *cobra.Command, opts *NuPkgCreateOptions) error {
 			opts.BasePath,
 			opts.OutFolder,
 			opts.Include,
+			opts.Exclude,
 			opts.Verbose,
 			opts.Overwrite,
 		)
 		fmt.Fprintf(opts.Writer, "\nAutomation Command: %s\n", autoCmd)
 	}
 
-	nuget, err := pack.BuildPackage(opts.PackageCreateOptions, outFilePath)
+	// a .nupkg is an OPC container, not a plain zip; it needs its content types,
+	// relationships and core properties or feeds will reject it
+	nuget, err := pack.BuildPackageWithContents(opts.PackageCreateOptions, outFilePath, &pack.PackageContents{
+		ExcludeDirectories: true,
+		ExtraEntries: func(paths []string) ([]pack.ArchiveEntry, error) {
+			return buildOpcParts(opts.Id.Value, opts.Version.Value, opts.Author.Value, opts.Description.Value, paths)
+		},
+	})
 	if nuget != nil {
-		switch outputFormat {
-		case constants.OutputFormatBasic:
-			cmd.Printf("%s\n", nuget.Name())
-		case constants.OutputFormatJson:
-			cmd.Printf(`{"Path":"%s"}`, nuget.Name())
-			cmd.Println()
-		default: // table
-			cmd.Printf("Successfully created package %s\n", nuget.Name())
-		}
+		pack.PrintPackageCreated(cmd, outputFormat, nuget.Name())
 	}
 	return err
 }
@@ -196,7 +215,7 @@ func PromptMissing(opts *NuPkgCreateOptions) error {
 			if err := opts.Ask(&survey.Input{
 				Message: "Nuspec description",
 				Help:    "The description to include in the Nuspec file.",
-				Default: "A deployment package created from files on disk.",
+				Default: DefaultDescription,
 			}, &opts.Description.Value); err != nil {
 				return err
 			}
@@ -244,13 +263,36 @@ func applyDefaultsToUnspecifiedPackageOptions(opts *NuPkgCreateOptions) error {
 		opts.Include.Value = append(opts.Include.Value, "**")
 	}
 
-	if len(opts.Author.Value) > 0 {
-		if opts.Description.Value == "" {
-			opts.Description.Value = "A deployment package created from files on disk."
-		}
+	// A manifest is generated for every package now, so these two are no longer
+	// only relevant when the caller opted into metadata: the nuspec schema
+	// requires both, and leaving them out produces a package strict readers
+	// reject.
+	if opts.Description.Value == "" {
+		opts.Description.Value = DefaultDescription
+	}
+
+	if util.Empty(opts.Author.Value) {
+		opts.Author.Value = []string{defaultAuthor(opts.Id.Value)}
 	}
 
 	return nil
+}
+
+// defaultAuthor mirrors what the old Octopus CLI did, and what the Author flag
+// has always said it should do. Where the user cannot be determined the package
+// ID stands in: the element is required, and an obvious placeholder beats
+// failing the command over metadata nobody asked for.
+// currentUser is a seam: user lookup fails on some minimal container images, and
+// the fallback needs to be reachable in a test.
+var currentUser = user.Current
+
+func defaultAuthor(fallback string) string {
+	if current, err := currentUser(); err == nil {
+		if name := strings.TrimSpace(current.Username); name != "" {
+			return name
+		}
+	}
+	return fallback
 }
 
 func getReleaseNotesFromFile(filePath string) (string, error) {
@@ -267,22 +309,34 @@ func getReleaseNotesFromFile(filePath string) (string, error) {
 	return string(notes), nil
 }
 
-func shouldGenerateNuSpec(opts *NuPkgCreateOptions) bool {
-	return opts.Description.Value != "" ||
-		opts.Title.Value != "" ||
-		opts.ReleaseNotes.Value != "" ||
-		opts.ReleaseNotesFile.Value != "" ||
-		!util.Empty(opts.Author.Value)
+// escapeXML makes a value safe to drop between two tags. Release notes and
+// descriptions are free text, and an unescaped ampersand or angle bracket is
+// enough to make the whole manifest unparseable.
+func escapeXML(value string) string {
+	var buf bytes.Buffer
+	if err := xml.EscapeText(&buf, []byte(value)); err != nil {
+		// EscapeText only fails if the writer fails, and bytes.Buffer does not.
+		return value
+	}
+	return buf.String()
+}
+
+// hasSuppliedNuSpec reports whether the base path already contains a manifest
+// for this package. One written by hand is the user's own file: it is theirs to
+// keep, and generating over the top of it would both discard their metadata and
+// delete the file on the way out.
+func hasSuppliedNuSpec(basePath string, nuspecFileName string) (bool, error) {
+	_, err := os.Stat(filepath.Join(basePath, nuspecFileName))
+	if err == nil {
+		return true, nil
+	}
+	if os.IsNotExist(err) {
+		return false, nil
+	}
+	return false, err
 }
 
 func GenerateNuSpec(opts *NuPkgCreateOptions) (string, error) {
-
-	if opts.Description.Value == "" {
-		return "", errors.New("description is required when generating nuspec metadata")
-	}
-	if len(opts.Author.Value) == 0 {
-		return "", errors.New("at least one author is required when generating nuspec metadata")
-	}
 
 	releaseNotes := opts.ReleaseNotes.Value
 	if opts.ReleaseNotesFile.Value != "" {
@@ -303,15 +357,15 @@ func GenerateNuSpec(opts *NuPkgCreateOptions) (string, error) {
 	sb.WriteString(`<?xml version="1.0" encoding="utf-8"?>` + "\n")
 	sb.WriteString(`<package xmlns="http://schemas.microsoft.com/packaging/2010/07/nuspec.xsd">` + "\n")
 	sb.WriteString("  <metadata>\n")
-	sb.WriteString("    <id>" + opts.Id.Value + "</id>\n")
-	sb.WriteString("    <version>" + opts.Version.Value + "</version>\n")
+	sb.WriteString("    <id>" + escapeXML(opts.Id.Value) + "</id>\n")
+	sb.WriteString("    <version>" + escapeXML(opts.Version.Value) + "</version>\n")
 	if opts.Title.Value != "" {
-		sb.WriteString("    <title>" + opts.Title.Value + "</title>\n")
+		sb.WriteString("    <title>" + escapeXML(opts.Title.Value) + "</title>\n")
 	}
-	sb.WriteString("    <description>" + opts.Description.Value + "</description>\n")
-	sb.WriteString("    <authors>" + strings.Join(opts.Author.Value, ",") + "</authors>\n")
+	sb.WriteString("    <description>" + escapeXML(opts.Description.Value) + "</description>\n")
+	sb.WriteString("    <authors>" + escapeXML(strings.Join(opts.Author.Value, ",")) + "</authors>\n")
 	if releaseNotes != "" {
-		sb.WriteString("    <releaseNotes>" + releaseNotes + "</releaseNotes>\n")
+		sb.WriteString("    <releaseNotes>" + escapeXML(releaseNotes) + "</releaseNotes>\n")
 	}
 	sb.WriteString("  </metadata>\n")
 	sb.WriteString("</package>\n")

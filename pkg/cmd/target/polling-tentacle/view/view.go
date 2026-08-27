@@ -21,8 +21,8 @@ func NewCmdView(f factory.Factory) *cobra.Command {
 		Short: "View a Polling Tentacle deployment target",
 		Long:  "View a Polling Tentacle deployment target in Octopus Deploy",
 		Example: heredoc.Docf(`
-			$ %[1]s deployment-target polling-tentacle view 'EU'
-			$ %[1]s deployment-target polling-tentacle view Machines-100
+			%[1]s deployment-target polling-tentacle view 'EU'
+			%[1]s deployment-target polling-tentacle view Machines-100
 		`, constants.ExecutableName),
 		RunE: func(c *cobra.Command, args []string) error {
 			opts := shared.NewViewOptions(flags, cmd.NewDependencies(f, c), args, c)
@@ -42,9 +42,13 @@ func ViewRun(opts *shared.ViewOptions) error {
 func contributeEndpoint(opts *shared.ViewOptions, targetEndpoint machines.IEndpoint) ([]*output.DataRow, error) {
 	data := []*output.DataRow{}
 
-	endpoint := targetEndpoint.(*machines.PollingTentacleEndpoint)
-	data = append(data, output.NewDataRow("URI", endpoint.URI.String()))
-	data = append(data, output.NewDataRow("Tentacle version", endpoint.TentacleVersionDetails.Version))
+	endpoint, err := machinescommon.EndpointAs[*machines.PollingTentacleEndpoint](targetEndpoint, machinescommon.DeploymentTargetNoun, "Polling Tentacle")
+	if err != nil {
+		return nil, err
+	}
+
+	data = append(data, output.NewDataRow("URI", machinescommon.FormatUri(endpoint.URI)))
+	data = append(data, output.NewDataRow("Tentacle version", machinescommon.FormatTentacleVersion(endpoint.TentacleVersionDetails)))
 
 	return data, nil
 }

@@ -21,8 +21,8 @@ func NewCmdView(f factory.Factory) *cobra.Command {
 		Short: "View a SSH deployment target",
 		Long:  "View a SSH deployment target in Octopus Deploy",
 		Example: heredoc.Docf(`
-			$ %[1]s deployment-target ssh view 'linux-web-server'
-			$ %[1]s deployment-target ssh view Machines-100
+			%[1]s deployment-target ssh view 'linux-web-server'
+			%[1]s deployment-target ssh view Machines-100
 		`, constants.ExecutableName),
 		RunE: func(c *cobra.Command, args []string) error {
 			opts := shared.NewViewOptions(flags, cmd.NewDependencies(f, c), args, c)
@@ -41,9 +41,12 @@ func ViewRun(opts *shared.ViewOptions) error {
 
 func contributeEndpoint(opts *shared.ViewOptions, targetEndpoint machines.IEndpoint) ([]*output.DataRow, error) {
 	data := []*output.DataRow{}
-	endpoint := targetEndpoint.(*machines.SSHEndpoint)
+	endpoint, err := machinescommon.EndpointAs[*machines.SSHEndpoint](targetEndpoint, machinescommon.DeploymentTargetNoun, "SSH")
+	if err != nil {
+		return nil, err
+	}
 
-	data = append(data, output.NewDataRow("URI", endpoint.URI.String()))
+	data = append(data, output.NewDataRow("URI", machinescommon.FormatUri(endpoint.URI)))
 	data = append(data, output.NewDataRow("Runtime architecture", getRuntimeArchitecture(endpoint)))
 	accountRows, err := shared.ContributeAccount(opts, endpoint.AccountID)
 	if err != nil {

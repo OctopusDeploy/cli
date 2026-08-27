@@ -2,6 +2,7 @@ package view
 
 import (
 	"fmt"
+
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/cmd"
 	"github.com/OctopusDeploy/cli/pkg/cmd/workerpool/shared"
@@ -24,8 +25,8 @@ func NewCmdView(f factory.Factory) *cobra.Command {
 		Short: "View a static worker pool",
 		Long:  "View a static worker pool in Octopus Deploy",
 		Example: heredoc.Docf(`
-			$ %[1]s worker-pool static view WorkerPools-3
-			$ %[1]s worker-pool static view 'windows workers'
+			%[1]s worker-pool static view WorkerPools-3
+			%[1]s worker-pool static view 'windows workers'
 		`, constants.ExecutableName),
 		RunE: func(c *cobra.Command, args []string) error {
 			return ViewRun(shared.NewViewOptions(flags, cmd.NewDependencies(f, c), args, c))
@@ -54,9 +55,13 @@ func contributeDetails(opts *shared.ViewOptions, workerPool workerpools.IWorkerP
 	data = append(data, output.NewDataRow("Has Warnings workers", output.Yellowf("%d", len(util.SliceFilter(workers, func(w *machines.Worker) bool { return w.HealthStatus == "HasWarnings" })))))
 	data = append(data, output.NewDataRow("Unhealthy workers", output.Redf("%d", len(util.SliceFilter(workers, func(w *machines.Worker) bool { return w.HealthStatus == "Unhealthy" })))))
 	data = append(data, output.NewDataRow("Unavailable workers", output.Redf("%d", len(util.SliceFilter(workers, func(w *machines.Worker) bool { return w.HealthStatus == "Unavailable" })))))
-	data = append(data, output.NewDataRow("SSH workers", fmt.Sprintf("%d", len(util.SliceFilter(workers, func(w *machines.Worker) bool { return w.Endpoint.GetCommunicationStyle() == "Ssh" })))))
-	data = append(data, output.NewDataRow("Listening Tentacle workers", fmt.Sprintf("%d", len(util.SliceFilter(workers, func(w *machines.Worker) bool { return w.Endpoint.GetCommunicationStyle() == "TentaclePassive" })))))
-	data = append(data, output.NewDataRow("Polling Tentacle workers", fmt.Sprintf("%d", len(util.SliceFilter(workers, func(w *machines.Worker) bool { return w.Endpoint.GetCommunicationStyle() == "TentacleActive" })))))
+	data = append(data, output.NewDataRow("SSH workers", fmt.Sprintf("%d", len(util.SliceFilter(workers, func(w *machines.Worker) bool { return machinescommon.GetCommunicationStyle(w.Endpoint) == "Ssh" })))))
+	data = append(data, output.NewDataRow("Listening Tentacle workers", fmt.Sprintf("%d", len(util.SliceFilter(workers, func(w *machines.Worker) bool {
+		return machinescommon.GetCommunicationStyle(w.Endpoint) == "TentaclePassive"
+	})))))
+	data = append(data, output.NewDataRow("Polling Tentacle workers", fmt.Sprintf("%d", len(util.SliceFilter(workers, func(w *machines.Worker) bool {
+		return machinescommon.GetCommunicationStyle(w.Endpoint) == "TentacleActive"
+	})))))
 
 	return data, nil
 

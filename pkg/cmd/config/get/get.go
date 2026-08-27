@@ -17,6 +17,7 @@ func NewCmdGet(f factory.Factory) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "get [key]",
 		Short: "Gets the value of config key for Octopus CLI",
+		Long:  "Gets the value of config key for Octopus CLI.",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			key := ""
 			if len(args) > 0 {

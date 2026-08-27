@@ -56,7 +56,7 @@ func (co *CreateOptions) Commit() error {
 
 func (co *CreateOptions) GenerateAutomationCmd() {
 	if !co.NoPrompt {
-		autoCmd := flag.GenerateAutomationCmd(co.CmdPath, co.Name, co.Description)
+		autoCmd := flag.GenerateAutomationCmd(co.CmdPath, co.GetSpaceNameOrEmpty(), co.Name, co.Description)
 		fmt.Fprintf(co.Out, "%s\n", autoCmd)
 	}
 }
@@ -74,7 +74,7 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 		Use:     "create",
 		Short:   "Create a project group",
 		Long:    "Create a project group in Octopus Deploy",
-		Example: heredoc.Docf("$ %s project-group create", constants.ExecutableName),
+		Example: heredoc.Docf("%s project-group create", constants.ExecutableName),
 		Aliases: []string{"new"},
 		RunE: func(c *cobra.Command, _ []string) error {
 			opts := NewCreateOptions(optFlags, cmd.NewDependencies(f, c))

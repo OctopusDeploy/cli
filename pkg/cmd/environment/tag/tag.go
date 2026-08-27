@@ -40,7 +40,7 @@ func NewCmdTag(f factory.Factory) *cobra.Command {
 		Use:     "tag",
 		Short:   "Override tags for an environment",
 		Long:    "Override tags for an environment in Octopus Deploy",
-		Example: heredoc.Docf("$ %s environment tag Environment-1", constants.ExecutableName),
+		Example: heredoc.Docf("%s environment tag Environment-1", constants.ExecutableName),
 		RunE: func(c *cobra.Command, _ []string) error {
 			opts := NewTagOptions(createFlags, cmd.NewDependencies(f, c))
 
@@ -146,4 +146,3 @@ func AskEnvironments(ask question.Asker, out io.Writer, value string, getEnviron
 
 	return environment, nil
 }
-

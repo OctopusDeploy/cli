@@ -14,7 +14,7 @@ func NewCmdSsh(f factory.Factory) *cobra.Command {
 		Use:     "ssh <command>",
 		Short:   "Manage SSH Key Pair accounts",
 		Long:    "Manage SSH Key Pair accounts in Octopus Deploy",
-		Example: heredoc.Docf("$ %s account ssh list", constants.ExecutableName),
+		Example: heredoc.Docf("%s account ssh list", constants.ExecutableName),
 	}
 
 	cmd.AddCommand(cmdList.NewCmdList(f))

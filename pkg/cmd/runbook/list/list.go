@@ -2,8 +2,9 @@ package list
 
 import (
 	"errors"
-	"github.com/OctopusDeploy/cli/pkg/cmd/runbook/shared"
 	"math"
+
+	"github.com/OctopusDeploy/cli/pkg/cmd/runbook/shared"
 
 	"github.com/OctopusDeploy/cli/pkg/apiclient"
 
@@ -13,7 +14,6 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/output"
 	"github.com/OctopusDeploy/cli/pkg/question/selectors"
 	"github.com/OctopusDeploy/cli/pkg/util/flag"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/resources"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/runbooks"
 	"github.com/spf13/cobra"
@@ -50,9 +50,9 @@ func NewCmdList(f factory.Factory) *cobra.Command {
 		Short: "List runbooks",
 		Long:  "List runbooks in Octopus Deploy",
 		Example: heredoc.Docf(`
-			$ %[1]s runbook list SomeProject
-			$ %[1]s runbook list --project SomeProject --limit 50 --filter SomeKeyword
-			$ %[1]s runbook ls -p SomeProject -n 30 -q SomeKeyword
+			%[1]s runbook list SomeProject
+			%[1]s runbook list --project SomeProject --limit 50 --filter SomeKeyword
+			%[1]s runbook ls -p SomeProject -n 30 -q SomeKeyword
 		`, constants.ExecutableName),
 		Aliases: []string{"ls"},
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -94,30 +94,15 @@ func listRun(cmd *cobra.Command, f factory.Factory, flags *ListFlags) error {
 		return err
 	}
 
-	var selectedProject *projects.Project
-	if f.IsPromptEnabled() { // this would be AskQuestions if it were bigger
-		if projectNameOrID == "" {
-			selectedProject, err = selectors.Project("Select the project to list runbooks for", octopus, f.Ask)
-			if err != nil {
-				return err
-			}
-		} else { // project name is already provided, fetch the object because it's needed for further questions
-			selectedProject, err = selectors.FindProject(octopus, projectNameOrID)
-			if err != nil {
-				return err
-			}
-			if !constants.IsProgrammaticOutputFormat(outputFormat) {
-				cmd.Printf("Project %s\n", output.Cyan(selectedProject.Name))
-			}
-		}
-	} else { // we don't have the executions API backing us and allowing NameOrID; we need to do the lookup ourselves
-		if projectNameOrID == "" {
-			return errors.New("project must be specified")
-		}
-		selectedProject, err = selectors.FindProject(octopus, projectNameOrID)
-		if err != nil {
-			return err
-		}
+	selectedProject, err := selectors.ResolveProject(octopus, f.Ask, f.IsPromptEnabled(),
+		"Select the project to list runbooks for", projectNameOrID)
+	if err != nil {
+		return err
+	}
+	// echo the project when it came from the command line, so there is always a line
+	// showing what was selected
+	if f.IsPromptEnabled() && projectNameOrID != "" && !constants.IsProgrammaticOutputFormat(outputFormat) {
+		cmd.Printf("Project %s\n", output.Cyan(selectedProject.Name))
 	}
 
 	var foundRunbooks *resources.Resources[*runbooks.Runbook]

@@ -2,6 +2,7 @@ package create
 
 import (
 	"fmt"
+
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/cmd"
@@ -66,7 +67,7 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 		Use:     "create",
 		Short:   "Create an environment",
 		Long:    "Create a environment in Octopus Deploy",
-		Example: heredoc.Docf("$ %s environment create", constants.ExecutableName),
+		Example: heredoc.Docf("%s environment create", constants.ExecutableName),
 		Aliases: []string{"new"},
 		RunE: func(c *cobra.Command, _ []string) error {
 			opts := NewCreateOptions(createFlags, cmd.NewDependencies(f, c))
@@ -124,7 +125,7 @@ func createRun(opts *CreateOptions) error {
 	fmt.Fprintf(opts.Out, "View this environment on Octopus Deploy: %s\n", link)
 
 	if !opts.NoPrompt {
-		autoCmd := flag.GenerateAutomationCmd(opts.CmdPath, opts.Name, opts.Description, opts.GuidedFailureMode, opts.DynamicInfrastructure, opts.Tag)
+		autoCmd := flag.GenerateAutomationCmd(opts.CmdPath, opts.GetSpaceNameOrEmpty(), opts.Name, opts.Description, opts.GuidedFailureMode, opts.DynamicInfrastructure, opts.Tag)
 		fmt.Fprintf(opts.Out, "%s\n", autoCmd)
 	}
 

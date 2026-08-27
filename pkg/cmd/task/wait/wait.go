@@ -76,12 +76,9 @@ func NewCmdWait(f factory.Factory) *cobra.Command {
 		Use:     "wait [TaskIDs]",
 		Short:   "Wait for task(s) to finish",
 		Long:    "Wait for a provided list of task(s) to finish",
-		Example: heredoc.Docf("$ %s task wait", constants.ExecutableName),
+		Example: heredoc.Docf("%s task wait", constants.ExecutableName),
 		RunE: func(c *cobra.Command, args []string) error {
-			taskIDs := make([]string, len(args))
-			copy(taskIDs, args)
-
-			taskIDs = append(taskIDs, util.ReadValuesFromPipe()...)
+			taskIDs := ResolveTaskIDs(args, util.ReadValuesFromPipe)
 			dependencies := cmd.NewDependencies(f, c)
 			opts := NewWaitOps(dependencies, taskIDs, timeout, pollInterval, cancelOnTimeout, showProgress, c)
 
@@ -96,6 +93,25 @@ func NewCmdWait(f factory.Factory) *cobra.Command {
 	flags.BoolVar(&showProgress, FlagProgress, false, "Show detailed progress of the tasks")
 
 	return cmd
+}
+
+// ResolveTaskIDs takes the task IDs named on the command line, falling back to
+// reading them from stdin only when none were given.
+//
+// Reading stdin blocks until the writer closes the pipe. A caller that shells
+// out with a pipe attached to stdin, such as Ruby's Open3.popen3 or Python's
+// subprocess.Popen, generally holds it open for the lifetime of the child, so
+// consulting it when the task IDs are already known would hang the command
+// until the caller happened to close it.
+func ResolveTaskIDs(args []string, readFromPipe func() []string) []string {
+	taskIDs := make([]string, len(args))
+	copy(taskIDs, args)
+
+	if len(taskIDs) == 0 {
+		taskIDs = append(taskIDs, readFromPipe()...)
+	}
+
+	return taskIDs
 }
 
 func WaitRun(opts *WaitOptions) error {

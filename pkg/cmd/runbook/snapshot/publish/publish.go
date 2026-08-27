@@ -3,6 +3,9 @@ package publish
 import (
 	"errors"
 	"fmt"
+	"math"
+	"time"
+
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/cmd"
 	"github.com/OctopusDeploy/cli/pkg/cmd/runbook/shared"
@@ -14,8 +17,6 @@ import (
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/runbooks"
 	"github.com/spf13/cobra"
-	"math"
-	"time"
 )
 
 const (
@@ -61,7 +62,7 @@ func NewCmdPublish(f factory.Factory) *cobra.Command {
 		Short: "Publish a runbook snapshot",
 		Long:  "Publish a runbook snapshot in Octopus Deploy",
 		Example: heredoc.Docf(`
-			$ %[1]s runbook snapshot publish --project MyProject --runbook "Rebuild DB Indexes" --snapshot "Snapshot 40C9ENM"
+			%[1]s runbook snapshot publish --project MyProject --runbook "Rebuild DB Indexes" --snapshot "Snapshot 40C9ENM"
 		`, constants.ExecutableName),
 		RunE: func(c *cobra.Command, args []string) error {
 			opts := NewPublishOptions(publishFlags, cmd.NewDependencies(f, c))
@@ -122,7 +123,7 @@ func publishRun(opts *PublishOptions) error {
 	fmt.Fprintf(opts.Out, "View this snapshot on Octopus Deploy: %s\n", link)
 
 	if !opts.NoPrompt {
-		autoCmd := flag.GenerateAutomationCmd(opts.CmdPath, opts.Project, opts.Runbook, opts.Snapshot)
+		autoCmd := flag.GenerateAutomationCmd(opts.CmdPath, opts.GetSpaceNameOrEmpty(), opts.Project, opts.Runbook, opts.Snapshot)
 		fmt.Fprintf(opts.Out, "\nAutomation Command: %s\n", autoCmd)
 	}
 	return nil

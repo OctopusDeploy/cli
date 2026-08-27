@@ -16,6 +16,13 @@ env:
   SERVER_URL: "http://localhost:8080"
 jobs:
   test:
+    # Dependabot-triggered runs cannot read Actions secrets -- GitHub scopes those
+    # to a separate Dependabot secrets store -- so SA_PASSWORD resolves to empty,
+    # SQL Server rejects every login, and the service container never turns
+    # healthy. Skip rather than fail red: the nightly run on main covers merged
+    # bumps, and `gh workflow run integration-test.yml --ref <branch>` still works
+    # on a Dependabot branch, because the triggering actor is then a human.
+    if: github.actor != 'dependabot[bot]'
     runs-on: ubuntu-latest
     services:
       sqlserver:
@@ -45,12 +52,12 @@ jobs:
       statuses: write
       checks: write
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v7
 
       - name: Set up Go
-        uses: actions/setup-go@v3
+        uses: actions/setup-go@v7
         with:
-          go-version: 1.21
+          go-version-file: go.mod
 
       - name: Setup gotestsum
         run: go install gotest.tools/gotestsum@latest
@@ -68,7 +75,7 @@ jobs:
         working-directory: ./test/integration
 
       - name: Test Report
-        uses: dorny/test-reporter@v1
+        uses: dorny/test-reporter@v3
         if: success() || failure()
         with:
           name: Test Results

@@ -25,8 +25,8 @@ func NewCmdView(f factory.Factory) *cobra.Command {
 		Short: "View a worker",
 		Long:  "View a worker in Octopus Deploy",
 		Example: heredoc.Docf(`
-			$ %[1]s worker view Machines-100
-			$ %[1]s worker view 'worker'
+			%[1]s worker view Machines-100
+			%[1]s worker view 'worker'
 		`, constants.ExecutableName),
 		RunE: func(c *cobra.Command, args []string) error {
 			return ViewRun(shared.NewViewOptions(flags, cmd.NewDependencies(f, c), args, c))
@@ -63,7 +63,7 @@ func ViewRun(opts *shared.ViewOptions) error {
 	}
 
 	if opts.WebFlags != nil && opts.WebFlags.Web.Value {
-		machinescommon.DoWebForWorkers(worker, opts.Dependencies, opts.WebFlags, getWorkerTypeDisplayName(worker.Endpoint.GetCommunicationStyle()))
+		machinescommon.DoWebForWorkers(worker, opts.Dependencies, opts.WebFlags, getWorkerTypeDisplayName(machinescommon.GetCommunicationStyle(worker.Endpoint)))
 	}
 
 	return nil
@@ -91,7 +91,7 @@ func getWorkerAsJson(opts *shared.ViewOptions, worker *machines.Worker) WorkerAs
 		Name:               worker.Name,
 		HealthStatus:       worker.HealthStatus,
 		StatusSummary:      worker.StatusSummary,
-		CommunicationStyle: worker.Endpoint.GetCommunicationStyle(),
+		CommunicationStyle: machinescommon.GetCommunicationStyle(worker.Endpoint),
 		WorkerPools:        workerPoolNames,
 		EndpointDetails:    endpointDetails,
 		WebUrl:             util.GenerateWebURL(opts.Host, worker.SpaceID, fmt.Sprintf("infrastructure/workers/%s/settings", worker.GetID())),
@@ -107,7 +107,7 @@ func getWorkerAsTableRow(opts *shared.ViewOptions, worker *machines.Worker) []st
 
 	return []string{
 		worker.Name,
-		getWorkerTypeDisplayName(worker.Endpoint.GetCommunicationStyle()),
+		getWorkerTypeDisplayName(machinescommon.GetCommunicationStyle(worker.Endpoint)),
 		getHealthStatusFormatted(worker.HealthStatus),
 		worker.StatusSummary,
 		strings.Join(workerPoolNames, ", "),
@@ -121,7 +121,7 @@ func getWorkerAsBasic(opts *shared.ViewOptions, worker *machines.Worker) string 
 	result.WriteString(fmt.Sprintf("%s %s\n", output.Bold(worker.Name), output.Dimf("(%s)", worker.GetID())))
 	result.WriteString(fmt.Sprintf("Health status: %s\n", getHealthStatusFormatted(worker.HealthStatus)))
 	result.WriteString(fmt.Sprintf("Current status: %s\n", worker.StatusSummary))
-	result.WriteString(fmt.Sprintf("Communication style: %s\n", getWorkerTypeDisplayName(worker.Endpoint.GetCommunicationStyle())))
+	result.WriteString(fmt.Sprintf("Communication style: %s\n", getWorkerTypeDisplayName(machinescommon.GetCommunicationStyle(worker.Endpoint))))
 
 	workerPoolMap, _ := shared.GetWorkerPoolMap(opts)
 	workerPoolNames := resolveValues(worker.WorkerPoolIDs, workerPoolMap)
@@ -163,6 +163,8 @@ func getWorkerTypeDisplayName(communicationStyle string) string {
 		return "Polling Tentacle"
 	case "Ssh":
 		return "SSH"
+	case "":
+		return machinescommon.UnknownValue
 	default:
 		return communicationStyle
 	}
@@ -173,16 +175,13 @@ func getEndpointDetails(worker *machines.Worker) map[string]string {
 
 	switch endpoint := worker.Endpoint.(type) {
 	case *machines.ListeningTentacleEndpoint:
-		details["URI"] = endpoint.URI.String()
-		if endpoint.TentacleVersionDetails != nil {
-			details["Tentacle version"] = endpoint.TentacleVersionDetails.Version
-		}
+		details["URI"] = machinescommon.FormatUri(endpoint.URI)
+		details["Tentacle version"] = machinescommon.FormatTentacleVersion(endpoint.TentacleVersionDetails)
 	case *machines.PollingTentacleEndpoint:
-		if endpoint.TentacleVersionDetails != nil {
-			details["Tentacle version"] = endpoint.TentacleVersionDetails.Version
-		}
+		details["URI"] = machinescommon.FormatUri(endpoint.URI)
+		details["Tentacle version"] = machinescommon.FormatTentacleVersion(endpoint.TentacleVersionDetails)
 	case *machines.SSHEndpoint:
-		details["URI"] = endpoint.URI.String()
+		details["URI"] = machinescommon.FormatUri(endpoint.URI)
 		if endpoint.DotNetCorePlatform != "" {
 			details["Platform"] = endpoint.DotNetCorePlatform
 		}

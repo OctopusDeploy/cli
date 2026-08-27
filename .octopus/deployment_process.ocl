@@ -33,6 +33,11 @@ step "push-cli-to-chocolatey" {
         }
         worker_pool = "hosted-windows"
 
+        container {
+            feed = "docker-hub"
+            image = "octopusdeploy/worker-tools:6.6.4-windows.ltsc2025"
+        }
+
         packages "cli" {
             acquisition_location = "Server"
             feed = "octopus-server-built-in"
@@ -69,7 +74,11 @@ step "push-homebrew-formula-updates-to-the-homebrew-taps-repo" {
                     [String]$githubtoken
                 )
                 
-                $origin="https://github.com/OctopusDeploy/homebrew-taps"
+                $ErrorActionPreference = "Stop"
+                
+                $repo = "OctopusDeploy/homebrew-taps"
+                $defaultBranch = "master"
+                $origin = "https://github.com/$repo"
                 
                 if ($OctopusParameters) {
                     $packageVersion = $OctopusParameters["Octopus.Action.Package[cli].PackageVersion"]
@@ -78,18 +87,19 @@ step "push-homebrew-formula-updates-to-the-homebrew-taps-repo" {
                     $gitUserEmail = $OctopusParameters["Publish:HomeBrew:UserEmail"]
                 
                     $githubtoken = $OctopusParameters["Publish:HomeBrew:ApiKey"]
-                    $origin="https://$($gitUserName):$($githubtoken)@github.com/OctopusDeploy/homebrew-taps"
+                    $origin = "https://$($gitUserName):$($githubtoken)@github.com/$repo"
                 
                 }
                 
-                if (!$packageVersion || !$extractedPath) {
+                if ([string]::IsNullOrWhiteSpace($packageVersion) -or [string]::IsNullOrWhiteSpace($extractedPath)) {
                     throw "Error: packageVersion or extractedPath are not set"
-                    exit
-                } else {
-                    write-host "Using: packageVersion $packageVersion from $extractedPath"
                 }
+                
+                Write-Host "Using: packageVersion $packageVersion from $extractedPath"
                 
                 git clone --depth 1 $origin octopus-homebrew-taps
+                if ($LASTEXITCODE -ne 0) { throw "Failed to clone $repo" }
+                
                 Set-Location octopus-homebrew-taps
                 
                 if ($gitUserName) {
@@ -99,12 +109,65 @@ step "push-homebrew-formula-updates-to-the-homebrew-taps-repo" {
                 
                 $branchName = "releases/$packageVersion"
                 git checkout -b $branchName
+                if ($LASTEXITCODE -ne 0) { throw "Failed to create branch $branchName" }
                 
                 Copy-Item -Path "$extractedPath/homebrew/*" -Filter "*.rb" -Destination "." -Force
                 
-                git diff-index --quiet HEAD || (git commit -a -m "Update for release $packageVersion" `
-                    && git push --repo $origin --set-upstream origin $branchName `
-                )
+                git diff-index --quiet HEAD
+                if ($LASTEXITCODE -eq 0) {
+                    Write-Host "Formula already matches $packageVersion; nothing to publish."
+                    Set-Location ..
+                    exit 0
+                }
+                
+                git commit -a -m "Update for release $packageVersion"
+                if ($LASTEXITCODE -ne 0) { throw "Failed to commit the formula update" }
+                
+                # Force, because a re-run branches from master again and so its commit is a
+                # sibling of any existing releases/$packageVersion, not a descendant of it.
+                # A plain push is rejected as non-fast-forward and the release fails.
+                git push --force --repo $origin --set-upstream origin $branchName
+                if ($LASTEXITCODE -ne 0) { throw "Failed to push $branchName" }
+                
+                # Pushing the branch on its own leaves the tap untouched, so open a
+                # pull request for it. Without this the formula is never updated and
+                # `brew install octopus-cli` keeps serving the previous release.
+                $headers = @{
+                    "Accept"               = "application/vnd.github+json"
+                    "X-GitHub-Api-Version" = "2022-11-28"
+                    "Authorization"        = "Bearer $githubtoken"
+                }
+                
+                $pullRequest = @{
+                    title = "Update for release $packageVersion"
+                    head  = $branchName
+                    base  = $defaultBranch
+                    body  = "Automated formula update for octopus-cli $packageVersion."
+                } | ConvertTo-Json
+                
+                try {
+                    $response = Invoke-RestMethod -Method Post -Headers $headers `
+                        -Uri "https://api.github.com/repos/$repo/pulls" `
+                        -Body $pullRequest -ContentType "application/json"
+                
+                    Write-Host "Opened pull request $($response.html_url)"
+                }
+                catch {
+                    # A re-run of the same release finds its pull request already open,
+                    # which is not a failure worth stopping the deployment for.
+                    $statusCode = $_.Exception.Response.StatusCode.value__
+                    $alreadyExists = $statusCode -eq 422 -and $_.ErrorDetails.Message -match "already exists"
+                
+                    if ($alreadyExists) {
+                        Write-Host "A pull request for $branchName is already open."
+                    }
+                    else {
+                        # Exception.Message is only ever "Response status code does not indicate
+                        # success"; the response body is what says which field GitHub rejected.
+                        $detail = if ($_.ErrorDetails.Message) { $_.ErrorDetails.Message } else { $_.Exception.Message }
+                        throw "Failed to open a pull request against $repo`: $detail"
+                    }
+                }
                 
                 Set-Location ..
                 EOT
@@ -115,7 +178,7 @@ step "push-homebrew-formula-updates-to-the-homebrew-taps-repo" {
 
         container {
             feed = "docker-hub"
-            image = "octopusdeploy/worker-tools:6.3.0-ubuntu.22.04"
+            image = "octopusdeploy/worker-tools:6.6.4-ubuntu.24.04"
         }
 
         packages "cli" {
@@ -220,10 +283,14 @@ step "publish-winget-update-pr" {
                     'Accept'               = "application/vnd.github+json";
                     'X-GitHub-Api-Version' = "2022-11-28";
                 }
+                
+                $githubAccount = $OctopusParameters["Publish:Winget:GithubAccount"]
+                $githubPat = $OctopusParameters["Publish:Winget:GitHubPAT"]
+                $forkRepo = "$githubAccount/winget-pkgs"
+                
                 try {
-                    
                     # Delete the fork of the winget-pkgs repo using the bot's token
-                    $response = Invoke-WebRequest -Method "DELETE" -Uri "https://api.github.com/repos/team-integrations-fnm-bot/winget-pkgs" -Authentication "Bearer" -Token $OctopusParameters["Publish:Winget:GitHubPAT"] -Headers $headers
+                    $response = Invoke-WebRequest -Method "DELETE" -Uri "https://api.github.com/repos/$forkRepo" -Authentication "Bearer" -Token $githubPat -Headers $headers
                     $statusCode = $Response.StatusCode
                 }
                 catch {
@@ -231,14 +298,17 @@ step "publish-winget-update-pr" {
                 }
                 
                 if (!($statusCode -ge 200 -and $statusCode -le 299 )) {
-                    Write-Warning "Failed to delete fork repo 'team-integrations-fnm-bot/winget-pkgs'. If this fork is too far behind its source, winget-create may fail."
+                    Write-Warning "Failed to delete fork repo '$forkRepo'. If this fork is too far behind its source, winget-create may fail."
                 }
                 
+                # Install dotnet 9 runtime
+                Invoke-WebRequest 'https://dotnet.microsoft.com/download/dotnet/scripts/v1/dotnet-install.ps1' -outFile 'dotnet-install.ps1';
+                .\dotnet-install.ps1 -Channel 9.0 -Runtime dotnet -InstallDir 'C:\Program Files\dotnet';
                 
                 # Install winget-create
                 Invoke-WebRequest https://aka.ms/wingetcreate/latest -OutFile wingetcreate.exe
                 
-                $version = $OctopusParameters["Octopus.Release.Number"]
+                $version = $OctopusParameters["Octopus.Action.Package[cli].PackageVersion"]
                 
                 $packageUrls = "https://github.com/OctopusDeploy/cli/releases/download/v$version/octopus_$($version)_windows_amd64.msi|x64"
                 
@@ -251,7 +321,8 @@ step "publish-winget-update-pr" {
                 $Env:DOTNET_ROOT = "C:\Users\ContainerAdministrator\AppData\Local\Microsoft\dotnet"
                 
                 # This will perform the update and also create a PR with the relevant update
-                .\wingetcreate.exe update OctopusDeploy.Cli --urls $packageUrls --version $version --token $OctopusParameters["Publish:Winget:GitHubPAT"] --submit
+                .\wingetcreate.exe update OctopusDeploy.Cli --urls $packageUrls --version $version --token $githubPat --submit
+                
                 EOT
             Octopus.Action.Script.ScriptSource = "Inline"
             Octopus.Action.Script.Syntax = "PowerShell"
@@ -261,7 +332,17 @@ step "publish-winget-update-pr" {
 
         container {
             feed = "docker-hub"
-            image = "octopusdeploy/worker-tools:6.4-windows.ltsc2022"
+            image = "octopusdeploy/worker-tools:6.6.4-windows.ltsc2025"
+        }
+
+        packages "cli" {
+            acquisition_location = "NotAcquired"
+            feed = "octopus-server-built-in"
+            package_id = "octopus-cli"
+            properties = {
+                Extract = "False"
+                SelectionMode = "immediate"
+            }
         }
     }
 }
