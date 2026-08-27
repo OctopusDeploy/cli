@@ -790,8 +790,9 @@ func AskDbRunbookRunQuestions(octopus *octopusApiClient.Client, stdout io.Writer
 	isGuidedFailureModeSpecified := options.GuidedFailureMode != ""
 	isForcePackageDownloadSpecified := options.ForcePackageDownloadWasSpecified
 	isRunTargetsSpecified := len(options.RunTargets) > 0 || len(options.ExcludeTargets) > 0
+	isRunTargetTagsSpecified := len(options.SpecificTargetTagNames) > 0 || len(options.ExcludedTargetTagNames) > 0
 
-	allAdvancedOptionsSpecified := isRunAtSpecified && isExcludedStepsSpecified && isGuidedFailureModeSpecified && isForcePackageDownloadSpecified && isRunTargetsSpecified
+	allAdvancedOptionsSpecified := isRunAtSpecified && isExcludedStepsSpecified && isGuidedFailureModeSpecified && isForcePackageDownloadSpecified && isRunTargetsSpecified && isRunTargetTagsSpecified
 
 	shouldAskAdvancedQuestions, err := shouldAskAdvancedOptions(asker, "Change additional options?", allAdvancedOptionsSpecified)
 	if err != nil {
@@ -836,6 +837,20 @@ func AskDbRunbookRunQuestions(octopus *octopusApiClient.Client, stdout io.Writer
 			}
 
 			options.RunTargets, err = askRunbookTargets(octopus, asker, space.ID, selectedSnapshot.ID, selectedEnvironments)
+			if err != nil {
+				return err
+			}
+		}
+
+		if !isRunTargetTagsSpecified {
+			if len(selectedEnvironments) == 0 { // if the Q&A process earlier hasn't loaded environments already, we need to load them now
+				selectedEnvironments, err = executionscommon.FindEnvironments(octopus, options.Environments)
+				if err != nil {
+					return err
+				}
+			}
+
+			options.SpecificTargetTagNames, options.ExcludedTargetTagNames, err = askRunbookTargetTags(octopus, asker, space.ID, selectedSnapshot.ID, selectedEnvironments)
 			if err != nil {
 				return err
 			}
@@ -998,8 +1013,9 @@ func AskGitRunbookRunQuestions(octopus *octopusApiClient.Client, stdout io.Write
 	isGuidedFailureModeSpecified := options.GuidedFailureMode != ""
 	isForcePackageDownloadSpecified := options.ForcePackageDownloadWasSpecified
 	isRunTargetsSpecified := len(options.RunTargets) > 0 || len(options.ExcludeTargets) > 0
+	isRunTargetTagsSpecified := len(options.SpecificTargetTagNames) > 0 || len(options.ExcludedTargetTagNames) > 0
 
-	allAdvancedOptionsSpecified := isRunAtSpecified && isExcludedStepsSpecified && isGuidedFailureModeSpecified && isForcePackageDownloadSpecified && isRunTargetsSpecified
+	allAdvancedOptionsSpecified := isRunAtSpecified && isExcludedStepsSpecified && isGuidedFailureModeSpecified && isForcePackageDownloadSpecified && isRunTargetsSpecified && isRunTargetTagsSpecified
 
 	shouldAskAdvancedQuestions, err := shouldAskAdvancedOptions(asker, "Change additional options?", allAdvancedOptionsSpecified)
 	if err != nil {
@@ -1044,6 +1060,20 @@ func AskGitRunbookRunQuestions(octopus *octopusApiClient.Client, stdout io.Write
 			}
 
 			options.RunTargets, err = askGitRunbookTargets(octopus, asker, space.ID, project.ID, selectedRunbook.ID, options.GitReference, selectedEnvironments)
+			if err != nil {
+				return err
+			}
+		}
+
+		if !isRunTargetTagsSpecified {
+			if len(selectedEnvironments) == 0 { // if the Q&A process earlier hasn't loaded environments already, we need to load them now
+				selectedEnvironments, err = executionscommon.FindEnvironments(octopus, options.Environments)
+				if err != nil {
+					return err
+				}
+			}
+
+			options.SpecificTargetTagNames, options.ExcludedTargetTagNames, err = askGitRunbookTargetTags(octopus, asker, space.ID, project.ID, selectedRunbook.ID, options.GitReference, selectedEnvironments)
 			if err != nil {
 				return err
 			}
@@ -1233,6 +1263,84 @@ func askGitRunbookTargets(octopus *octopusApiClient.Client, asker question.Asker
 		return selectedDeploymentTargetNames, nil
 	}
 	return nil, nil
+}
+
+func askRunbookTargetTags(octopus *octopusApiClient.Client, asker question.Asker, spaceID string, runbookSnapshotID string, selectedEnvironments []*environments.Environment) ([]string, []string, error) {
+	var results []string
+
+	// collect all available target tags from runbook run previews across all environments
+	for _, env := range selectedEnvironments {
+		preview, err := runbooks.GetRunbookSnapshotRunPreview(octopus, spaceID, runbookSnapshotID, env.ID, true)
+		if err != nil {
+			return nil, nil, err
+		}
+		results = collectAvailableTargetTags(preview.StepsToExecute, results)
+	}
+
+	return askTargetTagsFromOptions(asker, results)
+}
+
+func askGitRunbookTargetTags(octopus *octopusApiClient.Client, asker question.Asker, spaceID string, projectID string, runbookID string, gitRef string, selectedEnvironments []*environments.Environment) ([]string, []string, error) {
+	var results []string
+
+	// collect all available target tags from runbook run previews across all environments
+	for _, env := range selectedEnvironments {
+		preview, err := runbooks.GetGitRunbookRunPreview(octopus, spaceID, projectID, runbookID, gitRef, env.ID, true)
+		if err != nil {
+			return nil, nil, err
+		}
+		results = collectAvailableTargetTags(preview.StepsToExecute, results)
+	}
+
+	return askTargetTagsFromOptions(asker, results)
+}
+
+// collectAvailableTargetTags appends the canonical names of any target tags the steps can run
+// against to results, skipping ones that have already been collected
+func collectAvailableTargetTags(steps []*deployments.DeploymentTemplateStep, results []string) []string {
+	for _, step := range steps {
+		for _, tagSet := range step.AvailableTagSets {
+			for _, tag := range tagSet.AvailableTags {
+				canonicalName := tagSet.TagSetName + "/" + tag.TagName
+				if !util.SliceContains(results, canonicalName) {
+					results = append(results, canonicalName)
+				}
+			}
+		}
+	}
+	return results
+}
+
+// askTargetTagsFromOptions asks which target tags to include, and if none were included,
+// which to exclude. If there are no tags available the questions are skipped entirely.
+func askTargetTagsFromOptions(asker question.Asker, results []string) ([]string, []string, error) {
+	if len(results) == 0 {
+		return nil, nil, nil
+	}
+
+	sort.Strings(results)
+
+	var selectedSpecificTags []string
+	err := asker(&survey.MultiSelect{
+		Message: "Specific target tags to include (If none selected, include all)",
+		Options: results,
+	}, &selectedSpecificTags)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	var selectedExcludedTags []string
+	if len(selectedSpecificTags) == 0 {
+		err = asker(&survey.MultiSelect{
+			Message: "Target tags to exclude (If none selected, exclude none)",
+			Options: results,
+		}, &selectedExcludedTags)
+		if err != nil {
+			return nil, nil, err
+		}
+	}
+
+	return selectedSpecificTags, selectedExcludedTags, nil
 }
 
 // selectRunEnvironment selects a single environment for use in a tenanted run
