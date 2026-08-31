@@ -149,7 +149,9 @@ func NewCmdRoot(f factory.Factory, clientFactory apiclient.ClientFactory, askPro
 		if err != nil {
 			return usage.NewUsageError(err.Error(), cmd)
 		}
-		_ = cmdPFlags.Set(constants.FlagOutputFormat, outputFormat)
+		// write through Value so the flag isn't marked as Changed; commands such as `task wait`
+		// read Changed() to mean "the user explicitly asked for a format"
+		_ = cmdPFlags.Lookup(constants.FlagOutputFormat).Value.Set(outputFormat)
 
 		if spaceNameOrId := viper.GetString(constants.ConfigSpace); spaceNameOrId != "" {
 			clientFactory.SetSpaceNameOrId(spaceNameOrId)
