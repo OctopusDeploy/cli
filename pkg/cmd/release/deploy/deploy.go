@@ -360,20 +360,10 @@ func deployRun(cmd *cobra.Command, f factory.Factory, flags *DeployFlags) error 
 
 		// output web URL all the time, so long as output format is not JSON or basic
 		if err == nil && !constants.IsProgrammaticOutputFormat(outputFormat) {
-			releaseID := options.ReleaseID
-			if releaseID == "" {
-				// we may already have the release ID from AskQuestions. If not, we need to go and look up the release ID to link to it
-				// which needs the project ID. Errors here are ignorable; it's not the end of the world if we can't print the web link
-				prj, err := selectors.FindProject(octopus, options.ProjectName)
-				if err == nil {
-					rel, err := releases.GetReleaseInProject(octopus, f.GetCurrentSpace().ID, prj.ID, options.ReleaseVersion)
-					if err == nil {
-						releaseID = rel.ID
-					}
-				}
-			}
-
-			if releaseID != "" {
+			// both paths that reach here have already resolved the release: AskQuestions in interactive
+			// mode, the pre-flight lookup in automation mode. It stays empty only when that lookup failed
+			// for a reason we deliberately ignored, in which case repeating it here would fail too.
+			if releaseID := options.ReleaseID; releaseID != "" {
 				link := output.Bluef("%s/app#/%s/releases/%s", f.GetCurrentHost(), f.GetCurrentSpace().ID, releaseID)
 				cmd.Printf("\nView this release on Octopus Deploy: %s\n", link)
 			}
