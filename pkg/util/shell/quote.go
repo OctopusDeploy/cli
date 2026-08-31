@@ -42,7 +42,9 @@ func isBare(value string, safeChars string) bool {
 // literal, so only the single quote itself needs handling; it is closed, escaped with a
 // backslash, and reopened.
 func quotePosix(value string) string {
-	if isBare(value, posixSafeChars) {
+	// = is harmless in the middle of a word but a word which starts with one is subject
+	// to zsh's =cmd expansion, so `=foo` aborts the whole command with "foo not found".
+	if !strings.HasPrefix(value, "=") && isBare(value, posixSafeChars) {
 		return value
 	}
 	return "'" + strings.ReplaceAll(value, "'", `'\''`) + "'"

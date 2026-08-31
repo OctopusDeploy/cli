@@ -23,6 +23,8 @@ func TestQuote(t *testing.T) {
 		{"version number", "0.0.3", "0.0.3", "0.0.3", "0.0.3"},
 		{"tenant tag", "Regions/us-east", "Regions/us-east", "Regions/us-east", "Regions/us-east"},
 		{"variable assignment", "Name:Value", "Name:Value", "Name:Value", "Name:Value"},
+		{"embedded equals", "a=b", "a=b", "a=b", "a=b"},
+		{"leading equals", "=foo", `'=foo'`, "=foo", "=foo"},
 		{"empty", "", `''`, `''`, `""`},
 		{"space", "Soft Drinks", `'Soft Drinks'`, `'Soft Drinks'`, `"Soft Drinks"`},
 		{"single quote", "it's", `'it'\''s'`, `'it''s'`, `"it's"`},
@@ -65,6 +67,8 @@ var roundTripValues = []string{
 	"$HOME",
 	"%PATH%",
 	"a,b",
+	"a=b",
+	"=foo",
 	"~/tmp",
 	"*****",
 	"A & B",
@@ -113,6 +117,25 @@ func TestQuotePosix_RoundTrip(t *testing.T) {
 		t.Run(fmt.Sprintf("%q", value), func(t *testing.T) {
 			script := "printf '%s' " + shell.Quote(shell.Bash, value)
 			out, err := exec.Command(sh, "-c", script).Output()
+			require.NoError(t, err)
+			assert.Equal(t, value, string(out))
+		})
+	}
+}
+
+// TestQuoteZsh_RoundTrip runs the quoted values through a real zsh, which the bash
+// quoting also covers. zsh expands a leading = and a leading ~ where the other posix
+// shells don't, so it is the stricter test of the two.
+func TestQuoteZsh_RoundTrip(t *testing.T) {
+	zsh, err := exec.LookPath("zsh")
+	if err != nil {
+		t.Skip("zsh is not available")
+	}
+
+	for _, value := range append(roundTripValues, "line1\nline2") {
+		t.Run(fmt.Sprintf("%q", value), func(t *testing.T) {
+			script := "printf '%s' " + shell.Quote(shell.Bash, value)
+			out, err := exec.Command(zsh, "--no-rcs", "-c", script).Output()
 			require.NoError(t, err)
 			assert.Equal(t, value, string(out))
 		})
