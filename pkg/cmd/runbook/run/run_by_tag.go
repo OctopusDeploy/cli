@@ -321,9 +321,9 @@ func runRunbooksByTag(cmd *cobra.Command, f factory.Factory, flags *RunFlags, oc
 		resolvedFlags := NewRunFlags()
 		resolvedFlags.Project.Value = flags.Project.Value
 		resolvedFlags.RunbookTags.Value = flags.RunbookTags.Value
-		resolvedFlags.Environments.Value = flags.Environments.Value
-		resolvedFlags.Tenants.Value = flags.Tenants.Value
-		resolvedFlags.TenantTags.Value = flags.TenantTags.Value
+		resolvedFlags.Environments.Value = executionscommon.EscapeCommas(flags.Environments.Value)
+		resolvedFlags.Tenants.Value = executionscommon.EscapeCommas(flags.Tenants.Value)
+		resolvedFlags.TenantTags.Value = executionscommon.EscapeCommas(flags.TenantTags.Value)
 
 		spaceName := ""
 		if s := f.GetCurrentSpace(); s != nil {
