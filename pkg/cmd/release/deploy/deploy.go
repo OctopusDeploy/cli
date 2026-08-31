@@ -320,12 +320,19 @@ func deployRun(cmd *cobra.Command, f factory.Factory, flags *DeployFlags) error 
 
 			if options.ReleaseVersion != "" {
 				// resolve the release up front; the executions API reports an unknown version as an
-				// unhelpful null reference error, and having the ID saves looking it up again later
+				// unhelpful null reference error, and having the ID saves looking it up again later.
+				// Only a "no such release" answer is fatal: this lookup is new to the deploy path, so
+				// anything else (no ReleaseView permission, a transient 5xx) must not fail a deploy
+				// that would previously have succeeded. In those cases the server stays the authority
+				// and we simply go without the release ID.
 				release, err := selectors.FindRelease(octopus, f.GetCurrentSpace().ID, project, options.ReleaseVersion)
-				if err != nil {
+				var releaseNotFound *selectors.ReleaseNotFoundError
+				if errors.As(err, &releaseNotFound) {
 					return err
 				}
-				options.ReleaseID = release.ID
+				if err == nil {
+					options.ReleaseID = release.ID
+				}
 			}
 		}
 
