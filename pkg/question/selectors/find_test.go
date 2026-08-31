@@ -181,6 +181,35 @@ func TestFindTenants(t *testing.T) {
 		assert.Equal(t, []string{cokeTenant.ID}, util.SliceTransform(result, func(tenant *tenants.Tenant) string { return tenant.ID }))
 	})
 
+	t.Run("finds an exact name match beyond the first page of the partial name search", func(t *testing.T) {
+		// `partialName` is a contains filter, so a tenant exactly named "Smith" can be pushed off
+		// the first page by every other tenant whose name also contains "Smith"
+		aaronSmith := fixtures.NewTenant(findSpaceID, "Tenants-30", "Aaron Smith")
+		smith := fixtures.NewTenant(findSpaceID, "Tenants-31", "Smith")
+
+		api := testutil.NewMockHttpServer()
+		receiver := beginRequest(api, func(octopus *octopusApiClient.Client) ([]*tenants.Tenant, error) {
+			return selectors.FindTenants(octopus, []string{"Smith"})
+		})
+
+		api.ExpectRequest(t, "GET", "/api/").RespondWith(findRootResource)
+		api.ExpectRequest(t, "GET", "/api/spaces").RespondWith(findRootResource)
+		api.ExpectRequest(t, "GET", "/api/Spaces-1/tenants/Smith").RespondWithStatus(404, "NotFound", nil)
+		api.ExpectRequest(t, "GET", "/api/Spaces-1/tenants?partialName=Smith").RespondWith(resources.Resources[*tenants.Tenant]{
+			Items: []*tenants.Tenant{aaronSmith},
+			PagedResults: resources.PagedResults{
+				Links: resources.Links{PageNext: "/api/Spaces-1/tenants?partialName=Smith&skip=1"},
+			},
+		})
+		api.ExpectRequest(t, "GET", "/api/Spaces-1/tenants?partialName=Smith&skip=1").RespondWith(resources.Resources[*tenants.Tenant]{
+			Items: []*tenants.Tenant{smith},
+		})
+
+		result, err := testutil.ReceivePair(receiver)
+		assert.Nil(t, err)
+		assert.Equal(t, []string{smith.ID}, util.SliceTransform(result, func(tenant *tenants.Tenant) string { return tenant.ID }))
+	})
+
 	t.Run("errors when nothing matches", func(t *testing.T) {
 		api := testutil.NewMockHttpServer()
 		receiver := beginRequest(api, func(octopus *octopusApiClient.Client) ([]*tenants.Tenant, error) {
