@@ -2,6 +2,7 @@ package root
 
 import (
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/OctopusDeploy/cli/pkg/apiclient"
@@ -123,7 +124,20 @@ func NewCmdRoot(f factory.Factory, clientFactory apiclient.ClientFactory, askPro
 	// if we attempt to check the flags before Execute is called, cobra hasn't parsed anything yet,
 	// so we'll get bad values. PersistentPreRun is a convenient callback for setting up our
 	// environment after parsing but before execution.
-	cmd.PersistentPreRun = func(_ *cobra.Command, _ []string) {
+	cmd.PersistentPreRunE = func(_ *cobra.Command, _ []string) error {
+		// an explicitly asked for shell is validated here rather than silently ignored;
+		// the config file value isn't, because a bad one there would lock the user out
+		// of the config commands they need to fix it.
+		if v, _ := cmdPFlags.GetString(constants.FlagShell); v != "" {
+			if err := shell.Validate(v); err != nil {
+				return fmt.Errorf("--%s: %w", constants.FlagShell, err)
+			}
+		} else if v := os.Getenv(constants.EnvOctopusShell); v != "" {
+			if err := shell.Validate(v); err != nil {
+				return fmt.Errorf("%s: %w", constants.EnvOctopusShell, err)
+			}
+		}
+
 		// map flag alias values
 		for k, v := range flagAliases {
 			for _, aliasName := range v {
@@ -145,6 +159,8 @@ func NewCmdRoot(f factory.Factory, clientFactory apiclient.ClientFactory, askPro
 		if spaceNameOrId := viper.GetString(constants.ConfigSpace); spaceNameOrId != "" {
 			clientFactory.SetSpaceNameOrId(spaceNameOrId)
 		}
+
+		return nil
 	}
 
 	cmd.RunE = func(cmd *cobra.Command, args []string) error {
