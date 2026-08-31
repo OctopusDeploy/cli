@@ -8,10 +8,10 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/cmd/channel/shared"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/factory"
+	"github.com/OctopusDeploy/cli/pkg/lookups"
 	"github.com/OctopusDeploy/cli/pkg/output"
 	"github.com/OctopusDeploy/cli/pkg/question/selectors"
 	"github.com/OctopusDeploy/cli/pkg/util/flag"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
 	"github.com/spf13/cobra"
 )
 
@@ -102,7 +102,7 @@ func listRun(cmd *cobra.Command, f factory.Factory, flags *ListFlags) error {
 	}
 
 	// best-effort, as channel view is: listing still works without access to lifecycles
-	lifecycleMap := getLifecycleMap(octopus)
+	lifecycleMap := lookups.GetLifecycleMap(octopus)
 
 	filter := strings.ToLower(flags.Filter.Value)
 	viewModels := make([]ChannelViewModel, 0, len(allChannels))
@@ -146,16 +146,4 @@ func listRun(cmd *cobra.Command, f factory.Factory, flags *ListFlags) error {
 			return item.Name
 		},
 	})
-}
-
-func getLifecycleMap(octopus *client.Client) map[string]string {
-	lifecycleMap := make(map[string]string)
-	allLifecycles, err := octopus.Lifecycles.GetAll()
-	if err != nil {
-		return lifecycleMap
-	}
-	for _, l := range allLifecycles {
-		lifecycleMap[l.GetID()] = l.Name
-	}
-	return lifecycleMap
 }
