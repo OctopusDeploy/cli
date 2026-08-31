@@ -47,11 +47,14 @@ type ClientFactory interface {
 	// GetHttpClient returns a raw http client which can be used to query Octopus
 	GetHttpClient() (*http.Client, error)
 
-	// SetDryRun puts the client into dry-run mode, where any request that would change
-	// server state is refused before it is sent. It backstops the per-command --dry-run
-	// implementations; a command which hasn't finished implementing dry run fails loudly
-	// rather than mutating Octopus while claiming it did not.
-	SetDryRun(enabled bool)
+	// EnableDryRunGuard puts the client into dry-run mode, where any request that would
+	// change server state is refused before it is sent. It backstops the per-command
+	// --dry-run implementations; a command which hasn't finished implementing dry run fails
+	// loudly rather than mutating Octopus while claiming it did not.
+	//
+	// The guard is one-way for the lifetime of the process: there is no way to disable it
+	// again, because nothing should ever want to.
+	EnableDryRunGuard()
 }
 
 type Client struct {
@@ -267,11 +270,11 @@ func (c *Client) GetHttpClient() (*http.Client, error) {
 	return c.HttpClient, nil
 }
 
-// SetDryRun wraps the transport in the dry-run guard. It must be called before the
-// space-scoped or system clients are created, which is why the root command arms it
+// EnableDryRunGuard wraps the transport in the dry-run guard. It must be called before
+// the space-scoped or system clients are created, which is why the root command arms it
 // from PersistentPreRun; both clients are built lazily during RunE.
-func (c *Client) SetDryRun(enabled bool) {
-	if !enabled || c.dryRun {
+func (c *Client) EnableDryRunGuard() {
+	if c.dryRun {
 		return
 	}
 	c.dryRun = true
@@ -434,4 +437,4 @@ func (s *stubClientFactory) GetHttpClient() (*http.Client, error) {
 	return nil, nil
 }
 
-func (s *stubClientFactory) SetDryRun(_ bool) {}
+func (s *stubClientFactory) EnableDryRunGuard() {}
