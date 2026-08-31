@@ -5,6 +5,7 @@ import (
 
 	"github.com/OctopusDeploy/cli/pkg/cmd"
 	"github.com/OctopusDeploy/cli/pkg/cmd/target/shared"
+	"github.com/OctopusDeploy/cli/test/fixtures"
 	"github.com/OctopusDeploy/cli/test/testutil"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/machines"
 	"github.com/stretchr/testify/assert"
@@ -32,8 +33,8 @@ func TestPromptMissingTarget_NoIdentifierSupplied(t *testing.T) {
 	opts := shared.NewSetDisabledStateOptions([]string{}, &cmd.Dependencies{Ask: asker}, true)
 	opts.GetTargetsCallback = func() ([]*machines.DeploymentTarget, error) {
 		return []*machines.DeploymentTarget{
-			newTestTarget("Machines-1", "web-server", false),
-			newTestTarget("Machines-2", "db-server", false),
+			fixtures.NewDeploymentTarget("Spaces-1", "Machines-1", "web-server", false),
+			fixtures.NewDeploymentTarget("Spaces-1", "Machines-2", "db-server", false),
 		}, nil
 	}
 
@@ -53,8 +54,8 @@ func TestPromptMissingTarget_EnableUsesEnableWording(t *testing.T) {
 	opts := shared.NewSetDisabledStateOptions([]string{}, &cmd.Dependencies{Ask: asker}, false)
 	opts.GetTargetsCallback = func() ([]*machines.DeploymentTarget, error) {
 		return []*machines.DeploymentTarget{
-			newTestTarget("Machines-1", "web-server", true),
-			newTestTarget("Machines-2", "db-server", true),
+			fixtures.NewDeploymentTarget("Spaces-1", "Machines-1", "web-server", true),
+			fixtures.NewDeploymentTarget("Spaces-1", "Machines-2", "db-server", true),
 		}, nil
 	}
 
@@ -75,7 +76,7 @@ func TestPromptMissingTarget_AsksEvenWhenThereIsOnlyOneTarget(t *testing.T) {
 	asker, checkRemainingPrompts := testutil.NewMockAsker(t, pa)
 	opts := shared.NewSetDisabledStateOptions([]string{}, &cmd.Dependencies{Ask: asker}, true)
 	opts.GetTargetsCallback = func() ([]*machines.DeploymentTarget, error) {
-		return []*machines.DeploymentTarget{newTestTarget("Machines-1", "web-server", false)}, nil
+		return []*machines.DeploymentTarget{fixtures.NewDeploymentTarget("Spaces-1", "Machines-1", "web-server", false)}, nil
 	}
 
 	err := shared.PromptMissingTarget(opts)
@@ -89,19 +90,11 @@ func TestPromptMissingTarget_ErrorsWhenNoTargetIsInTheOppositeState(t *testing.T
 	asker, checkRemainingPrompts := testutil.NewMockAsker(t, []*testutil.PA{})
 	opts := shared.NewSetDisabledStateOptions([]string{}, &cmd.Dependencies{Ask: asker}, true)
 	opts.GetTargetsCallback = func() ([]*machines.DeploymentTarget, error) {
-		return []*machines.DeploymentTarget{newTestTarget("Machines-1", "web-server", true)}, nil
+		return []*machines.DeploymentTarget{fixtures.NewDeploymentTarget("Spaces-1", "Machines-1", "web-server", true)}, nil
 	}
 
 	err := shared.PromptMissingTarget(opts)
 	checkRemainingPrompts()
 
 	assert.EqualError(t, err, "no deployment targets to disable were found")
-}
-
-func newTestTarget(id string, name string, isDisabled bool) *machines.DeploymentTarget {
-	target := machines.NewDeploymentTarget(name, machines.NewCloudRegionEndpoint(), []string{"Environments-1"}, []string{"web"})
-	target.ID = id
-	target.SpaceID = "Spaces-1"
-	target.IsDisabled = isDisabled
-	return target
 }
