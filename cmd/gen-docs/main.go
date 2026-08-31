@@ -128,6 +128,21 @@ func run(args []string) error {
 			return err
 		}
 
+		written := make(map[string]bool, pageCollection.Pages.Len())
+		for _, page := range *pageCollection.Pages {
+			written[filepath.Base(page.OutputFile)] = true
+		}
+
+		// A generator failure that produced almost nothing would otherwise sync as
+		// a mass deletion. The real count is in the hundreds.
+		if len(written) < minimumPageCount {
+			return fmt.Errorf("only generated %d page(s), expected at least %d, so something went wrong", len(written), minimumPageCount)
+		}
+
+		if err := pruneStalePages(*dir, written); err != nil {
+			return err
+		}
+
 		if *commandListPath == "" {
 			return nil
 		}
@@ -157,6 +172,32 @@ func run(args []string) error {
 		if err := doc.GenManTree(cmd, header, *dir); err != nil {
 			return err
 		}
+	}
+
+	return nil
+}
+
+// Below this, assume the generator broke rather than that the CLI lost most of
+// its commands.
+const minimumPageCount = 50
+
+// pruneStalePages removes the .mdx files in dir that this run did not write, so
+// a renamed or removed command takes its page with it.
+func pruneStalePages(dir string, written map[string]bool) error {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return err
+	}
+
+	for _, entry := range entries {
+		name := entry.Name()
+		if entry.IsDir() || filepath.Ext(name) != ".mdx" || written[name] {
+			continue
+		}
+		if err := os.Remove(filepath.Join(dir, name)); err != nil {
+			return err
+		}
+		fmt.Fprintf(os.Stderr, "removed stale page %s\n", name)
 	}
 
 	return nil
