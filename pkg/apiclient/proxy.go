@@ -2,10 +2,12 @@ package apiclient
 
 import (
 	"crypto/tls"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
 	"os"
+	"strings"
 
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/spf13/viper"
@@ -113,10 +115,42 @@ func parseProxyUrl(rawUrl string) (*url.URL, error) {
 		}
 	}
 	if err != nil {
-		return nil, fmt.Errorf("invalid proxy url '%s': %w", rawUrl, err)
+		return nil, invalidProxyUrlError(rawUrl, err)
 	}
 	if parsed.Host == "" {
-		return nil, fmt.Errorf("invalid proxy url '%s': no host specified", rawUrl)
+		return nil, fmt.Errorf("invalid proxy url '%s': no host specified", redactRawProxyUrl(rawUrl))
 	}
 	return parsed, nil
+}
+
+// invalidProxyUrlError reports a parse failure without echoing the password: both
+// the raw string and url.Parse's own error message (a *url.Error, which repeats the
+// whole url back) can carry one, and this error is printed to the terminal.
+func invalidProxyUrlError(rawUrl string, err error) error {
+	var urlError *url.Error
+	if errors.As(err, &urlError) {
+		err = urlError.Err
+	}
+	return fmt.Errorf("invalid proxy url '%s': %w", redactRawProxyUrl(rawUrl), err)
+}
+
+// redactRawProxyUrl masks the password in a proxy url that could not be parsed, so
+// the rest of it is still recognisable in an error message. url.Redacted cannot be
+// used here precisely because parsing is what failed.
+func redactRawProxyUrl(rawUrl string) string {
+	scheme, rest := "", rawUrl
+	if separator := strings.Index(rawUrl, "://"); separator >= 0 {
+		scheme, rest = rawUrl[:separator+3], rawUrl[separator+3:]
+	}
+
+	credentials := strings.LastIndex(rest, "@")
+	if credentials < 0 {
+		return rawUrl
+	}
+
+	userInfo := rest[:credentials]
+	if password := strings.Index(userInfo, ":"); password >= 0 {
+		userInfo = userInfo[:password] + ":xxxxx"
+	}
+	return scheme + userInfo + "@" + rest[credentials+1:]
 }
