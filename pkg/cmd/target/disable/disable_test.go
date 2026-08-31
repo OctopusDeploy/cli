@@ -94,7 +94,6 @@ func TestDeploymentTargetDisable(t *testing.T) {
 				Options: []string{"web-server", "db-server"},
 			}).AnswerWith("db-server")
 
-			api.ExpectRequest(t, "GET", "/api/Spaces-1/machines/Machines-200").RespondWith(newTarget("Machines-200", "db-server", false))
 			api.ExpectRequest(t, "PUT", "/api/Spaces-1/machines/Machines-200").RespondWith(newTarget("Machines-200", "db-server", true))
 
 			_, err := testutil.ReceivePair(cmdReceiver)
