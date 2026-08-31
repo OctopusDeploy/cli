@@ -76,8 +76,12 @@ func setRun(isPromptEnabled bool, ask question.Asker, key string, value string) 
 		}
 		localViper.Set(key, boolValue)
 	case strings.ToLower(constants.ConfigShell):
-		if err := shell.Validate(value); err != nil {
-			return err
+		// empty is the documented default and clears the setting, putting the CLI back
+		// to detecting the shell it is running under
+		if value != "" {
+			if err := shell.Validate(value); err != nil {
+				return err
+			}
 		}
 		localViper.Set(key, value)
 	default:
