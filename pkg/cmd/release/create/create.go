@@ -813,7 +813,7 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 			return err
 		}
 
-		if versioningStrategy.DonorPackageStepID != nil || versioningStrategy.DonorPackage != nil {
+		if versioningStrategy.DonorPackage != nil {
 			// we've already done the package version work so we can just ask the donor package which version it has selected
 			var donorPackage *packages.StepPackageVersion
 			for _, pkg := range overriddenPackageVersions {
@@ -837,6 +837,9 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 			} else {
 				options.Version = fmt.Sprintf("%s+%s", donorPackage.Version, versionMetadata)
 			}
+		} else if versioningStrategy.DonorPackageStepID != nil {
+			// a donor step with no package reference; there's nothing to read a version from, so
+			// leave options.Version blank and let the server work it out
 		} else if versioningStrategy.Template != "" {
 			// we already loaded the deployment process template when we were looking for packages
 			options.Version, err = askVersion(asker, deploymentProcessTemplate.NextVersionIncrement)
