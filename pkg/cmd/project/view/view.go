@@ -185,7 +185,13 @@ func versionControlBranch(project *projects.Project) string {
 	if !project.IsVersionControlled {
 		return "Not version controlled"
 	}
-	return project.PersistenceSettings.(projects.GitPersistenceSettings).DefaultBranch()
+	// IsVersionControlled and PersistenceSettings are independent fields on the
+	// wire, so a project can claim to be version controlled without carrying
+	// Git-typed settings. Don't panic on the type assertion if that happens.
+	if gitSettings, ok := project.PersistenceSettings.(projects.GitPersistenceSettings); ok {
+		return gitSettings.DefaultBranch()
+	}
+	return ""
 }
 
 func webUrl(opts *ViewOptions, project *projects.Project) string {
