@@ -210,7 +210,10 @@ step "push-scoop-manifest-to-the-scoop-bucket-repo" {
                     [String]$githubtoken
                 )
 
-                $origin="https://github.com/OctopusDeploy/scoop-octopus"
+                $ErrorActionPreference = "Stop"
+
+                $repo = "OctopusDeploy/scoop-octopus"
+                $origin = "https://github.com/$repo"
 
                 if ($OctopusParameters) {
                     $packageVersion = $OctopusParameters["Octopus.Action.Package[cli].PackageVersion"]
@@ -219,18 +222,19 @@ step "push-scoop-manifest-to-the-scoop-bucket-repo" {
                     $gitUserEmail = $OctopusParameters["Publish:Scoop:UserEmail"]
 
                     $githubtoken = $OctopusParameters["Publish:Scoop:ApiKey"]
-                    $origin="https://$($gitUserName):$($githubtoken)@github.com/OctopusDeploy/scoop-octopus"
+                    $origin = "https://$($gitUserName):$($githubtoken)@github.com/$repo"
 
                 }
 
-                if (!$packageVersion -or !$extractedPath) {
+                if ([string]::IsNullOrWhiteSpace($packageVersion) -or [string]::IsNullOrWhiteSpace($extractedPath)) {
                     throw "Error: packageVersion or extractedPath are not set"
-                    exit
-                } else {
-                    write-host "Using: packageVersion $packageVersion from $extractedPath"
                 }
+
+                Write-Host "Using: packageVersion $packageVersion from $extractedPath"
 
                 git clone --depth 1 $origin octopus-scoop-bucket
+                if ($LASTEXITCODE -ne 0) { throw "Failed to clone $repo" }
+
                 Set-Location octopus-scoop-bucket
 
                 if ($gitUserName) {
@@ -242,9 +246,18 @@ step "push-scoop-manifest-to-the-scoop-bucket-repo" {
                 New-Item -ItemType Directory -Path "bucket" -Force | Out-Null
                 Copy-Item -Path "$extractedPath/scoop/*" -Filter "*.json" -Destination "bucket" -Force
 
-                git diff-index --quiet HEAD || (git commit -a -m "Update for release $packageVersion" `
-                    && git push --repo $origin `
-                )
+                git diff-index --quiet HEAD
+                if ($LASTEXITCODE -eq 0) {
+                    Write-Host "Manifest already matches $packageVersion; nothing to publish."
+                    Set-Location ..
+                    exit 0
+                }
+
+                git commit -a -m "Update for release $packageVersion"
+                if ($LASTEXITCODE -ne 0) { throw "Failed to commit the manifest update" }
+
+                git push --repo $origin
+                if ($LASTEXITCODE -ne 0) { throw "Failed to push the manifest update" }
 
                 Set-Location ..
                 EOT
