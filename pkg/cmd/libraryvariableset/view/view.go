@@ -203,7 +203,6 @@ func formatForBasic(name string, id string, description string, groups []*shared
 
 	if len(groups) == 0 {
 		result.WriteString("\nNo variables\n")
-		return result.String()
 	}
 
 	for _, group := range groups {
