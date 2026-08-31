@@ -432,6 +432,11 @@ func TestExpandCommaSeparated(t *testing.T) {
 
 		{name: "preserves order and duplicates", input: []string{"ABC,ABC"}, expect: []string{"ABC", "ABC"}},
 		{name: "tenant tags", input: []string{"Regions/us-east,Regions/us-west"}, expect: []string{"Regions/us-east", "Regions/us-west"}},
+
+		{name: "escaped comma is a literal comma", input: []string{`Web\, Prod`}, expect: []string{"Web, Prod"}},
+		{name: "escaped and unescaped commas mix", input: []string{`Web\, Prod,Other`}, expect: []string{"Web, Prod", "Other"}},
+		{name: "backslash not before a comma is preserved", input: []string{`DOMAIN\host,Other`}, expect: []string{`DOMAIN\host`, "Other"}},
+		{name: "trailing backslash is preserved", input: []string{`ABC\`}, expect: []string{`ABC\`}},
 	}
 
 	for _, test := range tests {
@@ -444,7 +449,7 @@ func TestExpandCommaSeparated(t *testing.T) {
 }
 
 // a blank component almost always means a caller-side variable expanded to nothing; dropping it
-// silently would narrow the scope of a deployment, or flip a tenanted deploy to untenanted
+// silently would narrow the scope of a deployment (or flip a tenanted deploy to untenanted)
 func TestExpandCommaSeparated_RejectsBlankValues(t *testing.T) {
 	tests := []struct {
 		name  string
@@ -481,4 +486,18 @@ func TestExpandCommaSeparatedFlags(t *testing.T) {
 	bad.Value = []string{"ABC,"}
 	err := executionscommon.ExpandCommaSeparatedFlags(environments, bad)
 	assert.ErrorContains(t, err, "--deployment-target has a blank value")
+}
+
+// values chosen interactively are echoed back as an automation command verbatim, so any comma
+// inside them has to be escaped or the replayed command would split it back apart
+func TestEscapeCommas_RoundTripsThroughExpand(t *testing.T) {
+	assert.Nil(t, executionscommon.EscapeCommas(nil))
+
+	input := []string{"Web, Prod", "Plain", `Already\, Escaped`}
+	escaped := executionscommon.EscapeCommas(input)
+	assert.Equal(t, []string{`Web\, Prod`, "Plain", `Already\\, Escaped`}, escaped)
+
+	expanded, err := executionscommon.ExpandCommaSeparated("deployment-target", escaped)
+	assert.NoError(t, err)
+	assert.Equal(t, []string{"Web, Prod", "Plain", `Already\, Escaped`}, expanded)
 }

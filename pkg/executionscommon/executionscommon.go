@@ -305,28 +305,52 @@ func AskVariableSpecificPrompt(asker question.Asker, message string, variableTyp
 // ExpandCommaSeparated splits each entry on commas so `--flag "A,B"` behaves the same as
 // `--flag A --flag B`. Whitespace around each entry is trimmed.
 //
+// A comma that is part of a value can be escaped with a backslash, so
+// `--deployment-target 'Web\, Prod'` yields the single value `Web, Prod`. A backslash in any
+// other position is left alone, so target names such as `DOMAIN\host` are unaffected.
+//
 // Blank entries are rejected rather than silently dropped. A value such as "," or "A,,B"
 // almost always means a caller-side variable substitution produced nothing, and quietly
 // dropping it would change the scope of the deployment: an empty --tenant list, for example,
 // turns a tenanted deployment into an untenanted one rather than failing.
 //
-// Only apply this to flags whose values cannot legitimately contain a comma; notably NOT to
-// --variable, --skip or the package/git-resource specs.
+// Only apply this to flags whose values cannot legitimately contain an unescaped comma;
+// notably NOT to --variable, --skip or the package/git-resource specs.
 func ExpandCommaSeparated(flagName string, values []string) ([]string, error) {
 	if len(values) == 0 {
 		return values, nil
 	}
 	result := make([]string, 0, len(values))
 	for _, value := range values {
-		for _, component := range strings.Split(value, ",") {
+		for _, component := range splitOnUnescapedCommas(value) {
 			component = strings.TrimSpace(component)
 			if component == "" {
-				return nil, fmt.Errorf("--%s has a blank value; check for an empty variable or a stray comma in %q", flagName, value)
+				return nil, fmt.Errorf("--%s has a blank value; check for an empty variable or a stray comma in %q. Use '\\,' to include a comma in a value", flagName, value)
 			}
 			result = append(result, component)
 		}
 	}
 	return result, nil
+}
+
+// splitOnUnescapedCommas splits on commas, treating `\,` as an escaped literal comma.
+// Any other backslash is preserved verbatim.
+func splitOnUnescapedCommas(value string) []string {
+	var result []string
+	var current strings.Builder
+	for i := 0; i < len(value); i++ {
+		switch {
+		case value[i] == '\\' && i+1 < len(value) && value[i+1] == ',':
+			current.WriteByte(',')
+			i++
+		case value[i] == ',':
+			result = append(result, current.String())
+			current.Reset()
+		default:
+			current.WriteByte(value[i])
+		}
+	}
+	return append(result, current.String())
 }
 
 // ExpandCommaSeparatedFlags applies ExpandCommaSeparated in place to each of the given flags,
@@ -340,6 +364,20 @@ func ExpandCommaSeparatedFlags(flags ...*flag.Flag[[]string]) error {
 		f.Value = expanded
 	}
 	return nil
+}
+
+// EscapeCommas escapes any comma within each value so that the result survives a round trip
+// back through ExpandCommaSeparated. Used when echoing user selections into the generated
+// automation command, which emits values verbatim.
+func EscapeCommas(values []string) []string {
+	if len(values) == 0 {
+		return values
+	}
+	result := make([]string, 0, len(values))
+	for _, value := range values {
+		result = append(result, strings.ReplaceAll(value, ",", "\\,"))
+	}
+	return result
 }
 
 func ParseVariableStringArray(variables []string) (map[string]string, error) {

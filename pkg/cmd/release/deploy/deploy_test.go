@@ -2102,6 +2102,43 @@ func TestDeployCreate_AutomationMode(t *testing.T) {
 			assert.Equal(t, "", stdErr.String())
 		}},
 
+		{"release deploy treats a backslash-escaped comma as part of the value", func(t *testing.T, api *testutil.MockHttpServer, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
+			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
+				defer api.Close()
+				rootCmd.SetArgs([]string{
+					"release", "deploy",
+					"--project", fireProject.Name,
+					"--version", "1.0",
+					"--environment", "dev",
+					"--deployment-target", `Web\, Prod,Other`,
+					"--output-format", "basic",
+				})
+				return rootCmd.ExecuteC()
+			})
+
+			api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+fireProject.GetName()).RespondWith(fireProject)
+
+			req := api.ExpectRequest(t, "POST", "/api/Spaces-1/deployments/create/untenanted/v1")
+			requestBody, err := testutil.ReadJson[deployments.CreateDeploymentUntenantedCommandV1](req.Request.Body)
+			assert.Nil(t, err)
+
+			assert.Equal(t, []string{"Web, Prod", "Other"}, requestBody.SpecificMachineNames)
+
+			req.RespondWith(&deployments.CreateDeploymentResponseV1{
+				DeploymentServerTasks: []*deployments.DeploymentServerTask{
+					{DeploymentID: "Deployments-203", ServerTaskID: "ServerTasks-29394"},
+				},
+			})
+
+			_, err = testutil.ReceivePair(cmdReceiver)
+			assert.Nil(t, err)
+
+			assert.Equal(t, "ServerTasks-29394\n", stdOut.String())
+			assert.Equal(t, "", stdErr.String())
+		}},
+
 		// a --tenant that expands to nothing must not fall through to an untenanted deployment
 		{"release deploy rejects a blank comma-separated value rather than silently dropping it", func(t *testing.T, api *testutil.MockHttpServer, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
 			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
