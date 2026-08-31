@@ -19,14 +19,6 @@ var rootResource = testutil.NewRootResource()
 
 const spaceID = "Spaces-1"
 
-func newTarget(id string, name string, isDisabled bool) *machines.DeploymentTarget {
-	target := machines.NewDeploymentTarget(name, machines.NewCloudRegionEndpoint(), []string{"Environments-1"}, []string{"web"})
-	target.ID = id
-	target.SpaceID = spaceID
-	target.IsDisabled = isDisabled
-	return target
-}
-
 func TestDeploymentTargetEnable(t *testing.T) {
 	space1 := fixtures.NewSpace(spaceID, "Default Space")
 
@@ -43,13 +35,13 @@ func TestDeploymentTargetEnable(t *testing.T) {
 
 			api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
 			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
-			api.ExpectRequest(t, "GET", "/api/Spaces-1/machines/Machines-100").RespondWith(newTarget("Machines-100", "web-server", true))
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/machines/Machines-100").RespondWith(fixtures.NewDeploymentTarget(spaceID, "Machines-100", "web-server", true))
 
 			updateRequest := api.ExpectRequest(t, "PUT", "/api/Spaces-1/machines/Machines-100")
 			updated, err := testutil.ReadJson[machines.DeploymentTarget](updateRequest.Request.Body)
 			assert.Nil(t, err)
 			assert.False(t, updated.IsDisabled)
-			updateRequest.RespondWith(newTarget("Machines-100", "web-server", false))
+			updateRequest.RespondWith(fixtures.NewDeploymentTarget(spaceID, "Machines-100", "web-server", false))
 
 			_, err = testutil.ReceivePair(cmdReceiver)
 			assert.Nil(t, err)
@@ -66,7 +58,7 @@ func TestDeploymentTargetEnable(t *testing.T) {
 
 			api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
 			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
-			api.ExpectRequest(t, "GET", "/api/Spaces-1/machines/Machines-100").RespondWith(newTarget("Machines-100", "web-server", false))
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/machines/Machines-100").RespondWith(fixtures.NewDeploymentTarget(spaceID, "Machines-100", "web-server", false))
 
 			_, err := testutil.ReceivePair(cmdReceiver)
 			assert.Nil(t, err)
@@ -85,8 +77,8 @@ func TestDeploymentTargetEnable(t *testing.T) {
 			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/machines?isDisabled=true&take=2147483647").
 				RespondWith(resources.Resources[*machines.DeploymentTarget]{Items: []*machines.DeploymentTarget{
-					newTarget("Machines-100", "web-server", true),
-					newTarget("Machines-200", "db-server", true),
+					fixtures.NewDeploymentTarget(spaceID, "Machines-100", "web-server", true),
+					fixtures.NewDeploymentTarget(spaceID, "Machines-200", "db-server", true),
 				}})
 
 			_ = qa.ExpectQuestion(t, &survey.Select{
@@ -94,7 +86,7 @@ func TestDeploymentTargetEnable(t *testing.T) {
 				Options: []string{"web-server", "db-server"},
 			}).AnswerWith("web-server")
 
-			api.ExpectRequest(t, "PUT", "/api/Spaces-1/machines/Machines-100").RespondWith(newTarget("Machines-100", "web-server", false))
+			api.ExpectRequest(t, "PUT", "/api/Spaces-1/machines/Machines-100").RespondWith(fixtures.NewDeploymentTarget(spaceID, "Machines-100", "web-server", false))
 
 			_, err := testutil.ReceivePair(cmdReceiver)
 			assert.Nil(t, err)
