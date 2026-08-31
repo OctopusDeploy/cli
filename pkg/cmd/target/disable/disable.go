@@ -21,8 +21,8 @@ func NewCmdDisable(f factory.Factory) *cobra.Command {
 			%[1]s deployment-target disable 'web-server'
 		`, constants.ExecutableName),
 		RunE: func(c *cobra.Command, args []string) error {
-			opts := shared.NewSetDisabledStateOptions(args, cmd.NewDependencies(f, c))
-			return shared.SetDisabledState(opts, true)
+			opts := shared.NewSetDisabledStateOptions(args, cmd.NewDependencies(f, c), true)
+			return shared.SetDisabledState(opts)
 		},
 	}
 }

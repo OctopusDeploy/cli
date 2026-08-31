@@ -14,9 +14,9 @@ func TestPromptMissingTarget_IdentifierSupplied(t *testing.T) {
 	pa := []*testutil.PA{}
 
 	asker, checkRemainingPrompts := testutil.NewMockAsker(t, pa)
-	opts := shared.NewSetDisabledStateOptions([]string{"Machines-1"}, &cmd.Dependencies{Ask: asker})
+	opts := shared.NewSetDisabledStateOptions([]string{"Machines-1"}, &cmd.Dependencies{Ask: asker}, true)
 
-	err := shared.PromptMissingTarget(opts, true)
+	err := shared.PromptMissingTarget(opts)
 	checkRemainingPrompts()
 
 	assert.NoError(t, err)
@@ -29,15 +29,15 @@ func TestPromptMissingTarget_NoIdentifierSupplied(t *testing.T) {
 	}
 
 	asker, checkRemainingPrompts := testutil.NewMockAsker(t, pa)
-	opts := shared.NewSetDisabledStateOptions([]string{}, &cmd.Dependencies{Ask: asker})
+	opts := shared.NewSetDisabledStateOptions([]string{}, &cmd.Dependencies{Ask: asker}, true)
 	opts.GetTargetsCallback = func() ([]*machines.DeploymentTarget, error) {
 		return []*machines.DeploymentTarget{
-			newTestTarget("Machines-1", "web-server"),
-			newTestTarget("Machines-2", "db-server"),
+			newTestTarget("Machines-1", "web-server", false),
+			newTestTarget("Machines-2", "db-server", false),
 		}, nil
 	}
 
-	err := shared.PromptMissingTarget(opts, true)
+	err := shared.PromptMissingTarget(opts)
 	checkRemainingPrompts()
 
 	assert.NoError(t, err)
@@ -50,15 +50,15 @@ func TestPromptMissingTarget_EnableUsesEnableWording(t *testing.T) {
 	}
 
 	asker, checkRemainingPrompts := testutil.NewMockAsker(t, pa)
-	opts := shared.NewSetDisabledStateOptions([]string{}, &cmd.Dependencies{Ask: asker})
+	opts := shared.NewSetDisabledStateOptions([]string{}, &cmd.Dependencies{Ask: asker}, false)
 	opts.GetTargetsCallback = func() ([]*machines.DeploymentTarget, error) {
 		return []*machines.DeploymentTarget{
-			newTestTarget("Machines-1", "web-server"),
-			newTestTarget("Machines-2", "db-server"),
+			newTestTarget("Machines-1", "web-server", true),
+			newTestTarget("Machines-2", "db-server", true),
 		}, nil
 	}
 
-	err := shared.PromptMissingTarget(opts, false)
+	err := shared.PromptMissingTarget(opts)
 	checkRemainingPrompts()
 
 	assert.NoError(t, err)
@@ -73,21 +73,35 @@ func TestPromptMissingTarget_AsksEvenWhenThereIsOnlyOneTarget(t *testing.T) {
 	}
 
 	asker, checkRemainingPrompts := testutil.NewMockAsker(t, pa)
-	opts := shared.NewSetDisabledStateOptions([]string{}, &cmd.Dependencies{Ask: asker})
+	opts := shared.NewSetDisabledStateOptions([]string{}, &cmd.Dependencies{Ask: asker}, true)
 	opts.GetTargetsCallback = func() ([]*machines.DeploymentTarget, error) {
-		return []*machines.DeploymentTarget{newTestTarget("Machines-1", "web-server")}, nil
+		return []*machines.DeploymentTarget{newTestTarget("Machines-1", "web-server", false)}, nil
 	}
 
-	err := shared.PromptMissingTarget(opts, true)
+	err := shared.PromptMissingTarget(opts)
 	checkRemainingPrompts()
 
 	assert.NoError(t, err)
 	assert.Equal(t, "Machines-1", opts.IdOrName)
 }
 
-func newTestTarget(id string, name string) *machines.DeploymentTarget {
+func TestPromptMissingTarget_ErrorsWhenNoTargetIsInTheOppositeState(t *testing.T) {
+	asker, checkRemainingPrompts := testutil.NewMockAsker(t, []*testutil.PA{})
+	opts := shared.NewSetDisabledStateOptions([]string{}, &cmd.Dependencies{Ask: asker}, true)
+	opts.GetTargetsCallback = func() ([]*machines.DeploymentTarget, error) {
+		return []*machines.DeploymentTarget{newTestTarget("Machines-1", "web-server", true)}, nil
+	}
+
+	err := shared.PromptMissingTarget(opts)
+	checkRemainingPrompts()
+
+	assert.EqualError(t, err, "no deployment targets to disable were found")
+}
+
+func newTestTarget(id string, name string, isDisabled bool) *machines.DeploymentTarget {
 	target := machines.NewDeploymentTarget(name, machines.NewCloudRegionEndpoint(), []string{"Environments-1"}, []string{"web"})
 	target.ID = id
 	target.SpaceID = "Spaces-1"
+	target.IsDisabled = isDisabled
 	return target
 }

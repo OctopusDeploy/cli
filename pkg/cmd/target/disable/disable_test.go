@@ -74,6 +74,34 @@ func TestDeploymentTargetDisable(t *testing.T) {
 			assert.Equal(t, "", stdErr.String())
 		}},
 
+		{"does not offer targets which are already disabled", func(t *testing.T, api *testutil.MockHttpServer, qa *testutil.AskMocker, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
+			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
+				defer api.Close()
+				rootCmd.SetArgs([]string{"deployment-target", "disable"})
+				return rootCmd.ExecuteC()
+			})
+
+			api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/machines?take=2147483647").
+				RespondWith(resources.Resources[*machines.DeploymentTarget]{Items: []*machines.DeploymentTarget{
+					newTarget("Machines-100", "web-server", false),
+					newTarget("Machines-200", "db-server", true),
+				}})
+
+			_ = qa.ExpectQuestion(t, &survey.Select{
+				Message: "Select the deployment target you wish to disable:",
+				Options: []string{"web-server"},
+			}).AnswerWith("web-server")
+
+			api.ExpectRequest(t, "PUT", "/api/Spaces-1/machines/Machines-100").RespondWith(newTarget("Machines-100", "web-server", true))
+
+			_, err := testutil.ReceivePair(cmdReceiver)
+			assert.Nil(t, err)
+			assert.Contains(t, stdOut.String(), "Successfully disabled deployment target 'web-server'")
+			assert.Equal(t, "", stdErr.String())
+		}},
+
 		{"prompts for the target when none was supplied", func(t *testing.T, api *testutil.MockHttpServer, qa *testutil.AskMocker, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
 			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
 				defer api.Close()
