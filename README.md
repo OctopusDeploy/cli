@@ -272,8 +272,13 @@ export OCTOPUS_PROXY="http://proxy.example.com:3128"
 ```
 
 Credentials can be embedded in the proxy url, or supplied separately with `OCTOPUS_PROXY_USERNAME` and
-`OCTOPUS_PROXY_PASSWORD`. Credentials are read from the environment only, so a proxy password is never
-written to the CLI config file.
+`OCTOPUS_PROXY_PASSWORD`. `OCTOPUS_PROXY_PASSWORD` needs `OCTOPUS_PROXY_USERNAME` alongside it; on its own
+the CLI reports the mistake rather than connecting without the credentials.
+
+Prefer those two variables over embedding a password in the proxy url: they are never written to the CLI
+config file, whereas `octopus config set ProxyUrl` stores whatever it is given in plain text, exactly as it
+does for an API key. `octopus config list` and `octopus config get ProxyUrl` mask the password when they
+display it.
 
 ### go-octopusdeploy library
 
