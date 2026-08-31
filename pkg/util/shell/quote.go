@@ -78,11 +78,18 @@ func quotePowerShell(value string) string {
 //     and the quote is caret escaped so cmd's own quoting stays balanced
 //   - backslashes only matter to argv where they run into a double quote, in which case
 //     the whole run has to be doubled
-//   - % is expanded even inside double quotes and can't be escaped there, so it is emitted
-//     outside them as ^%
+//   - % is expanded even inside double quotes, so it is emitted outside them as ^%
 //
-// Two things can't be fixed here: a newline can't be represented in cmd at all, and ! is
-// expanded when delayed expansion has been switched on.
+// Three things can't be fixed here:
+//   - a newline can't be represented in cmd at all
+//   - ! is expanded when delayed expansion has been switched on
+//   - % only survives at the interactive prompt. The caret doesn't really escape it,
+//     because percent expansion is an earlier parsing phase than caret processing; what
+//     saves us is that the prompt leaves an unmatched % and an undefined %var% alone.
+//     A batch file doesn't: it drops an unmatched % and deletes an undefined %var%
+//     outright, so `100% Done` and `%PATH%` both come out mangled there. The batch
+//     escape is %%, which in turn doesn't collapse at the prompt, so no single encoding
+//     works for both and the interactive one is the one worth having.
 func quoteCmd(value string) string {
 	if isBare(value, cmdSafeChars) {
 		return value

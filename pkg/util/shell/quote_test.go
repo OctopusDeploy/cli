@@ -164,7 +164,10 @@ func TestQuotePowerShell_RoundTrip(t *testing.T) {
 }
 
 // simulateCmd applies cmd.exe's own processing to a command line and returns what cmd
-// would hand to the program. Outside double quotes a caret escapes the next character;
+// would hand to the program. It models the interactive prompt, which is where a copied
+// command gets pasted; percent expansion in a batch file follows different rules and a
+// value containing % doesn't survive there, as quoteCmd's comment explains.
+// Outside double quotes a caret escapes the next character;
 // quotes themselves are passed through for the program to deal with. An unescaped % or
 // metacharacter outside quotes is reported as an error rather than simulated, because
 // either one means the generated command is broken.
