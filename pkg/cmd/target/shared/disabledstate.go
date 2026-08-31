@@ -6,7 +6,7 @@ import (
 
 	"github.com/OctopusDeploy/cli/pkg/cmd"
 	"github.com/OctopusDeploy/cli/pkg/output"
-	"github.com/OctopusDeploy/cli/pkg/question/selectors"
+	"github.com/OctopusDeploy/cli/pkg/question"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/machines"
 )
 
@@ -67,10 +67,17 @@ func PromptMissingTarget(opts *SetDisabledStateOptions, isDisabled bool) error {
 		return nil
 	}
 
-	selectedTarget, err := selectors.Select(
+	targets, err := opts.GetTargetsCallback()
+	if err != nil {
+		return err
+	}
+
+	// deliberately not selectors.Select: that auto-selects when there is exactly one target, which
+	// would mutate the target without the user ever being asked. Enable/disable always asks.
+	selectedTarget, err := question.SelectMap(
 		opts.Ask,
 		fmt.Sprintf("Select the deployment target you wish to %s:", actionDescription(isDisabled)),
-		opts.GetTargetsCallback,
+		targets,
 		func(target *machines.DeploymentTarget) string { return target.Name })
 	if err != nil {
 		return err
