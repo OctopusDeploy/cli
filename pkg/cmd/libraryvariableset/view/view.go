@@ -134,7 +134,7 @@ func viewRun(opts *ViewOptions) error {
 		}
 	}
 
-	webUrl := util.GenerateWebURL(opts.Host, set.SpaceID, fmt.Sprintf("library/variablesets/%s", set.GetID()))
+	webUrl := util.GenerateWebURL(opts.Host, set.SpaceID, fmt.Sprintf("library/variables/%s", set.GetID()))
 
 	outputFormat, _ := opts.Command.Flags().GetString(constants.FlagOutputFormat)
 	if outputFormat == "" {

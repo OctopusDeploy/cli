@@ -177,7 +177,7 @@ func TestLibraryVariableSetView(t *testing.T) {
 				  Environment: Production = https://prod
 				  Environment: Test = https://test
 
-				View this library variable set in Octopus Deploy: http://server/app#/Spaces-1/library/variablesets/LibraryVariableSets-1
+				View this library variable set in Octopus Deploy: http://server/app#/Spaces-1/library/variables/LibraryVariableSets-1
 				`), stdOut.String())
 			assert.Equal(t, "", stdErr.String())
 		}},
@@ -234,7 +234,7 @@ func TestLibraryVariableSetView(t *testing.T) {
 				SpaceId:       spaceID,
 				VariableSetId: "variableset-LibraryVariableSets-1",
 				TemplateCount: 0,
-				WebUrl:        "http://server/app#/Spaces-1/library/variablesets/LibraryVariableSets-1",
+				WebUrl:        "http://server/app#/Spaces-1/library/variables/LibraryVariableSets-1",
 				Variables: []group{
 					{Name: "Slack.Token", Values: []value{
 						{Id: "Variables-4", Value: "", IsSensitive: true, Type: "String", IsScoped: false, ScopeSummary: "(unscoped)"},

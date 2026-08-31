@@ -223,7 +223,7 @@ func testLibraryVariableSetView(t *testing.T, fx *lvsFixture) {
 		assert.Equal(t, space1ID, result.SpaceId)
 		assert.Equal(t, fx.Set.VariableSetID, result.VariableSetId)
 		assert.Equal(t, 0, result.TemplateCount)
-		assert.Contains(t, result.WebUrl, fmt.Sprintf("library/variablesets/%s", fx.Set.GetID()))
+		assert.Contains(t, result.WebUrl, fmt.Sprintf("library/variables/%s", fx.Set.GetID()))
 
 		require.Len(t, result.Variables, 3)
 		assert.Equal(t, []string{"Ask.Me", "Slack.Token", "Slack.Url"},
