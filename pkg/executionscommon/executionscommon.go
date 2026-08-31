@@ -10,6 +10,7 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/question"
 	"github.com/OctopusDeploy/cli/pkg/surveyext"
 	"github.com/OctopusDeploy/cli/pkg/util"
+	"github.com/OctopusDeploy/cli/pkg/util/flag"
 	octopusApiClient "github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/deployments"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/environments"
@@ -322,6 +323,14 @@ func ExpandCommaSeparated(values []string) []string {
 		return nil
 	}
 	return result
+}
+
+// ExpandCommaSeparatedFlags applies ExpandCommaSeparated in place to each of the given flags,
+// so callers don't have to keep a hand-maintained list of assignments in sync.
+func ExpandCommaSeparatedFlags(flags ...*flag.Flag[[]string]) {
+	for _, f := range flags {
+		f.Value = ExpandCommaSeparated(f.Value)
+	}
 }
 
 func ParseVariableStringArray(variables []string) (map[string]string, error) {

@@ -199,11 +199,13 @@ func NewCmdDeploy(f factory.Factory) *cobra.Command {
 
 func deployRun(cmd *cobra.Command, f factory.Factory, flags *DeployFlags) error {
 	// these flags accept a comma-separated list as well as being specified multiple times
-	flags.Environments.Value = executionscommon.ExpandCommaSeparated(flags.Environments.Value)
-	flags.Tenants.Value = executionscommon.ExpandCommaSeparated(flags.Tenants.Value)
-	flags.TenantTags.Value = executionscommon.ExpandCommaSeparated(flags.TenantTags.Value)
-	flags.DeploymentTargets.Value = executionscommon.ExpandCommaSeparated(flags.DeploymentTargets.Value)
-	flags.ExcludeTargets.Value = executionscommon.ExpandCommaSeparated(flags.ExcludeTargets.Value)
+	executionscommon.ExpandCommaSeparatedFlags(
+		flags.Environments,
+		flags.Tenants,
+		flags.TenantTags,
+		flags.DeploymentTargets,
+		flags.ExcludeTargets,
+	)
 
 	outputFormat, err := cmd.Flags().GetString(constants.FlagOutputFormat)
 	if err != nil { // should never happen, but fallback if it does
