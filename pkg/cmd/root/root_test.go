@@ -52,9 +52,10 @@ func TestResolveOutputFormat(t *testing.T) {
 				assert.NoError(t, flags.Lookup(constants.FlagOutputFormat).Value.Set(test.legacyFlag))
 			}
 
-			actual, err := resolveOutputFormat(flags, test.noPrompt, test.configuredFormat)
+			actual, warning, err := resolveOutputFormat(flags, test.noPrompt, test.configuredFormat)
 
 			assert.NoError(t, err)
+			assert.Empty(t, warning)
 			assert.Equal(t, test.expected, actual)
 		})
 	}
@@ -64,14 +65,12 @@ func TestResolveOutputFormat_RejectsUnsupportedFormats(t *testing.T) {
 	// commands that hand-roll their own format switch have no default case, so an unsupported
 	// format used to print nothing at all and exit 0
 	tests := []struct {
-		name             string
-		flag             string
-		legacyFlag       string
-		configuredFormat string
+		name       string
+		flag       string
+		legacyFlag string
 	}{
 		{name: "from the flag", flag: "xml"},
 		{name: "from the legacy flag", legacyFlag: "yaml"},
-		{name: "from the config file", configuredFormat: "csv"},
 	}
 
 	for _, test := range tests {
@@ -85,11 +84,41 @@ func TestResolveOutputFormat_RejectsUnsupportedFormats(t *testing.T) {
 				assert.NoError(t, flags.Lookup(constants.FlagOutputFormat).Value.Set(test.legacyFlag))
 			}
 
-			_, err := resolveOutputFormat(flags, false, test.configuredFormat)
+			_, _, err := resolveOutputFormat(flags, false, "")
 
 			assert.ErrorContains(t, err, "unsupported output format")
 		})
 	}
+}
+
+// an unsupported value in the config file must not be fatal: this runs ahead of every command,
+// so failing hard would lock the user out of the `config set` that would fix it
+func TestResolveOutputFormat_WarnsAndFallsBackForAnUnsupportedConfigFileValue(t *testing.T) {
+	flags := newOutputFormatFlags()
+
+	actual, warning, err := resolveOutputFormat(flags, false, "csv")
+
+	assert.NoError(t, err)
+	assert.Equal(t, constants.OutputFormatTable, actual)
+	assert.Contains(t, warning, "unsupported output format 'csv'")
+	assert.Contains(t, warning, constants.ConfigOutputFormat)
+}
+
+func TestResolveOutputFormat_AnExplicitFlagStillWinsOverAnUnsupportedConfigFileValue(t *testing.T) {
+	flags := newOutputFormatFlags()
+	assert.NoError(t, flags.Set(constants.FlagOutputFormat, "json"))
+
+	actual, warning, err := resolveOutputFormat(flags, false, "csv")
+
+	assert.NoError(t, err)
+	assert.Equal(t, constants.OutputFormatJson, actual)
+	assert.NotEmpty(t, warning)
+}
+
+func TestUnsupportedOutputFormatMessage(t *testing.T) {
+	assert.Equal(t,
+		"unsupported output format ''. Valid values are 'json', 'table', 'basic'",
+		constants.UnsupportedOutputFormatMessage(""))
 }
 
 func TestIsValidOutputFormat(t *testing.T) {
