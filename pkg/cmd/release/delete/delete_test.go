@@ -230,6 +230,46 @@ func TestReleaseDelete(t *testing.T) {
 			assert.Equal(t, "", stdErr.String())
 		}},
 
+		{"noprompt: dry run with json output emits a machine readable plan flagged as a dry run", func(t *testing.T, api *testutil.MockHttpServer, qa *testutil.AskMocker, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
+			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
+				defer api.Close()
+				rootCmd.SetArgs([]string{"release", "delete", "--project", fireProject.Name, "--version", "2.0", "--no-prompt", "--dry-run", "--output-format", "json"})
+				return rootCmd.ExecuteC()
+			})
+
+			standardDeleteTestBody(api)
+
+			_, err := testutil.ReceivePair(cmdReceiver)
+			assert.Nil(t, err)
+			assert.Equal(t, 0, api.GetPendingMessageCount())
+
+			assert.Equal(t, `{"DryRun":true,"Project":"Fire Project","Versions":["2.0"]}`+"\n", stdOut.String())
+			assert.Equal(t, "", stdErr.String())
+		}},
+
+		{"noprompt: dry run says so when nothing matches", func(t *testing.T, api *testutil.MockHttpServer, qa *testutil.AskMocker, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
+			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
+				defer api.Close()
+				rootCmd.SetArgs([]string{"release", "delete", "--project", fireProject.Name, "--version", "9.9", "--no-prompt", "--dry-run"})
+				return rootCmd.ExecuteC()
+			})
+
+			standardDeleteTestBody(api)
+
+			_, err := testutil.ReceivePair(cmdReceiver)
+			assert.Nil(t, err)
+			assert.Equal(t, 0, api.GetPendingMessageCount())
+
+			assert.Equal(t, heredoc.Doc(`
+				DRY RUN: no changes will be made in Octopus.
+
+				Would delete 0 release(s) from project Fire Project: no releases matched.
+
+				DRY RUN: no releases were deleted.
+				`), stdOut.String())
+			assert.Equal(t, "", stdErr.String())
+		}},
+
 		// ----- failure modes ------
 
 		{"noprompt: error when deleting 1 release and it fails", func(t *testing.T, api *testutil.MockHttpServer, qa *testutil.AskMocker, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
