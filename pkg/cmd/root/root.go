@@ -203,6 +203,8 @@ func resolveOutputFormat(flags *pflag.FlagSet, noPrompt bool, configuredFormat s
 	case explicit: // take the flag as given
 	case configuredFormat != "":
 		outputFormat = configuredFormat
+	// note noPrompt is bound to $CI as well as --no-prompt (see config.bindEnvironment), so
+	// this fires on essentially every CI pipeline, not just on an explicit --no-prompt
 	case noPrompt:
 		outputFormat = constants.OutputFormatBasic
 	default:
