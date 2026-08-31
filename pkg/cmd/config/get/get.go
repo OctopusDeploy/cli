@@ -3,8 +3,10 @@ package get
 import (
 	"fmt"
 	"io"
+	"strings"
 
 	"github.com/AlecAivazis/survey/v2"
+	"github.com/OctopusDeploy/cli/pkg/apiclient"
 	"github.com/OctopusDeploy/cli/pkg/config"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/factory"
@@ -50,6 +52,12 @@ func getRun(isPromptEnabled bool, ask question.Asker, key string, out io.Writer)
 	value = configFile.GetString(key)
 	if value == "" && !configFile.InConfig(key) {
 		return fmt.Errorf("unable to get value for key: %s", key)
+	}
+
+	// a proxy url can carry a password, and this output routinely ends up in a
+	// terminal recording or a support ticket. 'config list' redacts it the same way
+	if strings.EqualFold(key, constants.ConfigProxyUrl) {
+		value = apiclient.RedactProxyUrl(value)
 	}
 
 	fmt.Fprintln(out, value)
