@@ -478,7 +478,15 @@ func findPackagesWithoutVersions(octopus *octopusApiClient.Client, options *exec
 		return nil, err
 	}
 
-	packageVersionBaseline, err := BuildPackageVersionBaselineForChannel(octopus, deploymentProcessTemplate, channel)
+	// mirror what the server did: with --ignore-channel-rules it selects versions without applying the
+	// channel's version rules, so applying them here would report packages as missing when they only
+	// failed the rules.
+	var packageVersionBaseline []*packages.StepPackageVersion
+	if options.IgnoreChannelRules {
+		packageVersionBaseline, err = packages.BuildPackageVersionBaseline(octopus, deploymentProcessTemplate.Packages, nil)
+	} else {
+		packageVersionBaseline, err = BuildPackageVersionBaselineForChannel(octopus, deploymentProcessTemplate, channel)
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -489,17 +497,24 @@ func findPackagesWithoutVersions(octopus *octopusApiClient.Client, options *exec
 	return packages.FindPackagesWithoutVersions(deploymentProcessTemplate.Packages, resolvedVersions), nil
 }
 
-// findChannelForDiagnosis locates the channel the server would have used. When no channel was specified we
-// can only guess; the default channel is the best approximation available to us.
-func findChannelForDiagnosis(octopus *octopusApiClient.Client, project *projects.Project, channelName string) (*channels.Channel, error) {
-	if channelName != "" {
-		return selectors.FindChannel(octopus, project, channelName)
-	}
-
+// findChannelForDiagnosis locates the channel the server would have used. --channel reaches the server as
+// ChannelIDOrName, so we match on either. When no channel was specified we can only guess; the default
+// channel is the best approximation available to us.
+func findChannelForDiagnosis(octopus *octopusApiClient.Client, project *projects.Project, channelIDOrName string) (*channels.Channel, error) {
 	existingChannels, err := octopus.Projects.GetChannels(project)
 	if err != nil {
 		return nil, err
 	}
+
+	if channelIDOrName != "" {
+		for _, c := range existingChannels {
+			if strings.EqualFold(c.Name, channelIDOrName) || c.ID == channelIDOrName {
+				return c, nil
+			}
+		}
+		return nil, fmt.Errorf("no channel found with name or ID of %s", channelIDOrName)
+	}
+
 	if len(existingChannels) == 1 {
 		return existingChannels[0], nil
 	}
