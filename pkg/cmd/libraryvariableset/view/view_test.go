@@ -182,6 +182,33 @@ func TestLibraryVariableSetView(t *testing.T) {
 			assert.Equal(t, "", stdErr.String())
 		}},
 
+		{"outputFormat basic still shows the web url when the filter matches nothing", func(t *testing.T, api *testutil.MockHttpServer, qa *testutil.AskMocker, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
+			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
+				defer api.Close()
+				rootCmd.SetArgs([]string{"library-variable-set", "view", setID, "--no-prompt", "-f", "basic", "-q", "nothing-matches-this"})
+				return rootCmd.ExecuteC()
+			})
+
+			api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/libraryvariablesets/all").
+				RespondWith([]*variables.LibraryVariableSet{slackSet, sharedSet})
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/variables/variableset-LibraryVariableSets-1").RespondWith(variableSet)
+
+			_, err := testutil.ReceivePair(cmdReceiver)
+			assert.Nil(t, err)
+
+			assert.Equal(t, heredoc.Doc(`
+				Slack Variables (LibraryVariableSets-1)
+				Slack webhooks
+
+				No variables
+
+				View this library variable set in Octopus Deploy: http://server/app#/Spaces-1/library/variables/LibraryVariableSets-1
+				`), stdOut.String())
+			assert.Equal(t, "", stdErr.String())
+		}},
+
 		{"outputFormat json", func(t *testing.T, api *testutil.MockHttpServer, qa *testutil.AskMocker, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
 			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
 				defer api.Close()
