@@ -205,9 +205,14 @@ func formatProjectForBasic(opts *ViewOptions, project *projects.Project, project
 	// header
 	result.WriteString(fmt.Sprintf("%s %s\n", output.Bold(project.Name), output.Dimf("(%s)", project.Slug)))
 
-	// where the project sits and how it releases
-	result.WriteString(fmt.Sprintf("Project group: %s\n", output.Cyan(lookups.DisplayName(project.ProjectGroupID, projectGroupName))))
-	result.WriteString(fmt.Sprintf("Lifecycle: %s\n", output.Cyan(lookups.DisplayName(project.LifecycleID, lifecycleName))))
+	// where the project sits and how it releases; skip a label rather than print
+	// it with nothing after it when neither the name nor the ID is available
+	if group := lookups.DisplayName(project.ProjectGroupID, projectGroupName); group != "" {
+		result.WriteString(fmt.Sprintf("Project group: %s\n", output.Cyan(group)))
+	}
+	if lifecycle := lookups.DisplayName(project.LifecycleID, lifecycleName); lifecycle != "" {
+		result.WriteString(fmt.Sprintf("Lifecycle: %s\n", output.Cyan(lifecycle)))
+	}
 	result.WriteString(fmt.Sprintf("Tenanted deployment mode: %s\n", output.Cyan(shared.TenantedDeploymentMode(project))))
 
 	// version control branch
