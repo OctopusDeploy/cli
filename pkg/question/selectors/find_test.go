@@ -11,6 +11,7 @@ import (
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/channels"
 	octopusApiClient "github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/environments"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/environments/v2/ephemeralenvironments"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/resources"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/tenants"
 	"github.com/stretchr/testify/assert"
@@ -78,6 +79,62 @@ func TestFindEnvironments(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestResolveEnvironmentNames(t *testing.T) {
+	findSpace := fixtures.NewSpace(findSpaceID, "Default")
+	devEnvironment := fixtures.NewEnvironment(findSpaceID, "Environments-12", "dev")
+	ephemeralEnvironment := fixtures.NewEphemeralEnvironment(findSpaceID, "Environments-123", "Ephemeral Environment", "Environments-12")
+
+	t.Run("resolves a mix of regular and ephemeral environments", func(t *testing.T) {
+		api := testutil.NewMockHttpServer()
+		receiver := beginRequest(api, func(octopus *octopusApiClient.Client) ([]string, error) {
+			return selectors.ResolveEnvironmentNames(octopus, findSpace, []string{"DEV", "Environments-123"})
+		})
+
+		api.ExpectRequest(t, "GET", "/api/").RespondWith(findRootResource)
+		api.ExpectRequest(t, "GET", "/api/spaces").RespondWith(findRootResource)
+		api.ExpectRequest(t, "GET", "/api/Spaces-1/environments/all").RespondWith([]*environments.Environment{devEnvironment})
+		api.ExpectRequest(t, "GET", "/api/Spaces-1/environments/v2?skip=0&take=2147483647&type=Ephemeral").RespondWith(resources.Resources[*ephemeralenvironments.EphemeralEnvironment]{
+			Items: []*ephemeralenvironments.EphemeralEnvironment{ephemeralEnvironment},
+		})
+
+		result, err := testutil.ReceivePair(receiver)
+		assert.Nil(t, err)
+		assert.Equal(t, []string{"dev", "Ephemeral Environment"}, result)
+	})
+
+	t.Run("doesn't look at ephemeral environments when everything resolves", func(t *testing.T) {
+		api := testutil.NewMockHttpServer()
+		receiver := beginRequest(api, func(octopus *octopusApiClient.Client) ([]string, error) {
+			return selectors.ResolveEnvironmentNames(octopus, findSpace, []string{"Environments-12"})
+		})
+
+		api.ExpectRequest(t, "GET", "/api/").RespondWith(findRootResource)
+		api.ExpectRequest(t, "GET", "/api/spaces").RespondWith(findRootResource)
+		api.ExpectRequest(t, "GET", "/api/Spaces-1/environments/all").RespondWith([]*environments.Environment{devEnvironment})
+
+		result, err := testutil.ReceivePair(receiver)
+		assert.Nil(t, err)
+		assert.Equal(t, []string{"dev"}, result)
+	})
+
+	t.Run("names the environment that is actually missing", func(t *testing.T) {
+		api := testutil.NewMockHttpServer()
+		receiver := beginRequest(api, func(octopus *octopusApiClient.Client) ([]string, error) {
+			return selectors.ResolveEnvironmentNames(octopus, findSpace, []string{"dev", "Environments-404"})
+		})
+
+		api.ExpectRequest(t, "GET", "/api/").RespondWith(findRootResource)
+		api.ExpectRequest(t, "GET", "/api/spaces").RespondWith(findRootResource)
+		api.ExpectRequest(t, "GET", "/api/Spaces-1/environments/all").RespondWith([]*environments.Environment{devEnvironment})
+		api.ExpectRequest(t, "GET", "/api/Spaces-1/environments/v2?skip=0&take=2147483647&type=Ephemeral").RespondWith(resources.Resources[*ephemeralenvironments.EphemeralEnvironment]{
+			Items: []*ephemeralenvironments.EphemeralEnvironment{ephemeralEnvironment},
+		})
+
+		_, err := testutil.ReceivePair(receiver)
+		assert.EqualError(t, err, "cannot find an environment with the ID or name of 'Environments-404'")
+	})
 }
 
 func TestFindEnvironment(t *testing.T) {

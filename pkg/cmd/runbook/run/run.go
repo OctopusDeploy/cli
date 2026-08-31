@@ -231,11 +231,10 @@ func runbookRun(cmd *cobra.Command, f factory.Factory, flags *RunFlags) error {
 
 	// the executions API only matches environments and tenants by name, so resolve any IDs we were given
 	if len(flags.Environments.Value) > 0 {
-		selectedEnvironments, err := selectors.FindEnvironments(octopus, flags.Environments.Value)
+		flags.Environments.Value, err = selectors.ResolveEnvironmentNames(octopus, f.GetCurrentSpace(), flags.Environments.Value)
 		if err != nil {
 			return err
 		}
-		flags.Environments.Value = util.SliceTransform(selectedEnvironments, func(env *environments.Environment) string { return env.Name })
 	}
 
 	if len(flags.Tenants.Value) > 0 {

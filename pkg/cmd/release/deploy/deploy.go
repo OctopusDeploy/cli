@@ -331,7 +331,7 @@ func deployRun(cmd *cobra.Command, f factory.Factory, flags *DeployFlags) error 
 
 		// the executions API only matches environments by name, so resolve any IDs we were given
 		if len(options.Environments) > 0 {
-			options.Environments, err = resolveEnvironmentNames(octopus, f.GetCurrentSpace(), options.Environments)
+			options.Environments, err = selectors.ResolveEnvironmentNames(octopus, f.GetCurrentSpace(), options.Environments)
 			if err != nil {
 				return err
 			}
@@ -659,8 +659,10 @@ func findEphemeralEnvironments(octopus *octopusApiClient.Client, space *spaces.S
 
 	envMap := make(map[string]*ephemeralenvironments.EphemeralEnvironment, len(allEphemeralEnvironments.Items)*2)
 	for _, ephemeralEnv := range allEphemeralEnvironments.Items {
-		envMap[strings.ToLower(ephemeralEnv.ID)] = ephemeralEnv
 		envMap[strings.ToLower(ephemeralEnv.Name)] = ephemeralEnv
+	}
+	for _, ephemeralEnv := range allEphemeralEnvironments.Items { // IDs go in second so an ID match wins a collision with another environment's name
+		envMap[strings.ToLower(ephemeralEnv.ID)] = ephemeralEnv
 	}
 
 	for _, envIdentifier := range environmentIdentifiers {
@@ -672,22 +674,6 @@ func findEphemeralEnvironments(octopus *octopusApiClient.Client, space *spaces.S
 	}
 
 	return selectedEnvironments, nil
-}
-
-// resolveEnvironmentNames maps environment names or IDs onto canonical environment names, because
-// the executions API only matches environments by name. Ephemeral environments aren't part of the
-// regular environment list, so they're looked up separately when the regular lookup comes up empty.
-func resolveEnvironmentNames(octopus *octopusApiClient.Client, space *spaces.Space, environmentIdentifiers []string) ([]string, error) {
-	selectedEnvironments, err := selectors.FindEnvironments(octopus, environmentIdentifiers)
-	if err == nil {
-		return util.SliceTransform(selectedEnvironments, func(env *environments.Environment) string { return env.Name }), nil
-	}
-
-	ephemeralEnvironments, ephemeralErr := findEphemeralEnvironments(octopus, space, environmentIdentifiers)
-	if ephemeralErr != nil {
-		return nil, err // ephemeral environments are the rarer case; report why the regular lookup failed
-	}
-	return util.SliceTransform(ephemeralEnvironments, func(env *ephemeralenvironments.EphemeralEnvironment) string { return env.Name }), nil
 }
 
 func selectDeploymentEnvironmentsForEphemeralChannel(octopus *octopusApiClient.Client, stdout io.Writer, asker question.Asker, options *executor.TaskOptionsDeployRelease, selectedRelease *releases.Release) ([]string, error) {
