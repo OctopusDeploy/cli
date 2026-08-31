@@ -412,6 +412,24 @@ func TestConfigureHttpClient(t *testing.T) {
 		assert.Equal(t, "http://configured:3128", proxyUrl.String())
 	})
 
+	// the code this replaced supported a client with no transport, and dropping that
+	// leaves --ignore-ssl-errors doing nothing for any factory that returns a plain client
+	t.Run("gives a client with no transport a proxy aware one", func(t *testing.T) {
+		httpClient, err := login.ConfigureHttpClient(&http.Client{}, true)
+		assert.NoError(t, err)
+
+		transport, ok := httpClient.Transport.(*http.Transport)
+		if !assert.True(t, ok, "expected an *http.Transport") {
+			return
+		}
+		assert.True(t, transport.TLSClientConfig.InsecureSkipVerify)
+
+		request, _ := http.NewRequest("GET", "https://octopus.example.com/api/", nil)
+		proxyUrl, err := transport.Proxy(request)
+		assert.NoError(t, err)
+		assert.Equal(t, "http://configured:3128", proxyUrl.String())
+	})
+
 	t.Run("applies the ssl override without discarding the spinner", func(t *testing.T) {
 		spinnerRoundTripper := apiclient.NewSpinnerRoundTripper(nil)
 		httpClient, err := login.ConfigureHttpClient(&http.Client{Transport: spinnerRoundTripper}, true)
