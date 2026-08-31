@@ -56,10 +56,14 @@ func listRun(cmd *cobra.Command, f factory.Factory) error {
 		return err
 	}
 
-	// two lookups for the whole list rather than one per project, and best-effort
-	// as channel list is: listing still works without access to either
-	lifecycleMap := shared.GetLifecycleMap(client)
-	projectGroupMap := shared.GetProjectGroupMap(client)
+	// Two lookups for the whole list rather than one per project, and best-effort
+	// as channel list is: listing still works without access to either. Basic
+	// output only prints names, so don't pay for the round trips there.
+	var lifecycleMap, projectGroupMap map[string]string
+	if output.ResolveOutputFormat(cmd) != constants.OutputFormatBasic {
+		lifecycleMap = shared.GetLifecycleMap(client)
+		projectGroupMap = shared.GetProjectGroupMap(client)
+	}
 
 	return output.PrintArray(allProjects, cmd, output.Mappers[*projects.Project]{
 		Json: func(p *projects.Project) any {
