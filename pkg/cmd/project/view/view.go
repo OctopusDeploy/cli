@@ -94,6 +94,12 @@ func viewRun(opts *ViewOptions) error {
 	lifecycleName := lookups.GetLifecycleName(opts.Client, project.LifecycleID)
 	projectGroupName := lookups.GetProjectGroupName(opts.Client, project.ProjectGroupID)
 
+	// --web is honoured for every output format, not just the one whose
+	// formatter happens to open the browser
+	if opts.flags.Web.Value {
+		_ = browser.OpenURL(webUrl(opts, project))
+	}
+
 	return output.PrintResource(project, opts.Command, output.Mappers[*projects.Project]{
 		Json: func(p *projects.Project) any {
 			return ProjectAsJson{
@@ -237,12 +243,7 @@ func formatProjectForBasic(opts *ViewOptions, project *projects.Project, project
 	}
 
 	// footer with web URL
-	url := webUrl(opts, project)
-	result.WriteString(fmt.Sprintf("View this project in Octopus Deploy: %s\n", output.Blue(url)))
-
-	if opts.flags.Web.Value {
-		browser.OpenURL(url)
-	}
+	result.WriteString(fmt.Sprintf("View this project in Octopus Deploy: %s\n", output.Blue(webUrl(opts, project))))
 
 	return result.String()
 }
