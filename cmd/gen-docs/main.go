@@ -83,6 +83,7 @@ func run(args []string) error {
 	website := flags.BoolP("website", "", false, "Generate website pages")
 	dir := flags.StringP("doc-path", "", "", "Path directory where you want generate doc files")
 	relativeBasePath := flags.StringP("relative-base-path", "", "", "Relative base path for generating index links")
+	commandListPath := flags.StringP("command-list-path", "", "", "File to write the command list include to. Skipped when unset")
 	help := flags.BoolP("help", "h", false, "Help about any command")
 
 	if err := flags.Parse(args); err != nil {
@@ -127,17 +128,24 @@ func run(args []string) error {
 			return err
 		}
 
-		filename := filepath.Join(*dir, "index.md")
-		f, err := os.Create(filename)
+		if *commandListPath == "" {
+			return nil
+		}
 
+		if err := os.MkdirAll(filepath.Dir(*commandListPath), 0755); err != nil {
+			return err
+		}
+
+		// Not `f`: that is the command factory, several lines up.
+		out, err := os.Create(*commandListPath)
 		if err != nil {
 			return err
 		}
-		defer f.Close()
-		t := template.Must(template.New("index-template").Parse(indexTemplate))
+		defer out.Close()
+
 		sort.Sort(pageCollection.Pages)
-		t.Execute(f, pageCollection)
-		return nil
+		t := template.Must(template.New("command-list-template").Parse(commandListTemplate))
+		return t.Execute(out, pageCollection)
 	}
 
 	header := &doc.GenManHeader{
@@ -214,7 +222,7 @@ func contentEqualIgnoringModDate(a, b []byte) bool {
 }
 
 const documentationTemplate = `---
-layout: src/layouts/Default.astro
+layout: src/layouts/Cli.astro
 pubDate: 2023-01-01
 modDate: {{.Date}}
 title: {{.Title}}
@@ -263,32 +271,12 @@ Use "{{.CommandPath}} [command] --help" for more information about a command.{{e
 
 ## Learn more
 
-- [Octopus CLI](/docs/octopus-rest-api/cli)
+- [Octopus CLI](/docs/cli)
 - [Creating API keys](/docs/octopus-rest-api/how-to-create-an-api-key)
 `
 
-const indexTemplate = `---
-layout: src/layouts/Default.astro
-pubDate: 2023-01-01
-modDate: 2023-01-01
-title: CLI
-description: The all-new Octopus CLI
-navOrder: 100
-hideInThisSection: true
----
-
-The Octopus CLI is a command line tool that builds on top of the [Octopus Deploy REST API](/docs/octopus-rest-api). With the Octopus CLI you can push your application packages for deployment as either Zip or NuGet packages, and manage your environments, deployments, projects, and workers.
-
-The Octopus CLI can be used on Windows, Mac, Linux and Docker. For installation options and direct downloads, visit the [CLI Readme](https://github.com/OctopusDeploy/cli/blob/main/README.md).
-
-:::div{.hint}
-The Octopus CLI is built and maintained by the Octopus Deploy team, but it is also open source. You can [view the Octopus CLI project on GitHub](https://github.com/OctopusDeploy/cli), which leans heavily on the [go-octopusdeploy library](https://github.com/OctopusDeploy/go-octopusdeploy).
-:::
-
-## Commands {#octopusCommandLine-Commands}
-
-` + "`octopus` supports the following commands:" +
-	`
-{{range .Pages}}
-- **[{{.Title}}]({{.RelativePath}})**:  {{.Command.Short}}.{{end}}
-`
+// The rows the overview page lists. The prose around them, and the frontmatter,
+// belong to the docs repo: this is imported by src/pages/docs/cli/index.mdx as a
+// shared-content include, so a wording change there needs no release here.
+const commandListTemplate = `{{range .Pages}}- **[{{.Title}}]({{.RelativePath}})**:  {{.Command.Short}}.
+{{end}}`
