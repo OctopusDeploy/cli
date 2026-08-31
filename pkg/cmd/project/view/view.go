@@ -11,6 +11,7 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/cmd/project/shared"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/factory"
+	"github.com/OctopusDeploy/cli/pkg/lookups"
 	"github.com/OctopusDeploy/cli/pkg/output"
 	"github.com/OctopusDeploy/cli/pkg/usage"
 	"github.com/OctopusDeploy/cli/pkg/util"
@@ -90,8 +91,8 @@ func viewRun(opts *ViewOptions) error {
 	}
 
 	// best-effort, as channel list is: viewing still works without access to either
-	lifecycleName := shared.GetLifecycleName(opts.Client, project.LifecycleID)
-	projectGroupName := shared.GetProjectGroupName(opts.Client, project.ProjectGroupID)
+	lifecycleName := lookups.GetLifecycleName(opts.Client, project.LifecycleID)
+	projectGroupName := lookups.GetProjectGroupName(opts.Client, project.ProjectGroupID)
 
 	return output.PrintResource(project, opts.Command, output.Mappers[*projects.Project]{
 		Json: func(p *projects.Project) any {
@@ -136,8 +137,8 @@ func viewRun(opts *ViewOptions) error {
 				return []string{
 					output.Bold(p.Name),
 					p.Slug,
-					shared.DisplayName(p.ProjectGroupID, projectGroupName),
-					shared.DisplayName(p.LifecycleID, lifecycleName),
+					lookups.DisplayName(p.ProjectGroupID, projectGroupName),
+					lookups.DisplayName(p.LifecycleID, lifecycleName),
 					description,
 					versionControlBranch(p),
 					output.FormatAsList(p.ProjectTags),
@@ -205,8 +206,8 @@ func formatProjectForBasic(opts *ViewOptions, project *projects.Project, project
 	result.WriteString(fmt.Sprintf("%s %s\n", output.Bold(project.Name), output.Dimf("(%s)", project.Slug)))
 
 	// where the project sits and how it releases
-	result.WriteString(fmt.Sprintf("Project group: %s\n", output.Cyan(shared.DisplayName(project.ProjectGroupID, projectGroupName))))
-	result.WriteString(fmt.Sprintf("Lifecycle: %s\n", output.Cyan(shared.DisplayName(project.LifecycleID, lifecycleName))))
+	result.WriteString(fmt.Sprintf("Project group: %s\n", output.Cyan(lookups.DisplayName(project.ProjectGroupID, projectGroupName))))
+	result.WriteString(fmt.Sprintf("Lifecycle: %s\n", output.Cyan(lookups.DisplayName(project.LifecycleID, lifecycleName))))
 	result.WriteString(fmt.Sprintf("Tenanted deployment mode: %s\n", output.Cyan(shared.TenantedDeploymentMode(project))))
 
 	// version control branch
