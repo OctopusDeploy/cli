@@ -1,5 +1,25 @@
 package output
 
+import (
+	"strings"
+
+	"github.com/OctopusDeploy/cli/pkg/constants"
+	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
+)
+
+// ResolveOutputFormat returns the lower-cased output format that PrintArray and
+// PrintResource will use for this command: the --output-format flag, else the
+// configured default. Exported so commands can skip work that only one format
+// needs (e.g. name lookups that basic output never prints).
+func ResolveOutputFormat(cmd *cobra.Command) string {
+	outputFormat, _ := cmd.Flags().GetString(constants.FlagOutputFormat)
+	if outputFormat == "" {
+		outputFormat = viper.GetString(constants.ConfigOutputFormat)
+	}
+	return strings.ToLower(outputFormat)
+}
+
 // Common struct used for rendering JSON summaries of things that just have an ID and a Name
 type IdAndName struct {
 	Id   string `json:"Id"`

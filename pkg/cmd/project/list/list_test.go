@@ -156,14 +156,19 @@ func TestProjectList(t *testing.T) {
 			assert.Equal(t, "", stdErr.String())
 		}},
 
-		{"outputFormat basic still lists just names", func(t *testing.T, api *testutil.MockHttpServer, qa *testutil.AskMocker, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
+		{"outputFormat basic lists just names, without the name lookups", func(t *testing.T, api *testutil.MockHttpServer, qa *testutil.AskMocker, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
 			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
 				defer api.Close()
 				rootCmd.SetArgs([]string{"project", "list", "--no-prompt", "-f", "basic"})
 				return rootCmd.ExecuteC()
 			})
 
-			expectListRequests(t, api)
+			// basic output prints names only, so no lifecycle or project group
+			// requests should be made; the mock server has no response queued for
+			// an unexpected request, so this test blocks if they are
+			api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/all").RespondWith([]*projects.Project{fireProject, waterProject})
 
 			_, err := testutil.ReceivePair(cmdReceiver)
 			assert.Nil(t, err)
