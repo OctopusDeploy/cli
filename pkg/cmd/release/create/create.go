@@ -429,8 +429,11 @@ const serverNullReferenceMessage = "Object reference not set to an instance of a
 // it can. The server raises a null reference exception, surfaced as a bare 500, when it can't select a
 // version for a package; see https://github.com/OctopusDeploy/cli/issues/426
 func DiagnoseCreateReleaseFailure(octopus *octopusApiClient.Client, options *executor.TaskOptionsCreateRelease, cause error) error {
+	// only the specific null reference failure is worth diagnosing. Any other 5xx is a real server error
+	// that we must report as-is; replacing it would hide the cause, and re-querying the server would pile
+	// more requests onto something that is already failing.
 	var apiError *core.APIError
-	if !errors.As(cause, &apiError) || apiError.StatusCode < 500 {
+	if !errors.As(cause, &apiError) || apiError.StatusCode < 500 || !strings.Contains(apiError.ErrorMessage, serverNullReferenceMessage) {
 		return cause
 	}
 
@@ -441,10 +444,7 @@ func DiagnoseCreateReleaseFailure(octopus *octopusApiClient.Client, options *exe
 		}
 	}
 
-	if strings.Contains(apiError.ErrorMessage, serverNullReferenceMessage) {
-		return fmt.Errorf("%w\nthe server failed with an unhandled error; this usually means it could not resolve the packages, channel or git reference for the release", cause)
-	}
-	return cause
+	return fmt.Errorf("%w\nthe server failed with an unhandled error; this usually means it could not resolve the packages, channel or git reference for the release", cause)
 }
 
 // findPackagesWithoutVersions repeats the package version resolution the server does when it assembles a

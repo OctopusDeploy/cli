@@ -2930,6 +2930,16 @@ func TestReleaseCreate_DiagnoseCreateReleaseFailure(t *testing.T) {
 		badRequest := &core.APIError{ErrorMessage: "release version 1.0.0 already exists", StatusCode: http.StatusBadRequest}
 		assert.Equal(t, error(badRequest), create.DiagnoseCreateReleaseFailure(nil, nil, badRequest))
 	})
+
+	t.Run("passes through server faults which aren't the null reference we know how to diagnose", func(t *testing.T) {
+		// an unrelated 5xx must be reported as-is; we mustn't replace it with a package diagnosis
+		// (nor go back to an already-failing server to run one)
+		serverError := &core.APIError{ErrorMessage: "The database is unavailable", StatusCode: http.StatusInternalServerError}
+		assert.Equal(t, error(serverError), create.DiagnoseCreateReleaseFailure(nil, nil, serverError))
+
+		badGateway := &core.APIError{ErrorMessage: "Bad Gateway", StatusCode: http.StatusBadGateway}
+		assert.Equal(t, error(badGateway), create.DiagnoseCreateReleaseFailure(nil, nil, badGateway))
+	})
 }
 
 // issue #426: the server raises a null reference exception rather than telling us that a package
