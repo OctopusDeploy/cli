@@ -16,7 +16,7 @@ func GetReleaseID(octopus *client.Client, spaceID string, projectIdentifier stri
 		return "", err
 	}
 
-	selectedRelease, err := FindRelease(octopus, selectedProject, version)
+	selectedRelease, err := selectors.FindRelease(octopus, spaceID, selectedProject, version)
 	if err != nil {
 		return "", err
 	}
@@ -37,8 +37,4 @@ func SelectRelease(octopus *client.Client, project *projects.Project, ask questi
 	}
 
 	return selectedRelease, nil
-}
-
-func FindRelease(octopus *client.Client, project *projects.Project, version string) (*releases.Release, error) {
-	return selectors.FindRelease(octopus, octopus.GetSpaceID(), project, version)
 }
