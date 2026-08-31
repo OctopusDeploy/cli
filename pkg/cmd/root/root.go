@@ -2,6 +2,7 @@ package root
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 
 	"github.com/OctopusDeploy/cli/pkg/apiclient"
@@ -145,7 +146,10 @@ func NewCmdRoot(f factory.Factory, clientFactory apiclient.ClientFactory, askPro
 		if viper.InConfig(strings.ToLower(constants.ConfigOutputFormat)) {
 			configuredFormat = viper.GetString(constants.ConfigOutputFormat)
 		}
-		outputFormat, err := resolveOutputFormat(cmdPFlags, noPrompt, configuredFormat)
+		outputFormat, warning, err := resolveOutputFormat(cmdPFlags, noPrompt, configuredFormat)
+		if warning != "" {
+			cmd.PrintErrln(warning)
+		}
 		if err != nil {
 			return usage.NewUsageError(err.Error(), cmd)
 		}
@@ -177,10 +181,23 @@ func NewCmdRoot(f factory.Factory, clientFactory apiclient.ClientFactory, askPro
 // Note the flag carries a non-empty default, so "did the caller ask for a format?" has to be
 // answered with Changed() rather than by testing the value for emptiness. configuredFormat is
 // the OutputFormat config file setting, or empty if the config file doesn't set one.
-func resolveOutputFormat(flags *pflag.FlagSet, noPrompt bool, configuredFormat string) (string, error) {
+//
+// An unusable value returns an error, except when it came from the config file, which we can
+// only warn about; see below.
+func resolveOutputFormat(flags *pflag.FlagSet, noPrompt bool, configuredFormat string) (string, string, error) {
 	// the legacy flag is copied onto the new one by value, which doesn't mark it as Changed
 	explicit := flags.Changed(constants.FlagOutputFormat) || flags.Changed(constants.FlagOutputFormatLegacy)
 	outputFormat, _ := flags.GetString(constants.FlagOutputFormat)
+
+	// this runs for every command, so failing hard on a bad config file value would lock the
+	// user out of the whole CLI - `octopus config set OutputFormat table` included. Warn and
+	// carry on down the precedence chain instead, so the config is still fixable.
+	warning := ""
+	if configuredFormat != "" && !constants.IsValidOutputFormat(strings.TrimSpace(configuredFormat)) {
+		warning = fmt.Sprintf("Ignoring the %s config setting: %s",
+			constants.ConfigOutputFormat, constants.UnsupportedOutputFormatMessage(configuredFormat))
+		configuredFormat = ""
+	}
 
 	switch {
 	case explicit: // take the flag as given
@@ -194,7 +211,7 @@ func resolveOutputFormat(flags *pflag.FlagSet, noPrompt bool, configuredFormat s
 
 	outputFormat = strings.ToLower(strings.TrimSpace(outputFormat))
 	if !constants.IsValidOutputFormat(outputFormat) {
-		return "", errors.New(constants.UnsupportedOutputFormatMessage(outputFormat))
+		return "", warning, errors.New(constants.UnsupportedOutputFormatMessage(outputFormat))
 	}
-	return outputFormat, nil
+	return outputFormat, warning, nil
 }
