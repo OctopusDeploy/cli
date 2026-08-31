@@ -42,13 +42,17 @@ func ProxySettingsFromConfig() ProxySettings {
 func (s ProxySettings) ProxyFunc() (func(*http.Request) (*url.URL, error), error) {
 	config := httpproxy.FromEnvironment()
 	if s.Url != "" {
-		// httpproxy silently ignores a proxy address it cannot parse, so validate it here
-		// to report a typo rather than quietly connecting directly.
-		if _, err := parseProxyUrl(s.Url); err != nil {
+		// httpproxy silently ignores a proxy address it cannot parse, so parse it here
+		// to report a typo rather than quietly connecting directly. Hand httpproxy the
+		// normalized result rather than the raw string, so this parse is the only one
+		// that decides what the proxy is - otherwise the two copies of the rules could
+		// drift and we would accept a url that httpproxy then ignores.
+		parsed, err := parseProxyUrl(s.Url)
+		if err != nil {
 			return nil, err
 		}
-		config.HTTPProxy = s.Url
-		config.HTTPSProxy = s.Url
+		config.HTTPProxy = parsed.String()
+		config.HTTPSProxy = parsed.String()
 		config.CGI = false
 	}
 
