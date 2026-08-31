@@ -162,6 +162,39 @@ func TestProxySettings_ProxyFuncRejectsAnInvalidProxyUrl(t *testing.T) {
 	assert.ErrorContains(t, err, "invalid proxy url")
 }
 
+func TestProxySettings_ProxyFuncRejectsAPasswordWithNoUsername(t *testing.T) {
+	clearProxyEnvironment(t)
+	settings := apiclient.ProxySettings{Url: "http://configured:3128", Password: "s3cret"}
+
+	proxyFunc, err := settings.ProxyFunc()
+	if !assert.NoError(t, err) {
+		return
+	}
+
+	request, _ := http.NewRequest(http.MethodGet, octopusUrl, nil)
+	_, err = proxyFunc(request)
+
+	assert.ErrorContains(t, err, constants.EnvOctopusProxyUsername)
+}
+
+// A stray password is only a problem when a proxy would actually be used, so a
+// direct connection must not be broken by one.
+func TestProxySettings_ProxyFuncIgnoresAPasswordWithNoProxy(t *testing.T) {
+	clearProxyEnvironment(t)
+	settings := apiclient.ProxySettings{Password: "s3cret"}
+
+	proxyFunc, err := settings.ProxyFunc()
+	if !assert.NoError(t, err) {
+		return
+	}
+
+	request, _ := http.NewRequest(http.MethodGet, octopusUrl, nil)
+	proxyUrl, err := proxyFunc(request)
+
+	assert.NoError(t, err)
+	assert.Nil(t, proxyUrl)
+}
+
 // The error goes to the terminal (and CI logs), so it must not repeat the password
 // back - neither from the raw string nor from url.Parse's own *url.Error message.
 func TestProxySettings_ProxyFuncDoesNotEchoThePasswordOfAnInvalidProxyUrl(t *testing.T) {
