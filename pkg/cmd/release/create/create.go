@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"sort"
 	"strings"
 	"time"
 
@@ -290,10 +291,8 @@ func createRun(cmd *cobra.Command, f factory.Factory, flags *CreateFlags) error 
 			// carry --dry-run through, so the echoed command reproduces the run that was just
 			// performed rather than silently promoting a rehearsal into a real create
 			resolvedFlags.DryRun.Value = flags.DryRun.Value
-			if len(options.CustomFields) > 0 {
-				for k, v := range options.CustomFields {
-					resolvedFlags.CustomFields.Value = append(resolvedFlags.CustomFields.Value, fmt.Sprintf("%s: %s", k, v))
-				}
+			for _, k := range sortedKeys(options.CustomFields) { // stable order, so the same answers give the same command
+				resolvedFlags.CustomFields.Value = append(resolvedFlags.CustomFields.Value, fmt.Sprintf("%s: %s", k, options.CustomFields[k]))
 			}
 
 			spaceName := ""
@@ -588,8 +587,8 @@ func printReleasePreview(cmd *cobra.Command, preview *ReleasePreview, outputForm
 	for _, ref := range preview.GitResources {
 		rows = append(rows, output.NewDataRow("Git Resource", ref))
 	}
-	for name, value := range preview.CustomFields {
-		rows = append(rows, output.NewDataRow("Custom Field", fmt.Sprintf("%s: %s", name, value)))
+	for _, name := range sortedKeys(preview.CustomFields) { // map iteration order would shuffle the rows run-to-run
+		rows = append(rows, output.NewDataRow("Custom Field", fmt.Sprintf("%s: %s", name, preview.CustomFields[name])))
 	}
 	if preview.IgnoreExisting {
 		rows = append(rows, output.NewDataRow("Ignore Existing", "true"))
@@ -623,6 +622,15 @@ func printReleasePreview(cmd *cobra.Command, preview *ReleasePreview, outputForm
 
 	dryrun.Footer(cmd, "no release was created.")
 	return nil
+}
+
+func sortedKeys(m map[string]string) []string {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	return keys
 }
 
 func orDefault(value string, fallback string) string {
