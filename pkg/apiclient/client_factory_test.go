@@ -1,8 +1,6 @@
 package apiclient_test
 
 import (
-	"bytes"
-	"io"
 	"net/http"
 	"testing"
 
@@ -71,17 +69,8 @@ func TestNewClientFactory_WhenHostAndAccessTokenAreSupplied_ReturnsClientFactory
 	assert.NotNil(t, factory)
 }
 
-type recordingRoundTripper struct {
-	Requests []*http.Request
-}
-
-func (r *recordingRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
-	r.Requests = append(r.Requests, req)
-	return &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(bytes.NewReader(nil))}, nil
-}
-
 func TestClientFactory_EnableDryRunGuard_RefusesMutatingRequests(t *testing.T) {
-	transport := &recordingRoundTripper{}
+	transport := &testutil.RecordingRoundTripper{}
 	apiKeyCredential, _ := client.NewApiKey(apiKey)
 	clientFactory, err := apiclient.NewClientFactory(&http.Client{Transport: transport}, hostUrl, apiKeyCredential, "", qa)
 	testutil.RequireSuccess(t, err)
