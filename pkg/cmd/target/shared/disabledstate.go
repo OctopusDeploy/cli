@@ -14,6 +14,9 @@ type SetDisabledStateOptions struct {
 	*cmd.Dependencies
 	*GetTargetsOptions
 	IdOrName string
+	// Target is the deployment target chosen at the prompt. When set it is used directly, saving a
+	// round trip back to the server for something we already have.
+	Target *machines.DeploymentTarget
 }
 
 func NewSetDisabledStateOptions(args []string, dependencies *cmd.Dependencies) *SetDisabledStateOptions {
@@ -38,13 +41,16 @@ func SetDisabledState(opts *SetDisabledStateOptions, isDisabled bool) error {
 		}
 	}
 
-	if opts.IdOrName == "" {
-		return errors.New("deployment target identifier is required but was not provided")
-	}
+	target := opts.Target
+	if target == nil {
+		if opts.IdOrName == "" {
+			return errors.New("deployment target identifier is required but was not provided")
+		}
 
-	target, err := opts.Client.Machines.GetByIdentifier(opts.IdOrName)
-	if err != nil {
-		return err
+		var err error
+		if target, err = opts.Client.Machines.GetByIdentifier(opts.IdOrName); err != nil {
+			return err
+		}
 	}
 
 	state := disabledStateDescription(isDisabled)
@@ -54,7 +60,7 @@ func SetDisabledState(opts *SetDisabledStateOptions, isDisabled bool) error {
 	}
 
 	target.IsDisabled = isDisabled
-	if _, err = machines.Update(opts.Client, target); err != nil {
+	if _, err := machines.Update(opts.Client, target); err != nil {
 		return err
 	}
 
@@ -83,6 +89,7 @@ func PromptMissingTarget(opts *SetDisabledStateOptions, isDisabled bool) error {
 		return err
 	}
 
+	opts.Target = selectedTarget
 	opts.IdOrName = selectedTarget.GetID()
 	return nil
 }
