@@ -2,7 +2,6 @@ package dryrun_test
 
 import (
 	"bytes"
-	"io"
 	"net/http"
 	"testing"
 
@@ -14,15 +13,6 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 )
-
-type recordingRoundTripper struct {
-	Requests []*http.Request
-}
-
-func (r *recordingRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
-	r.Requests = append(r.Requests, req)
-	return &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(bytes.NewReader(nil))}, nil
-}
 
 func TestGuardRoundTripper(t *testing.T) {
 	tests := []struct {
@@ -40,7 +30,7 @@ func TestGuardRoundTripper(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.method, func(t *testing.T) {
-			next := &recordingRoundTripper{}
+			next := &testutil.RecordingRoundTripper{}
 			guard := dryrun.NewGuardRoundTripper(next)
 
 			request, err := http.NewRequest(test.method, "http://server/api/Spaces-1/releases/Releases-1", nil)
