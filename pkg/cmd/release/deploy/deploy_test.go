@@ -2101,6 +2101,27 @@ func TestDeployCreate_AutomationMode(t *testing.T) {
 			assert.Equal(t, "ServerTasks-29394\n", stdOut.String())
 			assert.Equal(t, "", stdErr.String())
 		}},
+
+		// a --tenant that expands to nothing must not fall through to an untenanted deployment
+		{"release deploy rejects a blank comma-separated value rather than silently dropping it", func(t *testing.T, api *testutil.MockHttpServer, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
+			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
+				defer api.Close()
+				rootCmd.SetArgs([]string{
+					"release", "deploy",
+					"--project", fireProject.Name,
+					"--version", "1.0",
+					"--environment", "dev",
+					"--tenant", ",", // e.g. "$TENANT_A,$TENANT_B" where both are unset
+					"--output-format", "basic",
+				})
+				return rootCmd.ExecuteC()
+			})
+
+			_, err := testutil.ReceivePair(cmdReceiver)
+			assert.ErrorContains(t, err, "--tenant has a blank value")
+
+			assert.Equal(t, "", stdOut.String())
+		}},
 	}
 
 	for _, test := range tests {

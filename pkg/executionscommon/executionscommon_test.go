@@ -8,6 +8,7 @@ import (
 
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/OctopusDeploy/cli/pkg/executionscommon"
+	"github.com/OctopusDeploy/cli/pkg/util/flag"
 	"github.com/OctopusDeploy/cli/test/fixtures"
 	"github.com/OctopusDeploy/cli/test/testutil"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/resources"
@@ -431,14 +432,53 @@ func TestExpandCommaSeparated(t *testing.T) {
 
 		{name: "preserves order and duplicates", input: []string{"ABC,ABC"}, expect: []string{"ABC", "ABC"}},
 		{name: "tenant tags", input: []string{"Regions/us-east,Regions/us-west"}, expect: []string{"Regions/us-east", "Regions/us-west"}},
-
-		{name: "drops blank entries", input: []string{"ABC,,XYZ"}, expect: []string{"ABC", "XYZ"}},
-		{name: "all blank entries returns nil", input: []string{"", " , "}, expect: nil},
 	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			assert.Equal(t, test.expect, executionscommon.ExpandCommaSeparated(test.input))
+			result, err := executionscommon.ExpandCommaSeparated("environment", test.input)
+			assert.NoError(t, err)
+			assert.Equal(t, test.expect, result)
 		})
 	}
+}
+
+// a blank component almost always means a caller-side variable expanded to nothing; dropping it
+// silently would narrow the scope of a deployment, or flip a tenanted deploy to untenanted
+func TestExpandCommaSeparated_RejectsBlankValues(t *testing.T) {
+	tests := []struct {
+		name  string
+		input []string
+	}{
+		{name: "empty string", input: []string{""}},
+		{name: "lone comma", input: []string{","}},
+		{name: "whitespace only", input: []string{" , "}},
+		{name: "blank in the middle", input: []string{"ABC,,XYZ"}},
+		{name: "trailing comma", input: []string{"ABC,"}},
+		{name: "blank alongside a good repeat", input: []string{"ABC", ""}},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			result, err := executionscommon.ExpandCommaSeparated("tenant", test.input)
+			assert.Nil(t, result)
+			assert.ErrorContains(t, err, "--tenant has a blank value")
+		})
+	}
+}
+
+func TestExpandCommaSeparatedFlags(t *testing.T) {
+	environments := flag.New[[]string]("environment", false)
+	environments.Value = []string{"dev,test"}
+	tenants := flag.New[[]string]("tenant", false)
+	tenants.Value = []string{"Tenant A", "Tenant B,Tenant C"}
+
+	assert.NoError(t, executionscommon.ExpandCommaSeparatedFlags(environments, tenants))
+	assert.Equal(t, []string{"dev", "test"}, environments.Value)
+	assert.Equal(t, []string{"Tenant A", "Tenant B", "Tenant C"}, tenants.Value)
+
+	bad := flag.New[[]string]("deployment-target", false)
+	bad.Value = []string{"ABC,"}
+	err := executionscommon.ExpandCommaSeparatedFlags(environments, bad)
+	assert.ErrorContains(t, err, "--deployment-target has a blank value")
 }

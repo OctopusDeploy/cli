@@ -202,13 +202,15 @@ func NewCmdRun(f factory.Factory) *cobra.Command {
 
 func runbookRun(cmd *cobra.Command, f factory.Factory, flags *RunFlags) error {
 	// these flags accept a comma-separated list as well as being specified multiple times
-	executionscommon.ExpandCommaSeparatedFlags(
+	if err := executionscommon.ExpandCommaSeparatedFlags(
 		flags.Environments,
 		flags.Tenants,
 		flags.TenantTags,
 		flags.RunTargets,
 		flags.ExcludeTargets,
-	)
+	); err != nil {
+		return err
+	}
 
 	if flags.RunbookName.Value != "" && len(flags.RunbookTags.Value) > 0 {
 		return errors.New("--name and --runbook-tag are mutually exclusive. Please specify either a runbook name or runbook tags, not both")
