@@ -1636,7 +1636,7 @@ func TestDeployCreate_AutomationMode(t *testing.T) {
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+fireProjectID+"/releases/latest").RespondWithStatus(404, "NotFound", nil)
 
 			_, err := testutil.ReceivePair(cmdReceiver)
-			assert.EqualError(t, err, "cannot find a release with version 'latest' in project 'Fire Project'; 'latest' is not a supported alias, specify an exact version. Run 'octopus release list --project \"Fire Project\"' to see the available versions")
+			assert.EqualError(t, err, "could not resolve a release with version 'latest' in project 'Fire Project'; the server returned an empty response, which usually means there is no such release, but can also mean the lookup itself failed. 'latest' is not a supported alias, specify an exact version. Run 'octopus release list --project \"Fire Project\"' to see the available versions")
 
 			assert.Equal(t, "", stdOut.String())
 			assert.Equal(t, "", stdErr.String())
