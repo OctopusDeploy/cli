@@ -1,7 +1,7 @@
 package root
 
 import (
-	"fmt"
+	"errors"
 	"strings"
 
 	"github.com/OctopusDeploy/cli/pkg/apiclient"
@@ -194,7 +194,7 @@ func resolveOutputFormat(flags *pflag.FlagSet, noPrompt bool, configuredFormat s
 
 	outputFormat = strings.ToLower(strings.TrimSpace(outputFormat))
 	if !constants.IsValidOutputFormat(outputFormat) {
-		return "", fmt.Errorf("unsupported output format %s. Valid values are 'json', 'table', 'basic'. Defaults to table", outputFormat)
+		return "", errors.New(constants.UnsupportedOutputFormatMessage(outputFormat))
 	}
 	return outputFormat, nil
 }

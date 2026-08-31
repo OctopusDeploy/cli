@@ -1,6 +1,9 @@
 package constants
 
-import "strings"
+import (
+	"fmt"
+	"strings"
+)
 
 const (
 	ExecutableName = "octopus"
@@ -88,6 +91,13 @@ func IsValidOutputFormat(outputFormat string) bool {
 	default:
 		return false
 	}
+}
+
+// UnsupportedOutputFormatMessage is the message we give back when we're handed an output
+// format we don't understand. It lives next to IsValidOutputFormat so the wording can't drift
+// between the places that reject one.
+func UnsupportedOutputFormatMessage(outputFormat string) string {
+	return fmt.Sprintf("unsupported output format '%s'. Valid values are 'json', 'table', 'basic'", outputFormat)
 }
 
 // IsProgrammaticOutputFormat tells you if it is acceptable for your command to
