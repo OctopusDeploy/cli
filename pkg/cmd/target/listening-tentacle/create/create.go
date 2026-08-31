@@ -157,7 +157,7 @@ func createRun(opts *CreateOptions) error {
 		return err
 	}
 
-	fmt.Fprintf(opts.Out, "Successfully created listening tenatcle '%s'.\n", deploymentTarget.Name)
+	fmt.Fprintf(opts.Out, "Successfully created listening tentacle '%s'.\n", deploymentTarget.Name)
 	if !opts.NoPrompt {
 		autoCmd := flag.GenerateAutomationCmd(opts.CmdPath, opts.GetSpaceNameOrEmpty(), opts.Name, opts.URL, opts.Thumbprint, opts.Environments, opts.Roles, opts.Tags, opts.Proxy, opts.MachinePolicy, opts.TenantedDeploymentMode, opts.Tenants, opts.TenantTags, opts.Disabled)
 		fmt.Fprintf(opts.Out, "\nAutomation Command: %s\n", autoCmd)
