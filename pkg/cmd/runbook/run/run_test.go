@@ -812,6 +812,67 @@ func TestRunbookRun_PrintAdvancedSummary(t *testing.T) {
 				  Target Tags: All included
 				`), stdout.String())
 		}},
+
+		{"variation on include target tags only", func(t *testing.T, stdout *bytes.Buffer) {
+			options := &executor.TaskOptionsRunbookRun{
+				TaskOptionsRunbookRunBase: executor.TaskOptionsRunbookRunBase{
+					SpecificTargetTagNames: []string{"Region/us-east", "Role/web"},
+				},
+			}
+			run.PrintAdvancedSummary(stdout, &options.TaskOptionsRunbookRunBase)
+
+			assert.Equal(t, heredoc.Doc(`
+				Additional Options:
+				  Run At: Now
+				  Skipped Steps: None
+				  Guided Failure Mode: Use default setting from the target environment
+				  Priority: Do not jump the task queue
+				  Package Download: Use cached packages (if available)
+				  Run Targets: All included
+				  Target Tags: Include Region/us-east,Role/web
+				`), stdout.String())
+		}},
+
+		{"variation on exclude target tags only", func(t *testing.T, stdout *bytes.Buffer) {
+			options := &executor.TaskOptionsRunbookRun{
+				TaskOptionsRunbookRunBase: executor.TaskOptionsRunbookRunBase{
+					ExcludedTargetTagNames: []string{"Role/Legacy"},
+				},
+			}
+			run.PrintAdvancedSummary(stdout, &options.TaskOptionsRunbookRunBase)
+
+			assert.Equal(t, heredoc.Doc(`
+				Additional Options:
+				  Run At: Now
+				  Skipped Steps: None
+				  Guided Failure Mode: Use default setting from the target environment
+				  Priority: Do not jump the task queue
+				  Package Download: Use cached packages (if available)
+				  Run Targets: All included
+				  Target Tags: Exclude Role/Legacy
+				`), stdout.String())
+		}},
+
+		{"both include and exclude target tags", func(t *testing.T, stdout *bytes.Buffer) {
+			options := &executor.TaskOptionsRunbookRun{
+				TaskOptionsRunbookRunBase: executor.TaskOptionsRunbookRunBase{
+					SpecificTargetTagNames: []string{"Region/us-east", "Role/web"},
+					ExcludedTargetTagNames: []string{"Role/Legacy", "Region/eu-west"},
+				},
+			}
+			run.PrintAdvancedSummary(stdout, &options.TaskOptionsRunbookRunBase)
+
+			assert.Equal(t, heredoc.Doc(`
+				Additional Options:
+				  Run At: Now
+				  Skipped Steps: None
+				  Guided Failure Mode: Use default setting from the target environment
+				  Priority: Do not jump the task queue
+				  Package Download: Use cached packages (if available)
+				  Run Targets: All included
+				  Target Tags: Include Region/us-east,Role/web; Exclude Role/Legacy,Region/eu-west
+				`), stdout.String())
+		}},
 	}
 
 	for _, test := range tests {

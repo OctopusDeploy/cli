@@ -2581,6 +2581,61 @@ func TestDeployCreate_PrintAdvancedSummary(t *testing.T) {
 			  Target Tags: All included
 			`), stdout.String())
 		}},
+
+		{"variation on include target tags only", func(t *testing.T, stdout *bytes.Buffer) {
+			options := &executor.TaskOptionsDeployRelease{
+				SpecificTargetTagNames: []string{"Region/us-east", "Role/web"},
+			}
+			deploy.PrintAdvancedSummary(stdout, options)
+
+			assert.Equal(t, heredoc.Doc(`
+			Additional Options:
+			  Deploy Time: Now
+			  Skipped Steps: None
+			  Guided Failure Mode: Use default setting from the target environment
+			  Priority: Use default setting from the lifecycle phase
+			  Package Download: Use cached packages (if available)
+			  Deployment Targets: All included
+			  Target Tags: Include Region/us-east,Role/web
+			`), stdout.String())
+		}},
+
+		{"variation on exclude target tags only", func(t *testing.T, stdout *bytes.Buffer) {
+			options := &executor.TaskOptionsDeployRelease{
+				ExcludedTargetTagNames: []string{"Role/Legacy"},
+			}
+			deploy.PrintAdvancedSummary(stdout, options)
+
+			assert.Equal(t, heredoc.Doc(`
+			Additional Options:
+			  Deploy Time: Now
+			  Skipped Steps: None
+			  Guided Failure Mode: Use default setting from the target environment
+			  Priority: Use default setting from the lifecycle phase
+			  Package Download: Use cached packages (if available)
+			  Deployment Targets: All included
+			  Target Tags: Exclude Role/Legacy
+			`), stdout.String())
+		}},
+
+		{"both include and exclude target tags", func(t *testing.T, stdout *bytes.Buffer) {
+			options := &executor.TaskOptionsDeployRelease{
+				SpecificTargetTagNames: []string{"Region/us-east", "Role/web"},
+				ExcludedTargetTagNames: []string{"Role/Legacy", "Region/eu-west"},
+			}
+			deploy.PrintAdvancedSummary(stdout, options)
+
+			assert.Equal(t, heredoc.Doc(`
+			Additional Options:
+			  Deploy Time: Now
+			  Skipped Steps: None
+			  Guided Failure Mode: Use default setting from the target environment
+			  Priority: Use default setting from the lifecycle phase
+			  Package Download: Use cached packages (if available)
+			  Deployment Targets: All included
+			  Target Tags: Include Region/us-east,Role/web; Exclude Role/Legacy,Region/eu-west
+			`), stdout.String())
+		}},
 	}
 
 	for _, test := range tests {
