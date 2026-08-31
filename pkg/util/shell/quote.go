@@ -50,13 +50,26 @@ func quotePosix(value string) string {
 	return "'" + strings.ReplaceAll(value, "'", `'\''`) + "'"
 }
 
+// powerShellQuoteEscaper doubles every character PowerShell's tokenizer accepts as a
+// single quote. As well as the ascii one those are the unicode "smart" variants, which
+// close a single quoted string just like ' does; a value carrying a curly apostrophe
+// from a web UI (Bob’s Project) would otherwise be a parse error. Doubling the same
+// character is what escapes it, so the value still comes back byte for byte.
+var powerShellQuoteEscaper = strings.NewReplacer(
+	`'`, `''`,
+	"‘", "‘‘", // left single quotation mark
+	"’", "’’", // right single quotation mark
+	"‚", "‚‚", // single low-9 quotation mark
+	"‛", "‛‛", // single high-reversed-9 quotation mark
+)
+
 // quotePowerShell quotes for PowerShell. Single quoted strings are literal, and a single
 // quote is escaped by doubling it.
 func quotePowerShell(value string) string {
 	if isBare(value, powerShellSafeChars) {
 		return value
 	}
-	return "'" + strings.ReplaceAll(value, "'", "''") + "'"
+	return "'" + powerShellQuoteEscaper.Replace(value) + "'"
 }
 
 // quoteCmd quotes for cmd.exe, which has to survive two passes: cmd's own parsing, and

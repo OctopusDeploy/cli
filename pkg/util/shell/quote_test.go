@@ -41,6 +41,8 @@ func TestQuote(t *testing.T) {
 		{"windows path", `C:\Program Files\Octopus\`, `'C:\Program Files\Octopus\'`, `'C:\Program Files\Octopus\'`, `"C:\Program Files\Octopus\\"`},
 		{"backslash then quote", `a\"b`, `'a\"b'`, `'a\"b'`, `"a\\"\^""b"`},
 		{"non ascii", "Café", `'Café'`, `'Café'`, `"Café"`},
+		{"curly apostrophe", "Bob’s Project", `'Bob’s Project'`, `'Bob’’s Project'`, `"Bob’s Project"`},
+		{"other smart single quotes", "a‘b‚c‛d", `'a‘b‚c‛d'`, `'a‘‘b‚‚c‛‛d'`, `"a‘b‚c‛d"`},
 	}
 
 	for _, test := range tests {
@@ -81,6 +83,7 @@ var roundTripValues = []string{
 	`a\"b`,
 	`\\server\share\`,
 	"Café",
+	"Bob’s Project",
 	"trailing space ",
 	"#comment",
 	"a;b",
