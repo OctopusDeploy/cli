@@ -80,13 +80,13 @@ func (r *recordingRoundTripper) RoundTrip(req *http.Request) (*http.Response, er
 	return &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(bytes.NewReader(nil))}, nil
 }
 
-func TestClientFactory_SetDryRun_RefusesMutatingRequests(t *testing.T) {
+func TestClientFactory_EnableDryRunGuard_RefusesMutatingRequests(t *testing.T) {
 	transport := &recordingRoundTripper{}
 	apiKeyCredential, _ := client.NewApiKey(apiKey)
 	clientFactory, err := apiclient.NewClientFactory(&http.Client{Transport: transport}, hostUrl, apiKeyCredential, "", qa)
 	testutil.RequireSuccess(t, err)
 
-	clientFactory.SetDryRun(true)
+	clientFactory.EnableDryRunGuard()
 
 	httpClient, err := clientFactory.GetHttpClient()
 	testutil.RequireSuccess(t, err)

@@ -144,7 +144,7 @@ func NewCmdRoot(f factory.Factory, clientFactory apiclient.ClientFactory, askPro
 		// Arming the client guard means that if such a command still reaches a mutating
 		// endpoint, the request is refused rather than quietly going through.
 		if clientFactory != nil && dryrun.IsEnabled(executedCmd) {
-			clientFactory.SetDryRun(true)
+			clientFactory.EnableDryRunGuard()
 		}
 	}
 
