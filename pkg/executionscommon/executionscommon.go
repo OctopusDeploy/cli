@@ -303,34 +303,43 @@ func AskVariableSpecificPrompt(asker question.Asker, message string, variableTyp
 }
 
 // ExpandCommaSeparated splits each entry on commas so `--flag "A,B"` behaves the same as
-// `--flag A --flag B`. Whitespace around each entry is trimmed and blank entries are dropped.
+// `--flag A --flag B`. Whitespace around each entry is trimmed.
+//
+// Blank entries are rejected rather than silently dropped. A value such as "," or "A,,B"
+// almost always means a caller-side variable substitution produced nothing, and quietly
+// dropping it would change the scope of the deployment: an empty --tenant list, for example,
+// turns a tenanted deployment into an untenanted one rather than failing.
+//
 // Only apply this to flags whose values cannot legitimately contain a comma; notably NOT to
 // --variable, --skip or the package/git-resource specs.
-func ExpandCommaSeparated(values []string) []string {
+func ExpandCommaSeparated(flagName string, values []string) ([]string, error) {
 	if len(values) == 0 {
-		return values
+		return values, nil
 	}
 	result := make([]string, 0, len(values))
 	for _, value := range values {
 		for _, component := range strings.Split(value, ",") {
 			component = strings.TrimSpace(component)
-			if component != "" {
-				result = append(result, component)
+			if component == "" {
+				return nil, fmt.Errorf("--%s has a blank value; check for an empty variable or a stray comma in %q", flagName, value)
 			}
+			result = append(result, component)
 		}
 	}
-	if len(result) == 0 {
-		return nil
-	}
-	return result
+	return result, nil
 }
 
 // ExpandCommaSeparatedFlags applies ExpandCommaSeparated in place to each of the given flags,
 // so callers don't have to keep a hand-maintained list of assignments in sync.
-func ExpandCommaSeparatedFlags(flags ...*flag.Flag[[]string]) {
+func ExpandCommaSeparatedFlags(flags ...*flag.Flag[[]string]) error {
 	for _, f := range flags {
-		f.Value = ExpandCommaSeparated(f.Value)
+		expanded, err := ExpandCommaSeparated(f.Name, f.Value)
+		if err != nil {
+			return err
+		}
+		f.Value = expanded
 	}
+	return nil
 }
 
 func ParseVariableStringArray(variables []string) (map[string]string, error) {
