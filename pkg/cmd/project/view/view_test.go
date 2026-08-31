@@ -2,6 +2,7 @@ package view_test
 
 import (
 	"bytes"
+	"encoding/json"
 	"testing"
 
 	"github.com/MakeNowJust/heredoc/v2"
@@ -125,6 +126,35 @@ func TestProjectView(t *testing.T) {
 				View this project in Octopus Deploy: http://server/app#/Spaces-1/projects/Projects-22
 
 				`), stdOut.String())
+			assert.Equal(t, "", stdErr.String())
+		}},
+
+		{"project view does not panic when a version controlled project has no git settings", func(t *testing.T, api *testutil.MockHttpServer, qa *testutil.AskMocker, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
+			// IsVersionControlled and PersistenceSettings are independent on the wire;
+			// the CLI must not assume the settings block is present, or Git-typed.
+			raw := map[string]any{}
+			encoded, err := json.Marshal(fireProject)
+			assert.Nil(t, err)
+			assert.Nil(t, json.Unmarshal(encoded, &raw))
+			raw["IsVersionControlled"] = true
+			delete(raw, "PersistenceSettings")
+
+			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
+				defer api.Close()
+				rootCmd.SetArgs([]string{"project", "view", "Projects-22", "--no-prompt", "-f", "basic"})
+				return rootCmd.ExecuteC()
+			})
+
+			api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/Projects-22").RespondWith(raw)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/lifecycles/Lifecycles-1").RespondWith(lifecycle)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projectgroups/ProjectGroups-1").RespondWith(projectGroup)
+
+			_, err = testutil.ReceivePair(cmdReceiver)
+			assert.Nil(t, err)
+
+			assert.Contains(t, stdOut.String(), "Version control branch: \n")
 			assert.Equal(t, "", stdErr.String())
 		}},
 
