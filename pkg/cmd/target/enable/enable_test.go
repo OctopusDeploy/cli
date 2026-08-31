@@ -83,7 +83,7 @@ func TestDeploymentTargetEnable(t *testing.T) {
 
 			api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
 			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
-			api.ExpectRequest(t, "GET", "/api/Spaces-1/machines?take=2147483647").
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/machines?isDisabled=true&take=2147483647").
 				RespondWith(resources.Resources[*machines.DeploymentTarget]{Items: []*machines.DeploymentTarget{
 					newTarget("Machines-100", "web-server", true),
 					newTarget("Machines-200", "db-server", true),
