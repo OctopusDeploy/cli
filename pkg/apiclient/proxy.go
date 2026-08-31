@@ -62,6 +62,13 @@ func (s ProxySettings) ProxyFunc() (func(*http.Request) (*url.URL, error), error
 		if err != nil || proxyUrl == nil {
 			return nil, err
 		}
+		// A password with no username cannot be sent, and dropping it silently leaves the
+		// user staring at a bare 407 from the proxy. Only complain once it actually
+		// matters, i.e. when a proxy is in play and the url carries no credentials of its
+		// own, so an unrelated stray variable never breaks a direct connection.
+		if s.Password != "" && s.Username == "" && proxyUrl.User == nil {
+			return nil, fmt.Errorf("%s is set but %s is empty, so the proxy credentials cannot be used", constants.EnvOctopusProxyPassword, constants.EnvOctopusProxyUsername)
+		}
 		return s.applyCredentials(proxyUrl), nil
 	}, nil
 }
