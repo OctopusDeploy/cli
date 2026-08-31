@@ -115,14 +115,11 @@ func getProjects(
 	}
 
 	projectGroup, err := getProjectGroup(group)
-	if err != nil {
-		if errors.Is(err, services.ErrItemNotFound) {
-			return nil, fmt.Errorf("cannot find a project group with name or ID of '%s'", group)
-		}
+	if err != nil && !errors.Is(err, services.ErrItemNotFound) {
 		return nil, err
 	}
-
-	if projectGroup == nil {
+	// GetByIDOrName reports a miss as ErrItemNotFound; the nil check is defensive.
+	if err != nil || projectGroup == nil {
 		return nil, fmt.Errorf("cannot find a project group with name or ID of '%s'", group)
 	}
 
