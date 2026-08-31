@@ -287,6 +287,9 @@ func createRun(cmd *cobra.Command, f factory.Factory, flags *CreateFlags) error 
 			resolvedFlags.ReleaseNotes.Value = options.ReleaseNotes
 			resolvedFlags.IgnoreExisting.Value = options.IgnoreIfAlreadyExists
 			resolvedFlags.IgnoreChannelRules.Value = options.IgnoreChannelRules
+			// carry --dry-run through, so the echoed command reproduces the run that was just
+			// performed rather than silently promoting a rehearsal into a real create
+			resolvedFlags.DryRun.Value = flags.DryRun.Value
 			if len(options.CustomFields) > 0 {
 				for k, v := range options.CustomFields {
 					resolvedFlags.CustomFields.Value = append(resolvedFlags.CustomFields.Value, fmt.Sprintf("%s: %s", k, v))
@@ -309,6 +312,7 @@ func createRun(cmd *cobra.Command, f factory.Factory, flags *CreateFlags) error 
 				resolvedFlags.GitResourceRefsSpec,
 				resolvedFlags.CustomFields,
 				resolvedFlags.Version,
+				resolvedFlags.DryRun,
 			)
 			cmd.Printf("\nAutomation Command: %s\n", autoCmd)
 		}
