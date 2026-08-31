@@ -6,10 +6,10 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/AlecAivazis/survey/v2"
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/argocdgateways"
 	"github.com/OctopusDeploy/cli/pkg/cmd"
+	"github.com/OctopusDeploy/cli/pkg/cmd/kubernetes/shared"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/factory"
 	octoK8s "github.com/OctopusDeploy/cli/pkg/kubernetes"
@@ -216,109 +216,32 @@ func installRun(ctx context.Context, opts *InstallOptions) error {
 }
 
 func (opts *InstallOptions) Discover(ctx context.Context) error {
-	kubeConfig, err := octoK8s.LoadKubeConfig(opts.KubeConfig.Value)
-	if err != nil {
-		return err
-	}
+	_, err := opts.connector().Connect(ctx)
+	return err
+}
 
-	for {
-		err := opts.connectAndDiscover(ctx, kubeConfig)
-		if err == nil {
-			return nil
-		}
-
-		retry, retryErr := opts.ConfirmRetry(kubeConfig, err)
-		if retryErr != nil {
-			return retryErr
-		}
-		if !retry {
-			return err
-		}
+// connector holds the options' own CommonFlags, so a different cluster chosen
+// while retrying is seen by the rest of the install.
+func (opts *InstallOptions) connector() *shared.Connector {
+	return &shared.Connector{
+		Dependencies:  opts.Dependencies,
+		CommonFlags:   opts.CommonFlags,
+		SelectMessage: "Which cluster should the gateway be installed into?",
+		Discover: func(ctx context.Context, session *shared.Session) error {
+			opts.Cluster = session.Cluster
+			opts.Runner = session.Runner
+			opts.KubeContextInfo = session.Context
+			return opts.discoverArgoCD(ctx)
+		},
+		Unrecoverable: func(cause error, kubeConfig *octoK8s.KubeConfig) bool {
+			// Nothing to retry, and no other cluster to move to.
+			return errors.As(cause, &argocd.ErrNoInstances{}) && len(kubeConfig.Contexts()) == 1
+		},
 	}
 }
 
-// connectAndDiscover holds everything that talks to the cluster, so a
-// credential problem can be fixed and retried as a unit.
-func (opts *InstallOptions) connectAndDiscover(ctx context.Context, kubeConfig *octoK8s.KubeConfig) error {
-	if err := opts.resolveKubeContext(kubeConfig); err != nil {
-		return err
-	}
-
-	kubeContext, err := kubeConfig.FindContext(opts.KubeContext.Value)
-	if err != nil {
-		return err
-	}
-	opts.KubeContextInfo = kubeContext
-
-	cluster, err := octoK8s.Connect(kubeConfig, opts.KubeContext.Value)
-	if err != nil {
-		return err
-	}
-	opts.Cluster = cluster
-
-	// Building a client is offline, so this is the first call that proves the
-	// credentials work. Cloud clusters authenticate through a helper such as
-	// gcloud or aws, which fails here when its session has expired.
-	version, err := cluster.ServerVersion()
-	if err != nil {
-		return err
-	}
-	fmt.Fprintf(opts.Out, "Connected to %s %s\n", output.Cyan(opts.KubeContext.Value), output.Dimf("(Kubernetes %s)", version))
-
-	runner, err := helm.NewRunner(opts.KubeConfig.Value, opts.KubeContext.Value, opts.Out)
-	if err != nil {
-		return err
-	}
-	opts.Runner = runner
-
-	return opts.discoverArgoCD(ctx)
-}
-
-// ConfirmRetry avoids ending the command and discarding everything already
-// answered. Expired cloud credentials are the common case, and are usually
-// fixed in another terminal in seconds.
 func (opts *InstallOptions) ConfirmRetry(kubeConfig *octoK8s.KubeConfig, cause error) (bool, error) {
-	if opts.NoPrompt {
-		return false, nil
-	}
-	// Nothing to retry, and no other cluster to move to.
-	if errors.As(cause, &argocd.ErrNoInstances{}) && len(kubeConfig.Contexts()) == 1 {
-		return false, nil
-	}
-
-	fmt.Fprintf(opts.Out, "\n%s %v\n", output.Red("✘"), cause)
-
-	const (
-		tryAgain  = "Try again"
-		pickOther = "Choose a different cluster"
-		cancel    = "Cancel"
-	)
-
-	choices := []string{tryAgain}
-	if len(kubeConfig.Contexts()) > 1 {
-		choices = append(choices, pickOther)
-	}
-	choices = append(choices, cancel)
-
-	answer := ""
-	if err := opts.Ask(&survey.Select{
-		Message: "What would you like to do?",
-		Options: choices,
-		Help:    "If a cloud credential helper failed, sign in again in another terminal and choose Try again.",
-	}, &answer); err != nil {
-		return false, err
-	}
-
-	switch answer {
-	case tryAgain:
-		return true, nil
-	case pickOther:
-		// Sends resolveKubeContext back to the prompt.
-		opts.KubeContext.Value = ""
-		return true, nil
-	default:
-		return false, nil
-	}
+	return opts.connector().ConfirmRetry(kubeConfig, cause)
 }
 
 // discoverArgoCD covers both hosting models: Argo CD usually runs in the
@@ -367,46 +290,6 @@ func (opts *InstallOptions) discoverArgoCD(ctx context.Context) error {
 	}
 
 	return argocd.ErrNoInstances{}
-}
-
-// resolveKubeContext always reports the chosen context rather than silently
-// assuming one: installing into the wrong cluster is the most expensive mistake
-// available here.
-func (opts *InstallOptions) resolveKubeContext(kubeConfig *octoK8s.KubeConfig) error {
-	contexts := kubeConfig.Contexts()
-	if len(contexts) == 0 {
-		return errors.New("your kubeconfig does not contain any contexts")
-	}
-
-	if opts.KubeContext.Value != "" {
-		if _, err := kubeConfig.FindContext(opts.KubeContext.Value); err != nil {
-			return err
-		}
-		return nil
-	}
-
-	current, hasCurrent := kubeConfig.CurrentContext()
-	if opts.NoPrompt {
-		if !hasCurrent {
-			return fmt.Errorf("your kubeconfig has no current context, so --%s must be specified", octoK8s.FlagKubeContext)
-		}
-		opts.KubeContext.Value = current.Name
-		return nil
-	}
-
-	if len(contexts) == 1 {
-		opts.KubeContext.Value = contexts[0].Name
-		return nil
-	}
-
-	selected, err := selectors.Select(opts.Ask, "Which cluster should the gateway be installed into?",
-		func() ([]octoK8s.Context, error) { return contexts, nil },
-		func(c octoK8s.Context) string { return c.Display() })
-	if err != nil {
-		return err
-	}
-	opts.KubeContext.Value = selected.Name
-	return nil
 }
 
 func (opts *InstallOptions) validateForAutomation() error {

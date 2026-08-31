@@ -276,6 +276,7 @@ cmd/
    octopus/  # Contains the octopus binary
 
 pkg/
+   accesstokens/ # mints short-lived Octopus credentials for a component that registers itself from a cluster
    apiclient/ # Utility code used to manage authentication/connection to the octopus server
    cmd/ # contains sub-packages for each cobra command
       account/ # contains commands related to accounts

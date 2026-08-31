@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/AlecAivazis/survey/v2"
 	"github.com/OctopusDeploy/cli/pkg/argocdgateways"
+	"github.com/OctopusDeploy/cli/pkg/cmd/kubernetes/shared"
 	octoK8s "github.com/OctopusDeploy/cli/pkg/kubernetes"
 	"github.com/OctopusDeploy/cli/pkg/kubernetes/helm"
 	"github.com/OctopusDeploy/cli/pkg/output"
@@ -32,7 +32,7 @@ func (opts *InstallOptions) Commit(ctx context.Context) error {
 		return err
 	}
 
-	if err := opts.checkPermissions(ctx); err != nil {
+	if err := shared.CheckPermissions(ctx, opts.Dependencies, opts.Cluster, opts.TargetNamespace, opts.DryRun.Value); err != nil {
 		return err
 	}
 
@@ -40,11 +40,11 @@ func (opts *InstallOptions) Commit(ctx context.Context) error {
 		return opts.renderOnly(ctx, values, timeout)
 	}
 
-	if err := opts.ensureNamespace(ctx); err != nil {
+	if err := shared.EnsureNamespace(ctx, opts.Dependencies, opts.Cluster, opts.TargetNamespace); err != nil {
 		return err
 	}
 
-	if err := opts.runPreflight(ctx); err != nil {
+	if err := opts.preflight().Run(ctx); err != nil {
 		return err
 	}
 
@@ -223,131 +223,28 @@ func (opts *InstallOptions) writeValuesFile(values map[string]any) error {
 	return nil
 }
 
-// checkPermissions runs before anything is created, so a missing permission
-// surfaces here rather than halfway through.
-func (opts *InstallOptions) checkPermissions(ctx context.Context) error {
-	denied, err := opts.Cluster.CheckPermissions(ctx, octoK8s.InstallPermissions(opts.TargetNamespace))
-	if err != nil {
-		return err
-	}
-	if len(denied) == 0 {
-		return nil
-	}
-
-	var b strings.Builder
-	fmt.Fprintf(&b, "your Kubernetes credentials cannot perform this install in context %q:", opts.Cluster.ContextName)
-	for _, d := range denied {
-		fmt.Fprintf(&b, "\n  cannot %s - needed to %s", d, d.Description)
-	}
-
-	// A dry run creates nothing, so this is worth knowing but not worth
-	// withholding the preview for.
-	if opts.DryRun.Value {
-		fmt.Fprintf(opts.Out, "%s %s\n", output.Yellow("!"), b.String())
-		return nil
-	}
-	return errors.New(b.String())
-}
-
-func (opts *InstallOptions) ensureNamespace(ctx context.Context) error {
-	exists, err := opts.Cluster.NamespaceExists(ctx, opts.TargetNamespace)
-	if err != nil {
-		return err
-	}
-	if exists {
-		fmt.Fprintf(opts.Out, "Using existing namespace %s\n", output.Cyan(opts.TargetNamespace))
-		return nil
-	}
-	return opts.Cluster.CreateNamespace(ctx, opts.TargetNamespace)
-}
-
-// runPreflight catches the case where an install succeeds and then never
-// connects: the gateway registers over the REST API but runs over gRPC on a
-// different port.
-func (opts *InstallOptions) runPreflight(ctx context.Context) error {
-	if opts.SkipPreflight.Value {
-		return nil
-	}
-
-	targets := []octoK8s.Target{
-		{
-			Name:    "Octopus REST API",
-			Address: opts.Host,
-			Remediation: "The gateway registers itself with Octopus over the REST API. " +
-				"Confirm this address is reachable from inside the cluster.",
+func (opts *InstallOptions) preflight() *shared.Preflight {
+	return &shared.Preflight{
+		Dependencies: opts.Dependencies,
+		CommonFlags:  opts.CommonFlags,
+		Cluster:      opts.Cluster,
+		Namespace:    opts.TargetNamespace,
+		Targets: []octoK8s.Target{
+			{
+				Name:    "Octopus REST API",
+				Address: opts.Host,
+				Remediation: "The gateway registers itself with Octopus over the REST API. " +
+					"Confirm this address is reachable from inside the cluster.",
+			},
+			{
+				Name:    "Octopus gRPC endpoint",
+				Address: opts.OctopusGRPCURL.Value,
+				Remediation: "The running gateway connects to Octopus over gRPC on a different port to the REST API. " +
+					"A load balancer, proxy, or firewall that forwards only HTTPS is the usual cause; make sure the gRPC port is forwarded too.",
+			},
 		},
-		{
-			Name:    "Octopus gRPC endpoint",
-			Address: opts.OctopusGRPCURL.Value,
-			Remediation: "The running gateway connects to Octopus over gRPC on a different port to the REST API. " +
-				"A load balancer, proxy, or firewall that forwards only HTTPS is the usual cause; make sure the gRPC port is forwarded too.",
-		},
+		ProceedHelp: "The gateway is likely to install and then fail to connect.",
 	}
-
-	checks := octoK8s.StaticChecks(targets)
-	podChecks, err := opts.Cluster.RunPreflight(ctx, octoK8s.PreflightRequest{
-		Namespace: opts.TargetNamespace,
-		Image:     opts.PreflightImage.Value,
-		Targets:   targets,
-	})
-	if err != nil {
-		return err
-	}
-	checks = append(checks, podChecks...)
-
-	return opts.confirmPreflight(checks)
-}
-
-func (opts *InstallOptions) printPreflight(checks []octoK8s.Check) int {
-	if len(checks) == 0 {
-		return 0
-	}
-
-	fmt.Fprintln(opts.Out, "\nConnectivity checks:")
-	failed := 0
-	for _, c := range checks {
-		switch c.Result {
-		case octoK8s.CheckPassed:
-			fmt.Fprintf(opts.Out, "  %s %s %s\n", output.Green("✔"), c.Name, output.Dim(c.Detail))
-		case octoK8s.CheckSkipped:
-			fmt.Fprintf(opts.Out, "  %s %s %s\n", output.Dim("-"), c.Name, output.Dim(c.Detail))
-		default:
-			failed++
-			fmt.Fprintf(opts.Out, "  %s %s %s\n", output.Red("✘"), c.Name, c.Detail)
-			if c.Remediation != "" {
-				fmt.Fprintf(opts.Out, "      %s\n", output.Dim(c.Remediation))
-			}
-		}
-	}
-
-	return failed
-}
-
-func (opts *InstallOptions) confirmPreflight(checks []octoK8s.Check) error {
-	failed := opts.printPreflight(checks)
-	if failed == 0 {
-		return nil
-	}
-
-	if opts.NoPrompt {
-		return fmt.Errorf("%d connectivity %s failed; fix the problems above or pass --%s",
-			failed, octoK8s.Pluralise("check", "checks", failed), octoK8s.FlagSkipPreflight)
-	}
-
-	// A check can be wrong: egress policy may allow the real workload's service
-	// account but not a bare pod.
-	proceed := false
-	if err := opts.Ask(&survey.Confirm{
-		Message: "Continue with the install anyway?",
-		Default: false,
-		Help:    "The gateway is likely to install and then fail to connect.",
-	}, &proceed); err != nil {
-		return err
-	}
-	if !proceed {
-		return errors.New("install cancelled")
-	}
-	return nil
 }
 
 // storeCredentials keeps credentials out of the Helm release values.
@@ -410,13 +307,7 @@ func (opts *InstallOptions) renderOnly(ctx context.Context, values map[string]an
 	fmt.Fprintf(opts.Out, "\n%s Rendering only. Nothing will be installed, and the connectivity checks that need a pod in the cluster are skipped.\n",
 		output.Dim("--"+octoK8s.FlagDryRun))
 
-	if !opts.SkipPreflight.Value {
-		// Report only: there is no install to abandon.
-		opts.printPreflight(octoK8s.StaticChecks([]octoK8s.Target{
-			{Name: "Octopus REST API", Address: opts.Host},
-			{Name: "Octopus gRPC endpoint", Address: opts.OctopusGRPCURL.Value},
-		}))
-	}
+	opts.preflight().ReportStatic()
 
 	manifest, err := opts.Runner.Render(ctx, helm.InstallSpec{
 		Chart:       opts.chartRef(),

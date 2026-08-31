@@ -144,6 +144,11 @@ func isTenantedTarget(flags *CreateTargetTenantFlags) bool {
 	return flags.TenantedDeploymentMode.Value == Tenanted || flags.TenantedDeploymentMode.Value == TenantedOrUntenanted
 }
 
+// TenantDeploymentOptions are the kinds of deployment a target can take part in.
+func TenantDeploymentOptions() []*selectors.SelectOption[string] {
+	return getTenantDeploymentOptions()
+}
+
 func getTenantDeploymentOptions() []*selectors.SelectOption[string] {
 	return []*selectors.SelectOption[string]{
 		{Display: "Exclude from tenanted deployments (default)", Value: Untenanted},

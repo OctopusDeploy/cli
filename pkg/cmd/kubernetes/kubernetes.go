@@ -2,8 +2,11 @@ package kubernetes
 
 import (
 	"github.com/MakeNowJust/heredoc/v2"
+	cmdAgent "github.com/OctopusDeploy/cli/pkg/cmd/kubernetes/agent"
 	cmdGateway "github.com/OctopusDeploy/cli/pkg/cmd/kubernetes/gateway"
 	cmdInstall "github.com/OctopusDeploy/cli/pkg/cmd/kubernetes/install"
+	cmdPermissionsController "github.com/OctopusDeploy/cli/pkg/cmd/kubernetes/permissionscontroller"
+	cmdWorker "github.com/OctopusDeploy/cli/pkg/cmd/kubernetes/worker"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/constants/annotations"
 	"github.com/OctopusDeploy/cli/pkg/factory"
@@ -25,7 +28,10 @@ func NewCmdKubernetes(f factory.Factory) *cobra.Command {
 	}
 
 	cmd.AddCommand(cmdInstall.NewCmdInstall(f))
+	cmd.AddCommand(cmdAgent.NewCmdAgent(f))
+	cmd.AddCommand(cmdWorker.NewCmdWorker(f))
 	cmd.AddCommand(cmdGateway.NewCmdGateway(f))
+	cmd.AddCommand(cmdPermissionsController.NewCmdPermissionsController(f))
 
 	return cmd
 }

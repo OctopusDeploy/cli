@@ -6,7 +6,9 @@ import (
 
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/cmd"
+	agentInstall "github.com/OctopusDeploy/cli/pkg/cmd/kubernetes/agent/install"
 	gatewayInstall "github.com/OctopusDeploy/cli/pkg/cmd/kubernetes/gateway/install"
+	permissionsControllerInstall "github.com/OctopusDeploy/cli/pkg/cmd/kubernetes/permissionscontroller/install"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/OctopusDeploy/cli/pkg/question"
@@ -24,10 +26,31 @@ type component struct {
 func components() []component {
 	return []component{
 		{
+			display: "Kubernetes agent - run Kubernetes deployments from inside the cluster",
+			cmdPath: constants.ExecutableName + " kubernetes agent install",
+			install: func(f factory.Factory, dependencies *cmd.Dependencies, cmdPath string) error {
+				return agentInstall.Run(f, cmd.NewDependenciesFromExisting(dependencies, cmdPath))
+			},
+		},
+		{
+			display: "Kubernetes worker - run Octopus steps in the cluster, one pod per task",
+			cmdPath: constants.ExecutableName + " kubernetes worker install",
+			install: func(f factory.Factory, dependencies *cmd.Dependencies, cmdPath string) error {
+				return agentInstall.RunWorker(f, cmd.NewDependenciesFromExisting(dependencies, cmdPath))
+			},
+		},
+		{
 			display: "Argo CD gateway - connect an Argo CD instance to Octopus",
 			cmdPath: constants.ExecutableName + " kubernetes gateway install",
 			install: func(f factory.Factory, dependencies *cmd.Dependencies, cmdPath string) error {
 				return gatewayInstall.Run(f, cmd.NewDependenciesFromExisting(dependencies, cmdPath))
+			},
+		},
+		{
+			display: "Permissions controller - scope what an agent's script pods are allowed to do",
+			cmdPath: constants.ExecutableName + " kubernetes permissions-controller install",
+			install: func(f factory.Factory, dependencies *cmd.Dependencies, cmdPath string) error {
+				return permissionsControllerInstall.Run(f, cmd.NewDependenciesFromExisting(dependencies, cmdPath))
 			},
 		},
 	}

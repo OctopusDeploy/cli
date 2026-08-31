@@ -28,3 +28,24 @@ func TestDeriveGRPCURL(t *testing.T) {
 		})
 	}
 }
+
+func TestDerivePollingURL(t *testing.T) {
+	tests := []struct {
+		name     string
+		server   string
+		expected string
+	}{
+		{"self-hosted gets the polling port", "https://octopus.example.com", "https://octopus.example.com:10943"},
+		{"a port on the REST address is not the polling port", "https://octopus.example.com:8080", "https://octopus.example.com:10943"},
+		{"Octopus Cloud serves polling on its own hostname", "https://myinstance.octopus.app", "https://polling.myinstance.octopus.app"},
+		{"Octopus Cloud test instances too", "https://myinstance.testoctopus.app", "https://polling.myinstance.testoctopus.app"},
+		{"nothing to derive from", "", ""},
+		{"not an address", "not a url", ""},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, kubernetes.DerivePollingURL(tt.server))
+		})
+	}
+}

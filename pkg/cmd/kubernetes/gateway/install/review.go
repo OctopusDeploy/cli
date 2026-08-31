@@ -2,123 +2,26 @@ package install
 
 import (
 	"context"
-	"errors"
-	"fmt"
 	"strings"
 
 	"github.com/AlecAivazis/survey/v2"
+	"github.com/OctopusDeploy/cli/pkg/cmd/kubernetes/shared"
 	octoK8s "github.com/OctopusDeploy/cli/pkg/kubernetes"
 	"github.com/OctopusDeploy/cli/pkg/kubernetes/argocd"
-	"github.com/OctopusDeploy/cli/pkg/output"
 	"github.com/OctopusDeploy/cli/pkg/question"
 )
 
-type reviewItem struct {
-	Label string
-	Value string
-	// Source distinguishes a detected value from one that was typed.
-	Source string
-	// A nil Edit means the value can only be changed by starting again.
-	Edit func(context.Context, *InstallOptions) error
-}
-
-type reviewGroup struct {
-	Title string
-	Items []reviewItem
-}
-
-// Confirm shows every setting, detected or chosen. Most are worked out rather
-// than asked for, which is the point of the wizard, but it also means nobody
-// sees them unless they are shown.
 func Confirm(ctx context.Context, opts *InstallOptions) error {
-	for {
-		groups := reviewGroups(opts)
-		printReview(opts, groups)
-
-		const (
-			install = "Install"
-			change  = "Change a setting"
-			cancel  = "Cancel"
-		)
-
-		answer := ""
-		if err := opts.Ask(&survey.Select{
-			Message: "Ready to install?",
-			Options: []string{install, change, cancel},
-		}, &answer); err != nil {
-			return err
-		}
-
-		switch answer {
-		case install:
-			return nil
-		case cancel:
-			return errors.New("install cancelled")
-		}
-
-		if err := editSetting(ctx, opts, groups); err != nil {
-			return err
-		}
+	review := &shared.Review{
+		Dependencies: opts.Dependencies,
+		Groups:       func() []shared.Group { return reviewGroups(opts) },
+		Refresh:      opts.resolveNames,
 	}
+	return review.Confirm(ctx)
 }
 
-func editSetting(ctx context.Context, opts *InstallOptions, groups []reviewGroup) error {
-	type editable struct {
-		label string
-		edit  func(context.Context, *InstallOptions) error
-	}
-
-	var choices []editable
-	for _, group := range groups {
-		for _, item := range group.Items {
-			if item.Edit != nil {
-				choices = append(choices, editable{label: group.Title + ": " + item.Label, edit: item.Edit})
-			}
-		}
-	}
-
-	selected, err := question.SelectMap(opts.Ask, "Which setting?", choices,
-		func(e editable) string { return e.label })
-	if err != nil {
-		return err
-	}
-
-	if err := selected.edit(ctx, opts); err != nil {
-		return err
-	}
-
-	// The namespace and release name follow the instance name unless set
-	// explicitly, so they need working out again.
-	return opts.resolveNames()
-}
-
-func printReview(opts *InstallOptions, groups []reviewGroup) {
-	width := 0
-	for _, group := range groups {
-		for _, item := range group.Items {
-			if len(item.Label) > width {
-				width = len(item.Label)
-			}
-		}
-	}
-
-	fmt.Fprintf(opts.Out, "\n%s\n", output.Bold("Review the installation"))
-	for _, group := range groups {
-		fmt.Fprintf(opts.Out, "\n  %s\n", output.Bold(group.Title))
-		for _, item := range group.Items {
-			fmt.Fprintf(opts.Out, "    %-*s  %s", width, item.Label, output.Cyan(item.Value))
-			// An unset value has no source worth claiming.
-			if item.Source != "" && !strings.HasPrefix(item.Value, "(") {
-				fmt.Fprintf(opts.Out, "  %s", output.Dimf("(%s)", item.Source))
-			}
-			fmt.Fprintln(opts.Out)
-		}
-	}
-	fmt.Fprintln(opts.Out)
-}
-
-func reviewGroups(opts *InstallOptions) []reviewGroup {
-	return []reviewGroup{
+func reviewGroups(opts *InstallOptions) []shared.Group {
+	return []shared.Group{
 		{Title: "Cluster", Items: clusterItems(opts)},
 		{Title: "Octopus", Items: octopusItems(opts)},
 		{Title: "Argo CD", Items: argoItems(opts)},
@@ -126,14 +29,14 @@ func reviewGroups(opts *InstallOptions) []reviewGroup {
 	}
 }
 
-func clusterItems(opts *InstallOptions) []reviewItem {
+func clusterItems(opts *InstallOptions) []shared.Item {
 	context := opts.KubeContextInfo
 	source := "current context"
 	if opts.KubeContext.Value != "" && !context.IsCurrent {
 		source = "chosen"
 	}
 
-	return []reviewItem{
+	return []shared.Item{
 		{
 			Label:  "Kubernetes context",
 			Value:  opts.KubeContext.Value,
@@ -145,32 +48,34 @@ func clusterItems(opts *InstallOptions) []reviewItem {
 		{
 			Label:  "Namespace",
 			Value:  opts.TargetNamespace,
-			Source: derivedOrSet(opts.Namespace.Value, "derived from the name"),
-			Edit:   editText(&opts.Namespace.Value, "Namespace to install into", func(o *InstallOptions) string { return o.TargetNamespace }),
+			Source: shared.DerivedOrSet(opts.Namespace.Value, "derived from the name"),
+			Edit: shared.EditText(opts.Ask, &opts.Namespace.Value, "Namespace to install into",
+				func() string { return opts.TargetNamespace }),
 		},
 		{
 			Label:  "Helm release",
 			Value:  opts.TargetRelease,
-			Source: derivedOrSet(opts.ReleaseName.Value, "derived from the name"),
-			Edit:   editText(&opts.ReleaseName.Value, "Helm release name", func(o *InstallOptions) string { return o.TargetRelease }),
+			Source: shared.DerivedOrSet(opts.ReleaseName.Value, "derived from the name"),
+			Edit: shared.EditText(opts.Ask, &opts.ReleaseName.Value, "Helm release name",
+				func() string { return opts.TargetRelease }),
 		},
 	}
 }
 
-func octopusItems(opts *InstallOptions) []reviewItem {
-	return []reviewItem{
+func octopusItems(opts *InstallOptions) []shared.Item {
+	return []shared.Item{
 		{
 			Label: "Name", Value: opts.Name.Value, Source: "chosen",
-			Edit: func(_ context.Context, o *InstallOptions) error {
-				o.Name.Value = ""
-				return question.AskName(o.Ask, "", "Argo CD instance", &o.Name.Value)
+			Edit: func(context.Context) error {
+				opts.Name.Value = ""
+				return question.AskName(opts.Ask, "", "Argo CD instance", &opts.Name.Value)
 			},
 		},
 		{
 			Label: "Environments", Value: strings.Join(opts.Environments.Value, ", "), Source: "chosen",
-			Edit: func(_ context.Context, o *InstallOptions) error {
-				o.Environments.Value = nil
-				return promptForEnvironments(o)
+			Edit: func(context.Context) error {
+				opts.Environments.Value = nil
+				return promptForEnvironments(opts)
 			},
 		},
 		{Label: "Server", Value: opts.Host, Source: "from your login"},
@@ -178,143 +83,130 @@ func octopusItems(opts *InstallOptions) []reviewItem {
 		{Label: "Space", Value: opts.Space.Name, Source: "from your login"},
 		{
 			Label: "gRPC address", Value: opts.OctopusGRPCURL.Value, Source: "derived from the server address",
-			Edit: editText(&opts.OctopusGRPCURL.Value, "Octopus Server gRPC address",
-				func(o *InstallOptions) string { return o.OctopusGRPCURL.Value }),
+			Edit: shared.EditText(opts.Ask, &opts.OctopusGRPCURL.Value, "Octopus Server gRPC address",
+				func() string { return opts.OctopusGRPCURL.Value }),
 		},
 	}
 }
 
-func argoItems(opts *InstallOptions) []reviewItem {
+func argoItems(opts *InstallOptions) []shared.Item {
 	instance := opts.Instance
 
-	items := []reviewItem{
+	items := []shared.Item{
 		{Label: "Instance", Value: instance.Display(), Source: instanceSource(instance)},
 		{
 			Label: "Address", Value: opts.ArgoCDServerGRPCURL.Value, Source: "found in the cluster",
-			Edit: editText(&opts.ArgoCDServerGRPCURL.Value, "Argo CD address",
-				func(o *InstallOptions) string { return o.ArgoCDServerGRPCURL.Value }),
+			Edit: shared.EditText(opts.Ask, &opts.ArgoCDServerGRPCURL.Value, "Argo CD address",
+				func() string { return opts.ArgoCDServerGRPCURL.Value }),
 		},
 		{
 			Label: "Connection", Value: connectionSummary(opts), Source: "matched to the instance",
-			Edit: editConnection,
+			Edit: editConnection(opts),
 		},
 		{
-			Label: "Web UI", Value: orNotSet(opts.ArgoCDWebUIURL.Value), Source: "found in the cluster",
-			Edit: editText(&opts.ArgoCDWebUIURL.Value, "Argo CD web UI address (optional)",
-				func(o *InstallOptions) string { return o.ArgoCDWebUIURL.Value }),
+			Label: "Web UI", Value: shared.OrNotSet(opts.ArgoCDWebUIURL.Value), Source: "found in the cluster",
+			Edit: shared.EditText(opts.Ask, &opts.ArgoCDWebUIURL.Value, "Argo CD web UI address (optional)",
+				func() string { return opts.ArgoCDWebUIURL.Value }),
 		},
 	}
 
 	if instance.IsManaged() {
-		items = append(items, reviewItem{
+		items = append(items, shared.Item{
 			Label:  "Project tokens",
 			Value:  projectTokenSummary(opts),
 			Source: "AWS caps account tokens at 12 hours",
-			Edit: func(_ context.Context, o *InstallOptions) error {
-				o.ArgoCDProjectTokens.Value = nil
-				return promptForProjectTokens(o)
+			Edit: func(context.Context) error {
+				opts.ArgoCDProjectTokens.Value = nil
+				return promptForProjectTokens(opts)
 			},
 		})
 		return items
 	}
 
 	return append(items,
-		reviewItem{
+		shared.Item{
 			Label:  "Account",
 			Value:  opts.ArgoCDAccountName.Value,
 			Source: accountSource(opts),
 		},
-		reviewItem{
+		shared.Item{
 			Label:  "Token",
-			Value:  maskedToken(opts.ArgoCDToken.Value),
+			Value:  shared.Masked(opts.ArgoCDToken.Value),
 			Source: tokenSource(opts),
-			Edit: func(_ context.Context, o *InstallOptions) error {
-				o.ArgoCDToken.Value = ""
-				return askForTokenValue(o)
+			Edit: func(context.Context) error {
+				opts.ArgoCDToken.Value = ""
+				return askForTokenValue(opts)
 			},
 		},
 	)
 }
 
-func helmItems(opts *InstallOptions) []reviewItem {
-	return []reviewItem{
+func helmItems(opts *InstallOptions) []shared.Item {
+	return []shared.Item{
 		{
 			Label: "Chart", Value: ChartRef.Ref, Source: "",
 		},
 		{
-			Label: "Chart version", Value: orDefault(opts.ChartVersion.Value, "latest"), Source: "",
-			Edit: editText(&opts.ChartVersion.Value, "Chart version (blank for the latest)",
-				func(o *InstallOptions) string { return o.ChartVersion.Value }),
+			Label: "Chart version", Value: shared.OrDefault(opts.ChartVersion.Value, "latest"), Source: "",
+			Edit: shared.EditText(opts.Ask, &opts.ChartVersion.Value, "Chart version (blank for the latest)",
+				func() string { return opts.ChartVersion.Value }),
 		},
 		{
 			Label: "Credentials", Value: credentialPlacement(opts), Source: "",
-			Edit: func(_ context.Context, o *InstallOptions) error {
-				return o.Ask(&survey.Confirm{
-					Message: "Put credentials directly in the Helm values instead of Kubernetes Secrets?",
-					Default: o.InlineSecrets.Value,
-					Help:    "Secrets keep credentials out of the Helm release and out of any file written with --output-values.",
-				}, &o.InlineSecrets.Value)
-			},
+			Edit: shared.EditConfirm(opts.Ask, &opts.InlineSecrets.Value,
+				"Put credentials directly in the Helm values instead of Kubernetes Secrets?",
+				"Secrets keep credentials out of the Helm release and out of any file written with --output-values."),
 		},
 		{
-			Label: "Timeout", Value: orDefault(opts.Timeout.Value, octoK8s.DefaultTimeout.String()), Source: "",
-			Edit: editText(&opts.Timeout.Value, "How long to wait for the release to become ready",
-				func(o *InstallOptions) string { return o.Timeout.Value }),
+			Label: "Timeout", Value: shared.OrDefault(opts.Timeout.Value, octoK8s.DefaultTimeout.String()), Source: "",
+			Edit: shared.EditText(opts.Ask, &opts.Timeout.Value, "How long to wait for the release to become ready",
+				func() string { return opts.Timeout.Value }),
 		},
-	}
-}
-
-func editText(target *string, message string, current func(*InstallOptions) string) func(context.Context, *InstallOptions) error {
-	return func(_ context.Context, o *InstallOptions) error {
-		value := current(o)
-		if err := o.Ask(&survey.Input{Message: message, Default: value}, &value); err != nil {
-			return err
-		}
-		*target = strings.TrimSpace(value)
-		return nil
 	}
 }
 
 // editConnection covers the three settings that are the documented cause of a
 // gateway that installs and then never connects.
-func editConnection(_ context.Context, o *InstallOptions) error {
-	const (
-		plaintext = "Argo CD is served without TLS"
-		selfSign  = "Argo CD uses a certificate that is not publicly trusted"
-		grpcWeb   = "Tunnel gRPC over HTTP/1.1 (needed when a load balancer has no HTTP/2)"
-	)
+func editConnection(opts *InstallOptions) func(context.Context) error {
+	return func(context.Context) error {
+		const (
+			plaintext = "Argo CD is served without TLS"
+			selfSign  = "Argo CD uses a certificate that is not publicly trusted"
+			grpcWeb   = "Tunnel gRPC over HTTP/1.1 (needed when a load balancer has no HTTP/2)"
+		)
 
-	var current []string
-	if o.Instance.Plaintext {
-		current = append(current, plaintext)
-	}
-	if o.Instance.SelfSignedTLS {
-		current = append(current, selfSign)
-	}
-	if o.useGRPCWeb() {
-		current = append(current, grpcWeb)
-	}
+		var current []string
+		if opts.Instance.Plaintext {
+			current = append(current, plaintext)
+		}
+		if opts.Instance.SelfSignedTLS {
+			current = append(current, selfSign)
+		}
+		if opts.useGRPCWeb() {
+			current = append(current, grpcWeb)
+		}
 
-	var chosen []string
-	prompt := &survey.MultiSelect{
-		Message: "How does the gateway reach Argo CD?",
-		Options: []string{plaintext, selfSign, grpcWeb},
-		Default: current,
-	}
-	if err := o.Ask(prompt, &chosen); err != nil {
-		return err
-	}
+		var chosen []string
+		prompt := &survey.MultiSelect{
+			Message: "How does the gateway reach Argo CD?",
+			Options: []string{plaintext, selfSign, grpcWeb},
+			Default: current,
+		}
+		if err := opts.Ask(prompt, &chosen); err != nil {
+			return err
+		}
 
-	selected := map[string]bool{}
-	for _, c := range chosen {
-		selected[c] = true
-	}
+		selected := map[string]bool{}
+		for _, c := range chosen {
+			selected[c] = true
+		}
 
-	o.Instance.Plaintext = selected[plaintext]
-	o.Instance.SelfSignedTLS = selected[selfSign]
-	o.Instance.GRPCWeb = selected[grpcWeb]
-	o.ArgoCDGRPCWeb.Value = selected[grpcWeb]
-	return nil
+		opts.Instance.Plaintext = selected[plaintext]
+		opts.Instance.SelfSignedTLS = selected[selfSign]
+		opts.Instance.GRPCWeb = selected[grpcWeb]
+		opts.ArgoCDGRPCWeb.Value = selected[grpcWeb]
+		return nil
+	}
 }
 
 func connectionSummary(opts *InstallOptions) string {
@@ -355,7 +247,7 @@ func tokenSource(opts *InstallOptions) string {
 
 func projectTokenSummary(opts *InstallOptions) string {
 	tokens, err := opts.ProjectTokens()
-	if err != nil || len(tokens) == 0 {
+	if err != nil {
 		return "(none)"
 	}
 
@@ -363,7 +255,7 @@ func projectTokenSummary(opts *InstallOptions) string {
 	for _, t := range tokens {
 		projects = append(projects, t.Project)
 	}
-	return strings.Join(projects, ", ")
+	return shared.OrNone(projects)
 }
 
 func credentialPlacement(opts *InstallOptions) string {
@@ -373,32 +265,7 @@ func credentialPlacement(opts *InstallOptions) string {
 	return "Argo CD token in a Kubernetes Secret"
 }
 
-func maskedToken(token string) string {
-	if token == "" {
-		return "(not set)"
-	}
-	return "***"
-}
-
-func derivedOrSet(explicit, derivedDescription string) string {
-	if explicit != "" {
-		return "set"
-	}
-	return derivedDescription
-}
-
-func orNotSet(value string) string {
-	return orDefault(value, "(not set)")
-}
-
-func orDefault(value, fallback string) string {
-	if strings.TrimSpace(value) == "" {
-		return fallback
-	}
-	return value
-}
-
 func RenderReviewForDemo(opts *InstallOptions) {
 	_ = opts.resolveNames()
-	printReview(opts, reviewGroups(opts))
+	shared.PrintReview(opts.Out, reviewGroups(opts))
 }

@@ -4,11 +4,13 @@ import (
 	"context"
 	"fmt"
 	"sort"
+	"strings"
 	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
 	authzv1 "k8s.io/api/authorization/v1"
 	corev1 "k8s.io/api/core/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -307,4 +309,272 @@ func (c *Cluster) RestartDeployment(ctx context.Context, namespace, name string)
 		return fmt.Errorf("could not restart deployment %s/%s: %w", namespace, name, err)
 	}
 	return nil
+}
+
+// HasAPIResource reports whether a CRD-backed resource is served by this
+// cluster. Components detect each other this way rather than by looking for a
+// Helm release, because a release can be named anything.
+func (c *Cluster) HasAPIResource(group, resource string) (bool, error) {
+	discovery := c.Clientset.Discovery()
+
+	groups, err := discovery.ServerGroups()
+	if err != nil {
+		return false, fmt.Errorf("could not list the API groups this cluster serves: %w", err)
+	}
+
+	for _, g := range groups.Groups {
+		if g.Name != group {
+			continue
+		}
+		for _, version := range g.Versions {
+			list, err := discovery.ServerResourcesForGroupVersion(version.GroupVersion)
+			if err != nil {
+				// A group can advertise a version whose resources cannot be
+				// listed, usually an aggregated API server that is down. Other
+				// versions may still answer.
+				continue
+			}
+			for _, r := range list.APIResources {
+				if r.Name == resource {
+					return true, nil
+				}
+			}
+		}
+	}
+	return false, nil
+}
+
+// StorageClass is what an installer needs to know to choose where a component's
+// volume comes from.
+type StorageClass struct {
+	Name        string
+	Provisioner string
+	IsDefault   bool
+}
+
+// readWriteManyProvisioners serve a shared filesystem, so many pods on many
+// nodes can mount the same volume. Everything else provisions a block device
+// that only one node can mount at a time.
+//
+// The Kubernetes API does not report which access modes a storage class
+// supports, and this is the only signal it does give. An unrecognised
+// provisioner is treated as one node at a time, because that costs nothing but
+// node affinity, where guessing the other way leaves a volume that never binds.
+var readWriteManyProvisioners = map[string]bool{
+	"efs.csi.aws.com":                             true, // AWS EFS
+	"filestore.csi.storage.gke.io":                true, // Google Filestore
+	"file.csi.azure.com":                          true, // Azure Files
+	"kubernetes.io/azure-file":                    true,
+	"nfs.csi.k8s.io":                              true,
+	"smb.csi.k8s.io":                              true,
+	"cephfs.csi.ceph.com":                         true,
+	"rook-ceph.cephfs.csi.ceph.com":               true,
+	"openebs.io/nfsrwx":                           true,
+	"nfs.openebs.io":                              true,
+	"k8s-sigs.io/nfs-subdir-external-provisioner": true,
+}
+
+// SupportsReadWriteMany reports whether a volume from this class can be mounted
+// by pods on more than one node.
+func (s StorageClass) SupportsReadWriteMany() bool {
+	return readWriteManyProvisioners[s.Provisioner]
+}
+
+func (s StorageClass) Display() string {
+	if s.IsDefault {
+		return fmt.Sprintf("%s (cluster default, %s)", s.Name, s.Provisioner)
+	}
+	return fmt.Sprintf("%s (%s)", s.Name, s.Provisioner)
+}
+
+// StorageClasses is advisory, so a cluster that will not let the caller list
+// them reports none rather than failing.
+func (c *Cluster) StorageClasses(ctx context.Context) ([]StorageClass, error) {
+	list, err := c.Clientset.StorageV1().StorageClasses().List(ctx, metav1.ListOptions{})
+	if err != nil {
+		if apierrors.IsForbidden(err) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("could not list the cluster's storage classes: %w", err)
+	}
+
+	classes := make([]StorageClass, 0, len(list.Items))
+	for _, item := range list.Items {
+		classes = append(classes, StorageClass{
+			Name:        item.Name,
+			Provisioner: item.Provisioner,
+			IsDefault:   item.Annotations["storageclass.kubernetes.io/is-default-class"] == "true",
+		})
+	}
+
+	sort.Slice(classes, func(i, j int) bool {
+		if classes[i].IsDefault != classes[j].IsDefault {
+			return classes[i].IsDefault
+		}
+		return classes[i].Name < classes[j].Name
+	})
+	return classes, nil
+}
+
+// Role is an existing role whose rules can be copied into a component's own
+// role. Namespace is empty for a cluster role.
+type Role struct {
+	Name      string
+	Namespace string
+	Rules     []rbacv1.PolicyRule
+}
+
+func (r Role) IsClusterScoped() bool { return r.Namespace == "" }
+
+// Reference is how a role is named on a command line: a bare name for a cluster
+// role, and namespace/name for one that lives in a namespace.
+func (r Role) Reference() string {
+	if r.IsClusterScoped() {
+		return r.Name
+	}
+	return r.Namespace + "/" + r.Name
+}
+
+// GrantsEverything reports an unrestricted role, which is worth saying out loud
+// before somebody copies it expecting to have restricted something.
+func (r Role) GrantsEverything() bool {
+	for _, rule := range r.Rules {
+		if contains(rule.Verbs, "*") && contains(rule.APIGroups, "*") && contains(rule.Resources, "*") {
+			return true
+		}
+	}
+	return false
+}
+
+func (r Role) Display() string {
+	kind := "role"
+	if r.IsClusterScoped() {
+		kind = "cluster role"
+	}
+
+	if r.GrantsEverything() {
+		return fmt.Sprintf("%s (%s, full access to the cluster)", r.Reference(), kind)
+	}
+	return fmt.Sprintf("%s (%s, %d %s)", r.Reference(), kind, len(r.Rules), Pluralise("rule", "rules", len(r.Rules)))
+}
+
+// Roles lists the roles worth offering to copy, cluster-scoped ones first.
+// Kubernetes ships around seventy of its own, all prefixed system:, and the
+// kube- namespaces hold the control plane's, none of which is what anybody is
+// looking for here.
+func (c *Cluster) Roles(ctx context.Context) ([]Role, error) {
+	clusterRoles, err := c.Clientset.RbacV1().ClusterRoles().List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("could not list the cluster's roles: %w", err)
+	}
+
+	roles := make([]Role, 0, len(clusterRoles.Items))
+	for _, item := range clusterRoles.Items {
+		if strings.HasPrefix(item.Name, "system:") {
+			continue
+		}
+		roles = append(roles, Role{Name: item.Name, Rules: item.Rules})
+	}
+
+	namespaced, err := c.Clientset.RbacV1().Roles(metav1.NamespaceAll).List(ctx, metav1.ListOptions{})
+	if err != nil {
+		// A credential that can read cluster roles but not namespaced ones still
+		// has something to offer.
+		if !apierrors.IsForbidden(err) {
+			return nil, fmt.Errorf("could not list the cluster's roles: %w", err)
+		}
+	} else {
+		for _, item := range namespaced.Items {
+			if strings.HasPrefix(item.Namespace, "kube-") || strings.HasPrefix(item.Name, "system:") {
+				continue
+			}
+			roles = append(roles, Role{Name: item.Name, Namespace: item.Namespace, Rules: item.Rules})
+		}
+	}
+
+	sort.Slice(roles, func(i, j int) bool {
+		if roles[i].IsClusterScoped() != roles[j].IsClusterScoped() {
+			return roles[i].IsClusterScoped()
+		}
+		return roles[i].Reference() < roles[j].Reference()
+	})
+	return roles, nil
+}
+
+// FindRole reads one role by the reference a command line gives it.
+func (c *Cluster) FindRole(ctx context.Context, reference string) (Role, error) {
+	namespace, name, namespaced := strings.Cut(strings.TrimSpace(reference), "/")
+	if !namespaced {
+		role, err := c.Clientset.RbacV1().ClusterRoles().Get(ctx, namespace, metav1.GetOptions{})
+		if err != nil {
+			if apierrors.IsNotFound(err) {
+				return Role{}, fmt.Errorf("this cluster has no cluster role named %q. Name a role in a namespace as namespace/name", reference)
+			}
+			return Role{}, fmt.Errorf("could not read cluster role %q: %w", reference, err)
+		}
+		return Role{Name: role.Name, Rules: role.Rules}, nil
+	}
+
+	role, err := c.Clientset.RbacV1().Roles(namespace).Get(ctx, name, metav1.GetOptions{})
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			return Role{}, fmt.Errorf("namespace %s has no role named %q", namespace, name)
+		}
+		return Role{}, fmt.Errorf("could not read role %q: %w", reference, err)
+	}
+	return Role{Name: role.Name, Namespace: role.Namespace, Rules: role.Rules}, nil
+}
+
+// MergePolicyRules gathers the rules of several roles into one list. RBAC is
+// additive, so a workload given all of them ends up with the union; exact
+// duplicates only make the result harder to read.
+func MergePolicyRules(roles []Role) []any {
+	merged := make([]any, 0)
+	seen := map[string]bool{}
+
+	for _, role := range roles {
+		for _, value := range PolicyRuleValues(role.Rules) {
+			key := fmt.Sprint(value)
+			if seen[key] {
+				continue
+			}
+			seen[key] = true
+			merged = append(merged, value)
+		}
+	}
+	return merged
+}
+
+// PolicyRuleValues converts RBAC rules into the plain maps a Helm value has to
+// be. The chart checks the value is a list and renders it with toYaml, neither
+// of which a typed struct survives.
+func PolicyRuleValues(rules []rbacv1.PolicyRule) []any {
+	values := make([]any, 0, len(rules))
+	for _, rule := range rules {
+		value := map[string]any{}
+		addStrings(value, "apiGroups", rule.APIGroups)
+		addStrings(value, "resources", rule.Resources)
+		addStrings(value, "resourceNames", rule.ResourceNames)
+		addStrings(value, "nonResourceURLs", rule.NonResourceURLs)
+		addStrings(value, "verbs", rule.Verbs)
+		if len(value) > 0 {
+			values = append(values, value)
+		}
+	}
+	return values
+}
+
+func addStrings(value map[string]any, key string, values []string) {
+	if len(values) > 0 {
+		value[key] = values
+	}
+}
+
+func contains(values []string, wanted string) bool {
+	for _, value := range values {
+		if value == wanted {
+			return true
+		}
+	}
+	return false
 }
