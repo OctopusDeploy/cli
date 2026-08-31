@@ -482,10 +482,19 @@ func buildReleasePreview(octopus *octopusApiClient.Client, space *spaces.Space, 
 	preview.Channel = channel.Name
 
 	gitReferenceKey := ""
-	if resolvedProject.PersistenceSettings.Type() == projects.PersistenceSettingsTypeVersionControlled {
+	if resolvedProject.PersistenceSettings != nil && resolvedProject.PersistenceSettings.Type() == projects.PersistenceSettingsTypeVersionControlled {
 		gitReferenceKey = options.GitReference
 		if options.GitCommit != "" { // prefer a specific git commit if one was specified
 			gitReferenceKey = options.GitCommit
+		}
+		if gitReferenceKey == "" {
+			// DeploymentProcesses.Get falls back to the default branch for us, but
+			// GetDeploymentSettings doesn't: for a config-as-code project its link is
+			// git-templated, and expanding it without a gitRef produces a bad path. Pin the
+			// ref here so the process template and the deployment settings agree, too.
+			if gitSettings, ok := resolvedProject.PersistenceSettings.(projects.GitPersistenceSettings); ok {
+				gitReferenceKey = gitSettings.DefaultBranch()
+			}
 		}
 	}
 
