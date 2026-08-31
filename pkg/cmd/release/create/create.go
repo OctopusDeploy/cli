@@ -609,6 +609,11 @@ func printReleasePreview(cmd *cobra.Command, preview *ReleasePreview, outputForm
 		if err := t.Print(); err != nil {
 			return err
 		}
+		if preview.IgnoreChannelRules {
+			// the baseline is always resolved with the channel's version rules applied, but the
+			// real create is told to ignore them, so the server may land on different versions
+			cmd.Printf("%s\n", output.Dim("Note: resolved using the channel's version rules; --ignore-channel-rules means the server may pick different versions."))
+		}
 	} else if len(preview.PackageOverrides) > 0 {
 		cmd.Printf("\nPackage overrides:\n")
 		for _, ov := range preview.PackageOverrides {
