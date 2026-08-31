@@ -6,6 +6,7 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/cmd/project/shared"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/factory"
+	"github.com/OctopusDeploy/cli/pkg/lookups"
 	"github.com/OctopusDeploy/cli/pkg/output"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
 	"github.com/spf13/cobra"
@@ -61,8 +62,8 @@ func listRun(cmd *cobra.Command, f factory.Factory) error {
 	// output only prints names, so don't pay for the round trips there.
 	var lifecycleMap, projectGroupMap map[string]string
 	if output.ResolveOutputFormat(cmd) != constants.OutputFormatBasic {
-		lifecycleMap = shared.GetLifecycleMap(client)
-		projectGroupMap = shared.GetProjectGroupMap(client)
+		lifecycleMap = lookups.GetLifecycleMap(client)
+		projectGroupMap = lookups.GetProjectGroupMap(client)
 	}
 
 	return output.PrintArray(allProjects, cmd, output.Mappers[*projects.Project]{
@@ -89,8 +90,8 @@ func listRun(cmd *cobra.Command, f factory.Factory) error {
 				return []string{
 					output.Bold(p.Name),
 					p.Slug,
-					shared.DisplayName(p.ProjectGroupID, projectGroupMap[p.ProjectGroupID]),
-					shared.DisplayName(p.LifecycleID, lifecycleMap[p.LifecycleID]),
+					lookups.DisplayName(p.ProjectGroupID, projectGroupMap[p.ProjectGroupID]),
+					lookups.DisplayName(p.LifecycleID, lifecycleMap[p.LifecycleID]),
 					p.Description,
 					output.FormatAsList(p.ProjectTags),
 				}
