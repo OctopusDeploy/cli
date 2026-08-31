@@ -162,6 +162,19 @@ func TestProxySettings_ProxyFuncRejectsAnInvalidProxyUrl(t *testing.T) {
 	assert.ErrorContains(t, err, "invalid proxy url")
 }
 
+// The error goes to the terminal (and CI logs), so it must not repeat the password
+// back - neither from the raw string nor from url.Parse's own *url.Error message.
+func TestProxySettings_ProxyFuncDoesNotEchoThePasswordOfAnInvalidProxyUrl(t *testing.T) {
+	clearProxyEnvironment(t)
+
+	_, err := apiclient.ProxySettings{Url: "http://octo:s3cret@%zz:3128"}.ProxyFunc()
+
+	if assert.ErrorContains(t, err, "invalid proxy url") {
+		assert.NotContains(t, err.Error(), "s3cret")
+		assert.Contains(t, err.Error(), "octo:xxxxx@")
+	}
+}
+
 func TestProxySettingsFromConfig(t *testing.T) {
 	clearProxyEnvironment(t)
 	t.Setenv(constants.EnvOctopusProxyUsername, "octo")
