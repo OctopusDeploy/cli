@@ -120,6 +120,14 @@ func NewClientFactoryFromConfig(ask question.AskProvider) (ClientFactory, error)
 		return nil, errs
 	}
 
+	// insecureSkipVerify is hardcoded true to preserve the behaviour this replaced,
+	// which set InsecureSkipVerify on the shared http.DefaultTransport: the CLI has
+	// never verified the Octopus server certificate, so --ignore-ssl-errors is
+	// effectively always on. That is a pre-existing security bug rather than
+	// something this proxy work introduces, and turning it off would break every
+	// user with a self-signed certificate, so it needs its own change with a way to
+	// opt out. Tracked separately; the setting is a parameter now so plumbing the
+	// real value through is all that is left.
 	transport, err := NewHttpTransport(ProxySettingsFromConfig(), true)
 	if err != nil {
 		return nil, err
