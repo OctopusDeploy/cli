@@ -11,6 +11,7 @@ var CommunicationStyleToDescriptionMap = map[string]string{
 	"Kubernetes":                "Kubernetes Cluster",
 	"None":                      "Cloud Region",
 	"StepPackage":               "Step Package",
+	"AwsEcsCluster":             "AWS ECS Cluster",
 }
 
 var CommunicationStyleToDeploymentTargetTypeMap = map[string]string{

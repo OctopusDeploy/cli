@@ -43,22 +43,43 @@ const ecsTargetJson = `{
   }
 }`
 
-// If this fails because the SDK learned to deserialise "AwsEcsCluster", the
-// unknown-type fallbacks below can start reporting real detail.
-func TestEcsTargetDeserialisesWithoutAnEndpoint(t *testing.T) {
+// The #604 crash was a nil endpoint reaching code that dereferenced it. The SDK
+// types ECS endpoints now, so this stands in for any target it still cannot.
+const endpointlessTargetJson = `{
+  "Id": "Machines-1042",
+  "Name": "no endpoint",
+  "SpaceId": "Spaces-1",
+  "EnvironmentIds": ["Environments-1"],
+  "Roles": ["unknown"]
+}`
+
+func TestEcsTargetDeserialisesIntoAnEcsEndpoint(t *testing.T) {
 	target := parseTarget(t, ecsTargetJson)
 
-	assert.True(t, machines.IsNil(target.Endpoint), "expected the SDK to leave the endpoint nil for an AwsEcsCluster target")
+	endpoint, ok := target.Endpoint.(*machines.AwsEcsClusterEndpoint)
+	require.True(t, ok, "expected the SDK to deserialise an AwsEcsCluster endpoint")
+	assert.Equal(t, "repro-604-cluster", endpoint.ClusterName)
+	assert.Equal(t, "ap-southeast-2", endpoint.Region)
+	assert.Equal(t, "WorkerPools-1", endpoint.GetDefaultWorkerPoolID())
 }
 
 func TestGetEndpointDetails_EndpointMissing(t *testing.T) {
-	target := parseTarget(t, ecsTargetJson)
+	target := parseTarget(t, endpointlessTargetJson)
 
 	var details map[string]string
 	assert.NotPanics(t, func() {
 		details = shared.GetEndpointDetails(target)
 	})
 	assert.Empty(t, details)
+}
+
+func TestGetEndpointDetails_EcsEndpoint(t *testing.T) {
+	target := parseTarget(t, ecsTargetJson)
+
+	details := shared.GetEndpointDetails(target)
+
+	assert.Equal(t, "repro-604-cluster", details["Cluster"])
+	assert.Equal(t, "ap-southeast-2", details["Region"])
 }
 
 func TestGetEndpointDetails_KnownEndpoint(t *testing.T) {
@@ -85,11 +106,19 @@ func TestGetEndpointDetails_TentacleNeverHealthChecked(t *testing.T) {
 }
 
 func TestResolveDefaultWorkerPool_EndpointMissing(t *testing.T) {
-	target := parseTarget(t, ecsTargetJson)
+	target := parseTarget(t, endpointlessTargetJson)
 
 	assert.NotPanics(t, func() {
 		assert.Equal(t, "N/A", shared.ResolveDefaultWorkerPool(target, map[string]string{}, "None"))
 	})
+}
+
+func TestResolveDefaultWorkerPool_EcsEndpoint(t *testing.T) {
+	target := parseTarget(t, ecsTargetJson)
+
+	workerPools := map[string]string{"WorkerPools-1": "Default Worker Pool"}
+
+	assert.Equal(t, "Default Worker Pool", shared.ResolveDefaultWorkerPool(target, workerPools, "None"))
 }
 
 func parseTarget(t *testing.T, payload string) *machines.DeploymentTarget {
