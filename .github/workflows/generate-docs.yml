@@ -21,7 +21,11 @@ on:
 env:
   DOCS_TOKEN: ${{ secrets.DOCS_TOKEN }}
   TARGET_REPOSITORY: OctopusDeploy/docs
-  TARGET_DIRECTORY: src/pages/docs/octopus-rest-api/cli
+  # The command pages. _generated is the docs repo's convention for a folder a
+  # generator owns outright, served from the folder above it by an Astro route.
+  TARGET_DIRECTORY: src/pages/docs/cli/_generated
+  # The rows the hand-written overview page at /docs/cli imports.
+  COMMAND_LIST_PATH: src/shared-content/cli/commands.include.md
   # Always sync to the same branch in case there's already an open PR, in which case it'll be updated
   SYNC_BRANCH: cli-docs-sync
   PR_LABEL: cli-docs-sync
@@ -56,7 +60,13 @@ jobs:
 
       - name: Generate cli docs
         working-directory: cli
-        run: mkdir -p ../docs/$TARGET_DIRECTORY && go run cmd/gen-docs/main.go --website --doc-path ../docs/$TARGET_DIRECTORY --relative-base-path /docs/octopus-rest-api/cli
+        run: |
+          mkdir -p ../docs/$TARGET_DIRECTORY
+          go run cmd/gen-docs/main.go \
+            --website \
+            --doc-path ../docs/$TARGET_DIRECTORY \
+            --command-list-path ../docs/$COMMAND_LIST_PATH \
+            --relative-base-path /docs/cli
 
       - name: Commit and push
         id: commit
@@ -69,10 +79,10 @@ jobs:
           git config user.email 'bob@octopus.com'
           git config user.name octobob
 
-          git add --all -- "$TARGET_DIRECTORY"
+          git add --all -- "$TARGET_DIRECTORY" "$COMMAND_LIST_PATH"
 
-          # Safety net: only the target folder should have been touched
-          unexpected_changes="$(git diff --cached --name-only -- . ":(exclude)$TARGET_DIRECTORY")"
+          # Safety net: only the generated files should have been touched
+          unexpected_changes="$(git diff --cached --name-only -- . ":(exclude)$TARGET_DIRECTORY" ":(exclude)$COMMAND_LIST_PATH")"
           if [ -n "$unexpected_changes" ]; then
             echo "Found unexpected staged changes, aborting" >&2
             echo "$unexpected_changes" >&2

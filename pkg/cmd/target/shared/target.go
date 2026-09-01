@@ -54,6 +54,11 @@ func GetEndpointDetails(target *machines.DeploymentTarget) map[string]string {
 			}
 			details["Web App"] = webApp
 		}
+	case "AwsEcsCluster":
+		if endpoint, ok := target.Endpoint.(*machines.AwsEcsClusterEndpoint); ok {
+			details["Cluster"] = endpoint.ClusterName
+			details["Region"] = endpoint.Region
+		}
 	case "Kubernetes":
 		if endpoint, ok := target.Endpoint.(*machines.KubernetesEndpoint); ok {
 			details["Authentication Type"] = endpoint.Authentication.GetAuthenticationType()
