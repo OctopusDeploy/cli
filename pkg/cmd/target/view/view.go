@@ -176,6 +176,8 @@ func getTargetTypeDisplayName(communicationStyle string) string {
 		return "Kubernetes"
 	case "StepPackage":
 		return "Step Package"
+	case "AwsEcsCluster":
+		return "AWS ECS Cluster"
 	case "":
 		return machinescommon.UnknownValue
 	default:

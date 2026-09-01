@@ -16,12 +16,22 @@ func TestDescribeTargetType_KnownStyle(t *testing.T) {
 	assert.Equal(t, "Listening Tentacle", describeTargetType(target))
 }
 
-func TestDescribeTargetType_EndpointMissing(t *testing.T) {
+func TestDescribeTargetType_EcsCluster(t *testing.T) {
 	target := &machines.DeploymentTarget{}
 	require.NoError(t, json.Unmarshal([]byte(`{
 		"Id": "Machines-1041",
 		"Name": "aws ecs",
 		"Endpoint": { "CommunicationStyle": "AwsEcsCluster", "ClusterName": "repro-604-cluster" }
+	}`), target))
+
+	assert.Equal(t, "AWS ECS Cluster", describeTargetType(target))
+}
+
+func TestDescribeTargetType_EndpointMissing(t *testing.T) {
+	target := &machines.DeploymentTarget{}
+	require.NoError(t, json.Unmarshal([]byte(`{
+		"Id": "Machines-1042",
+		"Name": "no endpoint"
 	}`), target))
 
 	assert.NotPanics(t, func() {

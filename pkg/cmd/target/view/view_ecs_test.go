@@ -31,7 +31,7 @@ func newRootResourceWithInfrastructureLinks() *octopusApiClient.RootResource {
 	return root
 }
 
-// Sent verbatim: the SDK has no type that can represent an ECS endpoint.
+// Sent verbatim so the SDK does the deserialising the CLI relies on.
 var ecsTargetResponse = json.RawMessage(`{
   "Id": "Machines-1041",
   "Name": "aws ecs",
@@ -90,7 +90,10 @@ func TestViewEcsTarget_DoesNotPanic(t *testing.T) {
 	assert.Contains(t, output, "Healthy")
 	assert.Contains(t, output, "Environments: Development")
 	assert.Contains(t, output, "Roles: ecs")
-	assert.Contains(t, output, "Type: Unknown")
+	assert.Contains(t, output, "AWS ECS Cluster")
+	assert.Contains(t, output, "Cluster: repro-604-cluster")
+	assert.Contains(t, output, "Region: ap-southeast-2")
+	assert.Contains(t, output, "Default Worker Pool: Windows Pool")
 }
 
 func TestViewEcsTarget_Json(t *testing.T) {
@@ -117,7 +120,9 @@ func TestViewEcsTarget_Json(t *testing.T) {
 	assert.Equal(t, "aws ecs", result["Name"])
 	assert.Equal(t, "Machines-1041", result["Id"])
 	assert.Equal(t, []any{"Development"}, result["Environments"])
-	assert.Equal(t, "", result["CommunicationStyle"])
+	assert.Equal(t, "AwsEcsCluster", result["CommunicationStyle"])
+	assert.Equal(t, "WorkerPools-1", result["DefaultWorkerPool"])
+	assert.Equal(t, map[string]any{"Cluster": "repro-604-cluster", "Region": "ap-southeast-2"}, result["EndpointDetails"])
 }
 
 func setupViewCommand(t *testing.T) (*testutil.MockHttpServer, *cobra.Command, *bytes.Buffer) {
@@ -151,5 +156,7 @@ func expectEnvironmentRequest(t *testing.T, api *testutil.MockHttpServer) {
 func expectWorkerPoolRequest(t *testing.T, api *testutil.MockHttpServer) {
 	t.Helper()
 
-	api.ExpectRequest(t, "GET", "/api/Spaces-1/workerpools/all").RespondWith([]*workerpools.WorkerPoolListResult{})
+	pool := &workerpools.WorkerPoolListResult{ID: "WorkerPools-1", Name: "Windows Pool"}
+
+	api.ExpectRequest(t, "GET", "/api/Spaces-1/workerpools/all").RespondWith([]*workerpools.WorkerPoolListResult{pool})
 }
