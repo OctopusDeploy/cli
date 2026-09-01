@@ -274,7 +274,7 @@ func TestRunbookRun_AutomationMode(t *testing.T) {
 			assert.Equal(t, "", stdErr.String())
 		}},
 
-		{"release deploy specifying all the args", func(t *testing.T, api *testutil.MockHttpServer, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
+		{"runbook run specifying all the args", func(t *testing.T, api *testutil.MockHttpServer, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
 			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
 				defer api.Close()
 				rootCmd.SetArgs([]string{
@@ -291,6 +291,8 @@ func TestRunbookRun_AutomationMode(t *testing.T) {
 					"--force-package-download",
 					"--target", "firstMachine", "--target", "secondMachine",
 					"--exclude-target", "thirdMachine",
+					"--specific-target-tag", "Role/RunbookServer", "--specific-target-tag", "Environment/Production",
+					"--excluded-target-tag", "Role/Database", "--excluded-target-tag", "Maintenance/True",
 					"--variable", "Approver:John", "--variable", "Signoff:Jane",
 					"--output-format", "basic",
 				})
@@ -311,16 +313,18 @@ func TestRunbookRun_AutomationMode(t *testing.T) {
 				EnvironmentNames: []string{"dev", "test"},
 				Snapshot:         "Snapshot FWKMLUX",
 				CreateExecutionAbstractCommandV1: deployments.CreateExecutionAbstractCommandV1{
-					SpaceID:              "Spaces-1",
-					ProjectIDOrName:      fireProject.Name,
-					ForcePackageDownload: true,
-					SpecificMachineNames: []string{"firstMachine", "secondMachine"},
-					ExcludedMachineNames: []string{"thirdMachine"},
-					SkipStepNames:        []string{"Install", "Cleanup"},
-					UseGuidedFailure:     &trueVar,
-					Priority:             "On",
-					RunAt:                "2022-09-10 13:32:03 +10:00",
-					NoRunAfter:           "2022-09-10 13:37:03 +10:00",
+					SpaceID:                "Spaces-1",
+					ProjectIDOrName:        fireProject.Name,
+					ForcePackageDownload:   true,
+					SpecificMachineNames:   []string{"firstMachine", "secondMachine"},
+					ExcludedMachineNames:   []string{"thirdMachine"},
+					SpecificTargetTagNames: []string{"Role/RunbookServer", "Environment/Production"},
+					ExcludedTargetTagNames: []string{"Role/Database", "Maintenance/True"},
+					SkipStepNames:          []string{"Install", "Cleanup"},
+					UseGuidedFailure:       &trueVar,
+					Priority:               "On",
+					RunAt:                  "2022-09-10 13:32:03 +10:00",
+					NoRunAfter:             "2022-09-10 13:37:03 +10:00",
 					Variables: map[string]string{
 						"Approver": "John",
 						"Signoff":  "Jane",
@@ -625,7 +629,7 @@ func TestGitRunbookRun_AutomationMode(t *testing.T) {
 			assert.Equal(t, "", stdErr.String())
 		}},
 
-		{"runbook run specifying all the args", func(t *testing.T, api *testutil.MockHttpServer, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
+		{"git runbook run specifying all the args", func(t *testing.T, api *testutil.MockHttpServer, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
 			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
 				defer api.Close()
 				rootCmd.SetArgs([]string{
@@ -642,6 +646,8 @@ func TestGitRunbookRun_AutomationMode(t *testing.T) {
 					"--force-package-download",
 					"--target", "firstMachine", "--target", "secondMachine",
 					"--exclude-target", "thirdMachine",
+					"--specific-target-tag", "Role/GitRunner", "--specific-target-tag", "Version/Latest",
+					"--excluded-target-tag", "Role/Legacy",
 					"--variable", "Approver:John", "--variable", "Signoff:Jane",
 					"--package-version", "1.2.0",
 					"--package", "APackageStep:1.5.0",
@@ -665,16 +671,18 @@ func TestGitRunbookRun_AutomationMode(t *testing.T) {
 				EnvironmentNames: []string{"dev", "test"},
 				GitRef:           "main",
 				CreateExecutionAbstractCommandV1: deployments.CreateExecutionAbstractCommandV1{
-					SpaceID:              "Spaces-1",
-					ProjectIDOrName:      fireProject.Name,
-					ForcePackageDownload: true,
-					SpecificMachineNames: []string{"firstMachine", "secondMachine"},
-					ExcludedMachineNames: []string{"thirdMachine"},
-					SkipStepNames:        []string{"Install", "Cleanup"},
-					UseGuidedFailure:     &trueVar,
-					Priority:             "On",
-					RunAt:                "2022-09-10 13:32:03 +10:00",
-					NoRunAfter:           "2022-09-10 13:37:03 +10:00",
+					SpaceID:                "Spaces-1",
+					ProjectIDOrName:        fireProject.Name,
+					ForcePackageDownload:   true,
+					SpecificMachineNames:   []string{"firstMachine", "secondMachine"},
+					ExcludedMachineNames:   []string{"thirdMachine"},
+					SpecificTargetTagNames: []string{"Role/GitRunner", "Version/Latest"},
+					ExcludedTargetTagNames: []string{"Role/Legacy"},
+					SkipStepNames:          []string{"Install", "Cleanup"},
+					UseGuidedFailure:       &trueVar,
+					Priority:               "On",
+					RunAt:                  "2022-09-10 13:32:03 +10:00",
+					NoRunAfter:             "2022-09-10 13:37:03 +10:00",
 					Variables: map[string]string{
 						"Approver": "John",
 						"Signoff":  "Jane",
@@ -735,6 +743,7 @@ func TestRunbookRun_PrintAdvancedSummary(t *testing.T) {
 				  Priority: Do not jump the task queue
 				  Package Download: Use cached packages (if available)
 				  Run Targets: All included
+				  Target Tags: All included
 				`), stdout.String())
 		}},
 
@@ -760,6 +769,7 @@ func TestRunbookRun_PrintAdvancedSummary(t *testing.T) {
 				  Priority: Jump the task queue
 				  Package Download: Re-download packages from feed
 				  Run Targets: Include vm-1,vm-2; Exclude vm-3,vm-4
+				  Target Tags: All included
 				`), stdout.String())
 		}},
 
@@ -779,6 +789,7 @@ func TestRunbookRun_PrintAdvancedSummary(t *testing.T) {
 				  Priority: Do not jump the task queue
 				  Package Download: Use cached packages (if available)
 				  Run Targets: Include vm-2
+				  Target Tags: All included
 				`), stdout.String())
 		}},
 
@@ -798,6 +809,68 @@ func TestRunbookRun_PrintAdvancedSummary(t *testing.T) {
 				  Priority: Do not jump the task queue
 				  Package Download: Use cached packages (if available)
 				  Run Targets: Exclude vm-4
+				  Target Tags: All included
+				`), stdout.String())
+		}},
+
+		{"variation on include target tags only", func(t *testing.T, stdout *bytes.Buffer) {
+			options := &executor.TaskOptionsRunbookRun{
+				TaskOptionsRunbookRunBase: executor.TaskOptionsRunbookRunBase{
+					SpecificTargetTagNames: []string{"Region/us-east", "Role/web"},
+				},
+			}
+			run.PrintAdvancedSummary(stdout, &options.TaskOptionsRunbookRunBase)
+
+			assert.Equal(t, heredoc.Doc(`
+				Additional Options:
+				  Run At: Now
+				  Skipped Steps: None
+				  Guided Failure Mode: Use default setting from the target environment
+				  Priority: Do not jump the task queue
+				  Package Download: Use cached packages (if available)
+				  Run Targets: All included
+				  Target Tags: Include Region/us-east,Role/web
+				`), stdout.String())
+		}},
+
+		{"variation on exclude target tags only", func(t *testing.T, stdout *bytes.Buffer) {
+			options := &executor.TaskOptionsRunbookRun{
+				TaskOptionsRunbookRunBase: executor.TaskOptionsRunbookRunBase{
+					ExcludedTargetTagNames: []string{"Role/Legacy"},
+				},
+			}
+			run.PrintAdvancedSummary(stdout, &options.TaskOptionsRunbookRunBase)
+
+			assert.Equal(t, heredoc.Doc(`
+				Additional Options:
+				  Run At: Now
+				  Skipped Steps: None
+				  Guided Failure Mode: Use default setting from the target environment
+				  Priority: Do not jump the task queue
+				  Package Download: Use cached packages (if available)
+				  Run Targets: All included
+				  Target Tags: Exclude Role/Legacy
+				`), stdout.String())
+		}},
+
+		{"both include and exclude target tags", func(t *testing.T, stdout *bytes.Buffer) {
+			options := &executor.TaskOptionsRunbookRun{
+				TaskOptionsRunbookRunBase: executor.TaskOptionsRunbookRunBase{
+					SpecificTargetTagNames: []string{"Region/us-east", "Role/web"},
+					ExcludedTargetTagNames: []string{"Role/Legacy", "Region/eu-west"},
+				},
+			}
+			run.PrintAdvancedSummary(stdout, &options.TaskOptionsRunbookRunBase)
+
+			assert.Equal(t, heredoc.Doc(`
+				Additional Options:
+				  Run At: Now
+				  Skipped Steps: None
+				  Guided Failure Mode: Use default setting from the target environment
+				  Priority: Do not jump the task queue
+				  Package Download: Use cached packages (if available)
+				  Run Targets: All included
+				  Target Tags: Include Region/us-east,Role/web; Exclude Role/Legacy,Region/eu-west
 				`), stdout.String())
 		}},
 	}

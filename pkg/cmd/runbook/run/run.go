@@ -87,6 +87,9 @@ const (
 	FlagAliasExcludeTarget   = "exclude-target"
 	FlagAliasExcludeMachines = "excludeMachines" // octo wants a comma separated list. We prefer specifying --exclude-target multiple times, but CSV also works because pflag does it for free
 
+	FlagSpecificTargetTag = "specific-target-tag"
+	FlagExcludedTargetTag = "excluded-target-tag"
+
 	FlagVariable = "variable"
 
 	FlagGitRef             = "git-ref"
@@ -96,50 +99,54 @@ const (
 )
 
 type RunFlags struct {
-	Project              *flag.Flag[string]
-	RunbookName          *flag.Flag[string] // the runbook to run
-	RunbookTags          *flag.Flag[[]string]
-	Environments         *flag.Flag[[]string]
-	Tenants              *flag.Flag[[]string]
-	TenantTags           *flag.Flag[[]string]
-	RunAt                *flag.Flag[string]
-	MaxQueueTime         *flag.Flag[string]
-	Variables            *flag.Flag[[]string]
-	Snapshot             *flag.Flag[string]
-	ExcludedSteps        *flag.Flag[[]string]
-	GuidedFailureMode    *flag.Flag[string] // tri-state: true, false, or "use default". Can we model it with an optional bool?
-	Priority             *flag.Flag[string] // tri-state: true, false, or "use default"
-	ForcePackageDownload *flag.Flag[bool]
-	RunTargets           *flag.Flag[[]string]
-	ExcludeTargets       *flag.Flag[[]string]
-	GitRef               *flag.Flag[string]
-	PackageVersion       *flag.Flag[string]
-	PackageVersionSpec   *flag.Flag[[]string]
-	GitResourceRefsSpec  *flag.Flag[[]string]
+	Project                *flag.Flag[string]
+	RunbookName            *flag.Flag[string] // the runbook to run
+	RunbookTags            *flag.Flag[[]string]
+	Environments           *flag.Flag[[]string]
+	Tenants                *flag.Flag[[]string]
+	TenantTags             *flag.Flag[[]string]
+	RunAt                  *flag.Flag[string]
+	MaxQueueTime           *flag.Flag[string]
+	Variables              *flag.Flag[[]string]
+	Snapshot               *flag.Flag[string]
+	ExcludedSteps          *flag.Flag[[]string]
+	GuidedFailureMode      *flag.Flag[string] // tri-state: true, false, or "use default". Can we model it with an optional bool?
+	Priority               *flag.Flag[string] // tri-state: true, false, or "use default"
+	ForcePackageDownload   *flag.Flag[bool]
+	RunTargets             *flag.Flag[[]string]
+	ExcludeTargets         *flag.Flag[[]string]
+	SpecificTargetTagNames *flag.Flag[[]string]
+	ExcludedTargetTagNames *flag.Flag[[]string]
+	GitRef                 *flag.Flag[string]
+	PackageVersion         *flag.Flag[string]
+	PackageVersionSpec     *flag.Flag[[]string]
+	GitResourceRefsSpec    *flag.Flag[[]string]
 }
 
 func NewRunFlags() *RunFlags {
 	return &RunFlags{
-		Project:              flag.New[string](FlagProject, false),
-		RunbookName:          flag.New[string](FlagRunbookName, false),
-		RunbookTags:          flag.New[[]string](FlagRunbookTag, false),
-		Environments:         flag.New[[]string](FlagEnvironment, false),
-		Tenants:              flag.New[[]string](FlagTenant, false),
-		TenantTags:           flag.New[[]string](FlagTenantTag, false),
-		MaxQueueTime:         flag.New[string](FlagRunAtExpiry, false),
-		RunAt:                flag.New[string](FlagRunAt, false),
-		Variables:            flag.New[[]string](FlagVariable, false),
-		Snapshot:             flag.New[string](FlagSnapshot, false),
-		ExcludedSteps:        flag.New[[]string](FlagSkip, false),
-		GuidedFailureMode:    flag.New[string](FlagGuidedFailure, false),
-		Priority:             flag.New[string](FlagPriority, false),
-		ForcePackageDownload: flag.New[bool](FlagForcePackageDownload, false),
-		RunTargets:           flag.New[[]string](FlagRunTarget, false),
-		ExcludeTargets:       flag.New[[]string](FlagExcludeRunTarget, false),
-		GitRef:               flag.New[string](FlagGitRef, false),
-		PackageVersion:       flag.New[string](FlagPackageVersion, false),
-		PackageVersionSpec:   flag.New[[]string](FlagPackageVersionSpec, false),
-		GitResourceRefsSpec:  flag.New[[]string](FlagGitResourceRefSpec, false),
+		Project:                flag.New[string](FlagProject, false),
+		RunbookName:            flag.New[string](FlagRunbookName, false),
+		RunbookTags:            flag.New[[]string](FlagRunbookTag, false),
+		Environments:           flag.New[[]string](FlagEnvironment, false),
+		Tenants:                flag.New[[]string](FlagTenant, false),
+		TenantTags:             flag.New[[]string](FlagTenantTag, false),
+		MaxQueueTime:           flag.New[string](FlagRunAtExpiry, false),
+		RunAt:                  flag.New[string](FlagRunAt, false),
+		Variables:              flag.New[[]string](FlagVariable, false),
+		Snapshot:               flag.New[string](FlagSnapshot, false),
+		ExcludedSteps:          flag.New[[]string](FlagSkip, false),
+		GuidedFailureMode:      flag.New[string](FlagGuidedFailure, false),
+		Priority:               flag.New[string](FlagPriority, false),
+		ForcePackageDownload:   flag.New[bool](FlagForcePackageDownload, false),
+		RunTargets:             flag.New[[]string](FlagRunTarget, false),
+		ExcludeTargets:         flag.New[[]string](FlagExcludeRunTarget, false),
+		SpecificTargetTagNames: flag.New[[]string](FlagSpecificTargetTag, false),
+		ExcludedTargetTagNames: flag.New[[]string](FlagExcludedTargetTag, false),
+		GitRef:                 flag.New[string](FlagGitRef, false),
+		PackageVersion:         flag.New[string](FlagPackageVersion, false),
+		PackageVersionSpec:     flag.New[[]string](FlagPackageVersionSpec, false),
+		GitResourceRefsSpec:    flag.New[[]string](FlagGitResourceRefSpec, false),
 	}
 }
 
@@ -179,6 +186,8 @@ func NewCmdRun(f factory.Factory) *cobra.Command {
 	flags.BoolVarP(&runFlags.ForcePackageDownload.Value, runFlags.ForcePackageDownload.Name, "", false, "Force re-download of packages")
 	flags.StringArrayVarP(&runFlags.RunTargets.Value, runFlags.RunTargets.Name, "", nil, "Run on this target (can be specified multiple times)")
 	flags.StringArrayVarP(&runFlags.ExcludeTargets.Value, runFlags.ExcludeTargets.Name, "", nil, "Run on targets except for this (can be specified multiple times)")
+	flags.StringArrayVarP(&runFlags.SpecificTargetTagNames.Value, runFlags.SpecificTargetTagNames.Name, "", nil, "Run on targets matching this tag (can be specified multiple times)")
+	flags.StringArrayVarP(&runFlags.ExcludedTargetTagNames.Value, runFlags.ExcludedTargetTagNames.Name, "", nil, "Run on targets except for those matching this tag (can be specified multiple times)")
 	flags.StringVarP(&runFlags.GitRef.Value, runFlags.GitRef.Name, "", "", "Git Reference e.g. refs/heads/main. Only relevant for config-as-code projects where runbooks are stored in Git.")
 	flags.StringVarP(&runFlags.PackageVersion.Value, runFlags.PackageVersion.Name, "", "", "Default version to use for all packages. Only relevant for config-as-code projects where runbooks are stored in Git.")
 	flags.StringArrayVarP(&runFlags.PackageVersionSpec.Value, runFlags.PackageVersionSpec.Name, "", nil, "Version specification for a specific package.\nFormat as {package}:{version}, {step}:{version} or {package-ref-name}:{packageOrStep}:{version}\nYou may specify this multiple times.\nOnly relevant for config-as-code projects where runbooks are stored in Git.")
@@ -289,20 +298,22 @@ func runbookRun(cmd *cobra.Command, f factory.Factory, flags *RunFlags) error {
 func runDbRunbook(cmd *cobra.Command, f factory.Factory, flags *RunFlags, octopus *octopusApiClient.Client, project *projects.Project, parsedVariables map[string]string, outputFormat string) error {
 
 	commonOptions := &executor.TaskOptionsRunbookRunBase{
-		ProjectName:          project.Name,
-		RunbookName:          flags.RunbookName.Value,
-		Environments:         flags.Environments.Value,
-		Tenants:              flags.Tenants.Value,
-		TenantTags:           flags.TenantTags.Value,
-		ScheduledStartTime:   flags.RunAt.Value,
-		ScheduledExpiryTime:  flags.MaxQueueTime.Value,
-		ExcludedSteps:        flags.ExcludedSteps.Value,
-		GuidedFailureMode:    flags.GuidedFailureMode.Value,
-		Priority:             flags.Priority.Value,
-		ForcePackageDownload: flags.ForcePackageDownload.Value,
-		RunTargets:           flags.RunTargets.Value,
-		ExcludeTargets:       flags.ExcludeTargets.Value,
-		Variables:            parsedVariables,
+		ProjectName:            project.Name,
+		RunbookName:            flags.RunbookName.Value,
+		Environments:           flags.Environments.Value,
+		Tenants:                flags.Tenants.Value,
+		TenantTags:             flags.TenantTags.Value,
+		ScheduledStartTime:     flags.RunAt.Value,
+		ScheduledExpiryTime:    flags.MaxQueueTime.Value,
+		ExcludedSteps:          flags.ExcludedSteps.Value,
+		GuidedFailureMode:      flags.GuidedFailureMode.Value,
+		Priority:               flags.Priority.Value,
+		ForcePackageDownload:   flags.ForcePackageDownload.Value,
+		RunTargets:             flags.RunTargets.Value,
+		ExcludeTargets:         flags.ExcludeTargets.Value,
+		SpecificTargetTagNames: flags.SpecificTargetTagNames.Value,
+		ExcludedTargetTagNames: flags.ExcludedTargetTagNames.Value,
+		Variables:              parsedVariables,
 	}
 	options := &executor.TaskOptionsRunbookRun{
 		Snapshot: flags.Snapshot.Value,
@@ -343,6 +354,8 @@ func runDbRunbook(cmd *cobra.Command, f factory.Factory, flags *RunFlags, octopu
 			resolvedFlags.Priority.Value = options.Priority
 			resolvedFlags.RunTargets.Value = options.RunTargets
 			resolvedFlags.ExcludeTargets.Value = options.ExcludeTargets
+			resolvedFlags.SpecificTargetTagNames.Value = options.SpecificTargetTagNames
+			resolvedFlags.ExcludedTargetTagNames.Value = options.ExcludedTargetTagNames
 
 			didMaskSensitiveVariable := false
 			automationVariables := make(map[string]string, len(options.Variables))
@@ -379,6 +392,8 @@ func runDbRunbook(cmd *cobra.Command, f factory.Factory, flags *RunFlags, octopu
 				resolvedFlags.ForcePackageDownload,
 				resolvedFlags.RunTargets,
 				resolvedFlags.ExcludeTargets,
+				resolvedFlags.SpecificTargetTagNames,
+				resolvedFlags.ExcludedTargetTagNames,
 				resolvedFlags.Variables,
 			)
 			cmd.Printf("\nAutomation Command: %s\n", autoCmd)
@@ -423,20 +438,22 @@ func runDbRunbook(cmd *cobra.Command, f factory.Factory, flags *RunFlags, octopu
 func runGitRunbook(cmd *cobra.Command, f factory.Factory, flags *RunFlags, octopus *octopusApiClient.Client, project *projects.Project, parsedVariables map[string]string, outputFormat string) error {
 
 	commonOptions := &executor.TaskOptionsRunbookRunBase{
-		ProjectName:          project.Name,
-		RunbookName:          flags.RunbookName.Value,
-		Environments:         flags.Environments.Value,
-		Tenants:              flags.Tenants.Value,
-		TenantTags:           flags.TenantTags.Value,
-		ScheduledStartTime:   flags.RunAt.Value,
-		ScheduledExpiryTime:  flags.MaxQueueTime.Value,
-		ExcludedSteps:        flags.ExcludedSteps.Value,
-		GuidedFailureMode:    flags.GuidedFailureMode.Value,
-		Priority:             flags.Priority.Value,
-		ForcePackageDownload: flags.ForcePackageDownload.Value,
-		RunTargets:           flags.RunTargets.Value,
-		ExcludeTargets:       flags.ExcludeTargets.Value,
-		Variables:            parsedVariables,
+		ProjectName:            project.Name,
+		RunbookName:            flags.RunbookName.Value,
+		Environments:           flags.Environments.Value,
+		Tenants:                flags.Tenants.Value,
+		TenantTags:             flags.TenantTags.Value,
+		ScheduledStartTime:     flags.RunAt.Value,
+		ScheduledExpiryTime:    flags.MaxQueueTime.Value,
+		ExcludedSteps:          flags.ExcludedSteps.Value,
+		GuidedFailureMode:      flags.GuidedFailureMode.Value,
+		Priority:               flags.Priority.Value,
+		ForcePackageDownload:   flags.ForcePackageDownload.Value,
+		RunTargets:             flags.RunTargets.Value,
+		ExcludeTargets:         flags.ExcludeTargets.Value,
+		SpecificTargetTagNames: flags.SpecificTargetTagNames.Value,
+		ExcludedTargetTagNames: flags.ExcludedTargetTagNames.Value,
+		Variables:              parsedVariables,
 	}
 	options := &executor.TaskOptionsGitRunbookRun{
 		GitReference:            flags.GitRef.Value,
@@ -480,6 +497,8 @@ func runGitRunbook(cmd *cobra.Command, f factory.Factory, flags *RunFlags, octop
 			resolvedFlags.Priority.Value = options.Priority
 			resolvedFlags.RunTargets.Value = options.RunTargets
 			resolvedFlags.ExcludeTargets.Value = options.ExcludeTargets
+			resolvedFlags.SpecificTargetTagNames.Value = options.SpecificTargetTagNames
+			resolvedFlags.ExcludedTargetTagNames.Value = options.ExcludedTargetTagNames
 			resolvedFlags.GitRef.Value = options.GitReference
 			resolvedFlags.PackageVersion.Value = options.DefaultPackageVersion
 			resolvedFlags.PackageVersionSpec.Value = options.PackageVersionOverrides
@@ -520,6 +539,8 @@ func runGitRunbook(cmd *cobra.Command, f factory.Factory, flags *RunFlags, octop
 				resolvedFlags.ForcePackageDownload,
 				resolvedFlags.RunTargets,
 				resolvedFlags.ExcludeTargets,
+				resolvedFlags.SpecificTargetTagNames,
+				resolvedFlags.ExcludedTargetTagNames,
 				resolvedFlags.Variables,
 				resolvedFlags.PackageVersion,
 				resolvedFlags.PackageVersionSpec,
@@ -769,8 +790,9 @@ func AskDbRunbookRunQuestions(octopus *octopusApiClient.Client, stdout io.Writer
 	isGuidedFailureModeSpecified := options.GuidedFailureMode != ""
 	isForcePackageDownloadSpecified := options.ForcePackageDownloadWasSpecified
 	isRunTargetsSpecified := len(options.RunTargets) > 0 || len(options.ExcludeTargets) > 0
+	isRunTargetTagsSpecified := len(options.SpecificTargetTagNames) > 0 || len(options.ExcludedTargetTagNames) > 0
 
-	allAdvancedOptionsSpecified := isRunAtSpecified && isExcludedStepsSpecified && isGuidedFailureModeSpecified && isForcePackageDownloadSpecified && isRunTargetsSpecified
+	allAdvancedOptionsSpecified := isRunAtSpecified && isExcludedStepsSpecified && isGuidedFailureModeSpecified && isForcePackageDownloadSpecified && isRunTargetsSpecified && isRunTargetTagsSpecified
 
 	shouldAskAdvancedQuestions, err := shouldAskAdvancedOptions(asker, "Change additional options?", allAdvancedOptionsSpecified)
 	if err != nil {
@@ -815,6 +837,20 @@ func AskDbRunbookRunQuestions(octopus *octopusApiClient.Client, stdout io.Writer
 			}
 
 			options.RunTargets, err = askRunbookTargets(octopus, asker, space.ID, selectedSnapshot.ID, selectedEnvironments)
+			if err != nil {
+				return err
+			}
+		}
+
+		if !isRunTargetTagsSpecified {
+			if len(selectedEnvironments) == 0 { // if the Q&A process earlier hasn't loaded environments already, we need to load them now
+				selectedEnvironments, err = executionscommon.FindEnvironments(octopus, options.Environments)
+				if err != nil {
+					return err
+				}
+			}
+
+			options.SpecificTargetTagNames, options.ExcludedTargetTagNames, err = askRunbookTargetTags(octopus, asker, space.ID, selectedSnapshot.ID, selectedEnvironments)
 			if err != nil {
 				return err
 			}
@@ -977,8 +1013,9 @@ func AskGitRunbookRunQuestions(octopus *octopusApiClient.Client, stdout io.Write
 	isGuidedFailureModeSpecified := options.GuidedFailureMode != ""
 	isForcePackageDownloadSpecified := options.ForcePackageDownloadWasSpecified
 	isRunTargetsSpecified := len(options.RunTargets) > 0 || len(options.ExcludeTargets) > 0
+	isRunTargetTagsSpecified := len(options.SpecificTargetTagNames) > 0 || len(options.ExcludedTargetTagNames) > 0
 
-	allAdvancedOptionsSpecified := isRunAtSpecified && isExcludedStepsSpecified && isGuidedFailureModeSpecified && isForcePackageDownloadSpecified && isRunTargetsSpecified
+	allAdvancedOptionsSpecified := isRunAtSpecified && isExcludedStepsSpecified && isGuidedFailureModeSpecified && isForcePackageDownloadSpecified && isRunTargetsSpecified && isRunTargetTagsSpecified
 
 	shouldAskAdvancedQuestions, err := shouldAskAdvancedOptions(asker, "Change additional options?", allAdvancedOptionsSpecified)
 	if err != nil {
@@ -1023,6 +1060,20 @@ func AskGitRunbookRunQuestions(octopus *octopusApiClient.Client, stdout io.Write
 			}
 
 			options.RunTargets, err = askGitRunbookTargets(octopus, asker, space.ID, project.ID, selectedRunbook.ID, options.GitReference, selectedEnvironments)
+			if err != nil {
+				return err
+			}
+		}
+
+		if !isRunTargetTagsSpecified {
+			if len(selectedEnvironments) == 0 { // if the Q&A process earlier hasn't loaded environments already, we need to load them now
+				selectedEnvironments, err = executionscommon.FindEnvironments(octopus, options.Environments)
+				if err != nil {
+					return err
+				}
+			}
+
+			options.SpecificTargetTagNames, options.ExcludedTargetTagNames, err = askGitRunbookTargetTags(octopus, asker, space.ID, project.ID, selectedRunbook.ID, options.GitReference, selectedEnvironments)
 			if err != nil {
 				return err
 			}
@@ -1214,6 +1265,84 @@ func askGitRunbookTargets(octopus *octopusApiClient.Client, asker question.Asker
 	return nil, nil
 }
 
+func askRunbookTargetTags(octopus *octopusApiClient.Client, asker question.Asker, spaceID string, runbookSnapshotID string, selectedEnvironments []*environments.Environment) ([]string, []string, error) {
+	var results []string
+
+	// collect all available target tags from runbook run previews across all environments
+	for _, env := range selectedEnvironments {
+		preview, err := runbooks.GetRunbookSnapshotRunPreview(octopus, spaceID, runbookSnapshotID, env.ID, true)
+		if err != nil {
+			return nil, nil, err
+		}
+		results = collectAvailableTargetTags(preview.StepsToExecute, results)
+	}
+
+	return askTargetTagsFromOptions(asker, results)
+}
+
+func askGitRunbookTargetTags(octopus *octopusApiClient.Client, asker question.Asker, spaceID string, projectID string, runbookID string, gitRef string, selectedEnvironments []*environments.Environment) ([]string, []string, error) {
+	var results []string
+
+	// collect all available target tags from runbook run previews across all environments
+	for _, env := range selectedEnvironments {
+		preview, err := runbooks.GetGitRunbookRunPreview(octopus, spaceID, projectID, runbookID, gitRef, env.ID, true)
+		if err != nil {
+			return nil, nil, err
+		}
+		results = collectAvailableTargetTags(preview.StepsToExecute, results)
+	}
+
+	return askTargetTagsFromOptions(asker, results)
+}
+
+// collectAvailableTargetTags appends the canonical names of any target tags the steps can run
+// against to results, skipping ones that have already been collected
+func collectAvailableTargetTags(steps []*deployments.DeploymentTemplateStep, results []string) []string {
+	for _, step := range steps {
+		for _, tagSet := range step.AvailableTagSets {
+			for _, tag := range tagSet.AvailableTags {
+				canonicalName := tagSet.TagSetName + "/" + tag.TagName
+				if !util.SliceContains(results, canonicalName) {
+					results = append(results, canonicalName)
+				}
+			}
+		}
+	}
+	return results
+}
+
+// askTargetTagsFromOptions asks which target tags to include, and if none were included,
+// which to exclude. If there are no tags available the questions are skipped entirely.
+func askTargetTagsFromOptions(asker question.Asker, results []string) ([]string, []string, error) {
+	if len(results) == 0 {
+		return nil, nil, nil
+	}
+
+	sort.Strings(results)
+
+	var selectedSpecificTags []string
+	err := asker(&survey.MultiSelect{
+		Message: "Specific target tags to include (If none selected, include all)",
+		Options: results,
+	}, &selectedSpecificTags)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	var selectedExcludedTags []string
+	if len(selectedSpecificTags) == 0 {
+		err = asker(&survey.MultiSelect{
+			Message: "Target tags to exclude (If none selected, exclude none)",
+			Options: results,
+		}, &selectedExcludedTags)
+		if err != nil {
+			return nil, nil, err
+		}
+	}
+
+	return selectedSpecificTags, selectedExcludedTags, nil
+}
+
 // selectRunEnvironment selects a single environment for use in a tenanted run
 func selectRunEnvironment(ask question.Asker, octopus *octopusApiClient.Client, space *spaces.Space, project *projects.Project, runbook *runbooks.Runbook) (*environments.Environment, error) {
 	envs, err := runbooks.ListEnvironments(octopus, space.ID, project.ID, runbook.ID)
@@ -1294,6 +1423,34 @@ func PrintAdvancedSummary(stdout io.Writer, options *executor.TaskOptionsRunbook
 		runTargetsStr = sb.String()
 	}
 
+	targetTagsStr := "All included"
+	if len(options.SpecificTargetTagNames) != 0 || len(options.ExcludedTargetTagNames) != 0 {
+		sb := strings.Builder{}
+		if len(options.SpecificTargetTagNames) > 0 {
+			sb.WriteString("Include ")
+			for idx, name := range options.SpecificTargetTagNames {
+				if idx > 0 {
+					sb.WriteString(",")
+				}
+				sb.WriteString(name)
+			}
+		}
+		if len(options.ExcludedTargetTagNames) > 0 {
+			if sb.Len() > 0 {
+				sb.WriteString("; ")
+			}
+
+			sb.WriteString("Exclude ")
+			for idx, name := range options.ExcludedTargetTagNames {
+				if idx > 0 {
+					sb.WriteString(",")
+				}
+				sb.WriteString(name)
+			}
+		}
+		targetTagsStr = sb.String()
+	}
+
 	_, _ = fmt.Fprintf(stdout, output.FormatDoc(heredoc.Doc(`
 		bold(Additional Options):
 		  Run At: cyan(%s)
@@ -1302,7 +1459,8 @@ func PrintAdvancedSummary(stdout io.Writer, options *executor.TaskOptionsRunbook
 		  Priority: cyan(%s)
 		  Package Download: cyan(%s)
 		  Run Targets: cyan(%s)
-	`)), runAtStr, skipStepsStr, gfmStr, priorityStr, pkgDownloadStr, runTargetsStr)
+		  Target Tags: cyan(%s)
+	`)), runAtStr, skipStepsStr, gfmStr, priorityStr, pkgDownloadStr, runTargetsStr, targetTagsStr)
 }
 
 func selectRunbook(octopus *octopusApiClient.Client, ask question.Asker, questionText string, space *spaces.Space, project *projects.Project) (*runbooks.Runbook, error) {
