@@ -290,7 +290,7 @@ jobs:
           run: curl -s https://api.github.com/repos/OctopusDeploy/cli/releases?per_page=100 > releases.json
 
         - name: Commit
-          uses: EndBug/add-and-commit@v10
+          uses: EndBug/add-and-commit@v11
           with:
             message: 'chore: update cli releases.json'
             author_name: Bob
