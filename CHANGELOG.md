@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.25.0](https://github.com/OctopusDeploy/cli/compare/v2.24.1...v2.25.0) (2026-09-01)
+
+
+### Features
+
+* Include and exclude targets by tag for deployments and runbook runs ([#585](https://github.com/OctopusDeploy/cli/issues/585)) ([2922f08](https://github.com/OctopusDeploy/cli/commit/2922f08f6be519883f222e42491064f5e234b872))
+
 ## [2.24.1](https://github.com/OctopusDeploy/cli/compare/v2.24.0...v2.24.1) (2026-08-25)
 
 
