@@ -34,22 +34,10 @@ func TestRegistrationSecret_HoldsOnlyTheGatewaysOwnCredential(t *testing.T) {
 	assert.Contains(t, contents, `octopus-grpc-thumbprint: "AABBCCDDEEFF00112233445566778899AABBCCDD"`)
 }
 
-// Octopus has spelled the thumbprint both ways.
-func TestRegistrationSecret_AcceptsEitherThumbprintSpelling(t *testing.T) {
-	opts := registeredOptions(t)
-	opts.Registration.CertificateThumbprint = ""
-	opts.Registration.Thumbprint = "1122334455"
-
-	contents, err := opts.RegistrationSecretForTest()
-	require.NoError(t, err)
-	assert.Contains(t, contents, `octopus-grpc-thumbprint: "1122334455"`)
-}
-
 // A server that returns no thumbprint should not produce an empty setting.
 func TestRegistrationSecret_OmitsAnAbsentThumbprint(t *testing.T) {
 	opts := registeredOptions(t)
 	opts.Registration.CertificateThumbprint = ""
-	opts.Registration.Thumbprint = ""
 
 	contents, err := opts.RegistrationSecretForTest()
 	require.NoError(t, err)

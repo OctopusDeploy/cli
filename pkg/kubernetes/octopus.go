@@ -33,6 +33,23 @@ const DefaultPollingPort = 10943
 // only allows that port.
 var cloudDomains = []string{".octopus.app", ".testoctopus.app"}
 
+// IsOctopusCloud reports whether this server is hosted by Octopus, which serves
+// every polling connection on one shared address however many nodes it runs.
+func IsOctopusCloud(serverURL string) bool {
+	parsed, err := url.Parse(strings.TrimSpace(serverURL))
+	if err != nil || parsed.Hostname() == "" {
+		return false
+	}
+
+	host := strings.ToLower(parsed.Hostname())
+	for _, domain := range cloudDomains {
+		if strings.HasSuffix(host, domain) {
+			return true
+		}
+	}
+	return false
+}
+
 // DerivePollingURL is a starting point to confirm rather than a guarantee. The
 // port is configurable on a self-hosted server, and a load balancer in front of
 // Octopus has to pass the connection through untouched - the protocol needs an
@@ -48,12 +65,8 @@ func DerivePollingURL(serverURL string) string {
 		return ""
 	}
 
-	host := parsed.Hostname()
-	for _, domain := range cloudDomains {
-		if strings.HasSuffix(strings.ToLower(host), domain) {
-			return fmt.Sprintf("https://polling.%s", host)
-		}
+	if IsOctopusCloud(serverURL) {
+		return fmt.Sprintf("https://polling.%s", parsed.Hostname())
 	}
-
-	return fmt.Sprintf("https://%s:%d", host, DefaultPollingPort)
+	return fmt.Sprintf("https://%s:%d", parsed.Hostname(), DefaultPollingPort)
 }

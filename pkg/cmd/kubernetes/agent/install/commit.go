@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os"
+	"maps"
 	"time"
 
 	"github.com/OctopusDeploy/cli/pkg/cmd/kubernetes/shared"
@@ -14,7 +14,6 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/kubernetes/helm"
 	"github.com/OctopusDeploy/cli/pkg/output"
 	"github.com/OctopusDeploy/cli/pkg/util/flag"
-	"sigs.k8s.io/yaml"
 )
 
 func (opts *InstallOptions) Commit(ctx context.Context) error {
@@ -106,16 +105,18 @@ func (opts *InstallOptions) authenticate(ctx context.Context) error {
 // --inline-secrets was given, so it stays out of the release values and out of
 // any file written by --output-values.
 func (opts *InstallOptions) BuildValues() (map[string]any, error) {
-	if opts.ServerCommsAddress.Value == "" {
+	if len(opts.ServerCommsAddresses.Value) == 0 {
 		return nil, errors.New("the Octopus polling address could not be determined; specify --" + FlagServerCommsAddress)
 	}
 
 	agentValues := map[string]any{
-		"name":               opts.Name.Value,
-		"acceptEula":         eulaValue(opts.AcceptEula.Value),
-		"serverUrl":          opts.Host,
-		"serverCommsAddress": opts.ServerCommsAddress.Value,
-		"space":              opts.spaceName(),
+		"name":       opts.Name.Value,
+		"acceptEula": eulaValue(opts.AcceptEula.Value),
+		"serverUrl":  opts.Host,
+		// The list form of the polling address, as the portal's generated
+		// command uses; a High Availability cluster has one entry per node.
+		"serverCommsAddresses": opts.ServerCommsAddresses.Value,
+		"space":                opts.spaceName(),
 	}
 
 	if opts.MachinePolicy.Value != "" {
@@ -137,9 +138,7 @@ func (opts *InstallOptions) BuildValues() (map[string]any, error) {
 	if err != nil {
 		return nil, err
 	}
-	for key, value := range registration {
-		agentValues[key] = value
-	}
+	maps.Copy(agentValues, registration)
 
 	values := map[string]any{"agent": agentValues}
 
@@ -149,8 +148,43 @@ func (opts *InstallOptions) BuildValues() (map[string]any, error) {
 	if scriptPods := opts.scriptPodValues(); len(scriptPods) > 0 {
 		values["scriptPods"] = scriptPods
 	}
+	if opts.monitorEnabled() {
+		values["kubernetesMonitor"] = opts.monitorValues()
+	}
 
 	return values, nil
+}
+
+// monitorEnabled guards on the mode as well as the flag: the monitor watches
+// the objects deployments create, which only a deployment target has.
+func (opts *InstallOptions) monitorEnabled() bool {
+	return opts.KubernetesMonitor.Value && !opts.isWorker()
+}
+
+// monitorValues fills in the monitor subchart the same way the Octopus portal
+// does. It registers with the same short-lived token as the agent, so the two
+// share one Secret.
+func (opts *InstallOptions) monitorValues() map[string]any {
+	registration := map[string]any{
+		"serverApiUrl": opts.Host,
+		"spaceId":      opts.spaceID(),
+		"machineName":  opts.Name.Value,
+	}
+	if opts.InlineSecrets.Value && opts.Token.Value != "" {
+		registration["serverAccessToken"] = opts.Token.Value
+	} else {
+		registration["serverAccessTokenSecretName"] = tokenSecretName
+		registration["serverAccessTokenSecretKey"] = tokenSecretKey
+	}
+	if opts.ServerCertificate.Value != "" {
+		registration["serverCertificate"] = opts.ServerCertificate.Value
+	}
+
+	return map[string]any{
+		"enabled":      true,
+		"monitor":      map[string]any{"serverGrpcUrl": octoK8s.DeriveGRPCURL(opts.Host)},
+		"registration": registration,
+	}
 }
 
 // TargetTags is the one list of tags the agent registers with. Octopus builds it
@@ -245,48 +279,50 @@ func eulaValue(accepted bool) string {
 }
 
 func (opts *InstallOptions) preflight() *shared.Preflight {
+	targets := []octoK8s.Target{
+		{
+			Name:    "Octopus REST API",
+			Address: opts.Host,
+			Remediation: "The chart registers the agent with Octopus over the REST API, from a pod in the cluster. " +
+				"Confirm this address is reachable from inside the cluster.",
+		},
+	}
+
+	for _, address := range opts.ServerCommsAddresses.Value {
+		targets = append(targets, octoK8s.Target{
+			Name:    "Octopus polling endpoint",
+			Address: address,
+			Remediation: fmt.Sprintf("The running agent polls Octopus over TCP on this address, on port %d by default and separately from the REST API. "+
+				"A firewall or proxy that only allows HTTPS is the usual cause. The connection also has to reach Octopus intact, so SSL offloading will not work.",
+				octoK8s.DefaultPollingPort),
+		})
+	}
+
+	if opts.monitorEnabled() {
+		targets = append(targets, octoK8s.Target{
+			Name:    "Octopus gRPC endpoint",
+			Address: octoK8s.DeriveGRPCURL(opts.Host),
+			Remediation: "The Kubernetes monitor streams live object status to Octopus over gRPC on a different port to the REST API. " +
+				"A load balancer, proxy, or firewall that forwards only HTTPS is the usual cause; make sure the gRPC port is forwarded too.",
+		})
+	}
+
 	return &shared.Preflight{
 		Dependencies: opts.Dependencies,
 		CommonFlags:  opts.CommonFlags,
 		Cluster:      opts.Cluster,
 		Namespace:    opts.TargetNamespace,
-		Targets: []octoK8s.Target{
-			{
-				Name:    "Octopus REST API",
-				Address: opts.Host,
-				Remediation: "The chart registers the agent with Octopus over the REST API, from a pod in the cluster. " +
-					"Confirm this address is reachable from inside the cluster.",
-			},
-			{
-				Name:    "Octopus polling endpoint",
-				Address: opts.ServerCommsAddress.Value,
-				Remediation: fmt.Sprintf("The running agent polls Octopus over TCP on this address, on port %d by default and separately from the REST API. "+
-					"A firewall or proxy that only allows HTTPS is the usual cause. The connection also has to reach Octopus intact, so SSL offloading will not work.",
-					octoK8s.DefaultPollingPort),
-			},
-		},
-		ProceedHelp: "The agent is likely to install and then fail to register.",
+		Targets:      targets,
+		ProceedHelp:  "The agent is likely to install and then fail to register.",
 	}
 }
 
 func (opts *InstallOptions) writeValuesFile(values map[string]any) error {
-	if opts.OutputValues.Value == "" {
-		return nil
-	}
-
-	encoded, err := yaml.Marshal(values)
-	if err != nil {
-		return fmt.Errorf("could not encode the Helm values: %w", err)
-	}
-	if err := os.WriteFile(opts.OutputValues.Value, encoded, 0o600); err != nil {
-		return fmt.Errorf("could not write %s: %w", opts.OutputValues.Value, err)
-	}
-
-	fmt.Fprintf(opts.Out, "Wrote Helm values to %s\n", output.Cyan(opts.OutputValues.Value))
+	warning := ""
 	if opts.InlineSecrets.Value && opts.Token.Value != "" {
-		fmt.Fprintf(opts.Out, "%s This file contains an Octopus access token in plain text.\n", output.Yellow("!"))
+		warning = "This file contains an Octopus access token in plain text."
 	}
-	return nil
+	return shared.WriteValuesFile(opts.Out, opts.OutputValues.Value, values, warning)
 }
 
 func (opts *InstallOptions) renderOnly(ctx context.Context, timeout time.Duration) error {
@@ -382,10 +418,11 @@ func (opts *InstallOptions) generatable() []flag.Generatable {
 		generatable = append(generatable, opts.WorkerPools)
 	} else {
 		generatable = append(generatable, opts.Environments, opts.Roles, opts.Tags,
-			opts.TenantedDeploymentMode, opts.Tenants, opts.TenantTags, opts.DefaultNamespace)
+			opts.TenantedDeploymentMode, opts.Tenants, opts.TenantTags, opts.DefaultNamespace,
+			opts.KubernetesMonitor)
 	}
 
-	generatable = append(generatable, opts.MachinePolicy, opts.ServerCommsAddress, opts.ServerCertificate,
+	generatable = append(generatable, opts.MachinePolicy, opts.ServerCommsAddresses, opts.ServerCertificate,
 		opts.StorageClass, opts.ReadWriteMany, opts.AcceptEula, opts.InlineSecrets,
 		opts.RestrictScriptPods, opts.ScriptPodRoles)
 	return append(generatable, opts.CommonFlags.Generatable()...)

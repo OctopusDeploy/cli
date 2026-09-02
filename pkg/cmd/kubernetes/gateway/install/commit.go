@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os"
 	"strings"
 	"time"
 
@@ -14,7 +13,6 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/kubernetes/helm"
 	"github.com/OctopusDeploy/cli/pkg/output"
 	"github.com/OctopusDeploy/cli/pkg/util/flag"
-	"sigs.k8s.io/yaml"
 )
 
 func (opts *InstallOptions) Commit(ctx context.Context) error {
@@ -204,23 +202,11 @@ func (opts *InstallOptions) BuildValues() (map[string]any, error) {
 }
 
 func (opts *InstallOptions) writeValuesFile(values map[string]any) error {
-	if opts.OutputValues.Value == "" {
-		return nil
-	}
-
-	encoded, err := yaml.Marshal(values)
-	if err != nil {
-		return fmt.Errorf("could not encode the Helm values: %w", err)
-	}
-	if err := os.WriteFile(opts.OutputValues.Value, encoded, 0o600); err != nil {
-		return fmt.Errorf("could not write %s: %w", opts.OutputValues.Value, err)
-	}
-
-	fmt.Fprintf(opts.Out, "Wrote Helm values to %s\n", output.Cyan(opts.OutputValues.Value))
+	warning := ""
 	if opts.InlineSecrets.Value {
-		fmt.Fprintf(opts.Out, "%s This file contains credentials in plain text.\n", output.Yellow("!"))
+		warning = "This file contains credentials in plain text."
 	}
-	return nil
+	return shared.WriteValuesFile(opts.Out, opts.OutputValues.Value, values, warning)
 }
 
 func (opts *InstallOptions) preflight() *shared.Preflight {
@@ -297,7 +283,7 @@ func (opts *InstallOptions) registrationSecretContents() (string, error) {
 	var b strings.Builder
 	fmt.Fprintf(&b, "octopus-grpc-authentication-token: %q\n", opts.Registration.AuthenticationToken)
 	fmt.Fprintf(&b, "octopus-grpc-client-id: %q\n", opts.Registration.ClientID)
-	if thumbprint := opts.Registration.Thumb(); thumbprint != "" {
+	if thumbprint := opts.Registration.CertificateThumbprint; thumbprint != "" {
 		fmt.Fprintf(&b, "octopus-grpc-thumbprint: %q\n", thumbprint)
 	}
 	return b.String(), nil

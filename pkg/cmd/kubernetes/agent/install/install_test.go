@@ -154,7 +154,7 @@ func TestPromptMissing_DeploymentTargetWithNothingSupplied(t *testing.T) {
 	assert.Equal(t, []string{"Production"}, flags.Environments.Value)
 	assert.Equal(t, []string{"k8s"}, flags.Roles.Value)
 	assert.Empty(t, flags.TenantedDeploymentMode.Value, "tenanted deployments are not asked about, and default to untenanted")
-	assert.Equal(t, pollingAddress, flags.ServerCommsAddress.Value)
+	assert.Equal(t, []string{pollingAddress}, flags.ServerCommsAddresses.Value)
 	assert.True(t, flags.AcceptEula.Value)
 
 	// Derived rather than asked for.
@@ -285,7 +285,8 @@ func TestPromptMissing_WorkerAsksAboutPoolsInsteadOfEnvironments(t *testing.T) {
 
 	assert.Equal(t, []string{"Kubernetes Pool"}, flags.WorkerPools.Value)
 	assert.Empty(t, flags.Environments.Value, "a worker has no environments")
-	assert.Equal(t, "octopus-agent-cluster-worker", opts.TargetNamespace)
+	assert.Equal(t, "octopus-worker-cluster-worker", opts.TargetNamespace,
+		"a worker lands in the same namespace a portal install of the same name would")
 }
 
 const permissionsQuestion = "What permissions should be used by workloads out of any WSA scope?"
@@ -440,7 +441,7 @@ func allSuppliedTargetFlags() *install.InstallFlags {
 	flags.Roles.Value = []string{"k8s"}
 	flags.TenantedDeploymentMode.Value = sharedTarget.Untenanted
 	flags.DefaultNamespace.Value = "production"
-	flags.ServerCommsAddress.Value = pollingAddress
+	flags.ServerCommsAddresses.Value = []string{pollingAddress}
 	flags.StorageClass.Value = "standard"
 	flags.AcceptEula.Value = true
 	return flags
@@ -450,7 +451,7 @@ func allSuppliedWorkerFlags() *install.InstallFlags {
 	flags := install.NewInstallFlags()
 	flags.Name.Value = "Cluster Worker"
 	flags.WorkerPools.Value = []string{"Kubernetes Pool"}
-	flags.ServerCommsAddress.Value = pollingAddress
+	flags.ServerCommsAddresses.Value = []string{pollingAddress}
 	flags.AcceptEula.Value = true
 	return flags
 }
@@ -483,7 +484,7 @@ func TestBuildValues_DeploymentTargetRegistration(t *testing.T) {
 	assert.Equal(t, "Production", agentValues["name"])
 	assert.Equal(t, "Y", agentValues["acceptEula"])
 	assert.Equal(t, octopusHost, agentValues["serverUrl"])
-	assert.Equal(t, pollingAddress, agentValues["serverCommsAddress"])
+	assert.Equal(t, []string{pollingAddress}, agentValues["serverCommsAddresses"])
 	assert.Equal(t, "Default", agentValues["space"])
 	assert.NotContains(t, agentValues, "worker", "a deployment target does not register as a worker")
 
@@ -628,7 +629,7 @@ func TestBuildValues_OptionalAgentSettings(t *testing.T) {
 
 func TestBuildValues_NeedsAPollingAddress(t *testing.T) {
 	opts := completedTargetOptions(t)
-	opts.ServerCommsAddress.Value = ""
+	opts.ServerCommsAddresses.Value = nil
 
 	_, err := opts.BuildValues()
 	assert.ErrorContains(t, err, install.FlagServerCommsAddress)
@@ -733,11 +734,11 @@ func TestResolveWithoutPrompting_DerivesThePollingAddress(t *testing.T) {
 	asker, _ := testutil.NewMockAsker(t, []*testutil.PA{})
 
 	flags := allSuppliedTargetFlags()
-	flags.ServerCommsAddress.Value = ""
+	flags.ServerCommsAddresses.Value = nil
 	opts := newOptions(t, flags, agentK8s.ModeDeploymentTarget, asker)
 
 	require.NoError(t, opts.ResolveWithoutPrompting())
-	assert.Equal(t, pollingAddress, flags.ServerCommsAddress.Value)
+	assert.Equal(t, []string{pollingAddress}, flags.ServerCommsAddresses.Value)
 }
 
 // A space can easily have only dynamic pools, which Octopus runs on its own

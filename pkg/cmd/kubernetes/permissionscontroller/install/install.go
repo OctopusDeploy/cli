@@ -174,7 +174,7 @@ func describeCommonFlags(command *cobra.Command) {
 // Run installs the controller using an existing set of dependencies. The
 // `kubernetes install` wizard uses this to hand off after the user picks a
 // component, so the two entry points share one implementation.
-func Run(_ factory.Factory, dependencies *cmd.Dependencies) error {
+func Run(dependencies *cmd.Dependencies) error {
 	return installRun(context.Background(), NewInstallOptions(NewInstallFlags(), dependencies))
 }
 

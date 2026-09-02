@@ -39,7 +39,6 @@ func (c Context) Display() string {
 }
 
 type KubeConfig struct {
-	path   string
 	loader clientcmd.ClientConfigLoader
 	raw    clientcmdapi.Config
 }
@@ -57,7 +56,7 @@ func LoadKubeConfig(explicitPath string) (*KubeConfig, error) {
 		return nil, fmt.Errorf("could not load kubeconfig: %w", err)
 	}
 
-	return &KubeConfig{path: explicitPath, loader: rules, raw: *raw}, nil
+	return &KubeConfig{loader: rules, raw: *raw}, nil
 }
 
 func (k *KubeConfig) Contexts() []Context {
@@ -101,10 +100,6 @@ func (k *KubeConfig) FindContext(name string) (Context, error) {
 		}
 	}
 	return Context{}, fmt.Errorf("no context named %q exists in the kubeconfig", name)
-}
-
-func (k *KubeConfig) Path() string {
-	return k.path
 }
 
 // RestConfig builds a client-go configuration. An empty contextName uses the

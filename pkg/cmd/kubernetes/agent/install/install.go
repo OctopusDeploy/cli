@@ -18,6 +18,7 @@ import (
 	agentK8s "github.com/OctopusDeploy/cli/pkg/kubernetes/agent"
 	"github.com/OctopusDeploy/cli/pkg/kubernetes/helm"
 	"github.com/OctopusDeploy/cli/pkg/machinescommon"
+	"github.com/OctopusDeploy/cli/pkg/octopusservernodes"
 	"github.com/OctopusDeploy/cli/pkg/output"
 	"github.com/OctopusDeploy/cli/pkg/util/flag"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/machines"
@@ -25,7 +26,11 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var ChartRef = helm.ChartRef{Ref: "oci://registry-1.docker.io/octopusdeploy/kubernetes-agent"}
+// ChartRef floats within the newest chart major version this tooling is known
+// to work with, as the Octopus portal's generated command does. Bump the major
+// together with KubernetesAgentUpgradeManager.LatestSupportedMajorVersion in
+// Octopus Server.
+var ChartRef = helm.ChartRef{Ref: "oci://registry-1.docker.io/octopusdeploy/kubernetes-agent", Version: "3.*.*"}
 
 const (
 	FlagName               = "name"
@@ -38,6 +43,7 @@ const (
 	FlagInlineSecrets      = "inline-secrets"
 	FlagRestrictScriptPods = "restrict-script-pod-permissions"
 	FlagScriptPodRole      = "script-pod-role"
+	FlagKubernetesMonitor  = "kubernetes-monitor"
 )
 
 // The agent registers itself, so an Octopus credential has to reach the
@@ -54,16 +60,17 @@ const (
 const eulaURL = "https://octopus.com/company/legal"
 
 type InstallFlags struct {
-	Name               *flag.Flag[string]
-	ServerCommsAddress *flag.Flag[string]
-	ServerCertificate  *flag.Flag[string]
-	DefaultNamespace   *flag.Flag[string]
-	StorageClass       *flag.Flag[string]
-	ReadWriteMany      *flag.Flag[bool]
-	AcceptEula         *flag.Flag[bool]
-	InlineSecrets      *flag.Flag[bool]
-	RestrictScriptPods *flag.Flag[bool]
-	ScriptPodRoles     *flag.Flag[[]string]
+	Name                 *flag.Flag[string]
+	ServerCommsAddresses *flag.Flag[[]string]
+	ServerCertificate    *flag.Flag[string]
+	DefaultNamespace     *flag.Flag[string]
+	StorageClass         *flag.Flag[string]
+	ReadWriteMany        *flag.Flag[bool]
+	AcceptEula           *flag.Flag[bool]
+	InlineSecrets        *flag.Flag[bool]
+	RestrictScriptPods   *flag.Flag[bool]
+	ScriptPodRoles       *flag.Flag[[]string]
+	KubernetesMonitor    *flag.Flag[bool]
 
 	*sharedTarget.CreateTargetEnvironmentFlags
 	*sharedTarget.CreateTargetRoleFlags
@@ -75,16 +82,17 @@ type InstallFlags struct {
 
 func NewInstallFlags() *InstallFlags {
 	return &InstallFlags{
-		Name:               flag.New[string](FlagName, false),
-		ServerCommsAddress: flag.New[string](FlagServerCommsAddress, false),
-		ServerCertificate:  flag.New[string](FlagServerCertificate, false),
-		DefaultNamespace:   flag.New[string](FlagDefaultNamespace, false),
-		StorageClass:       flag.New[string](FlagStorageClass, false),
-		ReadWriteMany:      flag.New[bool](FlagReadWriteMany, false),
-		AcceptEula:         flag.New[bool](FlagAcceptEula, false),
-		InlineSecrets:      flag.New[bool](FlagInlineSecrets, false),
-		RestrictScriptPods: flag.New[bool](FlagRestrictScriptPods, false),
-		ScriptPodRoles:     flag.New[[]string](FlagScriptPodRole, false),
+		Name:                 flag.New[string](FlagName, false),
+		ServerCommsAddresses: flag.New[[]string](FlagServerCommsAddress, false),
+		ServerCertificate:    flag.New[string](FlagServerCertificate, false),
+		DefaultNamespace:     flag.New[string](FlagDefaultNamespace, false),
+		StorageClass:         flag.New[string](FlagStorageClass, false),
+		ReadWriteMany:        flag.New[bool](FlagReadWriteMany, false),
+		AcceptEula:           flag.New[bool](FlagAcceptEula, false),
+		InlineSecrets:        flag.New[bool](FlagInlineSecrets, false),
+		RestrictScriptPods:   flag.New[bool](FlagRestrictScriptPods, false),
+		ScriptPodRoles:       flag.New[[]string](FlagScriptPodRole, false),
+		KubernetesMonitor:    flag.New[bool](FlagKubernetesMonitor, false),
 
 		CreateTargetEnvironmentFlags:   sharedTarget.NewCreateTargetEnvironmentFlags(),
 		CreateTargetRoleFlags:          sharedTarget.NewCreateTargetRoleFlags(),
@@ -117,6 +125,10 @@ type InstallOptions struct {
 	RegisteredCallback func(name string) (bool, error)
 	// TargetTagsCallback lists the target tags the space already knows about.
 	TargetTagsCallback func() ([]string, error)
+	// ServerNodesCallback lists the Octopus Server's own task-running nodes,
+	// which is how a High Availability cluster is recognised: the agent polls
+	// every node, and each needs its own address.
+	ServerNodesCallback func() ([]octopusservernodes.Node, error)
 
 	// Populated by Discover before prompting. Exported so tests can drive the
 	// prompt flow against a fake cluster.
@@ -147,6 +159,10 @@ type InstallOptions struct {
 	// three times in one run.
 	registeredBefore       bool
 	registrationCheckedFor string
+
+	// serverNodes is the answer from ServerNodesCallback, read once and kept.
+	serverNodes     []octopusservernodes.Node
+	serverNodesRead bool
 }
 
 // alreadyRegistered answers whether Octopus already has an agent of this name.
@@ -188,6 +204,9 @@ func NewInstallOptions(installFlags *InstallFlags, dependencies *cmd.Dependencie
 		TargetTagsCallback: func() ([]string, error) {
 			return sharedTarget.TargetTagNames(dependencies.Client)
 		},
+		ServerNodesCallback: func() ([]octopusservernodes.Node, error) {
+			return octopusservernodes.TaskNodes(dependencies.Client)
+		},
 	}
 }
 
@@ -221,7 +240,8 @@ func newCmdInstall(f factory.Factory, mode agentK8s.Mode) *cobra.Command {
 	registerModeFlags(command, installFlags, mode)
 	flags.StringVar(&installFlags.MachinePolicy.Value, machinescommon.FlagMachinePolicy, "", fmt.Sprintf(
 		"Machine policy the %s is registered with. Uses the default machine policy if not set.", mode))
-	flags.StringVar(&installFlags.ServerCommsAddress.Value, FlagServerCommsAddress, "", "Polling address of your Octopus Server. Derived from the configured server URL if not set.")
+	flags.StringArrayVar(&installFlags.ServerCommsAddresses.Value, FlagServerCommsAddress, nil,
+		"Polling address of your Octopus Server. Derived from the configured server URL if not set. For a High Availability cluster, repeat for each node - the agent polls every node, and each needs its own address.")
 	flags.StringVar(&installFlags.ServerCertificate.Value, FlagServerCertificate, "", "Base64-encoded PEM certificate to trust when Octopus is not served by a publicly trusted certificate.")
 	flags.StringVar(&installFlags.StorageClass.Value, FlagStorageClass, "", "Storage class for the agent's volume. Uses the cluster's default storage class if not set.")
 	flags.BoolVar(&installFlags.ReadWriteMany.Value, FlagReadWriteMany, false, "Request a ReadWriteMany volume, so script pods can run on any node. Read from the storage class if not set.")
@@ -248,6 +268,9 @@ func registerModeFlags(command *cobra.Command, installFlags *InstallFlags, mode 
 	sharedTarget.RegisterCreateTargetTenantFlags(command, installFlags.CreateTargetTenantFlags)
 	command.Flags().StringVar(&installFlags.DefaultNamespace.Value, FlagDefaultNamespace, "",
 		"Namespace deployments go to when the step or the manifest does not name one.")
+	// The monitor watches deployed objects, which only a deployment target has.
+	command.Flags().BoolVar(&installFlags.KubernetesMonitor.Value, FlagKubernetesMonitor, false,
+		"Also install the Kubernetes monitor, which streams live status of the deployed objects back to Octopus. Needs an Octopus Server that supports it.")
 }
 
 // registerTargetTagFlags describes these as target tags rather than roles.
@@ -294,11 +317,11 @@ func installRun(ctx context.Context, opts *InstallOptions) error {
 // Run installs using an existing set of dependencies. The `kubernetes install`
 // wizard uses this to hand off after the user picks a component, so the two
 // entry points share one implementation.
-func Run(_ factory.Factory, dependencies *cmd.Dependencies) error {
+func Run(dependencies *cmd.Dependencies) error {
 	return installRun(context.Background(), NewInstallOptions(NewInstallFlags(), dependencies, agentK8s.ModeDeploymentTarget))
 }
 
-func RunWorker(_ factory.Factory, dependencies *cmd.Dependencies) error {
+func RunWorker(dependencies *cmd.Dependencies) error {
 	return installRun(context.Background(), NewInstallOptions(NewInstallFlags(), dependencies, agentK8s.ModeWorker))
 }
 
@@ -363,12 +386,6 @@ func (opts *InstallOptions) discoverCluster(ctx context.Context, session *shared
 	return nil
 }
 
-// ConfirmRetry is the recovery prompt for a cluster that could not be read,
-// which is nearly always an expired cloud credential.
-func (opts *InstallOptions) ConfirmRetry(kubeConfig *octoK8s.KubeConfig, cause error) (bool, error) {
-	return opts.connector().ConfirmRetry(kubeConfig, cause)
-}
-
 func (opts *InstallOptions) ValidateForAutomation() error {
 	var missing []string
 	if opts.Name.Value == "" {
@@ -401,7 +418,9 @@ func (opts *InstallOptions) ValidateForAutomation() error {
 }
 
 func (opts *InstallOptions) ResolveWithoutPrompting() error {
-	opts.applyDefaults()
+	if err := opts.resolvePollingAddresses(); err != nil {
+		return err
+	}
 
 	if err := opts.resolveNames(); err != nil {
 		return err
@@ -561,17 +580,68 @@ func storageClassDescription(class octoK8s.StorageClass, found bool, requested s
 	}
 }
 
-func (opts *InstallOptions) applyDefaults() {
-	if opts.ServerCommsAddress.Value == "" {
-		opts.ServerCommsAddress.Value = octoK8s.DerivePollingURL(opts.Host)
+// resolvePollingAddresses fills in the polling address when none was given.
+// Octopus Cloud and a single-node server have one derivable address; a High
+// Availability cluster does not - each node needs its own address, which only
+// the person who set the cluster up knows.
+func (opts *InstallOptions) resolvePollingAddresses() error {
+	if len(opts.ServerCommsAddresses.Value) > 0 {
+		return nil
 	}
+
+	if nodes := opts.haNodes(); len(nodes) > 0 {
+		names := make([]string, 0, len(nodes))
+		for _, node := range nodes {
+			names = append(names, node.Name)
+		}
+		return fmt.Errorf("this Octopus Server is a High Availability cluster (nodes %s), and the agent polls every node on its own address; give --%s once per node",
+			strings.Join(names, ", "), FlagServerCommsAddress)
+	}
+
+	if derived := octoK8s.DerivePollingURL(opts.Host); derived != "" {
+		opts.ServerCommsAddresses.Value = []string{derived}
+	}
+	return nil
+}
+
+// haNodes is empty unless Octopus is a self-hosted High Availability cluster.
+// Octopus Cloud serves every polling connection on one shared address, so its
+// nodes are its own business.
+func (opts *InstallOptions) haNodes() []octopusservernodes.Node {
+	if octoK8s.IsOctopusCloud(opts.Host) {
+		return nil
+	}
+	nodes := opts.taskNodes()
+	if len(nodes) <= 1 {
+		return nil
+	}
+	return nodes
+}
+
+// taskNodes degrades to none rather than failing: the topology read is a
+// convenience, and a credential that cannot read it can still name the polling
+// addresses itself.
+func (opts *InstallOptions) taskNodes() []octopusservernodes.Node {
+	if opts.serverNodesRead || opts.ServerNodesCallback == nil {
+		return opts.serverNodes
+	}
+	opts.serverNodesRead = true
+
+	nodes, err := opts.ServerNodesCallback()
+	if err != nil {
+		fmt.Fprintf(opts.Out, "%s Could not read the Octopus Server's nodes to check for High Availability: %v\n",
+			output.Yellow("!"), err)
+		return nil
+	}
+	opts.serverNodes = nodes
+	return nodes
 }
 
 func (opts *InstallOptions) resolveNames() error {
 	if opts.Namespace.Value != "" {
 		opts.TargetNamespace = opts.Namespace.Value
 	} else {
-		derived, err := octoK8s.DerivedNamespace(octoK8s.AgentNamespacePrefix, opts.Name.Value)
+		derived, err := octoK8s.DerivedNamespace(opts.namespacePrefix(), opts.Name.Value)
 		if err != nil {
 			return err
 		}
@@ -590,11 +660,27 @@ func (opts *InstallOptions) resolveNames() error {
 	return nil
 }
 
+// namespacePrefix matches what the Octopus portal generates for each mode, so
+// a CLI install and a portal install of the same name land in the same place.
+func (opts *InstallOptions) namespacePrefix() string {
+	if opts.isWorker() {
+		return octoK8s.WorkerNamespacePrefix
+	}
+	return octoK8s.AgentNamespacePrefix
+}
+
 func (opts *InstallOptions) spaceName() string {
 	if name := opts.GetSpaceNameOrEmpty(); name != "" {
 		return name
 	}
 	return "Default"
+}
+
+func (opts *InstallOptions) spaceID() string {
+	if opts.Space == nil {
+		return ""
+	}
+	return opts.Space.ID
 }
 
 func (opts *InstallOptions) isWorker() bool {
@@ -753,7 +839,9 @@ func examples(mode agentK8s.Mode) string {
 
 func (opts *InstallOptions) chartRef() helm.ChartRef {
 	ref := ChartRef
-	ref.Version = opts.ChartVersion.Value
+	if opts.ChartVersion.Value != "" {
+		ref.Version = opts.ChartVersion.Value
+	}
 	return ref
 }
 

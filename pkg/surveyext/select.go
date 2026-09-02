@@ -13,7 +13,6 @@ import (
 /*
 Select is a prompt that presents a list of various options to the user
 for them to select using the arrow keys and enter. Response type is a string.
-
 	color := ""
 	prompt := &survey.Select{
 		Message: "Choose a color:",

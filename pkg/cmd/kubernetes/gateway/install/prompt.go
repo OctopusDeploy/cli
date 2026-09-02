@@ -47,8 +47,10 @@ func PromptMissing(ctx context.Context, opts *InstallOptions) error {
 }
 
 func promptForEnvironments(opts *InstallOptions) error {
+	// Given by flag: still resolved, because the registration API takes a slug
+	// or an ID, not the display name someone naturally types.
 	if len(opts.Environments.Value) > 0 {
-		return nil
+		return opts.resolveEnvironments()
 	}
 
 	selected, err := selectors.EnvironmentsMultiSelect(opts.Ask, opts.GetAllEnvironmentsCallback,

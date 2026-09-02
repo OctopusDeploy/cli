@@ -11,6 +11,7 @@ import (
 const (
 	ArgoCDGatewayNamespacePrefix = "octo-argo-gateway-"
 	AgentNamespacePrefix         = "octopus-agent-"
+	WorkerNamespacePrefix        = "octopus-worker-"
 
 	// Only one permissions controller can run per cluster, so this is fixed.
 	PermissionsControllerNamespace = "octopus-permissions-controller-system"

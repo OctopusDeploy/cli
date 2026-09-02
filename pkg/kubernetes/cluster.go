@@ -3,6 +3,7 @@ package kubernetes
 import (
 	"context"
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -439,7 +440,7 @@ func (r Role) Reference() string {
 // before somebody copies it expecting to have restricted something.
 func (r Role) GrantsEverything() bool {
 	for _, rule := range r.Rules {
-		if contains(rule.Verbs, "*") && contains(rule.APIGroups, "*") && contains(rule.Resources, "*") {
+		if slices.Contains(rule.Verbs, "*") && slices.Contains(rule.APIGroups, "*") && slices.Contains(rule.Resources, "*") {
 			return true
 		}
 	}
@@ -568,13 +569,4 @@ func addStrings(value map[string]any, key string, values []string) {
 	if len(values) > 0 {
 		value[key] = values
 	}
-}
-
-func contains(values []string, wanted string) bool {
-	for _, value := range values {
-		if value == wanted {
-			return true
-		}
-	}
-	return false
 }

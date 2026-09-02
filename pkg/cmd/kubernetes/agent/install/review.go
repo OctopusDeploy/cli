@@ -94,9 +94,13 @@ func octopusItems(opts *InstallOptions) []shared.Item {
 		{Label: "Server", Value: opts.Host, Source: "from your login"},
 		{Label: "Space", Value: opts.spaceName(), Source: "from your login"},
 		{
-			Label: "Polling address", Value: opts.ServerCommsAddress.Value, Source: "derived from the server address",
-			Edit: shared.EditText(opts.Ask, &opts.ServerCommsAddress.Value, "Octopus Server polling address",
-				func() string { return opts.ServerCommsAddress.Value }),
+			Label:  pollingLabel(opts),
+			Value:  strings.Join(opts.ServerCommsAddresses.Value, ", "),
+			Source: pollingSource(opts),
+			Edit: func(context.Context) error {
+				opts.ServerCommsAddresses.Value = nil
+				return promptForPollingAddresses(opts)
+			},
 		},
 		{Label: "Registration", Value: registrationSummary(opts), Source: opts.Token.Describe()},
 		{
@@ -147,6 +151,14 @@ func deploymentTargetItems(opts *InstallOptions) []shared.Item {
 			Label:  "Tenants",
 			Value:  shared.OrNone(append(append([]string{}, opts.Tenants.Value...), opts.TenantTags.Value...)),
 			Source: "chosen",
+		})
+	}
+
+	if opts.monitorEnabled() {
+		items = append(items, shared.Item{
+			Label:  "Kubernetes monitor",
+			Value:  "installed alongside the agent",
+			Source: "streams live status of deployed objects to Octopus over gRPC",
 		})
 	}
 	return items
@@ -208,8 +220,8 @@ func helmItems(opts *InstallOptions) []shared.Item {
 	return []shared.Item{
 		{Label: "Chart", Value: ChartRef.Ref},
 		{
-			Label: "Chart version", Value: shared.OrDefault(opts.ChartVersion.Value, "latest"),
-			Edit: shared.EditText(opts.Ask, &opts.ChartVersion.Value, "Chart version (blank for the latest)",
+			Label: "Chart version", Value: shared.OrDefault(opts.ChartVersion.Value, ChartRef.Version),
+			Edit: shared.EditText(opts.Ask, &opts.ChartVersion.Value, fmt.Sprintf("Chart version (blank for %s)", ChartRef.Version),
 				func() string { return opts.ChartVersion.Value }),
 		},
 		{
@@ -228,6 +240,20 @@ func helmItems(opts *InstallOptions) []shared.Item {
 
 func registrationSummary(opts *InstallOptions) string {
 	return fmt.Sprintf("the agent registers itself as a %s", opts.Mode)
+}
+
+func pollingLabel(opts *InstallOptions) string {
+	if len(opts.ServerCommsAddresses.Value) > 1 {
+		return "Polling addresses"
+	}
+	return "Polling address"
+}
+
+func pollingSource(opts *InstallOptions) string {
+	if len(opts.ServerCommsAddresses.Value) > 1 {
+		return "one per Octopus Server node"
+	}
+	return "derived from the server address"
 }
 
 func certificateSummary(opts *InstallOptions) string {

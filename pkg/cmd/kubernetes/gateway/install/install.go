@@ -315,6 +315,10 @@ func (opts *InstallOptions) validateForAutomation() error {
 }
 
 func (opts *InstallOptions) ResolveWithoutPrompting(ctx context.Context) error {
+	if err := opts.resolveEnvironments(); err != nil {
+		return err
+	}
+
 	instance, err := opts.selectInstanceByFlag()
 	if err != nil {
 		return err
@@ -413,8 +417,47 @@ func (opts *InstallOptions) resolveNames() error {
 // Run installs the gateway using an existing set of dependencies. The
 // `kubernetes install` wizard uses this to hand off after the user picks a
 // component, so the two entry points share one implementation.
-func Run(_ factory.Factory, dependencies *cmd.Dependencies) error {
+func Run(dependencies *cmd.Dependencies) error {
 	return installRun(context.Background(), NewInstallOptions(NewInstallFlags(), dependencies))
+}
+
+// resolveEnvironments turns whatever --environment was given into the slug
+// Octopus's registration API accepts, matching by name, slug, or ID. The
+// prompt already collects slugs, so this only has work to do when the flag was
+// used.
+func (opts *InstallOptions) resolveEnvironments() error {
+	if len(opts.Environments.Value) == 0 || opts.GetAllEnvironmentsCallback == nil {
+		return nil
+	}
+
+	all, err := opts.GetAllEnvironmentsCallback()
+	if err != nil {
+		return err
+	}
+
+	resolved := make([]string, 0, len(opts.Environments.Value))
+	for _, given := range opts.Environments.Value {
+		environment, found := matchEnvironment(all, given)
+		if !found {
+			return fmt.Errorf("no environment named %q exists in this space", given)
+		}
+		resolved = append(resolved, environmentReference(environment))
+	}
+
+	opts.Environments.Value = resolved
+	return nil
+}
+
+func matchEnvironment(all []*environments.Environment, given string) (*environments.Environment, bool) {
+	given = strings.TrimSpace(given)
+	for _, environment := range all {
+		if strings.EqualFold(environment.Name, given) ||
+			strings.EqualFold(environment.Slug, given) ||
+			strings.EqualFold(environment.GetID(), given) {
+			return environment, true
+		}
+	}
+	return nil, false
 }
 
 // accountName is the Argo CD account, or role, Octopus authenticates as.

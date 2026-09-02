@@ -20,7 +20,7 @@ import (
 type component struct {
 	display string
 	cmdPath string
-	install func(f factory.Factory, dependencies *cmd.Dependencies, cmdPath string) error
+	install func(dependencies *cmd.Dependencies) error
 }
 
 func components() []component {
@@ -28,30 +28,22 @@ func components() []component {
 		{
 			display: "Kubernetes agent - run Kubernetes deployments from inside the cluster",
 			cmdPath: constants.ExecutableName + " kubernetes agent install",
-			install: func(f factory.Factory, dependencies *cmd.Dependencies, cmdPath string) error {
-				return agentInstall.Run(f, cmd.NewDependenciesFromExisting(dependencies, cmdPath))
-			},
+			install: agentInstall.Run,
 		},
 		{
 			display: "Kubernetes worker - run Octopus steps in the cluster, one pod per task",
 			cmdPath: constants.ExecutableName + " kubernetes worker install",
-			install: func(f factory.Factory, dependencies *cmd.Dependencies, cmdPath string) error {
-				return agentInstall.RunWorker(f, cmd.NewDependenciesFromExisting(dependencies, cmdPath))
-			},
+			install: agentInstall.RunWorker,
 		},
 		{
 			display: "Argo CD gateway - connect an Argo CD instance to Octopus",
 			cmdPath: constants.ExecutableName + " kubernetes gateway install",
-			install: func(f factory.Factory, dependencies *cmd.Dependencies, cmdPath string) error {
-				return gatewayInstall.Run(f, cmd.NewDependenciesFromExisting(dependencies, cmdPath))
-			},
+			install: gatewayInstall.Run,
 		},
 		{
 			display: "Permissions controller - scope what an agent's script pods are allowed to do",
 			cmdPath: constants.ExecutableName + " kubernetes permissions-controller install",
-			install: func(f factory.Factory, dependencies *cmd.Dependencies, cmdPath string) error {
-				return permissionsControllerInstall.Run(f, cmd.NewDependenciesFromExisting(dependencies, cmdPath))
-			},
+			install: permissionsControllerInstall.Run,
 		},
 	}
 }
@@ -81,7 +73,9 @@ func NewCmdInstall(f factory.Factory) *cobra.Command {
 				return err
 			}
 
-			return selected.install(f, dependencies, selected.cmdPath)
+			// The chosen component's own command path, so the automation command
+			// it prints at the end reproduces the run without the wizard.
+			return selected.install(cmd.NewDependenciesFromExisting(dependencies, selected.cmdPath))
 		},
 	}
 }

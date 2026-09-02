@@ -19,10 +19,6 @@ const awsTimeout = 30 * time.Second
 
 const argoCapabilityType = "ARGOCD"
 
-// UnscopedProject names the token the gateway falls back on for Argo CD calls
-// that are not project-scoped.
-const UnscopedProject = "octo-gateway-unscoped"
-
 // ProjectToken is a project role token. AWS caps account token lifetimes at 12
 // hours, so managed instances authenticate per project instead.
 type ProjectToken struct {

@@ -329,10 +329,6 @@ func (c *Client) VerifyAccess(ctx context.Context) AccessCheck {
 	return check
 }
 
-func (c *Client) ListApplicationNames(ctx context.Context) ([]string, error) {
-	return c.listNames(ctx, "/api/v1/applications")
-}
-
 func (c *Client) listNames(ctx context.Context, path string) ([]string, error) {
 	var response struct {
 		Items []struct {

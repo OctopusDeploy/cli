@@ -265,7 +265,8 @@ func credentialPlacement(opts *InstallOptions) string {
 	return "Argo CD token in a Kubernetes Secret"
 }
 
-func RenderReviewForDemo(opts *InstallOptions) {
+// RenderReviewForTest prints the review screen without asking anything.
+func RenderReviewForTest(opts *InstallOptions) {
 	_ = opts.resolveNames()
 	shared.PrintReview(opts.Out, reviewGroups(opts))
 }

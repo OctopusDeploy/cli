@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os"
 	"strings"
 	"time"
 
@@ -16,7 +15,6 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/kubernetes/helm"
 	"github.com/OctopusDeploy/cli/pkg/output"
 	"github.com/OctopusDeploy/cli/pkg/util/flag"
-	"sigs.k8s.io/yaml"
 )
 
 func (opts *InstallOptions) Commit(ctx context.Context) error {
@@ -27,7 +25,7 @@ func (opts *InstallOptions) Commit(ctx context.Context) error {
 
 	values := opts.BuildValues()
 
-	if err := opts.writeValuesFile(values); err != nil {
+	if err := shared.WriteValuesFile(opts.Out, opts.OutputValues.Value, values, ""); err != nil {
 		return err
 	}
 
@@ -88,23 +86,6 @@ func (opts *InstallOptions) BuildValues() map[string]any {
 	}
 
 	return values
-}
-
-func (opts *InstallOptions) writeValuesFile(values map[string]any) error {
-	if opts.OutputValues.Value == "" {
-		return nil
-	}
-
-	encoded, err := yaml.Marshal(values)
-	if err != nil {
-		return fmt.Errorf("could not encode the Helm values: %w", err)
-	}
-	if err := os.WriteFile(opts.OutputValues.Value, encoded, 0o600); err != nil {
-		return fmt.Errorf("could not write %s: %w", opts.OutputValues.Value, err)
-	}
-
-	fmt.Fprintf(opts.Out, "Wrote Helm values to %s\n", output.Cyan(opts.OutputValues.Value))
-	return nil
 }
 
 // PrerequisiteChecks cover what the controller needs from the cluster rather

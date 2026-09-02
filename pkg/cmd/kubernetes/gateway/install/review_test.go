@@ -22,7 +22,7 @@ func reviewOf(t *testing.T, opts *install.InstallOptions) string {
 
 	out := &bytes.Buffer{}
 	opts.Out = out
-	install.RenderReviewForDemo(opts)
+	install.RenderReviewForTest(opts)
 	return out.String()
 }
 

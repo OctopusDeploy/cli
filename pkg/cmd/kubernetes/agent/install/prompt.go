@@ -18,10 +18,6 @@ import (
 // PromptMissing guards every prompt on its flag, so supplying a flag suppresses
 // the matching question and the generated automation command reproduces the run.
 func PromptMissing(ctx context.Context, opts *InstallOptions) error {
-	// Recorded before the defaults fill the rest in, so a supplied flag
-	// suppresses its prompt rather than merely seeding it.
-	suppliedPollingAddress := opts.ServerCommsAddress.Value != ""
-
 	if err := promptForEula(opts); err != nil {
 		return err
 	}
@@ -33,7 +29,6 @@ func PromptMissing(ctx context.Context, opts *InstallOptions) error {
 	if err := opts.resolveNames(); err != nil {
 		return err
 	}
-	opts.applyDefaults()
 	if err := opts.validateMachinePolicy(); err != nil {
 		return err
 	}
@@ -48,10 +43,8 @@ func PromptMissing(ctx context.Context, opts *InstallOptions) error {
 		return err
 	}
 
-	if !suppliedPollingAddress {
-		if err := promptForPollingAddress(opts); err != nil {
-			return err
-		}
+	if err := promptForPollingAddresses(opts); err != nil {
+		return err
 	}
 
 	if err := promptForStorage(opts); err != nil {
@@ -161,17 +154,53 @@ func promptForDefaultNamespace(opts *InstallOptions) error {
 	}, &opts.DefaultNamespace.Value)
 }
 
+// promptForPollingAddresses asks per node when Octopus is a High Availability
+// cluster: the agent polls every node, each on its own address, and only the
+// person who set the cluster up knows what those are.
+func promptForPollingAddresses(opts *InstallOptions) error {
+	if len(opts.ServerCommsAddresses.Value) > 0 {
+		return nil
+	}
+
+	nodes := opts.haNodes()
+	if len(nodes) == 0 {
+		return promptForPollingAddress(opts)
+	}
+
+	fmt.Fprintf(opts.Out, "\nThis Octopus Server is a High Availability cluster of %d nodes. The agent polls every\n"+
+		"node, and each needs its own address - a load balancer cannot sit in between.\n", len(nodes))
+
+	for _, node := range nodes {
+		address := ""
+		if err := opts.Ask(&survey.Input{
+			Message: fmt.Sprintf("Polling address for node %s", node.Name),
+			Help: fmt.Sprintf("The agent polls each node over TCP, on port %d by default, separately from the REST API on 443. "+
+				"The connection has to reach that node intact - SSL offloading does not work.", octoK8s.DefaultPollingPort),
+		}, &address, survey.WithValidator(survey.Required)); err != nil {
+			return err
+		}
+		opts.ServerCommsAddresses.Value = append(opts.ServerCommsAddresses.Value, strings.TrimSpace(address))
+	}
+	return nil
+}
+
 func promptForPollingAddress(opts *InstallOptions) error {
 	// Derived from the URL the CLI is logged in to, which is nearly always
 	// right - but the port is configurable, and a proxy that terminates TLS
 	// breaks the agent, so confirm it.
-	return opts.Ask(&survey.Input{
+	address := octoK8s.DerivePollingURL(opts.Host)
+	if err := opts.Ask(&survey.Input{
 		Message: "Octopus Server polling address",
-		Default: opts.ServerCommsAddress.Value,
+		Default: address,
 		Help: fmt.Sprintf("The agent polls Octopus over TCP, on port %d by default, separately from the REST API on 443. "+
 			"Octopus Cloud serves this on its own hostname over 443. The connection has to reach Octopus intact - SSL offloading does not work.",
 			octoK8s.DefaultPollingPort),
-	}, &opts.ServerCommsAddress.Value, survey.WithValidator(survey.Required))
+	}, &address, survey.WithValidator(survey.Required)); err != nil {
+		return err
+	}
+
+	opts.ServerCommsAddresses.Value = []string{strings.TrimSpace(address)}
+	return nil
 }
 
 // promptForStorage asks only where the volume comes from. The access mode
