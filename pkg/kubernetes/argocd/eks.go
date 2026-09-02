@@ -2,7 +2,6 @@ package argocd
 
 import (
 	"context"
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -11,6 +10,7 @@ import (
 	"time"
 
 	octoK8s "github.com/OctopusDeploy/cli/pkg/kubernetes"
+	"github.com/OctopusDeploy/cli/pkg/util"
 )
 
 // awsTimeout keeps a stale SSO session showing up as a prompt for the endpoint
@@ -233,21 +233,11 @@ func (c ProjectTokenClaims) Expired() bool {
 // which Argo CD sets to proj:<project>:<role> - so a person pasting a token
 // does not also have to say which project it belongs to.
 func ParseProjectToken(token string) (ProjectTokenClaims, error) {
-	parts := strings.Split(strings.TrimSpace(token), ".")
-	if len(parts) != 3 {
-		return ProjectTokenClaims{}, fmt.Errorf("this does not look like an Argo CD token")
-	}
-
-	payload, err := base64.RawURLEncoding.DecodeString(strings.TrimRight(parts[1], "="))
-	if err != nil {
-		return ProjectTokenClaims{}, fmt.Errorf("this does not look like an Argo CD token")
-	}
-
 	var claims struct {
 		Subject string `json:"sub"`
 		Expires int64  `json:"exp"`
 	}
-	if err := json.Unmarshal(payload, &claims); err != nil {
+	if err := util.DecodeJWTClaims(token, &claims); err != nil {
 		return ProjectTokenClaims{}, fmt.Errorf("this does not look like an Argo CD token")
 	}
 

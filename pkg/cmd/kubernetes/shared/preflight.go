@@ -10,6 +10,7 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/cmd"
 	octoK8s "github.com/OctopusDeploy/cli/pkg/kubernetes"
 	"github.com/OctopusDeploy/cli/pkg/output"
+	"github.com/OctopusDeploy/cli/pkg/util"
 )
 
 // Preflight proves the endpoints a component needs are reachable from inside
@@ -17,7 +18,7 @@ import (
 // succeeds and then never connects.
 type Preflight struct {
 	*cmd.Dependencies
-	*octoK8s.CommonFlags
+	*CommonFlags
 
 	Cluster   *octoK8s.Cluster
 	Namespace string
@@ -38,6 +39,7 @@ func (p *Preflight) Run(ctx context.Context) error {
 		Namespace: p.Namespace,
 		Image:     p.PreflightImage.Value,
 		Targets:   p.Targets,
+		Warnings:  p.Out,
 	})
 	if err != nil {
 		return err
@@ -62,18 +64,26 @@ func (p *Preflight) confirm(checks []octoK8s.Check) error {
 		return nil
 	}
 
-	if p.NoPrompt {
-		return fmt.Errorf("%d connectivity %s failed; fix the problems above or pass --%s",
-			failed, octoK8s.Pluralise("check", "checks", failed), octoK8s.FlagSkipPreflight)
+	return ConfirmProceed(p.Dependencies,
+		fmt.Sprintf("%d connectivity %s failed; fix the problems above or pass --%s",
+			failed, util.Pluralise("check", "checks", failed), octoK8s.FlagSkipPreflight),
+		p.ProceedHelp)
+}
+
+// ConfirmProceed asks whether to install past failed checks, because a check
+// can be wrong: egress policy may allow the real workload's service account
+// but not a bare check pod. noPromptMessage is the error when nobody can be
+// asked.
+func ConfirmProceed(d *cmd.Dependencies, noPromptMessage, proceedHelp string) error {
+	if d.NoPrompt {
+		return errors.New(noPromptMessage)
 	}
 
-	// A check can be wrong: egress policy may allow the real workload's service
-	// account but not a bare pod.
 	proceed := false
-	if err := p.Ask(&survey.Confirm{
+	if err := d.Ask(&survey.Confirm{
 		Message: "Continue with the install anyway?",
 		Default: false,
-		Help:    p.ProceedHelp,
+		Help:    proceedHelp,
 	}, &proceed); err != nil {
 		return err
 	}
@@ -112,10 +122,11 @@ func PrintChecks(out io.Writer, heading string, checks []octoK8s.Check) int {
 }
 
 // CheckPermissions runs before anything is created, so a missing permission
-// surfaces here rather than halfway through. A dry run creates nothing, so it
-// reports the problem and carries on.
-func CheckPermissions(ctx context.Context, d *cmd.Dependencies, cluster *octoK8s.Cluster, namespace string, dryRun bool) error {
-	denied, err := cluster.CheckPermissions(ctx, octoK8s.InstallPermissions(namespace))
+// surfaces here rather than halfway through. Each component says what its
+// install needs; octoK8s.InstallPermissions is the base every chart shares. A
+// dry run creates nothing, so it reports the problem and carries on.
+func CheckPermissions(ctx context.Context, d *cmd.Dependencies, cluster *octoK8s.Cluster, permissions []octoK8s.Permission, dryRun bool) error {
+	denied, err := cluster.CheckPermissions(ctx, permissions)
 	if err != nil {
 		return err
 	}

@@ -7,13 +7,18 @@ import (
 	"fmt"
 	"strings"
 
-	octoK8s "github.com/OctopusDeploy/cli/pkg/kubernetes"
 	"github.com/OctopusDeploy/cli/pkg/kubernetes/helm"
 )
 
 // ChartName is the chart's own name, which is how an installed release is
 // recognised whatever it was named.
 const ChartName = "kubernetes-agent"
+
+// ChartRef floats within the newest chart major version this tooling is known
+// to work with, as the Octopus portal's generated command does. Bump the major
+// together with KubernetesAgentUpgradeManager.LatestSupportedMajorVersion in
+// Octopus Server.
+var ChartRef = helm.ChartRef{Ref: "oci://registry-1.docker.io/octopusdeploy/kubernetes-agent", Version: "3.*.*"}
 
 // Mode is what an agent was registered as. One agent is either a deployment
 // target or a worker, never both: the chart's registration takes one path or
@@ -47,14 +52,23 @@ func Installations(runner *helm.Runner) ([]Installation, error) {
 	if err != nil {
 		return nil, err
 	}
+	return InstallationsFromReleases(runner, releases), nil
+}
 
-	installations := make([]Installation, 0, len(releases))
+// InstallationsFromReleases picks the agents out of an already-fetched release
+// list, for a caller that lists every release anyway: Helm reads a Secret per
+// release to build the list, so it is worth listing once.
+func InstallationsFromReleases(runner *helm.Runner, releases []helm.Release) []Installation {
+	var installations []Installation
 	for _, release := range releases {
+		if release.Chart != ChartName {
+			continue
+		}
 		installation := Installation{Release: release, Mode: ModeUnknown, ScriptPodClusterRole: true}
 
 		values, err := runner.GetValues(release.Name, release.Namespace)
 		if err == nil {
-			installation.Name = stringAt(values, "agent", "name")
+			installation.Name = helm.StringAt(values, "agent", "name")
 			installation.Mode = modeFrom(values)
 			installation.ScriptPodClusterRole = clusterRoleEnabled(values)
 		}
@@ -64,14 +78,14 @@ func Installations(runner *helm.Runner) ([]Installation, error) {
 
 		installations = append(installations, installation)
 	}
-	return installations, nil
+	return installations
 }
 
 func modeFrom(values map[string]any) Mode {
 	switch {
-	case boolAt(values, false, "agent", "worker", "enabled"):
+	case helm.BoolAt(values, false, "agent", "worker", "enabled"):
 		return ModeWorker
-	case boolAt(values, false, "agent", "deploymentTarget", "enabled"):
+	case helm.BoolAt(values, false, "agent", "deploymentTarget", "enabled"):
 		return ModeDeploymentTarget
 	default:
 		return ModeUnknown
@@ -81,35 +95,12 @@ func modeFrom(values map[string]any) Mode {
 // clusterRoleEnabled defaults to true because that is the chart's own default,
 // so a release that never set it has the cluster-wide permissions.
 func clusterRoleEnabled(values map[string]any) bool {
-	return boolAt(values, true, "scriptPods", "serviceAccount", "clusterRole", "enabled")
+	return helm.BoolAt(values, true, "scriptPods", "serviceAccount", "clusterRole", "enabled")
 }
 
-// PermissionsControllerPresent reports whether the Octopus permissions
-// controller is running in this cluster. It is found by its own custom
-// resource rather than by a Helm release, which can be named anything.
-func PermissionsControllerPresent(cluster *octoK8s.Cluster) (bool, error) {
-	return cluster.HasAPIResource(PermissionsControllerAPIGroup, workloadServiceAccountResource)
-}
-
-// CertManagerPresent reports whether cert-manager is installed, which the
-// permissions controller needs for its admission webhook's certificate.
-func CertManagerPresent(cluster *octoK8s.Cluster) (bool, error) {
-	return cluster.HasAPIResource(certManagerAPIGroup, certificateResource)
-}
-
-const (
-	// PermissionsControllerAPIGroup is shared with the agent's own script pod
-	// templates, so presence is checked by resource rather than by group.
-	PermissionsControllerAPIGroup  = "agent.octopus.com"
-	workloadServiceAccountResource = "workloadserviceaccounts"
-
-	certManagerAPIGroup = "cert-manager.io"
-	certificateResource = "certificates"
-)
-
-// SupportedArchitectures are the node architectures the agent's images are
+// supportedArchitectures are the node architectures the agent's images are
 // built for. Anything else schedules and then crash-loops.
-var SupportedArchitectures = []string{"amd64", "arm64"}
+var supportedArchitectures = []string{"amd64", "arm64"}
 
 // ErrUnsupportedNodes means no node in this cluster can run the agent, which is
 // a property of the cluster rather than of anything the caller did.
@@ -127,7 +118,7 @@ func (e ErrUnsupportedNodes) Error() string {
 // nodes could not be listed.
 func UnsupportedArchitectures(present []string) []string {
 	supported := map[string]bool{}
-	for _, arch := range SupportedArchitectures {
+	for _, arch := range supportedArchitectures {
 		supported[arch] = true
 	}
 
@@ -147,37 +138,4 @@ func RunnableArchitecture(present []string) bool {
 		return true
 	}
 	return len(UnsupportedArchitectures(present)) < len(present)
-}
-
-func stringAt(values map[string]any, keys ...string) string {
-	value, ok := at(values, keys...).(string)
-	if !ok {
-		return ""
-	}
-	return value
-}
-
-func boolAt(values map[string]any, fallback bool, keys ...string) bool {
-	value, ok := at(values, keys...).(bool)
-	if !ok {
-		return fallback
-	}
-	return value
-}
-
-// at walks a Helm values tree, which only holds what was set explicitly, so any
-// step of the path may be missing.
-func at(values map[string]any, keys ...string) any {
-	var current any = values
-	for _, key := range keys {
-		node, ok := current.(map[string]any)
-		if !ok {
-			return nil
-		}
-		current, ok = node[key]
-		if !ok {
-			return nil
-		}
-	}
-	return current
 }

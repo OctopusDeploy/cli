@@ -22,8 +22,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var ChartRef = helm.ChartRef{Ref: "oci://registry-1.docker.io/octopusdeploy/octopus-argocd-gateway-chart"}
-
 const (
 	FlagName                   = "name"
 	FlagEnvironment            = "environment"
@@ -39,21 +37,6 @@ const (
 	FlagArgoCDGRPCWeb          = "argocd-grpc-web"
 	FlagArgoCDGRPCWebRootPath  = "argocd-grpc-web-root-path"
 	FlagArgoCDProjectToken     = "argocd-project-token"
-)
-
-// Passing credentials by Secret reference keeps them out of the Helm release
-// values, out of any file written by --output-values, and out of the process
-// table.
-const (
-	argoTokenSecretName    = "octopus-argocd-gateway-argocd-token"
-	argoTokenSecretKey     = "ARGOCD_AUTH_TOKEN"
-	projectTokenSecretName = "octopus-argocd-gateway-project-tokens"
-
-	// The chart's own registration job would write these, and the gateway
-	// reads them from its projected configuration volume. Octopus writes them
-	// instead, so no Octopus credential of the user's ever enters the cluster.
-	registrationSecretName = "octopus-argocd-gateway-octopus-auth-secret"
-	registrationSecretKey  = "octopus-argocd-gateway-octopus-authentication-secret.yaml"
 )
 
 type InstallFlags struct {
@@ -72,7 +55,7 @@ type InstallFlags struct {
 	ArgoCDGRPCWebRootPath  *flag.Flag[string]
 	ArgoCDProjectTokens    *flag.Flag[[]string]
 
-	*octoK8s.CommonFlags
+	*shared.CommonFlags
 }
 
 func NewInstallFlags() *InstallFlags {
@@ -91,7 +74,7 @@ func NewInstallFlags() *InstallFlags {
 		ArgoCDGRPCWeb:          flag.New[bool](FlagArgoCDGRPCWeb, false),
 		ArgoCDGRPCWebRootPath:  flag.New[string](FlagArgoCDGRPCWebRootPath, false),
 		ArgoCDProjectTokens:    flag.New[[]string](FlagArgoCDProjectToken, true),
-		CommonFlags:            octoK8s.NewCommonFlags(),
+		CommonFlags:            shared.NewCommonFlags(),
 	}
 }
 
@@ -180,7 +163,7 @@ func NewCmdInstall(f factory.Factory) *cobra.Command {
 	flags.BoolVar(&installFlags.ArgoCDGRPCWeb.Value, FlagArgoCDGRPCWeb, false, "Tunnel gRPC over HTTP/1.1. Set automatically for AWS managed Argo CD, whose load balancer does not support HTTP/2.")
 	flags.StringVar(&installFlags.ArgoCDGRPCWebRootPath.Value, FlagArgoCDGRPCWebRootPath, "", "Root path of the Argo CD API when it is not served at the root, e.g. /argo/api.")
 	flags.StringArrayVar(&installFlags.ArgoCDProjectTokens.Value, FlagArgoCDProjectToken, nil, "Argo CD project role token. Repeat per project; the project is read from the token. Required for AWS managed Argo CD, which caps account token lifetimes at 12 hours.")
-	octoK8s.RegisterCommonFlags(command, installFlags.CommonFlags)
+	shared.RegisterCommonFlags(command, installFlags.CommonFlags, shared.DerivedFromNameDetails())
 
 	return command
 }
@@ -238,10 +221,6 @@ func (opts *InstallOptions) connector() *shared.Connector {
 			return errors.As(cause, &argocd.ErrNoInstances{}) && len(kubeConfig.Contexts()) == 1
 		},
 	}
-}
-
-func (opts *InstallOptions) ConfirmRetry(kubeConfig *octoK8s.KubeConfig, cause error) (bool, error) {
-	return opts.connector().ConfirmRetry(kubeConfig, cause)
 }
 
 // discoverArgoCD covers both hosting models: Argo CD usually runs in the
@@ -339,7 +318,7 @@ func (opts *InstallOptions) ResolveWithoutPrompting(ctx context.Context) error {
 
 	if opts.ArgoCDToken.Value == "" && opts.ConfigureArgoCDAccount.Value {
 		status, err := argocd.InspectAccount(ctx, opts.Cluster, opts.Instance,
-			argocd.AccountSpec{Name: opts.ArgoCDAccountName.Value, AllowSync: opts.AllowSync.Value})
+			argocd.AccountSpec{Name: opts.accountName(), AllowSync: opts.AllowSync.Value})
 		if err != nil {
 			return err
 		}
@@ -386,31 +365,14 @@ func (opts *InstallOptions) applyInstanceDefaults() {
 	if opts.OctopusGRPCURL.Value == "" {
 		opts.OctopusGRPCURL.Value = octoK8s.DeriveGRPCURL(opts.Host)
 	}
-	if opts.ArgoCDAccountName.Value == "" {
-		opts.ArgoCDAccountName.Value = argocd.DefaultAccountName
-	}
 }
 
 func (opts *InstallOptions) resolveNames() error {
-	if opts.Namespace.Value != "" {
-		opts.TargetNamespace = opts.Namespace.Value
-	} else {
-		derived, err := octoK8s.DerivedNamespace(octoK8s.ArgoCDGatewayNamespacePrefix, opts.Name.Value)
-		if err != nil {
-			return err
-		}
-		opts.TargetNamespace = derived
+	namespace, release, err := octoK8s.ResolveNames(opts.Namespace.Value, opts.ReleaseName.Value, octoK8s.ArgoCDGatewayNamespacePrefix, opts.Name.Value)
+	if err != nil {
+		return err
 	}
-
-	if opts.ReleaseName.Value != "" {
-		opts.TargetRelease = opts.ReleaseName.Value
-	} else {
-		derived, err := octoK8s.ReleaseName(opts.Name.Value)
-		if err != nil {
-			return err
-		}
-		opts.TargetRelease = derived
-	}
+	opts.TargetNamespace, opts.TargetRelease = namespace, release
 	return nil
 }
 

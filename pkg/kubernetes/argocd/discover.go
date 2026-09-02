@@ -267,17 +267,22 @@ func runsArgoCD(d *appsv1.Deployment) bool {
 
 // namespacesWithArgoConfig finds installations whose labels name nothing
 // recognisable. Argo CD reads its configuration from a ConfigMap of a fixed
-// name, so the namespaces holding one are where to look.
+// name, so the namespaces holding one are where to look. One cluster-wide list
+// rather than a read per namespace: this fallback tends to run against exactly
+// the clusters with too many namespaces to walk.
 func namespacesWithArgoConfig(ctx context.Context, c *octoK8s.Cluster) []string {
-	namespaces, err := c.Clientset.CoreV1().Namespaces().List(ctx, metav1.ListOptions{})
+	configMaps, err := c.Clientset.CoreV1().ConfigMaps(metav1.NamespaceAll).List(ctx, metav1.ListOptions{
+		FieldSelector: "metadata.name=" + ConfigMapName,
+	})
 	if err != nil {
 		return nil
 	}
 
 	var found []string
-	for _, namespace := range namespaces.Items {
-		if _, ok, err := c.GetConfigMap(ctx, namespace.Name, ConfigMapName); err == nil && ok {
-			found = append(found, namespace.Name)
+	for _, configMap := range configMaps.Items {
+		// Checked again because a fake clientset in tests ignores field selectors.
+		if configMap.Name == ConfigMapName {
+			found = append(found, configMap.Namespace)
 		}
 	}
 	return found

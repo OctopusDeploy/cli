@@ -8,13 +8,11 @@
 package accesstokens
 
 import (
-	"encoding/base64"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"strings"
 	"time"
 
+	"github.com/OctopusDeploy/cli/pkg/util"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/newclient"
 )
 
@@ -55,20 +53,10 @@ func Generate(client newclient.Client) (Token, error) {
 // can do. A token that cannot be read is still usable, so this reports no
 // expiry rather than an error.
 func expiry(token string) time.Time {
-	parts := strings.Split(strings.TrimSpace(token), ".")
-	if len(parts) != 3 {
-		return time.Time{}
-	}
-
-	payload, err := base64.RawURLEncoding.DecodeString(strings.TrimRight(parts[1], "="))
-	if err != nil {
-		return time.Time{}
-	}
-
 	var claims struct {
 		Expires int64 `json:"exp"`
 	}
-	if err := json.Unmarshal(payload, &claims); err != nil || claims.Expires <= 0 {
+	if err := util.DecodeJWTClaims(token, &claims); err != nil || claims.Expires <= 0 {
 		return time.Time{}
 	}
 	return time.Unix(claims.Expires, 0)

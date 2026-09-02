@@ -13,6 +13,7 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/output"
 	"github.com/OctopusDeploy/cli/pkg/question"
 	"github.com/OctopusDeploy/cli/pkg/question/selectors"
+	"github.com/OctopusDeploy/cli/pkg/util"
 )
 
 // PromptMissing guards every prompt on its flag, so supplying a flag suppresses
@@ -306,7 +307,7 @@ func promptForScriptPodRoles(opts *InstallOptions) error {
 	opts.ScriptPodRules = rules
 	fmt.Fprintf(opts.Out, "  %s\n", output.Dimf(
 		"The %d %s are copied in now. Later changes to %s are not picked up.",
-		len(rules), octoK8s.Pluralise("rule", "rules", len(rules)), strings.Join(references, ", ")))
+		len(rules), util.Pluralise("rule", "rules", len(rules)), strings.Join(references, ", ")))
 	return nil
 }
 
@@ -343,8 +344,4 @@ func (opts *InstallOptions) reportFindings() {
 		fmt.Fprintf(opts.Out, "%s The Octopus permissions controller is running in this cluster, so each deployment can be\n"+
 			"  granted its own permissions by a WorkloadServiceAccount rather than sharing the agent's.\n", output.Dim("-"))
 	}
-}
-
-func ReportFindingsForTest(opts *InstallOptions) {
-	opts.reportFindings()
 }

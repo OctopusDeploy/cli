@@ -72,7 +72,7 @@ func RegisterCreateTargetTenantFlags(cmd *cobra.Command, flags *CreateTargetTena
 
 func PromptForTenant(opts *CreateTargetTenantOptions, flags *CreateTargetTenantFlags) error {
 	if flags.TenantedDeploymentMode.Value == "" {
-		selectedOption, err := selectors.SelectOptions(opts.Ask, "Choose the kind of deployments where this deployment target should be included", getTenantDeploymentOptions)
+		selectedOption, err := selectors.SelectOptions(opts.Ask, "Choose the kind of deployments where this deployment target should be included", TenantDeploymentOptions)
 		if err != nil {
 			return err
 		}
@@ -146,10 +146,6 @@ func isTenantedTarget(flags *CreateTargetTenantFlags) bool {
 
 // TenantDeploymentOptions are the kinds of deployment a target can take part in.
 func TenantDeploymentOptions() []*selectors.SelectOption[string] {
-	return getTenantDeploymentOptions()
-}
-
-func getTenantDeploymentOptions() []*selectors.SelectOption[string] {
 	return []*selectors.SelectOption[string]{
 		{Display: "Exclude from tenanted deployments (default)", Value: Untenanted},
 		{Display: "Include only in tenanted deployments", Value: Tenanted},

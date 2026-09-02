@@ -6,27 +6,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// Helm reports only the values a release actually set, so every step of a path
-// may be missing.
-func TestValuesTree_TolerantOfMissingBranches(t *testing.T) {
-	values := map[string]any{
-		"agent": map[string]any{
-			"name":   "Production",
-			"worker": map[string]any{"enabled": true},
-		},
-	}
-
-	assert.Equal(t, "Production", stringAt(values, "agent", "name"))
-	assert.Equal(t, "", stringAt(values, "agent", "missing"))
-	assert.Equal(t, "", stringAt(values, "nothing", "here", "at", "all"))
-	assert.True(t, boolAt(values, false, "agent", "worker", "enabled"))
-	assert.False(t, boolAt(values, false, "agent", "deploymentTarget", "enabled"))
-	assert.True(t, boolAt(values, true, "agent", "deploymentTarget", "enabled"), "the fallback stands in for the chart's own default")
-
-	// A value of the wrong type is no more useful than a missing one.
-	assert.Equal(t, "", stringAt(values, "agent", "worker"))
-}
-
 func TestModeFrom(t *testing.T) {
 	tests := []struct {
 		name     string

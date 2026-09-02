@@ -23,46 +23,6 @@ func clusterWith(resources []*metav1.APIResourceList, objects ...runtime.Object)
 	return octoK8s.NewClusterForTesting(clientset, "test", "https://cluster")
 }
 
-func TestPermissionsControllerPresent(t *testing.T) {
-	// The agent's own script pod templates share this API group, so the
-	// controller has to be recognised by its resource rather than its group.
-	agentOnly := clusterWith([]*metav1.APIResourceList{{
-		GroupVersion: "agent.octopus.com/v1beta1",
-		APIResources: []metav1.APIResource{{Name: "scriptpodtemplates", Kind: "ScriptPodTemplate"}},
-	}})
-
-	present, err := agent.PermissionsControllerPresent(agentOnly)
-	require.NoError(t, err)
-	assert.False(t, present)
-
-	withController := clusterWith([]*metav1.APIResourceList{{
-		GroupVersion: "agent.octopus.com/v1beta1",
-		APIResources: []metav1.APIResource{
-			{Name: "scriptpodtemplates", Kind: "ScriptPodTemplate"},
-			{Name: "workloadserviceaccounts", Kind: "WorkloadServiceAccount"},
-		},
-	}})
-
-	present, err = agent.PermissionsControllerPresent(withController)
-	require.NoError(t, err)
-	assert.True(t, present)
-}
-
-func TestCertManagerPresent(t *testing.T) {
-	none := clusterWith(nil)
-	present, err := agent.CertManagerPresent(none)
-	require.NoError(t, err)
-	assert.False(t, present)
-
-	installed := clusterWith([]*metav1.APIResourceList{{
-		GroupVersion: "cert-manager.io/v1",
-		APIResources: []metav1.APIResource{{Name: "certificates", Kind: "Certificate"}},
-	}})
-	present, err = agent.CertManagerPresent(installed)
-	require.NoError(t, err)
-	assert.True(t, present)
-}
-
 func TestStorageClasses_DefaultFirst(t *testing.T) {
 	cluster := clusterWith(nil,
 		&storagev1.StorageClass{

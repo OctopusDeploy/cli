@@ -9,6 +9,8 @@ import (
 
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/OctopusDeploy/cli/pkg/cmd"
+	octoK8s "github.com/OctopusDeploy/cli/pkg/kubernetes"
+	"github.com/OctopusDeploy/cli/pkg/kubernetes/helm"
 	"github.com/OctopusDeploy/cli/pkg/output"
 	"github.com/OctopusDeploy/cli/pkg/question"
 )
@@ -126,6 +128,68 @@ func PrintReview(out io.Writer, groups []Group) {
 		}
 	}
 	fmt.Fprintln(out)
+}
+
+// ClusterItems is the review group every installer starts with. derivedSource
+// says where the namespace and release names come from when they were not
+// given; extra rows appear after the cluster address.
+func ClusterItems(d *cmd.Dependencies, flags *CommonFlags, kubeContext octoK8s.Context,
+	targetNamespace, targetRelease *string, derivedSource string, extra ...Item) []Item {
+	source := "current context"
+	if flags.KubeContext.Value != "" && !kubeContext.IsCurrent {
+		source = "chosen"
+	}
+
+	items := []Item{
+		{
+			Label:  "Kubernetes context",
+			Value:  flags.KubeContext.Value,
+			Source: source,
+			// Changing cluster invalidates everything discovered from it.
+			Edit: nil,
+		},
+		{Label: "Cluster address", Value: kubeContext.Server, Source: "from the kubeconfig"},
+	}
+	items = append(items, extra...)
+
+	return append(items,
+		Item{
+			Label:  "Namespace",
+			Value:  *targetNamespace,
+			Source: DerivedOrSet(flags.Namespace.Value, derivedSource),
+			Edit: EditText(d.Ask, &flags.Namespace.Value, "Namespace to install into",
+				func() string { return *targetNamespace }),
+		},
+		Item{
+			Label:  "Helm release",
+			Value:  *targetRelease,
+			Source: DerivedOrSet(flags.ReleaseName.Value, derivedSource),
+			Edit: EditText(d.Ask, &flags.ReleaseName.Value, "Helm release name",
+				func() string { return *targetRelease }),
+		},
+	)
+}
+
+// HelmItems is the review group every installer ends with; extra rows appear
+// between the chart version and the timeout.
+func HelmItems(d *cmd.Dependencies, flags *CommonFlags, chart helm.ChartRef, extra ...Item) []Item {
+	versionDefault := OrDefault(chart.Version, "latest")
+
+	items := []Item{
+		{Label: "Chart", Value: chart.Ref},
+		{
+			Label: "Chart version", Value: OrDefault(flags.ChartVersion.Value, versionDefault),
+			Edit: EditText(d.Ask, &flags.ChartVersion.Value, fmt.Sprintf("Chart version (blank for %s)", versionDefault),
+				func() string { return flags.ChartVersion.Value }),
+		},
+	}
+	items = append(items, extra...)
+
+	return append(items, Item{
+		Label: "Timeout", Value: OrDefault(flags.Timeout.Value, octoK8s.DefaultTimeout.String()),
+		Edit: EditText(d.Ask, &flags.Timeout.Value, "How long to wait for the release to become ready",
+			func() string { return flags.Timeout.Value }),
+	})
 }
 
 // EditText edits a value in place, offering what is currently in effect as the

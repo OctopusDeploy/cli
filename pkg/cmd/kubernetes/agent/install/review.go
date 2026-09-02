@@ -8,9 +8,10 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/cmd/kubernetes/shared"
 	sharedTarget "github.com/OctopusDeploy/cli/pkg/cmd/target/shared"
 	sharedWorker "github.com/OctopusDeploy/cli/pkg/cmd/worker/shared"
-	octoK8s "github.com/OctopusDeploy/cli/pkg/kubernetes"
+	agentK8s "github.com/OctopusDeploy/cli/pkg/kubernetes/agent"
 	"github.com/OctopusDeploy/cli/pkg/question"
 	"github.com/OctopusDeploy/cli/pkg/question/selectors"
+	"github.com/OctopusDeploy/cli/pkg/util"
 )
 
 // Confirm shows every setting, detected or chosen. Most are worked out rather
@@ -50,36 +51,9 @@ func reviewGroups(opts *InstallOptions) []shared.Group {
 }
 
 func clusterItems(opts *InstallOptions) []shared.Item {
-	source := "current context"
-	if opts.KubeContext.Value != "" && !opts.KubeContextInfo.IsCurrent {
-		source = "chosen"
-	}
-
-	return []shared.Item{
-		{
-			Label:  "Kubernetes context",
-			Value:  opts.KubeContext.Value,
-			Source: source,
-			// Changing cluster invalidates everything discovered from it.
-			Edit: nil,
-		},
-		{Label: "Cluster address", Value: opts.KubeContextInfo.Server, Source: "from the kubeconfig"},
-		{Label: "Node architectures", Value: shared.OrNone(opts.NodeArchitectures), Source: "from the cluster"},
-		{
-			Label:  "Namespace",
-			Value:  opts.TargetNamespace,
-			Source: shared.DerivedOrSet(opts.Namespace.Value, "derived from the name"),
-			Edit: shared.EditText(opts.Ask, &opts.Namespace.Value, "Namespace to install into",
-				func() string { return opts.TargetNamespace }),
-		},
-		{
-			Label:  "Helm release",
-			Value:  opts.TargetRelease,
-			Source: shared.DerivedOrSet(opts.ReleaseName.Value, "derived from the name"),
-			Edit: shared.EditText(opts.Ask, &opts.ReleaseName.Value, "Helm release name",
-				func() string { return opts.TargetRelease }),
-		},
-	}
+	return shared.ClusterItems(opts.Dependencies, opts.CommonFlags, opts.KubeContextInfo,
+		&opts.TargetNamespace, &opts.TargetRelease, "derived from the name",
+		shared.Item{Label: "Node architectures", Value: shared.OrNone(opts.NodeArchitectures), Source: "from the cluster"})
 }
 
 func octopusItems(opts *InstallOptions) []shared.Item {
@@ -217,25 +191,12 @@ func scriptPodItems(opts *InstallOptions) []shared.Item {
 }
 
 func helmItems(opts *InstallOptions) []shared.Item {
-	return []shared.Item{
-		{Label: "Chart", Value: ChartRef.Ref},
-		{
-			Label: "Chart version", Value: shared.OrDefault(opts.ChartVersion.Value, ChartRef.Version),
-			Edit: shared.EditText(opts.Ask, &opts.ChartVersion.Value, fmt.Sprintf("Chart version (blank for %s)", ChartRef.Version),
-				func() string { return opts.ChartVersion.Value }),
-		},
-		{
-			Label: "Credentials", Value: credentialPlacement(opts),
-			Edit: shared.EditConfirm(opts.Ask, &opts.InlineSecrets.Value,
-				"Put the registration credential directly in the Helm values instead of a Kubernetes Secret?",
-				"A Secret keeps it out of the Helm release and out of any file written with --output-values."),
-		},
-		{
-			Label: "Timeout", Value: shared.OrDefault(opts.Timeout.Value, octoK8s.DefaultTimeout.String()),
-			Edit: shared.EditText(opts.Ask, &opts.Timeout.Value, "How long to wait for the release to become ready",
-				func() string { return opts.Timeout.Value }),
-		},
-	}
+	return shared.HelmItems(opts.Dependencies, opts.CommonFlags, agentK8s.ChartRef, shared.Item{
+		Label: "Credentials", Value: credentialPlacement(opts),
+		Edit: shared.EditConfirm(opts.Ask, &opts.InlineSecrets.Value,
+			"Put the registration credential directly in the Helm values instead of a Kubernetes Secret?",
+			"A Secret keeps it out of the Helm release and out of any file written with --output-values."),
+	})
 }
 
 func registrationSummary(opts *InstallOptions) string {
@@ -356,7 +317,7 @@ func permissionsSource(opts *InstallOptions) string {
 		return "the permissions controller grants each deployment what it needs"
 	case len(opts.ScriptPodRoles.Value) > 0:
 		return fmt.Sprintf("%d %s copied in now, and not followed afterwards",
-			len(opts.ScriptPodRules), octoK8s.Pluralise("rule", "rules", len(opts.ScriptPodRules)))
+			len(opts.ScriptPodRules), util.Pluralise("rule", "rules", len(opts.ScriptPodRules)))
 	case opts.PermissionsController:
 		return "the permissions controller can grant less than this per deployment"
 	default:
@@ -369,10 +330,4 @@ func credentialPlacement(opts *InstallOptions) string {
 		return "access token in the Helm values"
 	}
 	return "access token in a Kubernetes Secret"
-}
-
-// RenderReviewForTest prints the review screen without asking anything.
-func RenderReviewForTest(opts *InstallOptions) {
-	_ = opts.resolveNames()
-	shared.PrintReview(opts.Out, reviewGroups(opts))
 }

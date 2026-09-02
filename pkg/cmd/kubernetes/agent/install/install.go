@@ -17,6 +17,7 @@ import (
 	octoK8s "github.com/OctopusDeploy/cli/pkg/kubernetes"
 	agentK8s "github.com/OctopusDeploy/cli/pkg/kubernetes/agent"
 	"github.com/OctopusDeploy/cli/pkg/kubernetes/helm"
+	"github.com/OctopusDeploy/cli/pkg/kubernetes/permissionscontroller"
 	"github.com/OctopusDeploy/cli/pkg/machinescommon"
 	"github.com/OctopusDeploy/cli/pkg/octopusservernodes"
 	"github.com/OctopusDeploy/cli/pkg/output"
@@ -25,12 +26,6 @@ import (
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/workers"
 	"github.com/spf13/cobra"
 )
-
-// ChartRef floats within the newest chart major version this tooling is known
-// to work with, as the Octopus portal's generated command does. Bump the major
-// together with KubernetesAgentUpgradeManager.LatestSupportedMajorVersion in
-// Octopus Server.
-var ChartRef = helm.ChartRef{Ref: "oci://registry-1.docker.io/octopusdeploy/kubernetes-agent", Version: "3.*.*"}
 
 const (
 	FlagName               = "name"
@@ -77,7 +72,7 @@ type InstallFlags struct {
 	*sharedTarget.CreateTargetTenantFlags
 	*machinescommon.CreateTargetMachinePolicyFlags
 	*sharedWorker.WorkerPoolFlags
-	*octoK8s.CommonFlags
+	*shared.CommonFlags
 }
 
 func NewInstallFlags() *InstallFlags {
@@ -99,7 +94,7 @@ func NewInstallFlags() *InstallFlags {
 		CreateTargetTenantFlags:        sharedTarget.NewCreateTargetTenantFlags(),
 		CreateTargetMachinePolicyFlags: machinescommon.NewCreateTargetMachinePolicyFlags(),
 		WorkerPoolFlags:                sharedWorker.NewWorkerPoolFlags(),
-		CommonFlags:                    octoK8s.NewCommonFlags(),
+		CommonFlags:                    shared.NewCommonFlags(),
 	}
 }
 
@@ -250,7 +245,7 @@ func newCmdInstall(f factory.Factory, mode agentK8s.Mode) *cobra.Command {
 	flags.BoolVar(&installFlags.RestrictScriptPods.Value, FlagRestrictScriptPods, false, "Give script pods no permissions of their own, leaving every deployment to the Octopus permissions controller.")
 	flags.StringArrayVar(&installFlags.ScriptPodRoles.Value, FlagScriptPodRole, nil,
 		"Give script pods the rules of this role, copied in at install time. Name a cluster role, or a role in a namespace as namespace/name. Repeat for more than one.")
-	octoK8s.RegisterCommonFlags(command, installFlags.CommonFlags)
+	shared.RegisterCommonFlags(command, installFlags.CommonFlags, shared.DerivedFromNameDetails())
 
 	return command
 }
@@ -377,7 +372,7 @@ func (opts *InstallOptions) discoverCluster(ctx context.Context, session *shared
 	}
 	opts.Installations = installations
 
-	present, err := agentK8s.PermissionsControllerPresent(session.Cluster)
+	present, err := permissionscontroller.Present(session.Cluster)
 	if err != nil {
 		return err
 	}
@@ -638,25 +633,11 @@ func (opts *InstallOptions) taskNodes() []octopusservernodes.Node {
 }
 
 func (opts *InstallOptions) resolveNames() error {
-	if opts.Namespace.Value != "" {
-		opts.TargetNamespace = opts.Namespace.Value
-	} else {
-		derived, err := octoK8s.DerivedNamespace(opts.namespacePrefix(), opts.Name.Value)
-		if err != nil {
-			return err
-		}
-		opts.TargetNamespace = derived
+	namespace, release, err := octoK8s.ResolveNames(opts.Namespace.Value, opts.ReleaseName.Value, opts.namespacePrefix(), opts.Name.Value)
+	if err != nil {
+		return err
 	}
-
-	if opts.ReleaseName.Value != "" {
-		opts.TargetRelease = opts.ReleaseName.Value
-	} else {
-		derived, err := octoK8s.ReleaseName(opts.Name.Value)
-		if err != nil {
-			return err
-		}
-		opts.TargetRelease = derived
-	}
+	opts.TargetNamespace, opts.TargetRelease = namespace, release
 	return nil
 }
 
@@ -838,11 +819,7 @@ func examples(mode agentK8s.Mode) string {
 }
 
 func (opts *InstallOptions) chartRef() helm.ChartRef {
-	ref := ChartRef
-	if opts.ChartVersion.Value != "" {
-		ref.Version = opts.ChartVersion.Value
-	}
-	return ref
+	return agentK8s.ChartRef.WithVersion(opts.ChartVersion.Value)
 }
 
 var errEulaDeclined = errors.New("the Octopus Customer Agreement has to be accepted to install the agent")
@@ -854,12 +831,4 @@ func (opts *InstallOptions) reportUnsupportedNodes() {
 	}
 	fmt.Fprintf(opts.Out, "%s This cluster has %s nodes, which the agent cannot run on. It will only schedule on the linux/amd64 and linux/arm64 nodes.\n",
 		output.Yellow("!"), strings.Join(unsupported, " and "))
-}
-
-func (opts *InstallOptions) NewTargetTagsForTest() []string {
-	return opts.newTargetTags()
-}
-
-func (opts *InstallOptions) DeriveAccessModeForTest() {
-	opts.deriveAccessMode()
 }

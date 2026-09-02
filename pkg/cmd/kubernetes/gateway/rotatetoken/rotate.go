@@ -9,42 +9,38 @@ import (
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/cmd"
+	"github.com/OctopusDeploy/cli/pkg/cmd/kubernetes/shared"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/factory"
 	octoK8s "github.com/OctopusDeploy/cli/pkg/kubernetes"
 	"github.com/OctopusDeploy/cli/pkg/kubernetes/argocd"
+	gatewayK8s "github.com/OctopusDeploy/cli/pkg/kubernetes/gateway"
 	"github.com/OctopusDeploy/cli/pkg/kubernetes/helm"
 	"github.com/OctopusDeploy/cli/pkg/output"
 	"github.com/OctopusDeploy/cli/pkg/question"
+	"github.com/OctopusDeploy/cli/pkg/util"
 	"github.com/OctopusDeploy/cli/pkg/util/flag"
 	"github.com/spf13/cobra"
+	appsv1 "k8s.io/api/apps/v1"
 )
 
 const (
-	FlagRelease  = "release"
-	FlagRestart  = "restart"
-	gatewayChart = "octopus-argocd-gateway-chart"
-	// gatewaySelector matches the gateway deployment the chart installs.
-	gatewaySelector = "app.kubernetes.io/name=octopus-argocd-gateway"
-
-	// The chart reads project tokens from Secret keys of this shape, with the
-	// OCTOPUS_ARGOCD_ prefix added by envFrom.
-	projectTokenEnvPrefix = "PROJECT_AUTH_TOKEN_"
-	accountTokenEnvName   = "OCTOPUS_ARGOCD_AUTH_TOKEN"
+	FlagRelease = "release"
+	FlagRestart = "restart"
 )
 
 type RotateFlags struct {
 	Release *flag.Flag[string]
 	Restart *flag.Flag[bool]
 
-	*octoK8s.CommonFlags
+	*shared.CommonFlags
 }
 
 func NewRotateFlags() *RotateFlags {
 	return &RotateFlags{
 		Release:     flag.New[string](FlagRelease, false),
 		Restart:     flag.New[bool](FlagRestart, false),
-		CommonFlags: octoK8s.NewCommonFlags(),
+		CommonFlags: shared.NewCommonFlags(),
 	}
 }
 
@@ -56,7 +52,7 @@ type RotateOptions struct {
 	Runner  *helm.Runner
 
 	release    helm.Release
-	deployment string
+	deployment *appsv1.Deployment
 	instance   argocd.Instance
 }
 
@@ -87,7 +83,7 @@ func NewCmdRotateToken(f factory.Factory) *cobra.Command {
 	flags.SortFlags = false
 	flags.StringVar(&rotateFlags.Release.Value, FlagRelease, "", "The gateway's Helm release name. Only needed when a cluster has more than one.")
 	flags.BoolVar(&rotateFlags.Restart.Value, FlagRestart, true, "Restart the gateway so it picks up the new token.")
-	octoK8s.RegisterCommonFlags(command, rotateFlags.CommonFlags)
+	shared.RegisterCommonFlags(command, rotateFlags.CommonFlags, shared.DerivedFromNameDetails())
 
 	return command
 }
@@ -133,35 +129,23 @@ func rotateRun(ctx context.Context, opts *RotateOptions) error {
 }
 
 func (opts *RotateOptions) connect(ctx context.Context) error {
-	kubeConfig, err := octoK8s.LoadKubeConfig(opts.KubeConfig.Value)
+	connector := &shared.Connector{
+		Dependencies:  opts.Dependencies,
+		CommonFlags:   opts.CommonFlags,
+		SelectMessage: "Which cluster is the gateway installed in?",
+	}
+
+	session, err := connector.Connect(ctx)
 	if err != nil {
 		return err
 	}
-
-	if opts.KubeContext.Value == "" {
-		current, ok := kubeConfig.CurrentContext()
-		if !ok {
-			return fmt.Errorf("your kubeconfig has no current context, so --%s must be specified", octoK8s.FlagKubeContext)
-		}
-		opts.KubeContext.Value = current.Name
-	}
-
-	cluster, err := octoK8s.Connect(kubeConfig, opts.KubeContext.Value)
-	if err != nil {
-		return err
-	}
-	opts.Cluster = cluster
-
-	runner, err := helm.NewRunner(opts.KubeConfig.Value, opts.KubeContext.Value, opts.Out)
-	if err != nil {
-		return err
-	}
-	opts.Runner = runner
+	opts.Cluster = session.Cluster
+	opts.Runner = session.Runner
 	return nil
 }
 
 func (opts *RotateOptions) selectRelease() error {
-	releases, err := opts.Runner.FindByChart(gatewayChart)
+	releases, err := opts.Runner.FindByChart(gatewayK8s.ChartName)
 	if err != nil {
 		return err
 	}
@@ -194,20 +178,20 @@ func (opts *RotateOptions) selectRelease() error {
 // describeGateway reads the gateway's own configuration back out of the
 // cluster, so a token can be replaced without knowing how it was installed.
 func (opts *RotateOptions) describeGateway(ctx context.Context) error {
-	deployment, found, err := opts.Cluster.FindDeployment(ctx, opts.release.Namespace, gatewaySelector)
+	deployment, found, err := opts.Cluster.FindDeployment(ctx, opts.release.Namespace, gatewayK8s.DeploymentSelector)
 	if err != nil {
 		return err
 	}
 	if !found {
 		return fmt.Errorf("the %s release has no gateway deployment in namespace %s", opts.release.Name, opts.release.Namespace)
 	}
-	opts.deployment = deployment.Name
+	opts.deployment = deployment
 
 	values, err := opts.Runner.GetValues(opts.release.Name, opts.release.Namespace)
 	if err != nil {
 		return err
 	}
-	opts.instance = instanceFromValues(values)
+	opts.instance = gatewayK8s.InstanceFromValues(values)
 
 	fmt.Fprintf(opts.Out, "Gateway %s in namespace %s, connected to %s\n",
 		output.Cyan(opts.release.Name), output.Cyan(opts.release.Namespace),
@@ -250,16 +234,11 @@ func (h tokenHolding) Display() string {
 // tokens. Taking it from the running workload rather than the Helm values means
 // this works however the gateway was installed.
 func (opts *RotateOptions) currentTokens(ctx context.Context) ([]tokenHolding, error) {
-	deployment, found, err := opts.Cluster.FindDeployment(ctx, opts.release.Namespace, gatewaySelector)
-	if err != nil || !found {
-		return nil, err
-	}
-
 	var holdings []tokenHolding
-	for _, container := range deployment.Spec.Template.Spec.Containers {
+	for _, container := range opts.deployment.Spec.Template.Spec.Containers {
 		for _, env := range container.Env {
 			ref := env.ValueFrom
-			if env.Name != accountTokenEnvName || ref == nil || ref.SecretKeyRef == nil {
+			if env.Name != gatewayK8s.AccountTokenEnvName || ref == nil || ref.SecretKeyRef == nil {
 				continue
 			}
 			holdings = append(holdings, opts.readHolding(ctx, "", ref.SecretKeyRef.Name, ref.SecretKeyRef.Key))
@@ -282,22 +261,27 @@ func (opts *RotateOptions) readProjectHoldings(ctx context.Context, secretName s
 	}
 
 	var holdings []tokenHolding
-	for key := range secret.Data {
-		project, isProjectToken := strings.CutPrefix(key, projectTokenEnvPrefix)
+	for key, value := range secret.Data {
+		project, isProjectToken := strings.CutPrefix(key, gatewayK8s.ProjectTokenKeyPrefix)
 		if !isProjectToken {
 			continue
 		}
-		holding := opts.readHolding(ctx, project, secretName, key)
-		holdings = append(holdings, holding)
+		holdings = append(holdings, holdingFromValue(project, secretName, key, string(value)))
 	}
 	return holdings
 }
 
 func (opts *RotateOptions) readHolding(ctx context.Context, project, secretName, secretKey string) tokenHolding {
-	holding := tokenHolding{Project: project, SecretName: secretName, SecretKey: secretKey}
-
 	value, found, err := opts.Cluster.SecretKey(ctx, opts.release.Namespace, secretName, secretKey)
-	if err != nil || !found || value == "" {
+	if err != nil || !found {
+		value = ""
+	}
+	return holdingFromValue(project, secretName, secretKey, value)
+}
+
+func holdingFromValue(project, secretName, secretKey, value string) tokenHolding {
+	holding := tokenHolding{Project: project, SecretName: secretName, SecretKey: secretKey}
+	if value == "" {
 		return holding
 	}
 
@@ -413,22 +397,22 @@ func (opts *RotateOptions) verifyAgainstArgoCD(ctx context.Context, token string
 	}
 
 	fmt.Fprintf(opts.Out, "  %s\n", output.Dimf("Checked against Argo CD: reads %d %s.",
-		access.Applications, octoK8s.Pluralise("application", "applications", access.Applications)))
+		access.Applications, util.Pluralise("application", "applications", access.Applications)))
 	return nil
 }
 
 func (opts *RotateOptions) restart(ctx context.Context) error {
 	if !opts.Restart.Value {
 		fmt.Fprintf(opts.Out, "\nRestart the gateway for the new tokens to take effect:\n  %s\n",
-			output.Cyan(fmt.Sprintf("kubectl rollout restart deploy/%s -n %s", opts.deployment, opts.release.Namespace)))
+			output.Cyan(fmt.Sprintf("kubectl rollout restart deploy/%s -n %s", opts.deployment.Name, opts.release.Namespace)))
 		return nil
 	}
 
-	if err := opts.Cluster.RestartDeployment(ctx, opts.release.Namespace, opts.deployment); err != nil {
+	if err := opts.Cluster.RestartDeployment(ctx, opts.release.Namespace, opts.deployment.Name); err != nil {
 		return err
 	}
 	fmt.Fprintf(opts.Out, "\n%s Restarted %s so it picks up the new tokens.\n",
-		output.Green("✔"), output.Cyan(opts.deployment))
+		output.Green("✔"), output.Cyan(opts.deployment.Name))
 	return nil
 }
 
@@ -437,18 +421,6 @@ func holdingName(holding tokenHolding) string {
 		return "the gateway's Argo CD account token"
 	}
 	return "project " + holding.Project
-}
-
-func instanceFromValues(values map[string]any) argocd.Instance {
-	gateway, _ := values["gateway"].(map[string]any)
-	argo, _ := gateway["argocd"].(map[string]any)
-	registration, _ := values["registration"].(map[string]any)
-	registrationArgo, _ := registration["argocd"].(map[string]any)
-
-	instance := argocd.Instance{}
-	instance.ServerGRPCURL, _ = argo["serverGrpcUrl"].(string)
-	instance.WebUIURL, _ = registrationArgo["webUiUrl"].(string)
-	return instance
 }
 
 func orUnknown(value string) string {

@@ -30,9 +30,8 @@ func rememberingFactory(t *testing.T, api *testutil.MockHttpServer, asker *testu
 		question.NewAskProvider(asker.AsAsker()))
 	require.NoError(t, err)
 
-	factory.(*apiclient.Client).RememberSpace = func(space string) error {
+	factory.(*apiclient.Client).RememberSpace = func(space string) {
 		*saved = space
-		return nil
 	}
 	return factory
 }

@@ -2,18 +2,17 @@ package install
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"strings"
 	"time"
 
-	"github.com/AlecAivazis/survey/v2"
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/cmd/kubernetes/shared"
 	octoK8s "github.com/OctopusDeploy/cli/pkg/kubernetes"
 	"github.com/OctopusDeploy/cli/pkg/kubernetes/agent"
 	"github.com/OctopusDeploy/cli/pkg/kubernetes/helm"
 	"github.com/OctopusDeploy/cli/pkg/output"
+	"github.com/OctopusDeploy/cli/pkg/util"
 	"github.com/OctopusDeploy/cli/pkg/util/flag"
 )
 
@@ -29,7 +28,7 @@ func (opts *InstallOptions) Commit(ctx context.Context) error {
 		return err
 	}
 
-	if err := shared.CheckPermissions(ctx, opts.Dependencies, opts.Cluster, opts.TargetNamespace, opts.DryRun.Value); err != nil {
+	if err := shared.CheckPermissions(ctx, opts.Dependencies, opts.Cluster, octoK8s.InstallPermissions(opts.TargetNamespace), opts.DryRun.Value); err != nil {
 		return err
 	}
 
@@ -47,15 +46,7 @@ func (opts *InstallOptions) Commit(ctx context.Context) error {
 
 	fmt.Fprintf(opts.Out, "\nInstalling the permissions controller into %s...\n", output.Cyan(opts.TargetNamespace))
 
-	release, err := opts.Runner.Install(ctx, helm.InstallSpec{
-		Chart:       opts.chartRef(),
-		ReleaseName: opts.TargetRelease,
-		Namespace:   opts.TargetNamespace,
-		Values:      values,
-		Atomic:      opts.Atomic.Value,
-		Wait:        opts.Wait.Value,
-		Timeout:     timeout,
-	})
+	release, err := opts.Runner.Install(ctx, opts.installSpec(values, timeout))
 	if err != nil {
 		return err
 	}
@@ -135,62 +126,40 @@ func (opts *InstallOptions) confirmPrerequisites() error {
 		return nil
 	}
 
-	if opts.NoPrompt {
-		return fmt.Errorf("%d %s not met; fix the problems above or pass --%s",
-			failed, octoK8s.Pluralise("prerequisite was", "prerequisites were", failed), octoK8s.FlagSkipPreflight)
-	}
-
-	proceed := false
-	if err := opts.Ask(&survey.Confirm{
-		Message: "Continue with the install anyway?",
-		Default: false,
-		Help:    "The controller is likely to install and then be unable to do its job.",
-	}, &proceed); err != nil {
-		return err
-	}
-	if !proceed {
-		return errors.New("install cancelled")
-	}
-	return nil
+	return shared.ConfirmProceed(opts.Dependencies,
+		fmt.Sprintf("%d %s not met; fix the problems above or pass --%s",
+			failed, util.Pluralise("prerequisite was", "prerequisites were", failed), octoK8s.FlagSkipPreflight),
+		"The controller is likely to install and then be unable to do its job.")
 }
 
 func (opts *InstallOptions) renderOnly(ctx context.Context, values map[string]any, timeout time.Duration) error {
-	fmt.Fprintf(opts.Out, "\n%s Rendering only. Nothing will be installed.\n", output.Dim("--"+octoK8s.FlagDryRun))
+	return shared.RenderOnly(ctx, opts.Dependencies, opts.Runner, opts.installSpec(values, timeout),
+		"Nothing will be installed.", nil)
+}
 
-	manifest, err := opts.Runner.Render(ctx, helm.InstallSpec{
+func (opts *InstallOptions) installSpec(values map[string]any, timeout time.Duration) helm.InstallSpec {
+	return helm.InstallSpec{
 		Chart:       opts.chartRef(),
 		ReleaseName: opts.TargetRelease,
 		Namespace:   opts.TargetNamespace,
 		Values:      values,
+		Atomic:      opts.Atomic.Value,
+		Wait:        opts.Wait.Value,
 		Timeout:     timeout,
-	})
-	if err != nil {
-		return err
 	}
-
-	fmt.Fprintln(opts.Out, manifest)
-	return nil
 }
 
 func (opts *InstallOptions) reportSuccess(release helm.Release) {
-	fmt.Fprintf(opts.Out, "\n%s Installed %s %s as release %s in namespace %s.\n",
-		output.Green("✔"), release.Chart, release.Version,
-		output.Cyan(release.Name), output.Cyan(release.Namespace))
+	shared.ReportInstalled(opts.Out, release)
 
 	opts.PrintNextSteps()
-
-	if opts.NoPrompt {
-		return
-	}
 
 	generatable := []flag.Generatable{
 		opts.TargetNamespaces, opts.TargetNamespaceRegex, opts.NamespacedRBAC,
 		negated{name: FlagCertManager, off: !opts.CertManager.Value},
 	}
 	generatable = append(generatable, opts.CommonFlags.Generatable()...)
-
-	autoCmd := flag.GenerateAutomationCmd(opts.CmdPath, opts.GetSpaceNameOrEmpty(), generatable...)
-	fmt.Fprintf(opts.Out, "\nAutomation Command: %s\n", autoCmd)
+	shared.PrintAutomationCommand(opts.Dependencies, generatable)
 }
 
 // PrintNextSteps exists because the controller changes nothing on its own:
@@ -237,7 +206,7 @@ func (opts *InstallOptions) printAgentRestrictions() {
 	fmt.Fprintf(opts.Out, "\n  A deployment with no matching WorkloadServiceAccount falls back to the agent's default\n"+
 		"  script pod permissions, which %s still grant across the cluster. Run this to take those\n"+
 		"  defaults away, so an unmatched deployment fails instead:\n\n",
-		octoK8s.Pluralise("this agent", "these agents", len(unrestricted)))
+		util.Pluralise("this agent", "these agents", len(unrestricted)))
 
 	for _, installation := range unrestricted {
 		fmt.Fprintf(opts.Out, "  %s\n", output.Dimf("# %s", installation.Name))
@@ -248,7 +217,7 @@ func (opts *InstallOptions) printAgentRestrictions() {
 func agentRestrictCommand(installation agent.Installation) string {
 	return fmt.Sprintf("helm upgrade --install --atomic --create-namespace --namespace %s --reset-then-reuse-values "+
 		"--set scriptPods.serviceAccount.clusterRole.enabled=\"false\" %s %s",
-		installation.Release.Namespace, installation.Release.Name, AgentChartRef)
+		installation.Release.Namespace, installation.Release.Name, agent.ChartRef.Ref)
 }
 
 // negated renders a flag that defaults to on. GenerateAutomationCmd emits a bool
@@ -261,11 +230,3 @@ type negated struct {
 func (n negated) GetName() string { return n.name + "=false" }
 func (n negated) GetValue() any   { return n.off }
 func (n negated) IsSecure() bool  { return false }
-
-func (opts *InstallOptions) ReportSuccessForTest(release helm.Release) {
-	opts.reportSuccess(release)
-}
-
-func (opts *InstallOptions) ConfirmPrerequisitesForTest() error {
-	return opts.confirmPrerequisites()
-}

@@ -15,10 +15,10 @@ import (
 	"github.com/briandowns/spinner"
 	"github.com/spf13/viper"
 
+	"github.com/AlecAivazis/survey/v2"
 	"github.com/OctopusDeploy/cli/pkg/config"
 	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/OctopusDeploy/cli/pkg/question"
-	"github.com/OctopusDeploy/cli/pkg/surveyext"
 	"github.com/OctopusDeploy/cli/pkg/usage"
 
 	"github.com/joho/godotenv"
@@ -41,7 +41,7 @@ func main() {
 
 	// initialize our wrapper around survey, which is also used as a flag for whether
 	// we are in interactive mode or automation mode
-	askProvider := question.NewAskProvider(surveyext.AskOne)
+	askProvider := question.NewAskProvider(survey.AskOne)
 	_, ci := os.LookupEnv("CI")
 	// TODO move this to some other function and have it look for GITHUB_ACTIONS etc as we learn more about it
 	if ci {

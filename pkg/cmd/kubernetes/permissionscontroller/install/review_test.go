@@ -10,6 +10,7 @@ import (
 	octoK8s "github.com/OctopusDeploy/cli/pkg/kubernetes"
 	"github.com/OctopusDeploy/cli/pkg/kubernetes/agent"
 	"github.com/OctopusDeploy/cli/pkg/kubernetes/helm"
+	"github.com/OctopusDeploy/cli/pkg/kubernetes/permissionscontroller"
 	"github.com/OctopusDeploy/cli/test/testutil"
 	"github.com/stretchr/testify/assert"
 )
@@ -55,7 +56,7 @@ func TestReview_ShowsEverySetting(t *testing.T) {
 		"every namespace",                       // the chart's own default
 		"cluster-wide",                          // RBAC scope
 		"cert-manager",                          // who issues the webhook certificate
-		install.ChartRef.Ref,
+		permissionscontroller.ChartRef.Ref,
 		octoK8s.DefaultTimeout.String(),
 		"(one controller per cluster)", // why the names are what they are
 	} {

@@ -125,15 +125,17 @@ func BeginBootstrapLogin(ctx context.Context, c *octoK8s.Cluster, instance Insta
 	passwordKey := accountsKeyPrefix + spec.Name + accountPasswordKeySuffix
 	mtimeKey := accountsKeyPrefix + spec.Name + accountPasswordMtimeKeySuffix
 
-	if value, found, err := c.SecretKey(ctx, namespace, SecretName, passwordKey); err != nil {
+	if secret, found, err := c.GetSecret(ctx, namespace, SecretName); err != nil {
 		return nil, err
 	} else if found {
-		bootstrap.previousPassword = &value
-	}
-	if value, found, err := c.SecretKey(ctx, namespace, SecretName, mtimeKey); err != nil {
-		return nil, err
-	} else if found {
-		bootstrap.previousMtime = &value
+		if value, ok := secret.Data[passwordKey]; ok {
+			previous := string(value)
+			bootstrap.previousPassword = &previous
+		}
+		if value, ok := secret.Data[mtimeKey]; ok {
+			previous := string(value)
+			bootstrap.previousMtime = &previous
+		}
 	}
 
 	err = c.MergeSecretKeys(ctx, namespace, SecretName, map[string]string{

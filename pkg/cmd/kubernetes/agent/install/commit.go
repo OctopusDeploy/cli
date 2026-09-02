@@ -22,7 +22,7 @@ func (opts *InstallOptions) Commit(ctx context.Context) error {
 		return err
 	}
 
-	if err := shared.CheckPermissions(ctx, opts.Dependencies, opts.Cluster, opts.TargetNamespace, opts.DryRun.Value); err != nil {
+	if err := shared.CheckPermissions(ctx, opts.Dependencies, opts.Cluster, octoK8s.InstallPermissions(opts.TargetNamespace), opts.DryRun.Value); err != nil {
 		return err
 	}
 
@@ -63,15 +63,7 @@ func (opts *InstallOptions) Commit(ctx context.Context) error {
 			"Waiting for it to register with Octopus and become ready. This can take a few minutes, and gives up after %s.", timeout))
 	}
 
-	release, err := opts.Runner.Install(ctx, helm.InstallSpec{
-		Chart:       opts.chartRef(),
-		ReleaseName: opts.TargetRelease,
-		Namespace:   opts.TargetNamespace,
-		Values:      values,
-		Atomic:      opts.Atomic.Value,
-		Wait:        opts.Wait.Value,
-		Timeout:     timeout,
-	})
+	release, err := opts.Runner.Install(ctx, opts.installSpec(values, timeout))
 	if err != nil {
 		return opts.reportFailure(err)
 	}
@@ -280,12 +272,7 @@ func eulaValue(accepted bool) string {
 
 func (opts *InstallOptions) preflight() *shared.Preflight {
 	targets := []octoK8s.Target{
-		{
-			Name:    "Octopus REST API",
-			Address: opts.Host,
-			Remediation: "The chart registers the agent with Octopus over the REST API, from a pod in the cluster. " +
-				"Confirm this address is reachable from inside the cluster.",
-		},
+		octoK8s.RESTAPITarget(opts.Host, "The chart registers the agent with Octopus over the REST API, from a pod in the cluster."),
 	}
 
 	for _, address := range opts.ServerCommsAddresses.Value {
@@ -299,12 +286,8 @@ func (opts *InstallOptions) preflight() *shared.Preflight {
 	}
 
 	if opts.monitorEnabled() {
-		targets = append(targets, octoK8s.Target{
-			Name:    "Octopus gRPC endpoint",
-			Address: octoK8s.DeriveGRPCURL(opts.Host),
-			Remediation: "The Kubernetes monitor streams live object status to Octopus over gRPC on a different port to the REST API. " +
-				"A load balancer, proxy, or firewall that forwards only HTTPS is the usual cause; make sure the gRPC port is forwarded too.",
-		})
+		targets = append(targets, octoK8s.GRPCTarget(octoK8s.DeriveGRPCURL(opts.Host),
+			"The Kubernetes monitor streams live object status to Octopus over gRPC on a different port to the REST API."))
 	}
 
 	return &shared.Preflight{
@@ -326,9 +309,6 @@ func (opts *InstallOptions) writeValuesFile(values map[string]any) error {
 }
 
 func (opts *InstallOptions) renderOnly(ctx context.Context, timeout time.Duration) error {
-	fmt.Fprintf(opts.Out, "\n%s Rendering only. Nothing will be installed, no Octopus access token is created, and the connectivity checks that need a pod in the cluster are skipped.\n",
-		output.Dim("--"+octoK8s.FlagDryRun))
-
 	// The rendered manifests carry acceptEula, and an agent given "N" starts and
 	// then refuses to run, so values taken from here would not work as they are.
 	if !opts.AcceptEula.Value {
@@ -344,22 +324,21 @@ func (opts *InstallOptions) renderOnly(ctx context.Context, timeout time.Duratio
 		return err
 	}
 
-	// Report only: there is no install to abandon.
-	opts.preflight().ReportStatic()
+	return shared.RenderOnly(ctx, opts.Dependencies, opts.Runner, opts.installSpec(values, timeout),
+		"Nothing will be installed, no Octopus access token is created, and the connectivity checks that need a pod in the cluster are skipped.",
+		opts.preflight())
+}
 
-	manifest, err := opts.Runner.Render(ctx, helm.InstallSpec{
+func (opts *InstallOptions) installSpec(values map[string]any, timeout time.Duration) helm.InstallSpec {
+	return helm.InstallSpec{
 		Chart:       opts.chartRef(),
 		ReleaseName: opts.TargetRelease,
 		Namespace:   opts.TargetNamespace,
 		Values:      values,
+		Atomic:      opts.Atomic.Value,
+		Wait:        opts.Wait.Value,
 		Timeout:     timeout,
-	})
-	if err != nil {
-		return err
 	}
-
-	fmt.Fprintln(opts.Out, manifest)
-	return nil
 }
 
 // reportFailure covers the case Helm cannot undo. The chart registers the agent
@@ -390,18 +369,11 @@ func (opts *InstallOptions) removeCommand() string {
 }
 
 func (opts *InstallOptions) reportSuccess(release helm.Release) {
-	fmt.Fprintf(opts.Out, "\n%s Installed %s %s as release %s in namespace %s.\n",
-		output.Green("✔"), release.Chart, release.Version,
-		output.Cyan(release.Name), output.Cyan(release.Namespace))
+	shared.ReportInstalled(opts.Out, release)
 	fmt.Fprintf(opts.Out, "  The agent polls Octopus for work. It appears under %s once its first health check passes.\n",
 		opts.portalLocation())
 
-	if opts.NoPrompt {
-		return
-	}
-
-	autoCmd := flag.GenerateAutomationCmd(opts.CmdPath, opts.GetSpaceNameOrEmpty(), opts.generatable()...)
-	fmt.Fprintf(opts.Out, "\nAutomation Command: %s\n", autoCmd)
+	shared.PrintAutomationCommand(opts.Dependencies, opts.generatable())
 }
 
 func (opts *InstallOptions) portalLocation() string {

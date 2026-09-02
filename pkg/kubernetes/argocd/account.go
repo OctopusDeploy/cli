@@ -12,6 +12,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	octoK8s "github.com/OctopusDeploy/cli/pkg/kubernetes"
+	"github.com/OctopusDeploy/cli/pkg/util"
 )
 
 // DefaultAccountName is a local account: Argo CD has no service-account
@@ -65,7 +66,7 @@ func (s AccountStatus) Summary() string {
 		missing = append(missing, fmt.Sprintf("the %q account is disabled", s.Spec.Name))
 	}
 	if len(s.MissingPolicies) > 0 {
-		missing = append(missing, fmt.Sprintf("%d RBAC %s", len(s.MissingPolicies), octoK8s.Pluralise("policy", "policies", len(s.MissingPolicies))))
+		missing = append(missing, fmt.Sprintf("%d RBAC %s", len(s.MissingPolicies), util.Pluralise("policy", "policies", len(s.MissingPolicies))))
 	}
 	return "Argo CD is missing " + strings.Join(missing, " and ")
 }

@@ -5,8 +5,8 @@ import (
 	"fmt"
 
 	"github.com/OctopusDeploy/cli/pkg/cmd/kubernetes/shared"
-	octoK8s "github.com/OctopusDeploy/cli/pkg/kubernetes"
 	"github.com/OctopusDeploy/cli/pkg/kubernetes/agent"
+	controllerK8s "github.com/OctopusDeploy/cli/pkg/kubernetes/permissionscontroller"
 )
 
 func Confirm(ctx context.Context, opts *InstallOptions) error {
@@ -28,36 +28,8 @@ func reviewGroups(opts *InstallOptions) []shared.Group {
 }
 
 func clusterItems(opts *InstallOptions) []shared.Item {
-	kubeContext := opts.KubeContextInfo
-	source := "current context"
-	if opts.KubeContext.Value != "" && !kubeContext.IsCurrent {
-		source = "chosen"
-	}
-
-	return []shared.Item{
-		{
-			Label:  "Kubernetes context",
-			Value:  opts.KubeContext.Value,
-			Source: source,
-			// Changing cluster invalidates everything discovered from it.
-			Edit: nil,
-		},
-		{Label: "Cluster address", Value: kubeContext.Server, Source: "from the kubeconfig"},
-		{
-			Label:  "Namespace",
-			Value:  opts.TargetNamespace,
-			Source: shared.DerivedOrSet(opts.Namespace.Value, nameSource(opts)),
-			Edit: shared.EditText(opts.Ask, &opts.Namespace.Value, "Namespace to install into",
-				func() string { return opts.TargetNamespace }),
-		},
-		{
-			Label:  "Helm release",
-			Value:  opts.TargetRelease,
-			Source: shared.DerivedOrSet(opts.ReleaseName.Value, nameSource(opts)),
-			Edit: shared.EditText(opts.Ask, &opts.ReleaseName.Value, "Helm release name",
-				func() string { return opts.TargetRelease }),
-		},
-	}
+	return shared.ClusterItems(opts.Dependencies, opts.CommonFlags, opts.KubeContextInfo,
+		&opts.TargetNamespace, &opts.TargetRelease, nameSource(opts))
 }
 
 func nameSource(opts *InstallOptions) string {
@@ -165,22 +137,5 @@ func scriptPodPermissions(installation agent.Installation) string {
 }
 
 func helmItems(opts *InstallOptions) []shared.Item {
-	return []shared.Item{
-		{Label: "Chart", Value: ChartRef.Ref},
-		{
-			Label: "Chart version", Value: shared.OrDefault(opts.ChartVersion.Value, "latest"),
-			Edit: shared.EditText(opts.Ask, &opts.ChartVersion.Value, "Chart version (blank for the latest)",
-				func() string { return opts.ChartVersion.Value }),
-		},
-		{
-			Label: "Timeout", Value: shared.OrDefault(opts.Timeout.Value, octoK8s.DefaultTimeout.String()),
-			Edit: shared.EditText(opts.Ask, &opts.Timeout.Value, "How long to wait for the release to become ready",
-				func() string { return opts.Timeout.Value }),
-		},
-	}
-}
-
-func RenderReviewForTest(opts *InstallOptions) {
-	opts.resolveNames()
-	shared.PrintReview(opts.Out, reviewGroups(opts))
+	return shared.HelmItems(opts.Dependencies, opts.CommonFlags, controllerK8s.ChartRef)
 }

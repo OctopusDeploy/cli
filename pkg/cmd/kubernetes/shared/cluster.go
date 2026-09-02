@@ -28,7 +28,7 @@ type Session struct {
 // discovery against it.
 type Connector struct {
 	*cmd.Dependencies
-	*octoK8s.CommonFlags
+	*CommonFlags
 
 	// SelectMessage is asked when the kubeconfig holds more than one context.
 	SelectMessage string

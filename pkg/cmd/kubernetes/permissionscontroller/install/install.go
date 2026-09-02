@@ -14,16 +14,11 @@ import (
 	octoK8s "github.com/OctopusDeploy/cli/pkg/kubernetes"
 	"github.com/OctopusDeploy/cli/pkg/kubernetes/agent"
 	"github.com/OctopusDeploy/cli/pkg/kubernetes/helm"
+	controllerK8s "github.com/OctopusDeploy/cli/pkg/kubernetes/permissionscontroller"
 	"github.com/OctopusDeploy/cli/pkg/util/flag"
 	"github.com/spf13/cobra"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
-
-var ChartRef = helm.ChartRef{Ref: "oci://registry-1.docker.io/octopusdeploy/octopus-permissions-controller-chart"}
-
-// ChartName is the chart's own name, which is how an existing release is
-// recognised whatever it was named.
-const ChartName = "octopus-permissions-controller-chart"
 
 // Only one controller runs per cluster, so there is nothing to derive a release
 // name from.
@@ -32,10 +27,6 @@ const DefaultReleaseName = "octopus-permissions-controller"
 // MinimumAgentVersion is the first agent release whose script pods ask the
 // controller which service account to run as. An older agent ignores it.
 const MinimumAgentVersion = "v2.28.1"
-
-// AgentChartRef is printed rather than installed: restricting an agent's script
-// pods changes a release this command does not own.
-const AgentChartRef = "oci://registry-1.docker.io/octopusdeploy/kubernetes-agent"
 
 const (
 	FlagTargetNamespace      = "target-namespace"
@@ -50,7 +41,7 @@ type InstallFlags struct {
 	CertManager          *flag.Flag[bool]
 	NamespacedRBAC       *flag.Flag[bool]
 
-	*octoK8s.CommonFlags
+	*shared.CommonFlags
 }
 
 func NewInstallFlags() *InstallFlags {
@@ -59,7 +50,7 @@ func NewInstallFlags() *InstallFlags {
 		TargetNamespaceRegex: flag.New[string](FlagTargetNamespaceRegex, false),
 		CertManager:          flag.New[bool](FlagCertManager, false),
 		NamespacedRBAC:       flag.New[bool](FlagNamespacedRBAC, false),
-		CommonFlags:          octoK8s.NewCommonFlags(),
+		CommonFlags:          shared.NewCommonFlags(),
 	}
 	// Set here as well as on the cobra flag, because the `kubernetes install`
 	// wizard builds these without cobra ever parsing a command line.
@@ -71,13 +62,9 @@ type InstallOptions struct {
 	*InstallFlags
 	*cmd.Dependencies
 
-	// These read the cluster during Discover. Injected so the prompt, review and
-	// commit flows can be tested without one.
-	CertManagerPresentCallback func() (bool, error)
-	ControllerPresentCallback  func() (bool, error)
-	ExistingReleasesCallback   func() ([]helm.Release, error)
-	AgentsCallback             func() ([]agent.Installation, error)
-	NamespacesCallback         func(ctx context.Context) ([]string, error)
+	// NamespacesCallback reads the cluster while prompting. Injected so the
+	// prompt flow can be tested without one.
+	NamespacesCallback func(ctx context.Context) ([]string, error)
 
 	// Populated by Discover before prompting. Exported so tests can drive the
 	// prompt flow against a fake cluster.
@@ -102,10 +89,6 @@ func NewInstallOptions(installFlags *InstallFlags, dependencies *cmd.Dependencie
 		Dependencies: dependencies,
 	}
 
-	opts.CertManagerPresentCallback = func() (bool, error) { return agent.CertManagerPresent(opts.Cluster) }
-	opts.ControllerPresentCallback = func() (bool, error) { return agent.PermissionsControllerPresent(opts.Cluster) }
-	opts.ExistingReleasesCallback = func() ([]helm.Release, error) { return opts.Runner.FindByChart(ChartName) }
-	opts.AgentsCallback = func() ([]agent.Installation, error) { return agent.Installations(opts.Runner) }
 	opts.NamespacesCallback = func(ctx context.Context) ([]string, error) { return listNamespaces(ctx, opts.Cluster) }
 
 	return opts
@@ -155,20 +138,14 @@ func NewCmdInstall(f factory.Factory) *cobra.Command {
 		"Let cert-manager issue the certificate the controller's mutating admission webhook needs. Turn off only if you are supplying it yourself.")
 	flags.BoolVar(&installFlags.NamespacedRBAC.Value, FlagNamespacedRBAC, false,
 		"Give the controller permissions in its own namespace only, instead of across the cluster.")
-	octoK8s.RegisterCommonFlags(command, installFlags.CommonFlags)
-	describeCommonFlags(command)
+	shared.RegisterCommonFlags(command, installFlags.CommonFlags, shared.CommonFlagDetails{
+		NamespaceDefault: fmt.Sprintf("Defaults to %s.", octoK8s.PermissionsControllerNamespace),
+		ReleaseDefault:   fmt.Sprintf("Defaults to %s.", DefaultReleaseName),
+		Checks:           "prerequisite",
+		NoCheckPod:       true,
+	})
 
 	return command
-}
-
-// describeCommonFlags corrects the shared help for a component that has no name
-// to derive anything from, and makes no outbound connection to check.
-func describeCommonFlags(command *cobra.Command) {
-	flags := command.Flags()
-	flags.Lookup(octoK8s.FlagNamespace).Usage = fmt.Sprintf("The namespace to install into. Defaults to %s.", octoK8s.PermissionsControllerNamespace)
-	flags.Lookup(octoK8s.FlagReleaseName).Usage = fmt.Sprintf("The Helm release name. Defaults to %s.", DefaultReleaseName)
-	flags.Lookup(octoK8s.FlagSkipPreflight).Usage = "Skip the prerequisite checks that run before installing."
-	_ = flags.MarkHidden(octoK8s.FlagPreflightImage)
 }
 
 // Run installs the controller using an existing set of dependencies. The
@@ -215,49 +192,43 @@ func (opts *InstallOptions) Discover(ctx context.Context) error {
 		Discover:      opts.discover,
 	}
 
-	session, err := connector.Connect(ctx)
-	if err != nil {
-		return err
-	}
-
-	opts.Cluster = session.Cluster
-	opts.Runner = session.Runner
-	opts.KubeContextInfo = session.Context
-	return nil
+	_, err := connector.Connect(ctx)
+	return err
 }
 
-// discover runs inside the connector's retry loop, so it sets what the
-// callbacks read from before using them.
+// discover runs inside the connector's retry loop, so it sets what the later
+// flows read from before using anything.
 func (opts *InstallOptions) discover(_ context.Context, session *shared.Session) error {
 	opts.Cluster = session.Cluster
 	opts.Runner = session.Runner
 	opts.KubeContextInfo = session.Context
 
-	certManager, err := opts.CertManagerPresentCallback()
+	certManager, err := controllerK8s.CertManagerPresent(opts.Cluster)
 	if err != nil {
 		return err
 	}
 	opts.CertManagerPresent = certManager
 
-	controller, err := opts.ControllerPresentCallback()
+	controller, err := controllerK8s.Present(opts.Cluster)
 	if err != nil {
 		return err
 	}
 	opts.ControllerPresent = controller
 
-	releases, err := opts.ExistingReleasesCallback()
+	// One cross-namespace release list answers both the existing-controller and
+	// installed-agents questions: Helm reads every release Secret in the
+	// cluster to build it, so it is the slowest call in this discovery.
+	releases, err := opts.Runner.List()
 	if err != nil {
 		return err
 	}
-	if len(releases) > 0 {
-		opts.ExistingRelease = &releases[0]
+	for _, release := range releases {
+		if release.Chart == controllerK8s.ChartName {
+			opts.ExistingRelease = &release
+			break
+		}
 	}
-
-	agents, err := opts.AgentsCallback()
-	if err != nil {
-		return err
-	}
-	opts.Agents = agents
+	opts.Agents = agent.InstallationsFromReleases(opts.Runner, releases)
 
 	return nil
 }
@@ -284,9 +255,7 @@ func (opts *InstallOptions) resolveNames() {
 }
 
 func (opts *InstallOptions) chartRef() helm.ChartRef {
-	ref := ChartRef
-	ref.Version = opts.ChartVersion.Value
-	return ref
+	return controllerK8s.ChartRef.WithVersion(opts.ChartVersion.Value)
 }
 
 // listNamespaces leaves out the kube-* namespaces, which hold the control plane
@@ -306,8 +275,4 @@ func listNamespaces(ctx context.Context, cluster *octoK8s.Cluster) ([]string, er
 	}
 	sort.Strings(names)
 	return names, nil
-}
-
-func (opts *InstallOptions) ResolveNamesForTest() {
-	opts.resolveNames()
 }

@@ -54,6 +54,25 @@ func DerivedNamespace(prefix, name string) (string, error) {
 	return prefix + truncateSlug(s, dnsLabelMaxLen-len(prefix)), nil
 }
 
+// ResolveNames keeps an explicit --namespace or --release-name and derives
+// whatever was not given from the component's name.
+func ResolveNames(explicitNamespace, explicitRelease, prefix, name string) (namespace, release string, err error) {
+	namespace = explicitNamespace
+	if namespace == "" {
+		if namespace, err = DerivedNamespace(prefix, name); err != nil {
+			return "", "", err
+		}
+	}
+
+	release = explicitRelease
+	if release == "" {
+		if release, err = ReleaseName(name); err != nil {
+			return "", "", err
+		}
+	}
+	return namespace, release, nil
+}
+
 // truncateSlug cuts on a hyphen boundary where it can, to stay readable.
 func truncateSlug(s string, max int) string {
 	if len(s) <= max {

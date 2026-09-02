@@ -319,34 +319,19 @@ func (a AccessCheck) Readable() bool {
 // show nothing at all.
 func (c *Client) VerifyAccess(ctx context.Context) AccessCheck {
 	var check AccessCheck
-
-	applications, err := c.listNames(ctx, "/api/v1/applications")
-	check.Applications, check.ApplicationsErr = len(applications), err
-
-	clusters, err := c.listNames(ctx, "/api/v1/clusters")
-	check.Clusters, check.ClustersErr = len(clusters), err
-
+	check.Applications, check.ApplicationsErr = c.countItems(ctx, "/api/v1/applications")
+	check.Clusters, check.ClustersErr = c.countItems(ctx, "/api/v1/clusters")
 	return check
 }
 
-func (c *Client) listNames(ctx context.Context, path string) ([]string, error) {
+func (c *Client) countItems(ctx context.Context, path string) (int, error) {
 	var response struct {
-		Items []struct {
-			Name     string `json:"name"`
-			Metadata struct {
-				Name string `json:"name"`
-			} `json:"metadata"`
-		} `json:"items"`
+		Items []json.RawMessage `json:"items"`
 	}
 	if err := c.do(ctx, http.MethodGet, path, nil, &response); err != nil {
-		return nil, err
+		return 0, err
 	}
-
-	names := make([]string, 0, len(response.Items))
-	for _, item := range response.Items {
-		names = append(names, firstNonEmpty(item.Metadata.Name, item.Name))
-	}
-	return names, nil
+	return len(response.Items), nil
 }
 
 // NewClientForURL talks to an Argo CD that is already reachable, which is the

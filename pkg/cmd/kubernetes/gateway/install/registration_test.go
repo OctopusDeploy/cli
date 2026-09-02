@@ -1,6 +1,7 @@
 package install_test
 
 import (
+	"errors"
 	"strings"
 	"testing"
 
@@ -93,7 +94,7 @@ func TestDeregister_KeepsTheOriginalFailureWhenCleanupFails(t *testing.T) {
 	opts := registeredOptions(t)
 	opts.DeregisterCallback = func(string) error { return assert.AnError }
 
-	cause := install.ErrForTest
+	cause := errors.New("install failed")
 	assert.Equal(t, cause, opts.DeregisterForTest(cause))
 	assert.Contains(t, opts.Out.(interface{ String() string }).String(), "could not be removed")
 }

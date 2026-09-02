@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/OctopusDeploy/cli/pkg/util"
 	appsv1 "k8s.io/api/apps/v1"
 	authzv1 "k8s.io/api/authorization/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -26,6 +27,10 @@ type Cluster struct {
 	Dynamic     dynamic.Interface
 	ContextName string
 	Server      string
+
+	// apiGroups caches the discovery listing: it is a full API-group round
+	// trip, and one wizard run asks HasAPIResource for several components.
+	apiGroups *metav1.APIGroupList
 }
 
 func Connect(kubeConfig *KubeConfig, contextName string) (*Cluster, error) {
@@ -318,9 +323,14 @@ func (c *Cluster) RestartDeployment(ctx context.Context, namespace, name string)
 func (c *Cluster) HasAPIResource(group, resource string) (bool, error) {
 	discovery := c.Clientset.Discovery()
 
-	groups, err := discovery.ServerGroups()
-	if err != nil {
-		return false, fmt.Errorf("could not list the API groups this cluster serves: %w", err)
+	groups := c.apiGroups
+	if groups == nil {
+		listed, err := discovery.ServerGroups()
+		if err != nil {
+			return false, fmt.Errorf("could not list the API groups this cluster serves: %w", err)
+		}
+		c.apiGroups = listed
+		groups = listed
 	}
 
 	for _, g := range groups.Groups {
@@ -456,7 +466,7 @@ func (r Role) Display() string {
 	if r.GrantsEverything() {
 		return fmt.Sprintf("%s (%s, full access to the cluster)", r.Reference(), kind)
 	}
-	return fmt.Sprintf("%s (%s, %d %s)", r.Reference(), kind, len(r.Rules), Pluralise("rule", "rules", len(r.Rules)))
+	return fmt.Sprintf("%s (%s, %d %s)", r.Reference(), kind, len(r.Rules), util.Pluralise("rule", "rules", len(r.Rules)))
 }
 
 // Roles lists the roles worth offering to copy, cluster-scoped ones first.

@@ -10,6 +10,7 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/argocdgateways"
 	"github.com/OctopusDeploy/cli/pkg/cmd/kubernetes/shared"
 	octoK8s "github.com/OctopusDeploy/cli/pkg/kubernetes"
+	gatewayK8s "github.com/OctopusDeploy/cli/pkg/kubernetes/gateway"
 	"github.com/OctopusDeploy/cli/pkg/kubernetes/helm"
 	"github.com/OctopusDeploy/cli/pkg/output"
 	"github.com/OctopusDeploy/cli/pkg/util/flag"
@@ -30,7 +31,7 @@ func (opts *InstallOptions) Commit(ctx context.Context) error {
 		return err
 	}
 
-	if err := shared.CheckPermissions(ctx, opts.Dependencies, opts.Cluster, opts.TargetNamespace, opts.DryRun.Value); err != nil {
+	if err := shared.CheckPermissions(ctx, opts.Dependencies, opts.Cluster, octoK8s.InstallPermissions(opts.TargetNamespace), opts.DryRun.Value); err != nil {
 		return err
 	}
 
@@ -62,15 +63,7 @@ func (opts *InstallOptions) Commit(ctx context.Context) error {
 			"Waiting for it to register with Octopus and become ready. This can take a few minutes, and gives up after %s.", timeout))
 	}
 
-	release, err := opts.Runner.Install(ctx, helm.InstallSpec{
-		Chart:       opts.chartRef(),
-		ReleaseName: opts.TargetRelease,
-		Namespace:   opts.TargetNamespace,
-		Values:      values,
-		Atomic:      opts.Atomic.Value,
-		Wait:        opts.Wait.Value,
-		Timeout:     timeout,
-	})
+	release, err := opts.Runner.Install(ctx, opts.installSpec(values, timeout))
 	if err != nil {
 		return opts.deregister(err)
 	}
@@ -128,9 +121,7 @@ func (opts *InstallOptions) deregister(cause error) error {
 }
 
 func (opts *InstallOptions) chartRef() helm.ChartRef {
-	ref := ChartRef
-	ref.Version = opts.ChartVersion.Value
-	return ref
+	return gatewayK8s.ChartRef.WithVersion(opts.ChartVersion.Value)
 }
 
 // BuildValues passes credentials by Secret reference unless --inline-secrets
@@ -178,13 +169,13 @@ func (opts *InstallOptions) BuildValues() (map[string]any, error) {
 		if opts.InlineSecrets.Value {
 			gatewayArgoCD["projectAuthentication"] = projectTokens
 		} else {
-			gatewayArgoCD["projectAuthenticationSecretName"] = projectTokenSecretName
+			gatewayArgoCD["projectAuthenticationSecretName"] = gatewayK8s.ProjectTokenSecretName
 		}
 	case opts.InlineSecrets.Value:
 		gatewayArgoCD["authenticationToken"] = opts.ArgoCDToken.Value
 	default:
-		gatewayArgoCD["authenticationTokenSecretName"] = argoTokenSecretName
-		gatewayArgoCD["authenticationTokenSecretKey"] = argoTokenSecretKey
+		gatewayArgoCD["authenticationTokenSecretName"] = gatewayK8s.ArgoTokenSecretName
+		gatewayArgoCD["authenticationTokenSecretKey"] = gatewayK8s.ArgoTokenSecretKey
 	}
 
 	registration := map[string]any{"register": false, "octopus": registrationOctopus}
@@ -216,18 +207,9 @@ func (opts *InstallOptions) preflight() *shared.Preflight {
 		Cluster:      opts.Cluster,
 		Namespace:    opts.TargetNamespace,
 		Targets: []octoK8s.Target{
-			{
-				Name:    "Octopus REST API",
-				Address: opts.Host,
-				Remediation: "The gateway registers itself with Octopus over the REST API. " +
-					"Confirm this address is reachable from inside the cluster.",
-			},
-			{
-				Name:    "Octopus gRPC endpoint",
-				Address: opts.OctopusGRPCURL.Value,
-				Remediation: "The running gateway connects to Octopus over gRPC on a different port to the REST API. " +
-					"A load balancer, proxy, or firewall that forwards only HTTPS is the usual cause; make sure the gRPC port is forwarded too.",
-			},
+			octoK8s.RESTAPITarget(opts.Host, "The gateway registers itself with Octopus over the REST API."),
+			octoK8s.GRPCTarget(opts.OctopusGRPCURL.Value,
+				"The running gateway connects to Octopus over gRPC on a different port to the REST API."),
 		},
 		ProceedHelp: "The gateway is likely to install and then fail to connect.",
 	}
@@ -249,13 +231,13 @@ func (opts *InstallOptions) storeCredentials(ctx context.Context) error {
 		// OCTOPUS_ARGOCD_, so the key names are part of its contract.
 		data := make(map[string]string, len(projectTokens))
 		for _, t := range projectTokens {
-			data["PROJECT_AUTH_TOKEN_"+t.Project] = t.Token
+			data[gatewayK8s.ProjectTokenKeyPrefix+t.Project] = t.Token
 		}
-		if err := opts.Cluster.UpsertSecret(ctx, opts.TargetNamespace, projectTokenSecretName, data); err != nil {
+		if err := opts.Cluster.UpsertSecret(ctx, opts.TargetNamespace, gatewayK8s.ProjectTokenSecretName, data); err != nil {
 			return err
 		}
-	} else if err := opts.Cluster.UpsertSecret(ctx, opts.TargetNamespace, argoTokenSecretName, map[string]string{
-		argoTokenSecretKey: opts.ArgoCDToken.Value,
+	} else if err := opts.Cluster.UpsertSecret(ctx, opts.TargetNamespace, gatewayK8s.ArgoTokenSecretName, map[string]string{
+		gatewayK8s.ArgoTokenSecretKey: opts.ArgoCDToken.Value,
 	}); err != nil {
 		return err
 	}
@@ -271,8 +253,8 @@ func (opts *InstallOptions) storeRegistration(ctx context.Context) error {
 		return err
 	}
 
-	return opts.Cluster.UpsertSecret(ctx, opts.TargetNamespace, registrationSecretName,
-		map[string]string{registrationSecretKey: contents})
+	return opts.Cluster.UpsertSecret(ctx, opts.TargetNamespace, gatewayK8s.RegistrationSecretName,
+		map[string]string{gatewayK8s.RegistrationSecretKey: contents})
 }
 
 func (opts *InstallOptions) registrationSecretContents() (string, error) {
@@ -290,36 +272,27 @@ func (opts *InstallOptions) registrationSecretContents() (string, error) {
 }
 
 func (opts *InstallOptions) renderOnly(ctx context.Context, values map[string]any, timeout time.Duration) error {
-	fmt.Fprintf(opts.Out, "\n%s Rendering only. Nothing will be installed, and the connectivity checks that need a pod in the cluster are skipped.\n",
-		output.Dim("--"+octoK8s.FlagDryRun))
+	return shared.RenderOnly(ctx, opts.Dependencies, opts.Runner, opts.installSpec(values, timeout),
+		"Nothing will be installed, and the connectivity checks that need a pod in the cluster are skipped.",
+		opts.preflight())
+}
 
-	opts.preflight().ReportStatic()
-
-	manifest, err := opts.Runner.Render(ctx, helm.InstallSpec{
+func (opts *InstallOptions) installSpec(values map[string]any, timeout time.Duration) helm.InstallSpec {
+	return helm.InstallSpec{
 		Chart:       opts.chartRef(),
 		ReleaseName: opts.TargetRelease,
 		Namespace:   opts.TargetNamespace,
 		Values:      values,
+		Atomic:      opts.Atomic.Value,
+		Wait:        opts.Wait.Value,
 		Timeout:     timeout,
-	})
-	if err != nil {
-		return err
 	}
-
-	fmt.Fprintln(opts.Out, manifest)
-	return nil
 }
 
 func (opts *InstallOptions) reportSuccess(release helm.Release) {
-	fmt.Fprintf(opts.Out, "\n%s Installed %s %s as release %s in namespace %s.\n",
-		output.Green("✔"), release.Chart, release.Version,
-		output.Cyan(release.Name), output.Cyan(release.Namespace))
+	shared.ReportInstalled(opts.Out, release)
 	fmt.Fprintf(opts.Out, "  The gateway registers itself with Octopus, then connects. "+
 		"It appears under Infrastructure > Argo CD Instances once it is healthy.\n")
-
-	if opts.NoPrompt {
-		return
-	}
 
 	generatable := []flag.Generatable{
 		opts.Name, opts.Environments, opts.ArgoCDNamespace, opts.ArgoCDServerGRPCURL,
@@ -328,17 +301,5 @@ func (opts *InstallOptions) reportSuccess(release helm.Release) {
 		opts.ArgoCDAccountName, opts.AllowSync, opts.InlineSecrets,
 	}
 	generatable = append(generatable, opts.CommonFlags.Generatable()...)
-
-	autoCmd := flag.GenerateAutomationCmd(opts.CmdPath, opts.GetSpaceNameOrEmpty(), generatable...)
-	fmt.Fprintf(opts.Out, "\nAutomation Command: %s\n", autoCmd)
+	shared.PrintAutomationCommand(opts.Dependencies, generatable)
 }
-
-var ErrForTest = errors.New("install failed")
-
-func (opts *InstallOptions) RegistrationSecretForTest() (string, error) {
-	return opts.registrationSecretContents()
-}
-
-func (opts *InstallOptions) RegisterForTest() error { return opts.register() }
-
-func (opts *InstallOptions) DeregisterForTest(cause error) error { return opts.deregister(cause) }

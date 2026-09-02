@@ -6,8 +6,8 @@ import (
 
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/OctopusDeploy/cli/pkg/cmd/kubernetes/shared"
-	octoK8s "github.com/OctopusDeploy/cli/pkg/kubernetes"
 	"github.com/OctopusDeploy/cli/pkg/kubernetes/argocd"
+	gatewayK8s "github.com/OctopusDeploy/cli/pkg/kubernetes/gateway"
 	"github.com/OctopusDeploy/cli/pkg/question"
 )
 
@@ -30,36 +30,8 @@ func reviewGroups(opts *InstallOptions) []shared.Group {
 }
 
 func clusterItems(opts *InstallOptions) []shared.Item {
-	context := opts.KubeContextInfo
-	source := "current context"
-	if opts.KubeContext.Value != "" && !context.IsCurrent {
-		source = "chosen"
-	}
-
-	return []shared.Item{
-		{
-			Label:  "Kubernetes context",
-			Value:  opts.KubeContext.Value,
-			Source: source,
-			// Changing cluster invalidates everything discovered from it.
-			Edit: nil,
-		},
-		{Label: "Cluster address", Value: context.Server, Source: "from the kubeconfig"},
-		{
-			Label:  "Namespace",
-			Value:  opts.TargetNamespace,
-			Source: shared.DerivedOrSet(opts.Namespace.Value, "derived from the name"),
-			Edit: shared.EditText(opts.Ask, &opts.Namespace.Value, "Namespace to install into",
-				func() string { return opts.TargetNamespace }),
-		},
-		{
-			Label:  "Helm release",
-			Value:  opts.TargetRelease,
-			Source: shared.DerivedOrSet(opts.ReleaseName.Value, "derived from the name"),
-			Edit: shared.EditText(opts.Ask, &opts.ReleaseName.Value, "Helm release name",
-				func() string { return opts.TargetRelease }),
-		},
-	}
+	return shared.ClusterItems(opts.Dependencies, opts.CommonFlags, opts.KubeContextInfo,
+		&opts.TargetNamespace, &opts.TargetRelease, "derived from the name")
 }
 
 func octopusItems(opts *InstallOptions) []shared.Item {
@@ -126,7 +98,7 @@ func argoItems(opts *InstallOptions) []shared.Item {
 	return append(items,
 		shared.Item{
 			Label:  "Account",
-			Value:  opts.ArgoCDAccountName.Value,
+			Value:  opts.accountName(),
 			Source: accountSource(opts),
 		},
 		shared.Item{
@@ -142,27 +114,12 @@ func argoItems(opts *InstallOptions) []shared.Item {
 }
 
 func helmItems(opts *InstallOptions) []shared.Item {
-	return []shared.Item{
-		{
-			Label: "Chart", Value: ChartRef.Ref, Source: "",
-		},
-		{
-			Label: "Chart version", Value: shared.OrDefault(opts.ChartVersion.Value, "latest"), Source: "",
-			Edit: shared.EditText(opts.Ask, &opts.ChartVersion.Value, "Chart version (blank for the latest)",
-				func() string { return opts.ChartVersion.Value }),
-		},
-		{
-			Label: "Credentials", Value: credentialPlacement(opts), Source: "",
-			Edit: shared.EditConfirm(opts.Ask, &opts.InlineSecrets.Value,
-				"Put credentials directly in the Helm values instead of Kubernetes Secrets?",
-				"Secrets keep credentials out of the Helm release and out of any file written with --output-values."),
-		},
-		{
-			Label: "Timeout", Value: shared.OrDefault(opts.Timeout.Value, octoK8s.DefaultTimeout.String()), Source: "",
-			Edit: shared.EditText(opts.Ask, &opts.Timeout.Value, "How long to wait for the release to become ready",
-				func() string { return opts.Timeout.Value }),
-		},
-	}
+	return shared.HelmItems(opts.Dependencies, opts.CommonFlags, gatewayK8s.ChartRef, shared.Item{
+		Label: "Credentials", Value: credentialPlacement(opts),
+		Edit: shared.EditConfirm(opts.Ask, &opts.InlineSecrets.Value,
+			"Put credentials directly in the Helm values instead of Kubernetes Secrets?",
+			"Secrets keep credentials out of the Helm release and out of any file written with --output-values."),
+	})
 }
 
 // editConnection covers the three settings that are the documented cause of a
@@ -263,10 +220,4 @@ func credentialPlacement(opts *InstallOptions) string {
 		return "Argo CD token in the Helm values"
 	}
 	return "Argo CD token in a Kubernetes Secret"
-}
-
-// RenderReviewForTest prints the review screen without asking anything.
-func RenderReviewForTest(opts *InstallOptions) {
-	_ = opts.resolveNames()
-	shared.PrintReview(opts.Out, reviewGroups(opts))
 }

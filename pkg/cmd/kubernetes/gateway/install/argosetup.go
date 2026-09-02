@@ -12,6 +12,7 @@ import (
 	octoK8s "github.com/OctopusDeploy/cli/pkg/kubernetes"
 	"github.com/OctopusDeploy/cli/pkg/kubernetes/argocd"
 	"github.com/OctopusDeploy/cli/pkg/output"
+	"github.com/OctopusDeploy/cli/pkg/util"
 	"k8s.io/client-go/rest"
 )
 
@@ -231,8 +232,8 @@ func reportAccess(opts *InstallOptions, access argocd.AccessCheck) {
 	}
 
 	fmt.Fprintf(opts.Out, "  %s\n", output.Dimf("It can read %d %s and %d %s.",
-		access.Applications, octoK8s.Pluralise("application", "applications", access.Applications),
-		access.Clusters, octoK8s.Pluralise("cluster", "clusters", access.Clusters)))
+		access.Applications, util.Pluralise("application", "applications", access.Applications),
+		access.Clusters, util.Pluralise("cluster", "clusters", access.Clusters)))
 }
 
 func unreadable(access argocd.AccessCheck) string {

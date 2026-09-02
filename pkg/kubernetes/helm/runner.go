@@ -26,27 +26,31 @@ type ChartRef struct {
 	Version string
 }
 
+// WithVersion keeps the ref's own version pin when nothing was asked for.
+func (r ChartRef) WithVersion(version string) ChartRef {
+	if version != "" {
+		r.Version = version
+	}
+	return r
+}
+
 type Release struct {
 	Name      string
 	Namespace string
 	Chart     string
 	Version   string
-	Revision  int
-	Status    string
 	Manifest  string
-	Notes     string
 }
 
 type InstallSpec struct {
-	Chart           ChartRef
-	ReleaseName     string
-	Namespace       string
-	Values          map[string]any
-	CreateNamespace bool
-	Atomic          bool
-	Wait            bool
-	Timeout         time.Duration
-	DryRun          bool
+	Chart       ChartRef
+	ReleaseName string
+	Namespace   string
+	Values      map[string]any
+	Atomic      bool
+	Wait        bool
+	Timeout     time.Duration
+	DryRun      bool
 }
 
 type Runner struct {
@@ -155,9 +159,12 @@ func (r *Runner) Install(ctx context.Context, spec InstallSpec) (Release, error)
 	return r.install(ctx, cfg, spec)
 }
 
-// Render backs --dry-run.
+// Render backs --dry-run. Rendering never waits or rolls back - there is
+// nothing applied to watch or undo.
 func (r *Runner) Render(ctx context.Context, spec InstallSpec) (string, error) {
 	spec.DryRun = true
+	spec.Atomic = false
+	spec.Wait = false
 	rel, err := r.Install(ctx, spec)
 	if err != nil {
 		return "", err
@@ -169,7 +176,6 @@ func (r *Runner) install(ctx context.Context, cfg *action.Configuration, spec In
 	client := action.NewInstall(cfg)
 	client.ReleaseName = spec.ReleaseName
 	client.Namespace = spec.Namespace
-	client.CreateNamespace = spec.CreateNamespace
 	client.Version = spec.Chart.Version
 	client.Timeout = spec.Timeout
 	client.RollbackOnFailure = spec.Atomic
@@ -179,7 +185,6 @@ func (r *Runner) install(ctx context.Context, cfg *action.Configuration, spec In
 		// Client-side only: a server-side dry run needs permissions the user
 		// may not have, and fails for a namespace that does not exist yet.
 		client.DryRunStrategy = action.DryRunClient
-		client.CreateNamespace = false
 	}
 
 	chrt, err := r.loadChart(&client.ChartPathOptions, spec.Chart)
@@ -265,10 +270,7 @@ func toRelease(result release.Releaser) (Release, error) {
 	rel := Release{
 		Name:      accessor.Name(),
 		Namespace: accessor.Namespace(),
-		Revision:  accessor.Version(),
-		Status:    accessor.Status(),
 		Manifest:  accessor.Manifest(),
-		Notes:     accessor.Notes(),
 	}
 
 	if chartAccessor, err := chart.NewDefaultAccessor(accessor.Chart()); err == nil {

@@ -320,7 +320,7 @@ func promptForProjectToken(opts *InstallOptions, project string) error {
 // could not be read, where the project can only come from the token itself.
 func promptForUnknownProjectTokens(opts *InstallOptions) error {
 	fmt.Fprintf(opts.Out, "  %s\n\n", output.Dimf(
-		"argocd proj role create-token <project> %s", opts.ArgoCDAccountName.Value))
+		"argocd proj role create-token <project> %s", opts.accountName()))
 
 	for {
 		token := ""
@@ -419,8 +419,4 @@ func printProjectTokenPreamble(opts *InstallOptions) {
 	fmt.Fprintf(opts.Out, "\nAWS signs Argo CD tokens in its own control plane, so Octopus cannot generate\n"+
 		"these for you. Each one is a project role token, because AWS caps account\n"+
 		"tokens at 12 hours.\n")
-}
-
-func PromptForProjectTokenForTest(opts *InstallOptions, project string) error {
-	return promptForProjectToken(opts, project)
 }

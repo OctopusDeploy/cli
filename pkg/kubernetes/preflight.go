@@ -59,10 +59,33 @@ type Target struct {
 	Remediation string
 }
 
+// RESTAPITarget and GRPCTarget carry the remediation prose every component
+// shares; purpose says what this component does over the endpoint.
+
+func RESTAPITarget(host, purpose string) Target {
+	return Target{
+		Name:        "Octopus REST API",
+		Address:     host,
+		Remediation: purpose + " Confirm this address is reachable from inside the cluster.",
+	}
+}
+
+func GRPCTarget(address, purpose string) Target {
+	return Target{
+		Name:    "Octopus gRPC endpoint",
+		Address: address,
+		Remediation: purpose + " A load balancer, proxy, or firewall that forwards only HTTPS is the usual cause; " +
+			"make sure the gRPC port is forwarded too.",
+	}
+}
+
 type PreflightRequest struct {
 	Namespace string
 	Image     string
 	Targets   []Target
+	// Warnings is where a failure to clean up the check pod is reported; the
+	// checks themselves come back as values. Nil discards it.
+	Warnings io.Writer
 }
 
 // StaticChecks need no cluster access, and catch the most common local-cluster
@@ -114,7 +137,7 @@ func (c *Cluster) RunPreflight(ctx context.Context, req PreflightRequest) ([]Che
 		return nil, err
 	}
 	// Also on cancellation: a stray check pod left behind is our mess.
-	defer c.deletePreflightPod(pod.Namespace, pod.Name)
+	defer c.deletePreflightPod(req.Warnings, pod.Namespace, pod.Name)
 
 	if err := c.waitForPreflightPod(ctx, pod.Namespace, pod.Name); err != nil {
 		return skippedChecks(req.Targets, err), nil
@@ -222,7 +245,7 @@ func (c *Cluster) preflightLogs(ctx context.Context, namespace, name string) (st
 	return string(body), nil
 }
 
-func (c *Cluster) deletePreflightPod(namespace, name string) {
+func (c *Cluster) deletePreflightPod(warnings io.Writer, namespace, name string) {
 	// A fresh context: the caller's may already be cancelled, and the pod still
 	// has to go.
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -231,8 +254,8 @@ func (c *Cluster) deletePreflightPod(namespace, name string) {
 	grace := int64(0)
 	err := c.Clientset.CoreV1().Pods(namespace).
 		Delete(ctx, name, metav1.DeleteOptions{GracePeriodSeconds: &grace})
-	if err != nil && !apierrors.IsNotFound(err) {
-		fmt.Printf("warning: could not delete the connectivity check pod %s/%s: %v\n", namespace, name, err)
+	if err != nil && !apierrors.IsNotFound(err) && warnings != nil {
+		fmt.Fprintf(warnings, "warning: could not delete the connectivity check pod %s/%s: %v\n", namespace, name, err)
 	}
 }
 
