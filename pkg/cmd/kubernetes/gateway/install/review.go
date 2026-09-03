@@ -87,9 +87,9 @@ func argoItems(opts *InstallOptions) []shared.Item {
 			Label:  "Project tokens",
 			Value:  projectTokenSummary(opts),
 			Source: "AWS caps account tokens at 12 hours",
-			Edit: func(context.Context) error {
+			Edit: func(ctx context.Context) error {
 				opts.ArgoCDProjectTokens.Value = nil
-				return promptForProjectTokens(opts)
+				return promptForProjectTokens(ctx, opts)
 			},
 		})
 		return items

@@ -34,7 +34,7 @@ func TestResolveWithoutPrompting_HANeedsAnAddressPerNode(t *testing.T) {
 	opts.Host = selfHostedHost
 	opts.ServerNodesCallback = func() ([]octopusservernodes.Node, error) { return haNodes(), nil }
 
-	err := opts.ResolveWithoutPrompting()
+	err := opts.ResolveWithoutPrompting(context.Background())
 	assert.ErrorContains(t, err, "High Availability")
 	assert.ErrorContains(t, err, "OCTOPUS-01, OCTOPUS-02")
 	assert.ErrorContains(t, err, install.FlagServerCommsAddress)
@@ -51,7 +51,7 @@ func TestResolveWithoutPrompting_HAAcceptsTheAddressesGiven(t *testing.T) {
 	opts.Host = selfHostedHost
 	opts.ServerNodesCallback = func() ([]octopusservernodes.Node, error) { return haNodes(), nil }
 
-	require.NoError(t, opts.ResolveWithoutPrompting())
+	require.NoError(t, opts.ResolveWithoutPrompting(context.Background()))
 
 	values, err := opts.BuildValues()
 	require.NoError(t, err)
@@ -109,7 +109,7 @@ func TestResolveWithoutPrompting_CloudNeverReadsTheTopology(t *testing.T) {
 		return nil, nil
 	}
 
-	require.NoError(t, opts.ResolveWithoutPrompting())
+	require.NoError(t, opts.ResolveWithoutPrompting(context.Background()))
 	assert.Equal(t, []string{pollingAddress}, flags.ServerCommsAddresses.Value)
 }
 
@@ -125,7 +125,7 @@ func TestResolveWithoutPrompting_UnreadableTopologyFallsBackToOneAddress(t *test
 	opts.Host = selfHostedHost
 	opts.ServerNodesCallback = func() ([]octopusservernodes.Node, error) { return nil, assert.AnError }
 
-	require.NoError(t, opts.ResolveWithoutPrompting())
+	require.NoError(t, opts.ResolveWithoutPrompting(context.Background()))
 	assert.Equal(t, []string{"https://octopus.internal:10943"}, flags.ServerCommsAddresses.Value)
 	assert.Contains(t, opts.Out.(*bytes.Buffer).String(), "Could not read the Octopus Server's nodes")
 }

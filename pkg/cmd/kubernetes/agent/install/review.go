@@ -179,11 +179,11 @@ func scriptPodItems(opts *InstallOptions) []shared.Item {
 	if opts.PermissionsController || opts.RestrictScriptPods.Value || len(opts.ScriptPodRoles.Value) > 0 {
 		items = append(items, shared.Item{
 			Label: "Permissions", Value: permissionsSummary(opts), Source: permissionsSource(opts),
-			Edit: func(context.Context) error {
+			Edit: func(ctx context.Context) error {
 				opts.RestrictScriptPods.Value = false
 				opts.ScriptPodRoles.Value = nil
 				opts.ScriptPodRules = nil
-				return promptForScriptPodPermissions(opts)
+				return promptForScriptPodPermissions(ctx, opts)
 			},
 		})
 	}

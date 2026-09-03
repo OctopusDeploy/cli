@@ -1,6 +1,7 @@
 package install
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -20,7 +21,7 @@ import (
 type component struct {
 	display string
 	cmdPath string
-	install func(dependencies *cmd.Dependencies) error
+	install func(context.Context, *cmd.Dependencies) error
 }
 
 func components() []component {
@@ -75,7 +76,7 @@ func NewCmdInstall(f factory.Factory) *cobra.Command {
 
 			// The chosen component's own command path, so the automation command
 			// it prints at the end reproduces the run without the wizard.
-			return selected.install(cmd.NewDependenciesFromExisting(dependencies, selected.cmdPath))
+			return selected.install(c.Context(), cmd.NewDependenciesFromExisting(dependencies, selected.cmdPath))
 		},
 	}
 }

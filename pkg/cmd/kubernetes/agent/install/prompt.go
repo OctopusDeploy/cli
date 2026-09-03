@@ -53,7 +53,7 @@ func PromptMissing(ctx context.Context, opts *InstallOptions) error {
 	}
 	opts.warnAboutAccessMode()
 
-	return promptForScriptPodPermissions(opts)
+	return promptForScriptPodPermissions(ctx, opts)
 }
 
 // promptForRegistration asks only what the agent registers itself with, which
@@ -237,7 +237,7 @@ func promptForStorageClass(opts *InstallOptions) error {
 // promptForScriptPodPermissions is only worth asking where the permissions
 // controller can act on the answer. Without it, this is the only thing standing
 // between a deployment and the cluster, and taking it away stops deployments.
-func promptForScriptPodPermissions(opts *InstallOptions) error {
+func promptForScriptPodPermissions(ctx context.Context, opts *InstallOptions) error {
 	if !opts.PermissionsController || opts.RestrictScriptPods.Value || len(opts.ScriptPodRoles.Value) > 0 {
 		return nil
 	}
@@ -265,7 +265,7 @@ func promptForScriptPodPermissions(opts *InstallOptions) error {
 		opts.RestrictScriptPods.Value = true
 		return nil
 	case copyRole:
-		return promptForScriptPodRoles(opts)
+		return promptForScriptPodRoles(ctx, opts)
 	default:
 		return nil
 	}
@@ -274,8 +274,8 @@ func promptForScriptPodPermissions(opts *InstallOptions) error {
 // promptForScriptPodRoles copies rules out of existing roles rather than
 // binding to them, because that is what the chart takes. Saying so matters: the
 // copy does not follow the roles afterwards.
-func promptForScriptPodRoles(opts *InstallOptions) error {
-	roles, err := opts.Cluster.Roles(context.Background())
+func promptForScriptPodRoles(ctx context.Context, opts *InstallOptions) error {
+	roles, err := opts.Cluster.Roles(ctx)
 	if err != nil {
 		return err
 	}

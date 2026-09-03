@@ -379,8 +379,8 @@ func (opts *InstallOptions) resolveNames() error {
 // Run installs the gateway using an existing set of dependencies. The
 // `kubernetes install` wizard uses this to hand off after the user picks a
 // component, so the two entry points share one implementation.
-func Run(dependencies *cmd.Dependencies) error {
-	return installRun(context.Background(), NewInstallOptions(NewInstallFlags(), dependencies))
+func Run(ctx context.Context, dependencies *cmd.Dependencies) error {
+	return installRun(ctx, NewInstallOptions(NewInstallFlags(), dependencies))
 }
 
 // resolveEnvironments turns whatever --environment was given into the slug

@@ -215,7 +215,7 @@ func TestResolveWithoutPrompting_ReadWriteManyOverridesTheStorageClass(t *testin
 	out := &bytes.Buffer{}
 	opts.Out = out
 
-	require.NoError(t, opts.ResolveWithoutPrompting())
+	require.NoError(t, opts.ResolveWithoutPrompting(context.Background()))
 	assert.True(t, flags.ReadWriteMany.Value)
 	assert.Contains(t, out.String(), "not known to serve one", "a class that cannot do it is worth a warning")
 }
@@ -232,7 +232,7 @@ func TestResolveWithoutPrompting_ReadWriteManyOnASharedFilesystemIsNotWarnedAbou
 	out := &bytes.Buffer{}
 	opts.Out = out
 
-	require.NoError(t, opts.ResolveWithoutPrompting())
+	require.NoError(t, opts.ResolveWithoutPrompting(context.Background()))
 	assert.NotContains(t, out.String(), "not known to serve one")
 }
 
@@ -381,7 +381,7 @@ func TestResolveScriptPodRole_CopiesTheRulesByName(t *testing.T) {
 	flags.ScriptPodRoles.Value = []string{"deployer"}
 	opts := newOptions(t, flags, agentK8s.ModeDeploymentTarget, asker)
 
-	require.NoError(t, opts.ResolveWithoutPrompting())
+	require.NoError(t, opts.ResolveWithoutPrompting(context.Background()))
 	assert.Len(t, opts.ScriptPodRules, 1)
 }
 
@@ -392,7 +392,7 @@ func TestResolveScriptPodRole_RejectsAnUnknownRole(t *testing.T) {
 	flags.ScriptPodRoles.Value = []string{"does-not-exist"}
 	opts := newOptions(t, flags, agentK8s.ModeDeploymentTarget, asker)
 
-	assert.ErrorContains(t, opts.ResolveWithoutPrompting(), "does-not-exist")
+	assert.ErrorContains(t, opts.ResolveWithoutPrompting(context.Background()), "does-not-exist")
 }
 
 // Granting nothing and granting a role's rules are opposite answers to the same
@@ -405,7 +405,7 @@ func TestResolveScriptPodRole_RejectsBothWaysAtOnce(t *testing.T) {
 	flags.RestrictScriptPods.Value = true
 	opts := newOptions(t, flags, agentK8s.ModeDeploymentTarget, asker)
 
-	err := opts.ResolveWithoutPrompting()
+	err := opts.ResolveWithoutPrompting(context.Background())
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), install.FlagRestrictScriptPods)
 	assert.Contains(t, err.Error(), install.FlagScriptPodRole)
@@ -461,7 +461,7 @@ func completedTargetOptions(t *testing.T) *install.InstallOptions {
 
 	asker, _ := testutil.NewMockAsker(t, []*testutil.PA{})
 	opts := newOptions(t, allSuppliedTargetFlags(), agentK8s.ModeDeploymentTarget, asker)
-	require.NoError(t, opts.ResolveWithoutPrompting())
+	require.NoError(t, opts.ResolveWithoutPrompting(context.Background()))
 	return opts
 }
 
@@ -470,7 +470,7 @@ func completedWorkerOptions(t *testing.T) *install.InstallOptions {
 
 	asker, _ := testutil.NewMockAsker(t, []*testutil.PA{})
 	opts := newOptions(t, allSuppliedWorkerFlags(), agentK8s.ModeWorker, asker)
-	require.NoError(t, opts.ResolveWithoutPrompting())
+	require.NoError(t, opts.ResolveWithoutPrompting(context.Background()))
 	return opts
 }
 
@@ -727,7 +727,7 @@ func TestResolveWithoutPrompting_RejectsAnUnknownMachinePolicy(t *testing.T) {
 	flags.MachinePolicy.Value = "Does Not Exist"
 	opts := newOptions(t, flags, agentK8s.ModeDeploymentTarget, asker)
 
-	assert.ErrorContains(t, opts.ResolveWithoutPrompting(), "Does Not Exist")
+	assert.ErrorContains(t, opts.ResolveWithoutPrompting(context.Background()), "Does Not Exist")
 }
 
 func TestResolveWithoutPrompting_DerivesThePollingAddress(t *testing.T) {
@@ -737,7 +737,7 @@ func TestResolveWithoutPrompting_DerivesThePollingAddress(t *testing.T) {
 	flags.ServerCommsAddresses.Value = nil
 	opts := newOptions(t, flags, agentK8s.ModeDeploymentTarget, asker)
 
-	require.NoError(t, opts.ResolveWithoutPrompting())
+	require.NoError(t, opts.ResolveWithoutPrompting(context.Background()))
 	assert.Equal(t, []string{pollingAddress}, flags.ServerCommsAddresses.Value)
 }
 
@@ -766,7 +766,7 @@ func TestValidateWorkerPools_RejectsAPoolThatCannotHoldAWorker(t *testing.T) {
 	flags.WorkerPools.Value = []string{"Kubernetes Pool", "Hosted Pool"}
 	opts := newOptions(t, flags, agentK8s.ModeWorker, asker)
 
-	err := opts.ResolveWithoutPrompting()
+	err := opts.ResolveWithoutPrompting(context.Background())
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "Hosted Pool")
 	assert.NotContains(t, err.Error(), "Kubernetes Pool", "only the pools that could not be found are named")
@@ -781,7 +781,7 @@ func TestValidateWorkerPools_IgnoredForADeploymentTarget(t *testing.T) {
 	flags.WorkerPools.Value = []string{"Hosted Pool"}
 	opts := newOptions(t, flags, agentK8s.ModeDeploymentTarget, asker)
 
-	require.NoError(t, opts.ResolveWithoutPrompting())
+	require.NoError(t, opts.ResolveWithoutPrompting(context.Background()))
 }
 
 // Octopus creates a target tag as soon as a target registers with it, so a tag

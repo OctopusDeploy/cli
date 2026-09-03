@@ -170,7 +170,7 @@ func TestReportFindings_ExistingReleaseOfTheOtherKind(t *testing.T) {
 	asker, _ := testutil.NewMockAsker(t, []*testutil.PA{})
 
 	opts := newOptions(t, allSuppliedTargetFlags(), agentK8s.ModeDeploymentTarget, asker)
-	require.NoError(t, opts.ResolveWithoutPrompting())
+	require.NoError(t, opts.ResolveWithoutPrompting(context.Background()))
 	opts.Installations = []agentK8s.Installation{{
 		Release: helm.Release{Name: "production", Namespace: "octopus-agent-production", Chart: "kubernetes-agent", Version: "3.13.3"},
 		Name:    "Production",
@@ -189,7 +189,7 @@ func TestReportFindings_UpgradingAnExistingAgent(t *testing.T) {
 	asker, _ := testutil.NewMockAsker(t, []*testutil.PA{})
 
 	opts := newOptions(t, allSuppliedTargetFlags(), agentK8s.ModeDeploymentTarget, asker)
-	require.NoError(t, opts.ResolveWithoutPrompting())
+	require.NoError(t, opts.ResolveWithoutPrompting(context.Background()))
 	opts.Installations = []agentK8s.Installation{{
 		Release: helm.Release{Name: "production", Namespace: "octopus-agent-production", Chart: "kubernetes-agent", Version: "3.13.3"},
 		Name:    "Production",
@@ -207,7 +207,7 @@ func TestReportFindings_NameAlreadyRegisteredInOctopus(t *testing.T) {
 	asker, _ := testutil.NewMockAsker(t, []*testutil.PA{})
 
 	opts := newOptions(t, allSuppliedTargetFlags(), agentK8s.ModeDeploymentTarget, asker)
-	require.NoError(t, opts.ResolveWithoutPrompting())
+	require.NoError(t, opts.ResolveWithoutPrompting(context.Background()))
 	opts.RegisteredCallback = func(string) (bool, error) { return true, nil }
 
 	out := &bytes.Buffer{}
@@ -222,7 +222,7 @@ func TestReportFindings_UnsupportedNodeArchitecture(t *testing.T) {
 	asker, _ := testutil.NewMockAsker(t, []*testutil.PA{})
 
 	opts := newOptions(t, allSuppliedTargetFlags(), agentK8s.ModeDeploymentTarget, asker)
-	require.NoError(t, opts.ResolveWithoutPrompting())
+	require.NoError(t, opts.ResolveWithoutPrompting(context.Background()))
 	opts.NodeArchitectures = []string{"amd64", "ppc64le"}
 
 	out := &bytes.Buffer{}

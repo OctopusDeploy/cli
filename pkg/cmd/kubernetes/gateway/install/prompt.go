@@ -173,7 +173,7 @@ func promptForArgoCDToken(ctx context.Context, opts *InstallOptions) error {
 	// Managed Argo CD has no argocd-cm to edit, and authenticates with project
 	// role tokens because AWS caps account tokens at 12 hours.
 	if opts.Instance.IsManaged() {
-		return promptForProjectTokens(opts)
+		return promptForProjectTokens(ctx, opts)
 	}
 
 	spec := argocd.AccountSpec{Name: opts.accountName(), AllowSync: opts.AllowSync.Value}
@@ -254,12 +254,12 @@ func printManualTokenInstructions(opts *InstallOptions, status argocd.AccountSta
 	fmt.Fprintf(opts.Out, "  %s\n\n", output.Cyan(fmt.Sprintf("argocd account generate-token --account %s", status.Spec.Name)))
 }
 
-func promptForProjectTokens(opts *InstallOptions) error {
+func promptForProjectTokens(ctx context.Context, opts *InstallOptions) error {
 	if len(opts.ArgoCDProjectTokens.Value) > 0 {
 		return nil
 	}
 
-	projects, err := prepareProjectRoles(opts)
+	projects, err := prepareProjectRoles(ctx, opts)
 	if err != nil {
 		return err
 	}
@@ -352,8 +352,7 @@ func promptForUnknownProjectTokens(opts *InstallOptions) error {
 // prepareProjectRoles creates the role Octopus authenticates as on the chosen
 // projects, and reports which they are. AWS signs the tokens themselves, but
 // the role and its policies live in the AppProject in the cluster.
-func prepareProjectRoles(opts *InstallOptions) ([]string, error) {
-	ctx := context.Background()
+func prepareProjectRoles(ctx context.Context, opts *InstallOptions) ([]string, error) {
 
 	projects, err := argocd.ListProjects(ctx, opts.Cluster, opts.Instance.Namespace)
 	if err != nil || len(projects) == 0 {
