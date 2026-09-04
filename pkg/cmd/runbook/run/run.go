@@ -174,9 +174,9 @@ func NewCmdRun(f factory.Factory) *cobra.Command {
 	flags.StringVarP(&runFlags.Project.Value, runFlags.Project.Name, "p", "", "Name or ID of the project to run the runbook from")
 	flags.StringVarP(&runFlags.RunbookName.Value, runFlags.RunbookName.Name, "n", "", "Name of the runbook to run")
 	flags.StringArrayVarP(&runFlags.RunbookTags.Value, runFlags.RunbookTags.Name, "", nil, "Run all runbooks matching this tag (can be specified multiple times). Format is 'Tag Set Name/Tag Name'. Mutually exclusive with --name.")
-	flags.StringArrayVarP(&runFlags.Environments.Value, runFlags.Environments.Name, "e", nil, "Run in this environment (can be specified multiple times)")
-	flags.StringArrayVarP(&runFlags.Tenants.Value, runFlags.Tenants.Name, "", nil, "Run for this tenant (can be specified multiple times)")
-	flags.StringArrayVarP(&runFlags.TenantTags.Value, runFlags.TenantTags.Name, "", nil, "Run for tenants matching this tag (can be specified multiple times). Format is 'Tag Set Name/Tag Name', such as 'Regions/South'.")
+	flags.StringArrayVarP(&runFlags.Environments.Value, runFlags.Environments.Name, "e", nil, "Run in this environment (can be specified multiple times, or as a comma-separated list; escape a comma inside a value as '\\,')")
+	flags.StringArrayVarP(&runFlags.Tenants.Value, runFlags.Tenants.Name, "", nil, "Run for this tenant (can be specified multiple times, or as a comma-separated list; escape a comma inside a value as '\\,')")
+	flags.StringArrayVarP(&runFlags.TenantTags.Value, runFlags.TenantTags.Name, "", nil, "Run for tenants matching this tag (can be specified multiple times, or as a comma-separated list; escape a comma inside a value as '\\,'). Format is 'Tag Set Name/Tag Name', such as 'Regions/South'.")
 	flags.StringVarP(&runFlags.RunAt.Value, runFlags.RunAt.Name, "", "", "Run at a later time. Run now if omitted. TODO date formats and timezones!")
 	flags.StringVarP(&runFlags.MaxQueueTime.Value, runFlags.MaxQueueTime.Name, "", "", "Cancel a scheduled run if it hasn't started within this time period.")
 	flags.StringArrayVarP(&runFlags.Variables.Value, runFlags.Variables.Name, "v", nil, "Set the value for a prompted variable in the format Label:Value")
@@ -185,8 +185,8 @@ func NewCmdRun(f factory.Factory) *cobra.Command {
 	flags.StringVarP(&runFlags.GuidedFailureMode.Value, runFlags.GuidedFailureMode.Name, "", "", "Enable Guided failure mode (true/false/default)")
 	flags.StringVarP(&runFlags.Priority.Value, runFlags.Priority.Name, "", "", "Jump the task queue ahead of other queued tasks (true/false/default). Requires the Priority Tasks feature. For runbook runs, 'default' is the same as 'false'.")
 	flags.BoolVarP(&runFlags.ForcePackageDownload.Value, runFlags.ForcePackageDownload.Name, "", false, "Force re-download of packages")
-	flags.StringArrayVarP(&runFlags.RunTargets.Value, runFlags.RunTargets.Name, "", nil, "Run on this target (can be specified multiple times)")
-	flags.StringArrayVarP(&runFlags.ExcludeTargets.Value, runFlags.ExcludeTargets.Name, "", nil, "Run on targets except for this (can be specified multiple times)")
+	flags.StringArrayVarP(&runFlags.RunTargets.Value, runFlags.RunTargets.Name, "", nil, "Run on this target (can be specified multiple times, or as a comma-separated list; escape a comma inside a value as '\\,')")
+	flags.StringArrayVarP(&runFlags.ExcludeTargets.Value, runFlags.ExcludeTargets.Name, "", nil, "Run on targets except for this (can be specified multiple times, or as a comma-separated list; escape a comma inside a value as '\\,')")
 	flags.StringArrayVarP(&runFlags.SpecificTargetTagNames.Value, runFlags.SpecificTargetTagNames.Name, "", nil, "Run on targets matching this tag (can be specified multiple times)")
 	flags.StringArrayVarP(&runFlags.ExcludedTargetTagNames.Value, runFlags.ExcludedTargetTagNames.Name, "", nil, "Run on targets except for those matching this tag (can be specified multiple times)")
 	flags.StringVarP(&runFlags.GitRef.Value, runFlags.GitRef.Name, "", "", "Git Reference e.g. refs/heads/main. Only relevant for config-as-code projects where runbooks are stored in Git.")
@@ -216,6 +216,17 @@ func NewCmdRun(f factory.Factory) *cobra.Command {
 }
 
 func runbookRun(cmd *cobra.Command, f factory.Factory, flags *RunFlags) error {
+	// these flags accept a comma-separated list as well as being specified multiple times
+	if err := executionscommon.ExpandCommaSeparatedFlags(
+		flags.Environments,
+		flags.Tenants,
+		flags.TenantTags,
+		flags.RunTargets,
+		flags.ExcludeTargets,
+	); err != nil {
+		return err
+	}
+
 	if flags.RunbookName.Value != "" && len(flags.RunbookTags.Value) > 0 {
 		return errors.New("--name and --runbook-tag are mutually exclusive. Please specify either a runbook name or runbook tags, not both")
 	}
@@ -361,16 +372,16 @@ func runDbRunbook(cmd *cobra.Command, f factory.Factory, flags *RunFlags, octopu
 			resolvedFlags := NewRunFlags()
 			resolvedFlags.Project.Value = options.ProjectName
 			resolvedFlags.RunbookName.Value = options.RunbookName
-			resolvedFlags.Environments.Value = options.Environments
-			resolvedFlags.Tenants.Value = options.Tenants
-			resolvedFlags.TenantTags.Value = options.TenantTags
+			resolvedFlags.Environments.Value = executionscommon.EscapeCommas(options.Environments)
+			resolvedFlags.Tenants.Value = executionscommon.EscapeCommas(options.Tenants)
+			resolvedFlags.TenantTags.Value = executionscommon.EscapeCommas(options.TenantTags)
 			resolvedFlags.RunAt.Value = options.ScheduledStartTime
 			resolvedFlags.MaxQueueTime.Value = options.ScheduledExpiryTime
 			resolvedFlags.ExcludedSteps.Value = options.ExcludedSteps
 			resolvedFlags.GuidedFailureMode.Value = options.GuidedFailureMode
 			resolvedFlags.Priority.Value = options.Priority
-			resolvedFlags.RunTargets.Value = options.RunTargets
-			resolvedFlags.ExcludeTargets.Value = options.ExcludeTargets
+			resolvedFlags.RunTargets.Value = executionscommon.EscapeCommas(options.RunTargets)
+			resolvedFlags.ExcludeTargets.Value = executionscommon.EscapeCommas(options.ExcludeTargets)
 			resolvedFlags.SpecificTargetTagNames.Value = options.SpecificTargetTagNames
 			resolvedFlags.ExcludedTargetTagNames.Value = options.ExcludedTargetTagNames
 
@@ -504,16 +515,16 @@ func runGitRunbook(cmd *cobra.Command, f factory.Factory, flags *RunFlags, octop
 			resolvedFlags := NewRunFlags()
 			resolvedFlags.Project.Value = options.ProjectName
 			resolvedFlags.RunbookName.Value = options.RunbookName
-			resolvedFlags.Environments.Value = options.Environments
-			resolvedFlags.Tenants.Value = options.Tenants
-			resolvedFlags.TenantTags.Value = options.TenantTags
+			resolvedFlags.Environments.Value = executionscommon.EscapeCommas(options.Environments)
+			resolvedFlags.Tenants.Value = executionscommon.EscapeCommas(options.Tenants)
+			resolvedFlags.TenantTags.Value = executionscommon.EscapeCommas(options.TenantTags)
 			resolvedFlags.RunAt.Value = options.ScheduledStartTime
 			resolvedFlags.MaxQueueTime.Value = options.ScheduledExpiryTime
 			resolvedFlags.ExcludedSteps.Value = options.ExcludedSteps
 			resolvedFlags.GuidedFailureMode.Value = options.GuidedFailureMode
 			resolvedFlags.Priority.Value = options.Priority
-			resolvedFlags.RunTargets.Value = options.RunTargets
-			resolvedFlags.ExcludeTargets.Value = options.ExcludeTargets
+			resolvedFlags.RunTargets.Value = executionscommon.EscapeCommas(options.RunTargets)
+			resolvedFlags.ExcludeTargets.Value = executionscommon.EscapeCommas(options.ExcludeTargets)
 			resolvedFlags.SpecificTargetTagNames.Value = options.SpecificTargetTagNames
 			resolvedFlags.ExcludedTargetTagNames.Value = options.ExcludedTargetTagNames
 			resolvedFlags.GitRef.Value = options.GitReference

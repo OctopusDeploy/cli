@@ -172,9 +172,9 @@ func NewCmdDeploy(f factory.Factory) *cobra.Command {
 	flags := cmd.Flags()
 	flags.StringVarP(&deployFlags.Project.Value, deployFlags.Project.Name, "p", "", "Name or ID of the project to deploy the release from")
 	flags.StringVarP(&deployFlags.ReleaseVersion.Value, deployFlags.ReleaseVersion.Name, "", "", "Release version to deploy")
-	flags.StringArrayVarP(&deployFlags.Environments.Value, deployFlags.Environments.Name, "e", nil, "Deploy to this environment (can be specified multiple times)")
-	flags.StringArrayVarP(&deployFlags.Tenants.Value, deployFlags.Tenants.Name, "", nil, "Deploy to this tenant (can be specified multiple times)")
-	flags.StringArrayVarP(&deployFlags.TenantTags.Value, deployFlags.TenantTags.Name, "", nil, "Deploy to tenants matching this tag (can be specified multiple times). Format is 'Tag Set Name/Tag Name', such as 'Regions/South'.")
+	flags.StringArrayVarP(&deployFlags.Environments.Value, deployFlags.Environments.Name, "e", nil, "Deploy to this environment (can be specified multiple times, or as a comma-separated list; escape a comma inside a value as '\\,')")
+	flags.StringArrayVarP(&deployFlags.Tenants.Value, deployFlags.Tenants.Name, "", nil, "Deploy to this tenant (can be specified multiple times, or as a comma-separated list; escape a comma inside a value as '\\,')")
+	flags.StringArrayVarP(&deployFlags.TenantTags.Value, deployFlags.TenantTags.Name, "", nil, "Deploy to tenants matching this tag (can be specified multiple times, or as a comma-separated list; escape a comma inside a value as '\\,'). Format is 'Tag Set Name/Tag Name', such as 'Regions/South'.")
 	flags.StringVarP(&deployFlags.DeployAt.Value, deployFlags.DeployAt.Name, "", "", "Deploy at a later time. Deploy now if omitted. TODO date formats and timezones!")
 	flags.StringVarP(&deployFlags.MaxQueueTime.Value, deployFlags.MaxQueueTime.Name, "", "", "Cancel the deployment if it hasn't started within this time period.")
 	flags.StringArrayVarP(&deployFlags.Variables.Value, deployFlags.Variables.Name, "v", nil, "Set the value for a prompted variable in the format Label:Value")
@@ -183,8 +183,8 @@ func NewCmdDeploy(f factory.Factory) *cobra.Command {
 	flags.StringVarP(&deployFlags.GuidedFailureMode.Value, deployFlags.GuidedFailureMode.Name, "", "", "Enable Guided failure mode (true/false/default)")
 	flags.StringVarP(&deployFlags.Priority.Value, deployFlags.Priority.Name, "", "", "Jump the task queue ahead of other queued tasks (true/false/default). Requires the Priority Tasks feature, and the TaskPrioritize permission to set true.")
 	flags.BoolVarP(&deployFlags.ForcePackageDownload.Value, deployFlags.ForcePackageDownload.Name, "", false, "Force re-download of packages")
-	flags.StringArrayVarP(&deployFlags.DeploymentTargets.Value, deployFlags.DeploymentTargets.Name, "", nil, "Deploy to this target (can be specified multiple times)")
-	flags.StringArrayVarP(&deployFlags.ExcludeTargets.Value, deployFlags.ExcludeTargets.Name, "", nil, "Deploy to targets except for this (can be specified multiple times)")
+	flags.StringArrayVarP(&deployFlags.DeploymentTargets.Value, deployFlags.DeploymentTargets.Name, "", nil, "Deploy to this target (can be specified multiple times, or as a comma-separated list; escape a comma inside a value as '\\,')")
+	flags.StringArrayVarP(&deployFlags.ExcludeTargets.Value, deployFlags.ExcludeTargets.Name, "", nil, "Deploy to targets except for this (can be specified multiple times, or as a comma-separated list; escape a comma inside a value as '\\,')")
 	flags.StringArrayVarP(&deployFlags.SpecificTargetTagNames.Value, deployFlags.SpecificTargetTagNames.Name, "", nil, "Deploy to targets matching this tag (can be specified multiple times)")
 	flags.StringArrayVarP(&deployFlags.ExcludedTargetTagNames.Value, deployFlags.ExcludedTargetTagNames.Name, "", nil, "Deploy to targets except for those matching this tag (can be specified multiple times)")
 	flags.StringArrayVarP(&deployFlags.DeploymentFreezeNames.Value, deployFlags.DeploymentFreezeNames.Name, "", nil, "Override this deployment freeze (can be specified multiple times)")
@@ -213,6 +213,17 @@ func NewCmdDeploy(f factory.Factory) *cobra.Command {
 }
 
 func deployRun(cmd *cobra.Command, f factory.Factory, flags *DeployFlags) error {
+	// these flags accept a comma-separated list as well as being specified multiple times
+	if err := executionscommon.ExpandCommaSeparatedFlags(
+		flags.Environments,
+		flags.Tenants,
+		flags.TenantTags,
+		flags.DeploymentTargets,
+		flags.ExcludeTargets,
+	); err != nil {
+		return err
+	}
+
 	outputFormat, err := cmd.Flags().GetString(constants.FlagOutputFormat)
 	if err != nil { // should never happen, but fallback if it does
 		outputFormat = constants.OutputFormatTable
@@ -286,16 +297,16 @@ func deployRun(cmd *cobra.Command, f factory.Factory, flags *DeployFlags) error 
 			resolvedFlags := NewDeployFlags()
 			resolvedFlags.Project.Value = options.ProjectName
 			resolvedFlags.ReleaseVersion.Value = options.ReleaseVersion
-			resolvedFlags.Environments.Value = options.Environments
-			resolvedFlags.Tenants.Value = options.Tenants
-			resolvedFlags.TenantTags.Value = options.TenantTags
+			resolvedFlags.Environments.Value = executionscommon.EscapeCommas(options.Environments)
+			resolvedFlags.Tenants.Value = executionscommon.EscapeCommas(options.Tenants)
+			resolvedFlags.TenantTags.Value = executionscommon.EscapeCommas(options.TenantTags)
 			resolvedFlags.DeployAt.Value = options.ScheduledStartTime
 			resolvedFlags.MaxQueueTime.Value = options.ScheduledExpiryTime
 			resolvedFlags.ExcludedSteps.Value = options.ExcludedSteps
 			resolvedFlags.GuidedFailureMode.Value = options.GuidedFailureMode
 			resolvedFlags.Priority.Value = options.Priority
-			resolvedFlags.DeploymentTargets.Value = options.DeploymentTargets
-			resolvedFlags.ExcludeTargets.Value = options.ExcludeTargets
+			resolvedFlags.DeploymentTargets.Value = executionscommon.EscapeCommas(options.DeploymentTargets)
+			resolvedFlags.ExcludeTargets.Value = executionscommon.EscapeCommas(options.ExcludeTargets)
 			resolvedFlags.SpecificTargetTagNames.Value = options.SpecificTargetTagNames
 			resolvedFlags.ExcludedTargetTagNames.Value = options.ExcludedTargetTagNames
 			resolvedFlags.DeploymentFreezeNames.Value = options.DeploymentFreezeNames
