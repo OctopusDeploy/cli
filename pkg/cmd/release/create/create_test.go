@@ -3,6 +3,7 @@ package create_test
 import (
 	"bytes"
 	"errors"
+	"net/http"
 	"net/url"
 	"os"
 	"testing"
@@ -19,6 +20,7 @@ import (
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/channels"
 	octopusApiClient "github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/constants"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/core"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/credentials"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/deployments"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/feeds"
@@ -2828,4 +2830,285 @@ func TestReleaseCreate_ApplyPackageOverride(t *testing.T) {
 			{PackageID: "NuGet.CommandLine", ActionName: "Install", PackageReferenceName: "NuGet.CommandLine", Version: "5.4"},
 		}, result)
 	})
+}
+
+func TestReleaseCreate_FindPackagesWithoutVersions(t *testing.T) {
+	resolvable := releases.ReleaseTemplatePackage{
+		ActionName:           "Deploy Website",
+		FeedID:               "feeds-builtin",
+		FeedName:             "Octopus Server (built-in)",
+		PackageID:            "acme-web",
+		PackageReferenceName: "acme-web",
+		IsResolvable:         true,
+	}
+
+	t.Run("reports a resolvable package with no version", func(t *testing.T) {
+		missing := packages.FindPackagesWithoutVersions(
+			[]releases.ReleaseTemplatePackage{resolvable},
+			[]*packages.StepPackageVersion{{PackageID: "acme-web", ActionName: "Deploy Website", PackageReferenceName: "acme-web", Version: ""}})
+
+		assert.Equal(t, []releases.ReleaseTemplatePackage{resolvable}, missing)
+	})
+
+	t.Run("ignores a package which has a version", func(t *testing.T) {
+		missing := packages.FindPackagesWithoutVersions(
+			[]releases.ReleaseTemplatePackage{resolvable},
+			[]*packages.StepPackageVersion{{PackageID: "acme-web", ActionName: "Deploy Website", PackageReferenceName: "acme-web", Version: "1.0.0"}})
+
+		assert.Equal(t, []releases.ReleaseTemplatePackage{}, missing)
+	})
+
+	t.Run("ignores packages which don't need a version at release creation time", func(t *testing.T) {
+		fixed := resolvable
+		fixed.FixedVersion = "1.0.0"
+		unresolvable := resolvable
+		unresolvable.IsResolvable = false
+
+		missing := packages.FindPackagesWithoutVersions(
+			[]releases.ReleaseTemplatePackage{fixed, unresolvable},
+			[]*packages.StepPackageVersion{{PackageID: "acme-web", ActionName: "Deploy Website", PackageReferenceName: "acme-web", Version: ""}})
+
+		assert.Equal(t, []releases.ReleaseTemplatePackage{}, missing)
+	})
+
+	t.Run("matches on step and package reference, not just package ID", func(t *testing.T) {
+		secondStep := resolvable
+		secondStep.ActionName = "Deploy Worker"
+
+		missing := packages.FindPackagesWithoutVersions(
+			[]releases.ReleaseTemplatePackage{resolvable, secondStep},
+			[]*packages.StepPackageVersion{
+				{PackageID: "acme-web", ActionName: "Deploy Website", PackageReferenceName: "acme-web", Version: "1.0.0"},
+				{PackageID: "acme-web", ActionName: "Deploy Worker", PackageReferenceName: "acme-web", Version: ""},
+			})
+
+		assert.Equal(t, []releases.ReleaseTemplatePackage{secondStep}, missing)
+	})
+}
+
+func TestReleaseCreate_MissingPackageVersionsError(t *testing.T) {
+	cause := errors.New("Octopus API error: Object reference not set to an instance of an object. []")
+
+	t.Run("names the package, step and feed", func(t *testing.T) {
+		err := packages.NewMissingPackageVersionsError([]releases.ReleaseTemplatePackage{{
+			ActionName:           "Deploy Website",
+			FeedID:               "feeds-builtin",
+			FeedName:             "Octopus Server (built-in)",
+			PackageID:            "acme-web",
+			PackageReferenceName: "acme-web",
+		}}, cause)
+
+		assert.EqualError(t, err, heredoc.Doc(`
+			cannot create release; no version could be found for the following packages:
+			  - 'acme-web' in step 'Deploy Website' (feed 'Octopus Server (built-in)')
+			push the package(s) to the feed, or supply a version with --package or --package-version`))
+
+		assert.Equal(t, cause, errors.Unwrap(err))
+	})
+
+	t.Run("qualifies the package with its reference name where they differ", func(t *testing.T) {
+		err := packages.NewMissingPackageVersionsError([]releases.ReleaseTemplatePackage{{
+			ActionName:           "Deploy Website",
+			FeedID:               "Feeds-1001",
+			PackageID:            "acme-web",
+			PackageReferenceName: "extra-config",
+		}}, cause)
+
+		// no FeedName in this response, so it falls back to the feed ID
+		assert.EqualError(t, err, heredoc.Doc(`
+			cannot create release; no version could be found for the following packages:
+			  - 'acme-web/extra-config' in step 'Deploy Website' (feed 'Feeds-1001')
+			push the package(s) to the feed, or supply a version with --package or --package-version`))
+	})
+}
+
+func TestReleaseCreate_DiagnoseCreateReleaseFailure(t *testing.T) {
+	t.Run("passes through errors which aren't server faults", func(t *testing.T) {
+		cause := errors.New("no such host")
+		assert.Equal(t, cause, create.DiagnoseCreateReleaseFailure(nil, nil, cause))
+
+		badRequest := &core.APIError{ErrorMessage: "release version 1.0.0 already exists", StatusCode: http.StatusBadRequest}
+		assert.Equal(t, error(badRequest), create.DiagnoseCreateReleaseFailure(nil, nil, badRequest))
+	})
+
+	t.Run("passes through server faults it cannot diagnose", func(t *testing.T) {
+		// a 5xx is only replaced when the CLI can positively name the packages behind it. With no
+		// client to go and look, and no null reference message to explain, the server error stands.
+		serverError := &core.APIError{ErrorMessage: "The database is unavailable", StatusCode: http.StatusInternalServerError}
+		assert.Equal(t, error(serverError), create.DiagnoseCreateReleaseFailure(nil, nil, serverError))
+
+		badGateway := &core.APIError{ErrorMessage: "Bad Gateway", StatusCode: http.StatusBadGateway}
+		assert.Equal(t, error(badGateway), create.DiagnoseCreateReleaseFailure(nil, nil, badGateway))
+	})
+
+	t.Run("explains a bare null reference fault even when no packages are missing", func(t *testing.T) {
+		nullRef := &core.APIError{ErrorMessage: "Object reference not set to an instance of an object.", StatusCode: http.StatusInternalServerError}
+		err := create.DiagnoseCreateReleaseFailure(nil, nil, nullRef)
+		assert.ErrorIs(t, err, nullRef)
+		assert.Contains(t, err.Error(), "the server failed with an unhandled error")
+	})
+}
+
+// issue #426: the server raises a null reference exception rather than telling us that a package
+// referenced by the deployment process has no version available in its feed
+func TestReleaseCreate_AutomationMode_MissingPackageDiagnosis(t *testing.T) {
+	const spaceID = "Spaces-1"
+	const fireProjectID = "Projects-22"
+	const builtinFeedID = "feeds-builtin"
+
+	space1 := fixtures.NewSpace(spaceID, "Default Space")
+	depProcess := fixtures.NewDeploymentProcessForProject(spaceID, fireProjectID)
+	fireProject := fixtures.NewProject(spaceID, fireProjectID, "Fire Project", "Lifecycles-1", "ProjectGroups-1", depProcess.ID)
+	defaultChannel := fixtures.NewChannel(spaceID, "Channels-1", "Default", fireProjectID)
+
+	nullReferenceError := &core.APIError{ErrorMessage: "Object reference not set to an instance of an object."}
+
+	tests := []struct {
+		name string
+		run  func(t *testing.T, api *testutil.MockHttpServer, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer)
+	}{
+		{"reports the package which has no version in its feed", func(t *testing.T, api *testutil.MockHttpServer, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
+			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
+				defer api.Close()
+				rootCmd.SetArgs([]string{"release", "create", "--project", fireProject.Name, "--version", "1.0.0"})
+				return rootCmd.ExecuteC()
+			})
+
+			api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/Fire Project").RespondWith(fireProject)
+
+			api.ExpectRequest(t, "POST", "/api/Spaces-1/releases/create/v1").
+				RespondWithStatus(http.StatusInternalServerError, "500 Internal Server Error", nullReferenceError)
+
+			// the CLI now goes back to the server to work out what the real problem was
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/Fire Project").RespondWith(fireProject)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/deploymentprocesses/"+depProcess.ID).RespondWith(depProcess)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+fireProjectID+"/channels").RespondWith(resources.Resources[*channels.Channel]{
+				Items: []*channels.Channel{defaultChannel},
+			})
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+fireProjectID+"/deploymentprocesses/template?channel=Channels-1").
+				RespondWith(&deployments.DeploymentProcessTemplate{
+					Packages: []releases.ReleaseTemplatePackage{{
+						ActionName:           "Deploy Website",
+						FeedID:               builtinFeedID,
+						FeedName:             "Octopus Server (built-in)",
+						PackageID:            "acme-web",
+						PackageReferenceName: "acme-web",
+						IsResolvable:         true,
+					}},
+				})
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/feeds?ids="+builtinFeedID+"&take=1").RespondWith(&feeds.Feeds{Items: []feeds.IFeed{
+				&feeds.FeedResource{Name: "Octopus Server (built-in)", FeedType: feeds.FeedTypeBuiltIn, Resource: resources.Resource{
+					ID: builtinFeedID,
+					Links: map[string]string{
+						constants.LinkSearchPackageVersionsTemplate: "/api/Spaces-1/feeds/feeds-builtin/packages/versions{?packageId,take,skip,includePreRelease,versionRange,preReleaseTag,filter,includeReleaseNotes}",
+					}}},
+			}})
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/feeds/feeds-builtin/packages/versions?packageId=acme-web&take=1").
+				RespondWith(&resources.Resources[*octopusPackages.PackageVersion]{Items: []*octopusPackages.PackageVersion{}})
+
+			_, err := testutil.ReceivePair(cmdReceiver)
+			assert.EqualError(t, err, heredoc.Doc(`
+				cannot create release; no version could be found for the following packages:
+				  - 'acme-web' in step 'Deploy Website' (feed 'Octopus Server (built-in)')
+				push the package(s) to the feed, or supply a version with --package or --package-version`))
+
+			assert.Equal(t, "", stdOut.String())
+		}},
+
+		{"doesn't apply channel version rules when --ignore-channel-rules was specified", func(t *testing.T, api *testutil.MockHttpServer, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
+			// the server resolved versions without the channel rules, so the diagnosis must too;
+			// otherwise a package which only fails the rules gets reported as having no version at all
+			ruledChannel := fixtures.NewChannel(spaceID, "Channels-1", "Default", fireProjectID)
+			ruledChannel.Rules = []channels.ChannelRule{{
+				Tag:          "^pre$",
+				VersionRange: "[5.0,6.0)",
+				ActionPackages: []octopusPackages.DeploymentActionPackage{
+					{DeploymentAction: "Deploy Website", PackageReference: "acme-web"},
+				},
+			}}
+
+			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
+				defer api.Close()
+				rootCmd.SetArgs([]string{"release", "create", "--project", fireProject.Name, "--ignore-channel-rules"})
+				return rootCmd.ExecuteC()
+			})
+
+			api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/Fire Project").RespondWith(fireProject)
+
+			api.ExpectRequest(t, "POST", "/api/Spaces-1/releases/create/v1").
+				RespondWithStatus(http.StatusInternalServerError, "500 Internal Server Error", nullReferenceError)
+
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/Fire Project").RespondWith(fireProject)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/deploymentprocesses/"+depProcess.ID).RespondWith(depProcess)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+fireProjectID+"/channels").RespondWith(resources.Resources[*channels.Channel]{
+				Items: []*channels.Channel{ruledChannel},
+			})
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+fireProjectID+"/deploymentprocesses/template?channel=Channels-1").
+				RespondWith(&deployments.DeploymentProcessTemplate{
+					Packages: []releases.ReleaseTemplatePackage{{
+						ActionName:           "Deploy Website",
+						FeedID:               builtinFeedID,
+						FeedName:             "Octopus Server (built-in)",
+						PackageID:            "acme-web",
+						PackageReferenceName: "acme-web",
+						IsResolvable:         true,
+					}},
+				})
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/feeds?ids="+builtinFeedID+"&take=1").RespondWith(&feeds.Feeds{Items: []feeds.IFeed{
+				&feeds.FeedResource{Name: "Octopus Server (built-in)", FeedType: feeds.FeedTypeBuiltIn, Resource: resources.Resource{
+					ID: builtinFeedID,
+					Links: map[string]string{
+						constants.LinkSearchPackageVersionsTemplate: "/api/Spaces-1/feeds/feeds-builtin/packages/versions{?packageId,take,skip,includePreRelease,versionRange,preReleaseTag,filter,includeReleaseNotes}",
+					}}},
+			}})
+			// no versionRange or preReleaseTag in the query, despite the channel carrying a rule for this package
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/feeds/feeds-builtin/packages/versions?packageId=acme-web&take=1").
+				RespondWith(&resources.Resources[*octopusPackages.PackageVersion]{Items: []*octopusPackages.PackageVersion{}})
+
+			_, err := testutil.ReceivePair(cmdReceiver)
+			assert.EqualError(t, err, heredoc.Doc(`
+				cannot create release; no version could be found for the following packages:
+				  - 'acme-web' in step 'Deploy Website' (feed 'Octopus Server (built-in)')
+				push the package(s) to the feed, or supply a version with --package or --package-version`))
+		}},
+
+		{"falls back to a hint when it can't identify a missing package", func(t *testing.T, api *testutil.MockHttpServer, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
+			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
+				defer api.Close()
+				rootCmd.SetArgs([]string{"release", "create", "--project", fireProject.Name})
+				return rootCmd.ExecuteC()
+			})
+
+			api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/Fire Project").RespondWith(fireProject)
+
+			api.ExpectRequest(t, "POST", "/api/Spaces-1/releases/create/v1").
+				RespondWithStatus(http.StatusInternalServerError, "500 Internal Server Error", nullReferenceError)
+
+			// the diagnosis is best-effort; this server can't tell us about the deployment process
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/Fire Project").RespondWith(fireProject)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/deploymentprocesses/"+depProcess.ID).RespondWithStatus(http.StatusNotFound, "404 Not Found", nil)
+
+			_, err := testutil.ReceivePair(cmdReceiver)
+			assert.EqualError(t, err, "Octopus API error: Object reference not set to an instance of an object. [] \nthe server failed with an unhandled error; this usually means it could not resolve the packages, channel or git reference for the release")
+		}},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			stdout, stderr := &bytes.Buffer{}, &bytes.Buffer{}
+			api := testutil.NewMockHttpServer()
+
+			rootCmd := cmdRoot.NewCmdRoot(testutil.NewMockFactoryWithSpace(api, space1), nil, nil)
+			rootCmd.SetOut(stdout)
+			rootCmd.SetErr(stderr)
+
+			test.run(t, api, rootCmd, stdout, stderr)
+		})
+	}
 }
