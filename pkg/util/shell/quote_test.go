@@ -172,6 +172,27 @@ func TestQuotePowerShell_RoundTrip(t *testing.T) {
 	}
 }
 
+// TestQuotePowerShell_RoundTripToNativeCommand goes a step further than the test above:
+// Write-Host is a cmdlet, so it only proves PowerShell parsed the value into one string.
+// The CLI is a native executable, and handing an argument to one of those is a separate
+// step with its own escaping. Running printf, which echoes its argument back verbatim,
+// covers that step too. It is the step Windows PowerShell 5.1 gets wrong for a trailing
+// backslash or an embedded quote, as quotePowerShell describes; 5.1 is Windows only and
+// can't be exercised here, so this guards the PowerShell 7 behaviour we can reach.
+func TestQuotePowerShell_RoundTripToNativeCommand(t *testing.T) {
+	pwsh := lookShell(t, "pwsh")
+	printf := lookShell(t, "printf")
+
+	for _, value := range append(roundTripValues, "line1\nline2") {
+		t.Run(fmt.Sprintf("%q", value), func(t *testing.T) {
+			script := "& '" + printf + "' '%s' " + shell.Quote(shell.PowerShell, value)
+			out, err := exec.Command(pwsh, "-NoProfile", "-Command", script).Output()
+			require.NoError(t, err)
+			assert.Equal(t, value, string(out))
+		})
+	}
+}
+
 // simulateCmd applies cmd.exe's own processing to a command line and returns what cmd
 // would hand to the program. It models the interactive prompt, which is where a copied
 // command gets pasted; percent expansion in a batch file follows different rules and a

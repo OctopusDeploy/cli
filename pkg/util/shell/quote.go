@@ -65,6 +65,18 @@ var powerShellQuoteEscaper = strings.NewReplacer(
 
 // quotePowerShell quotes for PowerShell. Single quoted strings are literal, and a single
 // quote is escaped by doubling it.
+//
+// This gets the value through PowerShell's own parser intact, which is as far as we can
+// go. Handing it on to a native executable is PowerShell's job, and Windows PowerShell
+// 5.1 does it badly: it rebuilds the command line without escaping, so two shapes of
+// value still arrive corrupted no matter how they are quoted here.
+//   - a trailing backslash escapes the closing quote 5.1 generates, so
+//     C:\Program Files\Octopus\ arrives as C:\Program Files\Octopus"
+//   - an embedded double quote isn't escaped either, so say "hi" loses its quotes
+//
+// PowerShell 7 fixed both. There is nothing to do about 5.1 short of emitting the
+// argument-by-argument syntax, which is unreadable for a command meant to be copied,
+// so this is a documented limitation rather than a bug in the quoting.
 func quotePowerShell(value string) string {
 	if isBare(value, powerShellSafeChars) {
 		return value
