@@ -2,7 +2,6 @@ package login
 
 import (
 	"bytes"
-	"crypto/tls"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -121,17 +120,9 @@ func loginRun(cmd *cobra.Command, f factory.Factory, isPromptEnabled bool, ask q
 		return err
 	}
 
-	// The http client could be nil, in which case we just use the default one from http
-	if httpClient == nil {
-		httpClient = &http.Client{}
-	}
-
-	if inputs.ignoreSslErrors {
-		if httpClient.Transport == nil {
-			httpClient.Transport = &http.Transport{}
-		}
-
-		httpClient.Transport.(*http.Transport).TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
+	httpClient, err = ConfigureHttpClient(httpClient, inputs.ignoreSslErrors)
+	if err != nil {
+		return err
 	}
 
 	if inputs.apiKey != "" {
@@ -151,6 +142,50 @@ func loginRun(cmd *cobra.Command, f factory.Factory, isPromptEnabled bool, ask q
 	}
 
 	return nil
+}
+
+// ConfigureHttpClient makes sure login talks to Octopus through the configured proxy.
+func ConfigureHttpClient(httpClient *http.Client, ignoreSslErrors bool) (*http.Client, error) {
+	// the client is nil whenever the CLI has no usable configuration yet, which is the
+	// common case for login, so build a proxy-aware one rather than letting net/http
+	// fall back to its default
+	if httpClient == nil {
+		transport, err := apiclient.NewHttpTransport(apiclient.ProxySettingsFromConfig(), ignoreSslErrors)
+		if err != nil {
+			return nil, err
+		}
+		return &http.Client{Transport: transport}, nil
+	}
+
+	// a client with no transport of its own would silently fall back to
+	// http.DefaultTransport, which knows nothing about the CLI's proxy settings and
+	// would drop --ignore-ssl-errors on the floor
+	if httpClient.Transport == nil {
+		transport, err := apiclient.NewHttpTransport(apiclient.ProxySettingsFromConfig(), ignoreSslErrors)
+		if err != nil {
+			return nil, err
+		}
+		httpClient.Transport = transport
+		return httpClient, nil
+	}
+
+	// a configured client already carries a proxy-aware transport, so only the ssl
+	// override needs applying. Any other transport belongs to a caller (tests mock one
+	// in here) and is left alone.
+	//
+	// Two things worth knowing about this branch. It is a no-op while
+	// NewClientFactoryFromConfig hardcodes insecureSkipVerify to true - it only resets
+	// the connection pool - and becomes meaningful as soon as that is plumbed through.
+	// And it mutates the factory's shared client, so the override outlives the login
+	// probe: fine for a one-shot CLI, a trap for any longer-lived embedding.
+	if spinnerRoundTripper, ok := httpClient.Transport.(*apiclient.SpinnerRoundTripper); ok && ignoreSslErrors {
+		transport, err := apiclient.NewHttpTransport(apiclient.ProxySettingsFromConfig(), true)
+		if err != nil {
+			return nil, err
+		}
+		spinnerRoundTripper.Next = transport
+	}
+	return httpClient, nil
 }
 
 func loginWithApiKey(configProvider config.IConfigProvider, httpClient *http.Client, server string, apiKey string, cmd *cobra.Command) error {

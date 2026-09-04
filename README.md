@@ -259,6 +259,27 @@ set OCTOPUS_API_KEY="API-XXXXXXXXXXXXXXXXXXXXXXXXXXXXX" # replace with your API 
 octopus.exe space list # should list all the spaces
 ```
 
+### Proxies
+
+The CLI honours the standard `HTTP_PROXY`, `HTTPS_PROXY` and `NO_PROXY` environment variables.
+
+To point the CLI at a proxy without affecting other tools, set `OCTOPUS_PROXY` (or the `ProxyUrl` config key,
+which `OCTOPUS_PROXY` overrides). It applies to both http and https requests, and `NO_PROXY` still applies.
+`http`, `https`, `socks5` and `socks5h` proxy urls are supported.
+
+```shell
+export OCTOPUS_PROXY="http://proxy.example.com:3128"
+```
+
+Credentials can be embedded in the proxy url, or supplied separately with `OCTOPUS_PROXY_USERNAME` and
+`OCTOPUS_PROXY_PASSWORD`. `OCTOPUS_PROXY_PASSWORD` needs `OCTOPUS_PROXY_USERNAME` alongside it; on its own
+the CLI reports the mistake rather than connecting without the credentials.
+
+Prefer those two variables over embedding a password in the proxy url: they are never written to the CLI
+config file, whereas `octopus config set ProxyUrl` stores whatever it is given in plain text, exactly as it
+does for an API key. `octopus config list` and `octopus config get ProxyUrl` mask the password when they
+display it.
+
 ### go-octopusdeploy library
 
 The CLI depends heavily on the [go-octopusdeploy](https://github.com/OctopusDeploy/go-octopusdeploy) library, which manages
