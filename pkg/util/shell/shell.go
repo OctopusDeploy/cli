@@ -75,8 +75,13 @@ func Detect(goos string, getenv func(string) string) Shell {
 		if s, ok := Parse(parentProcessName()); ok {
 			return s
 		}
-		// cmd is the safer guess: double quoted output also works in PowerShell,
-		// whereas single quoted output doesn't work in cmd at all.
+		// cmd is the guess with the better failure mode, though neither is safe. Single
+		// quoted output is useless in cmd for any value that needed quoting, whereas cmd
+		// output is mostly readable in PowerShell: a plain quoted value like
+		// "Soft Drinks" works in both. It only diverges for a value carrying a double
+		// quote, where the ^ escapes are meaningless to PowerShell, or a trailing
+		// backslash, which cmd doubles for argv and PowerShell leaves alone. Setting
+		// Shell in config is the fix when detection can't see the parent process.
 		return Cmd
 	}
 
