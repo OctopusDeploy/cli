@@ -1287,6 +1287,38 @@ func TestReleaseCreate_AutomationMode(t *testing.T) {
 			assert.Equal(t, "", stdErr.String())
 		}},
 
+		// the post-create lookup returns a nil release on failure, so reading details off it panicked
+		{"release creation warns, rather than panicking, when the post-create lookup fails", func(t *testing.T, api *testutil.MockHttpServer, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
+			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
+				defer api.Close()
+				rootCmd.SetArgs([]string{"release", "create", "--project", cacProject.Name})
+				return rootCmd.ExecuteC()
+			})
+
+			api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/CaC Project").RespondWith(cacProject)
+
+			api.ExpectRequest(t, "POST", "/api/Spaces-1/releases/create/v1").RespondWith(&releases.CreateReleaseResponseV1{
+				ReleaseID:      "Releases-999",
+				ReleaseVersion: "1.2.3",
+			})
+
+			// the release was created, but the server fails when we go back to ask which channel it picked
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/releases/Releases-999").RespondWithStatus(500, "Internal Server Error", nil)
+
+			_, err := testutil.ReceivePair(cmdReceiver)
+			assert.Nil(t, err)
+
+			// the release exists, so we must still report the version we created
+			assert.Equal(t, heredoc.Doc(`
+				Successfully created release version 1.2.3
+				
+				View this release on Octopus Deploy: http://server/app#/Spaces-1/releases/Releases-999
+				`), stdOut.String())
+			assert.Contains(t, stdErr.String(), "Warning: cannot fetch release details:")
+		}},
+
 		{"release creation specifying custom field", func(t *testing.T, api *testutil.MockHttpServer, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
 			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
 				defer api.Close()
