@@ -30,6 +30,7 @@ import (
 	workerPoolCmd "github.com/OctopusDeploy/cli/pkg/cmd/workerpool"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/factory"
+	"github.com/OctopusDeploy/cli/pkg/output"
 	"github.com/OctopusDeploy/cli/pkg/question"
 	"github.com/OctopusDeploy/cli/pkg/util/shell"
 	"github.com/spf13/cobra"
@@ -124,17 +125,20 @@ func NewCmdRoot(f factory.Factory, clientFactory apiclient.ClientFactory, askPro
 	// if we attempt to check the flags before Execute is called, cobra hasn't parsed anything yet,
 	// so we'll get bad values. PersistentPreRun is a convenient callback for setting up our
 	// environment after parsing but before execution.
-	cmd.PersistentPreRunE = func(_ *cobra.Command, _ []string) error {
-		// an explicitly asked for shell is validated here rather than silently ignored;
-		// the config file value isn't, because a bad one there would lock the user out
-		// of the config commands they need to fix it.
+	cmd.PersistentPreRunE = func(cmd *cobra.Command, _ []string) error {
+		// --shell is validated because it was typed for this one command, so failing is
+		// what the user expects and they can just retype it. OCTOPUS_SHELL and the config
+		// file value are only warned about: both are set once and apply to every command
+		// afterwards, so rejecting them would lock the user out of the whole CLI,
+		// including the `config set Shell` needed to fix it. Detect falls back to the
+		// host shell in that case.
 		if v, _ := cmdPFlags.GetString(constants.FlagShell); v != "" {
 			if err := shell.Validate(v); err != nil {
 				return fmt.Errorf("--%s: %w", constants.FlagShell, err)
 			}
 		} else if v := os.Getenv(constants.EnvOctopusShell); v != "" {
 			if err := shell.Validate(v); err != nil {
-				return fmt.Errorf("%s: %w", constants.EnvOctopusShell, err)
+				fmt.Fprintf(cmd.ErrOrStderr(), "%s\n", output.Yellow(fmt.Sprintf("Warning: ignoring %s: %s", constants.EnvOctopusShell, err)))
 			}
 		}
 
