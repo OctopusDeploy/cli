@@ -2,6 +2,7 @@ package shell_test
 
 import (
 	"fmt"
+	"os"
 	"os/exec"
 	"strings"
 	"testing"
@@ -109,12 +110,26 @@ func TestQuoteCmd_RoundTrip(t *testing.T) {
 	}
 }
 
+// lookShell finds a shell to round trip through. Locally a missing shell just skips the
+// test, but on CI it fails: these tests are the only thing that checks the generated
+// quoting against a real parser, and a silent skip there means the coverage quietly
+// disappears the day the runner image or the workflow changes.
+func lookShell(t *testing.T, name string) string {
+	t.Helper()
+
+	path, err := exec.LookPath(name)
+	if err != nil {
+		if os.Getenv("CI") != "" {
+			t.Fatalf("%s is not installed; it is needed to round trip the generated quoting", name)
+		}
+		t.Skipf("%s is not available", name)
+	}
+	return path
+}
+
 // TestQuotePosix_RoundTrip runs the quoted values through a real /bin/sh.
 func TestQuotePosix_RoundTrip(t *testing.T) {
-	sh, err := exec.LookPath("sh")
-	if err != nil {
-		t.Skip("sh is not available")
-	}
+	sh := lookShell(t, "sh")
 
 	for _, value := range append(roundTripValues, "line1\nline2") {
 		t.Run(fmt.Sprintf("%q", value), func(t *testing.T) {
@@ -130,10 +145,7 @@ func TestQuotePosix_RoundTrip(t *testing.T) {
 // quoting also covers. zsh expands a leading = and a leading ~ where the other posix
 // shells don't, so it is the stricter test of the two.
 func TestQuoteZsh_RoundTrip(t *testing.T) {
-	zsh, err := exec.LookPath("zsh")
-	if err != nil {
-		t.Skip("zsh is not available")
-	}
+	zsh := lookShell(t, "zsh")
 
 	for _, value := range append(roundTripValues, "line1\nline2") {
 		t.Run(fmt.Sprintf("%q", value), func(t *testing.T) {
@@ -148,10 +160,7 @@ func TestQuoteZsh_RoundTrip(t *testing.T) {
 // TestQuotePowerShell_RoundTrip runs the quoted values through pwsh when it happens to
 // be installed; it isn't on CI, so this usually skips.
 func TestQuotePowerShell_RoundTrip(t *testing.T) {
-	pwsh, err := exec.LookPath("pwsh")
-	if err != nil {
-		t.Skip("pwsh is not available")
-	}
+	pwsh := lookShell(t, "pwsh")
 
 	for _, value := range append(roundTripValues, "line1\nline2") {
 		t.Run(fmt.Sprintf("%q", value), func(t *testing.T) {
