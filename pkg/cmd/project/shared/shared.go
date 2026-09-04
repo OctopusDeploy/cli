@@ -6,7 +6,9 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/question"
 	"github.com/OctopusDeploy/cli/pkg/question/selectors"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/core"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projectgroups"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
 )
 
 type CreateProjectGroupCallback func() (string, cmd.Dependable, error)
@@ -44,4 +46,13 @@ func AskProjectGroups(ask question.Asker, value string, getAllGroupsCallback Get
 		return createProjectGroupCallback()
 	}
 	return g.Name, nil, nil
+}
+
+// TenantedDeploymentMode reports the project's mode, defaulting to Untenanted as
+// the server does when the project doesn't carry one.
+func TenantedDeploymentMode(project *projects.Project) string {
+	if project.TenantedDeploymentMode == "" {
+		return string(core.TenantedDeploymentModeUntenanted)
+	}
+	return string(project.TenantedDeploymentMode)
 }
