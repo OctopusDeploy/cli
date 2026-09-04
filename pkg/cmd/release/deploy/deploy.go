@@ -36,6 +36,7 @@ import (
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/releases"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/spaces"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/tenants"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/variables"
 	"github.com/spf13/cobra"
 )
@@ -258,6 +259,15 @@ func deployRun(cmd *cobra.Command, f factory.Factory, flags *DeployFlags) error 
 		options.ForcePackageDownloadWasSpecified = true
 	}
 
+	// the executions API only matches tenants by name, so resolve any IDs we were given
+	if len(options.Tenants) > 0 {
+		selectedTenants, err := selectors.FindTenants(octopus, options.Tenants)
+		if err != nil {
+			return err
+		}
+		options.Tenants = util.SliceTransform(selectedTenants, func(t *tenants.Tenant) string { return t.Name })
+	}
+
 	if f.IsPromptEnabled() {
 		now := time.Now
 		if cmd.Context() != nil { // allow context to override the definition of 'now' for testing
@@ -346,6 +356,13 @@ func deployRun(cmd *cobra.Command, f factory.Factory, flags *DeployFlags) error 
 			options.ProjectName = project.GetName()
 		}
 
+		// the executions API only matches environments by name, so resolve any IDs we were given
+		if len(options.Environments) > 0 {
+			options.Environments, err = selectors.ResolveEnvironmentNames(octopus, f.GetCurrentSpace(), options.Environments)
+			if err != nil {
+				return err
+			}
+		}
 	}
 
 	// the executor will raise errors if any required options are missing
@@ -501,18 +518,21 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 
 	if len(deploymentEnvironmentIDs) == 0 { // if the Q&A process earlier hasn't loaded environments already, we need to load them now
 		if selectedChannel.Type == channels.ChannelTypeLifecycle {
-			selectedEnvironments, err := executionscommon.FindEnvironments(octopus, options.Environments)
+			selectedEnvironments, err := selectors.FindEnvironments(octopus, options.Environments)
 			if err != nil {
 				return err
 			}
 
 			deploymentEnvironmentIDs = util.SliceTransform(selectedEnvironments, func(env *environments.Environment) string { return env.ID })
+			options.Environments = util.SliceTransform(selectedEnvironments, func(env *environments.Environment) string { return env.Name })
 		} else if selectedChannel.Type == channels.ChannelTypeEphemeral {
-			deploymentEnvironmentIDs, err = findEphemeralEnvironmentIDs(octopus, space, options.Environments)
-
+			selectedEnvironments, err := findEphemeralEnvironments(octopus, space, options.Environments)
 			if err != nil {
 				return err
 			}
+
+			deploymentEnvironmentIDs = util.SliceTransform(selectedEnvironments, func(env *ephemeralenvironments.EphemeralEnvironment) string { return env.ID })
+			options.Environments = util.SliceTransform(selectedEnvironments, func(env *ephemeralenvironments.EphemeralEnvironment) string { return env.Name })
 		}
 	}
 
@@ -664,7 +684,7 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 	return nil
 }
 
-func findEphemeralEnvironmentIDs(octopus *octopusApiClient.Client, space *spaces.Space, environments []string) ([]string, error) {
+func findEphemeralEnvironments(octopus *octopusApiClient.Client, space *spaces.Space, environmentIdentifiers []string) ([]*ephemeralenvironments.EphemeralEnvironment, error) {
 	allEphemeralEnvironments, err := ephemeralenvironments.GetAll(octopus, space.ID)
 	if err != nil {
 		return nil, err
@@ -674,23 +694,25 @@ func findEphemeralEnvironmentIDs(octopus *octopusApiClient.Client, space *spaces
 		return nil, errors.New("no ephemeral environments exist to deploy to")
 	}
 
-	var selectedEnvironments []string
-	if len(environments) == 0 {
+	var selectedEnvironments []*ephemeralenvironments.EphemeralEnvironment
+	if len(environmentIdentifiers) == 0 {
 		return nil, nil
 	}
 
 	envMap := make(map[string]*ephemeralenvironments.EphemeralEnvironment, len(allEphemeralEnvironments.Items)*2)
 	for _, ephemeralEnv := range allEphemeralEnvironments.Items {
-		envMap[strings.ToLower(ephemeralEnv.ID)] = ephemeralEnv
 		envMap[strings.ToLower(ephemeralEnv.Name)] = ephemeralEnv
 	}
+	for _, ephemeralEnv := range allEphemeralEnvironments.Items { // IDs go in second so an ID match wins a collision with another environment's name
+		envMap[strings.ToLower(ephemeralEnv.ID)] = ephemeralEnv
+	}
 
-	for _, envIdentifier := range environments {
+	for _, envIdentifier := range environmentIdentifiers {
 		ephemeralEnv, found := envMap[strings.ToLower(envIdentifier)]
 		if !found {
 			return nil, fmt.Errorf("environment '%s' not found in ephemeral environments", envIdentifier)
 		}
-		selectedEnvironments = append(selectedEnvironments, ephemeralEnv.ID)
+		selectedEnvironments = append(selectedEnvironments, ephemeralEnv)
 	}
 
 	return selectedEnvironments, nil
@@ -763,6 +785,7 @@ func selectDeploymentEnvironmentsForLifecycleChannel(octopus *octopusApiClient.C
 			if err != nil {
 				return nil, err
 			}
+			options.Environments = []string{selectedEnvironment.Name}
 			_, _ = fmt.Fprintf(stdout, "Environment %s\n", output.Cyan(selectedEnvironment.Name))
 		}
 		selectedEnvironments = []*environments.Environment{selectedEnvironment}
