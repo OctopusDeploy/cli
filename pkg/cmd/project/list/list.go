@@ -111,10 +111,14 @@ func getProjects(
 	getProjectGroup GetProjectGroupCallback,
 	getProjectsInGroup GetProjectsInGroupCallback) ([]*projects.Project, error) {
 	if group == "" {
+		return getAllProjects()
+	}
+
 	projectGroup, err := getProjectGroup(group)
 	if err != nil && !errors.Is(err, services.ErrItemNotFound) {
 		return nil, err
 	}
+	// GetByIDOrName reports a miss as ErrItemNotFound; the nil check is defensive.
 	if err != nil || projectGroup == nil {
 		return nil, fmt.Errorf("cannot find a project group with name or ID of '%s'", group)
 	}
