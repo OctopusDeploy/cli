@@ -1,7 +1,6 @@
 package shell_test
 
 import (
-	"runtime"
 	"testing"
 
 	"github.com/OctopusDeploy/cli/pkg/util/shell"
@@ -47,30 +46,35 @@ func TestValidate(t *testing.T) {
 
 func TestDetect(t *testing.T) {
 	tests := []struct {
-		name              string
-		goos              string
-		env               map[string]string
-		expected          shell.Shell
-		usesParentProcess bool
+		name     string
+		goos     string
+		env      map[string]string
+		parent   string
+		expected shell.Shell
 	}{
-		{"unix with SHELL", "linux", map[string]string{"SHELL": "/bin/zsh"}, shell.Bash, false},
-		{"unix with unknown SHELL", "linux", map[string]string{"SHELL": "/usr/bin/fish"}, shell.Bash, false},
-		{"unix without SHELL", "darwin", nil, shell.Bash, false},
-		{"unix with pwsh as SHELL", "linux", map[string]string{"SHELL": "/usr/local/bin/pwsh"}, shell.PowerShell, false},
-		{"windows falls back to cmd", "windows", nil, shell.Cmd, true},
-		{"windows ignores PSModulePath", "windows", map[string]string{"PSModulePath": `C:\Program Files\WindowsPowerShell\Modules`}, shell.Cmd, true},
-		{"override wins on unix", "linux", map[string]string{"SHELL": "/bin/bash", "OCTOPUS_SHELL": "cmd"}, shell.Cmd, false},
-		{"override wins on windows", "windows", map[string]string{"OCTOPUS_SHELL": "pwsh"}, shell.PowerShell, false},
-		{"invalid override is ignored", "linux", map[string]string{"SHELL": "/bin/bash", "OCTOPUS_SHELL": "fish"}, shell.Bash, false},
+		{"unix with SHELL", "linux", map[string]string{"SHELL": "/bin/zsh"}, "", shell.Bash},
+		{"unix with unknown SHELL", "linux", map[string]string{"SHELL": "/usr/bin/fish"}, "", shell.Bash},
+		{"unix without SHELL", "darwin", nil, "", shell.Bash},
+		{"unix with pwsh as SHELL", "linux", map[string]string{"SHELL": "/usr/local/bin/pwsh"}, "", shell.PowerShell},
+		{"windows falls back to cmd", "windows", nil, "", shell.Cmd},
+		{"windows ignores PSModulePath", "windows", map[string]string{"PSModulePath": `C:\Program Files\WindowsPowerShell\Modules`}, "", shell.Cmd},
+		{"windows reads the parent process", "windows", nil, "powershell.exe", shell.PowerShell},
+		{"override wins on unix", "linux", map[string]string{"SHELL": "/bin/bash", "OCTOPUS_SHELL": "cmd"}, "", shell.Cmd},
+		{"override wins on windows", "windows", map[string]string{"OCTOPUS_SHELL": "pwsh"}, "", shell.PowerShell},
+		{"invalid override is ignored", "linux", map[string]string{"SHELL": "/bin/bash", "OCTOPUS_SHELL": "fish"}, "", shell.Bash},
+		// $SHELL names the login shell, so it keeps saying bash while the user is sat in
+		// pwsh; the parent process is the one that knows
+		{"unix in pwsh started from bash", "linux", map[string]string{"SHELL": "/bin/bash"}, "pwsh", shell.PowerShell},
+		{"unix parent beats SHELL", "darwin", map[string]string{"SHELL": "/bin/bash"}, "zsh", shell.Bash},
+		{"unix falls back to SHELL for an unknown parent", "linux", map[string]string{"SHELL": "/usr/local/bin/pwsh"}, "make", shell.PowerShell},
+		{"unix override beats the parent process", "linux", map[string]string{"OCTOPUS_SHELL": "cmd"}, "pwsh", shell.Cmd},
 	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			if test.usesParentProcess && runtime.GOOS == "windows" {
-				t.Skip("the real parent process is inspected when actually running on windows")
-			}
 			getenv := func(key string) string { return test.env[key] }
-			assert.Equal(t, test.expected, shell.Detect(test.goos, getenv))
+			parent := func() string { return test.parent }
+			assert.Equal(t, test.expected, shell.Detect(test.goos, getenv, parent))
 		})
 	}
 }

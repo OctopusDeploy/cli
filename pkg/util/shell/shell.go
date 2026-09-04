@@ -55,12 +55,13 @@ func Current() Shell {
 	if s, ok := Parse(viper.GetString(constants.ConfigShell)); ok {
 		return s
 	}
-	return Detect(runtime.GOOS, os.Getenv)
+	return Detect(runtime.GOOS, os.Getenv, parentProcessName)
 }
 
-// Detect works out which shell the CLI is being run from. goos is a runtime.GOOS value
-// and getenv looks up environment variables; both are parameters so this can be tested.
-func Detect(goos string, getenv func(string) string) Shell {
+// Detect works out which shell the CLI is being run from. goos is a runtime.GOOS value,
+// getenv looks up environment variables and parentProcess names the executable that
+// launched us; all three are parameters so this can be tested.
+func Detect(goos string, getenv func(string) string, parentProcess func() string) Shell {
 	// checked here as well as through viper so the override still works if the
 	// config system hasn't been set up, such as in tests
 	if s, ok := Parse(getenv(constants.EnvOctopusShell)); ok {
@@ -72,7 +73,7 @@ func Detect(goos string, getenv func(string) string) Shell {
 		// a machine wide variable that cmd.exe inherits too, so it tells us nothing.
 		// note this always misses when cross-compiled elsewhere, which is why it can't
 		// be the only check.
-		if s, ok := Parse(parentProcessName()); ok {
+		if s, ok := Parse(parentProcess()); ok {
 			return s
 		}
 		// cmd is the guess with the better failure mode, though neither is safe. Single
@@ -83,6 +84,13 @@ func Detect(goos string, getenv func(string) string) Shell {
 		// backslash, which cmd doubles for argv and PowerShell leaves alone. Setting
 		// Shell in config is the fix when detection can't see the parent process.
 		return Cmd
+	}
+
+	// the parent process is asked first because it names the shell the command was
+	// actually typed into. $SHELL is only the login shell, so someone who runs pwsh from
+	// a bash login would otherwise get posix quoting, which pwsh can't parse.
+	if s, ok := Parse(parentProcess()); ok {
+		return s
 	}
 
 	if sh := getenv("SHELL"); sh != "" {
