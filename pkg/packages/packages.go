@@ -204,6 +204,11 @@ func FindPackagesWithoutVersions(templatePackages []releases.ReleaseTemplatePack
 	return result
 }
 
+// ServerNullReferenceMessage is what an Octopus Server sends back when it hits an unhandled null
+// reference exception; it carries no information about what actually went wrong, so it is worth
+// replacing rather than reporting.
+const ServerNullReferenceMessage = "Object reference not set to an instance of an object"
+
 // MissingPackageVersionsError is raised when one or more packages referenced by the deployment process
 // have no version available in their feed. The server can't assemble a release in this state; rather than
 // reporting that, it raises a null reference exception, so the CLI detects the situation itself.
@@ -233,6 +238,14 @@ func (e *MissingPackageVersionsError) Error() string {
 		sb.WriteString(fmt.Sprintf("\n  - '%s' in step '%s' (feed '%s')", packageName, p.ActionName, feedName))
 	}
 	sb.WriteString("\npush the package(s) to the feed, or supply a version with --package or --package-version")
+	// this diagnosis is inferred from a failure the server doesn't describe, so it can be wrong.
+	// Report what the server actually said too, unless that's the null reference message, which
+	// says nothing the lines above don't already say better.
+	if e.cause != nil {
+		if causeText := e.cause.Error(); !strings.Contains(causeText, ServerNullReferenceMessage) {
+			sb.WriteString(fmt.Sprintf("\nthe server reported: %s", causeText))
+		}
+	}
 	return sb.String()
 }
 
