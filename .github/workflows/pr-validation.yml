@@ -28,6 +28,12 @@ jobs:
       - name: Setup gotestsum
         run: go install gotest.tools/gotestsum@latest
 
+      # the shell quoting round trip tests run the generated commands through the real
+      # shells; pwsh is already on the runner image but zsh isn't, and zsh is the strict
+      # one because it expands a leading = and ~ where the other posix shells don't
+      - name: Install zsh
+        run: sudo apt-get update && sudo apt-get install -y zsh
+
       - name: Unit Tests
         run: gotestsum --format testname --junitfile ../unit-tests.xml
         working-directory: ./pkg

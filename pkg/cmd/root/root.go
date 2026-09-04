@@ -1,6 +1,10 @@
 package root
 
 import (
+	"fmt"
+	"os"
+	"strings"
+
 	"github.com/OctopusDeploy/cli/pkg/apiclient"
 	accountCmd "github.com/OctopusDeploy/cli/pkg/cmd/account"
 	apiCmd "github.com/OctopusDeploy/cli/pkg/cmd/api"
@@ -26,7 +30,9 @@ import (
 	workerPoolCmd "github.com/OctopusDeploy/cli/pkg/cmd/workerpool"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/factory"
+	"github.com/OctopusDeploy/cli/pkg/output"
 	"github.com/OctopusDeploy/cli/pkg/question"
+	"github.com/OctopusDeploy/cli/pkg/util/shell"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -96,6 +102,8 @@ func NewCmdRoot(f factory.Factory, clientFactory apiclient.ClientFactory, askPro
 
 	cmdPFlags.BoolP(constants.FlagNoPrompt, "", false, "Disable prompting in interactive mode")
 
+	cmdPFlags.String(constants.FlagShell, "", fmt.Sprintf(`Specify the shell that generated automation commands are quoted for (%s); defaults to the shell the CLI is running under`, strings.Join(shell.Names, ", ")))
+
 	// Enable service messages flag is hidden as it's intended for internal CI/CD use only
 	cmdPFlags.BoolP(constants.FlagEnableServiceMessages, "", false, "Enable service messages for integration with Octopus CI/CD")
 	cmdPFlags.MarkHidden(constants.FlagEnableServiceMessages)
@@ -112,11 +120,28 @@ func NewCmdRoot(f factory.Factory, clientFactory apiclient.ClientFactory, askPro
 
 	_ = viper.BindPFlag(constants.ConfigNoPrompt, cmdPFlags.Lookup(constants.FlagNoPrompt))
 	_ = viper.BindPFlag(constants.ConfigSpace, cmdPFlags.Lookup(constants.FlagSpace))
+	_ = viper.BindPFlag(constants.ConfigShell, cmdPFlags.Lookup(constants.FlagShell))
 	_ = viper.BindPFlag(constants.FlagEnableServiceMessages, cmdPFlags.Lookup(constants.FlagEnableServiceMessages))
 	// if we attempt to check the flags before Execute is called, cobra hasn't parsed anything yet,
 	// so we'll get bad values. PersistentPreRun is a convenient callback for setting up our
 	// environment after parsing but before execution.
-	cmd.PersistentPreRun = func(_ *cobra.Command, _ []string) {
+	cmd.PersistentPreRunE = func(cmd *cobra.Command, _ []string) error {
+		// --shell is validated because it was typed for this one command, so failing is
+		// what the user expects and they can just retype it. OCTOPUS_SHELL and the config
+		// file value are only warned about: both are set once and apply to every command
+		// afterwards, so rejecting them would lock the user out of the whole CLI,
+		// including the `config set Shell` needed to fix it. Detect falls back to the
+		// host shell in that case.
+		if v, _ := cmdPFlags.GetString(constants.FlagShell); v != "" {
+			if err := shell.Validate(v); err != nil {
+				return fmt.Errorf("--%s: %w", constants.FlagShell, err)
+			}
+		} else if v := os.Getenv(constants.EnvOctopusShell); v != "" {
+			if err := shell.Validate(v); err != nil {
+				fmt.Fprintf(cmd.ErrOrStderr(), "%s\n", output.Yellow(fmt.Sprintf("Warning: ignoring %s: %s", constants.EnvOctopusShell, err)))
+			}
+		}
+
 		// map flag alias values
 		for k, v := range flagAliases {
 			for _, aliasName := range v {
@@ -138,6 +163,8 @@ func NewCmdRoot(f factory.Factory, clientFactory apiclient.ClientFactory, askPro
 		if spaceNameOrId := viper.GetString(constants.ConfigSpace); spaceNameOrId != "" {
 			clientFactory.SetSpaceNameOrId(spaceNameOrId)
 		}
+
+		return nil
 	}
 
 	cmd.RunE = func(cmd *cobra.Command, args []string) error {

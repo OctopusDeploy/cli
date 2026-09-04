@@ -65,6 +65,7 @@ func promptMissing(ask question.Asker) (string, error) {
 		constants.ConfigOutputFormat,
 		constants.ConfigShowOctopus,
 		constants.ConfigEditor,
+		constants.ConfigShell,
 		// 	constants.ConfigProxyUrl,
 	}
 
