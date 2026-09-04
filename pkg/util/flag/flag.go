@@ -3,6 +3,7 @@ package flag
 import (
 	"fmt"
 
+	"github.com/OctopusDeploy/cli/pkg/output"
 	"github.com/OctopusDeploy/cli/pkg/util/shell"
 )
 
@@ -66,8 +67,17 @@ func GenerateAutomationCmd(cmdPath string, space string, flags ...Generatable) s
 
 // GenerateAutomationCmdForShell generates the automation command, quoting values using
 // the rules of the given shell.
+//
+// Where the shell can't carry a value at all the warning is appended on its own line,
+// because the command exists to be copied and the user would otherwise paste something
+// that is silently wrong. Every caller prints the result straight out, so returning it
+// as part of the string keeps the warning next to the command it is about.
 func GenerateAutomationCmdForShell(sh shell.Shell, cmdPath string, space string, flags ...Generatable) string {
-	quote := func(value string) string { return shell.Quote(sh, value) }
+	var values []string
+	quote := func(value string) string {
+		values = append(values, value)
+		return shell.Quote(sh, value)
+	}
 
 	autoCmd := cmdPath
 	if space != "" {
@@ -105,5 +115,9 @@ func GenerateAutomationCmdForShell(sh shell.Shell, cmdPath string, space string,
 		}
 	}
 	autoCmd += " --no-prompt"
+
+	if warning := shell.PasteWarning(sh, values...); warning != "" {
+		autoCmd += "\n" + output.Yellow(warning)
+	}
 	return autoCmd
 }
