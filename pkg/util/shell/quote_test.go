@@ -157,8 +157,9 @@ func TestQuoteZsh_RoundTrip(t *testing.T) {
 	}
 }
 
-// TestQuotePowerShell_RoundTrip runs the quoted values through pwsh when it happens to
-// be installed; it isn't on CI, so this usually skips.
+// TestQuotePowerShell_RoundTrip checks the quoted values survive PowerShell's own
+// parser. pwsh is on the ubuntu runner image, so this does run on CI; it is a local
+// machine without pwsh installed where it skips.
 func TestQuotePowerShell_RoundTrip(t *testing.T) {
 	pwsh := lookShell(t, "pwsh")
 
