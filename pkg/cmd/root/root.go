@@ -9,6 +9,7 @@ import (
 	configCmd "github.com/OctopusDeploy/cli/pkg/cmd/config"
 	environmentCmd "github.com/OctopusDeploy/cli/pkg/cmd/environment"
 	ephemeralEnvironmentCmd "github.com/OctopusDeploy/cli/pkg/cmd/ephemeralenvironment"
+	libraryVariableSetCmd "github.com/OctopusDeploy/cli/pkg/cmd/libraryvariableset"
 	loginCmd "github.com/OctopusDeploy/cli/pkg/cmd/login"
 	logoutCmd "github.com/OctopusDeploy/cli/pkg/cmd/logout"
 	packageCmd "github.com/OctopusDeploy/cli/pkg/cmd/package"
@@ -66,6 +67,9 @@ func NewCmdRoot(f factory.Factory, clientFactory apiclient.ClientFactory, askPro
 	cmd.AddCommand(channelCmd.NewCmdChannel(f))
 	cmd.AddCommand(tenantCmd.NewCmdTenant(f))
 	cmd.AddCommand(taskCmd.NewCmdTask(f))
+
+	// library
+	cmd.AddCommand(libraryVariableSetCmd.NewCmdLibraryVariableSet(f))
 
 	// configuration
 	cmd.AddCommand(configCmd.NewCmdConfig(f))
