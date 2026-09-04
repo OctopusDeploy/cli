@@ -28,6 +28,7 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/util/flag"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/channels"
 	octopusApiClient "github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/core"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/deployments"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/feeds"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
@@ -318,7 +319,7 @@ func createRun(cmd *cobra.Command, f factory.Factory, flags *CreateFlags) error 
 		executor.NewTask(executor.TaskTypeCreateRelease, options),
 	})
 	if err != nil {
-		return err
+		return DiagnoseCreateReleaseFailure(octopus, options, err)
 	}
 
 	if options.Response != nil {
@@ -418,6 +419,112 @@ func BuildPackageVersionBaselineForChannel(octopus *octopusApiClient.Client, dep
 	}
 
 	return result, nil
+}
+
+// DiagnoseCreateReleaseFailure replaces an opaque server-side failure with an actionable message where
+// it can. The server raises a null reference exception, surfaced as a bare 500, when it can't select a
+// version for a package; see https://github.com/OctopusDeploy/cli/issues/426
+//
+// Any 5xx is diagnosed, not just the null reference one, because the message a server sends for this
+// varies by version: current servers report "no viable release plans" instead. The cost of being wrong
+// is bounded, since MissingPackageVersionsError reports what the server actually said alongside the
+// diagnosis.
+func DiagnoseCreateReleaseFailure(octopus *octopusApiClient.Client, options *executor.TaskOptionsCreateRelease, cause error) error {
+	var apiError *core.APIError
+	if !errors.As(cause, &apiError) || apiError.StatusCode < 500 {
+		return cause
+	}
+
+	// diagnosis is best-effort; if any part of it fails we must not mask the original failure
+	if octopus != nil && options != nil {
+		if missingPackages, findErr := findPackagesWithoutVersions(octopus, options); findErr == nil && len(missingPackages) > 0 {
+			return packages.NewMissingPackageVersionsError(missingPackages, cause)
+		}
+	}
+
+	if strings.Contains(apiError.ErrorMessage, packages.ServerNullReferenceMessage) {
+		return fmt.Errorf("%w\nthe server failed with an unhandled error; this usually means it could not resolve the packages, channel or git reference for the release", cause)
+	}
+	return cause
+}
+
+// findPackagesWithoutVersions repeats the package version resolution the server does when it assembles a
+// release, so we can report which packages have no version available in their feed.
+func findPackagesWithoutVersions(octopus *octopusApiClient.Client, options *executor.TaskOptionsCreateRelease) ([]releases.ReleaseTemplatePackage, error) {
+	project, err := selectors.FindProject(octopus, options.ProjectName)
+	if err != nil {
+		return nil, err
+	}
+
+	gitReferenceKey := ""
+	if project.PersistenceSettings != nil && project.PersistenceSettings.Type() == projects.PersistenceSettingsTypeVersionControlled {
+		gitReferenceKey = options.GitReference
+		if options.GitCommit != "" { // prefer a specific git commit if one was specified
+			gitReferenceKey = options.GitCommit
+		}
+	}
+
+	deploymentProcess, err := octopus.DeploymentProcesses.Get(project, gitReferenceKey)
+	if err != nil {
+		return nil, err
+	}
+
+	channel, err := findChannelForDiagnosis(octopus, project, options.ChannelName)
+	if err != nil {
+		return nil, err
+	}
+
+	deploymentProcessTemplate, err := octopus.DeploymentProcesses.GetTemplate(deploymentProcess, channel.ID, "")
+	if err != nil {
+		return nil, err
+	}
+
+	// mirror what the server did: with --ignore-channel-rules it selects versions without applying the
+	// channel's version rules, so applying them here would report packages as missing when they only
+	// failed the rules.
+	var packageVersionBaseline []*packages.StepPackageVersion
+	if options.IgnoreChannelRules {
+		packageVersionBaseline, err = packages.BuildPackageVersionBaseline(octopus, deploymentProcessTemplate.Packages, nil)
+	} else {
+		packageVersionBaseline, err = BuildPackageVersionBaselineForChannel(octopus, deploymentProcessTemplate, channel)
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	overrides := packages.BuildPackageVersionOverrides(packageVersionBaseline, options.DefaultPackageVersion, options.PackageVersionOverrides)
+	resolvedVersions := packages.ApplyPackageOverrides(packageVersionBaseline, overrides)
+
+	return packages.FindPackagesWithoutVersions(deploymentProcessTemplate.Packages, resolvedVersions), nil
+}
+
+// findChannelForDiagnosis locates the channel the server would have used. --channel reaches the server as
+// ChannelIDOrName, so we match on either. When no channel was specified we can only guess; the default
+// channel is the best approximation available to us.
+func findChannelForDiagnosis(octopus *octopusApiClient.Client, project *projects.Project, channelIDOrName string) (*channels.Channel, error) {
+	existingChannels, err := octopus.Projects.GetChannels(project)
+	if err != nil {
+		return nil, err
+	}
+
+	if channelIDOrName != "" {
+		for _, c := range existingChannels {
+			if strings.EqualFold(c.Name, channelIDOrName) || c.ID == channelIDOrName {
+				return c, nil
+			}
+		}
+		return nil, fmt.Errorf("no channel found with name or ID of %s", channelIDOrName)
+	}
+
+	if len(existingChannels) == 1 {
+		return existingChannels[0], nil
+	}
+	for _, c := range existingChannels {
+		if c.IsDefault {
+			return c, nil
+		}
+	}
+	return nil, fmt.Errorf("cannot determine the default channel for project %s", project.GetName())
 }
 
 func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker question.Asker, options *executor.TaskOptionsCreateRelease) error {
