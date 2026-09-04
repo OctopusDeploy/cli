@@ -2931,14 +2931,21 @@ func TestReleaseCreate_DiagnoseCreateReleaseFailure(t *testing.T) {
 		assert.Equal(t, error(badRequest), create.DiagnoseCreateReleaseFailure(nil, nil, badRequest))
 	})
 
-	t.Run("passes through server faults which aren't the null reference we know how to diagnose", func(t *testing.T) {
-		// an unrelated 5xx must be reported as-is; we mustn't replace it with a package diagnosis
-		// (nor go back to an already-failing server to run one)
+	t.Run("passes through server faults it cannot diagnose", func(t *testing.T) {
+		// a 5xx is only replaced when the CLI can positively name the packages behind it. With no
+		// client to go and look, and no null reference message to explain, the server error stands.
 		serverError := &core.APIError{ErrorMessage: "The database is unavailable", StatusCode: http.StatusInternalServerError}
 		assert.Equal(t, error(serverError), create.DiagnoseCreateReleaseFailure(nil, nil, serverError))
 
 		badGateway := &core.APIError{ErrorMessage: "Bad Gateway", StatusCode: http.StatusBadGateway}
 		assert.Equal(t, error(badGateway), create.DiagnoseCreateReleaseFailure(nil, nil, badGateway))
+	})
+
+	t.Run("explains a bare null reference fault even when no packages are missing", func(t *testing.T) {
+		nullRef := &core.APIError{ErrorMessage: "Object reference not set to an instance of an object.", StatusCode: http.StatusInternalServerError}
+		err := create.DiagnoseCreateReleaseFailure(nil, nil, nullRef)
+		assert.ErrorIs(t, err, nullRef)
+		assert.Contains(t, err.Error(), "the server failed with an unhandled error")
 	})
 }
 

@@ -421,19 +421,17 @@ func BuildPackageVersionBaselineForChannel(octopus *octopusApiClient.Client, dep
 	return result, nil
 }
 
-// serverNullReferenceMessage is what an Octopus Server sends back when it hits an unhandled
-// null reference exception; it carries no information about what actually went wrong.
-const serverNullReferenceMessage = "Object reference not set to an instance of an object"
-
 // DiagnoseCreateReleaseFailure replaces an opaque server-side failure with an actionable message where
 // it can. The server raises a null reference exception, surfaced as a bare 500, when it can't select a
 // version for a package; see https://github.com/OctopusDeploy/cli/issues/426
+//
+// Any 5xx is diagnosed, not just the null reference one, because the message a server sends for this
+// varies by version: current servers report "no viable release plans" instead. The cost of being wrong
+// is bounded, since MissingPackageVersionsError reports what the server actually said alongside the
+// diagnosis.
 func DiagnoseCreateReleaseFailure(octopus *octopusApiClient.Client, options *executor.TaskOptionsCreateRelease, cause error) error {
-	// only the specific null reference failure is worth diagnosing. Any other 5xx is a real server error
-	// that we must report as-is; replacing it would hide the cause, and re-querying the server would pile
-	// more requests onto something that is already failing.
 	var apiError *core.APIError
-	if !errors.As(cause, &apiError) || apiError.StatusCode < 500 || !strings.Contains(apiError.ErrorMessage, serverNullReferenceMessage) {
+	if !errors.As(cause, &apiError) || apiError.StatusCode < 500 {
 		return cause
 	}
 
@@ -444,7 +442,10 @@ func DiagnoseCreateReleaseFailure(octopus *octopusApiClient.Client, options *exe
 		}
 	}
 
-	return fmt.Errorf("%w\nthe server failed with an unhandled error; this usually means it could not resolve the packages, channel or git reference for the release", cause)
+	if strings.Contains(apiError.ErrorMessage, packages.ServerNullReferenceMessage) {
+		return fmt.Errorf("%w\nthe server failed with an unhandled error; this usually means it could not resolve the packages, channel or git reference for the release", cause)
+	}
+	return cause
 }
 
 // findPackagesWithoutVersions repeats the package version resolution the server does when it assembles a
