@@ -1,6 +1,7 @@
 package shared
 
 import (
+	"sort"
 	"strings"
 
 	"github.com/OctopusDeploy/cli/pkg/cmd"
@@ -70,7 +71,7 @@ func PromptForRoles(opts *CreateTargetRoleOptions, flags *CreateTargetRoleFlags)
 			if err != nil {
 				return err
 			}
-			roles, err := question.MultiSelectWithAddMap(opts.Ask, "Choose at least one role for the deployment target.\n", availableRoles, true)
+			roles, err := question.MultiSelectWithAddMap(opts.Ask, "Choose at least one role for the deployment target.\n", availableRoles, true, "")
 			if err != nil {
 				return err
 			}
@@ -144,4 +145,45 @@ func CombineRolesAndTags(client *client.Client, roles []string, tags []string) (
 	combined = append(combined, validatedTags...)
 
 	return combined, nil
+}
+
+// TargetTagNames is every target tag in the space, as the plain names a
+// deployment target actually carries. Octopus organises target tags into tag
+// sets, but the machine itself holds a flat list, and a tag that only exists on
+// a machine is still a tag worth offering.
+func TargetTagNames(client *client.Client) ([]string, error) {
+	if client == nil {
+		return nil, nil
+	}
+
+	tagSets, err := getTargetTagSets(client)
+	if err != nil {
+		return nil, err
+	}
+
+	seen := map[string]bool{}
+	names := make([]string, 0)
+	add := func(name string) {
+		if name = strings.TrimSpace(name); name != "" && !seen[name] {
+			seen[name] = true
+			names = append(names, name)
+		}
+	}
+
+	for _, tagSet := range tagSets {
+		for _, tag := range tagSet.Tags {
+			add(tag.Name)
+		}
+	}
+
+	roles, err := getAllMachineRoles(*client)
+	if err != nil {
+		return nil, err
+	}
+	for _, role := range roles {
+		add(role)
+	}
+
+	sort.Strings(names)
+	return names, nil
 }
