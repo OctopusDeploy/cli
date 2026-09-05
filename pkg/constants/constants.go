@@ -1,5 +1,10 @@
 package constants
 
+import (
+	"fmt"
+	"strings"
+)
+
 const (
 	ExecutableName = "octopus"
 )
@@ -76,6 +81,24 @@ const OctopusLogo = `                ####
 const (
 	PromptCreateNew = "<Create New>"
 )
+
+// IsValidOutputFormat tells you whether outputFormat is one the CLI understands.
+// The comparison is case-insensitive, matching the way commands render the format.
+func IsValidOutputFormat(outputFormat string) bool {
+	switch strings.ToLower(outputFormat) {
+	case OutputFormatJson, OutputFormatTable, OutputFormatBasic:
+		return true
+	default:
+		return false
+	}
+}
+
+// UnsupportedOutputFormatMessage is the message we give back when we're handed an output
+// format we don't understand. It lives next to IsValidOutputFormat so the wording can't drift
+// between the places that reject one.
+func UnsupportedOutputFormatMessage(outputFormat string) string {
+	return fmt.Sprintf("unsupported output format '%s'. Valid values are 'json', 'table', 'basic'", outputFormat)
+}
 
 // IsProgrammaticOutputFormat tells you if it is acceptable for your command to
 // print miscellaneous output to stdout, such as progress messages.

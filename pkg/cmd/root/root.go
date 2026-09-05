@@ -1,6 +1,10 @@
 package root
 
 import (
+	"errors"
+	"fmt"
+	"strings"
+
 	"github.com/OctopusDeploy/cli/pkg/apiclient"
 	accountCmd "github.com/OctopusDeploy/cli/pkg/cmd/account"
 	apiCmd "github.com/OctopusDeploy/cli/pkg/cmd/api"
@@ -27,7 +31,9 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/OctopusDeploy/cli/pkg/question"
+	"github.com/OctopusDeploy/cli/pkg/usage"
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 )
 
@@ -114,9 +120,9 @@ func NewCmdRoot(f factory.Factory, clientFactory apiclient.ClientFactory, askPro
 	_ = viper.BindPFlag(constants.ConfigSpace, cmdPFlags.Lookup(constants.FlagSpace))
 	_ = viper.BindPFlag(constants.FlagEnableServiceMessages, cmdPFlags.Lookup(constants.FlagEnableServiceMessages))
 	// if we attempt to check the flags before Execute is called, cobra hasn't parsed anything yet,
-	// so we'll get bad values. PersistentPreRun is a convenient callback for setting up our
+	// so we'll get bad values. PersistentPreRunE is a convenient callback for setting up our
 	// environment after parsing but before execution.
-	cmd.PersistentPreRun = func(_ *cobra.Command, _ []string) {
+	cmd.PersistentPreRunE = func(cmd *cobra.Command, _ []string) error {
 		// map flag alias values
 		for k, v := range flagAliases {
 			for _, aliasName := range v {
@@ -128,16 +134,33 @@ func NewCmdRoot(f factory.Factory, clientFactory apiclient.ClientFactory, askPro
 			}
 		}
 
-		if noPrompt := viper.GetBool(constants.ConfigNoPrompt); noPrompt {
+		noPrompt := viper.GetBool(constants.ConfigNoPrompt)
+		if noPrompt {
 			askProvider.DisableInteractive()
-			if v, _ := cmdPFlags.GetString(constants.FlagOutputFormat); v == "" {
-				cmdPFlags.Set(constants.FlagOutputFormat, constants.OutputFormatBasic)
-			}
 		}
+
+		// resolve the output format once, here, rather than leaving each command to work it
+		// out for itself; commands (and output.PrintResource / output.PrintArray) then just
+		// read the flag and can trust what they get.
+		configuredFormat := ""
+		if viper.InConfig(strings.ToLower(constants.ConfigOutputFormat)) {
+			configuredFormat = viper.GetString(constants.ConfigOutputFormat)
+		}
+		outputFormat, warning, err := resolveOutputFormat(cmdPFlags, noPrompt, configuredFormat)
+		if warning != "" {
+			cmd.PrintErrln(warning)
+		}
+		if err != nil {
+			return usage.NewUsageError(err.Error(), cmd)
+		}
+		// write through Value so the flag isn't marked as Changed; commands such as `task wait`
+		// read Changed() to mean "the user explicitly asked for a format"
+		_ = cmdPFlags.Lookup(constants.FlagOutputFormat).Value.Set(outputFormat)
 
 		if spaceNameOrId := viper.GetString(constants.ConfigSpace); spaceNameOrId != "" {
 			clientFactory.SetSpaceNameOrId(spaceNameOrId)
 		}
+		return nil
 	}
 
 	cmd.RunE = func(cmd *cobra.Command, args []string) error {
@@ -149,4 +172,48 @@ func NewCmdRoot(f factory.Factory, clientFactory apiclient.ClientFactory, askPro
 	}
 
 	return cmd
+}
+
+// resolveOutputFormat works out the output format a command should use, in precedence order:
+// an explicit --output-format (or legacy --outputFormat) flag, then the OutputFormat config file
+// setting, then basic when prompting is disabled, and finally table.
+//
+// Note the flag carries a non-empty default, so "did the caller ask for a format?" has to be
+// answered with Changed() rather than by testing the value for emptiness. configuredFormat is
+// the OutputFormat config file setting, or empty if the config file doesn't set one.
+//
+// An unusable value returns an error, except when it came from the config file, which we can
+// only warn about; see below.
+func resolveOutputFormat(flags *pflag.FlagSet, noPrompt bool, configuredFormat string) (string, string, error) {
+	// the legacy flag is copied onto the new one by value, which doesn't mark it as Changed
+	explicit := flags.Changed(constants.FlagOutputFormat) || flags.Changed(constants.FlagOutputFormatLegacy)
+	outputFormat, _ := flags.GetString(constants.FlagOutputFormat)
+
+	// this runs for every command, so failing hard on a bad config file value would lock the
+	// user out of the whole CLI - `octopus config set OutputFormat table` included. Warn and
+	// carry on down the precedence chain instead, so the config is still fixable.
+	warning := ""
+	if configuredFormat != "" && !constants.IsValidOutputFormat(strings.TrimSpace(configuredFormat)) {
+		warning = fmt.Sprintf("Ignoring the %s config setting: %s",
+			constants.ConfigOutputFormat, constants.UnsupportedOutputFormatMessage(configuredFormat))
+		configuredFormat = ""
+	}
+
+	switch {
+	case explicit: // take the flag as given
+	case configuredFormat != "":
+		outputFormat = configuredFormat
+	// note noPrompt is bound to $CI as well as --no-prompt (see config.bindEnvironment), so
+	// this fires on essentially every CI pipeline, not just on an explicit --no-prompt
+	case noPrompt:
+		outputFormat = constants.OutputFormatBasic
+	default:
+		outputFormat = constants.OutputFormatTable
+	}
+
+	outputFormat = strings.ToLower(strings.TrimSpace(outputFormat))
+	if !constants.IsValidOutputFormat(outputFormat) {
+		return "", warning, errors.New(constants.UnsupportedOutputFormatMessage(outputFormat))
+	}
+	return outputFormat, warning, nil
 }
