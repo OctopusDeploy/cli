@@ -2,7 +2,6 @@ package login
 
 import (
 	"bytes"
-	"crypto/tls"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -127,11 +126,9 @@ func loginRun(cmd *cobra.Command, f factory.Factory, isPromptEnabled bool, ask q
 	}
 
 	if inputs.ignoreSslErrors {
-		if httpClient.Transport == nil {
-			httpClient.Transport = &http.Transport{}
+		if err := apiclient.DisableTLSVerification(httpClient); err != nil {
+			return err
 		}
-
-		httpClient.Transport.(*http.Transport).TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
 	}
 
 	if inputs.apiKey != "" {
