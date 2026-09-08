@@ -146,6 +146,22 @@ func TestLogin_ApiKey(t *testing.T) {
 			assert.Empty(t, fac.ConfigProvider.Get(constants.ConfigAccessToken))
 		}},
 
+		{"non-interactive: ignoring ssl errors no longer panics on a wrapped transport", func(t *testing.T, fac *testutil.MockFactory, api *testutil.MockHttpServer, qa *testutil.AskMocker, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
+			currentHost := fac.GetCurrentHost()
+
+			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
+				defer api.Close()
+				rootCmd.SetArgs([]string{"login", "--server", currentHost, "--api-key", "API-APIKEY01", "--ignore-ssl-errors", "--no-prompt"})
+				return rootCmd.ExecuteC()
+			})
+
+			_, err := testutil.ReceivePair(cmdReceiver)
+
+			// The mock factory's transport is not one we can reach into, so the
+			// flag is refused; before the fix this panicked instead.
+			assert.ErrorContains(t, err, "unsupported HTTP transport")
+		}},
+
 		{"non-interactive: if server parameter not supplied returns error", func(t *testing.T, fac *testutil.MockFactory, api *testutil.MockHttpServer, qa *testutil.AskMocker, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
 			apiKey := "API-APIKEY01"
 
