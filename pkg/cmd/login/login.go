@@ -131,7 +131,9 @@ func loginRun(cmd *cobra.Command, f factory.Factory, isPromptEnabled bool, ask q
 			httpClient.Transport = &http.Transport{}
 		}
 
-		httpClient.Transport.(*http.Transport).TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
+		if err := skipTlsVerification(httpClient.Transport); err != nil {
+			return err
+		}
 	}
 
 	if inputs.apiKey != "" {
@@ -420,4 +422,20 @@ func testLogin(cmd *cobra.Command, httpClient *http.Client, server string, crede
 	}
 
 	return nil
+}
+
+// The client factory wraps the transport in a spinner, so the setting has to be
+// applied to the transport underneath rather than to the wrapper.
+func skipTlsVerification(roundTripper http.RoundTripper) error {
+	switch transport := roundTripper.(type) {
+	case *http.Transport:
+		transport.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
+		return nil
+	case *apiclient.SpinnerRoundTripper:
+		return skipTlsVerification(transport.Next)
+	default:
+		// Better to say so than to quietly leave verification on after the
+		// caller asked for the opposite.
+		return fmt.Errorf("cannot ignore SSL errors: unsupported HTTP transport %T", roundTripper)
+	}
 }
