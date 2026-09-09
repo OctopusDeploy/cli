@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.25.1](https://github.com/OctopusDeploy/cli/compare/v2.25.0...v2.25.1) (2026-09-09)
+
+
+### Bug Fixes
+
+* stop login --ignore-ssl-errors panicking on a wrapped transport ([#726](https://github.com/OctopusDeploy/cli/issues/726)) ([3860c0c](https://github.com/OctopusDeploy/cli/commit/3860c0cfbeb379d2484d80aa5164d517b4578005))
+
 ## [2.25.0](https://github.com/OctopusDeploy/cli/compare/v2.24.1...v2.25.0) (2026-09-01)
 
 
