@@ -221,8 +221,11 @@ func formatProjectForBasic(opts *ViewOptions, project *projects.Project, project
 	}
 	result.WriteString(fmt.Sprintf("Tenanted deployment mode: %s\n", output.Cyan(shared.TenantedDeploymentMode(project))))
 
-	// version control branch
-	result.WriteString(fmt.Sprintf("Version control branch: %s\n", output.Cyan(versionControlBranch(project))))
+	// version control branch; empty when the project claims to be version
+	// controlled but carries no Git settings, so skip the label as above
+	if branch := versionControlBranch(project); branch != "" {
+		result.WriteString(fmt.Sprintf("Version control branch: %s\n", output.Cyan(branch)))
+	}
 
 	// tags
 	if len(project.ProjectTags) > 0 {
