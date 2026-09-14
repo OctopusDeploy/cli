@@ -127,11 +127,15 @@ func NewCmdRoot(f factory.Factory, clientFactory apiclient.ClientFactory, askPro
 	// environment after parsing but before execution.
 	cmd.PersistentPreRunE = func(cmd *cobra.Command, _ []string) error {
 		// --shell is validated because it was typed for this one command, so failing is
-		// what the user expects and they can just retype it. OCTOPUS_SHELL and the config
-		// file value are only warned about: both are set once and apply to every command
-		// afterwards, so rejecting them would lock the user out of the whole CLI,
-		// including the `config set Shell` needed to fix it. Detect falls back to the
-		// host shell in that case.
+		// what the user expects and they can just retype it. OCTOPUS_SHELL is only warned
+		// about: it is exported once, usually from a shell profile, and applies to every
+		// command afterwards, so rejecting it would lock the user out of the whole CLI,
+		// including the `config set Shell` needed to fix it. Current falls back to
+		// detecting the host shell in that case.
+		//
+		// The config file value isn't checked here at all. `config set Shell` validates
+		// on the way in, so a bad value there can only come from hand editing the file,
+		// and Current ignores it the same way.
 		if v, _ := cmdPFlags.GetString(constants.FlagShell); v != "" {
 			if err := shell.Validate(v); err != nil {
 				return fmt.Errorf("--%s: %w", constants.FlagShell, err)
