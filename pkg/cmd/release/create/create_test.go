@@ -3083,6 +3083,55 @@ func TestReleaseCreate_AutomationMode_MissingPackageDiagnosis(t *testing.T) {
 				push the package(s) to the feed, or supply a version with --package or --package-version`))
 		}},
 
+		{"finds the channel when --channel was given as an ID rather than a name", func(t *testing.T, api *testutil.MockHttpServer, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
+			// --channel reaches the server as ChannelIDOrName with no client-side resolution, so an ID
+			// is a legitimate input; matching on name alone would silently drop the diagnosis
+			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
+				defer api.Close()
+				rootCmd.SetArgs([]string{"release", "create", "--project", fireProject.Name, "--channel", defaultChannel.ID, "--version", "1.0.0"})
+				return rootCmd.ExecuteC()
+			})
+
+			api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/Fire Project").RespondWith(fireProject)
+
+			api.ExpectRequest(t, "POST", "/api/Spaces-1/releases/create/v1").
+				RespondWithStatus(http.StatusInternalServerError, "500 Internal Server Error", nullReferenceError)
+
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/Fire Project").RespondWith(fireProject)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/deploymentprocesses/"+depProcess.ID).RespondWith(depProcess)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+fireProjectID+"/channels").RespondWith(resources.Resources[*channels.Channel]{
+				Items: []*channels.Channel{defaultChannel},
+			})
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+fireProjectID+"/deploymentprocesses/template?channel=Channels-1").
+				RespondWith(&deployments.DeploymentProcessTemplate{
+					Packages: []releases.ReleaseTemplatePackage{{
+						ActionName:           "Deploy Website",
+						FeedID:               builtinFeedID,
+						FeedName:             "Octopus Server (built-in)",
+						PackageID:            "acme-web",
+						PackageReferenceName: "acme-web",
+						IsResolvable:         true,
+					}},
+				})
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/feeds?ids="+builtinFeedID+"&take=1").RespondWith(&feeds.Feeds{Items: []feeds.IFeed{
+				&feeds.FeedResource{Name: "Octopus Server (built-in)", FeedType: feeds.FeedTypeBuiltIn, Resource: resources.Resource{
+					ID: builtinFeedID,
+					Links: map[string]string{
+						constants.LinkSearchPackageVersionsTemplate: "/api/Spaces-1/feeds/feeds-builtin/packages/versions{?packageId,take,skip,includePreRelease,versionRange,preReleaseTag,filter,includeReleaseNotes}",
+					}}},
+			}})
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/feeds/feeds-builtin/packages/versions?packageId=acme-web&take=1").
+				RespondWith(&resources.Resources[*octopusPackages.PackageVersion]{Items: []*octopusPackages.PackageVersion{}})
+
+			_, err := testutil.ReceivePair(cmdReceiver)
+			assert.EqualError(t, err, heredoc.Doc(`
+				cannot create release; no version could be found for the following packages:
+				  - 'acme-web' in step 'Deploy Website' (feed 'Octopus Server (built-in)')
+				push the package(s) to the feed, or supply a version with --package or --package-version`))
+		}},
+
 		{"falls back to a hint when it can't identify a missing package", func(t *testing.T, api *testutil.MockHttpServer, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
 			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
 				defer api.Close()
