@@ -13,6 +13,7 @@ import (
 	cmdRoot "github.com/OctopusDeploy/cli/pkg/cmd/root"
 	"github.com/OctopusDeploy/cli/pkg/executor"
 	"github.com/OctopusDeploy/cli/pkg/packages"
+	"github.com/OctopusDeploy/cli/pkg/question"
 	"github.com/OctopusDeploy/cli/pkg/surveyext"
 	"github.com/OctopusDeploy/cli/test/fixtures"
 	"github.com/OctopusDeploy/cli/test/testutil"
@@ -436,6 +437,84 @@ func TestReleaseCreate_AskQuestions_RegularProject(t *testing.T) {
 			assert.Equal(t, "Fire Project", options.ProjectName)
 			assert.Equal(t, "Fire Project Default Channel", options.ChannelName)
 			assert.Equal(t, "6.2.1", options.Version)
+		}},
+
+		{"a donor step with no donor package leaves the version to the server rather than panicking", func(t *testing.T, api *testutil.MockHttpServer, qa *testutil.AskMocker, stdout *bytes.Buffer) {
+			options := &executor.TaskOptionsCreateRelease{
+				ProjectName:  "fire project",
+				ChannelName:  "fire project default channel",
+				ReleaseNotes: "-",
+			}
+
+			errReceiver := testutil.GoBegin(func() error {
+				defer testutil.Close(api, qa)
+				octopus, _ := octopusApiClient.NewClient(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "")
+				return create.AskQuestions(octopus, stdout, qa.AsAsker(), options)
+			})
+
+			api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/spaces").RespondWith(rootResource)
+
+			donorStepID := "00000000-0000-0000-0000-000000000001"
+			var fireProject2 = *fireProject // clone the struct value
+			// a strategy which names a donor step but no package reference; the server can end up
+			// in this state, and dereferencing DonorPackage here used to panic
+			fireProject2.VersioningStrategy = &projects.VersioningStrategy{
+				DonorPackageStepID: &donorStepID,
+			}
+
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/fire project").RespondWithStatus(404, "NotFound", nil)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects?partialName=fire+project").
+				RespondWith(resources.Resources[*projects.Project]{
+					Items: []*projects.Project{&fireProject2},
+				})
+
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/deploymentprocesses/deploymentprocess-"+fireProjectID).RespondWith(depProcess)
+
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+fireProjectID+"/channels").
+				RespondWith(resources.Resources[*channels.Channel]{
+					Items: []*channels.Channel{defaultChannel},
+				})
+
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+fireProjectID+"/deploymentprocesses/template?channel=Channels-1").
+				RespondWith(&deployments.DeploymentProcessTemplate{
+					Packages: []releases.ReleaseTemplatePackage{
+						{
+							ActionName:           "Verify",
+							FeedID:               "feeds-builtin",
+							PackageID:            "NuGet.CommandLine",
+							PackageReferenceName: "nuget-on-verify",
+							IsResolvable:         true,
+						},
+					},
+					NextVersionIncrement: "27.9.33", // ignored; the strategy has no Template
+				})
+
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/feeds?ids=feeds-builtin&take=1").RespondWith(&feeds.Feeds{Items: []feeds.IFeed{
+				&feeds.FeedResource{Name: "Builtin", FeedType: feeds.FeedTypeBuiltIn, Resource: resources.Resource{
+					ID: "feeds-builtin",
+					Links: map[string]string{
+						constants.LinkSearchPackageVersionsTemplate: "/api/Spaces-1/feeds/feeds-builtin/packages/versions{?packageId,take,skip,includePreRelease,versionRange,preReleaseTag,filter,includeReleaseNotes}",
+					}}},
+			}})
+
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/feeds/feeds-builtin/packages/versions?packageId=NuGet.CommandLine&take=1").RespondWith(&resources.Resources[*octopusPackages.PackageVersion]{
+				Items: []*octopusPackages.PackageVersion{{PackageID: "NuGet.CommandLine", Version: "6.2.1"}},
+			})
+
+			_ = qa.ExpectQuestion(t, &survey.Input{
+				Message: packageOverrideQuestion,
+				Default: "",
+			}).AnswerWith("y")
+
+			// no version question at all; nothing was asked after the package loop
+
+			err := <-errReceiver
+			assert.Nil(t, err)
+
+			assert.Equal(t, "Fire Project", options.ProjectName)
+			assert.Equal(t, "Fire Project Default Channel", options.ChannelName)
+			assert.Equal(t, "", options.Version) // left blank, so the server assigns it
 		}},
 	}
 
@@ -3075,4 +3154,77 @@ func TestReleaseCreate_DryRun(t *testing.T) {
 			test.run(t, api, rootCmd, stdout, stderr)
 		})
 	}
+}
+
+// the interactive path prints an "Automation Command" line before the dry-run preview; it has
+// to carry --dry-run through, or copying that line into CI turns a rehearsal into a real create
+func TestReleaseCreate_DryRun_Interactive(t *testing.T) {
+	const spaceID = "Spaces-1"
+	const fireProjectID = "Projects-22"
+
+	space1 := fixtures.NewSpace(spaceID, "Default Space")
+	depProcess := fixtures.NewDeploymentProcessForProject(spaceID, fireProjectID)
+	fireProject := fixtures.NewProject(spaceID, fireProjectID, "Fire Project", "Lifecycles-1", "ProjectGroups-1", depProcess.ID)
+	defaultChannel := fixtures.NewChannel(spaceID, "Channels-1", "Fire Project Default Channel", fireProjectID)
+
+	api, qa := testutil.NewMockServerAndAsker()
+	stdout, stderr := &bytes.Buffer{}, &bytes.Buffer{}
+	askProvider := question.NewAskProvider(qa.AsAsker())
+
+	rootCmd := cmdRoot.NewCmdRoot(testutil.NewMockFactoryWithSpaceAndPrompt(api, space1, askProvider), nil, askProvider)
+	rootCmd.SetOut(stdout)
+	rootCmd.SetErr(stderr)
+
+	// everything is supplied on the command line, so the Q&A has nothing to ask; what matters
+	// here is what gets printed afterwards
+	receiver := testutil.GoBegin2(func() (*cobra.Command, error) {
+		defer testutil.Close(api, qa)
+		rootCmd.SetArgs([]string{"release", "create",
+			"--project", fireProject.Name,
+			"--channel", defaultChannel.Name,
+			"--version", "1.2.3",
+			"--release-notes", "Some notes",
+			"--dry-run",
+		})
+		return rootCmd.ExecuteC()
+	})
+
+	api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
+	api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
+	api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/Fire Project").RespondWith(fireProject)
+
+	api.ExpectRequest(t, "GET", "/api/Spaces-1/deploymentprocesses/deploymentprocess-"+fireProjectID).RespondWith(depProcess)
+
+	api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+fireProjectID+"/channels").
+		RespondWith(resources.Resources[*channels.Channel]{
+			Items: []*channels.Channel{defaultChannel},
+		})
+
+	// no packages, so no feed lookups and no package override loop
+	api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+fireProjectID+"/deploymentprocesses/template?channel=Channels-1").
+		RespondWith(&deployments.DeploymentProcessTemplate{})
+
+	// note the absence of a POST to /releases/create/v1
+	_, err := testutil.ReceivePair(receiver)
+	assert.Nil(t, err)
+	assert.Equal(t, 0, api.GetPendingMessageCount())
+
+	assert.Equal(t, heredoc.Doc(`
+		Project Fire Project
+		Channel Fire Project Default Channel
+		Version 1.2.3
+
+		Automation Command: octopus release create --space 'Default Space' --project 'Fire Project' --channel 'Fire Project Default Channel' --release-notes 'Some notes' --version '1.2.3' --dry-run --no-prompt
+		DRY RUN: no changes will be made in Octopus.
+
+		Would create a release with:
+		Space          Default Space
+		Project        Fire Project
+		Channel        Fire Project Default Channel
+		Version        1.2.3
+		Release Notes  Some notes
+
+		DRY RUN: no release was created.
+		`), stdout.String())
+	assert.Equal(t, "", stderr.String())
 }
