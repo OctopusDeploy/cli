@@ -2966,6 +2966,101 @@ func TestReleaseCreate_DryRun(t *testing.T) {
 			assert.Equal(t, `{"DryRun":true,"Space":"Default Space","Project":"Fire Project","Channel":"","Version":"","IgnoreExisting":false,"IgnoreChannelRules":false}`+"\n", stdOut.String())
 			assert.Equal(t, "", stdErr.String())
 		}},
+
+		{"dry run without a channel still reports the default package version", func(t *testing.T, api *testutil.MockHttpServer, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
+			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
+				defer api.Close()
+				rootCmd.SetArgs([]string{"release", "create", "--project", fireProject.Name, "--package-version", "9.9.42", "--dry-run"})
+				return rootCmd.ExecuteC()
+			})
+
+			api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/Fire Project").RespondWith(fireProject)
+
+			_, err := testutil.ReceivePair(cmdReceiver)
+			assert.Nil(t, err)
+			assert.Equal(t, 0, api.GetPendingMessageCount())
+
+			assert.Equal(t, heredoc.Doc(`
+				DRY RUN: no changes will be made in Octopus.
+
+				Would create a release with:
+				Space                    Default Space
+				Project                  Fire Project
+				Channel                  (determined by the Octopus Server)
+				Version                  (determined by the Octopus Server)
+				Default Package Version  9.9.42
+				Release Notes            (none)
+
+				DRY RUN: no release was created.
+				`), stdOut.String())
+			assert.Equal(t, "", stdErr.String())
+		}},
+
+		{"dry run without a channel reports the default package version alongside per-package overrides", func(t *testing.T, api *testutil.MockHttpServer, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
+			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
+				defer api.Close()
+				rootCmd.SetArgs([]string{"release", "create",
+					"--project", fireProject.Name,
+					"--package-version", "9.9.42",
+					"--package", "pterm:1.2",
+					"--dry-run",
+				})
+				return rootCmd.ExecuteC()
+			})
+
+			api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/Fire Project").RespondWith(fireProject)
+
+			_, err := testutil.ReceivePair(cmdReceiver)
+			assert.Nil(t, err)
+			assert.Equal(t, 0, api.GetPendingMessageCount())
+
+			assert.Equal(t, heredoc.Doc(`
+				DRY RUN: no changes will be made in Octopus.
+
+				Would create a release with:
+				Space                    Default Space
+				Project                  Fire Project
+				Channel                  (determined by the Octopus Server)
+				Version                  (determined by the Octopus Server)
+				Default Package Version  9.9.42
+				Release Notes            (none)
+
+				Package overrides:
+				  pterm:1.2
+
+				DRY RUN: no release was created.
+				`), stdOut.String())
+			assert.Equal(t, "", stdErr.String())
+		}},
+
+		{"dry run json output without a channel carries the default package version and overrides", func(t *testing.T, api *testutil.MockHttpServer, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
+			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
+				defer api.Close()
+				rootCmd.SetArgs([]string{"release", "create",
+					"--project", fireProject.Name,
+					"--package-version", "9.9.42",
+					"--package", "pterm:1.2",
+					"--dry-run",
+					"--output-format", "json",
+				})
+				return rootCmd.ExecuteC()
+			})
+
+			api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/Fire Project").RespondWith(fireProject)
+
+			_, err := testutil.ReceivePair(cmdReceiver)
+			assert.Nil(t, err)
+			assert.Equal(t, 0, api.GetPendingMessageCount())
+
+			assert.Equal(t, `{"DryRun":true,"Space":"Default Space","Project":"Fire Project","Channel":"","Version":"","DefaultPackageVersion":"9.9.42","PackageOverrides":["pterm:1.2"],"IgnoreExisting":false,"IgnoreChannelRules":false}`+"\n", stdOut.String())
+			assert.Equal(t, "", stdErr.String())
+		}},
 	}
 
 	for _, test := range tests {

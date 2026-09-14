@@ -424,20 +424,24 @@ func resolveVersioningStrategy(octopus *octopusApiClient.Client, project *projec
 // CLI can resolve it. An empty Channel or Version means the Octopus Server decides it.
 type ReleasePreview struct {
 	// always true; it marks machine-readable output as a plan rather than a result
-	DryRun             bool
-	Space              string
-	Project            string
-	Channel            string
-	GitReference       string `json:",omitempty"`
-	GitCommit          string `json:",omitempty"`
-	Version            string
-	ReleaseNotes       string                         `json:",omitempty"`
-	PackageVersions    []*packages.StepPackageVersion `json:",omitempty"`
-	PackageOverrides   []string                       `json:",omitempty"`
-	GitResources       []string                       `json:",omitempty"`
-	CustomFields       map[string]string              `json:",omitempty"`
-	IgnoreExisting     bool
-	IgnoreChannelRules bool
+	DryRun       bool
+	Space        string
+	Project      string
+	Channel      string
+	GitReference string `json:",omitempty"`
+	GitCommit    string `json:",omitempty"`
+	Version      string
+	// the --package-version default; kept separately from PackageVersions because it is what
+	// was asked for, and it is the only package information we have when the channel (and so
+	// the package selection) is left to the server
+	DefaultPackageVersion string                         `json:",omitempty"`
+	ReleaseNotes          string                         `json:",omitempty"`
+	PackageVersions       []*packages.StepPackageVersion `json:",omitempty"`
+	PackageOverrides      []string                       `json:",omitempty"`
+	GitResources          []string                       `json:",omitempty"`
+	CustomFields          map[string]string              `json:",omitempty"`
+	IgnoreExisting        bool
+	IgnoreChannelRules    bool
 }
 
 // buildReleasePreview describes the release that would be created, without creating it.
@@ -450,18 +454,19 @@ func buildReleasePreview(octopus *octopusApiClient.Client, space *spaces.Space, 
 	}
 
 	preview := &ReleasePreview{
-		DryRun:             true,
-		Project:            options.ProjectName,
-		Channel:            options.ChannelName,
-		GitReference:       options.GitReference,
-		GitCommit:          options.GitCommit,
-		Version:            options.Version,
-		ReleaseNotes:       options.ReleaseNotes,
-		PackageOverrides:   options.PackageVersionOverrides,
-		GitResources:       options.GitResourceRefs,
-		CustomFields:       options.CustomFields,
-		IgnoreExisting:     options.IgnoreIfAlreadyExists,
-		IgnoreChannelRules: options.IgnoreChannelRules,
+		DryRun:                true,
+		Project:               options.ProjectName,
+		Channel:               options.ChannelName,
+		GitReference:          options.GitReference,
+		GitCommit:             options.GitCommit,
+		Version:               options.Version,
+		DefaultPackageVersion: options.DefaultPackageVersion,
+		ReleaseNotes:          options.ReleaseNotes,
+		PackageOverrides:      options.PackageVersionOverrides,
+		GitResources:          options.GitResourceRefs,
+		CustomFields:          options.CustomFields,
+		IgnoreExisting:        options.IgnoreIfAlreadyExists,
+		IgnoreChannelRules:    options.IgnoreChannelRules,
 	}
 	if space != nil {
 		preview.Space = space.GetName()
@@ -576,6 +581,11 @@ func printReleasePreview(cmd *cobra.Command, preview *ReleasePreview, outputForm
 		output.NewDataRow("Project", preview.Project),
 		output.NewDataRow("Channel", orDefault(preview.Channel, byServer)),
 		output.NewDataRow("Version", orDefault(preview.Version, byServer)),
+	}
+	if preview.DefaultPackageVersion != "" {
+		// shown even when the packages themselves are left to the server, so a dry run with
+		// --package-version doesn't look identical to one without it
+		rows = append(rows, output.NewDataRow("Default Package Version", preview.DefaultPackageVersion))
 	}
 	if preview.GitReference != "" {
 		rows = append(rows, output.NewDataRow("Git Reference", preview.GitReference))
