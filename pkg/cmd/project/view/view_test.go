@@ -154,7 +154,9 @@ func TestProjectView(t *testing.T) {
 			_, err = testutil.ReceivePair(cmdReceiver)
 			assert.Nil(t, err)
 
-			assert.Contains(t, stdOut.String(), "Version control branch: \n")
+			// the command completes instead of panicking, and no blank labelled line
+			assert.Contains(t, stdOut.String(), "Fire Project")
+			assert.NotContains(t, stdOut.String(), "Version control branch:")
 			assert.Equal(t, "", stdErr.String())
 		}},
 
