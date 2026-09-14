@@ -3027,6 +3027,47 @@ func TestReleaseCreate_DryRun(t *testing.T) {
 			assert.Equal(t, "", stdErr.String())
 		}},
 
+		{"dry run prints custom fields in a stable order", func(t *testing.T, api *testutil.MockHttpServer, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
+			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
+				defer api.Close()
+				// supplied in an order which isn't the sorted one, and map iteration would shuffle
+				// them anyway
+				rootCmd.SetArgs([]string{"release", "create",
+					"--project", fireProject.Name,
+					"--custom-field", "Ticket: JIRA-1",
+					"--custom-field", "Approver: Alice",
+					"--custom-field", "Reason: because",
+					"--dry-run",
+				})
+				return rootCmd.ExecuteC()
+			})
+
+			api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/Fire Project").RespondWith(fireProject)
+
+			_, err := testutil.ReceivePair(cmdReceiver)
+			assert.Nil(t, err)
+			assert.Equal(t, 0, api.GetPendingMessageCount())
+
+			assert.Equal(t, heredoc.Doc(`
+				DRY RUN: no changes will be made in Octopus.
+
+				Would create a release with:
+				Space          Default Space
+				Project        Fire Project
+				Channel        (determined by the Octopus Server)
+				Version        (determined by the Octopus Server)
+				Release Notes  (none)
+				Custom Field   Approver: Alice
+				Custom Field   Reason: because
+				Custom Field   Ticket: JIRA-1
+
+				DRY RUN: no release was created.
+				`), stdOut.String())
+			assert.Equal(t, "", stdErr.String())
+		}},
+
 		{"dry run for a config-as-code project without --git-ref reads everything from the default branch", func(t *testing.T, api *testutil.MockHttpServer, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
 			const cacProjectID = "Projects-87"
 			cacDepProcess := fixtures.NewDeploymentProcessForVersionControlledProject(spaceID, cacProjectID, "main")
