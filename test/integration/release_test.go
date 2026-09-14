@@ -272,6 +272,20 @@ func createEnvironment(t *testing.T, apiClient *octopusApiClient.Client, name st
 	return environment
 }
 
+// createSecondaryChannel adds a non-default channel to the project. It carries no lifecycle of its
+// own, so it inherits the project's, and no version rules, so any release version is valid in it.
+// It exists separately from the fixture's default channel so that a test asserting on the channel a
+// release landed in can tell a channel the CLI asked for from the one the server would have picked.
+func createSecondaryChannel(t *testing.T, apiClient *octopusApiClient.Client, project *projects.Project, name string) *channels.Channel {
+	channel, err := apiClient.Channels.Add(channels.NewChannel(name, project.GetID()))
+	if !testutil.AssertSuccess(t, err) {
+		return nil
+	}
+	t.Cleanup(func() { assert.Nil(t, apiClient.Channels.DeleteByID(channel.GetID())) })
+	require.False(t, channel.IsDefault, "the project's default channel must stay the one the fixture created")
+	return channel
+}
+
 func createCloudRegionTarget(t *testing.T, apiClient *octopusApiClient.Client, name string, environmentID string) *machines.DeploymentTarget {
 	target, err := apiClient.Machines.Add(machines.NewDeploymentTarget(name, machines.NewCloudRegionEndpoint(), []string{environmentID}, []string{"deploy"}))
 	if !testutil.AssertSuccess(t, err) {
@@ -472,10 +486,16 @@ func TestReleaseCreateAndDeployByID(t *testing.T) {
 	if !setDeploymentProcess(t, apiClient, project, scriptStep(fmt.Sprintf("step-%s", runId), "")) {
 		return
 	}
+	// the release has to land in a channel the server wouldn't have chosen by itself, otherwise the
+	// assertion below passes just as well when --channel is dropped on the floor
+	secondaryChannel := createSecondaryChannel(t, apiClient, project, fmt.Sprintf("channel-%s", runId))
+	if secondaryChannel == nil {
+		return
+	}
 	t.Cleanup(func() { deleteAllReleasesInProject(t, apiClient, project) })
 
 	t.Run("create accepts a channel ID", func(t *testing.T) {
-		_, stdErr, err := integration.RunCli(space1ID, "release", "create", "--project", project.Name, "--channel", fx.ProjectDefaultChannel.GetID(), "--version", "1.0.0")
+		_, stdErr, err := integration.RunCli(space1ID, "release", "create", "--project", project.Name, "--channel", secondaryChannel.GetID(), "--version", "1.0.0")
 		if !testutil.AssertSuccess(t, err, stdErr) {
 			return
 		}
@@ -483,7 +503,8 @@ func TestReleaseCreateAndDeployByID(t *testing.T) {
 		if release == nil {
 			return
 		}
-		assert.Equal(t, fx.ProjectDefaultChannel.GetID(), release.ChannelID)
+		assert.Equal(t, secondaryChannel.GetID(), release.ChannelID)
+		assert.NotEqual(t, fx.ProjectDefaultChannel.GetID(), release.ChannelID)
 	})
 
 	t.Run("deploy accepts an environment ID", func(t *testing.T) {
