@@ -804,6 +804,66 @@ func TestGitRunbookRun_AutomationMode(t *testing.T) {
 	}
 }
 
+// --environment is resolved once, up front, and the resolved identity has to be carried through to
+// the run preview. Looking the canonical name up again would go through an ID-first lookup and land
+// on whichever environment happens to have that name as its ID.
+func TestRunbookRunByTag_UsesTheResolvedEnvironmentForThePreview(t *testing.T) {
+	const spaceID = "Spaces-1"
+	const fireProjectID = "Projects-22"
+
+	space1 := fixtures.NewSpace(spaceID, "Default Space")
+	fireProject := fixtures.NewProject(spaceID, fireProjectID, "Fire Project", "Lifecycles-1", "ProjectGroups-1", "deploymentprocess-"+fireProjectID)
+
+	devEnvironment := fixtures.NewEnvironment(spaceID, "Environments-12", "dev")
+	testEnvironment := fixtures.NewEnvironment(spaceID, "Environments-13", "test")
+	// an environment which is *named* like another environment's ID
+	decoyEnvironment := fixtures.NewEnvironment(spaceID, "Environments-99", "Environments-13")
+
+	nightlyRunbook := fixtures.NewRunbook(spaceID, fireProjectID, "Runbooks-1", "Provision Database")
+	nightlyRunbook.RunbookTags = []string{"nightly"}
+	nightlyRunbook.PublishedRunbookSnapshotID = "RunbookSnapshots-1"
+
+	stdout, stderr := &bytes.Buffer{}, &bytes.Buffer{}
+	api := testutil.NewMockHttpServer()
+	rootCmd := cmdRoot.NewCmdRoot(testutil.NewMockFactoryWithSpace(api, space1), nil, nil)
+	rootCmd.SetContext(ctxWithFakeNow)
+	rootCmd.SetOut(stdout)
+	rootCmd.SetErr(stderr)
+
+	cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
+		defer api.Close()
+		rootCmd.SetArgs([]string{"runbook", "run", "--project", "Fire Project", "--runbook-tag", "nightly", "--environment", "Environments-99"})
+		return rootCmd.ExecuteC()
+	})
+
+	api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
+	api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
+	api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/Fire Project").RespondWithJSON(fixtures.AsServerResponse(fireProject))
+	// the one and only environment lookup; the decoy wins because an ID match beats a name match
+	api.ExpectRequest(t, "GET", "/api/Spaces-1/environments/all").RespondWith([]*environments.Environment{devEnvironment, testEnvironment, decoyEnvironment})
+	api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/Projects-22/runbooks?take=2147483647").RespondWith(resources.Resources[*runbooks.Runbook]{
+		Items: []*runbooks.Runbook{nightlyRunbook},
+	})
+	// Environments-99, not Environments-13: the preview must use the environment we actually resolved
+	api.ExpectRequest(t, "GET", "/api/Spaces-1/runbookSnapshots/RunbookSnapshots-1/runbookRuns/preview/Environments-99?includeDisabledSteps=true").
+		RespondWith(&runbooks.RunPreview{Form: deployments.NewFormWithValuesAndElements(map[string]string{}, []*deployments.Element{})})
+
+	req := api.ExpectRequest(t, "POST", "/api/Spaces-1/runbook-runs/create/v1")
+	requestBody, err := testutil.ReadJson[runbooks.RunbookRunCommandV1](req.Request.Body)
+	assert.Nil(t, err)
+	// the executions API only matches by name, so the decoy's name is what gets submitted
+	assert.Equal(t, []string{"Environments-13"}, requestBody.EnvironmentNames)
+	req.RespondWith(&runbooks.RunbookRunResponseV1{
+		RunbookRunServerTasks: []*runbooks.RunbookRunServerTask{
+			{RunbookRunID: "RunbookRun-203", ServerTaskID: "ServerTasks-29394"},
+		},
+	})
+
+	_, err = testutil.ReceivePair(cmdReceiver)
+	assert.Nil(t, err)
+	assert.Equal(t, "", stderr.String())
+}
+
 func TestRunbookRun_PrintAdvancedSummary(t *testing.T) {
 	tests := []struct {
 		name string

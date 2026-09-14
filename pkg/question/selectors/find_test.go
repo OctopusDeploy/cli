@@ -137,6 +137,28 @@ func TestResolveEnvironmentNames(t *testing.T) {
 	})
 }
 
+func TestResolveEnvironments(t *testing.T) {
+	findSpace := fixtures.NewSpace(findSpaceID, "Default")
+	prodEnvironment := fixtures.NewEnvironment(findSpaceID, "Environments-13", "production")
+	// an environment which is *named* like another environment's ID
+	decoyEnvironment := fixtures.NewEnvironment(findSpaceID, "Environments-99", "Environments-13")
+
+	// resolving the returned name a second time would hit the ID index and land on prodEnvironment,
+	// which is why callers need to keep the ID alongside the name
+	api := testutil.NewMockHttpServer()
+	receiver := beginRequest(api, func(octopus *octopusApiClient.Client) ([]*selectors.ResolvedEnvironment, error) {
+		return selectors.ResolveEnvironments(octopus, findSpace, []string{"Environments-99"})
+	})
+
+	api.ExpectRequest(t, "GET", "/api/").RespondWith(findRootResource)
+	api.ExpectRequest(t, "GET", "/api/spaces").RespondWith(findRootResource)
+	api.ExpectRequest(t, "GET", "/api/Spaces-1/environments/all").RespondWith([]*environments.Environment{prodEnvironment, decoyEnvironment})
+
+	result, err := testutil.ReceivePair(receiver)
+	assert.Nil(t, err)
+	assert.Equal(t, []*selectors.ResolvedEnvironment{{ID: "Environments-99", Name: "Environments-13"}}, result)
+}
+
 func TestFindEnvironment(t *testing.T) {
 	devEnvironment := fixtures.NewEnvironment(findSpaceID, "Environments-12", "dev")
 

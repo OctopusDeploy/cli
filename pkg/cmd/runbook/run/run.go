@@ -247,12 +247,17 @@ func runbookRun(cmd *cobra.Command, f factory.Factory, flags *RunFlags) error {
 
 	flags.Project.Value = project.Name
 
-	// the executions API only matches environments and tenants by name, so resolve any IDs we were given
+	// the executions API only matches environments and tenants by name, so resolve any IDs we were given.
+	// Run previews and target selection need the IDs, so keep the whole resolved identity rather than
+	// looking the names up again later - an ID-first lookup of a name that collides with another
+	// environment's ID would land on the other environment.
+	var resolvedEnvironments []*selectors.ResolvedEnvironment
 	if len(flags.Environments.Value) > 0 {
-		flags.Environments.Value, err = selectors.ResolveEnvironmentNames(octopus, f.GetCurrentSpace(), flags.Environments.Value)
+		resolvedEnvironments, err = selectors.ResolveEnvironments(octopus, f.GetCurrentSpace(), flags.Environments.Value)
 		if err != nil {
 			return err
 		}
+		flags.Environments.Value = util.SliceTransform(resolvedEnvironments, func(env *selectors.ResolvedEnvironment) string { return env.Name })
 	}
 
 	if len(flags.Tenants.Value) > 0 {
@@ -299,20 +304,20 @@ func runbookRun(cmd *cobra.Command, f factory.Factory, flags *RunFlags) error {
 
 	if len(flags.RunbookTags.Value) > 0 {
 		if shared.AreRunbooksInGit(project) {
-			return runRunbooksByTag(cmd, f, flags, octopus, project, parsedVariables, outputFormat, true)
+			return runRunbooksByTag(cmd, f, flags, octopus, project, resolvedEnvironments, parsedVariables, outputFormat, true)
 		} else {
-			return runRunbooksByTag(cmd, f, flags, octopus, project, parsedVariables, outputFormat, false)
+			return runRunbooksByTag(cmd, f, flags, octopus, project, resolvedEnvironments, parsedVariables, outputFormat, false)
 		}
 	}
 
 	if shared.AreRunbooksInGit(project) {
-		return runGitRunbook(cmd, f, flags, octopus, project, parsedVariables, outputFormat)
+		return runGitRunbook(cmd, f, flags, octopus, project, resolvedEnvironments, parsedVariables, outputFormat)
 	} else {
-		return runDbRunbook(cmd, f, flags, octopus, project, parsedVariables, outputFormat)
+		return runDbRunbook(cmd, f, flags, octopus, project, resolvedEnvironments, parsedVariables, outputFormat)
 	}
 }
 
-func runDbRunbook(cmd *cobra.Command, f factory.Factory, flags *RunFlags, octopus *octopusApiClient.Client, project *projects.Project, parsedVariables map[string]string, outputFormat string) error {
+func runDbRunbook(cmd *cobra.Command, f factory.Factory, flags *RunFlags, octopus *octopusApiClient.Client, project *projects.Project, resolvedEnvironments []*selectors.ResolvedEnvironment, parsedVariables map[string]string, outputFormat string) error {
 
 	commonOptions := &executor.TaskOptionsRunbookRunBase{
 		ProjectName:            project.Name,
@@ -351,7 +356,7 @@ func runDbRunbook(cmd *cobra.Command, f factory.Factory, flags *RunFlags, octopu
 			}
 		}
 
-		err := AskDbRunbookRunQuestions(octopus, cmd.OutOrStdout(), f.Ask, f.GetCurrentSpace(), project, options, now)
+		err := AskDbRunbookRunQuestions(octopus, cmd.OutOrStdout(), f.Ask, f.GetCurrentSpace(), project, options, resolvedEnvironments, now)
 		if err != nil {
 			return err
 		}
@@ -452,7 +457,7 @@ func runDbRunbook(cmd *cobra.Command, f factory.Factory, flags *RunFlags, octopu
 	return nil
 }
 
-func runGitRunbook(cmd *cobra.Command, f factory.Factory, flags *RunFlags, octopus *octopusApiClient.Client, project *projects.Project, parsedVariables map[string]string, outputFormat string) error {
+func runGitRunbook(cmd *cobra.Command, f factory.Factory, flags *RunFlags, octopus *octopusApiClient.Client, project *projects.Project, resolvedEnvironments []*selectors.ResolvedEnvironment, parsedVariables map[string]string, outputFormat string) error {
 
 	commonOptions := &executor.TaskOptionsRunbookRunBase{
 		ProjectName:            project.Name,
@@ -494,7 +499,7 @@ func runGitRunbook(cmd *cobra.Command, f factory.Factory, flags *RunFlags, octop
 			}
 		}
 
-		err := AskGitRunbookRunQuestions(octopus, cmd.OutOrStdout(), f.Ask, f.GetCurrentSpace(), project, options, now)
+		err := AskGitRunbookRunQuestions(octopus, cmd.OutOrStdout(), f.Ask, f.GetCurrentSpace(), project, options, resolvedEnvironments, now)
 		if err != nil {
 			return err
 		}
@@ -699,7 +704,7 @@ func askCommonAdvancedOptions(
 	return nil
 }
 
-func AskDbRunbookRunQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker question.Asker, space *spaces.Space, project *projects.Project, options *executor.TaskOptionsRunbookRun, now func() time.Time) error {
+func AskDbRunbookRunQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker question.Asker, space *spaces.Space, project *projects.Project, options *executor.TaskOptionsRunbookRun, resolvedEnvironments []*selectors.ResolvedEnvironment, now func() time.Time) error {
 	if octopus == nil {
 		return cliErrors.NewArgumentNullOrEmptyError("octopus")
 	}
@@ -737,14 +742,18 @@ func AskDbRunbookRunQuestions(octopus *octopusApiClient.Client, stdout io.Writer
 		return err
 	}
 
-	// machine selection later on needs to refer back to the environments.
+	// machine selection later on needs to refer back to the environments. When the environments came
+	// from the command line the caller has already resolved them, so reuse those IDs rather than
+	// resolving options.Environments - now canonical names - a second time.
 	var selectedEnvironments []*environments.Environment
+	environmentIDs := util.SliceTransform(resolvedEnvironments, func(env *selectors.ResolvedEnvironment) string { return env.ID })
 	if len(options.Environments) == 0 {
 		selectedEnvironments, err = selectRunEnvironments(asker, octopus, space, project, selectedRunbook)
 		if err != nil {
 			return err
 		}
 		options.Environments = util.SliceTransform(selectedEnvironments, func(env *environments.Environment) string { return env.Name })
+		environmentIDs = util.SliceTransform(selectedEnvironments, func(env *environments.Environment) string { return env.ID })
 	} else {
 		_, _ = fmt.Fprintf(stdout, "Environments %s\n", output.Cyan(strings.Join(options.Environments, ",")))
 	}
@@ -846,14 +855,15 @@ func AskDbRunbookRunQuestions(octopus *octopusApiClient.Client, stdout io.Writer
 		}
 
 		if !isRunTargetsSpecified {
-			if len(selectedEnvironments) == 0 { // if the Q&A process earlier hasn't loaded environments already, we need to load them now
-				selectedEnvironments, err = executionscommon.FindEnvironments(octopus, options.Environments)
+			if len(environmentIDs) == 0 { // if the Q&A process earlier hasn't loaded environments already, we need to load them now
+				envs, err := executionscommon.FindEnvironments(octopus, options.Environments)
 				if err != nil {
 					return err
 				}
+				environmentIDs = util.SliceTransform(envs, func(env *environments.Environment) string { return env.ID })
 			}
 
-			options.RunTargets, err = askRunbookTargets(octopus, asker, space.ID, selectedSnapshot.ID, selectedEnvironments)
+			options.RunTargets, err = askRunbookTargets(octopus, asker, space.ID, selectedSnapshot.ID, environmentIDs)
 			if err != nil {
 				return err
 			}
@@ -877,7 +887,7 @@ func AskDbRunbookRunQuestions(octopus *octopusApiClient.Client, stdout io.Writer
 	return nil
 }
 
-func AskGitRunbookRunQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker question.Asker, space *spaces.Space, project *projects.Project, options *executor.TaskOptionsGitRunbookRun, now func() time.Time) error {
+func AskGitRunbookRunQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker question.Asker, space *spaces.Space, project *projects.Project, options *executor.TaskOptionsGitRunbookRun, resolvedEnvironments []*selectors.ResolvedEnvironment, now func() time.Time) error {
 	if octopus == nil {
 		return cliErrors.NewArgumentNullOrEmptyError("octopus")
 	}
@@ -926,14 +936,18 @@ func AskGitRunbookRunQuestions(octopus *octopusApiClient.Client, stdout io.Write
 		return err
 	}
 
-	// machine selection later on needs to refer back to the environments.
+	// machine selection later on needs to refer back to the environments. When the environments came
+	// from the command line the caller has already resolved them, so reuse those IDs rather than
+	// resolving options.Environments - now canonical names - a second time.
 	var selectedEnvironments []*environments.Environment
+	environmentIDs := util.SliceTransform(resolvedEnvironments, func(env *selectors.ResolvedEnvironment) string { return env.ID })
 	if len(options.Environments) == 0 {
 		selectedEnvironments, err = selectGitRunEnvironments(asker, octopus, space, project, selectedRunbook, options.GitReference)
 		if err != nil {
 			return err
 		}
 		options.Environments = util.SliceTransform(selectedEnvironments, func(env *environments.Environment) string { return env.Name })
+		environmentIDs = util.SliceTransform(selectedEnvironments, func(env *environments.Environment) string { return env.ID })
 	} else {
 		_, _ = fmt.Fprintf(stdout, "Environments %s\n", output.Cyan(strings.Join(options.Environments, ",")))
 	}
@@ -1069,14 +1083,15 @@ func AskGitRunbookRunQuestions(octopus *octopusApiClient.Client, stdout io.Write
 		}
 
 		if !isRunTargetsSpecified {
-			if len(selectedEnvironments) == 0 { // if the Q&A process earlier hasn't loaded environments already, we need to load them now
-				selectedEnvironments, err = executionscommon.FindEnvironments(octopus, options.Environments)
+			if len(environmentIDs) == 0 { // if the Q&A process earlier hasn't loaded environments already, we need to load them now
+				envs, err := executionscommon.FindEnvironments(octopus, options.Environments)
 				if err != nil {
 					return err
 				}
+				environmentIDs = util.SliceTransform(envs, func(env *environments.Environment) string { return env.ID })
 			}
 
-			options.RunTargets, err = askGitRunbookTargets(octopus, asker, space.ID, project.ID, selectedRunbook.ID, options.GitReference, selectedEnvironments)
+			options.RunTargets, err = askGitRunbookTargets(octopus, asker, space.ID, project.ID, selectedRunbook.ID, options.GitReference, environmentIDs)
 			if err != nil {
 				return err
 			}
@@ -1208,11 +1223,11 @@ func resolveRunbookPreviewVariables(
 	return result, sensitiveVars, nil
 }
 
-func askRunbookTargets(octopus *octopusApiClient.Client, asker question.Asker, spaceID string, runbookSnapshotID string, selectedEnvironments []*environments.Environment) ([]string, error) {
+func askRunbookTargets(octopus *octopusApiClient.Client, asker question.Asker, spaceID string, runbookSnapshotID string, environmentIDs []string) ([]string, error) {
 	var results []string
 
-	for _, env := range selectedEnvironments {
-		preview, err := runbooks.GetRunbookSnapshotRunPreview(octopus, spaceID, runbookSnapshotID, env.ID, true)
+	for _, environmentID := range environmentIDs {
+		preview, err := runbooks.GetRunbookSnapshotRunPreview(octopus, spaceID, runbookSnapshotID, environmentID, true)
 		if err != nil {
 			return nil, err
 		}
@@ -1245,11 +1260,11 @@ func askRunbookTargets(octopus *octopusApiClient.Client, asker question.Asker, s
 	return nil, nil
 }
 
-func askGitRunbookTargets(octopus *octopusApiClient.Client, asker question.Asker, spaceID string, projectID string, runbookID string, gitRef string, selectedEnvironments []*environments.Environment) ([]string, error) {
+func askGitRunbookTargets(octopus *octopusApiClient.Client, asker question.Asker, spaceID string, projectID string, runbookID string, gitRef string, environmentIDs []string) ([]string, error) {
 	var results []string
 
-	for _, env := range selectedEnvironments {
-		preview, err := runbooks.GetGitRunbookRunPreview(octopus, spaceID, projectID, runbookID, gitRef, env.ID, true)
+	for _, environmentID := range environmentIDs {
+		preview, err := runbooks.GetGitRunbookRunPreview(octopus, spaceID, projectID, runbookID, gitRef, environmentID, true)
 		if err != nil {
 			return nil, err
 		}

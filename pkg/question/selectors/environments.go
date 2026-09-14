@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/OctopusDeploy/cli/pkg/question"
+	"github.com/OctopusDeploy/cli/pkg/util"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/environments"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/environments/v2/ephemeralenvironments"
@@ -73,13 +74,34 @@ func FindEnvironments(octopus *client.Client, environmentIdentifiers []string) (
 	return result, nil
 }
 
+// ResolvedEnvironment is an environment identified by both its ID and its name, so callers that
+// need the name (the executions API only matches environments by name) and callers that need the
+// ID (run/deployment previews, target selection) can share a single lookup. Resolving twice isn't
+// safe: an ID-first lookup of a name that happens to be another environment's ID lands on the
+// other environment.
+type ResolvedEnvironment struct {
+	ID   string
+	Name string
+}
+
 // ResolveEnvironmentNames maps environment names or IDs onto canonical environment names, because
-// the executions API only matches environments by name.
+// the executions API only matches environments by name. Prefer ResolveEnvironments when the caller
+// also needs the environment's ID later on.
+func ResolveEnvironmentNames(octopus *client.Client, space *spaces.Space, environmentIdentifiers []string) ([]string, error) {
+	resolved, err := ResolveEnvironments(octopus, space, environmentIdentifiers)
+	if err != nil {
+		return nil, err
+	}
+	return util.SliceTransform(resolved, func(env *ResolvedEnvironment) string { return env.Name }), nil
+}
+
+// ResolveEnvironments maps environment names or IDs onto the ID and name of the environment each
+// one picks out.
 //
 // Ephemeral environments aren't part of the regular environment list, so that list is consulted -
 // once, lazily - for any identifier the regular list doesn't have. Resolving one identifier at a
 // time means a list mixing the two kinds still reports the identifier that actually went missing.
-func ResolveEnvironmentNames(octopus *client.Client, space *spaces.Space, environmentIdentifiers []string) ([]string, error) {
+func ResolveEnvironments(octopus *client.Client, space *spaces.Space, environmentIdentifiers []string) ([]*ResolvedEnvironment, error) {
 	if len(environmentIdentifiers) == 0 {
 		return nil, nil
 	}
@@ -93,10 +115,10 @@ func ResolveEnvironmentNames(octopus *client.Client, space *spaces.Space, enviro
 
 	var ephemeral *identifierLookup[*ephemeralenvironments.EphemeralEnvironment]
 
-	names := make([]string, 0, len(environmentIdentifiers))
+	resolved := make([]*ResolvedEnvironment, 0, len(environmentIdentifiers))
 	for _, identifier := range environmentIdentifiers {
 		if env, found := regular.find(identifier); found {
-			names = append(names, env.GetName())
+			resolved = append(resolved, &ResolvedEnvironment{ID: env.GetID(), Name: env.GetName()})
 			continue
 		}
 
@@ -117,12 +139,12 @@ func ResolveEnvironmentNames(octopus *client.Client, space *spaces.Space, enviro
 		}
 
 		if env, found := ephemeral.find(identifier); found {
-			names = append(names, env.Name)
+			resolved = append(resolved, &ResolvedEnvironment{ID: env.ID, Name: env.Name})
 			continue
 		}
 		return nil, fmt.Errorf("cannot find an environment with the ID or name of '%s'", identifier)
 	}
-	return names, nil
+	return resolved, nil
 }
 
 // identifierLookup indexes items by both ID and name so an identifier can be matched against
