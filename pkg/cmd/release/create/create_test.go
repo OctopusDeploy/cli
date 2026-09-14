@@ -3027,6 +3027,63 @@ func TestReleaseCreate_DryRun(t *testing.T) {
 			assert.Equal(t, "", stdErr.String())
 		}},
 
+		{"dry run for a config-as-code project without --git-ref reads everything from the default branch", func(t *testing.T, api *testutil.MockHttpServer, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
+			const cacProjectID = "Projects-87"
+			cacDepProcess := fixtures.NewDeploymentProcessForVersionControlledProject(spaceID, cacProjectID, "main")
+			// NewVersionControlledProject's default branch; note VersioningStrategy is nil, as the
+			// server reports it for a CaC project, so the strategy comes from the deployment settings
+			cacProject := fixtures.NewVersionControlledProject(spaceID, cacProjectID, "CaC Project", "Lifecycles-1", "ProjectGroups-1", cacDepProcess.ID)
+			cacChannel := fixtures.NewChannel(spaceID, "Channels-34", "CaC Project Default Channel", cacProjectID)
+			cacDepSettings := fixtures.NewDeploymentSettingsForProject(spaceID, cacProjectID, &projects.VersioningStrategy{
+				Template: "#{Octopus.Version.LastMajor}.#{Octopus.Version.LastMinor}.#{Octopus.Version.NextPatch}",
+			})
+
+			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
+				defer api.Close()
+				rootCmd.SetArgs([]string{"release", "create",
+					"--project", cacProject.Name,
+					"--channel", cacChannel.Name,
+					"--release-notes", "Some notes",
+					"--dry-run",
+				})
+				return rootCmd.ExecuteC()
+			})
+
+			api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/CaC Project").RespondWith(cacProject)
+
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+cacProjectID+"/channels").
+				RespondWith(resources.Resources[*channels.Channel]{
+					Items: []*channels.Channel{cacChannel},
+				})
+
+			// the git ref is pinned to the project's default branch; without that these two URLs
+			// would be missing their gitRef segment, and the deploymentsettings one would 404
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+cacProjectID+"/main/deploymentprocesses").RespondWith(cacDepProcess)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+cacProjectID+"/main/deploymentprocesses/template?channel="+cacChannel.ID).
+				RespondWith(&deployments.DeploymentProcessTemplate{NextVersionIncrement: "27.9.3"})
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+cacProjectID+"/main/deploymentsettings").RespondWith(cacDepSettings)
+
+			_, err := testutil.ReceivePair(cmdReceiver)
+			assert.Nil(t, err)
+			assert.Equal(t, 0, api.GetPendingMessageCount())
+
+			assert.Equal(t, heredoc.Doc(`
+				DRY RUN: no changes will be made in Octopus.
+
+				Would create a release with:
+				Space          Default Space
+				Project        CaC Project
+				Channel        CaC Project Default Channel
+				Version        27.9.3
+				Release Notes  Some notes
+
+				DRY RUN: no release was created.
+				`), stdOut.String())
+			assert.Equal(t, "", stdErr.String())
+		}},
+
 		{"dry run with json output emits a machine readable plan flagged as a dry run", func(t *testing.T, api *testutil.MockHttpServer, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
 			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
 				defer api.Close()
