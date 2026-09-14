@@ -145,7 +145,14 @@ func loginRun(cmd *cobra.Command, f factory.Factory, isPromptEnabled bool, ask q
 }
 
 // ConfigureHttpClient makes sure login talks to Octopus through the configured proxy.
+//
+// ignoreSslErrors is the --ignore-ssl-errors flag, a one-off opt out of verifying the
+// Octopus server certificate. The IgnoreSslErrors config key (and its environment
+// variable) is the standing opt out that every other command reads, so it is honoured
+// here too - otherwise login would be the only command that still verified.
 func ConfigureHttpClient(httpClient *http.Client, ignoreSslErrors bool) (*http.Client, error) {
+	ignoreSslErrors = ignoreSslErrors || apiclient.IgnoreSslErrorsFromConfig()
+
 	// the client is nil whenever the CLI has no usable configuration yet, which is the
 	// common case for login, so build a proxy-aware one rather than letting net/http
 	// fall back to its default
@@ -173,11 +180,9 @@ func ConfigureHttpClient(httpClient *http.Client, ignoreSslErrors bool) (*http.C
 	// override needs applying. Any other transport belongs to a caller (tests mock one
 	// in here) and is left alone.
 	//
-	// Two things worth knowing about this branch. It is a no-op while
-	// NewClientFactoryFromConfig hardcodes insecureSkipVerify to true - it only resets
-	// the connection pool - and becomes meaningful as soon as that is plumbed through.
-	// And it mutates the factory's shared client, so the override outlives the login
-	// probe: fine for a one-shot CLI, a trap for any longer-lived embedding.
+	// Note that this mutates the factory's shared client rather than cloning it, so
+	// --ignore-ssl-errors outlives the login probe and applies to every later request
+	// in the process: fine for a one-shot CLI, a trap for any longer-lived embedding.
 	if spinnerRoundTripper, ok := httpClient.Transport.(*apiclient.SpinnerRoundTripper); ok && ignoreSslErrors {
 		transport, err := apiclient.NewHttpTransport(apiclient.ProxySettingsFromConfig(), true)
 		if err != nil {

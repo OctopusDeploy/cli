@@ -446,6 +446,38 @@ func TestConfigureHttpClient(t *testing.T) {
 		assert.Equal(t, "http://configured:3128", proxyUrl.String())
 	})
 
+	// without the flag, and without the config key, login has to keep verifying
+	t.Run("verifies the server certificate by default", func(t *testing.T) {
+		httpClient, err := login.ConfigureHttpClient(nil, false)
+		assert.NoError(t, err)
+
+		transport, ok := httpClient.Transport.(*http.Transport)
+		if !assert.True(t, ok, "expected an *http.Transport") {
+			return
+		}
+		if transport.TLSClientConfig != nil {
+			assert.False(t, transport.TLSClientConfig.InsecureSkipVerify)
+		}
+	})
+
+	// the config key is the standing opt out the rest of the CLI reads; login would be
+	// the odd one out if only its own flag could turn verification off
+	t.Run("honours the IgnoreSslErrors config key without the flag", func(t *testing.T) {
+		viper.Set(constants.ConfigIgnoreSslErrors, true)
+		t.Cleanup(func() { viper.Set(constants.ConfigIgnoreSslErrors, nil) })
+
+		httpClient, err := login.ConfigureHttpClient(nil, false)
+		assert.NoError(t, err)
+
+		transport, ok := httpClient.Transport.(*http.Transport)
+		if !assert.True(t, ok, "expected an *http.Transport") {
+			return
+		}
+		if assert.NotNil(t, transport.TLSClientConfig) {
+			assert.True(t, transport.TLSClientConfig.InsecureSkipVerify)
+		}
+	})
+
 	t.Run("applies the ssl override without discarding the spinner", func(t *testing.T) {
 		spinnerRoundTripper := apiclient.NewSpinnerRoundTripper(nil)
 		httpClient, err := login.ConfigureHttpClient(&http.Client{Transport: spinnerRoundTripper}, true)

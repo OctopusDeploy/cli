@@ -280,6 +280,27 @@ config file, whereas `octopus config set ProxyUrl` stores whatever it is given i
 does for an API key. `octopus config list` and `octopus config get ProxyUrl` mask the password when they
 display it.
 
+### TLS certificate verification
+
+The CLI verifies the Octopus Server's TLS certificate. If the server presents a certificate this machine
+cannot verify — a self-signed certificate, or one from an internal CA that is not in the trust store — the
+preferred fix is to add that CA to the machine's trust store.
+
+Failing that, verification can be turned off explicitly:
+
+```shell
+export OCTOPUS_IGNORE_SSL_ERRORS=true   # or: octopus config set IgnoreSslErrors true
+octopus login --ignore-ssl-errors        # one login, rather than a standing setting
+```
+
+Only do this on a network path you trust. With verification off, anything positioned between the CLI and
+the server can read the API key or access token sent with every request.
+
+> **Behaviour change:** CLI versions before this one disabled certificate verification unconditionally, so
+> this setting had no effect and the warning above applied to every invocation. If the CLI starts failing
+> with a certificate error after upgrading, that is the verification now working; fix the trust store or
+> opt out with the setting above.
+
 ### go-octopusdeploy library
 
 The CLI depends heavily on the [go-octopusdeploy](https://github.com/OctopusDeploy/go-octopusdeploy) library, which manages

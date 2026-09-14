@@ -38,6 +38,14 @@ func ProxySettingsFromConfig() ProxySettings {
 	}
 }
 
+// IgnoreSslErrorsFromConfig reports whether the user has opted out of verifying the
+// Octopus server's TLS certificate, via the IgnoreSslErrors config file key or the
+// OCTOPUS_IGNORE_SSL_ERRORS environment variable. It defaults to false: anything that
+// is not a recognised truthy value leaves verification on, which is the safe direction.
+func IgnoreSslErrorsFromConfig() bool {
+	return viper.GetBool(constants.ConfigIgnoreSslErrors)
+}
+
 // ProxyFunc returns a function suitable for http.Transport.Proxy.
 func (s ProxySettings) ProxyFunc() (func(*http.Request) (*url.URL, error), error) {
 	config := httpproxy.FromEnvironment()

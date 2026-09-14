@@ -49,15 +49,16 @@ func listRun(cmd *cobra.Command) error {
 	}
 
 	type ConfigData struct {
-		AccessToken  string `json:"accesstoken"`
-		ApiKey       string `json:"apikey"`
-		Editor       string `json:"editor"`
-		Host         string `json:"host"`
-		NoPrompt     string `json:"noprompt"`
-		OutputFormat string `json:"outputformat"`
-		ProxyUrl     string `json:"proxyurl"`
-		ShowOctopus  string `json:"showoctopus"`
-		Space        string `json:"space"`
+		AccessToken     string `json:"accesstoken"`
+		ApiKey          string `json:"apikey"`
+		Editor          string `json:"editor"`
+		Host            string `json:"host"`
+		IgnoreSslErrors string `json:"ignoresslerrors"`
+		NoPrompt        string `json:"noprompt"`
+		OutputFormat    string `json:"outputformat"`
+		ProxyUrl        string `json:"proxyurl"`
+		ShowOctopus     string `json:"showoctopus"`
+		Space           string `json:"space"`
 	}
 
 	outputFormat, _ := cmd.Flags().GetString(constants.FlagOutputFormat)
@@ -84,6 +85,8 @@ func listRun(cmd *cobra.Command) error {
 				configData.Host = configFile.GetString(key)
 			case strings.ToLower(constants.ConfigNoPrompt):
 				configData.NoPrompt = configFile.GetString(key)
+			case strings.ToLower(constants.ConfigIgnoreSslErrors):
+				configData.IgnoreSslErrors = configFile.GetString(key)
 			case strings.ToLower(constants.ConfigProxyUrl):
 				configData.ProxyUrl = configFile.GetString(key)
 			case strings.ToLower(constants.ConfigSpace):
