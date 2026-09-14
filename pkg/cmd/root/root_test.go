@@ -1,11 +1,15 @@
 package root
 
 import (
+	"bytes"
+	"strings"
 	"testing"
 
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/spf13/pflag"
+	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // newOutputFormatFlags mirrors the way NewCmdRoot registers the output format flags,
@@ -113,6 +117,46 @@ func TestResolveOutputFormat_AnExplicitFlagStillWinsOverAnUnsupportedConfigFileV
 	assert.NoError(t, err)
 	assert.Equal(t, constants.OutputFormatJson, actual)
 	assert.NotEmpty(t, warning)
+}
+
+// the resolved format is written back through the flag's Value rather than FlagSet.Set,
+// because Set marks the flag Changed and the flag object is shared with every subcommand.
+// pkg/cmd/task/wait reads Changed(FlagOutputFormat) to mean "the user asked for a format",
+// so marking it here would silently switch a plain `octopus task wait <id>` off the legacy
+// progress formatter.
+func TestNewCmdRoot_PreRunDoesNotMarkTheOutputFormatFlagAsChanged(t *testing.T) {
+	viper.Reset()
+	t.Cleanup(viper.Reset)
+	cmd := NewCmdRoot(nil, nil, nil)
+
+	require.NoError(t, cmd.PersistentPreRunE(cmd, nil))
+
+	flags := cmd.PersistentFlags()
+	value, err := flags.GetString(constants.FlagOutputFormat)
+	require.NoError(t, err)
+	assert.Equal(t, constants.OutputFormatTable, value)
+	assert.False(t, flags.Changed(constants.FlagOutputFormat))
+	assert.False(t, flags.Changed(constants.FlagOutputFormatLegacy))
+}
+
+// the pre-run runs ahead of every command, so an unsupported value sitting in the config file
+// must not be fatal - that would lock the user out of the `config set` that fixes it
+func TestNewCmdRoot_PreRunWarnsRatherThanFailingForAnUnsupportedConfigFileValue(t *testing.T) {
+	viper.Reset()
+	t.Cleanup(viper.Reset)
+	cmd := NewCmdRoot(nil, nil, nil)
+	viper.SetConfigType("json")
+	require.NoError(t, viper.ReadConfig(strings.NewReader(`{"outputformat":"xml"}`)))
+	stderr := &bytes.Buffer{}
+	cmd.SetErr(stderr)
+
+	require.NoError(t, cmd.PersistentPreRunE(cmd, nil))
+
+	value, err := cmd.PersistentFlags().GetString(constants.FlagOutputFormat)
+	require.NoError(t, err)
+	assert.Equal(t, constants.OutputFormatTable, value)
+	// the warning goes to stderr so it can't corrupt `-f json` output on stdout
+	assert.Contains(t, stderr.String(), "unsupported output format 'xml'")
 }
 
 func TestUnsupportedOutputFormatMessage(t *testing.T) {
