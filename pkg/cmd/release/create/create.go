@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"strings"
 	"time"
@@ -425,13 +426,14 @@ func BuildPackageVersionBaselineForChannel(octopus *octopusApiClient.Client, dep
 // it can. The server raises a null reference exception, surfaced as a bare 500, when it can't select a
 // version for a package; see https://github.com/OctopusDeploy/cli/issues/426
 //
-// Any 5xx is diagnosed, not just the null reference one, because the message a server sends for this
+// Any 500 is diagnosed, not just the null reference one, because the message a server sends for this
 // varies by version: current servers report "no viable release plans" instead. The cost of being wrong
 // is bounded, since MissingPackageVersionsError reports what the server actually said alongside the
-// diagnosis.
+// diagnosis. Other 5xx codes are excluded: the failure we are looking for is always raised by the API
+// itself as a 500, so a 502/503/504 is something in front of the server and never worth replaying.
 func DiagnoseCreateReleaseFailure(octopus *octopusApiClient.Client, options *executor.TaskOptionsCreateRelease, cause error) error {
 	var apiError *core.APIError
-	if !errors.As(cause, &apiError) || apiError.StatusCode < 500 {
+	if !errors.As(cause, &apiError) || apiError.StatusCode != http.StatusInternalServerError {
 		return cause
 	}
 

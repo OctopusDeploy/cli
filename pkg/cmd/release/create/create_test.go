@@ -2932,13 +2932,20 @@ func TestReleaseCreate_DiagnoseCreateReleaseFailure(t *testing.T) {
 	})
 
 	t.Run("passes through server faults it cannot diagnose", func(t *testing.T) {
-		// a 5xx is only replaced when the CLI can positively name the packages behind it. With no
+		// a 500 is only replaced when the CLI can positively name the packages behind it. With no
 		// client to go and look, and no null reference message to explain, the server error stands.
 		serverError := &core.APIError{ErrorMessage: "The database is unavailable", StatusCode: http.StatusInternalServerError}
 		assert.Equal(t, error(serverError), create.DiagnoseCreateReleaseFailure(nil, nil, serverError))
+	})
 
-		badGateway := &core.APIError{ErrorMessage: "Bad Gateway", StatusCode: http.StatusBadGateway}
-		assert.Equal(t, error(badGateway), create.DiagnoseCreateReleaseFailure(nil, nil, badGateway))
+	t.Run("passes through 5xx codes which aren't the API's own failure", func(t *testing.T) {
+		// the release plan failure is always raised by the API itself as a 500; anything else in the
+		// 5xx range came from in front of the server, so there is nothing worth replaying
+		for _, statusCode := range []int{http.StatusBadGateway, http.StatusServiceUnavailable, http.StatusGatewayTimeout} {
+			// carrying the null reference message, to show it's the status code doing the work here
+			gatewayError := &core.APIError{ErrorMessage: "Object reference not set to an instance of an object.", StatusCode: statusCode}
+			assert.Equal(t, error(gatewayError), create.DiagnoseCreateReleaseFailure(nil, nil, gatewayError))
+		}
 	})
 
 	t.Run("explains a bare null reference fault even when no packages are missing", func(t *testing.T) {
