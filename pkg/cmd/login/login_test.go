@@ -488,15 +488,30 @@ func TestConfigureHttpClient(t *testing.T) {
 	})
 
 	// this used to be a type assertion onto *http.Transport, which panics for any
-	// client that wraps its transport
-	t.Run("leaves a transport it does not own alone", func(t *testing.T) {
+	// client that wraps its transport. Refusing is deliberate: silently leaving
+	// verification on after the caller asked for the opposite is worse (see #726).
+	t.Run("reports a transport it cannot reach into", func(t *testing.T) {
 		mockClient := testutil.NewMockHttpClientWithTransport(testutil.RoundTripper(func(*http.Request) (*http.Response, error) {
 			return nil, nil
 		}))
 
-		httpClient, err := login.ConfigureHttpClient(mockClient, true)
+		_, err := login.ConfigureHttpClient(mockClient, true)
+		assert.ErrorContains(t, err, "unsupported HTTP transport")
+	})
+
+	t.Run("leaves a transport it cannot reach into alone when the flag is off", func(t *testing.T) {
+		mockClient := testutil.NewMockHttpClientWithTransport(testutil.RoundTripper(func(*http.Request) (*http.Response, error) {
+			return nil, nil
+		}))
+
+		httpClient, err := login.ConfigureHttpClient(mockClient, false)
 		assert.NoError(t, err)
 		assert.Same(t, mockClient, httpClient)
-		assert.IsType(t, testutil.RoundTripper(nil), httpClient.Transport)
+	})
+
+	t.Run("applies the ssl override to a plain transport", func(t *testing.T) {
+		httpClient, err := login.ConfigureHttpClient(&http.Client{Transport: &http.Transport{}}, true)
+		assert.NoError(t, err)
+		assert.True(t, httpClient.Transport.(*http.Transport).TLSClientConfig.InsecureSkipVerify)
 	})
 }
