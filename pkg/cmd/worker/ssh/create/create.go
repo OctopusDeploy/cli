@@ -26,6 +26,7 @@ type CreateFlags struct {
 	*shared.WorkerPoolFlags
 	*machinescommon.WebFlags
 	*machinescommon.SshCommonFlags
+	*machinescommon.CreateTargetDisabledFlags
 }
 
 type CreateOptions struct {
@@ -44,6 +45,7 @@ func NewCreateFlags() *CreateFlags {
 		CreateTargetProxyFlags:         machinescommon.NewCreateTargetProxyFlags(),
 		CreateTargetMachinePolicyFlags: machinescommon.NewCreateTargetMachinePolicyFlags(),
 		WorkerPoolFlags:                shared.NewWorkerPoolFlags(),
+		CreateTargetDisabledFlags:      machinescommon.NewCreateTargetDisabledFlags(),
 		WebFlags:                       machinescommon.NewWebFlags(),
 	}
 }
@@ -80,6 +82,7 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 	machinescommon.RegisterCreateTargetProxyFlags(cmd, createFlags.CreateTargetProxyFlags, "SSH worker")
 	machinescommon.RegisterCreateTargetMachinePolicyFlags(cmd, createFlags.CreateTargetMachinePolicyFlags)
 	shared.RegisterCreateWorkerWorkerPoolFlags(cmd, createFlags.WorkerPoolFlags)
+	machinescommon.RegisterCreateTargetDisabledFlags(cmd, createFlags.CreateTargetDisabledFlags, "worker")
 	machinescommon.RegisterWebFlag(cmd, createFlags.WebFlags)
 
 	return cmd
@@ -129,6 +132,8 @@ func createRun(opts *CreateOptions) error {
 	}
 	worker.MachinePolicyID = machinePolicy.GetID()
 
+	worker.IsDisabled = opts.Disabled.Value
+
 	createdWorker, err := opts.Client.Workers.Add(worker)
 	if err != nil {
 		return err
@@ -136,7 +141,7 @@ func createRun(opts *CreateOptions) error {
 
 	fmt.Fprintf(opts.Out, "Successfully created SSH worker '%s'.\n", createdWorker.Name)
 	if !opts.NoPrompt {
-		autoCmd := flag.GenerateAutomationCmd(opts.CmdPath, opts.GetSpaceNameOrEmpty(), opts.Name, opts.HostName, opts.Port, opts.Fingerprint, opts.Runtime, opts.Platform, opts.WorkerPools, opts.Account, opts.Proxy, opts.MachinePolicy)
+		autoCmd := flag.GenerateAutomationCmd(opts.CmdPath, opts.GetSpaceNameOrEmpty(), opts.Name, opts.HostName, opts.Port, opts.Fingerprint, opts.Runtime, opts.Platform, opts.WorkerPools, opts.Account, opts.Proxy, opts.MachinePolicy, opts.Disabled)
 		fmt.Fprintf(opts.Out, "\nAutomation Command: %s\n", autoCmd)
 	}
 

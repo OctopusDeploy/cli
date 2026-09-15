@@ -250,6 +250,14 @@ func NewDeploymentTarget(spaceID string, targetID string, name string, isDisable
 	return result
 }
 
+func NewWorker(spaceID string, workerID string, name string, isDisabled bool) *machines.Worker {
+	result := machines.NewWorker(name, machines.NewListeningTentacleEndpoint(&url.URL{Scheme: "https", Host: "worker:10933"}, "0123456789ABCDEF0123456789ABCDEF01234567"))
+	result.ID = workerID
+	result.SpaceID = spaceID
+	result.IsDisabled = isDisabled
+	return result
+}
+
 func NewRunbook(spaceID string, projectID string, runbookID string, name string) *runbooks.Runbook {
 	result := runbooks.NewRunbook(name, projectID)
 	result.ID = runbookID
