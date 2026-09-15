@@ -3160,6 +3160,10 @@ func TestReleaseCreate_AutomationMode_MissingPackageDiagnosis(t *testing.T) {
 			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/Fire Project").RespondWith(fireProject)
 
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+fireProjectID+"/channels").RespondWith(resources.Resources[*channels.Channel]{
+				Items: []*channels.Channel{defaultChannel},
+			})
+
 			api.ExpectRequest(t, "POST", "/api/Spaces-1/releases/create/v1").
 				RespondWithStatus(http.StatusInternalServerError, "500 Internal Server Error", nullReferenceError)
 
