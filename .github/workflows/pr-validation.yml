@@ -45,3 +45,21 @@ jobs:
           name: Test Results
           path: '*-tests.xml'
           reporter: java-junit
+
+  # the quoting this repo generates for cmd.exe and for Windows PowerShell can only be
+  # checked on Windows, and the parent process detection it relies on doesn't compile
+  # anywhere else. Only the two packages that have Windows specific behaviour are run;
+  # the rest are already covered by the job above and don't need a second runner.
+  test-windows:
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set up Go
+        uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+
+      - name: Shell Quoting Tests
+        run: go test ./pkg/util/shell/... ./pkg/util/flag/...
