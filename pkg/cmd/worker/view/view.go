@@ -2,6 +2,7 @@ package view
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/MakeNowJust/heredoc/v2"
@@ -49,7 +50,7 @@ func ViewRun(opts *shared.ViewOptions) error {
 			return getWorkerAsJson(opts, w)
 		},
 		Table: output.TableDefinition[*machines.Worker]{
-			Header: []string{"NAME", "TYPE", "HEALTH", "STATUS", "WORKER POOLS", "ENDPOINT DETAILS"},
+			Header: []string{"NAME", "TYPE", "HEALTH", "STATUS", "IS DISABLED", "WORKER POOLS", "ENDPOINT DETAILS"},
 			Row: func(w *machines.Worker) []string {
 				return getWorkerAsTableRow(opts, w)
 			},
@@ -74,6 +75,7 @@ type WorkerAsJson struct {
 	Name               string            `json:"Name"`
 	HealthStatus       string            `json:"HealthStatus"`
 	StatusSummary      string            `json:"StatusSummary"`
+	IsDisabled         bool              `json:"IsDisabled"`
 	CommunicationStyle string            `json:"CommunicationStyle"`
 	WorkerPools        []string          `json:"WorkerPools"`
 	EndpointDetails    map[string]string `json:"EndpointDetails"`
@@ -91,6 +93,7 @@ func getWorkerAsJson(opts *shared.ViewOptions, worker *machines.Worker) WorkerAs
 		Name:               worker.Name,
 		HealthStatus:       worker.HealthStatus,
 		StatusSummary:      worker.StatusSummary,
+		IsDisabled:         worker.IsDisabled,
 		CommunicationStyle: machinescommon.GetCommunicationStyle(worker.Endpoint),
 		WorkerPools:        workerPoolNames,
 		EndpointDetails:    endpointDetails,
@@ -110,6 +113,7 @@ func getWorkerAsTableRow(opts *shared.ViewOptions, worker *machines.Worker) []st
 		getWorkerTypeDisplayName(machinescommon.GetCommunicationStyle(worker.Endpoint)),
 		getHealthStatusFormatted(worker.HealthStatus),
 		worker.StatusSummary,
+		strconv.FormatBool(worker.IsDisabled),
 		strings.Join(workerPoolNames, ", "),
 		endpointDetailsStr,
 	}
@@ -121,6 +125,7 @@ func getWorkerAsBasic(opts *shared.ViewOptions, worker *machines.Worker) string 
 	result.WriteString(fmt.Sprintf("%s %s\n", output.Bold(worker.Name), output.Dimf("(%s)", worker.GetID())))
 	result.WriteString(fmt.Sprintf("Health status: %s\n", getHealthStatusFormatted(worker.HealthStatus)))
 	result.WriteString(fmt.Sprintf("Current status: %s\n", worker.StatusSummary))
+	result.WriteString(fmt.Sprintf("Disabled: %s\n", strconv.FormatBool(worker.IsDisabled)))
 	result.WriteString(fmt.Sprintf("Communication style: %s\n", getWorkerTypeDisplayName(machinescommon.GetCommunicationStyle(worker.Endpoint))))
 
 	workerPoolMap, _ := shared.GetWorkerPoolMap(opts)

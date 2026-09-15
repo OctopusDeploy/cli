@@ -2,6 +2,7 @@ package shared
 
 import (
 	"fmt"
+	"strconv"
 
 	"github.com/OctopusDeploy/cli/pkg/cmd"
 	"github.com/OctopusDeploy/cli/pkg/machinescommon"
@@ -51,6 +52,7 @@ func ViewRun(opts *ViewOptions, contributeEndpoint ContributeEndpointCallback, d
 	data = append(data, output.NewDataRow("Name", fmt.Sprintf("%s %s", output.Bold(target.Name), output.Dimf("(%s)", target.GetID()))))
 	data = append(data, output.NewDataRow("Health status", getHealthStatus(target)))
 	data = append(data, output.NewDataRow("Current status", target.StatusSummary))
+	data = append(data, output.NewDataRow("Disabled", strconv.FormatBool(target.IsDisabled)))
 
 	if contributeEndpoint != nil {
 		if machines.IsNil(target.Endpoint) {

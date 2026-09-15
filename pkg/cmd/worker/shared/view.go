@@ -7,6 +7,7 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/output"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/machines"
 	"github.com/spf13/cobra"
+	"strconv"
 )
 
 type ContributeEndpointCallback func(opts *ViewOptions, endpoint machines.IEndpoint) ([]*output.DataRow, error)
@@ -19,7 +20,7 @@ type ViewOptions struct {
 	*cmd.Dependencies
 	IdOrName string
 	*ViewFlags
-	Command  *cobra.Command
+	Command *cobra.Command
 }
 
 func NewViewFlags() *ViewFlags {
@@ -48,6 +49,7 @@ func ViewRun(opts *ViewOptions, contributeEndpoint ContributeEndpointCallback, d
 	data = append(data, output.NewDataRow("Name", fmt.Sprintf("%s %s", output.Bold(worker.Name), output.Dimf("(%s)", worker.GetID()))))
 	data = append(data, output.NewDataRow("Health status", getHealthStatus(worker)))
 	data = append(data, output.NewDataRow("Current status", worker.StatusSummary))
+	data = append(data, output.NewDataRow("Disabled", strconv.FormatBool(worker.IsDisabled)))
 
 	workerPoolMap, err := GetWorkerPoolMap(opts)
 	workerPoolNames := resolveValues(worker.WorkerPoolIDs, workerPoolMap)

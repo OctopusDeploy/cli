@@ -10,6 +10,7 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/output"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/machines"
 	"github.com/spf13/cobra"
+	"strconv"
 )
 
 type ListOptions struct {
@@ -75,12 +76,12 @@ func ListRun(opts *ListOptions) error {
 			return shared.GetDeploymentTargetAsJson(opts.Dependencies, item)
 		},
 		Table: output.TableDefinition[*machines.DeploymentTarget]{
-			Header: []string{"NAME", "TYPE", "ROLES", "ENVIRONMENTS", "TENANTS", "TAGS", "DEFAULT WORKER POOL"},
+			Header: []string{"NAME", "TYPE", "IS DISABLED", "ROLES", "ENVIRONMENTS", "TENANTS", "TAGS", "DEFAULT WORKER POOL"},
 			Row: func(item *machines.DeploymentTarget) []string {
 				environmentNames := resolveValues(item.EnvironmentIDs, environmentMap)
 				tenantNames := resolveValues(item.TenantIDs, tenantMap)
 				workerPool := shared.ResolveDefaultWorkerPool(item, workerPoolMap, "None")
-				return []string{output.Bold(item.Name), describeTargetType(item), output.FormatAsList(item.Roles), output.FormatAsList(environmentNames), output.FormatAsList(tenantNames), output.FormatAsList(item.TenantTags), workerPool}
+				return []string{output.Bold(item.Name), describeTargetType(item), strconv.FormatBool(item.IsDisabled), output.FormatAsList(item.Roles), output.FormatAsList(environmentNames), output.FormatAsList(tenantNames), output.FormatAsList(item.TenantTags), workerPool}
 			},
 		},
 		Basic: func(item *machines.DeploymentTarget) string {

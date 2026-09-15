@@ -2,6 +2,7 @@ package view
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/MakeNowJust/heredoc/v2"
@@ -53,7 +54,7 @@ func ViewRun(opts *shared.ViewOptions) error {
 			return getDeploymentTargetAsJson(opts.Dependencies, t, environmentMap, tenantMap, workerPoolMap)
 		},
 		Table: output.TableDefinition[*machines.DeploymentTarget]{
-			Header: []string{"NAME", "TYPE", "HEALTH", "ENVIRONMENTS", "ROLES", "TENANTS", "TENANT TAGS", "ENDPOINT DETAILS", "DEFAULT WORKER POOL"},
+			Header: []string{"NAME", "TYPE", "HEALTH", "IS DISABLED", "ENVIRONMENTS", "ROLES", "TENANTS", "TENANT TAGS", "ENDPOINT DETAILS", "DEFAULT WORKER POOL"},
 			Row: func(t *machines.DeploymentTarget) []string {
 				return getDeploymentTargetAsTableRow(opts, t, environmentMap, tenantMap, workerPoolMap)
 			},
@@ -75,6 +76,7 @@ func getDeploymentTargetAsJson(deps *cmd.Dependencies, target *machines.Deployme
 		Name:               target.Name,
 		HealthStatus:       target.HealthStatus,
 		StatusSummary:      target.StatusSummary,
+		IsDisabled:         target.IsDisabled,
 		CommunicationStyle: machinescommon.GetCommunicationStyle(target.Endpoint),
 		Environments:       environments,
 		Roles:              target.Roles,
@@ -134,6 +136,7 @@ func getDeploymentTargetAsTableRow(opts *shared.ViewOptions, target *machines.De
 		output.Bold(target.Name),
 		targetType,
 		healthStatus,
+		strconv.FormatBool(target.IsDisabled),
 		strings.Join(environments, ", "),
 		strings.Join(target.Roles, ", "),
 		tenants,
@@ -197,6 +200,9 @@ func getDeploymentTargetAsBasic(opts *shared.ViewOptions, target *machines.Deplo
 
 	// Current status
 	result.WriteString(fmt.Sprintf("Current status: %s\n", target.StatusSummary))
+
+	// Disabled state
+	result.WriteString(fmt.Sprintf("Disabled: %s\n", strconv.FormatBool(target.IsDisabled)))
 
 	// Target type and endpoint details
 	targetType := getTargetTypeDisplayName(machinescommon.GetCommunicationStyle(target.Endpoint))
