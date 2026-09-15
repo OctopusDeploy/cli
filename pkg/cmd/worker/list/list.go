@@ -12,6 +12,7 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/output"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/machines"
 	"github.com/spf13/cobra"
+	"strconv"
 )
 
 type ListOptions struct {
@@ -55,6 +56,7 @@ func ListRun(opts *ListOptions) error {
 		Type          string         `json:"Type"`
 		HealthStatus  string         `json:"HealthStatus"`
 		StatusSummary string         `json:"StatusSummary"`
+		IsDisabled    bool           `json:"IsDisabled"`
 		WorkerPools   []model.Entity `json:"WorkerPools"`
 		URI           string         `json:"URI"`
 		Version       string         `json:"Version,omitempty"`
@@ -77,6 +79,7 @@ func ListRun(opts *ListOptions) error {
 				Type:          describeWorkerType(item.Endpoint),
 				HealthStatus:  item.HealthStatus,
 				StatusSummary: item.StatusSummary,
+				IsDisabled:    item.IsDisabled,
 				WorkerPools:   resolveEntities(item.WorkerPoolIDs, workerPoolMap),
 				URI:           getEndpointUri(item.Endpoint),
 				Version:       getVersion(item.Endpoint),
@@ -86,10 +89,10 @@ func ListRun(opts *ListOptions) error {
 			}
 		},
 		Table: output.TableDefinition[*machines.Worker]{
-			Header: []string{"NAME", "TYPE", "WORKER POOLS"},
+			Header: []string{"NAME", "TYPE", "IS DISABLED", "WORKER POOLS"},
 			Row: func(item *machines.Worker) []string {
 				poolNames := resolveValues(item.WorkerPoolIDs, workerPoolMap)
-				return []string{output.Bold(item.Name), describeWorkerStyle(item.Endpoint), output.FormatAsList(poolNames)}
+				return []string{output.Bold(item.Name), describeWorkerStyle(item.Endpoint), strconv.FormatBool(item.IsDisabled), output.FormatAsList(poolNames)}
 			},
 		},
 		Basic: func(item *machines.Worker) string {

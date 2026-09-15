@@ -14,6 +14,7 @@ type DeploymentTargetAsJson struct {
 	Name               string            `json:"Name"`
 	HealthStatus       string            `json:"HealthStatus"`
 	StatusSummary      string            `json:"StatusSummary"`
+	IsDisabled         bool              `json:"IsDisabled"`
 	CommunicationStyle string            `json:"CommunicationStyle"`
 	Environments       []string          `json:"Environments"`
 	Roles              []string          `json:"Roles"`
@@ -42,6 +43,7 @@ func GetDeploymentTargetAsJson(deps *cmd.Dependencies, target *machines.Deployme
 		Name:               target.Name,
 		HealthStatus:       target.HealthStatus,
 		StatusSummary:      target.StatusSummary,
+		IsDisabled:         target.IsDisabled,
 		CommunicationStyle: machinescommon.GetCommunicationStyle(target.Endpoint),
 		Environments:       environments,
 		Roles:              target.Roles,
