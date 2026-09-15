@@ -16,6 +16,7 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/OctopusDeploy/cli/pkg/output"
 	"github.com/OctopusDeploy/cli/pkg/question"
+	"github.com/OctopusDeploy/cli/pkg/question/selectors"
 	"github.com/OctopusDeploy/cli/pkg/util"
 	"github.com/OctopusDeploy/cli/pkg/util/flag"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/core"
@@ -166,7 +167,7 @@ func processRunbookTasks(octopus *octopusApiClient.Client, space *spaces.Space, 
 	return results
 }
 
-func runRunbooksByTag(cmd *cobra.Command, f factory.Factory, flags *RunFlags, octopus *octopusApiClient.Client, project *projects.Project, parsedVariables map[string]string, outputFormat string, isGit bool) error {
+func runRunbooksByTag(cmd *cobra.Command, f factory.Factory, flags *RunFlags, octopus *octopusApiClient.Client, project *projects.Project, resolvedEnvironments []*selectors.ResolvedEnvironment, parsedVariables map[string]string, outputFormat string, isGit bool) error {
 	var allRunbooks []*runbooks.Runbook
 	var err error
 
@@ -197,6 +198,10 @@ func runRunbooksByTag(cmd *cobra.Command, f factory.Factory, flags *RunFlags, oc
 		cmd.Println()
 	}
 
+	// the caller has already resolved any environments given on the command line; keep their IDs so
+	// the run previews below don't have to resolve the canonical names a second time
+	environmentIDs := util.SliceTransform(resolvedEnvironments, func(env *selectors.ResolvedEnvironment) string { return env.ID })
+
 	var selectedEnvironments []*environments.Environment
 	if f.IsPromptEnabled() {
 		if len(flags.Environments.Value) == 0 {
@@ -209,6 +214,7 @@ func runRunbooksByTag(cmd *cobra.Command, f factory.Factory, flags *RunFlags, oc
 				return err
 			}
 			flags.Environments.Value = util.SliceTransform(selectedEnvironments, func(env *environments.Environment) string { return env.Name })
+			environmentIDs = util.SliceTransform(selectedEnvironments, func(env *environments.Environment) string { return env.ID })
 		}
 
 		if len(flags.Tenants.Value) == 0 && len(flags.TenantTags.Value) == 0 {
@@ -226,27 +232,27 @@ func runRunbooksByTag(cmd *cobra.Command, f factory.Factory, flags *RunFlags, oc
 
 	// Check if any runbooks have prompted variables - block execution if found
 	if len(parsedVariables) == 0 {
+		if len(environmentIDs) == 0 { // nothing was pre-resolved, so fall back to a name lookup
+			envs, err := executionscommon.FindEnvironments(octopus, flags.Environments.Value[:1])
+			if err == nil {
+				environmentIDs = util.SliceTransform(envs, func(env *environments.Environment) string { return env.ID })
+			}
+		}
+		// one preview per runbook is enough to spot prompted variables, so only the first environment is used
+		previewEnvironmentID := ""
+		if len(environmentIDs) > 0 {
+			previewEnvironmentID = environmentIDs[0]
+		}
+
 		hasPromptedVars := false
 		var runbookWithPrompts string
 		for _, runbook := range matchingRunbooks {
 			var preview *runbooks.RunPreview
-			if isGit {
-				// Get preview for first environment to check for prompted variables
-				if len(flags.Environments.Value) > 0 {
-					envs, err := executionscommon.FindEnvironments(octopus, flags.Environments.Value[:1])
-					if err == nil && len(envs) > 0 {
-						preview, _ = runbooks.GetGitRunbookRunPreview(octopus, f.GetCurrentSpace().ID, project.ID, runbook.ID, flags.GitRef.Value, envs[0].ID, true)
-					}
-				}
-			} else {
-				// For DB runbooks, we need the published snapshot
-				if runbook.PublishedRunbookSnapshotID != "" {
-					if len(flags.Environments.Value) > 0 {
-						envs, err := executionscommon.FindEnvironments(octopus, flags.Environments.Value[:1])
-						if err == nil && len(envs) > 0 {
-							preview, _ = runbooks.GetRunbookSnapshotRunPreview(octopus, f.GetCurrentSpace().ID, runbook.PublishedRunbookSnapshotID, envs[0].ID, true)
-						}
-					}
+			if previewEnvironmentID != "" {
+				if isGit {
+					preview, _ = runbooks.GetGitRunbookRunPreview(octopus, f.GetCurrentSpace().ID, project.ID, runbook.ID, flags.GitRef.Value, previewEnvironmentID, true)
+				} else if runbook.PublishedRunbookSnapshotID != "" { // for DB runbooks, we need the published snapshot
+					preview, _ = runbooks.GetRunbookSnapshotRunPreview(octopus, f.GetCurrentSpace().ID, runbook.PublishedRunbookSnapshotID, previewEnvironmentID, true)
 				}
 			}
 			if preview != nil && len(preview.Form.Elements) > 0 {
