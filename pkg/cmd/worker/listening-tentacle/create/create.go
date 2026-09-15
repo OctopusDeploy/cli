@@ -31,6 +31,7 @@ type CreateFlags struct {
 	*machinescommon.CreateTargetMachinePolicyFlags
 	*shared.WorkerPoolFlags
 	*machinescommon.WebFlags
+	*machinescommon.CreateTargetDisabledFlags
 }
 
 type CreateOptions struct {
@@ -49,6 +50,7 @@ func NewCreateFlags() *CreateFlags {
 		CreateTargetProxyFlags:         machinescommon.NewCreateTargetProxyFlags(),
 		CreateTargetMachinePolicyFlags: machinescommon.NewCreateTargetMachinePolicyFlags(),
 		WorkerPoolFlags:                shared.NewWorkerPoolFlags(),
+		CreateTargetDisabledFlags:      machinescommon.NewCreateTargetDisabledFlags(),
 		WebFlags:                       machinescommon.NewWebFlags(),
 	}
 }
@@ -87,6 +89,7 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 	machinescommon.RegisterCreateTargetProxyFlags(cmd, createFlags.CreateTargetProxyFlags, "Listening Tentacle")
 	machinescommon.RegisterCreateTargetMachinePolicyFlags(cmd, createFlags.CreateTargetMachinePolicyFlags)
 	shared.RegisterCreateWorkerWorkerPoolFlags(cmd, createFlags.WorkerPoolFlags)
+	machinescommon.RegisterCreateTargetDisabledFlags(cmd, createFlags.CreateTargetDisabledFlags, "worker")
 	machinescommon.RegisterWebFlag(cmd, createFlags.WebFlags)
 
 	return cmd
@@ -126,6 +129,8 @@ func createRun(opts *CreateOptions) error {
 	}
 	worker.MachinePolicyID = machinePolicy.GetID()
 
+	worker.IsDisabled = opts.Disabled.Value
+
 	createdWorker, err := opts.Client.Workers.Add(worker)
 	if err != nil {
 		return err
@@ -133,7 +138,7 @@ func createRun(opts *CreateOptions) error {
 
 	fmt.Fprintf(opts.Out, "Successfully created Listening Tentacle worker '%s'.\n", worker.Name)
 	if !opts.NoPrompt {
-		autoCmd := flag.GenerateAutomationCmd(opts.CmdPath, opts.GetSpaceNameOrEmpty(), opts.Name, opts.URL, opts.Thumbprint, opts.Proxy, opts.MachinePolicy, opts.WorkerPools)
+		autoCmd := flag.GenerateAutomationCmd(opts.CmdPath, opts.GetSpaceNameOrEmpty(), opts.Name, opts.URL, opts.Thumbprint, opts.Proxy, opts.MachinePolicy, opts.WorkerPools, opts.Disabled)
 		fmt.Fprintf(opts.Out, "\nAutomation Command: %s\n", autoCmd)
 	}
 

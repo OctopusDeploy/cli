@@ -3,6 +3,8 @@ package worker
 import (
 	"github.com/MakeNowJust/heredoc/v2"
 	cmdDelete "github.com/OctopusDeploy/cli/pkg/cmd/worker/delete"
+	cmdDisable "github.com/OctopusDeploy/cli/pkg/cmd/worker/disable"
+	cmdEnable "github.com/OctopusDeploy/cli/pkg/cmd/worker/enable"
 	cmdList "github.com/OctopusDeploy/cli/pkg/cmd/worker/list"
 	listeningTentacle "github.com/OctopusDeploy/cli/pkg/cmd/worker/listening-tentacle"
 	pollingTentacle "github.com/OctopusDeploy/cli/pkg/cmd/worker/polling-tentacle"
@@ -31,8 +33,10 @@ func NewCmdWorker(f factory.Factory) *cobra.Command {
 	cmd.AddCommand(listeningTentacle.NewCmdListeningTentacle(f))
 	cmd.AddCommand(pollingTentacle.NewCmdPollingTentacle(f))
 	cmd.AddCommand(ssh.NewCmdSsh(f))
-	cmd.AddCommand(cmdList.NewCmdList(f))
 	cmd.AddCommand(cmdDelete.NewCmdDelete(f))
+	cmd.AddCommand(cmdEnable.NewCmdEnable(f))
+	cmd.AddCommand(cmdDisable.NewCmdDisable(f))
+	cmd.AddCommand(cmdList.NewCmdList(f))
 	cmd.AddCommand(cmdView.NewCmdView(f))
 
 	return cmd

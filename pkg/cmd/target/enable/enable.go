@@ -3,9 +3,9 @@ package enable
 import (
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/cmd"
-	"github.com/OctopusDeploy/cli/pkg/cmd/target/shared"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/factory"
+	"github.com/OctopusDeploy/cli/pkg/machinescommon"
 	"github.com/OctopusDeploy/cli/pkg/usage"
 	"github.com/spf13/cobra"
 )
@@ -21,8 +21,9 @@ func NewCmdEnable(f factory.Factory) *cobra.Command {
 			%[1]s deployment-target enable 'web-server'
 		`, constants.ExecutableName),
 		RunE: func(c *cobra.Command, args []string) error {
-			opts := shared.NewSetDisabledStateOptions(args, cmd.NewDependencies(f, c), false)
-			return shared.SetDisabledState(opts)
+			dependencies := cmd.NewDependencies(f, c)
+			opts := machinescommon.NewSetDisabledStateOptions(args, dependencies, machinescommon.NewDeploymentTargetKind(dependencies), false)
+			return machinescommon.SetDisabledState(opts)
 		},
 	}
 }

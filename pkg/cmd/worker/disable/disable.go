@@ -14,15 +14,15 @@ func NewCmdDisable(f factory.Factory) *cobra.Command {
 	return &cobra.Command{
 		Args:  usage.MaximumNArgs(1),
 		Use:   "disable [<name> | <id>]",
-		Short: "Disable a deployment target",
-		Long:  "Disable a deployment target in Octopus Deploy",
+		Short: "Disable a worker",
+		Long:  "Disable a worker in Octopus Deploy",
 		Example: heredoc.Docf(`
-			%[1]s deployment-target disable Machines-100
-			%[1]s deployment-target disable 'web-server'
+			%[1]s worker disable Workers-100
+			%[1]s worker disable 'build-worker'
 		`, constants.ExecutableName),
 		RunE: func(c *cobra.Command, args []string) error {
 			dependencies := cmd.NewDependencies(f, c)
-			opts := machinescommon.NewSetDisabledStateOptions(args, dependencies, machinescommon.NewDeploymentTargetKind(dependencies), true)
+			opts := machinescommon.NewSetDisabledStateOptions(args, dependencies, machinescommon.NewWorkerKind(dependencies), true)
 			return machinescommon.SetDisabledState(opts)
 		},
 	}
