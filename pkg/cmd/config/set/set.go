@@ -1,6 +1,7 @@
 package set
 
 import (
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -67,13 +68,21 @@ func setRun(isPromptEnabled bool, ask question.Asker, key string, value string) 
 		key = k
 	}
 	key = strings.ToLower(key)
-	if key == strings.ToLower(constants.ConfigNoPrompt) {
+	switch key {
+	case strings.ToLower(constants.ConfigNoPrompt):
 		boolValue, err := strconv.ParseBool(value)
 		if err != nil {
 			return fmt.Errorf("the provided value %s is not valid for NoPrompt, please use true of false", value)
 		}
 		localViper.Set(key, boolValue)
-	} else {
+	case strings.ToLower(constants.ConfigOutputFormat):
+		// reject it here rather than let it sit in the config file poisoning every later command
+		value = strings.ToLower(strings.TrimSpace(value))
+		if !constants.IsValidOutputFormat(value) {
+			return errors.New(constants.UnsupportedOutputFormatMessage(value))
+		}
+		localViper.Set(key, value)
+	default:
 		localViper.Set(key, value)
 	}
 	if err := localViper.WriteConfig(); err != nil {
