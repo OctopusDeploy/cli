@@ -102,7 +102,7 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 	machinescommon.RegisterCreateTargetProxyFlags(cmd, createFlags.CreateTargetProxyFlags, "SSH target")
 	machinescommon.RegisterCreateTargetMachinePolicyFlags(cmd, createFlags.CreateTargetMachinePolicyFlags)
 	shared.RegisterCreateTargetTenantFlags(cmd, createFlags.CreateTargetTenantFlags)
-	machinescommon.RegisterCreateTargetDisabledFlags(cmd, createFlags.CreateTargetDisabledFlags)
+	machinescommon.RegisterCreateTargetDisabledFlags(cmd, createFlags.CreateTargetDisabledFlags, "deployment target")
 	machinescommon.RegisterWebFlag(cmd, createFlags.WebFlags)
 
 	return cmd

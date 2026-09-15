@@ -86,7 +86,7 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 	shared.RegisterCreateTargetRoleFlags(cmd, createFlags.CreateTargetRoleFlags)
 	shared.RegisterCreateTargetWorkerPoolFlags(cmd, createFlags.WorkerPoolFlags)
 	shared.RegisterCreateTargetTenantFlags(cmd, createFlags.CreateTargetTenantFlags)
-	machinescommon.RegisterCreateTargetDisabledFlags(cmd, createFlags.CreateTargetDisabledFlags)
+	machinescommon.RegisterCreateTargetDisabledFlags(cmd, createFlags.CreateTargetDisabledFlags, "deployment target")
 	machinescommon.RegisterWebFlag(cmd, createFlags.WebFlags)
 
 	return cmd
