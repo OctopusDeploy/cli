@@ -60,10 +60,10 @@ func listRun(cmd *cobra.Command, f factory.Factory) error {
 	// Two lookups for the whole list rather than one per project, and best-effort
 	// as channel list is: listing still works without access to either. Basic
 	// output only prints names, so don't pay for the round trips there.
-	var lifecycleMap, projectGroupMap map[string]string
+	var lifecycleIdToNameMap, projectGroupIdToNameMap map[string]string
 	if output.ResolveOutputFormat(cmd) != constants.OutputFormatBasic {
-		lifecycleMap = lookups.GetLifecycleMap(client)
-		projectGroupMap = lookups.GetProjectGroupMap(client)
+		lifecycleIdToNameMap = lookups.GetLifecycleIdToNameMap(client)
+		projectGroupIdToNameMap = lookups.GetProjectGroupIdToNameMap(client)
 	}
 
 	return output.PrintArray(allProjects, cmd, output.Mappers[*projects.Project]{
@@ -76,9 +76,9 @@ func listRun(cmd *cobra.Command, f factory.Factory) error {
 				Slug:                   p.Slug,
 				SpaceId:                p.SpaceID,
 				ProjectGroupId:         p.ProjectGroupID,
-				ProjectGroupName:       projectGroupMap[p.ProjectGroupID],
+				ProjectGroupName:       projectGroupIdToNameMap[p.ProjectGroupID],
 				LifecycleId:            p.LifecycleID,
-				LifecycleName:          lifecycleMap[p.LifecycleID],
+				LifecycleName:          lifecycleIdToNameMap[p.LifecycleID],
 				IsDisabled:             p.IsDisabled,
 				IsVersionControlled:    p.IsVersionControlled,
 				TenantedDeploymentMode: shared.TenantedDeploymentMode(p),
@@ -90,8 +90,8 @@ func listRun(cmd *cobra.Command, f factory.Factory) error {
 				return []string{
 					output.Bold(p.Name),
 					p.Slug,
-					lookups.DisplayName(p.ProjectGroupID, projectGroupMap[p.ProjectGroupID]),
-					lookups.DisplayName(p.LifecycleID, lifecycleMap[p.LifecycleID]),
+					lookups.DisplayName(p.ProjectGroupID, projectGroupIdToNameMap[p.ProjectGroupID]),
+					lookups.DisplayName(p.LifecycleID, lifecycleIdToNameMap[p.LifecycleID]),
 					p.Description,
 					output.FormatAsList(p.ProjectTags),
 				}

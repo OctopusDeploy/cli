@@ -7,36 +7,36 @@ import (
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
 )
 
-// GetLifecycleMap resolves lifecycle IDs to names for display. Best-effort: a
-// failed lookup yields an empty map and callers fall back to the ID.
-func GetLifecycleMap(octopus *client.Client) map[string]string {
-	lifecycleMap := make(map[string]string)
+// GetLifecycleIdToNameMap resolves lifecycle IDs to names for display.
+// If the name cannot be resolved, the caller should fall back to the ID.
+func GetLifecycleIdToNameMap(octopus *client.Client) map[string]string {
+	lifecycleIdToNameMap := make(map[string]string)
 	allLifecycles, err := octopus.Lifecycles.GetAll()
 	if err != nil {
-		return lifecycleMap
+		return lifecycleIdToNameMap
 	}
 	for _, l := range allLifecycles {
-		lifecycleMap[l.GetID()] = l.Name
+		lifecycleIdToNameMap[l.GetID()] = l.Name
 	}
-	return lifecycleMap
+	return lifecycleIdToNameMap
 }
 
-// GetProjectGroupMap resolves project group IDs to names for display. Best-effort,
-// as GetLifecycleMap is.
-func GetProjectGroupMap(octopus *client.Client) map[string]string {
-	projectGroupMap := make(map[string]string)
+// GetProjectGroupIdToNameMap resolves project group IDs to names for display.
+// If the name cannot be resolved, the caller should fall back to the ID.
+func GetProjectGroupIdToNameMap(octopus *client.Client) map[string]string {
+	projectGroupIdToNameMap := make(map[string]string)
 	allProjectGroups, err := octopus.ProjectGroups.GetAll()
 	if err != nil {
-		return projectGroupMap
+		return projectGroupIdToNameMap
 	}
 	for _, pg := range allProjectGroups {
-		projectGroupMap[pg.GetID()] = pg.Name
+		projectGroupIdToNameMap[pg.GetID()] = pg.Name
 	}
-	return projectGroupMap
+	return projectGroupIdToNameMap
 }
 
-// GetLifecycleName resolves a single lifecycle ID, which is cheaper than a whole
-// map when only one resource is being displayed. Empty when it can't be resolved.
+// GetLifecycleName resolves a single lifecycle name given its ID.
+// An empty string is returned when the name cannot be resolved.
 func GetLifecycleName(octopus *client.Client, lifecycleID string) string {
 	if lifecycleID == "" {
 		return ""
@@ -48,7 +48,8 @@ func GetLifecycleName(octopus *client.Client, lifecycleID string) string {
 	return lifecycle.Name
 }
 
-// GetProjectGroupName resolves a single project group ID, as GetLifecycleName does.
+// GetProjectGroupName resolves a single project group name given its ID.
+// An empty string is returned when the name cannot be resolved.
 func GetProjectGroupName(octopus *client.Client, projectGroupID string) string {
 	if projectGroupID == "" {
 		return ""

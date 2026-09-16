@@ -102,7 +102,7 @@ func listRun(cmd *cobra.Command, f factory.Factory, flags *ListFlags) error {
 	}
 
 	// best-effort, as channel view is: listing still works without access to lifecycles
-	lifecycleMap := lookups.GetLifecycleMap(octopus)
+	lifecycleMap := lookups.GetLifecycleIdToNameMap(octopus)
 
 	filter := strings.ToLower(flags.Filter.Value)
 	viewModels := make([]ChannelViewModel, 0, len(allChannels))
