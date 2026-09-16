@@ -57,9 +57,7 @@ func listRun(cmd *cobra.Command, f factory.Factory) error {
 		return err
 	}
 
-	// Two lookups for the whole list rather than one per project, and best-effort
-	// as channel list is: listing still works without access to either. Basic
-	// output only prints names, so don't pay for the round trips there.
+	// Basic output only prints names, so don't pay for the lookups there
 	var lifecycleIdToNameMap, projectGroupIdToNameMap map[string]string
 	if output.ResolveOutputFormat(cmd) != constants.OutputFormatBasic {
 		lifecycleIdToNameMap = lookups.GetLifecycleIdToNameMap(client)

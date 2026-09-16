@@ -90,7 +90,6 @@ func viewRun(opts *ViewOptions) error {
 		return err
 	}
 
-	// best-effort, as channel list is: viewing still works without access to either
 	lifecycleName := lookups.GetLifecycleName(opts.Client, project.LifecycleID)
 	projectGroupName := lookups.GetProjectGroupName(opts.Client, project.ProjectGroupID)
 
@@ -211,8 +210,7 @@ func formatProjectForBasic(opts *ViewOptions, project *projects.Project, project
 	// header
 	result.WriteString(fmt.Sprintf("%s %s\n", output.Bold(project.Name), output.Dimf("(%s)", project.Slug)))
 
-	// where the project sits and how it releases; skip a label rather than print
-	// it with nothing after it when neither the name nor the ID is available
+	// Skip a label rather than print it with nothing after it when neither the name nor the ID is available
 	if group := lookups.DisplayName(project.ProjectGroupID, projectGroupName); group != "" {
 		result.WriteString(fmt.Sprintf("Project group: %s\n", output.Cyan(group)))
 	}
@@ -221,8 +219,7 @@ func formatProjectForBasic(opts *ViewOptions, project *projects.Project, project
 	}
 	result.WriteString(fmt.Sprintf("Tenanted deployment mode: %s\n", output.Cyan(shared.TenantedDeploymentMode(project))))
 
-	// version control branch; empty when the project claims to be version
-	// controlled but carries no Git settings, so skip the label as above
+	// version control branch; empty when there are no Git settings, so skip the label as above
 	if branch := versionControlBranch(project); branch != "" {
 		result.WriteString(fmt.Sprintf("Version control branch: %s\n", output.Cyan(branch)))
 	}
