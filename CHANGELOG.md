@@ -1,5 +1,25 @@
 # Changelog
 
+## [2.26.0](https://github.com/OctopusDeploy/cli/compare/v2.25.1...v2.26.0) (2026-09-16)
+
+
+### Features
+
+* add project metadata to project list and view ([33c97f5](https://github.com/OctopusDeploy/cli/commit/33c97f5236825e9fa71f18b9b373f1fe8a4e8836)), closes [#491](https://github.com/OctopusDeploy/cli/issues/491)
+
+
+### Bug Fixes
+
+* don't panic when a version controlled project has no git settings ([ba91025](https://github.com/OctopusDeploy/cli/commit/ba91025f4570c157ba858657eac068515a754b7f))
+* don't print an empty project group or lifecycle label in basic view ([9fb826e](https://github.com/OctopusDeploy/cli/commit/9fb826ea876fa292b2cfb47ef0de868d5757457f))
+* don't print an empty version control branch label in basic view ([bbae421](https://github.com/OctopusDeploy/cli/commit/bbae4213324824c7386b55619415c3d8deb4d70e))
+* honour project view --web for every output format ([7a258ff](https://github.com/OctopusDeploy/cli/commit/7a258ff09ebbddb7b0070041d6f37f0468ef58dd))
+
+
+### Performance Improvements
+
+* skip the name lookups for project list -f basic ([5ee2786](https://github.com/OctopusDeploy/cli/commit/5ee278623193fdf1c78e384c6385a84efc1864bc))
+
 ## [2.25.1](https://github.com/OctopusDeploy/cli/compare/v2.25.0...v2.25.1) (2026-09-09)
 
 
