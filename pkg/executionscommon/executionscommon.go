@@ -8,7 +8,6 @@ import (
 	"github.com/AlecAivazis/survey/v2"
 	cliErrors "github.com/OctopusDeploy/cli/pkg/errors"
 	"github.com/OctopusDeploy/cli/pkg/question"
-	"github.com/OctopusDeploy/cli/pkg/question/selectors"
 	"github.com/OctopusDeploy/cli/pkg/surveyext"
 	"github.com/OctopusDeploy/cli/pkg/util"
 	octopusApiClient "github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
@@ -461,10 +460,4 @@ func ScheduledStartTimeAnswerFormatter(datePicker *surveyext.DatePicker, t time.
 	} else {
 		return t.String()
 	}
-}
-
-// FindEnvironments maps an array of environment names or IDs onto the matching objects.
-// Kept as an alias so existing callers don't have to change; selectors owns the lookup.
-func FindEnvironments(client *octopusApiClient.Client, environmentNamesOrIds []string) ([]*environments.Environment, error) {
-	return selectors.FindEnvironments(client, environmentNamesOrIds)
 }

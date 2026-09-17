@@ -654,7 +654,7 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 
 		if !isDeploymentTargetsSpecified {
 			if len(deploymentEnvironmentIDs) == 0 { // if the Q&A process earlier hasn't loaded environments already, we need to load them now
-				selectedEnvironments, err := executionscommon.FindEnvironments(octopus, options.Environments)
+				selectedEnvironments, err := selectors.FindEnvironments(octopus, options.Environments)
 				if err != nil {
 					return err
 				}
@@ -668,7 +668,7 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 
 		if !isDeploymentTargetTagsSpecified {
 			if len(deploymentEnvironmentIDs) == 0 { // if the Q&A process earlier hasn't loaded environments already, we need to load them now
-				selectedEnvironments, err := executionscommon.FindEnvironments(octopus, options.Environments)
+				selectedEnvironments, err := selectors.FindEnvironments(octopus, options.Environments)
 				if err != nil {
 					return err
 				}

@@ -856,7 +856,7 @@ func AskDbRunbookRunQuestions(octopus *octopusApiClient.Client, stdout io.Writer
 
 		if !isRunTargetsSpecified {
 			if len(environmentIDs) == 0 { // if the Q&A process earlier hasn't loaded environments already, we need to load them now
-				envs, err := executionscommon.FindEnvironments(octopus, options.Environments)
+				envs, err := selectors.FindEnvironments(octopus, options.Environments)
 				if err != nil {
 					return err
 				}
@@ -871,7 +871,7 @@ func AskDbRunbookRunQuestions(octopus *octopusApiClient.Client, stdout io.Writer
 
 		if !isRunTargetTagsSpecified {
 			if len(selectedEnvironments) == 0 { // if the Q&A process earlier hasn't loaded environments already, we need to load them now
-				selectedEnvironments, err = executionscommon.FindEnvironments(octopus, options.Environments)
+				selectedEnvironments, err = selectors.FindEnvironments(octopus, options.Environments)
 				if err != nil {
 					return err
 				}
@@ -1084,7 +1084,7 @@ func AskGitRunbookRunQuestions(octopus *octopusApiClient.Client, stdout io.Write
 
 		if !isRunTargetsSpecified {
 			if len(environmentIDs) == 0 { // if the Q&A process earlier hasn't loaded environments already, we need to load them now
-				envs, err := executionscommon.FindEnvironments(octopus, options.Environments)
+				envs, err := selectors.FindEnvironments(octopus, options.Environments)
 				if err != nil {
 					return err
 				}
@@ -1099,7 +1099,7 @@ func AskGitRunbookRunQuestions(octopus *octopusApiClient.Client, stdout io.Write
 
 		if !isRunTargetTagsSpecified {
 			if len(selectedEnvironments) == 0 { // if the Q&A process earlier hasn't loaded environments already, we need to load them now
-				selectedEnvironments, err = executionscommon.FindEnvironments(octopus, options.Environments)
+				selectedEnvironments, err = selectors.FindEnvironments(octopus, options.Environments)
 				if err != nil {
 					return err
 				}

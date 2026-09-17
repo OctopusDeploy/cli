@@ -19,9 +19,9 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/question/selectors"
 	"github.com/OctopusDeploy/cli/pkg/util"
 	"github.com/OctopusDeploy/cli/pkg/util/flag"
+	octopusApiClient "github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/core"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/environments"
-	octopusApiClient "github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/runbooks"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/spaces"
@@ -233,7 +233,7 @@ func runRunbooksByTag(cmd *cobra.Command, f factory.Factory, flags *RunFlags, oc
 	// Check if any runbooks have prompted variables - block execution if found
 	if len(parsedVariables) == 0 {
 		if len(environmentIDs) == 0 { // nothing was pre-resolved, so fall back to a name lookup
-			envs, err := executionscommon.FindEnvironments(octopus, flags.Environments.Value[:1])
+			envs, err := selectors.FindEnvironments(octopus, flags.Environments.Value[:1])
 			if err == nil {
 				environmentIDs = util.SliceTransform(envs, func(env *environments.Environment) string { return env.ID })
 			}

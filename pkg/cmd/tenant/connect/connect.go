@@ -9,7 +9,6 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/cmd"
 	"github.com/OctopusDeploy/cli/pkg/cmd/tenant/shared"
 	"github.com/OctopusDeploy/cli/pkg/constants"
-	"github.com/OctopusDeploy/cli/pkg/executionscommon"
 	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/OctopusDeploy/cli/pkg/output"
 	"github.com/OctopusDeploy/cli/pkg/question"
@@ -135,7 +134,7 @@ func ConnectRun(opts *ConnectOptions) error {
 		project, err = opts.Client.Projects.Update(project)
 	}
 
-	environments, err := executionscommon.FindEnvironments(opts.Client, opts.Environments.Value)
+	environments, err := selectors.FindEnvironments(opts.Client, opts.Environments.Value)
 	if err != nil {
 		return err
 	}
