@@ -142,3 +142,15 @@ func CaptureConsoleOutput(f func()) string {
 
 	return buf.String()
 }
+
+// RecordingRoundTripper is a stand-in http.RoundTripper that records the requests it is
+// given and answers each with an empty 200. Useful for asserting that a request either did
+// or did not make it as far as the transport.
+type RecordingRoundTripper struct {
+	Requests []*http.Request
+}
+
+func (r *RecordingRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
+	r.Requests = append(r.Requests, req)
+	return &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(bytes.NewReader(nil))}, nil
+}
