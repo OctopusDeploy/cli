@@ -26,15 +26,22 @@ func Channel(octopus *octopusApiClient.Client, ask question.Asker, io io.Writer,
 	})
 }
 
-func FindChannel(octopus *octopusApiClient.Client, project *projects.Project, channelName string) (*channels.Channel, error) {
+// FindChannel looks a channel up within a project by either its ID or its name. An ID match
+// wins over a name match, so it stays consistent with how projects and tenants resolve.
+func FindChannel(octopus *octopusApiClient.Client, project *projects.Project, channelIdentifier string) (*channels.Channel, error) {
 	foundChannels, err := octopus.Projects.GetChannels(project) // TODO change this to channel partial name search on server; will require go client update
 	if err != nil {
 		return nil, err
 	}
-	for _, c := range foundChannels { // server doesn't support channel search by exact name so we must emulate it
-		if strings.EqualFold(c.Name, channelName) {
+	for _, c := range foundChannels {
+		if strings.EqualFold(c.ID, channelIdentifier) {
 			return c, nil
 		}
 	}
-	return nil, fmt.Errorf("no channel found with name of %s", channelName)
+	for _, c := range foundChannels { // server doesn't support channel search by exact name so we must emulate it
+		if strings.EqualFold(c.Name, channelIdentifier) {
+			return c, nil
+		}
+	}
+	return nil, fmt.Errorf("cannot find a channel in project '%s' with the ID or name of '%s'", project.GetName(), channelIdentifier)
 }

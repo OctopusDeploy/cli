@@ -8,8 +8,10 @@ import (
 	"github.com/AlecAivazis/survey/v2"
 	cliErrors "github.com/OctopusDeploy/cli/pkg/errors"
 	"github.com/OctopusDeploy/cli/pkg/question"
+	"github.com/OctopusDeploy/cli/pkg/question/selectors"
 	"github.com/OctopusDeploy/cli/pkg/surveyext"
 	"github.com/OctopusDeploy/cli/pkg/util"
+	"github.com/OctopusDeploy/cli/pkg/util/flag"
 	octopusApiClient "github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/deployments"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/environments"
@@ -301,6 +303,84 @@ func AskVariableSpecificPrompt(asker question.Asker, message string, variableTyp
 	}
 }
 
+// ExpandCommaSeparated splits each entry on commas so `--flag "A,B"` behaves the same as
+// `--flag A --flag B`. Whitespace around each entry is trimmed.
+//
+// A comma that is part of a value can be escaped with a backslash, so
+// `--deployment-target 'Web\, Prod'` yields the single value `Web, Prod`. A backslash in any
+// other position is left alone, so target names such as `DOMAIN\host` are unaffected.
+//
+// Blank entries are rejected rather than silently dropped. A value such as "," or "A,,B"
+// almost always means a caller-side variable substitution produced nothing, and quietly
+// dropping it would change the scope of the deployment: an empty --tenant list, for example,
+// turns a tenanted deployment into an untenanted one rather than failing.
+//
+// Only apply this to flags whose values cannot legitimately contain an unescaped comma;
+// notably NOT to --variable, --skip or the package/git-resource specs.
+func ExpandCommaSeparated(flagName string, values []string) ([]string, error) {
+	if len(values) == 0 {
+		return values, nil
+	}
+	result := make([]string, 0, len(values))
+	for _, value := range values {
+		for _, component := range splitOnUnescapedCommas(value) {
+			component = strings.TrimSpace(component)
+			if component == "" {
+				return nil, fmt.Errorf("--%s has a blank value; check for an empty variable or a stray comma in %q. Use '\\,' to include a comma in a value", flagName, value)
+			}
+			result = append(result, component)
+		}
+	}
+	return result, nil
+}
+
+// splitOnUnescapedCommas splits on commas, treating `\,` as an escaped literal comma.
+// Any other backslash is preserved verbatim.
+func splitOnUnescapedCommas(value string) []string {
+	var result []string
+	var current strings.Builder
+	for i := 0; i < len(value); i++ {
+		switch {
+		case value[i] == '\\' && i+1 < len(value) && value[i+1] == ',':
+			current.WriteByte(',')
+			i++
+		case value[i] == ',':
+			result = append(result, current.String())
+			current.Reset()
+		default:
+			current.WriteByte(value[i])
+		}
+	}
+	return append(result, current.String())
+}
+
+// ExpandCommaSeparatedFlags applies ExpandCommaSeparated in place to each of the given flags,
+// so callers don't have to keep a hand-maintained list of assignments in sync.
+func ExpandCommaSeparatedFlags(flags ...*flag.Flag[[]string]) error {
+	for _, f := range flags {
+		expanded, err := ExpandCommaSeparated(f.Name, f.Value)
+		if err != nil {
+			return err
+		}
+		f.Value = expanded
+	}
+	return nil
+}
+
+// EscapeCommas escapes any comma within each value so that the result survives a round trip
+// back through ExpandCommaSeparated. Used when echoing user selections into the generated
+// automation command, which emits values verbatim.
+func EscapeCommas(values []string) []string {
+	if len(values) == 0 {
+		return values
+	}
+	result := make([]string, 0, len(values))
+	for _, value := range values {
+		result = append(result, strings.ReplaceAll(value, ",", "\\,"))
+	}
+	return result
+}
+
 func ParseVariableStringArray(variables []string) (map[string]string, error) {
 	result := make(map[string]string, len(variables))
 	for _, v := range variables {
@@ -462,40 +542,8 @@ func ScheduledStartTimeAnswerFormatter(datePicker *surveyext.DatePicker, t time.
 	}
 }
 
-// given an array of environment names, maps these all to actual objects by querying the server
+// FindEnvironments maps an array of environment names or IDs onto the matching objects.
+// Kept as an alias so existing callers don't have to change; selectors owns the lookup.
 func FindEnvironments(client *octopusApiClient.Client, environmentNamesOrIds []string) ([]*environments.Environment, error) {
-	if len(environmentNamesOrIds) == 0 {
-		return nil, nil
-	}
-	// there's no "bulk lookup" API, so we either need to do a foreach loop to find each environment individually, or load the entire server's worth of environments
-	// it's probably going to be cheaper to just list out all the environments and match them client side, so we'll do that for simplicity's sake
-	allEnvs, err := client.Environments.GetAll()
-	if err != nil {
-		return nil, err
-	}
-
-	nameLookup := make(map[string]*environments.Environment, len(allEnvs))
-	idLookup := make(map[string]*environments.Environment, len(allEnvs))
-
-	for _, env := range allEnvs {
-		nameLookup[strings.ToLower(env.GetName())] = env
-		idLookup[strings.ToLower(env.GetID())] = env
-	}
-
-	var result []*environments.Environment
-	for _, n := range environmentNamesOrIds {
-		nameOrId := strings.ToLower(n)
-		env := nameLookup[nameOrId]
-		if env != nil {
-			result = append(result, env)
-		} else {
-			env = idLookup[nameOrId]
-			if env != nil {
-				result = append(result, env)
-			} else {
-				return nil, fmt.Errorf("cannot find environment %s", nameOrId)
-			}
-		}
-	}
-	return result, nil
+	return selectors.FindEnvironments(client, environmentNamesOrIds)
 }
