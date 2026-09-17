@@ -3,7 +3,6 @@ package root
 import (
 	"fmt"
 	"os"
-	"strings"
 
 	"github.com/OctopusDeploy/cli/pkg/apiclient"
 	accountCmd "github.com/OctopusDeploy/cli/pkg/cmd/account"
@@ -102,8 +101,6 @@ func NewCmdRoot(f factory.Factory, clientFactory apiclient.ClientFactory, askPro
 
 	cmdPFlags.BoolP(constants.FlagNoPrompt, "", false, "Disable prompting in interactive mode")
 
-	cmdPFlags.String(constants.FlagShell, "", fmt.Sprintf(`Specify the shell that generated automation commands are quoted for (%s); defaults to the shell the CLI is running under`, strings.Join(shell.Names, ", ")))
-
 	// Enable service messages flag is hidden as it's intended for internal CI/CD use only
 	cmdPFlags.BoolP(constants.FlagEnableServiceMessages, "", false, "Enable service messages for integration with Octopus CI/CD")
 	cmdPFlags.MarkHidden(constants.FlagEnableServiceMessages)
@@ -120,27 +117,20 @@ func NewCmdRoot(f factory.Factory, clientFactory apiclient.ClientFactory, askPro
 
 	_ = viper.BindPFlag(constants.ConfigNoPrompt, cmdPFlags.Lookup(constants.FlagNoPrompt))
 	_ = viper.BindPFlag(constants.ConfigSpace, cmdPFlags.Lookup(constants.FlagSpace))
-	_ = viper.BindPFlag(constants.ConfigShell, cmdPFlags.Lookup(constants.FlagShell))
 	_ = viper.BindPFlag(constants.FlagEnableServiceMessages, cmdPFlags.Lookup(constants.FlagEnableServiceMessages))
 	// if we attempt to check the flags before Execute is called, cobra hasn't parsed anything yet,
 	// so we'll get bad values. PersistentPreRun is a convenient callback for setting up our
 	// environment after parsing but before execution.
 	cmd.PersistentPreRunE = func(cmd *cobra.Command, _ []string) error {
-		// --shell is validated because it was typed for this one command, so failing is
-		// what the user expects and they can just retype it. OCTOPUS_SHELL is only warned
-		// about: it is exported once, usually from a shell profile, and applies to every
-		// command afterwards, so rejecting it would lock the user out of the whole CLI,
-		// including the `config set Shell` needed to fix it. Current falls back to
-		// detecting the host shell in that case.
+		// OCTOPUS_SHELL is warned about rather than rejected: it is exported once, usually
+		// from a shell profile, and applies to every command afterwards, so failing would
+		// lock the user out of the whole CLI, including the `config set Shell` needed to
+		// fix it. Current falls back to detecting the host shell in that case.
 		//
 		// The config file value isn't checked here at all. `config set Shell` validates
 		// on the way in, so a bad value there can only come from hand editing the file,
 		// and Current ignores it the same way.
-		if v, _ := cmdPFlags.GetString(constants.FlagShell); v != "" {
-			if err := shell.Validate(v); err != nil {
-				return fmt.Errorf("--%s: %w", constants.FlagShell, err)
-			}
-		} else if v := os.Getenv(constants.EnvOctopusShell); v != "" {
+		if v := os.Getenv(constants.EnvOctopusShell); v != "" {
 			if err := shell.Validate(v); err != nil {
 				fmt.Fprintf(cmd.ErrOrStderr(), "%s\n", output.Yellow(fmt.Sprintf("Warning: ignoring %s: %s", constants.EnvOctopusShell, err)))
 			}

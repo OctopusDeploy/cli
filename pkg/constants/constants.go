@@ -12,7 +12,6 @@ const (
 	FlagOutputFormatLegacy    = "outputFormat"
 	FlagNoPrompt              = "no-prompt"
 	FlagEnableServiceMessages = "enable-service-messages"
-	FlagShell                 = "shell"
 )
 
 // flags for storing things in the go context

@@ -28,15 +28,13 @@ func runVersion(t *testing.T, args ...string) (string, error) {
 	return stderr.String(), err
 }
 
-func TestRoot_InvalidShellFlagIsRejected(t *testing.T) {
-	_, err := runVersion(t, "--shell", "fish")
+// the shell is a config setting and an env var, never a flag; Editor and ShowOctopus are
+// the same shape. The persistent flag set is deliberately small, and every entry in it
+// shows up in each command's help and in the generated docs.
+func TestRoot_ThereIsNoShellFlag(t *testing.T) {
+	_, err := runVersion(t, "--shell", "bash")
 	require.Error(t, err)
-	assert.EqualError(t, err, "--shell: the provided value fish is not a valid shell, please use one of bash, powershell, cmd")
-}
-
-func TestRoot_ValidShellFlagIsAccepted(t *testing.T) {
-	_, err := runVersion(t, "--shell", "pwsh")
-	assert.NoError(t, err)
+	assert.EqualError(t, err, "unknown flag: --shell")
 }
 
 // an invalid OCTOPUS_SHELL is warned about rather than rejected; it is set once and
@@ -54,16 +52,6 @@ func TestRoot_ValidShellEnvIsSilent(t *testing.T) {
 	t.Setenv(constants.EnvOctopusShell, "pwsh")
 
 	stderr, err := runVersion(t)
-	assert.NoError(t, err)
-	assert.Equal(t, "", stderr)
-}
-
-// the flag is the more specific signal, so a bad env var alongside a good flag is not
-// worth complaining about
-func TestRoot_ShellFlagSupersedesInvalidEnv(t *testing.T) {
-	t.Setenv(constants.EnvOctopusShell, "fish")
-
-	stderr, err := runVersion(t, "--shell", "bash")
 	assert.NoError(t, err)
 	assert.Equal(t, "", stderr)
 }
