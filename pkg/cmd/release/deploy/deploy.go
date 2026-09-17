@@ -344,6 +344,23 @@ func deployRun(cmd *cobra.Command, f factory.Factory, flags *DeployFlags) error 
 				return err
 			}
 			options.ProjectName = project.GetName()
+
+			if options.ReleaseVersion != "" {
+				// resolve the release up front; the executions API reports an unknown version as an
+				// unhelpful null reference error, and having the ID saves looking it up again later.
+				// Only a "no such release" answer is fatal: this lookup is new to the deploy path, so
+				// anything else (no ReleaseView permission, a transient 5xx) must not fail a deploy
+				// that would previously have succeeded. In those cases the server stays the authority
+				// and we simply go without the release ID.
+				release, err := selectors.FindRelease(octopus, f.GetCurrentSpace().ID, project, options.ReleaseVersion)
+				var releaseNotFound *selectors.ReleaseNotFoundError
+				if errors.As(err, &releaseNotFound) {
+					return err
+				}
+				if err == nil {
+					options.ReleaseID = release.ID
+				}
+			}
 		}
 
 	}
@@ -377,20 +394,10 @@ func deployRun(cmd *cobra.Command, f factory.Factory, flags *DeployFlags) error 
 
 		// output web URL all the time, so long as output format is not JSON or basic
 		if err == nil && !constants.IsProgrammaticOutputFormat(outputFormat) {
-			releaseID := options.ReleaseID
-			if releaseID == "" {
-				// we may already have the release ID from AskQuestions. If not, we need to go and look up the release ID to link to it
-				// which needs the project ID. Errors here are ignorable; it's not the end of the world if we can't print the web link
-				prj, err := selectors.FindProject(octopus, options.ProjectName)
-				if err == nil {
-					rel, err := releases.GetReleaseInProject(octopus, f.GetCurrentSpace().ID, prj.ID, options.ReleaseVersion)
-					if err == nil {
-						releaseID = rel.ID
-					}
-				}
-			}
-
-			if releaseID != "" {
+			// both paths that reach here have already resolved the release: AskQuestions in interactive
+			// mode, the pre-flight lookup in automation mode. It stays empty only when that lookup failed
+			// for a reason we deliberately ignored, in which case repeating it here would fail too.
+			if releaseID := options.ReleaseID; releaseID != "" {
 				link := output.Bluef("%s/app#/%s/releases/%s", f.GetCurrentHost(), f.GetCurrentSpace().ID, releaseID)
 				cmd.Printf("\nView this release on Octopus Deploy: %s\n", link)
 			}
@@ -453,7 +460,7 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 			return err
 		}
 	} else {
-		selectedRelease, err = releases.GetReleaseInProject(octopus, space.ID, selectedProject.ID, options.ReleaseVersion)
+		selectedRelease, err = selectors.FindRelease(octopus, space.ID, selectedProject, options.ReleaseVersion)
 		if err != nil {
 			return err
 		}
