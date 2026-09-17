@@ -2,7 +2,6 @@ package login
 
 import (
 	"bytes"
-	"crypto/tls"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -121,19 +120,9 @@ func loginRun(cmd *cobra.Command, f factory.Factory, isPromptEnabled bool, ask q
 		return err
 	}
 
-	// The http client could be nil, in which case we just use the default one from http
-	if httpClient == nil {
-		httpClient = &http.Client{}
-	}
-
-	if inputs.ignoreSslErrors {
-		if httpClient.Transport == nil {
-			httpClient.Transport = &http.Transport{}
-		}
-
-		if err := skipTlsVerification(httpClient.Transport); err != nil {
-			return err
-		}
+	httpClient, err = ConfigureHttpClient(httpClient, inputs.ignoreSslErrors)
+	if err != nil {
+		return err
 	}
 
 	if inputs.apiKey != "" {
@@ -153,6 +142,72 @@ func loginRun(cmd *cobra.Command, f factory.Factory, isPromptEnabled bool, ask q
 	}
 
 	return nil
+}
+
+// ConfigureHttpClient makes sure login talks to Octopus through the configured proxy.
+//
+// ignoreSslErrors is the --ignore-ssl-errors flag, a one-off opt out of verifying the
+// Octopus server certificate. The IgnoreSslErrors config key (and its environment
+// variable) is the standing opt out that every other command reads, so it is honoured
+// here too - otherwise login would be the only command that still verified.
+func ConfigureHttpClient(httpClient *http.Client, ignoreSslErrors bool) (*http.Client, error) {
+	ignoreSslErrors = ignoreSslErrors || apiclient.IgnoreSslErrorsFromConfig()
+
+	// the client is nil whenever the CLI has no usable configuration yet, which is the
+	// common case for login, so build a proxy-aware one rather than letting net/http
+	// fall back to its default
+	if httpClient == nil {
+		transport, err := apiclient.NewHttpTransport(apiclient.ProxySettingsFromConfig(), ignoreSslErrors)
+		if err != nil {
+			return nil, err
+		}
+		return &http.Client{Transport: transport}, nil
+	}
+
+	// a client with no transport of its own would silently fall back to
+	// http.DefaultTransport, which knows nothing about the CLI's proxy settings and
+	// would drop --ignore-ssl-errors on the floor
+	if httpClient.Transport == nil {
+		transport, err := apiclient.NewHttpTransport(apiclient.ProxySettingsFromConfig(), ignoreSslErrors)
+		if err != nil {
+			return nil, err
+		}
+		httpClient.Transport = transport
+		return httpClient, nil
+	}
+
+	// a configured client already carries a proxy-aware transport, so only the ssl
+	// override needs applying.
+	//
+	// Note that this mutates the factory's shared client rather than cloning it, so
+	// --ignore-ssl-errors outlives the login probe and applies to every later request
+	// in the process: fine for a one-shot CLI, a trap for any longer-lived embedding.
+	if !ignoreSslErrors {
+		return httpClient, nil
+	}
+
+	switch transport := httpClient.Transport.(type) {
+	case *apiclient.SpinnerRoundTripper:
+		// the client factory wraps the transport in a spinner, so the setting has to
+		// be applied underneath rather than to the wrapper
+		next, err := apiclient.NewHttpTransport(apiclient.ProxySettingsFromConfig(), true)
+		if err != nil {
+			return nil, err
+		}
+		transport.Next = next
+	case *http.Transport:
+		next, err := apiclient.NewHttpTransport(apiclient.ProxySettingsFromConfig(), true)
+		if err != nil {
+			return nil, err
+		}
+		httpClient.Transport = next
+	default:
+		// Better to say so than to quietly leave verification on after the caller
+		// asked for the opposite.
+		return nil, fmt.Errorf("cannot ignore SSL errors: unsupported HTTP transport %T", httpClient.Transport)
+	}
+
+	return httpClient, nil
 }
 
 func loginWithApiKey(configProvider config.IConfigProvider, httpClient *http.Client, server string, apiKey string, cmd *cobra.Command) error {
@@ -422,20 +477,4 @@ func testLogin(cmd *cobra.Command, httpClient *http.Client, server string, crede
 	}
 
 	return nil
-}
-
-// The client factory wraps the transport in a spinner, so the setting has to be
-// applied to the transport underneath rather than to the wrapper.
-func skipTlsVerification(roundTripper http.RoundTripper) error {
-	switch transport := roundTripper.(type) {
-	case *http.Transport:
-		transport.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
-		return nil
-	case *apiclient.SpinnerRoundTripper:
-		return skipTlsVerification(transport.Next)
-	default:
-		// Better to say so than to quietly leave verification on after the
-		// caller asked for the opposite.
-		return fmt.Errorf("cannot ignore SSL errors: unsupported HTTP transport %T", roundTripper)
-	}
 }

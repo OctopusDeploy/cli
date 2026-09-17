@@ -1,7 +1,6 @@
 package apiclient
 
 import (
-	"crypto/tls"
 	"errors"
 	"fmt"
 	"net/url"
@@ -121,13 +120,24 @@ func NewClientFactoryFromConfig(ask question.AskProvider) (ClientFactory, error)
 		return nil, errs
 	}
 
-	http.DefaultTransport.(*http.Transport).TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
+	// The code this replaced set InsecureSkipVerify on the shared http.DefaultTransport
+	// unconditionally, so the CLI never verified the Octopus server certificate and any
+	// MITM on the path could read the API key sent with every request. Verification is
+	// now on unless the user opts out, which is a deliberate behaviour change: anyone
+	// relying on the old behaviour (typically a self-signed certificate) has to say so
+	// with OCTOPUS_IGNORE_SSL_ERRORS or 'octopus config set IgnoreSslErrors true'.
+	transport, err := NewHttpTransport(ProxySettingsFromConfig(), IgnoreSslErrorsFromConfig())
+	if err != nil {
+		return nil, err
+	}
 
 	// The spinner is only wanted in interactive mode, but that is not settled
 	// yet: this runs before cobra parses --no-prompt. The round-tripper decides
 	// per request instead.
+	spinnerRoundTripper := NewSpinnerRoundTripper(ask)
+	spinnerRoundTripper.Next = transport
 	httpClient := &http.Client{
-		Transport: NewSpinnerRoundTripper(ask),
+		Transport: spinnerRoundTripper,
 	}
 
 	var credentials octopusApiClient.ICredential

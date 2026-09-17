@@ -3,9 +3,11 @@ package login_test
 import (
 	"bytes"
 	"errors"
+	"net/http"
 	"testing"
 
 	"github.com/AlecAivazis/survey/v2"
+	"github.com/OctopusDeploy/cli/pkg/apiclient"
 	"github.com/OctopusDeploy/cli/pkg/cmd/login"
 	cmdRoot "github.com/OctopusDeploy/cli/pkg/cmd/root"
 	"github.com/OctopusDeploy/cli/pkg/constants"
@@ -13,6 +15,7 @@ import (
 	"github.com/OctopusDeploy/cli/test/testutil"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/users"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -409,4 +412,106 @@ func TestLogin_OpenIdConnect(t *testing.T) {
 			test.run(t, fac, api, qa, rootCmd, stdout, stderr)
 		})
 	}
+}
+
+func TestConfigureHttpClient(t *testing.T) {
+	viper.Set(constants.ConfigProxyUrl, "http://configured:3128")
+	t.Cleanup(func() { viper.Set(constants.ConfigProxyUrl, "") })
+
+	t.Run("builds a proxy aware client when the CLI is not configured yet", func(t *testing.T) {
+		httpClient, err := login.ConfigureHttpClient(nil, false)
+		assert.NoError(t, err)
+
+		request, _ := http.NewRequest("GET", "https://octopus.example.com/api/", nil)
+		proxyUrl, err := httpClient.Transport.(*http.Transport).Proxy(request)
+		assert.NoError(t, err)
+		assert.Equal(t, "http://configured:3128", proxyUrl.String())
+	})
+
+	// the code this replaced supported a client with no transport, and dropping that
+	// leaves --ignore-ssl-errors doing nothing for any factory that returns a plain client
+	t.Run("gives a client with no transport a proxy aware one", func(t *testing.T) {
+		httpClient, err := login.ConfigureHttpClient(&http.Client{}, true)
+		assert.NoError(t, err)
+
+		transport, ok := httpClient.Transport.(*http.Transport)
+		if !assert.True(t, ok, "expected an *http.Transport") {
+			return
+		}
+		assert.True(t, transport.TLSClientConfig.InsecureSkipVerify)
+
+		request, _ := http.NewRequest("GET", "https://octopus.example.com/api/", nil)
+		proxyUrl, err := transport.Proxy(request)
+		assert.NoError(t, err)
+		assert.Equal(t, "http://configured:3128", proxyUrl.String())
+	})
+
+	// without the flag, and without the config key, login has to keep verifying
+	t.Run("verifies the server certificate by default", func(t *testing.T) {
+		httpClient, err := login.ConfigureHttpClient(nil, false)
+		assert.NoError(t, err)
+
+		transport, ok := httpClient.Transport.(*http.Transport)
+		if !assert.True(t, ok, "expected an *http.Transport") {
+			return
+		}
+		if transport.TLSClientConfig != nil {
+			assert.False(t, transport.TLSClientConfig.InsecureSkipVerify)
+		}
+	})
+
+	// the config key is the standing opt out the rest of the CLI reads; login would be
+	// the odd one out if only its own flag could turn verification off
+	t.Run("honours the IgnoreSslErrors config key without the flag", func(t *testing.T) {
+		viper.Set(constants.ConfigIgnoreSslErrors, true)
+		t.Cleanup(func() { viper.Set(constants.ConfigIgnoreSslErrors, nil) })
+
+		httpClient, err := login.ConfigureHttpClient(nil, false)
+		assert.NoError(t, err)
+
+		transport, ok := httpClient.Transport.(*http.Transport)
+		if !assert.True(t, ok, "expected an *http.Transport") {
+			return
+		}
+		if assert.NotNil(t, transport.TLSClientConfig) {
+			assert.True(t, transport.TLSClientConfig.InsecureSkipVerify)
+		}
+	})
+
+	t.Run("applies the ssl override without discarding the spinner", func(t *testing.T) {
+		spinnerRoundTripper := apiclient.NewSpinnerRoundTripper(nil)
+		httpClient, err := login.ConfigureHttpClient(&http.Client{Transport: spinnerRoundTripper}, true)
+		assert.NoError(t, err)
+
+		assert.Same(t, spinnerRoundTripper, httpClient.Transport)
+		assert.True(t, spinnerRoundTripper.Next.(*http.Transport).TLSClientConfig.InsecureSkipVerify)
+	})
+
+	// this used to be a type assertion onto *http.Transport, which panics for any
+	// client that wraps its transport. Refusing is deliberate: silently leaving
+	// verification on after the caller asked for the opposite is worse (see #726).
+	t.Run("reports a transport it cannot reach into", func(t *testing.T) {
+		mockClient := testutil.NewMockHttpClientWithTransport(testutil.RoundTripper(func(*http.Request) (*http.Response, error) {
+			return nil, nil
+		}))
+
+		_, err := login.ConfigureHttpClient(mockClient, true)
+		assert.ErrorContains(t, err, "unsupported HTTP transport")
+	})
+
+	t.Run("leaves a transport it cannot reach into alone when the flag is off", func(t *testing.T) {
+		mockClient := testutil.NewMockHttpClientWithTransport(testutil.RoundTripper(func(*http.Request) (*http.Response, error) {
+			return nil, nil
+		}))
+
+		httpClient, err := login.ConfigureHttpClient(mockClient, false)
+		assert.NoError(t, err)
+		assert.Same(t, mockClient, httpClient)
+	})
+
+	t.Run("applies the ssl override to a plain transport", func(t *testing.T) {
+		httpClient, err := login.ConfigureHttpClient(&http.Client{Transport: &http.Transport{}}, true)
+		assert.NoError(t, err)
+		assert.True(t, httpClient.Transport.(*http.Transport).TLSClientConfig.InsecureSkipVerify)
+	})
 }

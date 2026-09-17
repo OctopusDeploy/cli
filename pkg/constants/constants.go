@@ -29,15 +29,16 @@ const (
 
 // keys for key/value store config file
 const (
-	ConfigUrl         = "Url"
-	ConfigApiKey      = "ApiKey"
-	ConfigAccessToken = "AccessToken"
-	ConfigSpace       = "Space"
-	ConfigNoPrompt    = "NoPrompt"
-	// ConfigProxyUrl     = "ProxyUrl"
-	ConfigEditor       = "Editor"
-	ConfigShowOctopus  = "ShowOctopus"
-	ConfigOutputFormat = "OutputFormat"
+	ConfigUrl             = "Url"
+	ConfigApiKey          = "ApiKey"
+	ConfigAccessToken     = "AccessToken"
+	ConfigSpace           = "Space"
+	ConfigNoPrompt        = "NoPrompt"
+	ConfigProxyUrl        = "ProxyUrl"
+	ConfigEditor          = "Editor"
+	ConfigShowOctopus     = "ShowOctopus"
+	ConfigOutputFormat    = "OutputFormat"
+	ConfigIgnoreSslErrors = "IgnoreSslErrors"
 )
 
 const (
@@ -45,9 +46,16 @@ const (
 	EnvOctopusApiKey      = "OCTOPUS_API_KEY"
 	EnvOctopusAccessToken = "OCTOPUS_ACCESS_TOKEN"
 	EnvOctopusSpace       = "OCTOPUS_SPACE"
-	EnvEditor             = "EDITOR"
-	EnvVisual             = "VISUAL"
-	EnvCI                 = "CI"
+	EnvOctopusProxy       = "OCTOPUS_PROXY"
+	// Proxy credentials are environment-only; they are never stored in the config file
+	EnvOctopusProxyUsername = "OCTOPUS_PROXY_USERNAME"
+	EnvOctopusProxyPassword = "OCTOPUS_PROXY_PASSWORD"
+	// Opts out of verifying the Octopus server's TLS certificate. Off by default;
+	// only set it when the server presents a certificate the machine cannot verify.
+	EnvOctopusIgnoreSslErrors = "OCTOPUS_IGNORE_SSL_ERRORS"
+	EnvEditor                 = "EDITOR"
+	EnvVisual                 = "VISUAL"
+	EnvCI                     = "CI"
 )
 
 const (

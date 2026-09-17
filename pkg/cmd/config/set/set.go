@@ -67,10 +67,14 @@ func setRun(isPromptEnabled bool, ask question.Asker, key string, value string) 
 		key = k
 	}
 	key = strings.ToLower(key)
-	if key == strings.ToLower(constants.ConfigNoPrompt) {
+	// IgnoreSslErrors turns off certificate verification, so a value that is not
+	// plainly true or false must be rejected rather than quietly stored: viper would
+	// read 'yes' back as false, and a user who thought they had turned verification
+	// off is better served by an error than by a setting that does nothing
+	if boolKey := boolConfigKey(key); boolKey != "" {
 		boolValue, err := strconv.ParseBool(value)
 		if err != nil {
-			return fmt.Errorf("the provided value %s is not valid for NoPrompt, please use true of false", value)
+			return fmt.Errorf("the provided value %s is not valid for %s, please use true of false", value, boolKey)
 		}
 		localViper.Set(key, boolValue)
 	} else {
@@ -82,6 +86,17 @@ func setRun(isPromptEnabled bool, ask question.Asker, key string, value string) 
 	return nil
 }
 
+// boolConfigKey returns the display name of the config key if it only accepts a
+// boolean value, and an empty string otherwise.
+func boolConfigKey(lowercaseKey string) string {
+	for _, key := range []string{constants.ConfigNoPrompt, constants.ConfigIgnoreSslErrors} {
+		if lowercaseKey == strings.ToLower(key) {
+			return key
+		}
+	}
+	return ""
+}
+
 func promptMissing(ask question.Asker, key string) (string, string, error) {
 	keys := []string{
 		constants.ConfigApiKey,
@@ -91,7 +106,8 @@ func promptMissing(ask question.Asker, key string) (string, string, error) {
 		constants.ConfigOutputFormat,
 		constants.ConfigShowOctopus,
 		constants.ConfigEditor,
-		// constants.ConfigProxyUrl,
+		constants.ConfigProxyUrl,
+		constants.ConfigIgnoreSslErrors,
 	}
 
 	if key == "" {

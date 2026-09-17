@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/MakeNowJust/heredoc/v2"
+	"github.com/OctopusDeploy/cli/pkg/apiclient"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/OctopusDeploy/cli/pkg/output"
@@ -43,13 +44,21 @@ func listRun(cmd *cobra.Command) error {
 		configFile.Set(constants.ConfigAccessToken, "***")
 	}
 
+	if configFile.IsSet(constants.ConfigProxyUrl) {
+		configFile.Set(constants.ConfigProxyUrl, apiclient.RedactProxyUrl(configFile.GetString(constants.ConfigProxyUrl)))
+	}
+
 	type ConfigData struct {
-		ApiKey       string `json:"apikey"`
-		Editor       string `json:"editor"`
-		Host         string `json:"host"`
-		NoPrompt     string `json:"noprompt"`
-		OutputFormat string `json:"outputformat"`
-		Space        string `json:"space"`
+		AccessToken     string `json:"accesstoken"`
+		ApiKey          string `json:"apikey"`
+		Editor          string `json:"editor"`
+		Host            string `json:"host"`
+		IgnoreSslErrors string `json:"ignoresslerrors"`
+		NoPrompt        string `json:"noprompt"`
+		OutputFormat    string `json:"outputformat"`
+		ProxyUrl        string `json:"proxyurl"`
+		ShowOctopus     string `json:"showoctopus"`
+		Space           string `json:"space"`
 	}
 
 	outputFormat, _ := cmd.Flags().GetString(constants.FlagOutputFormat)
@@ -62,14 +71,24 @@ func listRun(cmd *cobra.Command) error {
 		configData := &ConfigData{}
 		for _, key := range configFile.AllKeys() {
 			switch strings.ToLower(key) {
+			// every 'octopus login' writes AccessToken, so without this case the json
+			// output hard-errors for anyone who has logged in
+			case strings.ToLower(constants.ConfigAccessToken):
+				configData.AccessToken = configFile.GetString(key)
 			case strings.ToLower(constants.ConfigApiKey):
 				configData.ApiKey = configFile.GetString(key)
+			case strings.ToLower(constants.ConfigShowOctopus):
+				configData.ShowOctopus = configFile.GetString(key)
 			case strings.ToLower(constants.ConfigEditor):
 				configData.Editor = configFile.GetString(key)
 			case strings.ToLower(constants.ConfigUrl):
 				configData.Host = configFile.GetString(key)
 			case strings.ToLower(constants.ConfigNoPrompt):
 				configData.NoPrompt = configFile.GetString(key)
+			case strings.ToLower(constants.ConfigIgnoreSslErrors):
+				configData.IgnoreSslErrors = configFile.GetString(key)
+			case strings.ToLower(constants.ConfigProxyUrl):
+				configData.ProxyUrl = configFile.GetString(key)
 			case strings.ToLower(constants.ConfigSpace):
 				configData.Space = configFile.GetString(key)
 			case strings.ToLower(constants.ConfigOutputFormat):
