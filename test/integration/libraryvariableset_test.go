@@ -189,7 +189,7 @@ func testLibraryVariableSetList(t *testing.T, runId uuid.UUID, fx *lvsFixture) {
 }
 
 func testLibraryVariableSetView(t *testing.T, fx *lvsFixture) {
-	t.Run("--output-format=table groups values under one name", func(t *testing.T) {
+	t.Run("--output-format=table repeats the name for values sharing one", func(t *testing.T) {
 		stdOut, stdErr, err := integration.RunCli("Default", "library-variable-set", "view", fx.Set.Name, "--output-format=table")
 		if !testutil.AssertSuccess(t, err, stdOut, stdErr) {
 			return
@@ -202,11 +202,11 @@ func testLibraryVariableSetView(t *testing.T, fx *lvsFixture) {
 		assert.Equal(t, "Ask.Me", rows[1][0])
 		assert.Equal(t, []string{"Slack.Token", "***", "(unscoped)"}, rows[2][:3])
 
-		// the three Slack.Url values share one name cell: unscoped first, then
+		// the three Slack.Url values each carry the name: unscoped first, then
 		// scoped ones ordered by scope summary
 		assert.Equal(t, []string{"Slack.Url", "https://default", "(unscoped)"}, rows[3][:3])
-		assert.Equal(t, []string{"", "https://prod", fmt.Sprintf("Environment: %s", fx.Environment.Name)}, rows[4][:3])
-		assert.Equal(t, []string{"", "https://dev", fmt.Sprintf("Environment: %s; Role: web-server", fx.Environment.Name)}, rows[5][:3])
+		assert.Equal(t, []string{"Slack.Url", "https://prod", fmt.Sprintf("Environment: %s", fx.Environment.Name)}, rows[4][:3])
+		assert.Equal(t, []string{"Slack.Url", "https://dev", fmt.Sprintf("Environment: %s; Role: web-server", fx.Environment.Name)}, rows[5][:3])
 	})
 
 	t.Run("--output-format=json resolves scope IDs to names", func(t *testing.T) {
