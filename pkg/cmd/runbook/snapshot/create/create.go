@@ -68,7 +68,6 @@ func NewCreateFlags() *CreateFlags {
 
 type CreateOptions struct {
 	*CreateFlags
-	PackageVersionOverrides []string
 	*shared.RunbooksOptions
 	GetAllProjectsCallback shared.GetAllProjectsCallback
 	*cmd.Dependencies
@@ -351,7 +350,7 @@ func PromptMissing(opts *CreateOptions) error {
 		_, packageVersionOverrides, err := packages.AskPackageOverrideLoop(
 			packageVersionBaseline,
 			opts.PackageVersion.Value,
-			opts.PackageVersionOverrides,
+			opts.PackageVersionSpec.Value,
 			opts.Ask,
 			opts.Out)
 
@@ -360,9 +359,9 @@ func PromptMissing(opts *CreateOptions) error {
 		}
 
 		if len(packageVersionOverrides) > 0 {
-			opts.PackageVersionOverrides = make([]string, 0, len(packageVersionOverrides))
+			opts.PackageVersionSpec.Value = make([]string, 0, len(packageVersionOverrides))
 			for _, ov := range packageVersionOverrides {
-				opts.PackageVersionOverrides = append(opts.PackageVersionOverrides, ov.ToPackageOverrideString())
+				opts.PackageVersionSpec.Value = append(opts.PackageVersionSpec.Value, ov.ToPackageOverrideString())
 			}
 		}
 	}
