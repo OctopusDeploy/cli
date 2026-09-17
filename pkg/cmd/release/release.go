@@ -7,6 +7,7 @@ import (
 	cmdDeploy "github.com/OctopusDeploy/cli/pkg/cmd/release/deploy"
 	cmdList "github.com/OctopusDeploy/cli/pkg/cmd/release/list"
 	cmdProgression "github.com/OctopusDeploy/cli/pkg/cmd/release/progression"
+	cmdSnapshotVariables "github.com/OctopusDeploy/cli/pkg/cmd/release/snapshot_variables"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/constants/annotations"
 	"github.com/OctopusDeploy/cli/pkg/factory"
@@ -29,6 +30,7 @@ func NewCmdRelease(f factory.Factory) *cobra.Command {
 	cmd.AddCommand(cmdList.NewCmdList(f))
 	cmd.AddCommand(cmdDelete.NewCmdDelete(f))
 	cmd.AddCommand(cmdProgression.NewCmdProgression(f))
+	cmd.AddCommand(cmdSnapshotVariables.NewCmdSnapshotVariables(f))
 
 	return cmd
 }
