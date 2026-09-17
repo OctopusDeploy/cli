@@ -123,7 +123,7 @@ func TestLibraryVariableSetView(t *testing.T) {
 			assert.Equal(t, "", stdErr.String())
 		}},
 
-		{"library variable set view groups values sharing a name (table)", func(t *testing.T, api *testutil.MockHttpServer, qa *testutil.AskMocker, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
+		{"library variable set view repeats the name for values sharing one (table)", func(t *testing.T, api *testutil.MockHttpServer, qa *testutil.AskMocker, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
 			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
 				defer api.Close()
 				rootCmd.SetArgs([]string{"library-variable-set", "view", "Slack Variables", "--no-prompt", "-f", "table"})
@@ -143,8 +143,8 @@ func TestLibraryVariableSetView(t *testing.T) {
 				NAME         VALUE            SCOPE                    ID
 				Slack.Token  ***              (unscoped)               Variables-4
 				Slack.Url    https://default  (unscoped)               Variables-1
-				             https://prod     Environment: Production  Variables-2
-				             https://test     Environment: Test        Variables-3
+				Slack.Url    https://prod     Environment: Production  Variables-2
+				Slack.Url    https://test     Environment: Test        Variables-3
 				`), stdOut.String())
 			assert.Equal(t, "", stdErr.String())
 		}},

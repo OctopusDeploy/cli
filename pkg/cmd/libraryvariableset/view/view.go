@@ -174,18 +174,14 @@ func viewRun(opts *ViewOptions) error {
 	return nil
 }
 
-// printTable shows one row per stored value, repeating the variable name only on the
-// first row of each group so that a variable with many scopes reads as one block.
+// printTable shows one row per stored value. The variable name is repeated on every row,
+// matching project variables list, so each row stands on its own for grep and awk.
 func printTable(opts *ViewOptions, groups []*shared.VariableGroup) {
 	t := output.NewTable(opts.Command.OutOrStdout())
 	t.AddRow(output.Bold("NAME"), output.Bold("VALUE"), output.Bold("SCOPE"), output.Bold("ID"))
 	for _, group := range groups {
-		for i, value := range group.Values {
-			name := ""
-			if i == 0 {
-				name = output.Bold(group.Name)
-			}
-			t.AddRow(name, value.DisplayValue(), value.ScopeSummary, output.Dim(value.Id))
+		for _, value := range group.Values {
+			t.AddRow(output.Bold(group.Name), value.DisplayValue(), value.ScopeSummary, output.Dim(value.Id))
 		}
 	}
 	t.Print()
