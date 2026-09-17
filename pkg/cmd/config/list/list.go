@@ -49,6 +49,7 @@ func listRun(cmd *cobra.Command) error {
 		Host         string `json:"host"`
 		NoPrompt     string `json:"noprompt"`
 		OutputFormat string `json:"outputformat"`
+		Shell        string `json:"shell"`
 		Space        string `json:"space"`
 	}
 
@@ -74,6 +75,8 @@ func listRun(cmd *cobra.Command) error {
 				configData.Space = configFile.GetString(key)
 			case strings.ToLower(constants.ConfigOutputFormat):
 				configData.OutputFormat = configFile.GetString(key)
+			case strings.ToLower(constants.ConfigShell):
+				configData.Shell = configFile.GetString(key)
 			default:
 				return fmt.Errorf("the key '%s' is not a supported config option", key)
 			}

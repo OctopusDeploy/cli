@@ -2,7 +2,9 @@ package flag
 
 import (
 	"fmt"
-	"strings"
+
+	"github.com/OctopusDeploy/cli/pkg/output"
+	"github.com/OctopusDeploy/cli/pkg/util/shell"
 )
 
 type Flag[T any] struct {
@@ -60,27 +62,44 @@ func New[T any](name string, secure bool) *Flag[T] {
 // GenerateAutomationCmd generates the command that can be used to achive
 // the same results with the CLI in automation mode.
 func GenerateAutomationCmd(cmdPath string, space string, flags ...Generatable) string {
+	return GenerateAutomationCmdForShell(shell.Current(), cmdPath, space, flags...)
+}
+
+// GenerateAutomationCmdForShell generates the automation command, quoting values using
+// the rules of the given shell.
+//
+// Where the shell can't carry a value at all the warning is appended on its own line,
+// because the command exists to be copied and the user would otherwise paste something
+// that is silently wrong. Every caller prints the result straight out, so returning it
+// as part of the string keeps the warning next to the command it is about.
+func GenerateAutomationCmdForShell(sh shell.Shell, cmdPath string, space string, flags ...Generatable) string {
+	var values []string
+	quote := func(value string) string {
+		values = append(values, value)
+		return shell.Quote(sh, value)
+	}
+
 	autoCmd := cmdPath
 	if space != "" {
-		autoCmd += fmt.Sprintf(" --space '%s'", strings.ReplaceAll(space, "'", "'\\''"))
+		autoCmd += fmt.Sprintf(" --space %s", quote(space))
 	}
 	for _, flag := range flags {
 		switch value := flag.GetValue().(type) {
 		case string:
 			if value != "" {
 				if flag.IsSecure() {
-					autoCmd += fmt.Sprintf(" --%s '***'", flag.GetName())
+					autoCmd += fmt.Sprintf(" --%s %s", flag.GetName(), quote("***"))
 					continue
 				}
-				autoCmd += fmt.Sprintf(" --%s '%s'", flag.GetName(), strings.ReplaceAll(value, "'", "'\\''"))
+				autoCmd += fmt.Sprintf(" --%s %s", flag.GetName(), quote(value))
 			}
 		case []string:
 			for _, val := range value {
 				if flag.IsSecure() {
-					autoCmd += fmt.Sprintf(" --%s '***'", flag.GetName())
+					autoCmd += fmt.Sprintf(" --%s %s", flag.GetName(), quote("***"))
 					continue
 				}
-				autoCmd += fmt.Sprintf(" --%s '%s'", flag.GetName(), strings.ReplaceAll(val, "'", "'\\''"))
+				autoCmd += fmt.Sprintf(" --%s %s", flag.GetName(), quote(val))
 			}
 		case bool:
 			if value {
@@ -96,5 +115,9 @@ func GenerateAutomationCmd(cmdPath string, space string, flags ...Generatable) s
 		}
 	}
 	autoCmd += " --no-prompt"
+
+	if warning := shell.PasteWarning(sh, values...); warning != "" {
+		autoCmd += "\n" + output.Yellow(warning)
+	}
 	return autoCmd
 }

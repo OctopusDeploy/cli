@@ -30,6 +30,7 @@ func setDefaults(v *viper.Viper) {
 	//	v.SetDefault(constants.ConfigProxyUrl, "")
 	v.SetDefault(constants.ConfigShowOctopus, true)
 	v.SetDefault(constants.ConfigOutputFormat, "table")
+	v.SetDefault(constants.ConfigShell, "")
 
 	if runtime.GOOS == "windows" {
 		v.SetDefault(constants.ConfigEditor, "notepad")
@@ -56,6 +57,9 @@ func bindEnvironment(v *viper.Viper) error {
 		return err
 	}
 	if err := v.BindEnv(constants.ConfigNoPrompt, constants.EnvCI); err != nil {
+		return err
+	}
+	if err := v.BindEnv(constants.ConfigShell, constants.EnvOctopusShell); err != nil {
 		return err
 	}
 	return nil

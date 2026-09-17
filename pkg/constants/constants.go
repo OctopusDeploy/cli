@@ -38,6 +38,7 @@ const (
 	ConfigEditor       = "Editor"
 	ConfigShowOctopus  = "ShowOctopus"
 	ConfigOutputFormat = "OutputFormat"
+	ConfigShell        = "Shell"
 )
 
 const (
@@ -45,6 +46,7 @@ const (
 	EnvOctopusApiKey      = "OCTOPUS_API_KEY"
 	EnvOctopusAccessToken = "OCTOPUS_ACCESS_TOKEN"
 	EnvOctopusSpace       = "OCTOPUS_SPACE"
+	EnvOctopusShell       = "OCTOPUS_SHELL"
 	EnvEditor             = "EDITOR"
 	EnvVisual             = "VISUAL"
 	EnvCI                 = "CI"
