@@ -46,6 +46,7 @@ type CreateFlags struct {
 	*shared.CreateTargetRoleFlags
 	*shared.CreateTargetTenantFlags
 	*shared.WorkerPoolFlags
+	*machinescommon.CreateTargetDisabledFlags
 	*machinescommon.WebFlags
 }
 
@@ -73,6 +74,7 @@ func NewCreateFlags() *CreateFlags {
 		CreateTargetEnvironmentFlags: shared.NewCreateTargetEnvironmentFlags(),
 		CreateTargetTenantFlags:      shared.NewCreateTargetTenantFlags(),
 		WorkerPoolFlags:              shared.NewWorkerPoolFlags(),
+		CreateTargetDisabledFlags:    machinescommon.NewCreateTargetDisabledFlags(),
 		WebFlags:                     machinescommon.NewWebFlags(),
 	}
 }
@@ -123,6 +125,7 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 	shared.RegisterCreateTargetRoleFlags(cmd, createFlags.CreateTargetRoleFlags)
 	shared.RegisterCreateTargetTenantFlags(cmd, createFlags.CreateTargetTenantFlags)
 	shared.RegisterCreateTargetWorkerPoolFlags(cmd, createFlags.WorkerPoolFlags)
+	machinescommon.RegisterCreateTargetDisabledFlags(cmd, createFlags.CreateTargetDisabledFlags)
 	machinescommon.RegisterWebFlag(cmd, createFlags.WebFlags)
 	return cmd
 }
@@ -174,6 +177,8 @@ func createRun(opts *CreateOptions) error {
 		return err
 	}
 
+	deploymentTarget.IsDisabled = opts.Disabled.Value
+
 	createdTarget, err := opts.Client.Machines.Add(deploymentTarget)
 	if err != nil {
 		return err
@@ -181,7 +186,7 @@ func createRun(opts *CreateOptions) error {
 
 	fmt.Fprintf(opts.Out, "Successfully created Azure web app '%s'.\n", deploymentTarget.Name)
 	if !opts.NoPrompt {
-		autoCmd := flag.GenerateAutomationCmd(opts.CmdPath, opts.GetSpaceNameOrEmpty(), opts.Name, opts.Account, opts.WebApp, opts.ResourceGroup, opts.Slot, opts.Environments, opts.Roles, opts.Tags, opts.TenantedDeploymentMode, opts.Tenants, opts.TenantTags)
+		autoCmd := flag.GenerateAutomationCmd(opts.CmdPath, opts.GetSpaceNameOrEmpty(), opts.Name, opts.Account, opts.WebApp, opts.ResourceGroup, opts.Slot, opts.Environments, opts.Roles, opts.Tags, opts.TenantedDeploymentMode, opts.Tenants, opts.TenantTags, opts.Disabled)
 		fmt.Fprintf(opts.Out, "\nAutomation Command: %s\n", autoCmd)
 	}
 

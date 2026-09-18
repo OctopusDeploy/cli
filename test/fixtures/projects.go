@@ -12,6 +12,7 @@ import (
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/deployments"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/environments"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/environments/v2/ephemeralenvironments"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/machines"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/releases"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/resources"
@@ -238,6 +239,14 @@ func NewTenant(spaceID string, tenantID string, name string, tenantTags ...strin
 	result.SpaceID = spaceID
 	result.TenantTags = tenantTags
 	// doesn't have any ProjectEnvironments, will need to add them externally
+	return result
+}
+
+func NewDeploymentTarget(spaceID string, targetID string, name string, isDisabled bool) *machines.DeploymentTarget {
+	result := machines.NewDeploymentTarget(name, machines.NewCloudRegionEndpoint(), []string{"Environments-1"}, []string{"web"})
+	result.ID = targetID
+	result.SpaceID = spaceID
+	result.IsDisabled = isDisabled
 	return result
 }
 
