@@ -86,15 +86,16 @@ func NewMultiSelectPrompt(prompt string, help string, options []string, response
 	}
 }
 
-func NewMultiSelectWithAddPrompt(prompt string, help string, options []string, responses []string) *PA {
-	return &PA{
-		Prompt: &surveyext.MultiSelectWithAdd{
-			Message: prompt,
-			Options: options,
-			Help:    help,
-		},
-		Answer: responses,
+func NewMultiSelectWithAddPrompt(prompt string, help string, options []string, responses []string, newItemName ...string) *PA {
+	p := &surveyext.MultiSelectWithAdd{
+		Message: prompt,
+		Options: options,
+		Help:    help,
 	}
+	if len(newItemName) > 0 {
+		p.NewItemName = newItemName[0]
+	}
+	return &PA{Prompt: p, Answer: responses}
 }
 
 func NewConfirmPrompt(prompt string, help string, response any) *PA {

@@ -20,9 +20,16 @@ for them to select using the arrow keys and enter, typing allows the user to add
 	}
 	survey.AskOne(prompt, &days)
 */
+// DefaultNewItemName is what this prompt calls the thing enter creates when the
+// caller has not said.
+const DefaultNewItemName = "entry"
+
 type MultiSelectWithAdd struct {
 	survey.Renderer
-	Message       string
+	Message string
+	// NewItemName names what pressing enter creates, for prompts where "entry"
+	// is vaguer than it needs to be. Defaults to DefaultNewItemName.
+	NewItemName   string
 	Options       []string
 	Default       interface{}
 	Help          string
@@ -72,12 +79,34 @@ var MultiSelectQuestionTemplate = `
 {{- color "default+hb"}}{{ .Message }}{{ .FilterMessage }}{{color "reset"}}
 {{- if .ShowAnswer}}{{color "cyan"}} {{.Answer}}{{color "reset"}}{{"\n"}}
 {{- else }}
-	{{- "  "}}{{- color "cyan"}}[Type to filter, enter to add a new entry, use arrows to move, <right> to select, <left> to deselect{{- if and .Help (not .ShowHelp)}}, {{ .Config.HelpInput }} for more help{{end}}]{{color "reset"}}
+	{{- "  "}}{{- color "cyan"}}
+	{{- if .Filtering}}{{ .EnterHint }}
+	{{- else}}[Type to filter or create a new {{ .NewItemName }}, use arrows to move, <right> to select, <left> to deselect{{- if and .Help (not .ShowHelp)}}, {{ .Config.HelpInput }} for more help{{end}}]{{end}}
+	{{- color "reset"}}
   {{- "\n"}}
   {{- range $ix, $option := .PageEntries}}
     {{- template "option" $.IterateOption $ix $option}}
   {{- end}}
 {{- end}}`
+
+// Filtering reports whether anything has been typed, which changes what the
+// prompt has to offer to do next.
+func (m MultiSelectWithAdd) Filtering() bool {
+	return strings.TrimSpace(m.filter) != ""
+}
+
+// EnterHint says what pressing enter would do with what has been typed. Enter
+// picks an option that already matches rather than creating a second one, so
+// the hint has to tell those apart.
+func (m MultiSelectWithAdd) EnterHint() string {
+	typed := strings.TrimSpace(m.filter)
+	for _, option := range m.Options {
+		if strings.EqualFold(option, typed) {
+			return fmt.Sprintf("Press enter to select %s", option)
+		}
+	}
+	return fmt.Sprintf("Press enter to create %s", typed)
+}
 
 // OnChange is called on every keypress.
 func (m *MultiSelectWithAdd) OnChange(key rune, config *survey.PromptConfig) {
@@ -237,6 +266,10 @@ func (m *MultiSelectWithAdd) filterOptions(config *survey.PromptConfig) []core.O
 }
 
 func (m *MultiSelectWithAdd) Prompt(config *survey.PromptConfig) (interface{}, error) {
+	if m.NewItemName == "" {
+		m.NewItemName = DefaultNewItemName
+	}
+
 	// compute the default state
 	m.checked = make(map[int]bool)
 	// if there is a default

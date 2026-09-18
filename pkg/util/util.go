@@ -306,3 +306,12 @@ func GenerateWebURL(host, spaceID, path string) string {
 	path = strings.TrimPrefix(path, "/")
 	return fmt.Sprintf("%s/app#/%s/%s", host, spaceID, path)
 }
+
+// Pluralise returns the form matching n. The caller supplies both words, which
+// covers the irregular plurals a suffix rule would get wrong.
+func Pluralise(singular, plural string, n int) string {
+	if n == 1 {
+		return singular
+	}
+	return plural
+}

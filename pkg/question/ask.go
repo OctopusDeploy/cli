@@ -3,6 +3,7 @@ package question
 import (
 	"github.com/AlecAivazis/survey/v2"
 	cliErrors "github.com/OctopusDeploy/cli/pkg/errors"
+	"github.com/OctopusDeploy/cli/pkg/surveyext"
 )
 
 type Asker func(p survey.Prompt, response interface{}, opts ...survey.AskOpt) error
@@ -22,6 +23,11 @@ type askWrapper struct {
 }
 
 func NewAskProvider(asker Asker) AskProvider {
+	if asker != nil {
+		// Applied here rather than at each composition root, so a provider
+		// without the escape-sequence recovery cannot be built by accident.
+		asker = surveyext.Resilient(asker)
+	}
 	return &askWrapper{
 		asker: asker,
 	}
