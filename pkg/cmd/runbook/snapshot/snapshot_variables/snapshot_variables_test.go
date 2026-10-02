@@ -133,6 +133,32 @@ func TestRunbookSnapshotVariables(t *testing.T) {
 			assert.EqualError(t, err, "snapshot 'Snapshot XYZ789' does not belong to runbook 'Rebuild DB Indexes'")
 		}},
 
+		{"noprompt with runbook ID from another project returns error", func(t *testing.T, api *testutil.MockHttpServer, qa *testutil.AskMocker, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
+			foreignRunbook := fixtures.NewRunbook(spaceID, waterProjectID, "Runbooks-9", "Flood Drill")
+			foreignRunbook.PublishedRunbookSnapshotID = "RunbookSnapshots-9"
+
+			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
+				defer api.Close()
+				rootCmd.SetArgs([]string{"runbook", "snapshot", "snapshot-variables",
+					"--project", fireProject.Name,
+					"--runbook", foreignRunbook.GetID(),
+					"--no-prompt"})
+				return rootCmd.ExecuteC()
+			})
+
+			api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/Fire Project").RespondWithStatus(404, "NotFound", nil)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects?partialName=Fire+Project").
+				RespondWith(resources.Resources[*projects.Project]{
+					Items: []*projects.Project{fireProject},
+				})
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/runbooks/Runbooks-9").RespondWith(foreignRunbook)
+
+			_, err := testutil.ReceivePair(cmdReceiver)
+			assert.EqualError(t, err, "runbook 'Runbooks-9' does not belong to project 'Fire Project'")
+		}},
+
 		{"noprompt without --snapshot: defaults to published snapshot and announces it", func(t *testing.T, api *testutil.MockHttpServer, qa *testutil.AskMocker, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
 			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
 				defer api.Close()

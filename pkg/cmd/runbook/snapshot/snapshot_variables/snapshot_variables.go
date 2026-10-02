@@ -110,6 +110,9 @@ func snapshotVariablesRun(opts *SnapshotVariablesOptions) error {
 	if runbook == nil {
 		return errors.New("unable to find runbook")
 	}
+	if runbook.ProjectID != project.GetID() {
+		return fmt.Errorf("runbook '%s' does not belong to project '%s'", opts.Runbook.Value, project.GetName())
+	}
 
 	snapshotID, snapshotName, defaultedToPublished, err := resolveSnapshot(opts, runbook)
 	if err != nil {
