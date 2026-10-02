@@ -14,7 +14,6 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/util/flag"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/channels"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/lifecycles"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
 	"github.com/spf13/cobra"
 )
 
@@ -136,17 +135,10 @@ func PromptMissing(opts *CreateOptions) error {
 		return err
 	}
 
-	var selectedProject *projects.Project
-	if opts.Project.Value == "" {
-		selectedProject, err = selectors.Project("Select the project in which the channel will be created", opts.Client, opts.Ask)
-		if err != nil {
-			return err
-		}
-	} else {
-		selectedProject, err = selectors.FindProject(opts.Client, opts.Project.Value)
-		if err != nil {
-			return err
-		}
+	selectedProject, err := selectors.ResolveProject(opts.Client, opts.Ask, true,
+		"Select the project in which the channel will be created", opts.Project.Value)
+	if err != nil {
+		return err
 	}
 	opts.Project.Value = selectedProject.Name
 

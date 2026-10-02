@@ -1,5 +1,176 @@
 # Changelog
 
+## [2.26.0](https://github.com/OctopusDeploy/cli/compare/v2.25.1...v2.26.0) (2026-09-16)
+
+
+### Features
+
+* add project metadata to project list and view ([33c97f5](https://github.com/OctopusDeploy/cli/commit/33c97f5236825e9fa71f18b9b373f1fe8a4e8836)), closes [#491](https://github.com/OctopusDeploy/cli/issues/491)
+
+
+### Bug Fixes
+
+* don't panic when a version controlled project has no git settings ([ba91025](https://github.com/OctopusDeploy/cli/commit/ba91025f4570c157ba858657eac068515a754b7f))
+* don't print an empty project group or lifecycle label in basic view ([9fb826e](https://github.com/OctopusDeploy/cli/commit/9fb826ea876fa292b2cfb47ef0de868d5757457f))
+* don't print an empty version control branch label in basic view ([bbae421](https://github.com/OctopusDeploy/cli/commit/bbae4213324824c7386b55619415c3d8deb4d70e))
+* honour project view --web for every output format ([7a258ff](https://github.com/OctopusDeploy/cli/commit/7a258ff09ebbddb7b0070041d6f37f0468ef58dd))
+
+
+### Performance Improvements
+
+* skip the name lookups for project list -f basic ([5ee2786](https://github.com/OctopusDeploy/cli/commit/5ee278623193fdf1c78e384c6385a84efc1864bc))
+
+## [2.25.1](https://github.com/OctopusDeploy/cli/compare/v2.25.0...v2.25.1) (2026-09-09)
+
+
+### Bug Fixes
+
+* stop login --ignore-ssl-errors panicking on a wrapped transport ([#726](https://github.com/OctopusDeploy/cli/issues/726)) ([3860c0c](https://github.com/OctopusDeploy/cli/commit/3860c0cfbeb379d2484d80aa5164d517b4578005))
+
+## [2.25.0](https://github.com/OctopusDeploy/cli/compare/v2.24.1...v2.25.0) (2026-09-01)
+
+
+### Features
+
+* Include and exclude targets by tag for deployments and runbook runs ([#585](https://github.com/OctopusDeploy/cli/issues/585)) ([2922f08](https://github.com/OctopusDeploy/cli/commit/2922f08f6be519883f222e42491064f5e234b872))
+
+## [2.24.1](https://github.com/OctopusDeploy/cli/compare/v2.24.0...v2.24.1) (2026-08-25)
+
+
+### Features
+
+* Add --priority to release deploy and runbook run ([#708](https://github.com/OctopusDeploy/cli/issues/708)) ([c7c958f](https://github.com/OctopusDeploy/cli/commit/c7c958f07b066519ebe555e6dbf165b124b33a20))
+
+## [2.24.0](https://github.com/OctopusDeploy/cli/compare/v2.23.10...v2.24.0) (2026-08-19)
+
+
+### Features
+
+* add channel list, view, and delete commands ([f3baf2c](https://github.com/OctopusDeploy/cli/commit/f3baf2c2641347ab3d82e20813e3b345b3642f83))
+* show lifecycle names in channel list ([bf27551](https://github.com/OctopusDeploy/cli/commit/bf27551d93fbf0dd71158f7681dffaebc0e03acb))
+
+
+### Bug Fixes
+
+* bump Go to 1.26.6 to clear stdlib CVEs ([2b7449f](https://github.com/OctopusDeploy/cli/commit/2b7449f3f7504d9169801398d1a3a719c6206b4e))
+* resolve the project in release progression allow and prevent ([afbff88](https://github.com/OctopusDeploy/cli/commit/afbff8860c54d3e45adbde0328b6811ce9c5358b))
+* stop deployment target commands crashing for AWS ECS targets ([898a953](https://github.com/OctopusDeploy/cli/commit/898a9531f8f5b12845fb262c768723166060cafe))
+* stop worker commands crashing on unreported endpoint details ([6e7e08c](https://github.com/OctopusDeploy/cli/commit/6e7e08c8ab497266c0802ad21eb5331e881bcc03))
+
+## [2.23.10](https://github.com/OctopusDeploy/cli/compare/v2.23.9...v2.23.10) (2026-08-12)
+
+
+### Bug Fixes
+
+* **deps:** bump github.com/bmatcuk/doublestar/v4 from 4.4.0 to 4.10.0 ([933ecc2](https://github.com/OctopusDeploy/cli/commit/933ecc21dd668c6ea4aee6b0ce3db9a3e2812369))
+* **deps:** bump github.com/OctopusDeploy/go-octopusdeploy/v2 ([372ff55](https://github.com/OctopusDeploy/cli/commit/372ff554c135ffe2ff9e327e22341e8c6bf72235))
+* **deps:** bump github.com/spf13/cobra from 1.6.1 to 1.10.2 ([d041daf](https://github.com/OctopusDeploy/cli/commit/d041daf693419e30c12d8be76ec0723087705211))
+
+## [2.23.9](https://github.com/OctopusDeploy/cli/compare/v2.23.8...v2.23.9) (2026-08-11)
+
+
+### Bug Fixes
+
+* always write a nuspec into generated NuGet packages ([5f2aeef](https://github.com/OctopusDeploy/cli/commit/5f2aeefc38a67d400e2b69bd582aa02cb29e0f7c))
+* XML-escape values written into the nuspec ([e5a6f89](https://github.com/OctopusDeploy/cli/commit/e5a6f89795dc54c9663f08862ef46b8ba5b41a8b))
+
+## [2.23.8](https://github.com/OctopusDeploy/cli/compare/v2.23.7...v2.23.8) (2026-08-07)
+
+
+### Bug Fixes
+
+* preserve --variable values through interactive runbook run ([#582](https://github.com/OctopusDeploy/cli/issues/582)) ([3d561d8](https://github.com/OctopusDeploy/cli/commit/3d561d86ab6da797cab3161375b82a3c02ea935a))
+
+## [2.23.7](https://github.com/OctopusDeploy/cli/compare/v2.23.6...v2.23.7) (2026-08-06)
+
+
+### Bug Fixes
+
+* force-push the release branch and surface GitHub's error detail ([f428cb9](https://github.com/OctopusDeploy/cli/commit/f428cb9cc1f155120b02e16d911c2e5d69ed559d))
+* open a pull request when publishing the homebrew formula ([c8e192d](https://github.com/OctopusDeploy/cli/commit/c8e192d32918827a102137add7d81711edfa5f30)), closes [#541](https://github.com/OctopusDeploy/cli/issues/541)
+
+## [2.23.6](https://github.com/OctopusDeploy/cli/compare/v2.23.5...v2.23.6) (2026-08-06)
+
+
+### Bug Fixes
+
+* produce valid NuGet packages from package nuget create ([47932dc](https://github.com/OctopusDeploy/cli/commit/47932dc5a3f6a0ce02e24912610a9bc939f17191)), closes [#477](https://github.com/OctopusDeploy/cli/issues/477)
+
+## [2.23.5](https://github.com/OctopusDeploy/cli/compare/v2.23.4...v2.23.5) (2026-08-05)
+
+
+### Bug Fixes
+
+* colour multi-line text one line at a time ([fd9d045](https://github.com/OctopusDeploy/cli/commit/fd9d04541f07092c9d999df46299e3185ed0e653))
+* honour FORCE_COLOR=0, CLICOLOR_FORCE=0 and CLICOLOR=0 as colour off ([8282025](https://github.com/OctopusDeploy/cli/commit/82820258dca5781944b93b29d8a86219b3c8b6ee))
+* support colour output in CI via FORCE_COLOR/CLICOLOR_FORCE ([3ecaa76](https://github.com/OctopusDeploy/cli/commit/3ecaa76056bf15104b6648372d7318e6c3380057)), closes [#506](https://github.com/OctopusDeploy/cli/issues/506)
+
+## [2.23.4](https://github.com/OctopusDeploy/cli/compare/v2.23.3...v2.23.4) (2026-08-05)
+
+
+### Bug Fixes
+
+* **deps:** bump uuid, testify, viper and godotenv ([#645](https://github.com/OctopusDeploy/cli/issues/645)) ([151b469](https://github.com/OctopusDeploy/cli/commit/151b46977d4db6aa16631ea5aa405c07ffceb02e))
+
+## [2.23.3](https://github.com/OctopusDeploy/cli/compare/v2.23.2...v2.23.3) (2026-08-05)
+
+
+### Bug Fixes
+
+* emit valid JSON from package create commands ([edf3e99](https://github.com/OctopusDeploy/cli/commit/edf3e99dd6fb2cb6e56ab9178009a1e91fe22738)), closes [#518](https://github.com/OctopusDeploy/cli/issues/518)
+
+## [2.23.2](https://github.com/OctopusDeploy/cli/compare/v2.23.1...v2.23.2) (2026-08-05)
+
+
+### Bug Fixes
+
+* make delete commands usable with --no-prompt ([4f92fc4](https://github.com/OctopusDeploy/cli/commit/4f92fc4e28824a1406feb47e93750aa6c9bdc103)), closes [#490](https://github.com/OctopusDeploy/cli/issues/490) [#530](https://github.com/OctopusDeploy/cli/issues/530)
+
+## [2.23.1](https://github.com/OctopusDeploy/cli/compare/v2.23.0...v2.23.1) (2026-08-05)
+
+
+### Bug Fixes
+
+* indent the --package escape example with spaces, not a tab ([45bcb30](https://github.com/OctopusDeploy/cli/commit/45bcb3037cc6db9facf3a41c348bfc355e7dd1fa))
+* updated escape syntax docs on release create ([2b27030](https://github.com/OctopusDeploy/cli/commit/2b270306054a2bf70047de4335abf2529776852d))
+
+## [2.23.0](https://github.com/OctopusDeploy/cli/compare/v2.22.1...v2.23.0) (2026-08-05)
+
+
+### Features
+
+* add --exclude to package create commands ([7e2aca9](https://github.com/OctopusDeploy/cli/commit/7e2aca9e18ed0c61bdc99eaaaa0a46ddd3e0b2b4)), closes [#214](https://github.com/OctopusDeploy/cli/issues/214)
+
+## [2.22.1](https://github.com/OctopusDeploy/cli/compare/v2.22.0...v2.22.1) (2026-08-05)
+
+
+### Bug Fixes
+
+* **deps:** bump github.com/briandowns/spinner from 1.19.0 to 1.23.2 ([814d700](https://github.com/OctopusDeploy/cli/commit/814d70016f4d22ec879f2cc80f983ad92200a0ef))
+
+## [2.22.0](https://github.com/OctopusDeploy/cli/compare/v2.21.6...v2.22.0) (2026-08-05)
+
+
+### Features
+
+* accept --tenant on tenant variables list ([406229d](https://github.com/OctopusDeploy/cli/commit/406229dd54f4eea114fc2ddb85dd625463188048)), closes [#297](https://github.com/OctopusDeploy/cli/issues/297)
+* accept --tenant on tenant view ([d7e88b8](https://github.com/OctopusDeploy/cli/commit/d7e88b874d3af58262a52b50a6a1b888a6a8fa6d))
+* prompt for a tenant when none is supplied to variables list ([a9e8db0](https://github.com/OctopusDeploy/cli/commit/a9e8db0b0fa8125b8aafb9d48cabb00af4838e8f))
+
+## [2.21.6](https://github.com/OctopusDeploy/cli/compare/v2.21.5...v2.21.6) (2026-08-05)
+
+
+### Bug Fixes
+
+* stop commands crashing when an optional identifier is omitted ([b02f0df](https://github.com/OctopusDeploy/cli/commit/b02f0dfd5e04afbce773a13c80db7195aa4914fd)), closes [#627](https://github.com/OctopusDeploy/cli/issues/627)
+
+## [2.21.5](https://github.com/OctopusDeploy/cli/compare/v2.21.4...v2.21.5) (2026-08-04)
+
+
+### Bug Fixes
+
+* bump Go to 1.26.5 and golang.org/x deps to clear CVEs ([25ce4fb](https://github.com/OctopusDeploy/cli/commit/25ce4fbe3fe9e9526546d06acd716a68d52ce519)), closes [#583](https://github.com/OctopusDeploy/cli/issues/583)
+
 ## [2.21.4](https://github.com/OctopusDeploy/cli/compare/v2.21.3...v2.21.4) (2026-07-16)
 
 

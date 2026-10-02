@@ -12,7 +12,6 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/output"
 	"github.com/OctopusDeploy/cli/pkg/question/selectors"
 	"github.com/OctopusDeploy/cli/pkg/util/flag"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/runbooks"
 	"github.com/spf13/cobra"
 )
@@ -82,24 +81,19 @@ func listRun(cmd *cobra.Command, f factory.Factory, flags *ListFlags) error {
 	projectNameOrID := flags.Project.Value
 	runbookNameOrID := flags.Runbook.Value
 
-	var selectedProject *projects.Project
+	selectedProject, err := selectors.ResolveProject(client, f.Ask, f.IsPromptEnabled(),
+		"Select the project to list runbook snapshots for", projectNameOrID)
+	if err != nil {
+		return err
+	}
+	// echo the project when it came from the command line, so there is always a line
+	// showing what was selected
+	if f.IsPromptEnabled() && projectNameOrID != "" && !constants.IsProgrammaticOutputFormat(outputFormat) {
+		cmd.Printf("Project %s\n", output.Cyan(selectedProject.Name))
+	}
+
 	var selectedRunbook *runbooks.Runbook
 	if f.IsPromptEnabled() { // this would be AskQuestions if it were bigger
-		if projectNameOrID == "" {
-			selectedProject, err = selectors.Project("Select the project to list runbook snapshots for", client, f.Ask)
-			if err != nil {
-				return err
-			}
-		} else { // project name is already provided, fetch the object because it's needed for further questions
-			selectedProject, err = selectors.FindProject(client, projectNameOrID)
-			if err != nil {
-				return err
-			}
-			if !constants.IsProgrammaticOutputFormat(outputFormat) {
-				cmd.Printf("Project %s\n", output.Cyan(selectedProject.Name))
-			}
-		}
-
 		if runbookNameOrID == "" {
 			selectedRunbook, err = selectors.Runbook("Select the runbook to list snapshots for", client, f.Ask, selectedProject.GetID())
 			if err != nil {
@@ -115,14 +109,6 @@ func listRun(cmd *cobra.Command, f factory.Factory, flags *ListFlags) error {
 			}
 		}
 	} else { // we don't have the executions API backing us and allowing NameOrID; we need to do the lookup ourselves
-		if projectNameOrID == "" {
-			return errors.New("project must be specified")
-		}
-		selectedProject, err = selectors.FindProject(client, projectNameOrID)
-		if err != nil {
-			return err
-		}
-
 		if runbookNameOrID == "" {
 			return errors.New("runbook must be specified")
 		}

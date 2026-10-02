@@ -364,6 +364,7 @@ func runRunbooksByTag(cmd *cobra.Command, f factory.Factory, flags *RunFlags, oc
 			ScheduledExpiryTime:  flags.MaxQueueTime.Value,
 			ExcludedSteps:        flags.ExcludedSteps.Value,
 			GuidedFailureMode:    flags.GuidedFailureMode.Value,
+			Priority:             flags.Priority.Value,
 			ForcePackageDownload: flags.ForcePackageDownload.Value,
 			RunTargets:           flags.RunTargets.Value,
 			ExcludeTargets:       flags.ExcludeTargets.Value,

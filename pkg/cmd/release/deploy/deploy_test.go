@@ -569,16 +569,15 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 			validationErr = q.AnswerWith("John")
 			assert.Nil(t, validationErr)
 
-			assert.Contains(t, stdout.String(), heredoc.Doc(`
-				Project Fire Project
-				Release 2.0
-				Environments dev
-			`), stdout.String())
-
 			q = qa.ExpectQuestion(t, &survey.Select{
 				Message: "Change additional options?",
 				Options: []string{"Proceed to deploy", "Change"},
 			})
+			assert.Contains(t, stdout.String(), heredoc.Doc(`
+				Project Fire Project
+				Release 2.0
+				Environments dev
+			`))
 			assert.Regexp(t, "Additional Options", stdout.String()) // actual options tested in PrintAdvancedSummary
 			_ = q.AnswerWith("Proceed to deploy")
 
@@ -647,15 +646,15 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 				Message: "Scoped Sensitive",
 				Help:    "",
 			})
-			assert.Regexp(t, "", stdout.String()) // actual options tested in PrintAdvancedSummary
-			_ = promptQuestion.AnswerWith("Secret Value")
-
+			// Exact contents, so this has to precede the answer below.
 			assert.Equal(t, heredoc.Doc(`
 				Project Fire Project
 				Release 2.0
 				Environments dev
 			`), stdout.String())
 			stdout.Reset()
+
+			_ = promptQuestion.AnswerWith("Secret Value")
 
 			q := qa.ExpectQuestion(t, &survey.Select{
 				Message: "Change additional options?",
@@ -758,15 +757,14 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 			emptyDeploymentPreviews := fixtures.EmptyDeploymentPreviews()
 			api.ExpectRequest(t, "POST", "/api/Spaces-1/releases/"+release19.ID+"/deployments/previews").RespondWith(&emptyDeploymentPreviews)
 
-			assert.Contains(t, heredoc.Doc(`
-				Project Fire Project
-				Release 1.9
-			`), stdout.String())
-
 			q = qa.ExpectQuestion(t, &survey.Select{
 				Message: "Change additional options?",
 				Options: []string{"Proceed to deploy", "Change"},
 			})
+			assert.Contains(t, stdout.String(), heredoc.Doc(`
+				Project Fire Project
+				Release 1.9
+			`))
 			assert.Regexp(t, "Additional Options", stdout.String()) // actual options tested in PrintAdvancedSummary
 			_ = q.AnswerWith("Proceed to deploy")
 
@@ -869,15 +867,14 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 			emptyDeploymentPreviews := fixtures.EmptyDeploymentPreviews()
 			api.ExpectRequest(t, "POST", "/api/Spaces-1/releases/"+release19.ID+"/deployments/previews").RespondWith(&emptyDeploymentPreviews)
 
-			assert.Contains(t, stdout.String(), heredoc.Doc(`
-				Project Fire Project
-				Release 1.9
-			`))
-
 			q = qa.ExpectQuestion(t, &survey.Select{
 				Message: "Change additional options?",
 				Options: []string{"Proceed to deploy", "Change"},
 			})
+			assert.Contains(t, stdout.String(), heredoc.Doc(`
+				Project Fire Project
+				Release 1.9
+			`))
 			assert.Regexp(t, "Additional Options", stdout.String()) // actual options tested in PrintAdvancedSummary
 			_ = q.AnswerWith("Proceed to deploy")
 
@@ -1176,6 +1173,14 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 				Options: []string{"vm-1", "vm-2", "vm-4", "vm-5"},
 			}).AnswerWith([]string{"vm-1", "vm-2"})
 
+			// the previews don't declare any tag sets, so the target tag questions are skipped
+			api.ExpectRequest(t, "GET", fmt.Sprintf("/api/Spaces-1/releases/%s/deployments/preview/%s?includeDisabledSteps=true", release19.ID, devEnvironment.ID)).RespondWith(&deployments.DeploymentPreview{
+				StepsToExecute: []*deployments.DeploymentTemplateStep{},
+			})
+			api.ExpectRequest(t, "GET", fmt.Sprintf("/api/Spaces-1/releases/%s/deployments/preview/%s?includeDisabledSteps=true", release19.ID, scratchEnvironment.ID)).RespondWith(&deployments.DeploymentPreview{
+				StepsToExecute: []*deployments.DeploymentTemplateStep{},
+			})
+
 			err := <-errReceiver
 			assert.Nil(t, err)
 
@@ -1280,6 +1285,11 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 				Options: []string{"vm-1", "vm-2", "vm-4"},
 			}).AnswerWith([]string{"vm-1"})
 
+			// the preview doesn't declare any tag sets, so the target tag questions are skipped
+			api.ExpectRequest(t, "GET", fmt.Sprintf("/api/Spaces-1/releases/%s/deployments/preview/%s?includeDisabledSteps=true", release19.ID, devEnvironment.ID)).RespondWith(&deployments.DeploymentPreview{
+				StepsToExecute: []*deployments.DeploymentTemplateStep{},
+			})
+
 			err := <-errReceiver
 			assert.Nil(t, err)
 
@@ -1310,6 +1320,7 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 				ForcePackageDownload:             true,
 				ForcePackageDownloadWasSpecified: true, // need this as well
 				ExcludeTargets:                   []string{"vm-99"},
+				ExcludedTargetTagNames:           []string{"Role/Legacy"},
 				ScheduledStartTime:               "some-sort-of-garbage(passthru to server)",
 			}
 
@@ -1336,6 +1347,7 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 				Variables:                        make(map[string]string, 0),
 				ExcludedSteps:                    []string{"Cleanup"},
 				ExcludeTargets:                   []string{"vm-99"},
+				ExcludedTargetTagNames:           []string{"Role/Legacy"},
 				ReleaseID:                        release19.ID,
 				ScheduledStartTime:               "some-sort-of-garbage(passthru to server)",
 			}, options)
@@ -1350,7 +1362,8 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 				GuidedFailureMode:                "default",
 				ForcePackageDownload:             false,
 				ForcePackageDownloadWasSpecified: true,
-				ExcludeTargets:                   []string{"vm-99"}, // just to skip the question
+				ExcludeTargets:                   []string{"vm-99"},       // just to skip the question
+				ExcludedTargetTagNames:           []string{"Role/Legacy"}, // just to skip the question
 				ScheduledStartTime:               now().String(),
 			}
 
@@ -1377,6 +1390,7 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 				Variables:                        make(map[string]string, 0),
 				ExcludedSteps:                    []string{"Cleanup"},
 				ExcludeTargets:                   []string{"vm-99"},
+				ExcludedTargetTagNames:           []string{"Role/Legacy"},
 				ReleaseID:                        release19.ID,
 				ScheduledStartTime:               "2022-09-08 13:25:02 +0800 Malaysia",
 			}, options)
@@ -1425,6 +1439,11 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 			}, datePicker)
 			_ = q.AnswerWith(plus59s)
 			// note it doesn't ask for a scheduled end time
+
+			// the preview doesn't declare any tag sets, so the target tag questions are skipped
+			api.ExpectRequest(t, "GET", fmt.Sprintf("/api/Spaces-1/releases/%s/deployments/preview/%s?includeDisabledSteps=true", release19.ID, devEnvironment.ID)).RespondWith(&deployments.DeploymentPreview{
+				StepsToExecute: []*deployments.DeploymentTemplateStep{},
+			})
 
 			err := <-errReceiver
 			assert.Nil(t, err)
@@ -1498,6 +1517,11 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 				OverrideNow: refNow,
 			}).AnswerWith(plus61s5min)
 
+			// the preview doesn't declare any tag sets, so the target tag questions are skipped
+			api.ExpectRequest(t, "GET", fmt.Sprintf("/api/Spaces-1/releases/%s/deployments/preview/%s?includeDisabledSteps=true", release19.ID, devEnvironment.ID)).RespondWith(&deployments.DeploymentPreview{
+				StepsToExecute: []*deployments.DeploymentTemplateStep{},
+			})
+
 			err := <-errReceiver
 			assert.Nil(t, err)
 
@@ -1515,6 +1539,165 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 				ReleaseID:                        release19.ID,
 				ScheduledStartTime:               "2022-09-08T13:26:03+08:00",
 				ScheduledExpiryTime:              "2022-09-08T13:31:03+08:00",
+			}, options)
+		}},
+
+		{"target tags with specific tags selected", func(t *testing.T, api *testutil.MockHttpServer, qa *testutil.AskMocker, stdout *bytes.Buffer) {
+			options := &executor.TaskOptionsDeployRelease{
+				ProjectName:                      "fire project",
+				ReleaseVersion:                   "1.9",
+				Environments:                     []string{"dev"},
+				ExcludedSteps:                    []string{"Cleanup"},
+				GuidedFailureMode:                "false",
+				ForcePackageDownloadWasSpecified: true,
+				DeploymentTargets:                []string{"vm-1"},
+				ScheduledStartTime:               "now",
+			}
+
+			errReceiver := testutil.GoBegin(func() error {
+				defer testutil.Close(api, qa)
+				octopus, _ := octopusApiClient.NewClient(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "")
+				return deploy.AskQuestions(octopus, stdout, qa.AsAsker(), space1, options, now)
+			})
+
+			doStandardApiResponses(options, api, release19, variableSnapshotNoVars)
+			stdout.Reset()
+
+			_ = qa.ExpectQuestion(t, &survey.Select{
+				Message: "Change additional options?",
+				Options: []string{"Proceed to deploy", "Change"},
+			}).AnswerWith("Change")
+			stdout.Reset()
+
+			api.ExpectRequest(t, "GET", fmt.Sprintf("/api/Spaces-1/releases/%s/deployments/preview/%s?includeDisabledSteps=true", release19.ID, devEnvironment.ID)).RespondWith(&deployments.DeploymentPreview{
+				StepsToExecute: []*deployments.DeploymentTemplateStep{
+					{
+						AvailableTagSets: []*deployments.TagSetPreview{
+							{
+								TagSetName: "Role",
+								AvailableTags: []*deployments.TargetTagPreview{
+									{TagName: "WebServer"},
+									{TagName: "Database"},
+									{TagName: "Legacy"},
+								},
+							},
+							{
+								TagSetName: "Environment",
+								AvailableTags: []*deployments.TargetTagPreview{
+									{TagName: "Production"},
+									{TagName: "Staging"},
+								},
+							},
+						},
+					},
+				},
+			})
+
+			_ = qa.ExpectQuestion(t, &survey.MultiSelect{
+				Message: "Specific target tags to include (If none selected, include all)",
+				Options: []string{"Environment/Production", "Environment/Staging", "Role/Database", "Role/Legacy", "Role/WebServer"},
+			}).AnswerWith([]string{"Role/WebServer", "Environment/Production"})
+
+			err := <-errReceiver
+			assert.Nil(t, err)
+
+			// check that the question-asking process has filled out the things we told it to
+			assert.Equal(t, &executor.TaskOptionsDeployRelease{
+				ProjectName:                      "Fire Project",
+				ReleaseVersion:                   "1.9",
+				Environments:                     []string{"dev"},
+				GuidedFailureMode:                "false",
+				ForcePackageDownload:             false,
+				ForcePackageDownloadWasSpecified: true,
+				Variables:                        make(map[string]string, 0),
+				ExcludedSteps:                    []string{"Cleanup"},
+				DeploymentTargets:                []string{"vm-1"},
+				SpecificTargetTagNames:           []string{"Role/WebServer", "Environment/Production"},
+				ExcludedTargetTagNames:           nil,
+				ReleaseID:                        release19.ID,
+				ScheduledStartTime:               "now",
+			}, options)
+		}},
+
+		{"target tags with excluded tags selected", func(t *testing.T, api *testutil.MockHttpServer, qa *testutil.AskMocker, stdout *bytes.Buffer) {
+			options := &executor.TaskOptionsDeployRelease{
+				ProjectName:                      "fire project",
+				ReleaseVersion:                   "1.9",
+				Environments:                     []string{"dev"},
+				ExcludedSteps:                    []string{"Cleanup"},
+				GuidedFailureMode:                "false",
+				ForcePackageDownloadWasSpecified: true,
+				DeploymentTargets:                []string{"vm-1"},
+				ScheduledStartTime:               "now",
+			}
+
+			errReceiver := testutil.GoBegin(func() error {
+				defer testutil.Close(api, qa)
+				octopus, _ := octopusApiClient.NewClient(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "")
+				return deploy.AskQuestions(octopus, stdout, qa.AsAsker(), space1, options, now)
+			})
+
+			doStandardApiResponses(options, api, release19, variableSnapshotNoVars)
+			stdout.Reset()
+
+			_ = qa.ExpectQuestion(t, &survey.Select{
+				Message: "Change additional options?",
+				Options: []string{"Proceed to deploy", "Change"},
+			}).AnswerWith("Change")
+			stdout.Reset()
+
+			api.ExpectRequest(t, "GET", fmt.Sprintf("/api/Spaces-1/releases/%s/deployments/preview/%s?includeDisabledSteps=true", release19.ID, devEnvironment.ID)).RespondWith(&deployments.DeploymentPreview{
+				StepsToExecute: []*deployments.DeploymentTemplateStep{
+					{
+						AvailableTagSets: []*deployments.TagSetPreview{
+							{
+								TagSetName: "Role",
+								AvailableTags: []*deployments.TargetTagPreview{
+									{TagName: "WebServer"},
+									{TagName: "Database"},
+									{TagName: "Legacy"},
+								},
+							},
+							{
+								TagSetName: "Environment",
+								AvailableTags: []*deployments.TargetTagPreview{
+									{TagName: "Production"},
+									{TagName: "Staging"},
+								},
+							},
+						},
+					},
+				},
+			})
+
+			_ = qa.ExpectQuestion(t, &survey.MultiSelect{
+				Message: "Specific target tags to include (If none selected, include all)",
+				Options: []string{"Environment/Production", "Environment/Staging", "Role/Database", "Role/Legacy", "Role/WebServer"},
+			}).AnswerWith([]string{}) // Selecting no specific tags to allow testing excluded tags
+
+			_ = qa.ExpectQuestion(t, &survey.MultiSelect{
+				Message: "Target tags to exclude (If none selected, exclude none)",
+				Options: []string{"Environment/Production", "Environment/Staging", "Role/Database", "Role/Legacy", "Role/WebServer"},
+			}).AnswerWith([]string{"Role/Legacy"})
+
+			err := <-errReceiver
+			assert.Nil(t, err)
+
+			// check that the question-asking process has filled out the things we told it to
+			assert.Equal(t, &executor.TaskOptionsDeployRelease{
+				ProjectName:                      "Fire Project",
+				ReleaseVersion:                   "1.9",
+				Environments:                     []string{"dev"},
+				GuidedFailureMode:                "false",
+				ForcePackageDownload:             false,
+				ForcePackageDownloadWasSpecified: true,
+				Variables:                        make(map[string]string, 0),
+				ExcludedSteps:                    []string{"Cleanup"},
+				DeploymentTargets:                []string{"vm-1"},
+				SpecificTargetTagNames:           nil,
+				ExcludedTargetTagNames:           []string{"Role/Legacy"},
+				ReleaseID:                        release19.ID,
+				ScheduledStartTime:               "now",
 			}, options)
 		}},
 	}
@@ -1864,6 +2047,95 @@ func TestDeployCreate_AutomationMode(t *testing.T) {
 			assert.Equal(t, "", stdErr.String())
 		}},
 
+		{"release deploy with --priority false sends Priority Off", func(t *testing.T, api *testutil.MockHttpServer, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
+			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
+				defer api.Close()
+				rootCmd.SetArgs([]string{"release", "deploy", "--project", fireProject.Name, "--version", "1.0", "--environment", "dev", "--priority", "false", "--output-format", "basic"})
+				return rootCmd.ExecuteC()
+			})
+
+			api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+fireProject.GetName()).RespondWith(fireProject)
+
+			req := api.ExpectRequest(t, "POST", "/api/Spaces-1/deployments/create/untenanted/v1")
+			requestBody, err := testutil.ReadJson[deployments.CreateDeploymentUntenantedCommandV1](req.Request.Body)
+			assert.Nil(t, err)
+
+			assert.Equal(t, deployments.CreateDeploymentUntenantedCommandV1{
+				ReleaseVersion:   "1.0",
+				EnvironmentNames: []string{"dev"},
+				CreateExecutionAbstractCommandV1: deployments.CreateExecutionAbstractCommandV1{
+					SpaceID:         "Spaces-1",
+					ProjectIDOrName: fireProject.Name,
+					Priority:        "Off",
+				},
+			}, requestBody)
+
+			req.RespondWith(&deployments.CreateDeploymentResponseV1{
+				DeploymentServerTasks: []*deployments.DeploymentServerTask{
+					{DeploymentID: "Deployments-203", ServerTaskID: "ServerTasks-29394"},
+				},
+			})
+
+			_, err = testutil.ReceivePair(cmdReceiver)
+			assert.Nil(t, err)
+
+			assert.Equal(t, "ServerTasks-29394\n", stdOut.String())
+			assert.Equal(t, "", stdErr.String())
+		}},
+
+		{"release deploy with --priority default leaves Priority unset", func(t *testing.T, api *testutil.MockHttpServer, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
+			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
+				defer api.Close()
+				rootCmd.SetArgs([]string{"release", "deploy", "--project", fireProject.Name, "--version", "1.0", "--environment", "dev", "--priority", "default", "--output-format", "basic"})
+				return rootCmd.ExecuteC()
+			})
+
+			api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+fireProject.GetName()).RespondWith(fireProject)
+
+			req := api.ExpectRequest(t, "POST", "/api/Spaces-1/deployments/create/untenanted/v1")
+			requestBody, err := testutil.ReadJson[deployments.CreateDeploymentUntenantedCommandV1](req.Request.Body)
+			assert.Nil(t, err)
+
+			assert.Equal(t, deployments.CreateDeploymentUntenantedCommandV1{
+				ReleaseVersion:   "1.0",
+				EnvironmentNames: []string{"dev"},
+				CreateExecutionAbstractCommandV1: deployments.CreateExecutionAbstractCommandV1{
+					SpaceID:         "Spaces-1",
+					ProjectIDOrName: fireProject.Name,
+				},
+			}, requestBody)
+
+			req.RespondWith(&deployments.CreateDeploymentResponseV1{
+				DeploymentServerTasks: []*deployments.DeploymentServerTask{
+					{DeploymentID: "Deployments-203", ServerTaskID: "ServerTasks-29394"},
+				},
+			})
+
+			_, err = testutil.ReceivePair(cmdReceiver)
+			assert.Nil(t, err)
+
+			assert.Equal(t, "ServerTasks-29394\n", stdOut.String())
+			assert.Equal(t, "", stdErr.String())
+		}},
+
+		{"release deploy rejects an unrecognised --priority value before contacting the server", func(t *testing.T, api *testutil.MockHttpServer, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
+			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
+				defer api.Close()
+				rootCmd.SetArgs([]string{"release", "deploy", "--project", fireProject.Name, "--version", "1.0", "--environment", "dev", "--priority", "urgent"})
+				return rootCmd.ExecuteC()
+			})
+
+			_, err := testutil.ReceivePair(cmdReceiver)
+			assert.EqualError(t, err, "'urgent' is not a valid value for priority, expected true, false or default")
+
+			assert.Equal(t, "", stdOut.String())
+			assert.Equal(t, "", stdErr.String())
+		}},
+
 		{"release deploy specifying all the args; untentanted", func(t *testing.T, api *testutil.MockHttpServer, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
 			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
 				defer api.Close()
@@ -1876,10 +2148,13 @@ func TestDeployCreate_AutomationMode(t *testing.T) {
 					"--deploy-at-expiry", "2022-09-10 13:37:03 +10:00",
 					"--skip", "Install", "--skip", "Cleanup",
 					"--guided-failure", "true",
+					"--priority", "true",
 					"--force-package-download",
 					"--update-variables",
 					"--target", "firstMachine", "--target", "secondMachine",
 					"--exclude-target", "thirdMachine",
+					"--specific-target-tag", "Role/AppServer", "--specific-target-tag", "Region/US-West",
+					"--excluded-target-tag", "Maintenance/True",
 					"--deployment-freeze-name", "freeze 1", "--deployment-freeze-name", "freeze 2",
 					"--deployment-freeze-override-reason", "Testing",
 					"--variable", "Approver:John", "--variable", "Signoff:Jane",
@@ -1904,15 +2179,18 @@ func TestDeployCreate_AutomationMode(t *testing.T) {
 				ForcePackageRedeployment: true,
 				UpdateVariableSnapshot:   true,
 				CreateExecutionAbstractCommandV1: deployments.CreateExecutionAbstractCommandV1{
-					SpaceID:              "Spaces-1",
-					ProjectIDOrName:      fireProject.Name,
-					ForcePackageDownload: true,
-					SpecificMachineNames: []string{"firstMachine", "secondMachine"},
-					ExcludedMachineNames: []string{"thirdMachine"},
-					SkipStepNames:        []string{"Install", "Cleanup"},
-					UseGuidedFailure:     &trueVal,
-					RunAt:                "2022-09-10 13:32:03 +10:00",
-					NoRunAfter:           "2022-09-10 13:37:03 +10:00",
+					SpaceID:                "Spaces-1",
+					ProjectIDOrName:        fireProject.Name,
+					ForcePackageDownload:   true,
+					SpecificMachineNames:   []string{"firstMachine", "secondMachine"},
+					ExcludedMachineNames:   []string{"thirdMachine"},
+					SpecificTargetTagNames: []string{"Role/AppServer", "Region/US-West"},
+					ExcludedTargetTagNames: []string{"Maintenance/True"},
+					SkipStepNames:          []string{"Install", "Cleanup"},
+					UseGuidedFailure:       &trueVal,
+					Priority:               "On",
+					RunAt:                  "2022-09-10 13:32:03 +10:00",
+					NoRunAfter:             "2022-09-10 13:37:03 +10:00",
 					Variables: map[string]string{
 						"Approver": "John",
 						"Signoff":  "Jane",
@@ -1950,10 +2228,13 @@ func TestDeployCreate_AutomationMode(t *testing.T) {
 					"--tenant", "Coke", "--tenant", "Pepsi",
 					"--tenant-tag", "Region/us-east",
 					"--guided-failure", "true",
+					"--priority", "true",
 					"--force-package-download",
 					"--update-variables",
 					"--target", "firstMachine", "--target", "secondMachine",
 					"--exclude-target", "thirdMachine",
+					"--specific-target-tag", "Role/WebServer", "--specific-target-tag", "Environment/Production",
+					"--excluded-target-tag", "Role/Database",
 					"--deployment-freeze-name", "freeze 1",
 					"--deployment-freeze-override-reason", "Testing",
 					"--variable", "Approver:John", "--variable", "Signoff:Jane",
@@ -1979,15 +2260,18 @@ func TestDeployCreate_AutomationMode(t *testing.T) {
 				Tenants:                  []string{"Coke", "Pepsi"},
 				TenantTags:               []string{"Region/us-east"},
 				CreateExecutionAbstractCommandV1: deployments.CreateExecutionAbstractCommandV1{
-					SpaceID:              "Spaces-1",
-					ProjectIDOrName:      fireProject.Name,
-					ForcePackageDownload: true,
-					SpecificMachineNames: []string{"firstMachine", "secondMachine"},
-					ExcludedMachineNames: []string{"thirdMachine"},
-					SkipStepNames:        []string{"Install", "Cleanup"},
-					UseGuidedFailure:     &trueVal,
-					RunAt:                "2022-09-10 13:32:03 +10:00",
-					NoRunAfter:           "2022-09-10 13:37:03 +10:00",
+					SpaceID:                "Spaces-1",
+					ProjectIDOrName:        fireProject.Name,
+					ForcePackageDownload:   true,
+					SpecificMachineNames:   []string{"firstMachine", "secondMachine"},
+					ExcludedMachineNames:   []string{"thirdMachine"},
+					SpecificTargetTagNames: []string{"Role/WebServer", "Environment/Production"},
+					ExcludedTargetTagNames: []string{"Role/Database"},
+					SkipStepNames:          []string{"Install", "Cleanup"},
+					UseGuidedFailure:       &trueVal,
+					Priority:               "On",
+					RunAt:                  "2022-09-10 13:32:03 +10:00",
+					NoRunAfter:             "2022-09-10 13:37:03 +10:00",
 					Variables: map[string]string{
 						"Approver": "John",
 						"Signoff":  "Jane",
@@ -2086,7 +2370,7 @@ func TestDeployCreate_GenerationOfAutomationCommand_MasksSensitiveVariables(t *t
 	// need to very it's wired up properly
 	receiver := testutil.GoBegin2(func() (*cobra.Command, error) {
 		defer testutil.Close(api, qa)
-		rootCmd.SetArgs([]string{"release", "deploy", "--project", "fire project", "--version", "2.0", "--environment", "dev"})
+		rootCmd.SetArgs([]string{"release", "deploy", "--project", "fire project", "--version", "2.0", "--environment", "dev", "--priority", "true"})
 		return rootCmd.ExecuteC()
 	})
 
@@ -2176,6 +2460,7 @@ func TestDeployCreate_GenerationOfAutomationCommand_MasksSensitiveVariables(t *t
 		CreateExecutionAbstractCommandV1: deployments.CreateExecutionAbstractCommandV1{
 			SpaceID:         "Spaces-1",
 			ProjectIDOrName: fireProject.Name,
+			Priority:        "On",
 			Variables: map[string]string{
 				"Boring Variable":      "BORING",
 				"Nuclear Launch Codes": "9001",
@@ -2202,10 +2487,12 @@ func TestDeployCreate_GenerationOfAutomationCommand_MasksSensitiveVariables(t *t
 		  Deploy Time: Now
 		  Skipped Steps: None
 		  Guided Failure Mode: Use default setting from the target environment
+		  Priority: Jump the task queue
 		  Package Download: Use cached packages (if available)
 		  Deployment Targets: All included
+		  Target Tags: All included
 		
-		Automation Command: octopus release deploy --space 'Default Space' --project 'Fire Project' --version '2.0' --environment 'dev' --variable 'Boring Variable:BORING' --variable 'Nuclear Launch Codes:*****' --variable 'Secret Password:*****' --no-prompt
+		Automation Command: octopus release deploy --space 'Default Space' --project 'Fire Project' --version '2.0' --environment 'dev' --priority 'true' --variable 'Boring Variable:BORING' --variable 'Nuclear Launch Codes:*****' --variable 'Secret Password:*****' --no-prompt
 		Warning: Command includes some sensitive variable values which have been replaced with placeholders.
 		Successfully started 2 deployment(s)
 
@@ -2228,8 +2515,10 @@ func TestDeployCreate_PrintAdvancedSummary(t *testing.T) {
 			  Deploy Time: Now
 			  Skipped Steps: None
 			  Guided Failure Mode: Use default setting from the target environment
+			  Priority: Use default setting from the lifecycle phase
 			  Package Download: Use cached packages (if available)
 			  Deployment Targets: All included
+			  Target Tags: All included
 			`), stdout.String())
 		}},
 
@@ -2237,6 +2526,7 @@ func TestDeployCreate_PrintAdvancedSummary(t *testing.T) {
 			options := &executor.TaskOptionsDeployRelease{
 				ScheduledStartTime:   "2022-09-23",
 				GuidedFailureMode:    "false",
+				Priority:             "true",
 				ForcePackageDownload: true,
 				ExcludedSteps:        []string{"Step 1", "Step 37"},
 				DeploymentTargets:    []string{"vm-1", "vm-2"},
@@ -2249,8 +2539,10 @@ func TestDeployCreate_PrintAdvancedSummary(t *testing.T) {
 			  Deploy Time: 2022-09-23
 			  Skipped Steps: Step 1,Step 37
 			  Guided Failure Mode: Do not use guided failure mode
+			  Priority: Jump the task queue
 			  Package Download: Re-download packages from feed
 			  Deployment Targets: Include vm-1,vm-2; Exclude vm-3,vm-4
+			  Target Tags: All included
 			`), stdout.String())
 		}},
 
@@ -2265,8 +2557,10 @@ func TestDeployCreate_PrintAdvancedSummary(t *testing.T) {
 			  Deploy Time: Now
 			  Skipped Steps: None
 			  Guided Failure Mode: Use default setting from the target environment
+			  Priority: Use default setting from the lifecycle phase
 			  Package Download: Use cached packages (if available)
 			  Deployment Targets: Include vm-2
+			  Target Tags: All included
 			`), stdout.String())
 		}},
 
@@ -2281,8 +2575,65 @@ func TestDeployCreate_PrintAdvancedSummary(t *testing.T) {
 			  Deploy Time: Now
 			  Skipped Steps: None
 			  Guided Failure Mode: Use default setting from the target environment
+			  Priority: Use default setting from the lifecycle phase
 			  Package Download: Use cached packages (if available)
 			  Deployment Targets: Exclude vm-4
+			  Target Tags: All included
+			`), stdout.String())
+		}},
+
+		{"variation on include target tags only", func(t *testing.T, stdout *bytes.Buffer) {
+			options := &executor.TaskOptionsDeployRelease{
+				SpecificTargetTagNames: []string{"Region/us-east", "Role/web"},
+			}
+			deploy.PrintAdvancedSummary(stdout, options)
+
+			assert.Equal(t, heredoc.Doc(`
+			Additional Options:
+			  Deploy Time: Now
+			  Skipped Steps: None
+			  Guided Failure Mode: Use default setting from the target environment
+			  Priority: Use default setting from the lifecycle phase
+			  Package Download: Use cached packages (if available)
+			  Deployment Targets: All included
+			  Target Tags: Include Region/us-east,Role/web
+			`), stdout.String())
+		}},
+
+		{"variation on exclude target tags only", func(t *testing.T, stdout *bytes.Buffer) {
+			options := &executor.TaskOptionsDeployRelease{
+				ExcludedTargetTagNames: []string{"Role/Legacy"},
+			}
+			deploy.PrintAdvancedSummary(stdout, options)
+
+			assert.Equal(t, heredoc.Doc(`
+			Additional Options:
+			  Deploy Time: Now
+			  Skipped Steps: None
+			  Guided Failure Mode: Use default setting from the target environment
+			  Priority: Use default setting from the lifecycle phase
+			  Package Download: Use cached packages (if available)
+			  Deployment Targets: All included
+			  Target Tags: Exclude Role/Legacy
+			`), stdout.String())
+		}},
+
+		{"both include and exclude target tags", func(t *testing.T, stdout *bytes.Buffer) {
+			options := &executor.TaskOptionsDeployRelease{
+				SpecificTargetTagNames: []string{"Region/us-east", "Role/web"},
+				ExcludedTargetTagNames: []string{"Role/Legacy", "Region/eu-west"},
+			}
+			deploy.PrintAdvancedSummary(stdout, options)
+
+			assert.Equal(t, heredoc.Doc(`
+			Additional Options:
+			  Deploy Time: Now
+			  Skipped Steps: None
+			  Guided Failure Mode: Use default setting from the target environment
+			  Priority: Use default setting from the lifecycle phase
+			  Package Download: Use cached packages (if available)
+			  Deployment Targets: All included
+			  Target Tags: Include Region/us-east,Role/web; Exclude Role/Legacy,Region/eu-west
 			`), stdout.String())
 		}},
 	}

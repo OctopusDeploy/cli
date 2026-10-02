@@ -53,6 +53,10 @@ func ViewRun(opts *ViewOptions, contributeEndpoint ContributeEndpointCallback, d
 	data = append(data, output.NewDataRow("Current status", target.StatusSummary))
 
 	if contributeEndpoint != nil {
+		if machines.IsNil(target.Endpoint) {
+			return fmt.Errorf("cannot view '%s' as a %s deployment target: its target type is not supported by this version of the CLI", target.Name, description)
+		}
+
 		newRows, err := contributeEndpoint(opts, target.Endpoint)
 		if err != nil {
 			return err

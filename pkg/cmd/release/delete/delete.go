@@ -86,23 +86,30 @@ func deleteRun(cmd *cobra.Command, f factory.Factory, flags *Flags, args []strin
 		return err
 	}
 
-	var selectedProject *projects.Project
+	// in automation mode we validate the flags up front, before making any API calls
+	if !f.IsPromptEnabled() {
+		if projectNameOrID == "" {
+			return errors.New("project must be specified")
+		}
+		if len(versionsToDelete) == 0 {
+			return errors.New("at least one release version must be specified")
+		}
+	}
+
+	selectedProject, err := selectors.ResolveProject(octopus, f.Ask, f.IsPromptEnabled(),
+		"Select the project to delete a release in", projectNameOrID)
+	if err != nil {
+		return err
+	}
+	// echo the project when it came from the command line, so there is always a line
+	// showing what was selected
+	if f.IsPromptEnabled() && projectNameOrID != "" {
+		cmd.Printf("Project %s\n", output.Cyan(selectedProject.Name))
+	}
+
 	var releasesToDelete []*releases.Release
 
 	if f.IsPromptEnabled() { // this would be AskQuestions if it were bigger
-		if projectNameOrID == "" {
-			selectedProject, err = selectors.Project("Select the project to delete a release in", octopus, f.Ask)
-			if err != nil {
-				return err
-			}
-		} else { // project name is already provided, fetch the object because it's needed for further questions
-			selectedProject, err = selectors.FindProject(octopus, projectNameOrID)
-			if err != nil {
-				return err
-			}
-			cmd.Printf("Project %s\n", output.Cyan(selectedProject.Name))
-		}
-
 		if len(versionsToDelete) == 0 {
 			releasesToDelete, err = selectReleases(octopus, selectedProject, f.Ask)
 			if err != nil {
@@ -137,18 +144,6 @@ func deleteRun(cmd *cobra.Command, f factory.Factory, flags *Flags, args []strin
 		}
 
 	} else { // we don't have the executions API backing us and allowing NameOrID; we need to do the lookups ourselves
-		// validation
-		if projectNameOrID == "" {
-			return errors.New("project must be specified")
-		}
-		if len(versionsToDelete) == 0 {
-			return errors.New("at least one release version must be specified")
-		}
-
-		selectedProject, err = selectors.FindProject(octopus, projectNameOrID)
-		if err != nil {
-			return err
-		}
 		releasesToDelete, err = findReleases(octopus, selectedProject, versionsToDelete)
 		if err != nil {
 			return err

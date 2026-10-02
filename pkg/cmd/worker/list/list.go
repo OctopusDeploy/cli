@@ -74,7 +74,7 @@ func ListRun(opts *ListOptions) error {
 			return TargetAsJson{
 				Id:            item.GetID(),
 				Name:          item.Name,
-				Type:          machinescommon.CommunicationStyleToDeploymentTargetTypeMap[item.Endpoint.GetCommunicationStyle()],
+				Type:          describeWorkerType(item.Endpoint),
 				HealthStatus:  item.HealthStatus,
 				StatusSummary: item.StatusSummary,
 				WorkerPools:   resolveEntities(item.WorkerPoolIDs, workerPoolMap),
@@ -89,7 +89,7 @@ func ListRun(opts *ListOptions) error {
 			Header: []string{"NAME", "TYPE", "WORKER POOLS"},
 			Row: func(item *machines.Worker) []string {
 				poolNames := resolveValues(item.WorkerPoolIDs, workerPoolMap)
-				return []string{output.Bold(item.Name), machinescommon.CommunicationStyleToDescriptionMap[item.Endpoint.GetCommunicationStyle()], output.FormatAsList(poolNames)}
+				return []string{output.Bold(item.Name), describeWorkerStyle(item.Endpoint), output.FormatAsList(poolNames)}
 			},
 		},
 		Basic: func(item *machines.Worker) string {
@@ -115,39 +115,38 @@ func resolveEntities(keys []string, lookup map[string]string) []model.Entity {
 	return entities
 }
 
+func describeWorkerType(end machines.IEndpoint) string {
+	return machinescommon.DescribeCommunicationStyle(end, machinescommon.CommunicationStyleToDeploymentTargetTypeMap)
+}
+
+func describeWorkerStyle(end machines.IEndpoint) string {
+	return machinescommon.DescribeCommunicationStyle(end, machinescommon.CommunicationStyleToDescriptionMap)
+}
+
 func getEndpointUri(end machines.IEndpoint) string {
-	endpointUri := ""
-	switch end.GetCommunicationStyle() {
-	case "TentaclePassive":
-		endpoint := end.(*machines.ListeningTentacleEndpoint)
-		endpointUri = endpoint.URI.String()
-	case "TentacleActive":
-		endpoint := end.(*machines.PollingTentacleEndpoint)
-		endpointUri = endpoint.URI.String()
-	case "Ssh":
-		endpoint := end.(*machines.SSHEndpoint)
-		endpointUri = endpoint.URI.String()
+	switch endpoint := end.(type) {
+	case *machines.ListeningTentacleEndpoint:
+		return machinescommon.FormatUri(endpoint.URI)
+	case *machines.PollingTentacleEndpoint:
+		return machinescommon.FormatUri(endpoint.URI)
+	case *machines.SSHEndpoint:
+		return machinescommon.FormatUri(endpoint.URI)
 	}
-	return endpointUri
+	return ""
 }
 
 func getVersion(end machines.IEndpoint) string {
-	tentacleVersion := ""
-	switch end.GetCommunicationStyle() {
-	case "TentaclePassive":
-		endpoint := end.(*machines.ListeningTentacleEndpoint)
-		tentacleVersion = endpoint.TentacleVersionDetails.Version
-	case "TentacleActive":
-		endpoint := end.(*machines.PollingTentacleEndpoint)
-		tentacleVersion = endpoint.TentacleVersionDetails.Version
+	switch endpoint := end.(type) {
+	case *machines.ListeningTentacleEndpoint:
+		return machinescommon.FormatTentacleVersion(endpoint.TentacleVersionDetails)
+	case *machines.PollingTentacleEndpoint:
+		return machinescommon.FormatTentacleVersion(endpoint.TentacleVersionDetails)
 	}
-	return tentacleVersion
+	return ""
 }
 
 func getRuntimeArchitecture(end machines.IEndpoint) string {
-	switch end.GetCommunicationStyle() {
-	case "Ssh":
-		endpoint := end.(*machines.SSHEndpoint)
+	if endpoint, ok := end.(*machines.SSHEndpoint); ok {
 		return ssh.GetRuntimeArchitecture(endpoint)
 	}
 	return ""
@@ -155,9 +154,7 @@ func getRuntimeArchitecture(end machines.IEndpoint) string {
 
 func getAccount(opts *ListOptions, end machines.IEndpoint) *model.Entity {
 	accountId := ""
-	switch end.GetCommunicationStyle() {
-	case "Ssh":
-		endpoint := end.(*machines.SSHEndpoint)
+	if endpoint, ok := end.(*machines.SSHEndpoint); ok {
 		accountId = endpoint.AccountID
 	}
 	if accountId != "" {
@@ -173,12 +170,10 @@ func getAccount(opts *ListOptions, end machines.IEndpoint) *model.Entity {
 
 func getProxy(opts *ListOptions, end machines.IEndpoint) string {
 	proxyId := ""
-	switch end.GetCommunicationStyle() {
-	case "TentaclePassive":
-		endpoint := end.(*machines.ListeningTentacleEndpoint)
+	switch endpoint := end.(type) {
+	case *machines.ListeningTentacleEndpoint:
 		proxyId = endpoint.ProxyID
-	case "Ssh":
-		endpoint := end.(*machines.SSHEndpoint)
+	case *machines.SSHEndpoint:
 		proxyId = endpoint.ProxyID
 	}
 

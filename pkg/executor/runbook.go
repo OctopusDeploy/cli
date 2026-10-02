@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/OctopusDeploy/cli/pkg/executionscommon"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/deployments"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/runbooks"
@@ -22,19 +23,22 @@ type TaskResultRunbookRun struct {
 // and looking them up for their ID's; we should only deal with strong references at this level
 
 type TaskOptionsRunbookRunBase struct {
-	ProjectName          string // required
-	RunbookName          string // the name of the runbook to run
-	Environments         []string
-	Tenants              []string
-	TenantTags           []string
-	ScheduledStartTime   string
-	ScheduledExpiryTime  string
-	ExcludedSteps        []string
-	GuidedFailureMode    string // ["", "true", "false", "default"]. Note default and "" are the same, the only difference is whether interactive mode prompts you
-	ForcePackageDownload bool
-	RunTargets           []string
-	ExcludeTargets       []string
-	Variables            map[string]string
+	ProjectName            string // required
+	RunbookName            string // the name of the runbook to run
+	Environments           []string
+	Tenants                []string
+	TenantTags             []string
+	ScheduledStartTime     string
+	ScheduledExpiryTime    string
+	ExcludedSteps          []string
+	GuidedFailureMode      string // ["", "true", "false", "default"]. Note default and "" are the same, the only difference is whether interactive mode prompts you
+	Priority               string // ["", "true", "false", "default"]. "" and "default" both leave the server to decide
+	ForcePackageDownload   bool
+	RunTargets             []string
+	ExcludeTargets         []string
+	SpecificTargetTagNames []string
+	ExcludedTargetTagNames []string
+	Variables              map[string]string
 
 	// extra behaviour commands
 
@@ -75,15 +79,17 @@ func runbookRun(octopus *client.Client, space *spaces.Space, input any) error {
 
 	// common properties
 	abstractCmd := deployments.CreateExecutionAbstractCommandV1{
-		SpaceID:              space.ID,
-		ProjectIDOrName:      params.ProjectName,
-		ForcePackageDownload: params.ForcePackageDownload,
-		SpecificMachineNames: params.RunTargets,
-		ExcludedMachineNames: params.ExcludeTargets,
-		SkipStepNames:        params.ExcludedSteps,
-		RunAt:                params.ScheduledStartTime,
-		NoRunAfter:           params.ScheduledExpiryTime,
-		Variables:            params.Variables,
+		SpaceID:                space.ID,
+		ProjectIDOrName:        params.ProjectName,
+		ForcePackageDownload:   params.ForcePackageDownload,
+		SpecificMachineNames:   params.RunTargets,
+		ExcludedMachineNames:   params.ExcludeTargets,
+		SpecificTargetTagNames: params.SpecificTargetTagNames,
+		ExcludedTargetTagNames: params.ExcludedTargetTagNames,
+		SkipStepNames:          params.ExcludedSteps,
+		RunAt:                  params.ScheduledStartTime,
+		NoRunAfter:             params.ScheduledExpiryTime,
+		Variables:              params.Variables,
 	}
 
 	b, err := strconv.ParseBool(params.GuidedFailureMode)
@@ -95,6 +101,12 @@ func runbookRun(octopus *client.Client, space *spaces.Space, input any) error {
 			return fmt.Errorf("'%s' is not a valid value for guided failure mode", params.GuidedFailureMode)
 		}
 	}
+
+	abstractCmd.Priority, err = executionscommon.ParsePriorityMode(params.Priority)
+	if err != nil {
+		return err
+	}
+
 	runCommand := runbooks.NewRunbookRunCommandV1(space.ID, params.ProjectName)
 	runCommand.RunbookName = params.RunbookName
 	runCommand.EnvironmentNames = params.Environments
@@ -149,15 +161,17 @@ func gitRunbookRun(octopus *client.Client, space *spaces.Space, input any) error
 
 	// common properties
 	abstractCmd := deployments.CreateExecutionAbstractCommandV1{
-		SpaceID:              space.ID,
-		ProjectIDOrName:      params.ProjectName,
-		ForcePackageDownload: params.ForcePackageDownload,
-		SpecificMachineNames: params.RunTargets,
-		ExcludedMachineNames: params.ExcludeTargets,
-		SkipStepNames:        params.ExcludedSteps,
-		RunAt:                params.ScheduledStartTime,
-		NoRunAfter:           params.ScheduledExpiryTime,
-		Variables:            params.Variables,
+		SpaceID:                space.ID,
+		ProjectIDOrName:        params.ProjectName,
+		ForcePackageDownload:   params.ForcePackageDownload,
+		SpecificMachineNames:   params.RunTargets,
+		ExcludedMachineNames:   params.ExcludeTargets,
+		SpecificTargetTagNames: params.SpecificTargetTagNames,
+		ExcludedTargetTagNames: params.ExcludedTargetTagNames,
+		SkipStepNames:          params.ExcludedSteps,
+		RunAt:                  params.ScheduledStartTime,
+		NoRunAfter:             params.ScheduledExpiryTime,
+		Variables:              params.Variables,
 	}
 
 	b, err := strconv.ParseBool(params.GuidedFailureMode)
@@ -169,6 +183,12 @@ func gitRunbookRun(octopus *client.Client, space *spaces.Space, input any) error
 			return fmt.Errorf("'%s' is not a valid value for guided failure mode", params.GuidedFailureMode)
 		}
 	}
+
+	abstractCmd.Priority, err = executionscommon.ParsePriorityMode(params.Priority)
+	if err != nil {
+		return err
+	}
+
 	runCommand := runbooks.NewGitRunbookRunCommandV1(space.ID, params.ProjectName)
 	runCommand.RunbookName = params.RunbookName
 	runCommand.EnvironmentNames = params.Environments

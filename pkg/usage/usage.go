@@ -37,3 +37,17 @@ func ExactArgs(n int) cobra.PositionalArgs {
 		return nil
 	}
 }
+
+// Argument validation helper for commands whose positional argument is optional,
+// typically because the same value can also be supplied by a flag. Emits a
+// UsageError rather than a plain string error, so the root handler prints usage.
+func MaximumNArgs(n int) cobra.PositionalArgs {
+	return func(cmd *cobra.Command, args []string) error {
+		if len(args) > n {
+			return NewUsageError(
+				fmt.Sprintf("accepts at most %d arg(s), received %d", n, len(args)),
+				cmd)
+		}
+		return nil
+	}
+}

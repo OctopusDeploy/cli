@@ -1,0 +1,40 @@
+# Keeps module requirements and workflow actions current, so CVE fixes arrive as
+# routine PRs rather than as inbound issues.
+#
+# This does NOT cover the Go toolchain. Dependabot's gomod ecosystem updates
+# module requirements only -- it raises the `go` directive reactively when a
+# dependency demands a newer one, never proactively for a Go security release
+# (dependabot/dependabot-core#9057 and #13520 are both still open). The toolchain
+# is covered by .github/workflows/vulncheck.yml instead.
+version: 2
+updates:
+  - package-ecosystem: gomod
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    # `fix` so release-please cuts a patch release that actually ships the update.
+    # `chore` would let dependency fixes merge without ever reaching users.
+    commit-message:
+      prefix: fix
+      include: scope
+    groups:
+      # These move together -- x/crypto v0.54.0 requires x/text v0.40.0 -- so
+      # separate PRs would conflict with each other.
+      golang-x:
+        patterns:
+          - "golang.org/x/*"
+
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 5
+    # `ci` so action bumps do not trigger a release; they do not affect the binary.
+    commit-message:
+      prefix: ci
+    groups:
+      actions:
+        patterns:
+          - "*"

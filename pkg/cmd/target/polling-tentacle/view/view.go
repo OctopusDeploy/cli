@@ -42,9 +42,13 @@ func ViewRun(opts *shared.ViewOptions) error {
 func contributeEndpoint(opts *shared.ViewOptions, targetEndpoint machines.IEndpoint) ([]*output.DataRow, error) {
 	data := []*output.DataRow{}
 
-	endpoint := targetEndpoint.(*machines.PollingTentacleEndpoint)
-	data = append(data, output.NewDataRow("URI", endpoint.URI.String()))
-	data = append(data, output.NewDataRow("Tentacle version", endpoint.TentacleVersionDetails.Version))
+	endpoint, err := machinescommon.EndpointAs[*machines.PollingTentacleEndpoint](targetEndpoint, machinescommon.DeploymentTargetNoun, "Polling Tentacle")
+	if err != nil {
+		return nil, err
+	}
+
+	data = append(data, output.NewDataRow("URI", machinescommon.FormatUri(endpoint.URI)))
+	data = append(data, output.NewDataRow("Tentacle version", machinescommon.FormatTentacleVersion(endpoint.TentacleVersionDetails)))
 
 	return data, nil
 }

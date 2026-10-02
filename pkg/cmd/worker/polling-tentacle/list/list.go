@@ -6,6 +6,7 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/cmd/worker/list"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/factory"
+	"github.com/OctopusDeploy/cli/pkg/machinescommon"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/machines"
 	"github.com/spf13/cobra"
 )
@@ -20,7 +21,7 @@ func NewCmdList(f factory.Factory) *cobra.Command {
 		RunE: func(c *cobra.Command, args []string) error {
 			dependencies := cmd.NewDependencies(f, c)
 			options := list.NewListOptions(dependencies, c, func(worker *machines.Worker) bool {
-				return worker.Endpoint.GetCommunicationStyle() == "TentacleActive"
+				return machinescommon.GetCommunicationStyle(worker.Endpoint) == "TentacleActive"
 			})
 			return list.ListRun(options)
 		},

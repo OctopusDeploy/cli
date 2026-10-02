@@ -205,7 +205,7 @@ func calculateWorkerStats(workers []*machines.Worker) WorkerStats {
 			stats.Unavailable++
 		}
 
-		switch worker.Endpoint.GetCommunicationStyle() {
+		switch machinescommon.GetCommunicationStyle(worker.Endpoint) {
 		case "Ssh":
 			stats.SSH++
 		case "TentaclePassive":

@@ -14,7 +14,6 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/util/flag"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/defects"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/releases"
 	"github.com/spf13/cobra"
 )
 
@@ -142,17 +141,21 @@ func PromptMissing(opts *AllowOptions) error {
 		if err != nil {
 			return err
 		}
-	}
-	opts.Project.Value = selectedProject.GetName()
-
-	var selectedRelease *releases.Release
-	if opts.Version.Value == "" {
-		selectedRelease, err = shared.SelectRelease(opts.Client, selectedProject, opts.Ask, "Allow")
+	} else { // project is already provided, fetch the object because the release prompt needs it
+		selectedProject, err = selectors.FindProject(opts.Client, opts.Project.Value)
 		if err != nil {
 			return err
 		}
 	}
-	opts.Version.Value = selectedRelease.Version
+	opts.Project.Value = selectedProject.GetName()
+
+	if opts.Version.Value == "" {
+		selectedRelease, err := shared.SelectRelease(opts.Client, selectedProject, opts.Ask, "Allow")
+		if err != nil {
+			return err
+		}
+		opts.Version.Value = selectedRelease.Version
+	}
 
 	return nil
 }

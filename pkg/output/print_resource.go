@@ -4,23 +4,18 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"strings"
 
 	"github.com/OctopusDeploy/cli/pkg/constants"
 
 	"github.com/OctopusDeploy/cli/pkg/usage"
 
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 )
 
 func PrintResource[T any](item T, cmd *cobra.Command, mappers Mappers[T]) error {
-	outputFormat, _ := cmd.Flags().GetString(constants.FlagOutputFormat)
-	if outputFormat == "" {
-		outputFormat = viper.GetString(constants.ConfigOutputFormat)
-	}
+	outputFormat := ResolveOutputFormat(cmd)
 
-	switch strings.ToLower(outputFormat) {
+	switch outputFormat {
 	case constants.OutputFormatJson:
 		jsonMapper := mappers.Json
 		if jsonMapper == nil {

@@ -21,3 +21,6 @@ dist/
 
 cmd/octopus/octopus
 cmd/gen-docs/gen-docs
+
+# macOS Finder metadata
+.DS_Store
