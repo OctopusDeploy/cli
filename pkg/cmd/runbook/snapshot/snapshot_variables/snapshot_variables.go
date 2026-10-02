@@ -145,6 +145,9 @@ func resolveSnapshot(opts *SnapshotVariablesOptions, runbook *runbooks.Runbook) 
 		if snapshot == nil {
 			return "", "", false, errors.New("unable to find snapshot")
 		}
+		if snapshot.RunbookID != runbook.GetID() {
+			return "", "", false, fmt.Errorf("snapshot '%s' does not belong to runbook '%s'", opts.Snapshot.Value, runbook.Name)
+		}
 		return snapshot.GetID(), snapshot.Name, false, nil
 	}
 

@@ -141,7 +141,7 @@ func TestReleaseSnapshotVariables(t *testing.T) {
 					Items: []*releases.Release{rDefault21, rDefault20},
 				})
 			_ = qa.ExpectQuestion(t, &survey.Select{
-				Message: "Select Release to Update Variables for Progression for",
+				Message: "Select the release to update the variable snapshot for",
 				Options: []string{rDefault21.Version, rDefault20.Version},
 			}).AnswerWith(rDefault21.Version)
 

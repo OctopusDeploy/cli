@@ -112,6 +112,27 @@ func TestRunbookSnapshotVariables(t *testing.T) {
 			assert.NotContains(t, stdOut.String(), "Updating variables for published snapshot")
 		}},
 
+		{"noprompt with --snapshot belonging to another runbook returns error", func(t *testing.T, api *testutil.MockHttpServer, qa *testutil.AskMocker, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
+			foreignSnapshot := fixtures.NewRunbookSnapshot(fireProjectID, otherRunbookID, "RunbookSnapshots-3", "Snapshot XYZ789")
+
+			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
+				defer api.Close()
+				rootCmd.SetArgs([]string{"runbook", "snapshot", "snapshot-variables",
+					"--project", fireProject.Name,
+					"--runbook", rebuildIndexes.Name,
+					"--snapshot", foreignSnapshot.Name,
+					"--no-prompt"})
+				return rootCmd.ExecuteC()
+			})
+
+			expectProjectAndRunbookLookup(t, api)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/Projects-22/runbookSnapshots/Snapshot XYZ789").
+				RespondWith(foreignSnapshot)
+
+			_, err := testutil.ReceivePair(cmdReceiver)
+			assert.EqualError(t, err, "snapshot 'Snapshot XYZ789' does not belong to runbook 'Rebuild DB Indexes'")
+		}},
+
 		{"noprompt without --snapshot: defaults to published snapshot and announces it", func(t *testing.T, api *testutil.MockHttpServer, qa *testutil.AskMocker, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
 			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
 				defer api.Close()

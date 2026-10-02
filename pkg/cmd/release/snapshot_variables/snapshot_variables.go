@@ -10,6 +10,7 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/OctopusDeploy/cli/pkg/output"
+	"github.com/OctopusDeploy/cli/pkg/question"
 	"github.com/OctopusDeploy/cli/pkg/question/selectors"
 	"github.com/OctopusDeploy/cli/pkg/util/flag"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
@@ -128,7 +129,13 @@ func PromptMissing(opts *SnapshotVariablesOptions) error {
 	}
 
 	if opts.Version.Value == "" {
-		selectedRelease, err := shared.SelectRelease(opts.Client, selectedProject, opts.Ask, "Update Variables for")
+		existingReleases, err := opts.Client.Projects.GetReleases(selectedProject)
+		if err != nil {
+			return err
+		}
+		selectedRelease, err := question.SelectMap(opts.Ask, "Select the release to update the variable snapshot for", existingReleases, func(r *releases.Release) string {
+			return r.Version
+		})
 		if err != nil {
 			return err
 		}
