@@ -15,6 +15,9 @@ func GetReleaseID(octopus *client.Client, spaceID string, projectIdentifier stri
 	if err != nil {
 		return "", err
 	}
+	if selectedProject == nil {
+		return "", fmt.Errorf("unable to find project '%s'", projectIdentifier)
+	}
 
 	selectedRelease, err := FindRelease(octopus, selectedProject, version)
 	if err != nil {
