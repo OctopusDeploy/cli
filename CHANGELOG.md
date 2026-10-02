@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.27.0](https://github.com/OctopusDeploy/cli/compare/v2.26.0...v2.27.0) (2026-10-02)
+
+
+### Features
+
+* add snapshot-variables commands for releases and runbook snapshots ([#738](https://github.com/OctopusDeploy/cli/issues/738)) ([e429d4d](https://github.com/OctopusDeploy/cli/commit/e429d4d560a0e9152b271058b884839e4dae76ac))
+
 ## [2.26.0](https://github.com/OctopusDeploy/cli/compare/v2.25.1...v2.26.0) (2026-09-16)
 
 
