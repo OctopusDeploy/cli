@@ -151,6 +151,7 @@ type CreateFlags struct {
 	*machinescommon.CreateTargetMachinePolicyFlags
 	*shared.WorkerPoolFlags
 	*shared.CreateTargetTenantFlags
+	*machinescommon.CreateTargetDisabledFlags
 	*machinescommon.WebFlags
 }
 
@@ -216,6 +217,7 @@ func NewCreateFlags() *CreateFlags {
 
 		CreateTargetRoleFlags:          shared.NewCreateTargetRoleFlags(),
 		CreateTargetEnvironmentFlags:   shared.NewCreateTargetEnvironmentFlags(),
+		CreateTargetDisabledFlags:      machinescommon.NewCreateTargetDisabledFlags(),
 		WebFlags:                       machinescommon.NewWebFlags(),
 		WorkerPoolFlags:                shared.NewWorkerPoolFlags(),
 		CreateTargetTenantFlags:        shared.NewCreateTargetTenantFlags(),
@@ -307,6 +309,7 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 	shared.RegisterCreateTargetWorkerPoolFlags(cmd, createFlags.WorkerPoolFlags)
 	shared.RegisterCreateTargetTenantFlags(cmd, createFlags.CreateTargetTenantFlags)
 	shared.RegisterCreateTargetRoleFlags(cmd, createFlags.CreateTargetRoleFlags)
+	machinescommon.RegisterCreateTargetDisabledFlags(cmd, createFlags.CreateTargetDisabledFlags)
 	machinescommon.RegisterWebFlag(cmd, createFlags.WebFlags)
 
 	return cmd
@@ -464,6 +467,8 @@ func (opts *CreateOptions) Commit() error {
 		return err
 	}
 
+	deploymentTarget.IsDisabled = opts.Disabled.Value
+
 	createdTarget, err := opts.Client.Machines.Add(deploymentTarget)
 	if err != nil {
 		return err
@@ -522,6 +527,7 @@ func (opts *CreateOptions) Commit() error {
 			opts.Tenants,
 			opts.TenantTags,
 			opts.WorkerPool,
+			opts.Disabled,
 		)
 		fmt.Fprintf(opts.Out, "\nAutomation Command: %s\n", autoCmd)
 	}
