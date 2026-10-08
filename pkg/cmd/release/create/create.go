@@ -355,9 +355,13 @@ func createRun(cmd *cobra.Command, f factory.Factory, flags *CreateFlags) error 
 
 		// the API response doesn't tell us what channel it selected, so we need to go look that up to tell the end user
 		newlyCreatedRelease, lookupErr := octopus.Releases.GetByID(options.Response.ReleaseID)
+		if lookupErr == nil && newlyCreatedRelease == nil {
+			lookupErr = fmt.Errorf("the server did not return release %s", options.Response.ReleaseID)
+		}
 		if lookupErr != nil {
+			// the lookup returns a nil release on failure, so there are no details to print alongside the version
 			cmd.PrintErrf("Warning: cannot fetch release details: %v\n", lookupErr)
-			printReleaseVersion(options.Response.ReleaseVersion, newlyCreatedRelease.Assembled, newlyCreatedRelease.ReleaseNotes, nil)
+			printReleaseVersion(options.Response.ReleaseVersion, time.Time{}, "", nil)
 		} else {
 			releaseChan, lookupErr := octopus.Channels.GetByID(newlyCreatedRelease.ChannelID)
 			if lookupErr != nil {
