@@ -58,6 +58,15 @@ winget install OctopusDeploy.Cli
 
 *Note:* At this time, the winget package is x64 only. If you are using Windows on ARM, download the manual archive instead.
 
+#### Windows - Scoop
+
+```shell
+scoop bucket add octopus https://github.com/OctopusDeploy/scoop-octopus
+scoop install octopus-cli
+```
+
+The Scoop package has native support for Windows x64 and Windows on ARM.
+
 #### macOS - Homebrew
 
 ```shell
