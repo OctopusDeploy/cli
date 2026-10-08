@@ -167,7 +167,7 @@ func TestChannelDelete(t *testing.T) {
 
 			// No DELETE request is expected; api.Close() asserts nothing further was requested.
 			_, err := testutil.ReceivePair(cmdReceiver)
-			assert.EqualError(t, err, "no channel found with name of Channels-99")
+			assert.EqualError(t, err, "cannot find a channel in project 'Fire Project' with the ID or name of 'Channels-99'")
 
 			assert.Equal(t, "", stdErr.String())
 		}},

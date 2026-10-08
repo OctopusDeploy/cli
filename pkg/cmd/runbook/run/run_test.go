@@ -15,8 +15,11 @@ import (
 	"github.com/OctopusDeploy/cli/test/fixtures"
 	"github.com/OctopusDeploy/cli/test/testutil"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/deployments"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/environments"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/resources"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/runbooks"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/tenants"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 )
@@ -38,6 +41,12 @@ func TestRunbookRun_AutomationMode(t *testing.T) {
 
 	fireProject := fixtures.NewProject(spaceID, fireProjectID, "Fire Project", "Lifecycles-1", "ProjectGroups-1", "deploymentprocess-"+fireProjectID)
 	_ = fireProject
+
+	devEnvironment := fixtures.NewEnvironment(spaceID, "Environments-12", "dev")
+	testEnvironment := fixtures.NewEnvironment(spaceID, "Environments-13", "test")
+
+	cokeTenant := fixtures.NewTenant(spaceID, "Tenants-29", "Coke", "Regions/us-east", "Importance/High")
+	pepsiTenant := fixtures.NewTenant(spaceID, "Tenants-37", "Pepsi", "Regions/us-east", "Importance/Low")
 
 	// TEST STARTS HERE
 	tests := []struct {
@@ -107,6 +116,7 @@ func TestRunbookRun_AutomationMode(t *testing.T) {
 			api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
 			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/Fire Project").RespondWithJSON(fixtures.AsServerResponse(fireProject))
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/environments/all").RespondWith([]*environments.Environment{devEnvironment, testEnvironment})
 
 			// Note: because we didn't specify --tenant or --tenant-tag, automation-mode code is going to assume untenanted
 			req := api.ExpectRequest(t, "POST", "/api/Spaces-1/runbook-runs/create/v1")
@@ -146,6 +156,7 @@ func TestRunbookRun_AutomationMode(t *testing.T) {
 			api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
 			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/Fire Project").RespondWithJSON(fixtures.AsServerResponse(fireProject))
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/environments/all").RespondWith([]*environments.Environment{devEnvironment, testEnvironment})
 
 			// Note: because we didn't specify --tenant or --tenant-tag, automation-mode code is going to assume untenanted
 			api.ExpectRequest(t, "POST", "/api/Spaces-1/runbook-runs/create/v1").RespondWith(&runbooks.RunbookRunResponseV1{
@@ -175,6 +186,7 @@ func TestRunbookRun_AutomationMode(t *testing.T) {
 			api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
 			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/Fire Project").RespondWithJSON(fixtures.AsServerResponse(fireProject))
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/environments/all").RespondWith([]*environments.Environment{devEnvironment, testEnvironment})
 
 			serverTasks := []*runbooks.RunbookRunServerTask{
 				{RunbookRunID: "RunbookRun-203", ServerTaskID: "ServerTasks-29394"},
@@ -196,6 +208,48 @@ func TestRunbookRun_AutomationMode(t *testing.T) {
 			assert.Equal(t, "", stdErr.String())
 		}},
 
+		{"runbook run specifying project, environment and tenant by ID", func(t *testing.T, api *testutil.MockHttpServer, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
+			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
+				defer api.Close()
+				rootCmd.SetArgs([]string{"runbook", "run", "--project", fireProjectID, "--runbook", "Provision Database", "--environment", devEnvironment.ID, "--tenant", cokeTenant.ID})
+				return rootCmd.ExecuteC()
+			})
+
+			api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+fireProjectID).RespondWithJSON(fixtures.AsServerResponse(fireProject))
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/environments/all").RespondWith([]*environments.Environment{devEnvironment, testEnvironment})
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/tenants/"+cokeTenant.ID).RespondWith(cokeTenant)
+
+			req := api.ExpectRequest(t, "POST", "/api/Spaces-1/runbook-runs/create/v1")
+
+			// the executions API only matches environments and tenants by name, so the IDs must have been resolved before we got here
+			requestBody, err := testutil.ReadJson[runbooks.RunbookRunCommandV1](req.Request.Body)
+			assert.Nil(t, err)
+
+			assert.Equal(t, runbooks.RunbookRunCommandV1{
+				RunbookName:      "Provision Database",
+				EnvironmentNames: []string{devEnvironment.Name},
+				Tenants:          []string{cokeTenant.Name},
+				CreateExecutionAbstractCommandV1: deployments.CreateExecutionAbstractCommandV1{
+					SpaceID:         "Spaces-1",
+					ProjectIDOrName: fireProject.Name,
+				},
+			}, requestBody)
+
+			req.RespondWith(&runbooks.RunbookRunResponseV1{
+				RunbookRunServerTasks: []*runbooks.RunbookRunServerTask{
+					{RunbookRunID: "RunbookRun-203", ServerTaskID: "ServerTasks-29394"},
+				},
+			})
+
+			_, err = testutil.ReceivePair(cmdReceiver)
+			assert.Nil(t, err)
+
+			assert.Equal(t, "Successfully started 1 runbook run(s)\n", stdOut.String())
+			assert.Equal(t, "", stdErr.String())
+		}},
+
 		{"runbook run specifying project, runbook, env only (bare minimum) assuming tenanted", func(t *testing.T, api *testutil.MockHttpServer, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
 			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
 				defer api.Close()
@@ -206,6 +260,11 @@ func TestRunbookRun_AutomationMode(t *testing.T) {
 			api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
 			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/Fire Project").RespondWithJSON(fixtures.AsServerResponse(fireProject))
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/environments/all").RespondWith([]*environments.Environment{devEnvironment, testEnvironment})
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/tenants/Coke").RespondWithStatus(404, "NotFound", nil)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/tenants?partialName=Coke").RespondWith(resources.Resources[*tenants.Tenant]{Items: []*tenants.Tenant{cokeTenant}})
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/tenants/Pepsi").RespondWithStatus(404, "NotFound", nil)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/tenants?partialName=Pepsi").RespondWith(resources.Resources[*tenants.Tenant]{Items: []*tenants.Tenant{pepsiTenant}})
 
 			req := api.ExpectRequest(t, "POST", "/api/Spaces-1/runbook-runs/create/v1")
 			requestBody, err := testutil.ReadJson[runbooks.RunbookRunCommandV1](req.Request.Body)
@@ -245,6 +304,7 @@ func TestRunbookRun_AutomationMode(t *testing.T) {
 			api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
 			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/Fire Project").RespondWithJSON(fixtures.AsServerResponse(fireProject))
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/environments/all").RespondWith([]*environments.Environment{devEnvironment, testEnvironment})
 
 			req := api.ExpectRequest(t, "POST", "/api/Spaces-1/runbook-runs/create/v1")
 			requestBody, err := testutil.ReadJson[runbooks.RunbookRunCommandV1](req.Request.Body)
@@ -302,6 +362,7 @@ func TestRunbookRun_AutomationMode(t *testing.T) {
 			api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
 			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/Fire Project").RespondWithJSON(fixtures.AsServerResponse(fireProject))
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/environments/all").RespondWith([]*environments.Environment{devEnvironment, testEnvironment})
 
 			req := api.ExpectRequest(t, "POST", "/api/Spaces-1/runbook-runs/create/v1")
 			requestBody, err := testutil.ReadJson[runbooks.RunbookRunCommandV1](req.Request.Body)
@@ -373,6 +434,12 @@ func TestGitRunbookRun_AutomationMode(t *testing.T) {
 	fireProject.PersistenceSettings.(projects.GitPersistenceSettings).SetRunbooksAreInGit()
 	_ = fireProject
 
+	devEnvironment := fixtures.NewEnvironment(spaceID, "Environments-12", "dev")
+	testEnvironment := fixtures.NewEnvironment(spaceID, "Environments-13", "test")
+
+	cokeTenant := fixtures.NewTenant(spaceID, "Tenants-29", "Coke", "Regions/us-east", "Importance/High")
+	pepsiTenant := fixtures.NewTenant(spaceID, "Tenants-37", "Pepsi", "Regions/us-east", "Importance/Low")
+
 	// TEST STARTS HERE
 	tests := []struct {
 		name string
@@ -441,6 +508,7 @@ func TestGitRunbookRun_AutomationMode(t *testing.T) {
 			api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
 			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/Fire Project").RespondWithJSON(fixtures.AsServerResponse(fireProject))
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/environments/all").RespondWith([]*environments.Environment{devEnvironment, testEnvironment})
 
 			_, err := testutil.ReceivePair(cmdReceiver)
 			assert.EqualError(t, err, "git reference must be specified")
@@ -459,6 +527,7 @@ func TestGitRunbookRun_AutomationMode(t *testing.T) {
 			api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
 			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/Fire Project").RespondWithJSON(fixtures.AsServerResponse(fireProject))
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/environments/all").RespondWith([]*environments.Environment{devEnvironment, testEnvironment})
 
 			// Note: because we didn't specify --tenant or --tenant-tag, automation-mode code is going to assume untenanted
 			req := api.ExpectRequest(t, "POST", "/api/Spaces-1/runbook-runs/git/create/v1")
@@ -499,6 +568,7 @@ func TestGitRunbookRun_AutomationMode(t *testing.T) {
 			api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
 			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/Fire Project").RespondWithJSON(fixtures.AsServerResponse(fireProject))
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/environments/all").RespondWith([]*environments.Environment{devEnvironment, testEnvironment})
 
 			// Note: because we didn't specify --tenant or --tenant-tag, automation-mode code is going to assume untenanted
 			api.ExpectRequest(t, "POST", "/api/Spaces-1/runbook-runs/git/create/v1").RespondWith(&runbooks.GitRunbookRunResponseV1{
@@ -528,6 +598,7 @@ func TestGitRunbookRun_AutomationMode(t *testing.T) {
 			api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
 			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/Fire Project").RespondWithJSON(fixtures.AsServerResponse(fireProject))
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/environments/all").RespondWith([]*environments.Environment{devEnvironment, testEnvironment})
 
 			serverTasks := []*runbooks.RunbookRunServerTask{
 				{RunbookRunID: "RunbookRun-203", ServerTaskID: "ServerTasks-29394"},
@@ -559,6 +630,11 @@ func TestGitRunbookRun_AutomationMode(t *testing.T) {
 			api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
 			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/Fire Project").RespondWithJSON(fixtures.AsServerResponse(fireProject))
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/environments/all").RespondWith([]*environments.Environment{devEnvironment, testEnvironment})
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/tenants/Coke").RespondWithStatus(404, "NotFound", nil)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/tenants?partialName=Coke").RespondWith(resources.Resources[*tenants.Tenant]{Items: []*tenants.Tenant{cokeTenant}})
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/tenants/Pepsi").RespondWithStatus(404, "NotFound", nil)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/tenants?partialName=Pepsi").RespondWith(resources.Resources[*tenants.Tenant]{Items: []*tenants.Tenant{pepsiTenant}})
 
 			req := api.ExpectRequest(t, "POST", "/api/Spaces-1/runbook-runs/git/create/v1")
 			requestBody, err := testutil.ReadJson[runbooks.GitRunbookRunCommandV1](req.Request.Body)
@@ -599,6 +675,7 @@ func TestGitRunbookRun_AutomationMode(t *testing.T) {
 			api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
 			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/Fire Project").RespondWithJSON(fixtures.AsServerResponse(fireProject))
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/environments/all").RespondWith([]*environments.Environment{devEnvironment, testEnvironment})
 
 			req := api.ExpectRequest(t, "POST", "/api/Spaces-1/runbook-runs/git/create/v1")
 			requestBody, err := testutil.ReadJson[runbooks.GitRunbookRunCommandV1](req.Request.Body)
@@ -660,6 +737,7 @@ func TestGitRunbookRun_AutomationMode(t *testing.T) {
 			api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
 			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/Fire Project").RespondWithJSON(fixtures.AsServerResponse(fireProject))
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/environments/all").RespondWith([]*environments.Environment{devEnvironment, testEnvironment})
 
 			req := api.ExpectRequest(t, "POST", "/api/Spaces-1/runbook-runs/git/create/v1")
 			requestBody, err := testutil.ReadJson[runbooks.GitRunbookRunCommandV1](req.Request.Body)
@@ -724,6 +802,66 @@ func TestGitRunbookRun_AutomationMode(t *testing.T) {
 			test.run(t, api, rootCmd, stdout, stderr)
 		})
 	}
+}
+
+// --environment is resolved once, up front, and the resolved identity has to be carried through to
+// the run preview. Looking the canonical name up again would go through an ID-first lookup and land
+// on whichever environment happens to have that name as its ID.
+func TestRunbookRunByTag_UsesTheResolvedEnvironmentForThePreview(t *testing.T) {
+	const spaceID = "Spaces-1"
+	const fireProjectID = "Projects-22"
+
+	space1 := fixtures.NewSpace(spaceID, "Default Space")
+	fireProject := fixtures.NewProject(spaceID, fireProjectID, "Fire Project", "Lifecycles-1", "ProjectGroups-1", "deploymentprocess-"+fireProjectID)
+
+	devEnvironment := fixtures.NewEnvironment(spaceID, "Environments-12", "dev")
+	testEnvironment := fixtures.NewEnvironment(spaceID, "Environments-13", "test")
+	// an environment which is *named* like another environment's ID
+	decoyEnvironment := fixtures.NewEnvironment(spaceID, "Environments-99", "Environments-13")
+
+	nightlyRunbook := fixtures.NewRunbook(spaceID, fireProjectID, "Runbooks-1", "Provision Database")
+	nightlyRunbook.RunbookTags = []string{"nightly"}
+	nightlyRunbook.PublishedRunbookSnapshotID = "RunbookSnapshots-1"
+
+	stdout, stderr := &bytes.Buffer{}, &bytes.Buffer{}
+	api := testutil.NewMockHttpServer()
+	rootCmd := cmdRoot.NewCmdRoot(testutil.NewMockFactoryWithSpace(api, space1), nil, nil)
+	rootCmd.SetContext(ctxWithFakeNow)
+	rootCmd.SetOut(stdout)
+	rootCmd.SetErr(stderr)
+
+	cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
+		defer api.Close()
+		rootCmd.SetArgs([]string{"runbook", "run", "--project", "Fire Project", "--runbook-tag", "nightly", "--environment", "Environments-99"})
+		return rootCmd.ExecuteC()
+	})
+
+	api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
+	api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
+	api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/Fire Project").RespondWithJSON(fixtures.AsServerResponse(fireProject))
+	// the one and only environment lookup; the decoy wins because an ID match beats a name match
+	api.ExpectRequest(t, "GET", "/api/Spaces-1/environments/all").RespondWith([]*environments.Environment{devEnvironment, testEnvironment, decoyEnvironment})
+	api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/Projects-22/runbooks?take=2147483647").RespondWith(resources.Resources[*runbooks.Runbook]{
+		Items: []*runbooks.Runbook{nightlyRunbook},
+	})
+	// Environments-99, not Environments-13: the preview must use the environment we actually resolved
+	api.ExpectRequest(t, "GET", "/api/Spaces-1/runbookSnapshots/RunbookSnapshots-1/runbookRuns/preview/Environments-99?includeDisabledSteps=true").
+		RespondWith(&runbooks.RunPreview{Form: deployments.NewFormWithValuesAndElements(map[string]string{}, []*deployments.Element{})})
+
+	req := api.ExpectRequest(t, "POST", "/api/Spaces-1/runbook-runs/create/v1")
+	requestBody, err := testutil.ReadJson[runbooks.RunbookRunCommandV1](req.Request.Body)
+	assert.Nil(t, err)
+	// the executions API only matches by name, so the decoy's name is what gets submitted
+	assert.Equal(t, []string{"Environments-13"}, requestBody.EnvironmentNames)
+	req.RespondWith(&runbooks.RunbookRunResponseV1{
+		RunbookRunServerTasks: []*runbooks.RunbookRunServerTask{
+			{RunbookRunID: "RunbookRun-203", ServerTaskID: "ServerTasks-29394"},
+		},
+	})
+
+	_, err = testutil.ReceivePair(cmdReceiver)
+	assert.Nil(t, err)
+	assert.Equal(t, "", stderr.String())
 }
 
 func TestRunbookRun_PrintAdvancedSummary(t *testing.T) {

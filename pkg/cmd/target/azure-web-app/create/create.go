@@ -9,7 +9,6 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/cmd"
 	"github.com/OctopusDeploy/cli/pkg/cmd/target/shared"
 	"github.com/OctopusDeploy/cli/pkg/constants"
-	"github.com/OctopusDeploy/cli/pkg/executionscommon"
 	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/OctopusDeploy/cli/pkg/machinescommon"
 	"github.com/OctopusDeploy/cli/pkg/question"
@@ -134,7 +133,7 @@ func createRun(opts *CreateOptions) error {
 		}
 	}
 
-	envs, err := executionscommon.FindEnvironments(opts.Client, opts.Environments.Value)
+	envs, err := selectors.FindEnvironments(opts.Client, opts.Environments.Value)
 	if err != nil {
 		return err
 	}
