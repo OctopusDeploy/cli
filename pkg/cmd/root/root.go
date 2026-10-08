@@ -1,6 +1,9 @@
 package root
 
 import (
+	"fmt"
+	"os"
+
 	"github.com/OctopusDeploy/cli/pkg/apiclient"
 	accountCmd "github.com/OctopusDeploy/cli/pkg/cmd/account"
 	apiCmd "github.com/OctopusDeploy/cli/pkg/cmd/api"
@@ -26,7 +29,9 @@ import (
 	workerPoolCmd "github.com/OctopusDeploy/cli/pkg/cmd/workerpool"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/factory"
+	"github.com/OctopusDeploy/cli/pkg/output"
 	"github.com/OctopusDeploy/cli/pkg/question"
+	"github.com/OctopusDeploy/cli/pkg/util/shell"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -116,7 +121,21 @@ func NewCmdRoot(f factory.Factory, clientFactory apiclient.ClientFactory, askPro
 	// if we attempt to check the flags before Execute is called, cobra hasn't parsed anything yet,
 	// so we'll get bad values. PersistentPreRun is a convenient callback for setting up our
 	// environment after parsing but before execution.
-	cmd.PersistentPreRun = func(_ *cobra.Command, _ []string) {
+	cmd.PersistentPreRunE = func(cmd *cobra.Command, _ []string) error {
+		// OCTOPUS_SHELL is warned about rather than rejected: it is exported once, usually
+		// from a shell profile, and applies to every command afterwards, so failing would
+		// lock the user out of the whole CLI, including the `config set Shell` needed to
+		// fix it. Current falls back to detecting the host shell in that case.
+		//
+		// The config file value isn't checked here at all. `config set Shell` validates
+		// on the way in, so a bad value there can only come from hand editing the file,
+		// and Current ignores it the same way.
+		if v := os.Getenv(constants.EnvOctopusShell); v != "" {
+			if err := shell.Validate(v); err != nil {
+				fmt.Fprintf(cmd.ErrOrStderr(), "%s\n", output.Yellow(fmt.Sprintf("Warning: ignoring %s: %s", constants.EnvOctopusShell, err)))
+			}
+		}
+
 		// map flag alias values
 		for k, v := range flagAliases {
 			for _, aliasName := range v {
@@ -138,6 +157,8 @@ func NewCmdRoot(f factory.Factory, clientFactory apiclient.ClientFactory, askPro
 		if spaceNameOrId := viper.GetString(constants.ConfigSpace); spaceNameOrId != "" {
 			clientFactory.SetSpaceNameOrId(spaceNameOrId)
 		}
+
+		return nil
 	}
 
 	cmd.RunE = func(cmd *cobra.Command, args []string) error {
