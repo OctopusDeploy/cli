@@ -11,11 +11,11 @@ func AddFlagAliasesString(flags *pflag.FlagSet, originalFlag string, aliasMap ma
 	if f == nil {
 		panic("bug! AddFlagAliasesString couldn't find original flag in collection")
 	}
-	for _, alias := range aliases {
+
+	aliasMap[originalFlag] = addAliasAndMaybeLowerAlias(aliases, func(alias string) {
 		flags.String(alias, f.DefValue, "")
 		_ = flags.MarkHidden(alias)
-	}
-	aliasMap[originalFlag] = aliases
+	})
 }
 
 func AddFlagAliasesBool(flags *pflag.FlagSet, originalFlag string, aliasMap map[string][]string, aliases ...string) {
@@ -23,11 +23,11 @@ func AddFlagAliasesBool(flags *pflag.FlagSet, originalFlag string, aliasMap map[
 	if f == nil {
 		panic("bug! AddFlagAliasesBool couldn't find original flag in collection")
 	}
-	for _, alias := range aliases {
+
+	aliasMap[originalFlag] = addAliasAndMaybeLowerAlias(aliases, func(alias string) {
 		flags.Bool(alias, false, "") // this would be broken if we had any bools with default value of true, but we don't
 		_ = flags.MarkHidden(alias)
-	}
-	aliasMap[originalFlag] = aliases
+	})
 }
 
 func AddFlagAliasesStringSlice(flags *pflag.FlagSet, originalFlag string, aliasMap map[string][]string, aliases ...string) {
@@ -35,11 +35,11 @@ func AddFlagAliasesStringSlice(flags *pflag.FlagSet, originalFlag string, aliasM
 	if f == nil {
 		panic("bug! AddFlagAliasesStringSlice couldn't find original flag in collection")
 	}
-	for _, alias := range aliases {
+
+	aliasMap[originalFlag] = addAliasAndMaybeLowerAlias(aliases, func(alias string) {
 		flags.StringSlice(alias, nil, "")
 		_ = flags.MarkHidden(alias)
-	}
-	aliasMap[originalFlag] = aliases
+	})
 }
 
 func ApplyFlagAliases(flags *pflag.FlagSet, aliases map[string][]string) {
@@ -68,4 +68,21 @@ func ApplyFlagAliases(flags *pflag.FlagSet, aliases map[string][]string) {
 			}
 		}
 	}
+}
+
+func addAliasAndMaybeLowerAlias(aliases []string, addAliasFlag func(string)) []string {
+	var allAliases []string
+	for _, alias := range aliases {
+		addAliasFlag(alias)
+		allAliases = append(allAliases, alias)
+
+		lowerAlias := strings.ToLower(alias)
+		// The old .NET CLI was case-insensitive flags
+		// so if the lower alias is different, also add support for the
+		if alias != lowerAlias {
+			addAliasFlag(lowerAlias)
+			allAliases = append(allAliases, lowerAlias)
+		}
+	}
+	return allAliases
 }

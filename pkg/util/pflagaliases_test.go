@@ -1,10 +1,11 @@
 package util_test
 
 import (
+	"testing"
+
 	"github.com/OctopusDeploy/cli/pkg/util"
 	"github.com/spf13/pflag"
 	"github.com/stretchr/testify/assert"
-	"testing"
 )
 
 func Test_FlagAliases_string(t *testing.T) {
@@ -20,6 +21,18 @@ func Test_FlagAliases_string(t *testing.T) {
 		var someFlagValue string
 		flags, aliases := setup(&someFlagValue)
 		assert.Nil(t, flags.Parse([]string{"--someFlag", "someValue"}))
+
+		// sanity check, the value should have been parsed into the hidden "someFlag" flag, but not copied into the primary "some-flag" yet
+		assert.Equal(t, "", someFlagValue)
+
+		util.ApplyFlagAliases(flags, aliases)
+		assert.Equal(t, "someValue", someFlagValue)
+	})
+
+	t.Run("lower-case", func(t *testing.T) {
+		var someFlagValue string
+		flags, aliases := setup(&someFlagValue)
+		assert.Nil(t, flags.Parse([]string{"--someflag", "someValue"}))
 
 		// sanity check, the value should have been parsed into the hidden "someFlag" flag, but not copied into the primary "some-flag" yet
 		assert.Equal(t, "", someFlagValue)
@@ -53,6 +66,17 @@ func Test_FlagAliases_bool(t *testing.T) {
 		var someFlagValue bool
 		flags, aliases := setup(&someFlagValue)
 		assert.Nil(t, flags.Parse([]string{"--someFlag", "true"}))
+
+		assert.Equal(t, false, someFlagValue)
+
+		util.ApplyFlagAliases(flags, aliases)
+		assert.Equal(t, true, someFlagValue)
+	})
+
+	t.Run("lower-case", func(t *testing.T) {
+		var someFlagValue bool
+		flags, aliases := setup(&someFlagValue)
+		assert.Nil(t, flags.Parse([]string{"--someflag", "true"}))
 
 		assert.Equal(t, false, someFlagValue)
 
@@ -96,6 +120,18 @@ func Test_FlagAliases_slice(t *testing.T) {
 		var someFlagValue []string
 		flags, aliases := setup(&someFlagValue)
 		assert.Nil(t, flags.Parse([]string{"--someFlag", "someValue"}))
+
+		// sanity check, the value should have been parsed into the hidden "someFlag" flag, but not copied into the primary "some-flag" yet
+		assert.Nil(t, someFlagValue)
+
+		util.ApplyFlagAliases(flags, aliases)
+		assert.Equal(t, []string{"someValue"}, someFlagValue)
+	})
+
+	t.Run("lower-case", func(t *testing.T) {
+		var someFlagValue []string
+		flags, aliases := setup(&someFlagValue)
+		assert.Nil(t, flags.Parse([]string{"--someflag", "someValue"}))
 
 		// sanity check, the value should have been parsed into the hidden "someFlag" flag, but not copied into the primary "some-flag" yet
 		assert.Nil(t, someFlagValue)
