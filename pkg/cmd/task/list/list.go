@@ -7,13 +7,14 @@ import (
 
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/apiclient"
-	"github.com/OctopusDeploy/cli/pkg/cmd/ephemeralenvironment/util"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/OctopusDeploy/cli/pkg/output"
 	"github.com/OctopusDeploy/cli/pkg/question/selectors"
 	"github.com/OctopusDeploy/cli/pkg/util/flag"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/environments"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/environments/v2/ephemeralenvironments"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/tasks"
 	"github.com/spf13/cobra"
 )
@@ -190,22 +191,69 @@ func normaliseStates(requested []string) ([]string, error) {
 // resolveEnvironmentID turns a name or ID into the environment ID that the tasks API
 // filters on. Ephemeral environments are not returned by the classic environments
 // endpoint, so they are looked up separately when no regular environment matches.
+//
+// A failed lookup (authentication, permissions, network, server error) is returned
+// as an error rather than being treated as "not found", so the real cause is not
+// hidden behind a misleading message.
 func resolveEnvironmentID(octopus *client.Client, nameOrID string) (string, error) {
 	if strings.HasPrefix(nameOrID, "Environments-") {
 		return nameOrID, nil
 	}
 
-	environment, err := selectors.FindEnvironment(octopus, nameOrID)
-	if err == nil {
+	environment, err := findEnvironment(octopus, nameOrID)
+	if err != nil {
+		return "", fmt.Errorf("failed to look up environment '%s': %w", nameOrID, err)
+	}
+	if environment != nil {
 		return environment.GetID(), nil
 	}
 
-	ephemeralEnvironment, ephemeralErr := util.GetByName(octopus, nameOrID, octopus.GetSpaceID())
-	if ephemeralErr == nil {
+	ephemeralEnvironment, err := findEphemeralEnvironment(octopus, nameOrID)
+	if err != nil {
+		return "", fmt.Errorf("failed to look up ephemeral environment '%s': %w", nameOrID, err)
+	}
+	if ephemeralEnvironment != nil {
 		return ephemeralEnvironment.ID, nil
 	}
 
 	return "", fmt.Errorf("no environment or ephemeral environment found with name of %s", nameOrID)
+}
+
+// findEnvironment returns the regular environment with exactly this name, or nil when
+// there is none. An error means the lookup itself failed.
+func findEnvironment(octopus *client.Client, name string) (*environments.Environment, error) {
+	page, err := octopus.Environments.Get(environments.EnvironmentsQuery{PartialName: name})
+	if err != nil {
+		return nil, err
+	}
+	// the server only supports partial name matching, so exact matches are found client side
+	for page != nil && len(page.Items) > 0 {
+		for _, e := range page.Items {
+			if strings.EqualFold(e.Name, name) {
+				return e, nil
+			}
+		}
+		page, err = page.GetNextPage(octopus.Environments.GetClient())
+		if err != nil {
+			return nil, err
+		}
+	}
+	return nil, nil
+}
+
+// findEphemeralEnvironment returns the ephemeral environment with exactly this name,
+// or nil when there is none. An error means the lookup itself failed.
+func findEphemeralEnvironment(octopus *client.Client, name string) (*ephemeralenvironments.EphemeralEnvironment, error) {
+	found, err := ephemeralenvironments.GetByPartialName(octopus, octopus.GetSpaceID(), name)
+	if err != nil {
+		return nil, err
+	}
+	for _, e := range found.Items {
+		if strings.EqualFold(e.Name, name) {
+			return e, nil
+		}
+	}
+	return nil, nil
 }
 
 func toViewModel(t *tasks.Task) TaskViewModel {
