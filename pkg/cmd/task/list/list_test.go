@@ -12,6 +12,7 @@ import (
 	"github.com/OctopusDeploy/cli/test/testutil"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/constants"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/core"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/environments"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/environments/v2/ephemeralenvironments"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
@@ -357,7 +358,7 @@ func TestTaskList(t *testing.T) {
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/environments?partialName=123-pr").
 				RespondWith(resources.Resources[*environments.Environment]{})
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/environments/v2?skip=0&take=2147483647&partialName=123-pr&type=Ephemeral").
-				RespondWithStatus(500, "InternalServerError", nil)
+				RespondWithStatus(500, "InternalServerError", core.APIError{ErrorMessage: "the server fell over"})
 
 			_, err := testutil.ReceivePair(cmdReceiver)
 			assert.Error(t, err)
