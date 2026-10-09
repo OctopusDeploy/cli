@@ -327,6 +327,43 @@ func TestTaskList(t *testing.T) {
 			_, err := testutil.ReceivePair(cmdReceiver)
 			assert.EqualError(t, err, "no environment or ephemeral environment found with name of Nowhere")
 		}},
+
+		{"--environment returns the real error when the environment lookup fails", func(t *testing.T, api *testutil.MockHttpServer, qa *testutil.AskMocker, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
+			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
+				defer api.Close()
+				rootCmd.SetArgs([]string{"task", "list", "--environment", "Development"})
+				return rootCmd.ExecuteC()
+			})
+
+			expectSpaceLookup(t, api)
+			// no ephemeral lookup is expected: a failed lookup must not be treated as "not found"
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/environments?partialName=Development").
+				RespondWithStatus(500, "InternalServerError", nil)
+
+			_, err := testutil.ReceivePair(cmdReceiver)
+			assert.Error(t, err)
+			assert.Contains(t, err.Error(), "failed to look up environment 'Development'")
+			assert.NotContains(t, err.Error(), "no environment or ephemeral environment found")
+		}},
+
+		{"--environment returns the real error when the ephemeral environment lookup fails", func(t *testing.T, api *testutil.MockHttpServer, qa *testutil.AskMocker, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
+			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
+				defer api.Close()
+				rootCmd.SetArgs([]string{"task", "list", "--environment", "123-pr"})
+				return rootCmd.ExecuteC()
+			})
+
+			expectSpaceLookup(t, api)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/environments?partialName=123-pr").
+				RespondWith(resources.Resources[*environments.Environment]{})
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/environments/v2?skip=0&take=2147483647&partialName=123-pr&type=Ephemeral").
+				RespondWithStatus(500, "InternalServerError", nil)
+
+			_, err := testutil.ReceivePair(cmdReceiver)
+			assert.Error(t, err)
+			assert.Contains(t, err.Error(), "failed to look up ephemeral environment '123-pr'")
+			assert.NotContains(t, err.Error(), "no environment or ephemeral environment found")
+		}},
 	}
 
 	for _, test := range tests {
