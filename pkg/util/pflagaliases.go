@@ -78,7 +78,8 @@ func addAliasAndMaybeLowerAlias(aliases []string, addAliasFlag func(string)) []s
 
 		lowerAlias := strings.ToLower(alias)
 		// The old .NET CLI was case-insensitive flags
-		// so if the lower alias is different, also add support for the
+		// so if the lower alias is different, also add support for the lower alias
+		// This means if we have an alias of myFlag, we also support myflag
 		if alias != lowerAlias {
 			addAliasFlag(lowerAlias)
 			allAliases = append(allAliases, lowerAlias)
