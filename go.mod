@@ -16,6 +16,7 @@ require (
 	github.com/mgutz/ansi v0.0.0-20200706080929-d51e80ef957d
 	github.com/muesli/reflow v0.3.0
 	github.com/pkg/browser v0.0.0-20210911075715-681adbf594b8
+	github.com/rogpeppe/go-internal v1.9.0
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/pflag v1.0.10
 	github.com/spf13/viper v1.21.0

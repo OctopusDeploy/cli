@@ -2,23 +2,21 @@ package promote_test
 
 import (
 	"bytes"
+	"context"
 	"net/url"
 	"testing"
+	"time"
 
-	"github.com/MakeNowJust/heredoc/v2"
-	"github.com/OctopusDeploy/cli/pkg/cmd"
 	"github.com/OctopusDeploy/cli/pkg/cmd/release/promote"
 	cmdRoot "github.com/OctopusDeploy/cli/pkg/cmd/root"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/test/fixtures"
 	"github.com/OctopusDeploy/cli/test/testutil"
 	octopusApiClient "github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/core"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/dashboard"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/deployments"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/environments"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/releases"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/resources"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
@@ -30,6 +28,12 @@ const placeholderApiKey = "API-XXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
 
 var rootResource = testutil.NewRootResource()
 
+var now = func() time.Time {
+	return time.Date(2022, time.September, 8, 13, 25, 2, 0, time.FixedZone("Malaysia", 8*3600)) // UTC+8
+}
+
+var ctxWithFakeNow = context.WithValue(context.TODO(), constants.ContextKeyTimeNow, now)
+
 func TestPromoteRelease_Success(t *testing.T) {
 	const spaceID = "Spaces-1"
 	const fireProjectID = "Projects-22"
@@ -38,7 +42,7 @@ func TestPromoteRelease_Success(t *testing.T) {
 	fireProject := fixtures.NewProject(spaceID, fireProjectID, "Fire Project", "Lifecycles-1", "ProjectGroups-1", "deploymentprocess-"+fireProjectID)
 
 	devEnvironment := fixtures.NewEnvironment(spaceID, "Environments-12", "Development")
-	stagingEnvironment := fixtures.NewEnvironment(spaceID, "Environments-13", "Staging")
+	fixtures.NewEnvironment(spaceID, "Environments-13", "Staging")
 
 	release19 := fixtures.NewRelease(spaceID, "Releases-193", "1.9", fireProjectID, "Channels-1")
 
@@ -84,7 +88,7 @@ func TestPromoteRelease_Success(t *testing.T) {
 				})
 
 			// Get dashboard for project and environment
-			api.ExpectRequest(t, "GET", "/api/"+spaceID+"/dashboard/dynamic").RespondWith(&dashboard.DynamicDashboard{
+			api.ExpectRequest(t, "GET", "/api/"+spaceID+"/dashboard/dynamic").RespondWith(&dashboard.Dashboard{
 				Items: []*dashboard.DashboardItem{dashboardItem},
 			})
 
@@ -95,7 +99,7 @@ func TestPromoteRelease_Success(t *testing.T) {
 			// Deploy the release to staging
 			api.ExpectRequest(t, "POST", "/api/"+spaceID+"/deployments/create/untenanted/v1").
 				RespondWith(&deployments.CreateDeploymentResponseV1{
-					DeploymentServerTasks: []deployments.RunbookRunServerTask{
+					DeploymentServerTasks: []*deployments.DeploymentServerTask{
 						{
 							ServerTaskID: "ServerTasks-1",
 							DeploymentID: "Deployments-1",
@@ -137,7 +141,7 @@ func TestPromoteRelease_Success(t *testing.T) {
 				})
 
 			// Get dashboard for project and environment with IncludePrevious=true
-			api.ExpectRequest(t, "GET", "/api/"+spaceID+"/dashboard/dynamic").RespondWith(&dashboard.DynamicDashboard{
+			api.ExpectRequest(t, "GET", "/api/"+spaceID+"/dashboard/dynamic").RespondWith(&dashboard.Dashboard{
 				Items: []*dashboard.DashboardItem{dashboardItem},
 			})
 
@@ -148,7 +152,7 @@ func TestPromoteRelease_Success(t *testing.T) {
 			// Deploy the release to staging
 			api.ExpectRequest(t, "POST", "/api/"+spaceID+"/deployments/create/untenanted/v1").
 				RespondWith(&deployments.CreateDeploymentResponseV1{
-					DeploymentServerTasks: []deployments.RunbookRunServerTask{
+					DeploymentServerTasks: []*deployments.DeploymentServerTask{
 						{
 							ServerTaskID: "ServerTasks-1",
 							DeploymentID: "Deployments-1",
@@ -190,7 +194,7 @@ func TestPromoteRelease_Success(t *testing.T) {
 				})
 
 			// Get dashboard for project and environment
-			api.ExpectRequest(t, "GET", "/api/"+spaceID+"/dashboard/dynamic").RespondWith(&dashboard.DynamicDashboard{
+			api.ExpectRequest(t, "GET", "/api/"+spaceID+"/dashboard/dynamic").RespondWith(&dashboard.Dashboard{
 				Items: []*dashboard.DashboardItem{dashboardItem},
 			})
 
@@ -201,7 +205,7 @@ func TestPromoteRelease_Success(t *testing.T) {
 			// Deploy the release to staging with update variables
 			api.ExpectRequest(t, "POST", "/api/"+spaceID+"/deployments/create/untenanted/v1").
 				RespondWith(&deployments.CreateDeploymentResponseV1{
-					DeploymentServerTasks: []deployments.RunbookRunServerTask{
+					DeploymentServerTasks: []*deployments.DeploymentServerTask{
 						{
 							ServerTaskID: "ServerTasks-1",
 							DeploymentID: "Deployments-1",
@@ -243,7 +247,7 @@ func TestPromoteRelease_Success(t *testing.T) {
 				})
 
 			// Get dashboard for project and environment
-			api.ExpectRequest(t, "GET", "/api/"+spaceID+"/dashboard/dynamic").RespondWith(&dashboard.DynamicDashboard{
+			api.ExpectRequest(t, "GET", "/api/"+spaceID+"/dashboard/dynamic").RespondWith(&dashboard.Dashboard{
 				Items: []*dashboard.DashboardItem{dashboardItem},
 			})
 
@@ -254,7 +258,7 @@ func TestPromoteRelease_Success(t *testing.T) {
 			// Deploy the release to staging with tenants
 			api.ExpectRequest(t, "POST", "/api/"+spaceID+"/deployments/create/tenanted/v1").
 				RespondWith(&deployments.CreateDeploymentResponseV1{
-					DeploymentServerTasks: []deployments.RunbookRunServerTask{
+					DeploymentServerTasks: []*deployments.DeploymentServerTask{
 						{
 							ServerTaskID: "ServerTasks-1",
 							DeploymentID: "Deployments-1",
@@ -296,7 +300,7 @@ func TestPromoteRelease_Success(t *testing.T) {
 				})
 
 			// Get dashboard for project and environment
-			api.ExpectRequest(t, "GET", "/api/"+spaceID+"/dashboard/dynamic").RespondWith(&dashboard.DynamicDashboard{
+			api.ExpectRequest(t, "GET", "/api/"+spaceID+"/dashboard/dynamic").RespondWith(&dashboard.Dashboard{
 				Items: []*dashboard.DashboardItem{dashboardItem},
 			})
 
@@ -307,7 +311,7 @@ func TestPromoteRelease_Success(t *testing.T) {
 			// Deploy the release to staging
 			api.ExpectRequest(t, "POST", "/api/"+spaceID+"/deployments/create/untenanted/v1").
 				RespondWith(&deployments.CreateDeploymentResponseV1{
-					DeploymentServerTasks: []deployments.RunbookRunServerTask{
+					DeploymentServerTasks: []*deployments.DeploymentServerTask{
 						{
 							ServerTaskID: "ServerTasks-1",
 							DeploymentID: "Deployments-1",
@@ -349,7 +353,7 @@ func TestPromoteRelease_Success(t *testing.T) {
 				})
 
 			// Get dashboard for project and environment with IncludePrevious=true
-			api.ExpectRequest(t, "GET", "/api/"+spaceID+"/dashboard/dynamic").RespondWith(&dashboard.DynamicDashboard{
+			api.ExpectRequest(t, "GET", "/api/"+spaceID+"/dashboard/dynamic").RespondWith(&dashboard.Dashboard{
 				Items: []*dashboard.DashboardItem{dashboardItem},
 			})
 
@@ -360,7 +364,7 @@ func TestPromoteRelease_Success(t *testing.T) {
 			// Deploy the release to staging
 			api.ExpectRequest(t, "POST", "/api/"+spaceID+"/deployments/create/untenanted/v1").
 				RespondWith(&deployments.CreateDeploymentResponseV1{
-					DeploymentServerTasks: []deployments.RunbookRunServerTask{
+					DeploymentServerTasks: []*deployments.DeploymentServerTask{
 						{
 							ServerTaskID: "ServerTasks-1",
 							DeploymentID: "Deployments-1",
@@ -402,7 +406,7 @@ func TestPromoteRelease_Success(t *testing.T) {
 				})
 
 			// Get dashboard for project and environment
-			api.ExpectRequest(t, "GET", "/api/"+spaceID+"/dashboard/dynamic").RespondWith(&dashboard.DynamicDashboard{
+			api.ExpectRequest(t, "GET", "/api/"+spaceID+"/dashboard/dynamic").RespondWith(&dashboard.Dashboard{
 				Items: []*dashboard.DashboardItem{dashboardItem},
 			})
 
@@ -413,7 +417,7 @@ func TestPromoteRelease_Success(t *testing.T) {
 			// Deploy the release to staging with update variables
 			api.ExpectRequest(t, "POST", "/api/"+spaceID+"/deployments/create/untenanted/v1").
 				RespondWith(&deployments.CreateDeploymentResponseV1{
-					DeploymentServerTasks: []deployments.RunbookRunServerTask{
+					DeploymentServerTasks: []*deployments.DeploymentServerTask{
 						{
 							ServerTaskID: "ServerTasks-1",
 							DeploymentID: "Deployments-1",
@@ -432,15 +436,11 @@ func TestPromoteRelease_Success(t *testing.T) {
 			stderr := new(bytes.Buffer)
 			api := testutil.NewMockHttpServer()
 
-			fac := testutil.NewFactoryFake(space1.ID, func(fs *testutil.FactoryFake, server *testutil.MockHttpServer) *cobra.Command {
-				octopus, _ := octopusApiClient.NewClient(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "")
-				rootCmd := cmdRoot.NewCmdRoot(fac, octopus, nil)
-				rootCmd.SetOut(stdout)
-				rootCmd.SetErr(stderr)
-				return rootCmd
-			})
+			rootCmd := cmdRoot.NewCmdRoot(testutil.NewMockFactoryWithSpace(api, space1), nil, nil)
+			rootCmd.SetContext(ctxWithFakeNow)
+			rootCmd.SetOut(stdout)
+			rootCmd.SetErr(stderr)
 
-			rootCmd := fac.BuildCommand(fac, api)
 			test.run(t, api, rootCmd, stdout, stderr)
 		})
 	}
@@ -456,10 +456,10 @@ func TestPromoteRelease_Errors(t *testing.T) {
 	devEnvironment := fixtures.NewEnvironment(spaceID, "Environments-12", "Development")
 
 	tests := []struct {
-		name           string
-		args           []string
-		expectedError  string
-		setupApi       func(api *testutil.MockHttpServer)
+		name          string
+		args          []string
+		expectedError string
+		setupApi      func(api *testutil.MockHttpServer)
 	}{
 		{
 			name:          "missing project flag",
@@ -531,7 +531,7 @@ func TestPromoteRelease_Errors(t *testing.T) {
 					RespondWith(resources.Resources[*environments.Environment]{
 						Items: []*environments.Environment{devEnvironment},
 					})
-				api.ExpectRequest(t, "GET", "/api/"+spaceID+"/dashboard/dynamic").RespondWith(&dashboard.DynamicDashboard{
+				api.ExpectRequest(t, "GET", "/api/"+spaceID+"/dashboard/dynamic").RespondWith(&dashboard.Dashboard{
 					Items: []*dashboard.DashboardItem{},
 				})
 			},
@@ -556,7 +556,7 @@ func TestPromoteRelease_Errors(t *testing.T) {
 					RespondWith(resources.Resources[*environments.Environment]{
 						Items: []*environments.Environment{devEnvironment},
 					})
-				api.ExpectRequest(t, "GET", "/api/"+spaceID+"/dashboard/dynamic").RespondWith(&dashboard.DynamicDashboard{
+				api.ExpectRequest(t, "GET", "/api/"+spaceID+"/dashboard/dynamic").RespondWith(&dashboard.Dashboard{
 					Items: []*dashboard.DashboardItem{
 						{
 							ProjectID:      fireProjectID,
@@ -578,19 +578,10 @@ func TestPromoteRelease_Errors(t *testing.T) {
 			stderr := new(bytes.Buffer)
 			api := testutil.NewMockHttpServer()
 
-			if test.setupApi != nil {
-				test.setupApi(api)
-			}
-
-			fac := testutil.NewFactoryFake(space1.ID, func(fs *testutil.FactoryFake, server *testutil.MockHttpServer) *cobra.Command {
-				octopus, _ := octopusApiClient.NewClient(testutil.NewMockHttpClientWithTransport(api), serverUrl, placeholderApiKey, "")
-				rootCmd := cmdRoot.NewCmdRoot(fac, octopus, nil)
-				rootCmd.SetOut(stdout)
-				rootCmd.SetErr(stderr)
-				return rootCmd
-			})
-
-			rootCmd := fac.BuildCommand(fac, api)
+			rootCmd := cmdRoot.NewCmdRoot(testutil.NewMockFactoryWithSpace(api, space1), nil, nil)
+			rootCmd.SetContext(ctxWithFakeNow)
+			rootCmd.SetOut(stdout)
+			rootCmd.SetErr(stderr)
 
 			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
 				defer api.Close()
