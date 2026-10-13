@@ -112,6 +112,7 @@ func listRun(cmd *cobra.Command, f factory.Factory, flags *ListFlags) error {
 	}
 
 	query := tasks.TasksQuery{
+		Spaces: []string{octopus.GetSpaceID()},
 		States: states,
 		Take:   flags.Limit.Value,
 	}
@@ -141,12 +142,15 @@ func listRun(cmd *cobra.Command, f factory.Factory, flags *ListFlags) error {
 	}
 
 	allTasks := foundTasks.Items
-	if flags.Limit.Value == 0 {
-		// no limit was asked for, so follow the paging links to collect every match
-		allTasks, err = foundTasks.GetAllPages(octopus.Sling())
+	// no limit was asked for, so page through every match. The server's paging links
+	// drop the spaces filter, so page with skip on the query instead.
+	for flags.Limit.Value == 0 && len(foundTasks.Items) > 0 && len(allTasks) < foundTasks.TotalResults {
+		query.Skip = len(allTasks)
+		foundTasks, err = octopus.Tasks.Get(query)
 		if err != nil {
 			return err
 		}
+		allTasks = append(allTasks, foundTasks.Items...)
 	}
 
 	viewModels := make([]TaskViewModel, 0, len(allTasks))
