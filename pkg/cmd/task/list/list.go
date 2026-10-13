@@ -26,6 +26,10 @@ const (
 	FlagLimit       = "limit"
 
 	DefaultLimit = 30
+
+	// allPagesPageSize keeps --limit 0 to a handful of requests, rather than paging
+	// with the server's small default page size and tripping its rate limit
+	allPagesPageSize = 1000
 )
 
 // taskStates are the states the server reports for a task, keyed by their lowercase
@@ -110,6 +114,9 @@ func listRun(cmd *cobra.Command, f factory.Factory, flags *ListFlags) error {
 	query := tasks.TasksQuery{
 		States: states,
 		Take:   flags.Limit.Value,
+	}
+	if flags.Limit.Value == 0 {
+		query.Take = allPagesPageSize
 	}
 
 	if flags.Project.Value != "" {
