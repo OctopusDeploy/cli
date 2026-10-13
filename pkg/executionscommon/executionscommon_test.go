@@ -8,6 +8,7 @@ import (
 
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/OctopusDeploy/cli/pkg/executionscommon"
+	"github.com/OctopusDeploy/cli/pkg/util/flag"
 	"github.com/OctopusDeploy/cli/test/fixtures"
 	"github.com/OctopusDeploy/cli/test/testutil"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/resources"
@@ -411,4 +412,92 @@ func TestToVariableStringArray(t *testing.T) {
 			assert.Equal(t, test.expect, result)
 		})
 	}
+}
+
+func TestExpandCommaSeparated(t *testing.T) {
+	tests := []struct {
+		name   string
+		input  []string
+		expect []string
+	}{
+		{name: "nil stays nil", input: nil, expect: nil},
+		{name: "single value", input: []string{"ABC"}, expect: []string{"ABC"}},
+
+		{name: "comma form", input: []string{"ABC,XYZ"}, expect: []string{"ABC", "XYZ"}},
+		{name: "repeated form", input: []string{"ABC", "XYZ"}, expect: []string{"ABC", "XYZ"}},
+		{name: "mixed form", input: []string{"ABC,XYZ", "DEF"}, expect: []string{"ABC", "XYZ", "DEF"}},
+
+		{name: "preserves spaces within values", input: []string{"Web Server 01,Web Server 02"}, expect: []string{"Web Server 01", "Web Server 02"}},
+		{name: "trims spaces around values", input: []string{" ABC ,\tXYZ "}, expect: []string{"ABC", "XYZ"}},
+
+		{name: "preserves order and duplicates", input: []string{"ABC,ABC"}, expect: []string{"ABC", "ABC"}},
+		{name: "tenant tags", input: []string{"Regions/us-east,Regions/us-west"}, expect: []string{"Regions/us-east", "Regions/us-west"}},
+
+		{name: "escaped comma is a literal comma", input: []string{`Web\, Prod`}, expect: []string{"Web, Prod"}},
+		{name: "escaped and unescaped commas mix", input: []string{`Web\, Prod,Other`}, expect: []string{"Web, Prod", "Other"}},
+		{name: "backslash not before a comma is preserved", input: []string{`DOMAIN\host,Other`}, expect: []string{`DOMAIN\host`, "Other"}},
+		{name: "trailing backslash is preserved", input: []string{`ABC\`}, expect: []string{`ABC\`}},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			result, err := executionscommon.ExpandCommaSeparated("environment", test.input)
+			assert.NoError(t, err)
+			assert.Equal(t, test.expect, result)
+		})
+	}
+}
+
+// a blank component almost always means a caller-side variable expanded to nothing; dropping it
+// silently would narrow the scope of a deployment (or flip a tenanted deploy to untenanted)
+func TestExpandCommaSeparated_RejectsBlankValues(t *testing.T) {
+	tests := []struct {
+		name  string
+		input []string
+	}{
+		{name: "empty string", input: []string{""}},
+		{name: "lone comma", input: []string{","}},
+		{name: "whitespace only", input: []string{" , "}},
+		{name: "blank in the middle", input: []string{"ABC,,XYZ"}},
+		{name: "trailing comma", input: []string{"ABC,"}},
+		{name: "blank alongside a good repeat", input: []string{"ABC", ""}},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			result, err := executionscommon.ExpandCommaSeparated("tenant", test.input)
+			assert.Nil(t, result)
+			assert.ErrorContains(t, err, "--tenant has a blank value")
+		})
+	}
+}
+
+func TestExpandCommaSeparatedFlags(t *testing.T) {
+	environments := flag.New[[]string]("environment", false)
+	environments.Value = []string{"dev,test"}
+	tenants := flag.New[[]string]("tenant", false)
+	tenants.Value = []string{"Tenant A", "Tenant B,Tenant C"}
+
+	assert.NoError(t, executionscommon.ExpandCommaSeparatedFlags(environments, tenants))
+	assert.Equal(t, []string{"dev", "test"}, environments.Value)
+	assert.Equal(t, []string{"Tenant A", "Tenant B", "Tenant C"}, tenants.Value)
+
+	bad := flag.New[[]string]("deployment-target", false)
+	bad.Value = []string{"ABC,"}
+	err := executionscommon.ExpandCommaSeparatedFlags(environments, bad)
+	assert.ErrorContains(t, err, "--deployment-target has a blank value")
+}
+
+// values chosen interactively are echoed back as an automation command verbatim, so any comma
+// inside them has to be escaped or the replayed command would split it back apart
+func TestEscapeCommas_RoundTripsThroughExpand(t *testing.T) {
+	assert.Nil(t, executionscommon.EscapeCommas(nil))
+
+	input := []string{"Web, Prod", "Plain", `Already\, Escaped`}
+	escaped := executionscommon.EscapeCommas(input)
+	assert.Equal(t, []string{`Web\, Prod`, "Plain", `Already\\, Escaped`}, escaped)
+
+	expanded, err := executionscommon.ExpandCommaSeparated("deployment-target", escaped)
+	assert.NoError(t, err)
+	assert.Equal(t, []string{"Web, Prod", "Plain", `Already\, Escaped`}, expanded)
 }
