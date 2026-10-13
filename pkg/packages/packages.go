@@ -533,31 +533,39 @@ func printPackageVersions(ioWriter io.Writer, packages []*StepPackageVersion) er
 	return t.Print()
 }
 
+// BuildPackageVersionOverrides resolves the package specifications that arrived on the
+// command line (--package-version and --package) against a baseline. Anything that can't
+// be parsed or resolved is silently ignored.
+func BuildPackageVersionOverrides(packageVersionBaseline []*StepPackageVersion, defaultPackageVersion string, packageOverrideFlags []string) []*PackageVersionOverride {
+	packageVersionOverrides := make([]*PackageVersionOverride, 0)
+
+	if defaultPackageVersion != "" {
+		// blind apply to everything
+		packageVersionOverrides = append(packageVersionOverrides, &PackageVersionOverride{Version: defaultPackageVersion})
+	}
+
+	for _, s := range packageOverrideFlags {
+		ambOverride, err := ParsePackageOverrideString(s)
+		if err != nil {
+			continue
+		}
+		resolvedOverride, err := ResolvePackageOverride(ambOverride, packageVersionBaseline)
+		if err != nil {
+			continue
+		}
+		packageVersionOverrides = append(packageVersionOverrides, resolvedOverride)
+	}
+
+	return packageVersionOverrides
+}
+
 func AskPackageOverrideLoop(
 	packageVersionBaseline []*StepPackageVersion,
 	defaultPackageVersion string, // the --package-version command line flag
 	initialPackageOverrideFlags []string, // the --package command line flag (multiple occurrences)
 	asker question.Asker,
 	stdout io.Writer) ([]*StepPackageVersion, []*PackageVersionOverride, error) {
-	packageVersionOverrides := make([]*PackageVersionOverride, 0)
-
-	// pickup any partial package specifications that may have arrived on the commandline
-	if defaultPackageVersion != "" {
-		// blind apply to everything
-		packageVersionOverrides = append(packageVersionOverrides, &PackageVersionOverride{Version: defaultPackageVersion})
-	}
-
-	for _, s := range initialPackageOverrideFlags {
-		ambOverride, err := ParsePackageOverrideString(s)
-		if err != nil {
-			continue // silently ignore anything that wasn't parseable (should we emit a warning?)
-		}
-		resolvedOverride, err := ResolvePackageOverride(ambOverride, packageVersionBaseline)
-		if err != nil {
-			continue // silently ignore anything that wasn't parseable (should we emit a warning?)
-		}
-		packageVersionOverrides = append(packageVersionOverrides, resolvedOverride)
-	}
+	packageVersionOverrides := BuildPackageVersionOverrides(packageVersionBaseline, defaultPackageVersion, initialPackageOverrideFlags)
 
 	overriddenPackageVersions := ApplyPackageOverrides(packageVersionBaseline, packageVersionOverrides)
 
