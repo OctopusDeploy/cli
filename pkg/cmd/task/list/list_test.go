@@ -247,7 +247,7 @@ func TestTaskList(t *testing.T) {
 			firstPage.PagedResults.Links = resources.Links{PageNext: "/api/Spaces-1/tasks?skip=1&take=1"}
 
 			expectSpaceLookup(t, api)
-			api.ExpectRequest(t, "GET", "/api/Spaces-1/tasks").RespondWith(firstPage)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/tasks?take=1000").RespondWith(firstPage)
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/tasks?skip=1&take=1").RespondWith(taskPage(successTask))
 
 			_, err := testutil.ReceivePair(cmdReceiver)
