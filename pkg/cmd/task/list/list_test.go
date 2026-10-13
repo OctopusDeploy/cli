@@ -29,7 +29,7 @@ var rootResource = newRootResource()
 // than this minimal template.
 func newRootResource() *client.RootResource {
 	root := testutil.NewRootResource()
-	root.Links[constants.LinkTasks] = "/api/Spaces-1/tasks{/id}{?environment,ids,project,skip,states,take}"
+	root.Links[constants.LinkTasks] = "/api/Spaces-1/tasks{/id}{?environment,ids,project,skip,spaces,states,take}"
 	return root
 }
 
@@ -88,7 +88,7 @@ func TestTaskList(t *testing.T) {
 			})
 
 			expectSpaceLookup(t, api)
-			api.ExpectRequest(t, "GET", "/api/Spaces-1/tasks?take=30").RespondWith(taskPage(executingTask, successTask))
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/tasks?spaces=Spaces-1&take=30").RespondWith(taskPage(executingTask, successTask))
 
 			_, err := testutil.ReceivePair(cmdReceiver)
 			assert.Nil(t, err)
@@ -108,7 +108,7 @@ func TestTaskList(t *testing.T) {
 			})
 
 			expectSpaceLookup(t, api)
-			api.ExpectRequest(t, "GET", "/api/Spaces-1/tasks?take=30").RespondWith(taskPage(executingTask))
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/tasks?spaces=Spaces-1&take=30").RespondWith(taskPage(executingTask))
 
 			_, err := testutil.ReceivePair(cmdReceiver)
 			assert.Nil(t, err)
@@ -123,7 +123,7 @@ func TestTaskList(t *testing.T) {
 			})
 
 			expectSpaceLookup(t, api)
-			api.ExpectRequest(t, "GET", "/api/Spaces-1/tasks?take=30").RespondWith(taskPage(executingTask, successTask))
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/tasks?spaces=Spaces-1&take=30").RespondWith(taskPage(executingTask, successTask))
 
 			_, err := testutil.ReceivePair(cmdReceiver)
 			assert.Nil(t, err)
@@ -138,7 +138,7 @@ func TestTaskList(t *testing.T) {
 			})
 
 			expectSpaceLookup(t, api)
-			api.ExpectRequest(t, "GET", "/api/Spaces-1/tasks?take=30").RespondWith(taskPage(executingTask, successTask))
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/tasks?spaces=Spaces-1&take=30").RespondWith(taskPage(executingTask, successTask))
 
 			_, err := testutil.ReceivePair(cmdReceiver)
 			assert.Nil(t, err)
@@ -161,7 +161,7 @@ func TestTaskList(t *testing.T) {
 			})
 
 			expectSpaceLookup(t, api)
-			api.ExpectRequest(t, "GET", "/api/Spaces-1/tasks?take=30").RespondWith(taskPage())
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/tasks?spaces=Spaces-1&take=30").RespondWith(taskPage())
 
 			_, err := testutil.ReceivePair(cmdReceiver)
 			assert.Nil(t, err)
@@ -177,7 +177,7 @@ func TestTaskList(t *testing.T) {
 
 			expectSpaceLookup(t, api)
 			expectProjectLookup(t, api)
-			api.ExpectRequest(t, "GET", "/api/Spaces-1/tasks?project=Projects-22&take=30").RespondWith(taskPage(executingTask))
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/tasks?project=Projects-22&spaces=Spaces-1&take=30").RespondWith(taskPage(executingTask))
 
 			_, err := testutil.ReceivePair(cmdReceiver)
 			assert.Nil(t, err)
@@ -192,7 +192,7 @@ func TestTaskList(t *testing.T) {
 			})
 
 			expectSpaceLookup(t, api)
-			api.ExpectRequest(t, "GET", "/api/Spaces-1/tasks?states=Queued%2CExecuting%2CCancelling&take=30").RespondWith(taskPage(executingTask))
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/tasks?spaces=Spaces-1&states=Queued%2CExecuting%2CCancelling&take=30").RespondWith(taskPage(executingTask))
 
 			_, err := testutil.ReceivePair(cmdReceiver)
 			assert.Nil(t, err)
@@ -229,26 +229,30 @@ func TestTaskList(t *testing.T) {
 			})
 
 			expectSpaceLookup(t, api)
-			api.ExpectRequest(t, "GET", "/api/Spaces-1/tasks?take=5").RespondWith(taskPage(executingTask))
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/tasks?spaces=Spaces-1&take=5").RespondWith(taskPage(executingTask))
 
 			_, err := testutil.ReceivePair(cmdReceiver)
 			assert.Nil(t, err)
 			assert.Equal(t, "ServerTasks-1\n", stdOut.String())
 		}},
 
-		{"--limit 0 follows the paging links to list every matching task", func(t *testing.T, api *testutil.MockHttpServer, qa *testutil.AskMocker, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
+		{"--limit 0 pages through every matching task in the space", func(t *testing.T, api *testutil.MockHttpServer, qa *testutil.AskMocker, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
 			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
 				defer api.Close()
 				rootCmd.SetArgs([]string{"task", "list", "--limit", "0", "--output-format", "basic"})
 				return rootCmd.ExecuteC()
 			})
 
+			// the server's paging links drop the spaces filter, so they must not be followed
 			firstPage := taskPage(executingTask)
-			firstPage.PagedResults.Links = resources.Links{PageNext: "/api/Spaces-1/tasks?skip=1&take=1"}
+			firstPage.PagedResults.TotalResults = 2
+			firstPage.PagedResults.Links = resources.Links{PageNext: "/api/tasks?skip=1&take=1000"}
+			secondPage := taskPage(successTask)
+			secondPage.PagedResults.TotalResults = 2
 
 			expectSpaceLookup(t, api)
-			api.ExpectRequest(t, "GET", "/api/Spaces-1/tasks?take=1000").RespondWith(firstPage)
-			api.ExpectRequest(t, "GET", "/api/Spaces-1/tasks?skip=1&take=1").RespondWith(taskPage(successTask))
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/tasks?spaces=Spaces-1&take=1000").RespondWith(firstPage)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/tasks?skip=1&spaces=Spaces-1&take=1000").RespondWith(secondPage)
 
 			_, err := testutil.ReceivePair(cmdReceiver)
 			assert.Nil(t, err)
@@ -263,7 +267,7 @@ func TestTaskList(t *testing.T) {
 			})
 
 			expectSpaceLookup(t, api)
-			api.ExpectRequest(t, "GET", "/api/Spaces-1/tasks?environment=Environments-12&take=30").RespondWith(taskPage(executingTask))
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/tasks?environment=Environments-12&spaces=Spaces-1&take=30").RespondWith(taskPage(executingTask))
 
 			_, err := testutil.ReceivePair(cmdReceiver)
 			assert.Nil(t, err)
@@ -282,7 +286,7 @@ func TestTaskList(t *testing.T) {
 				RespondWith(resources.Resources[*environments.Environment]{
 					Items: []*environments.Environment{devEnvironment},
 				})
-			api.ExpectRequest(t, "GET", "/api/Spaces-1/tasks?environment=Environments-12&take=30").RespondWith(taskPage(executingTask))
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/tasks?environment=Environments-12&spaces=Spaces-1&take=30").RespondWith(taskPage(executingTask))
 
 			_, err := testutil.ReceivePair(cmdReceiver)
 			assert.Nil(t, err)
@@ -304,7 +308,7 @@ func TestTaskList(t *testing.T) {
 					Items:        []*ephemeralenvironments.EphemeralEnvironment{prEnvironment},
 					PagedResults: resources.PagedResults{TotalResults: 1},
 				})
-			api.ExpectRequest(t, "GET", "/api/Spaces-1/tasks?environment=Environments-99&states=Queued%2CExecuting%2CCancelling&take=30").
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/tasks?environment=Environments-99&spaces=Spaces-1&states=Queued%2CExecuting%2CCancelling&take=30").
 				RespondWith(taskPage(executingTask))
 
 			_, err := testutil.ReceivePair(cmdReceiver)
