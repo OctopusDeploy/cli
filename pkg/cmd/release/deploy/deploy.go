@@ -142,12 +142,12 @@ func NewDeployFlags() *DeployFlags {
 			UpdateVariables:                flag.New[bool](FlagUpdateVariables, false),
 			ExcludedSteps:                  flag.New[[]string](FlagSkip, false),
 			GuidedFailureMode:              flag.New[string](FlagGuidedFailure, false),
-		    Priority:                       flag.New[string](FlagPriority, false),
+			Priority:                       flag.New[string](FlagPriority, false),
 			ForcePackageDownload:           flag.New[bool](FlagForcePackageDownload, false),
 			DeploymentTargets:              flag.New[[]string](FlagDeploymentTarget, false),
 			ExcludeTargets:                 flag.New[[]string](FlagExcludeDeploymentTarget, false),
-		    SpecificTargetTagNames:         flag.New[[]string](FlagSpecificTargetTagName, false),
-		    ExcludedTargetTagNames:         flag.New[[]string](FlagExcludedTargetTagName, false),
+			SpecificTargetTagNames:         flag.New[[]string](FlagSpecificTargetTagName, false),
+			ExcludedTargetTagNames:         flag.New[[]string](FlagExcludedTargetTagName, false),
 			DeploymentFreezeNames:          flag.New[[]string](FlagDeploymentFreezeName, false),
 			DeploymentFreezeOverrideReason: flag.New[string](FlagDeploymentFreezeOverrideReason, false)},
 	}
@@ -240,33 +240,16 @@ func deployRun(cmd *cobra.Command, f factory.Factory, flags *DeployFlags) error 
 		return err
 	}
 
-	parsedVariables, err := executionscommon.ParseVariableStringArray(flags.Variables.Value)
+	baseOptions, err := NewBaseTaskOptionsDeployRelease(flags.CommonDeployFlags)
 	if err != nil {
 		return err
 	}
 
 	options := &executor.TaskOptionsDeployRelease{
-		ProjectName:    flags.Project.Value,
-		ReleaseVersion: flags.ReleaseVersion.Value,
-		Environments:   flags.Environments.Value,
-		BaseTaskOptionsDeployRelease: executor.BaseTaskOptionsDeployRelease{
-			Tenants:                        flags.CommonDeployFlags.Tenants.Value,
-			TenantTags:                     flags.CommonDeployFlags.TenantTags.Value,
-			ScheduledStartTime:             flags.DeployAt.Value,
-			ScheduledExpiryTime:            flags.CommonDeployFlags.MaxQueueTime.Value,
-			ExcludedSteps:                  flags.CommonDeployFlags.ExcludedSteps.Value,
-			GuidedFailureMode:              flags.CommonDeployFlags.GuidedFailureMode.Value,
-		    Priority:                       flags.Priority.Value,
-			ForcePackageDownload:           flags.CommonDeployFlags.ForcePackageDownload.Value,
-			DeploymentTargets:              flags.CommonDeployFlags.DeploymentTargets.Value,
-			ExcludeTargets:                 flags.CommonDeployFlags.ExcludeTargets.Value,
-		    SpecificTargetTagNames:         flags.SpecificTargetTagNames.Value,
-		    ExcludedTargetTagNames:         flags.ExcludedTargetTagNames.Value,
-			DeploymentFreezeNames:          flags.CommonDeployFlags.DeploymentFreezeNames.Value,
-			DeploymentFreezeOverrideReason: flags.CommonDeployFlags.DeploymentFreezeOverrideReason.Value,
-			Variables:                      parsedVariables,
-			UpdateVariables:                flags.CommonDeployFlags.UpdateVariables.Value,
-		},
+		ProjectName:                  flags.Project.Value,
+		ReleaseVersion:               flags.ReleaseVersion.Value,
+		Environments:                 flags.Environments.Value,
+		BaseTaskOptionsDeployRelease: *baseOptions,
 	}
 
 	// special case for FlagForcePackageDownload bool so we can tell if it was set on the cmdline or missing
@@ -390,6 +373,32 @@ func deployRun(cmd *cobra.Command, f factory.Factory, flags *DeployFlags) error 
 	}
 
 	return nil
+}
+
+func NewBaseTaskOptionsDeployRelease(commonFlags CommonDeployFlags) (*executor.BaseTaskOptionsDeployRelease, error) {
+	parsedVariables, err := executionscommon.ParseVariableStringArray(commonFlags.Variables.Value)
+	if err != nil {
+		return nil, err
+	}
+
+	return &executor.BaseTaskOptionsDeployRelease{
+		Tenants:                        commonFlags.Tenants.Value,
+		TenantTags:                     commonFlags.TenantTags.Value,
+		ScheduledStartTime:             commonFlags.DeployAt.Value,
+		ScheduledExpiryTime:            commonFlags.MaxQueueTime.Value,
+		ExcludedSteps:                  commonFlags.ExcludedSteps.Value,
+		GuidedFailureMode:              commonFlags.GuidedFailureMode.Value,
+		Priority:                       commonFlags.Priority.Value,
+		ForcePackageDownload:           commonFlags.ForcePackageDownload.Value,
+		DeploymentTargets:              commonFlags.DeploymentTargets.Value,
+		ExcludeTargets:                 commonFlags.ExcludeTargets.Value,
+		SpecificTargetTagNames:         commonFlags.SpecificTargetTagNames.Value,
+		ExcludedTargetTagNames:         commonFlags.ExcludedTargetTagNames.Value,
+		DeploymentFreezeNames:          commonFlags.DeploymentFreezeNames.Value,
+		DeploymentFreezeOverrideReason: commonFlags.DeploymentFreezeOverrideReason.Value,
+		Variables:                      parsedVariables,
+		UpdateVariables:                commonFlags.UpdateVariables.Value,
+	}, nil
 }
 
 func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker question.Asker, space *spaces.Space, options *executor.TaskOptionsDeployRelease, now func() time.Time) error {

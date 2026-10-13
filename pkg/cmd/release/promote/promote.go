@@ -1,11 +1,10 @@
-﻿package promote
+package promote
 
 import (
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/apiclient"
 	"github.com/OctopusDeploy/cli/pkg/cmd/release/deploy"
 	"github.com/OctopusDeploy/cli/pkg/constants"
-	"github.com/OctopusDeploy/cli/pkg/executionscommon"
 	"github.com/OctopusDeploy/cli/pkg/executor"
 	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/OctopusDeploy/cli/pkg/util"
@@ -89,31 +88,17 @@ func createRun(cmd *cobra.Command, f factory.Factory, flags *PromoteFlags) error
 		return err
 	}
 
-	parsedVariables, err := executionscommon.ParseVariableStringArray(flags.Variables.Value)
+	baseOptions, err := deploy.NewBaseTaskOptionsDeployRelease(flags.CommonDeployFlags)
 	if err != nil {
 		return err
 	}
 
 	options := &executor.TaskOptionsPromoteRelease{
-		ProjectName:      flags.Project.Value,
-		FromEnvironment:  flags.From.Value,
-		ToEnvironment:    flags.To.Value,
-		LatestSuccessful: flags.LatestSuccessful.Value,
-		BaseTaskOptionsDeployRelease: executor.BaseTaskOptionsDeployRelease{
-			Tenants:                        flags.CommonDeployFlags.Tenants.Value,
-			TenantTags:                     flags.CommonDeployFlags.TenantTags.Value,
-			ScheduledStartTime:             flags.DeployAt.Value,
-			ScheduledExpiryTime:            flags.CommonDeployFlags.MaxQueueTime.Value,
-			ExcludedSteps:                  flags.CommonDeployFlags.ExcludedSteps.Value,
-			GuidedFailureMode:              flags.CommonDeployFlags.GuidedFailureMode.Value,
-			ForcePackageDownload:           flags.CommonDeployFlags.ForcePackageDownload.Value,
-			DeploymentTargets:              flags.CommonDeployFlags.DeploymentTargets.Value,
-			ExcludeTargets:                 flags.CommonDeployFlags.ExcludeTargets.Value,
-			DeploymentFreezeNames:          flags.CommonDeployFlags.DeploymentFreezeNames.Value,
-			DeploymentFreezeOverrideReason: flags.CommonDeployFlags.DeploymentFreezeOverrideReason.Value,
-			Variables:                      parsedVariables,
-			UpdateVariables:                flags.CommonDeployFlags.UpdateVariables.Value,
-		},
+		ProjectName:                  flags.Project.Value,
+		FromEnvironment:              flags.From.Value,
+		ToEnvironment:                flags.To.Value,
+		LatestSuccessful:             flags.LatestSuccessful.Value,
+		BaseTaskOptionsDeployRelease: *baseOptions,
 	}
 
 	err = executor.ProcessTasks(octopus, f.GetCurrentSpace(), []*executor.Task{

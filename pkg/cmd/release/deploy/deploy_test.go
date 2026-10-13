@@ -1343,12 +1343,12 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 				Environments:                     []string{"dev"},
 				ForcePackageDownloadWasSpecified: true, // need this as well
 				BaseTaskOptionsDeployRelease: executor.BaseTaskOptionsDeployRelease{
-					ExcludedSteps:        []string{"Cleanup"},
-					GuidedFailureMode:    "false",
-					ForcePackageDownload: true,
-					ExcludeTargets:       []string{"vm-99"},
-				    ExcludedTargetTagNames:           []string{"Role/Legacy"},
-					ScheduledStartTime:   "some-sort-of-garbage(passthru to server)",
+					ExcludedSteps:          []string{"Cleanup"},
+					GuidedFailureMode:      "false",
+					ForcePackageDownload:   true,
+					ExcludeTargets:         []string{"vm-99"},
+					ExcludedTargetTagNames: []string{"Role/Legacy"},
+					ScheduledStartTime:     "some-sort-of-garbage(passthru to server)",
 				},
 			}
 
@@ -1370,15 +1370,15 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 				ReleaseVersion:                   "1.9",
 				Environments:                     []string{"dev"},
 				ForcePackageDownloadWasSpecified: true,
-				ExcludedTargetTagNames:           []string{"Role/Legacy"},
 				ReleaseID:                        release19.ID,
 				BaseTaskOptionsDeployRelease: executor.BaseTaskOptionsDeployRelease{
-					GuidedFailureMode:    "false",
-					ForcePackageDownload: true,
-					Variables:            make(map[string]string),
-					ExcludedSteps:        []string{"Cleanup"},
-					ExcludeTargets:       []string{"vm-99"},
-					ScheduledStartTime:   "some-sort-of-garbage(passthru to server)",
+					GuidedFailureMode:      "false",
+					ForcePackageDownload:   true,
+					Variables:              make(map[string]string),
+					ExcludedSteps:          []string{"Cleanup"},
+					ExcludeTargets:         []string{"vm-99"},
+					ExcludedTargetTagNames: []string{"Role/Legacy"},
+					ScheduledStartTime:     "some-sort-of-garbage(passthru to server)",
 				},
 			}, options)
 		}},
@@ -1390,12 +1390,12 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 				Environments:                     []string{"dev"},
 				ForcePackageDownloadWasSpecified: true,
 				BaseTaskOptionsDeployRelease: executor.BaseTaskOptionsDeployRelease{
-					ExcludedSteps:        []string{"Cleanup"},
-					GuidedFailureMode:    "default",
-					ForcePackageDownload: false,
-					ExcludeTargets:       []string{"vm-99"}, // just to skip the question
-				    ExcludedTargetTagNames:           []string{"Role/Legacy"}, // just to skip the question
-					ScheduledStartTime:   now().String(),
+					ExcludedSteps:          []string{"Cleanup"},
+					GuidedFailureMode:      "default",
+					ForcePackageDownload:   false,
+					ExcludeTargets:         []string{"vm-99"},       // just to skip the question
+					ExcludedTargetTagNames: []string{"Role/Legacy"}, // just to skip the question
+					ScheduledStartTime:     now().String(),
 				},
 			}
 
@@ -1417,15 +1417,15 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 				ReleaseVersion:                   "1.9",
 				Environments:                     []string{"dev"},
 				ForcePackageDownloadWasSpecified: true,
-				ExcludedTargetTagNames:           []string{"Role/Legacy"},
 				ReleaseID:                        release19.ID,
 				BaseTaskOptionsDeployRelease: executor.BaseTaskOptionsDeployRelease{
-					GuidedFailureMode:    "default",
-					ForcePackageDownload: false,
-					Variables:            make(map[string]string),
-					ExcludedSteps:        []string{"Cleanup"},
-					ExcludeTargets:       []string{"vm-99"},
-					ScheduledStartTime:   "2022-09-08 13:25:02 +0800 Malaysia",
+					GuidedFailureMode:      "default",
+					ForcePackageDownload:   false,
+					Variables:              make(map[string]string),
+					ExcludedSteps:          []string{"Cleanup"},
+					ExcludeTargets:         []string{"vm-99"},
+					ExcludedTargetTagNames: []string{"Role/Legacy"},
+					ScheduledStartTime:     "2022-09-08 13:25:02 +0800 Malaysia",
 				},
 			}, options)
 		}},
@@ -1589,11 +1589,13 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 				ProjectName:                      "fire project",
 				ReleaseVersion:                   "1.9",
 				Environments:                     []string{"dev"},
-				ExcludedSteps:                    []string{"Cleanup"},
-				GuidedFailureMode:                "false",
 				ForcePackageDownloadWasSpecified: true,
-				DeploymentTargets:                []string{"vm-1"},
-				ScheduledStartTime:               "now",
+				BaseTaskOptionsDeployRelease: executor.BaseTaskOptionsDeployRelease{
+					ExcludedSteps:      []string{"Cleanup"},
+					GuidedFailureMode:  "false",
+					DeploymentTargets:  []string{"vm-1"},
+					ScheduledStartTime: "now",
+				},
 			}
 
 			errReceiver := testutil.GoBegin(func() error {
@@ -1648,16 +1650,17 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 				ProjectName:                      "Fire Project",
 				ReleaseVersion:                   "1.9",
 				Environments:                     []string{"dev"},
-				GuidedFailureMode:                "false",
-				ForcePackageDownload:             false,
 				ForcePackageDownloadWasSpecified: true,
-				Variables:                        make(map[string]string, 0),
-				ExcludedSteps:                    []string{"Cleanup"},
-				DeploymentTargets:                []string{"vm-1"},
-				SpecificTargetTagNames:           []string{"Role/WebServer", "Environment/Production"},
-				ExcludedTargetTagNames:           nil,
 				ReleaseID:                        release19.ID,
-				ScheduledStartTime:               "now",
+				BaseTaskOptionsDeployRelease: executor.BaseTaskOptionsDeployRelease{
+					GuidedFailureMode:      "false",
+					ForcePackageDownload:   false,
+					Variables:              make(map[string]string, 0),
+					ExcludedSteps:          []string{"Cleanup"},
+					DeploymentTargets:      []string{"vm-1"},
+					SpecificTargetTagNames: []string{"Role/WebServer", "Environment/Production"},
+					ExcludedTargetTagNames: nil,
+					ScheduledStartTime:     "now"},
 			}, options)
 		}},
 
@@ -1666,11 +1669,12 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 				ProjectName:                      "fire project",
 				ReleaseVersion:                   "1.9",
 				Environments:                     []string{"dev"},
-				ExcludedSteps:                    []string{"Cleanup"},
-				GuidedFailureMode:                "false",
 				ForcePackageDownloadWasSpecified: true,
-				DeploymentTargets:                []string{"vm-1"},
-				ScheduledStartTime:               "now",
+				BaseTaskOptionsDeployRelease: executor.BaseTaskOptionsDeployRelease{
+					ExcludedSteps:      []string{"Cleanup"},
+					GuidedFailureMode:  "false",
+					DeploymentTargets:  []string{"vm-1"},
+					ScheduledStartTime: "now"},
 			}
 
 			errReceiver := testutil.GoBegin(func() error {
@@ -1730,16 +1734,17 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 				ProjectName:                      "Fire Project",
 				ReleaseVersion:                   "1.9",
 				Environments:                     []string{"dev"},
-				GuidedFailureMode:                "false",
-				ForcePackageDownload:             false,
 				ForcePackageDownloadWasSpecified: true,
-				Variables:                        make(map[string]string, 0),
-				ExcludedSteps:                    []string{"Cleanup"},
-				DeploymentTargets:                []string{"vm-1"},
-				SpecificTargetTagNames:           nil,
-				ExcludedTargetTagNames:           []string{"Role/Legacy"},
 				ReleaseID:                        release19.ID,
-				ScheduledStartTime:               "now",
+				BaseTaskOptionsDeployRelease: executor.BaseTaskOptionsDeployRelease{
+					GuidedFailureMode:      "false",
+					ForcePackageDownload:   false,
+					Variables:              make(map[string]string, 0),
+					ExcludedSteps:          []string{"Cleanup"},
+					DeploymentTargets:      []string{"vm-1"},
+					SpecificTargetTagNames: nil,
+					ExcludedTargetTagNames: []string{"Role/Legacy"},
+					ScheduledStartTime:     "now"},
 			}, options)
 		}},
 	}
@@ -2569,7 +2574,7 @@ func TestDeployCreate_PrintAdvancedSummary(t *testing.T) {
 				BaseTaskOptionsDeployRelease: executor.BaseTaskOptionsDeployRelease{
 					ScheduledStartTime:   "2022-09-23",
 					GuidedFailureMode:    "false",
-				    Priority:             "true",
+					Priority:             "true",
 					ForcePackageDownload: true,
 					ExcludedSteps:        []string{"Step 1", "Step 37"},
 					DeploymentTargets:    []string{"vm-1", "vm-2"},
@@ -2632,7 +2637,9 @@ func TestDeployCreate_PrintAdvancedSummary(t *testing.T) {
 
 		{"variation on include target tags only", func(t *testing.T, stdout *bytes.Buffer) {
 			options := &executor.TaskOptionsDeployRelease{
-				SpecificTargetTagNames: []string{"Region/us-east", "Role/web"},
+				BaseTaskOptionsDeployRelease: executor.BaseTaskOptionsDeployRelease{
+					SpecificTargetTagNames: []string{"Region/us-east", "Role/web"},
+				},
 			}
 			deploy.PrintAdvancedSummary(stdout, options)
 
@@ -2650,7 +2657,9 @@ func TestDeployCreate_PrintAdvancedSummary(t *testing.T) {
 
 		{"variation on exclude target tags only", func(t *testing.T, stdout *bytes.Buffer) {
 			options := &executor.TaskOptionsDeployRelease{
-				ExcludedTargetTagNames: []string{"Role/Legacy"},
+				BaseTaskOptionsDeployRelease: executor.BaseTaskOptionsDeployRelease{
+					ExcludedTargetTagNames: []string{"Role/Legacy"},
+				},
 			}
 			deploy.PrintAdvancedSummary(stdout, options)
 
@@ -2668,8 +2677,10 @@ func TestDeployCreate_PrintAdvancedSummary(t *testing.T) {
 
 		{"both include and exclude target tags", func(t *testing.T, stdout *bytes.Buffer) {
 			options := &executor.TaskOptionsDeployRelease{
-				SpecificTargetTagNames: []string{"Region/us-east", "Role/web"},
-				ExcludedTargetTagNames: []string{"Role/Legacy", "Region/eu-west"},
+				BaseTaskOptionsDeployRelease: executor.BaseTaskOptionsDeployRelease{
+					SpecificTargetTagNames: []string{"Region/us-east", "Role/web"},
+					ExcludedTargetTagNames: []string{"Role/Legacy", "Region/eu-west"},
+				},
 			}
 			deploy.PrintAdvancedSummary(stdout, options)
 
