@@ -1209,6 +1209,7 @@ func TestReleaseCreate_AutomationMode(t *testing.T) {
 
 	protectedBranchNamePatterns := []string{}
 	cacProject := fixtures.NewProject(space1.ID, cacProjectID, "CaC Project", "Lifecycles-1", "ProjectGroups-1", depProcess.ID)
+	betaChannel := fixtures.NewChannel(space1.ID, "Channels-31", "BetaChannel", cacProjectID)
 	cacProject.PersistenceSettings = projects.NewGitPersistenceSettings(
 		".octopus",
 		credentials.NewAnonymous(),
@@ -1588,6 +1589,53 @@ func TestReleaseCreate_AutomationMode(t *testing.T) {
 			assert.EqualError(t, err, "cannot specify both --release-notes and --release-notes-file at the same time")
 		}},
 
+		{"release creation specifying the project and channel by ID", func(t *testing.T, api *testutil.MockHttpServer, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
+			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
+				defer api.Close()
+				rootCmd.SetArgs([]string{"release", "create", "--project", cacProjectID, "--channel", betaChannel.ID})
+				return rootCmd.ExecuteC()
+			})
+
+			api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+cacProjectID).RespondWith(cacProject)
+
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+cacProjectID+"/channels").RespondWith(resources.Resources[*channels.Channel]{
+				Items: []*channels.Channel{betaChannel},
+			})
+
+			req := api.ExpectRequest(t, "POST", "/api/Spaces-1/releases/create/v1")
+
+			// the executions API only matches channels by name, so the ID must have been resolved before we got here
+			requestBody, err := testutil.ReadJson[releases.CreateReleaseCommandV1](req.Request.Body)
+			assert.Nil(t, err)
+
+			assert.Equal(t, releases.CreateReleaseCommandV1{
+				SpaceID:         "Spaces-1",
+				ProjectIDOrName: cacProject.Name,
+				ChannelIDOrName: betaChannel.Name,
+			}, requestBody)
+
+			req.RespondWith(&releases.CreateReleaseResponseV1{
+				ReleaseID:      "Releases-999",
+				ReleaseVersion: "1.2.3",
+			})
+
+			releaseInfo := releases.NewRelease(betaChannel.ID, cacProject.ID, "1.2.3")
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/releases/Releases-999").RespondWith(releaseInfo)
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/channels/"+betaChannel.ID).RespondWith(betaChannel)
+
+			_, err = testutil.ReceivePair(cmdReceiver)
+			assert.Nil(t, err)
+
+			assert.Equal(t, heredoc.Doc(`
+				Successfully created release version 1.2.3 using channel BetaChannel
+				
+				View this release on Octopus Deploy: http://server/app#/Spaces-1/releases/Releases-999
+				`), stdOut.String())
+			assert.Equal(t, "", stdErr.String())
+		}},
+
 		{"release creation with all the flags", func(t *testing.T, api *testutil.MockHttpServer, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
 			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
 				defer api.Close()
@@ -1610,6 +1658,10 @@ func TestReleaseCreate_AutomationMode(t *testing.T) {
 			api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
 			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+cacProject.GetName()).RespondWith(cacProject)
+
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+cacProjectID+"/channels").RespondWith(resources.Resources[*channels.Channel]{
+				Items: []*channels.Channel{betaChannel},
+			})
 
 			req := api.ExpectRequest(t, "POST", "/api/Spaces-1/releases/create/v1")
 
@@ -1682,6 +1734,10 @@ func TestReleaseCreate_AutomationMode(t *testing.T) {
 			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+cacProject.GetName()).RespondWith(cacProject)
 
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+cacProjectID+"/channels").RespondWith(resources.Resources[*channels.Channel]{
+				Items: []*channels.Channel{betaChannel},
+			})
+
 			req := api.ExpectRequest(t, "POST", "/api/Spaces-1/releases/create/v1")
 
 			// check that it sent the server the right request body
@@ -1747,6 +1803,10 @@ func TestReleaseCreate_AutomationMode(t *testing.T) {
 			api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
 			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+cacProject.GetName()).RespondWith(cacProject)
+
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+cacProjectID+"/channels").RespondWith(resources.Resources[*channels.Channel]{
+				Items: []*channels.Channel{betaChannel},
+			})
 
 			req := api.ExpectRequest(t, "POST", "/api/Spaces-1/releases/create/v1")
 
@@ -1816,6 +1876,10 @@ func TestReleaseCreate_AutomationMode(t *testing.T) {
 			api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
 			api.ExpectRequest(t, "GET", "/api/Spaces-1").RespondWith(rootResource)
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+cacProject.GetName()).RespondWith(cacProject)
+
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+cacProjectID+"/channels").RespondWith(resources.Resources[*channels.Channel]{
+				Items: []*channels.Channel{betaChannel},
+			})
 
 			req := api.ExpectRequest(t, "POST", "/api/Spaces-1/releases/create/v1")
 

@@ -310,6 +310,14 @@ func createRun(cmd *cobra.Command, f factory.Factory, flags *CreateFlags) error 
 				return err
 			}
 			options.ProjectName = project.GetName()
+
+			if options.ChannelName != "" { // the executions API only matches channels by name, so resolve any ID we were given
+				channel, err := selectors.FindChannel(octopus, project, options.ChannelName)
+				if err != nil {
+					return err
+				}
+				options.ChannelName = channel.Name
+			}
 		}
 	}
 
