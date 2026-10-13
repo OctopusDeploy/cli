@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.27.1](https://github.com/OctopusDeploy/cli/compare/v2.27.0...v2.27.1) (2026-10-13)
+
+
+### Bug Fixes
+
+* Support lowercase legacy aliases ([#745](https://github.com/OctopusDeploy/cli/issues/745)) ([38a413d](https://github.com/OctopusDeploy/cli/commit/38a413d39ae6e45646d926c01f66e85872f1d089))
+* Update to go 1.26.9 ([#746](https://github.com/OctopusDeploy/cli/issues/746)) ([b40b98d](https://github.com/OctopusDeploy/cli/commit/b40b98d5dcfff99f8ea669aa24d36b167f4c476d))
+
 ## [2.27.0](https://github.com/OctopusDeploy/cli/compare/v2.26.0...v2.27.0) (2026-10-02)
 
 
