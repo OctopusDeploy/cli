@@ -331,7 +331,7 @@ The easiest way to run the tests is to `cd integrationtest` and run `go test ./.
 We use [golangci-lint](https://golangci-lint.run) to lint and format the code. The configuration is in `.golangci.yml`.
 The pull request workflow runs golangci-lint, and your pull request must pass it.
 
-Install golangci-lint. See the [golangci-lint website](https://golangci-lint.run) for the install instructions.
+See the [golangci-lint website](https://golangci-lint.run) for the install instructions.
 
 To format the code, and then find lint issues, run these commands in the cli root folder:
 
