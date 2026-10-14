@@ -141,20 +141,20 @@ func listRun(cmd *cobra.Command, f factory.Factory, flags *ListFlags) error {
 		return err
 	}
 
-	allTasks := foundTasks.Items
+	matchingTasks := foundTasks.Items
 	// no limit was asked for, so page through every match. The server's paging links
 	// drop the spaces filter, so page with skip on the query instead.
-	for flags.Limit.Value == 0 && len(foundTasks.Items) > 0 && len(allTasks) < foundTasks.TotalResults {
-		query.Skip = len(allTasks)
+	for flags.Limit.Value == 0 && len(foundTasks.Items) > 0 && len(matchingTasks) < foundTasks.TotalResults {
+		query.Skip = len(matchingTasks)
 		foundTasks, err = octopus.Tasks.Get(query)
 		if err != nil {
 			return err
 		}
-		allTasks = append(allTasks, foundTasks.Items...)
+		matchingTasks = append(matchingTasks, foundTasks.Items...)
 	}
 
-	viewModels := make([]TaskViewModel, 0, len(allTasks))
-	for _, t := range allTasks {
+	viewModels := make([]TaskViewModel, 0, len(matchingTasks))
+	for _, t := range matchingTasks {
 		viewModels = append(viewModels, toViewModel(t))
 	}
 
