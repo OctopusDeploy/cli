@@ -20,9 +20,11 @@ linters:
 formatters:
   enable:
     - gofumpt
+    # Disabled temporarily due to noise
     # - golines
     - gci
   settings:
+    # Disabled temporarily due to noise
     # golines:
     #   max-len: 120
     gci:
