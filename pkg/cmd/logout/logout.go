@@ -1,6 +1,8 @@
 package logout
 
 import (
+	"errors"
+
 	"github.com/spf13/cobra"
 
 	"github.com/OctopusDeploy/cli/pkg/constants/annotations"
@@ -28,13 +30,13 @@ func logoutRun(f factory.Factory, cmd *cobra.Command) error {
 	if err != nil {
 		return err
 	}
-	if err := configProvider.Set("Url", ""); err != nil {
-		return err
-	}
-	if err := configProvider.Set("ApiKey", ""); err != nil {
-		return err
-	}
-	if err := configProvider.Set("AccessToken", ""); err != nil {
+	// Try to clear all the keys, also if one of them fails.
+	err = errors.Join(
+		configProvider.Set("Url", ""),
+		configProvider.Set("ApiKey", ""),
+		configProvider.Set("AccessToken", ""),
+	)
+	if err != nil {
 		return err
 	}
 
