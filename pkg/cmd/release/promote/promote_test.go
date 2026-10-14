@@ -36,9 +36,11 @@ func TestPromoteRelease_Success(t *testing.T) {
 	fireProject := fixtures.NewProject(spaceID, fireProjectID, "Fire Project", "Lifecycles-1", "ProjectGroups-1", "deploymentprocess-"+fireProjectID)
 
 	devEnvironment := fixtures.NewEnvironment(spaceID, "Environments-12", "Development")
-	fixtures.NewEnvironment(spaceID, "Environments-13", "Staging")
+	stagingEnvironment := fixtures.NewEnvironment(spaceID, "Environments-13", "Staging")
 
 	release19 := fixtures.NewRelease(spaceID, "Releases-193", "1.9", fireProjectID, "Channels-1")
+	release20 := fixtures.NewRelease(spaceID, "Releases-194", "2.0", fireProjectID, "Channels-1")
+	release21 := fixtures.NewRelease(spaceID, "Releases-195", "2.1", fireProjectID, "Channels-1")
 
 	dashboardItem := &dashboard.DashboardItem{
 		ProjectID:      fireProjectID,
@@ -46,6 +48,22 @@ func TestPromoteRelease_Success(t *testing.T) {
 		ReleaseVersion: release19.Version,
 		ReleaseID:      release19.ID,
 		State:          "Success",
+	}
+
+	release20DashboardItem := &dashboard.DashboardItem{
+		ProjectID:      fireProjectID,
+		EnvironmentID:  devEnvironment.ID,
+		ReleaseVersion: release20.Version,
+		ReleaseID:      release20.ID,
+		State:          "Failed",
+	}
+
+	release21DashboardItem := &dashboard.DashboardItem{
+		ProjectID:      fireProjectID,
+		EnvironmentID:  devEnvironment.ID,
+		ReleaseVersion: release21.Version,
+		ReleaseID:      release21.ID,
+		State:          "Executing",
 	}
 
 	tests := []struct {
@@ -82,7 +100,7 @@ func TestPromoteRelease_Success(t *testing.T) {
 				})
 
 			// Get dashboard for project and environment
-			api.ExpectRequest(t, "GET", "/api/"+spaceID+"/dashboard/dynamic").RespondWith(&dashboard.Dashboard{
+			api.ExpectRequest(t, "GET", "/api/"+spaceID+"/dashboard/dynamic?environments=Environments-12&projects=Projects-22").RespondWith(&dashboard.Dashboard{
 				Items: []*dashboard.DashboardItem{dashboardItem},
 			})
 
@@ -91,17 +109,94 @@ func TestPromoteRelease_Success(t *testing.T) {
 				RespondWith(release19)
 
 			// Deploy the release to staging
-			api.ExpectRequest(t, "POST", "/api/"+spaceID+"/deployments/create/untenanted/v1").
-				RespondWith(&deployments.CreateDeploymentResponseV1{
-					DeploymentServerTasks: []*deployments.DeploymentServerTask{
-						{
-							ServerTaskID: "ServerTasks-1",
-							DeploymentID: "Deployments-1",
-						},
+			req := api.ExpectRequest(t, "POST", "/api/"+spaceID+"/deployments/create/untenanted/v1")
+			requestBody, err := testutil.ReadJson[deployments.CreateDeploymentUntenantedCommandV1](req.Request.Body)
+			assert.Nil(t, err)
+
+			assert.Equal(t, deployments.CreateDeploymentUntenantedCommandV1{
+				ReleaseVersion:   release19.Version,
+				EnvironmentNames: []string{stagingEnvironment.Name},
+				CreateExecutionAbstractCommandV1: deployments.CreateExecutionAbstractCommandV1{
+					SpaceID:         spaceID,
+					ProjectIDOrName: fireProject.ID,
+				},
+			}, requestBody)
+
+			req.RespondWith(&deployments.CreateDeploymentResponseV1{
+				DeploymentServerTasks: []*deployments.DeploymentServerTask{
+					{
+						ServerTaskID: "ServerTasks-1",
+						DeploymentID: "Deployments-1",
 					},
+				},
+			})
+
+			_, err = testutil.ReceivePair(cmdReceiver)
+			assert.Nil(t, err)
+		}},
+
+		{"promote most recent release from dev to staging", func(t *testing.T, api *testutil.MockHttpServer, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
+			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
+				defer api.Close()
+				rootCmd.SetArgs([]string{"release", "promote", "--project", "Fire Project", "--from", "Development", "--to", "Staging"})
+				return rootCmd, rootCmd.Execute()
+			})
+
+			api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/"+spaceID).RespondWith(rootResource)
+
+			// Lookup project by name
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/Fire Project").RespondWithStatus(404, "NotFound", struct{ ErrorMessage string }{ErrorMessage: "Project not found"})
+			api.ExpectRequest(t, "GET", "/api/"+spaceID+"/projects?partialName=Fire%20Project").
+				RespondWith(resources.Resources[*projects.Project]{
+					Items: []*projects.Project{fireProject},
 				})
 
-			_, err := testutil.ReceivePair(cmdReceiver)
+			// Lookup from environment by ID
+			api.ExpectRequest(t, "GET", "/api/"+spaceID+"/environments/v2?name=&skip=0&ids=Development&take=0").
+				RespondWith(resources.Resources[*environments.Environment]{
+					Items: []*environments.Environment{},
+				})
+
+			// Lookup from environment by name
+			api.ExpectRequest(t, "GET", "/api/"+spaceID+"/environments/v2?name=Development&skip=0&take=0").
+				RespondWith(resources.Resources[*environments.Environment]{
+					Items: []*environments.Environment{devEnvironment},
+				})
+
+			// Get dashboard for project and environment
+			api.ExpectRequest(t, "GET", "/api/"+spaceID+"/dashboard/dynamic?environments=Environments-12&projects=Projects-22").RespondWith(&dashboard.Dashboard{
+				Items: []*dashboard.DashboardItem{release20DashboardItem, dashboardItem, release21DashboardItem},
+			})
+
+			// Get the release
+			api.ExpectRequest(t, "GET", "/api/"+spaceID+"/projects/"+fireProjectID+"/releases/"+release21.Version).
+				RespondWith(release21)
+
+			// Deploy the release to staging
+			req := api.ExpectRequest(t, "POST", "/api/"+spaceID+"/deployments/create/untenanted/v1")
+			requestBody, err := testutil.ReadJson[deployments.CreateDeploymentUntenantedCommandV1](req.Request.Body)
+			assert.Nil(t, err)
+
+			assert.Equal(t, deployments.CreateDeploymentUntenantedCommandV1{
+				ReleaseVersion:   release21.Version,
+				EnvironmentNames: []string{stagingEnvironment.Name},
+				CreateExecutionAbstractCommandV1: deployments.CreateExecutionAbstractCommandV1{
+					SpaceID:         spaceID,
+					ProjectIDOrName: fireProject.ID,
+				},
+			}, requestBody)
+
+			req.RespondWith(&deployments.CreateDeploymentResponseV1{
+				DeploymentServerTasks: []*deployments.DeploymentServerTask{
+					{
+						ServerTaskID: "ServerTasks-1",
+						DeploymentID: "Deployments-1",
+					},
+				},
+			})
+
+			_, err = testutil.ReceivePair(cmdReceiver)
 			assert.Nil(t, err)
 		}},
 
@@ -135,8 +230,8 @@ func TestPromoteRelease_Success(t *testing.T) {
 				})
 
 			// Get dashboard for project and environment with IncludePrevious=true
-			api.ExpectRequest(t, "GET", "/api/"+spaceID+"/dashboard/dynamic").RespondWith(&dashboard.Dashboard{
-				Items: []*dashboard.DashboardItem{dashboardItem},
+			api.ExpectRequest(t, "GET", "/api/"+spaceID+"/dashboard/dynamic?environments=Environments-12&includePrevious=true&projects=Projects-22").RespondWith(&dashboard.Dashboard{
+				Items: []*dashboard.DashboardItem{release20DashboardItem, dashboardItem},
 			})
 
 			// Get the release
@@ -188,7 +283,7 @@ func TestPromoteRelease_Success(t *testing.T) {
 				})
 
 			// Get dashboard for project and environment
-			api.ExpectRequest(t, "GET", "/api/"+spaceID+"/dashboard/dynamic").RespondWith(&dashboard.Dashboard{
+			api.ExpectRequest(t, "GET", "/api/"+spaceID+"/dashboard/dynamic?environments=Environments-12&projects=Projects-22").RespondWith(&dashboard.Dashboard{
 				Items: []*dashboard.DashboardItem{dashboardItem},
 			})
 
@@ -241,7 +336,7 @@ func TestPromoteRelease_Success(t *testing.T) {
 				})
 
 			// Get dashboard for project and environment
-			api.ExpectRequest(t, "GET", "/api/"+spaceID+"/dashboard/dynamic").RespondWith(&dashboard.Dashboard{
+			api.ExpectRequest(t, "GET", "/api/"+spaceID+"/dashboard/dynamic?environments=Environments-12&projects=Projects-22").RespondWith(&dashboard.Dashboard{
 				Items: []*dashboard.DashboardItem{dashboardItem},
 			})
 
@@ -294,7 +389,7 @@ func TestPromoteRelease_Success(t *testing.T) {
 				})
 
 			// Get dashboard for project and environment
-			api.ExpectRequest(t, "GET", "/api/"+spaceID+"/dashboard/dynamic").RespondWith(&dashboard.Dashboard{
+			api.ExpectRequest(t, "GET", "/api/"+spaceID+"/dashboard/dynamic?environments=Environments-12&projects=Projects-22").RespondWith(&dashboard.Dashboard{
 				Items: []*dashboard.DashboardItem{dashboardItem},
 			})
 
@@ -347,7 +442,7 @@ func TestPromoteRelease_Success(t *testing.T) {
 				})
 
 			// Get dashboard for project and environment with IncludePrevious=true
-			api.ExpectRequest(t, "GET", "/api/"+spaceID+"/dashboard/dynamic").RespondWith(&dashboard.Dashboard{
+			api.ExpectRequest(t, "GET", "/api/"+spaceID+"/dashboard/dynamic?environments=Environments-12&includePrevious=true&projects=Projects-22").RespondWith(&dashboard.Dashboard{
 				Items: []*dashboard.DashboardItem{dashboardItem},
 			})
 
@@ -400,7 +495,7 @@ func TestPromoteRelease_Success(t *testing.T) {
 				})
 
 			// Get dashboard for project and environment
-			api.ExpectRequest(t, "GET", "/api/"+spaceID+"/dashboard/dynamic").RespondWith(&dashboard.Dashboard{
+			api.ExpectRequest(t, "GET", "/api/"+spaceID+"/dashboard/dynamic?environments=Environments-12&projects=Projects-22").RespondWith(&dashboard.Dashboard{
 				Items: []*dashboard.DashboardItem{dashboardItem},
 			})
 
@@ -525,7 +620,7 @@ func TestPromoteRelease_Errors(t *testing.T) {
 					RespondWith(resources.Resources[*environments.Environment]{
 						Items: []*environments.Environment{devEnvironment},
 					})
-				api.ExpectRequest(t, "GET", "/api/"+spaceID+"/dashboard/dynamic").RespondWith(&dashboard.Dashboard{
+				api.ExpectRequest(t, "GET", "/api/"+spaceID+"/dashboard/dynamic?environments=Environments-12&projects=Projects-22").RespondWith(&dashboard.Dashboard{
 					Items: []*dashboard.DashboardItem{},
 				})
 			},
@@ -550,7 +645,7 @@ func TestPromoteRelease_Errors(t *testing.T) {
 					RespondWith(resources.Resources[*environments.Environment]{
 						Items: []*environments.Environment{devEnvironment},
 					})
-				api.ExpectRequest(t, "GET", "/api/"+spaceID+"/dashboard/dynamic").RespondWith(&dashboard.Dashboard{
+				api.ExpectRequest(t, "GET", "/api/"+spaceID+"/dashboard/dynamic?environments=Environments-12&projects=Projects-22").RespondWith(&dashboard.Dashboard{
 					Items: []*dashboard.DashboardItem{
 						{
 							ProjectID:      fireProjectID,
