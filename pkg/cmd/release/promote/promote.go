@@ -35,10 +35,11 @@ type PromoteFlags struct {
 
 func NewPromoteFlags() *PromoteFlags {
 	return &PromoteFlags{
-		Project:          flag.New[string](FlagProject, false),
-		From:             flag.New[string](FlagFrom, false),
-		To:               flag.New[string](FlagTo, false),
-		LatestSuccessful: flag.New[bool](FlagLatestSuccessful, false),
+		Project:           flag.New[string](FlagProject, false),
+		From:              flag.New[string](FlagFrom, false),
+		To:                flag.New[string](FlagTo, false),
+		LatestSuccessful:  flag.New[bool](FlagLatestSuccessful, false),
+		CommonDeployFlags: deploy.NewCommonDeployFlags(),
 	}
 }
 

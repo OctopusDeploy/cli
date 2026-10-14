@@ -3,7 +3,6 @@ package promote_test
 import (
 	"bytes"
 	"context"
-	"net/url"
 	"testing"
 	"time"
 
@@ -12,7 +11,6 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/test/fixtures"
 	"github.com/OctopusDeploy/cli/test/testutil"
-	octopusApiClient "github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/dashboard"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/deployments"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/environments"
@@ -21,10 +19,6 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 )
-
-var serverUrl, _ = url.Parse("http://server")
-
-const placeholderApiKey = "API-XXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
 
 var rootResource = testutil.NewRootResource()
 
@@ -65,24 +59,24 @@ func TestPromoteRelease_Success(t *testing.T) {
 				return rootCmd, rootCmd.Execute()
 			})
 
-			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
-			api.ExpectRequest(t, "GET", "/api/spaces").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/"+spaceID).RespondWith(rootResource)
 
 			// Lookup project by name
-			api.ExpectRequest(t, "GET", "/api/"+spaceID+"/projects/Fire Project").RespondWithStatus(404, "NotFound", nil)
-			api.ExpectRequest(t, "GET", "/api/"+spaceID+"/projects?partialName=Fire+Project").
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/Fire Project").RespondWithStatus(404, "NotFound", struct{ ErrorMessage string }{ErrorMessage: "Project not found"})
+			api.ExpectRequest(t, "GET", "/api/"+spaceID+"/projects?partialName=Fire%20Project").
 				RespondWith(resources.Resources[*projects.Project]{
 					Items: []*projects.Project{fireProject},
 				})
 
 			// Lookup from environment by ID
-			api.ExpectRequest(t, "GET", "/api/"+spaceID+"/environments?ids=Development").
+			api.ExpectRequest(t, "GET", "/api/"+spaceID+"/environments/v2?name=&skip=0&ids=Development&take=0").
 				RespondWith(resources.Resources[*environments.Environment]{
 					Items: []*environments.Environment{},
 				})
 
 			// Lookup from environment by name
-			api.ExpectRequest(t, "GET", "/api/"+spaceID+"/environments?name=Development").
+			api.ExpectRequest(t, "GET", "/api/"+spaceID+"/environments/v2?name=Development&skip=0&take=0").
 				RespondWith(resources.Resources[*environments.Environment]{
 					Items: []*environments.Environment{devEnvironment},
 				})
@@ -118,24 +112,24 @@ func TestPromoteRelease_Success(t *testing.T) {
 				return rootCmd, rootCmd.Execute()
 			})
 
-			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
-			api.ExpectRequest(t, "GET", "/api/spaces").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/"+spaceID).RespondWith(rootResource)
 
 			// Lookup project by name
-			api.ExpectRequest(t, "GET", "/api/"+spaceID+"/projects/Fire Project").RespondWithStatus(404, "NotFound", nil)
-			api.ExpectRequest(t, "GET", "/api/"+spaceID+"/projects?partialName=Fire+Project").
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/Fire Project").RespondWithStatus(404, "NotFound", struct{ ErrorMessage string }{ErrorMessage: "Project not found"})
+			api.ExpectRequest(t, "GET", "/api/"+spaceID+"/projects?partialName=Fire%20Project").
 				RespondWith(resources.Resources[*projects.Project]{
 					Items: []*projects.Project{fireProject},
 				})
 
 			// Lookup from environment by ID
-			api.ExpectRequest(t, "GET", "/api/"+spaceID+"/environments?ids=Development").
+			api.ExpectRequest(t, "GET", "/api/"+spaceID+"/environments/v2?name=&skip=0&ids=Development&take=0").
 				RespondWith(resources.Resources[*environments.Environment]{
 					Items: []*environments.Environment{},
 				})
 
 			// Lookup from environment by name
-			api.ExpectRequest(t, "GET", "/api/"+spaceID+"/environments?name=Development").
+			api.ExpectRequest(t, "GET", "/api/"+spaceID+"/environments/v2?name=Development&skip=0&take=0").
 				RespondWith(resources.Resources[*environments.Environment]{
 					Items: []*environments.Environment{devEnvironment},
 				})
@@ -171,24 +165,24 @@ func TestPromoteRelease_Success(t *testing.T) {
 				return rootCmd, rootCmd.Execute()
 			})
 
-			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
-			api.ExpectRequest(t, "GET", "/api/spaces").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/"+spaceID).RespondWith(rootResource)
 
 			// Lookup project by name
-			api.ExpectRequest(t, "GET", "/api/"+spaceID+"/projects/Fire Project").RespondWithStatus(404, "NotFound", nil)
-			api.ExpectRequest(t, "GET", "/api/"+spaceID+"/projects?partialName=Fire+Project").
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/Fire Project").RespondWithStatus(404, "NotFound", struct{ ErrorMessage string }{ErrorMessage: "Project not found"})
+			api.ExpectRequest(t, "GET", "/api/"+spaceID+"/projects?partialName=Fire%20Project").
 				RespondWith(resources.Resources[*projects.Project]{
 					Items: []*projects.Project{fireProject},
 				})
 
 			// Lookup from environment by ID
-			api.ExpectRequest(t, "GET", "/api/"+spaceID+"/environments?ids=Development").
+			api.ExpectRequest(t, "GET", "/api/"+spaceID+"/environments/v2?name=&skip=0&ids=Development&take=0").
 				RespondWith(resources.Resources[*environments.Environment]{
 					Items: []*environments.Environment{},
 				})
 
 			// Lookup from environment by name
-			api.ExpectRequest(t, "GET", "/api/"+spaceID+"/environments?name=Development").
+			api.ExpectRequest(t, "GET", "/api/"+spaceID+"/environments/v2?name=Development&skip=0&take=0").
 				RespondWith(resources.Resources[*environments.Environment]{
 					Items: []*environments.Environment{devEnvironment},
 				})
@@ -224,24 +218,24 @@ func TestPromoteRelease_Success(t *testing.T) {
 				return rootCmd, rootCmd.Execute()
 			})
 
-			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
-			api.ExpectRequest(t, "GET", "/api/spaces").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/"+spaceID).RespondWith(rootResource)
 
 			// Lookup project by name
-			api.ExpectRequest(t, "GET", "/api/"+spaceID+"/projects/Fire Project").RespondWithStatus(404, "NotFound", nil)
-			api.ExpectRequest(t, "GET", "/api/"+spaceID+"/projects?partialName=Fire+Project").
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/Fire Project").RespondWithStatus(404, "NotFound", struct{ ErrorMessage string }{ErrorMessage: "Project not found"})
+			api.ExpectRequest(t, "GET", "/api/"+spaceID+"/projects?partialName=Fire%20Project").
 				RespondWith(resources.Resources[*projects.Project]{
 					Items: []*projects.Project{fireProject},
 				})
 
 			// Lookup from environment by ID
-			api.ExpectRequest(t, "GET", "/api/"+spaceID+"/environments?ids=Development").
+			api.ExpectRequest(t, "GET", "/api/"+spaceID+"/environments/v2?name=&skip=0&ids=Development&take=0").
 				RespondWith(resources.Resources[*environments.Environment]{
 					Items: []*environments.Environment{},
 				})
 
 			// Lookup from environment by name
-			api.ExpectRequest(t, "GET", "/api/"+spaceID+"/environments?name=Development").
+			api.ExpectRequest(t, "GET", "/api/"+spaceID+"/environments/v2?name=Development&skip=0&take=0").
 				RespondWith(resources.Resources[*environments.Environment]{
 					Items: []*environments.Environment{devEnvironment},
 				})
@@ -277,24 +271,24 @@ func TestPromoteRelease_Success(t *testing.T) {
 				return rootCmd, rootCmd.Execute()
 			})
 
-			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
-			api.ExpectRequest(t, "GET", "/api/spaces").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/"+spaceID).RespondWith(rootResource)
 
 			// Lookup project by name
-			api.ExpectRequest(t, "GET", "/api/"+spaceID+"/projects/Fire Project").RespondWithStatus(404, "NotFound", nil)
-			api.ExpectRequest(t, "GET", "/api/"+spaceID+"/projects?partialName=Fire+Project").
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/Fire Project").RespondWithStatus(404, "NotFound", struct{ ErrorMessage string }{ErrorMessage: "Project not found"})
+			api.ExpectRequest(t, "GET", "/api/"+spaceID+"/projects?partialName=Fire%20Project").
 				RespondWith(resources.Resources[*projects.Project]{
 					Items: []*projects.Project{fireProject},
 				})
 
 			// Lookup from environment by ID
-			api.ExpectRequest(t, "GET", "/api/"+spaceID+"/environments?ids=Development").
+			api.ExpectRequest(t, "GET", "/api/"+spaceID+"/environments/v2?name=&skip=0&ids=Development&take=0").
 				RespondWith(resources.Resources[*environments.Environment]{
 					Items: []*environments.Environment{},
 				})
 
 			// Lookup from environment by name
-			api.ExpectRequest(t, "GET", "/api/"+spaceID+"/environments?name=Development").
+			api.ExpectRequest(t, "GET", "/api/"+spaceID+"/environments/v2?name=Development&skip=0&take=0").
 				RespondWith(resources.Resources[*environments.Environment]{
 					Items: []*environments.Environment{devEnvironment},
 				})
@@ -330,24 +324,24 @@ func TestPromoteRelease_Success(t *testing.T) {
 				return rootCmd, rootCmd.Execute()
 			})
 
-			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
-			api.ExpectRequest(t, "GET", "/api/spaces").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/"+spaceID).RespondWith(rootResource)
 
 			// Lookup project by name
-			api.ExpectRequest(t, "GET", "/api/"+spaceID+"/projects/Fire Project").RespondWithStatus(404, "NotFound", nil)
-			api.ExpectRequest(t, "GET", "/api/"+spaceID+"/projects?partialName=Fire+Project").
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/Fire Project").RespondWithStatus(404, "NotFound", struct{ ErrorMessage string }{ErrorMessage: "Project not found"})
+			api.ExpectRequest(t, "GET", "/api/"+spaceID+"/projects?partialName=Fire%20Project").
 				RespondWith(resources.Resources[*projects.Project]{
 					Items: []*projects.Project{fireProject},
 				})
 
 			// Lookup from environment by ID
-			api.ExpectRequest(t, "GET", "/api/"+spaceID+"/environments?ids=Development").
+			api.ExpectRequest(t, "GET", "/api/"+spaceID+"/environments/v2?name=&skip=0&ids=Development&take=0").
 				RespondWith(resources.Resources[*environments.Environment]{
 					Items: []*environments.Environment{},
 				})
 
 			// Lookup from environment by name
-			api.ExpectRequest(t, "GET", "/api/"+spaceID+"/environments?name=Development").
+			api.ExpectRequest(t, "GET", "/api/"+spaceID+"/environments/v2?name=Development&skip=0&take=0").
 				RespondWith(resources.Resources[*environments.Environment]{
 					Items: []*environments.Environment{devEnvironment},
 				})
@@ -383,24 +377,24 @@ func TestPromoteRelease_Success(t *testing.T) {
 				return rootCmd, rootCmd.Execute()
 			})
 
-			api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
-			api.ExpectRequest(t, "GET", "/api/spaces").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
+			api.ExpectRequest(t, "GET", "/api/"+spaceID).RespondWith(rootResource)
 
 			// Lookup project by name
-			api.ExpectRequest(t, "GET", "/api/"+spaceID+"/projects/Fire Project").RespondWithStatus(404, "NotFound", nil)
-			api.ExpectRequest(t, "GET", "/api/"+spaceID+"/projects?partialName=Fire+Project").
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/Fire Project").RespondWithStatus(404, "NotFound", struct{ ErrorMessage string }{ErrorMessage: "Project not found"})
+			api.ExpectRequest(t, "GET", "/api/"+spaceID+"/projects?partialName=Fire%20Project").
 				RespondWith(resources.Resources[*projects.Project]{
 					Items: []*projects.Project{fireProject},
 				})
 
 			// Lookup from environment by ID
-			api.ExpectRequest(t, "GET", "/api/"+spaceID+"/environments?ids=Development").
+			api.ExpectRequest(t, "GET", "/api/"+spaceID+"/environments/v2?name=&skip=0&ids=Development&take=0").
 				RespondWith(resources.Resources[*environments.Environment]{
 					Items: []*environments.Environment{},
 				})
 
 			// Lookup from environment by name
-			api.ExpectRequest(t, "GET", "/api/"+spaceID+"/environments?name=Development").
+			api.ExpectRequest(t, "GET", "/api/"+spaceID+"/environments/v2?name=Development&skip=0&take=0").
 				RespondWith(resources.Resources[*environments.Environment]{
 					Items: []*environments.Environment{devEnvironment},
 				})
@@ -480,8 +474,8 @@ func TestPromoteRelease_Errors(t *testing.T) {
 			name: "project not found",
 			args: []string{"release", "promote", "--project", "NonExistent Project", "--from", "Development", "--to", "Staging"},
 			setupApi: func(api *testutil.MockHttpServer) {
-				api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
-				api.ExpectRequest(t, "GET", "/api/spaces").RespondWith(rootResource)
+				api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
+				api.ExpectRequest(t, "GET", "/api/"+spaceID).RespondWith(rootResource)
 				api.ExpectRequest(t, "GET", "/api/"+spaceID+"/projects/NonExistent Project").RespondWithStatus(404, "NotFound", nil)
 				api.ExpectRequest(t, "GET", "/api/"+spaceID+"/projects?partialName=NonExistent+Project").
 					RespondWith(resources.Resources[*projects.Project]{
@@ -494,10 +488,10 @@ func TestPromoteRelease_Errors(t *testing.T) {
 			name: "from environment not found",
 			args: []string{"release", "promote", "--project", "Fire Project", "--from", "NonExistent", "--to", "Staging"},
 			setupApi: func(api *testutil.MockHttpServer) {
-				api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
-				api.ExpectRequest(t, "GET", "/api/spaces").RespondWith(rootResource)
-				api.ExpectRequest(t, "GET", "/api/"+spaceID+"/projects/Fire Project").RespondWithStatus(404, "NotFound", nil)
-				api.ExpectRequest(t, "GET", "/api/"+spaceID+"/projects?partialName=Fire+Project").
+				api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
+				api.ExpectRequest(t, "GET", "/api/"+spaceID).RespondWith(rootResource)
+				api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/Fire Project").RespondWithStatus(404, "NotFound", struct{ ErrorMessage string }{ErrorMessage: "Project not found"})
+				api.ExpectRequest(t, "GET", "/api/"+spaceID+"/projects?partialName=Fire%20Project").
 					RespondWith(resources.Resources[*projects.Project]{
 						Items: []*projects.Project{fireProject},
 					})
@@ -516,18 +510,18 @@ func TestPromoteRelease_Errors(t *testing.T) {
 			name: "no deployment found in from environment",
 			args: []string{"release", "promote", "--project", "Fire Project", "--from", "Development", "--to", "Staging"},
 			setupApi: func(api *testutil.MockHttpServer) {
-				api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
-				api.ExpectRequest(t, "GET", "/api/spaces").RespondWith(rootResource)
-				api.ExpectRequest(t, "GET", "/api/"+spaceID+"/projects/Fire Project").RespondWithStatus(404, "NotFound", nil)
-				api.ExpectRequest(t, "GET", "/api/"+spaceID+"/projects?partialName=Fire+Project").
+				api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
+				api.ExpectRequest(t, "GET", "/api/"+spaceID).RespondWith(rootResource)
+				api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/Fire Project").RespondWithStatus(404, "NotFound", struct{ ErrorMessage string }{ErrorMessage: "Project not found"})
+				api.ExpectRequest(t, "GET", "/api/"+spaceID+"/projects?partialName=Fire%20Project").
 					RespondWith(resources.Resources[*projects.Project]{
 						Items: []*projects.Project{fireProject},
 					})
-				api.ExpectRequest(t, "GET", "/api/"+spaceID+"/environments?ids=Development").
+				api.ExpectRequest(t, "GET", "/api/"+spaceID+"/environments/v2?name=&skip=0&ids=Development&take=0").
 					RespondWith(resources.Resources[*environments.Environment]{
 						Items: []*environments.Environment{},
 					})
-				api.ExpectRequest(t, "GET", "/api/"+spaceID+"/environments?name=Development").
+				api.ExpectRequest(t, "GET", "/api/"+spaceID+"/environments/v2?name=Development&skip=0&take=0").
 					RespondWith(resources.Resources[*environments.Environment]{
 						Items: []*environments.Environment{devEnvironment},
 					})
@@ -541,18 +535,18 @@ func TestPromoteRelease_Errors(t *testing.T) {
 			name: "no successful deployment found when using --latest-successful",
 			args: []string{"release", "promote", "--project", "Fire Project", "--from", "Development", "--to", "Staging", "--latest-successful"},
 			setupApi: func(api *testutil.MockHttpServer) {
-				api.ExpectRequest(t, "GET", "/api").RespondWith(rootResource)
-				api.ExpectRequest(t, "GET", "/api/spaces").RespondWith(rootResource)
-				api.ExpectRequest(t, "GET", "/api/"+spaceID+"/projects/Fire Project").RespondWithStatus(404, "NotFound", nil)
-				api.ExpectRequest(t, "GET", "/api/"+spaceID+"/projects?partialName=Fire+Project").
+				api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
+				api.ExpectRequest(t, "GET", "/api/"+spaceID).RespondWith(rootResource)
+				api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/Fire Project").RespondWithStatus(404, "NotFound", struct{ ErrorMessage string }{ErrorMessage: "Project not found"})
+				api.ExpectRequest(t, "GET", "/api/"+spaceID+"/projects?partialName=Fire%20Project").
 					RespondWith(resources.Resources[*projects.Project]{
 						Items: []*projects.Project{fireProject},
 					})
-				api.ExpectRequest(t, "GET", "/api/"+spaceID+"/environments?ids=Development").
+				api.ExpectRequest(t, "GET", "/api/"+spaceID+"/environments/v2?name=&skip=0&ids=Development&take=0").
 					RespondWith(resources.Resources[*environments.Environment]{
 						Items: []*environments.Environment{},
 					})
-				api.ExpectRequest(t, "GET", "/api/"+spaceID+"/environments?name=Development").
+				api.ExpectRequest(t, "GET", "/api/"+spaceID+"/environments/v2?name=Development&skip=0&take=0").
 					RespondWith(resources.Resources[*environments.Environment]{
 						Items: []*environments.Environment{devEnvironment},
 					})
@@ -612,9 +606,13 @@ func TestPromoteFlags_NewPromoteFlags(t *testing.T) {
 }
 
 func TestPromoteCommand_Documentation(t *testing.T) {
-	octopus, _ := octopusApiClient.NewClient(testutil.NewMockHttpClientWithTransport(nil), serverUrl, placeholderApiKey, "")
-	fac := testutil.NewFactoryFake("Spaces-1", nil)
-	rootCmd := cmdRoot.NewCmdRoot(fac, octopus, nil)
+	const spaceID = "Spaces-1"
+	space1 := fixtures.NewSpace(spaceID, "Default Space")
+
+	api := testutil.NewMockHttpServer()
+	defer api.Close()
+
+	rootCmd := cmdRoot.NewCmdRoot(testutil.NewMockFactoryWithSpace(api, space1), nil, nil)
 
 	cmd, _, err := rootCmd.Find([]string{"release", "promote"})
 	assert.Nil(t, err)
@@ -630,9 +628,13 @@ func TestPromoteCommand_Documentation(t *testing.T) {
 }
 
 func TestPromoteCommand_FlagAliases(t *testing.T) {
-	octopus, _ := octopusApiClient.NewClient(testutil.NewMockHttpClientWithTransport(nil), serverUrl, placeholderApiKey, "")
-	fac := testutil.NewFactoryFake("Spaces-1", nil)
-	rootCmd := cmdRoot.NewCmdRoot(fac, octopus, nil)
+	const spaceID = "Spaces-1"
+	space1 := fixtures.NewSpace(spaceID, "Default Space")
+
+	api := testutil.NewMockHttpServer()
+	defer api.Close()
+
+	rootCmd := cmdRoot.NewCmdRoot(testutil.NewMockFactoryWithSpace(api, space1), nil, nil)
 
 	cmd, _, err := rootCmd.Find([]string{"release", "promote"})
 	assert.Nil(t, err)

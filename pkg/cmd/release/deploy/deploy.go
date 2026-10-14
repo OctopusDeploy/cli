@@ -130,29 +130,33 @@ type DeployFlags struct {
 
 func NewDeployFlags() *DeployFlags {
 	return &DeployFlags{
-		Project:        flag.New[string](FlagProject, false),
-		ReleaseVersion: flag.New[string](FlagReleaseVersion, false),
-		Environments:   flag.New[[]string](FlagEnvironment, false),
-		CommonDeployFlags: CommonDeployFlags{
-			Tenants:                        flag.New[[]string](FlagTenant, false),
-			TenantTags:                     flag.New[[]string](FlagTenantTag, false),
-			MaxQueueTime:                   flag.New[string](FlagDeployAtExpiry, false),
-			DeployAt:                       flag.New[string](FlagDeployAt, false),
-			Variables:                      flag.New[[]string](FlagVariable, false),
-			UpdateVariables:                flag.New[bool](FlagUpdateVariables, false),
-			ExcludedSteps:                  flag.New[[]string](FlagSkip, false),
-			GuidedFailureMode:              flag.New[string](FlagGuidedFailure, false),
-			Priority:                       flag.New[string](FlagPriority, false),
-			ForcePackageDownload:           flag.New[bool](FlagForcePackageDownload, false),
-			DeploymentTargets:              flag.New[[]string](FlagDeploymentTarget, false),
-			ExcludeTargets:                 flag.New[[]string](FlagExcludeDeploymentTarget, false),
-			SpecificTargetTagNames:         flag.New[[]string](FlagSpecificTargetTagName, false),
-			ExcludedTargetTagNames:         flag.New[[]string](FlagExcludedTargetTagName, false),
-			DeploymentFreezeNames:          flag.New[[]string](FlagDeploymentFreezeName, false),
-			DeploymentFreezeOverrideReason: flag.New[string](FlagDeploymentFreezeOverrideReason, false)},
+		Project:           flag.New[string](FlagProject, false),
+		ReleaseVersion:    flag.New[string](FlagReleaseVersion, false),
+		Environments:      flag.New[[]string](FlagEnvironment, false),
+		CommonDeployFlags: NewCommonDeployFlags(),
 	}
 }
 
+func NewCommonDeployFlags() CommonDeployFlags {
+	return CommonDeployFlags{
+		Tenants:                        flag.New[[]string](FlagTenant, false),
+		TenantTags:                     flag.New[[]string](FlagTenantTag, false),
+		MaxQueueTime:                   flag.New[string](FlagDeployAtExpiry, false),
+		DeployAt:                       flag.New[string](FlagDeployAt, false),
+		Variables:                      flag.New[[]string](FlagVariable, false),
+		UpdateVariables:                flag.New[bool](FlagUpdateVariables, false),
+		ExcludedSteps:                  flag.New[[]string](FlagSkip, false),
+		GuidedFailureMode:              flag.New[string](FlagGuidedFailure, false),
+		Priority:                       flag.New[string](FlagPriority, false),
+		ForcePackageDownload:           flag.New[bool](FlagForcePackageDownload, false),
+		DeploymentTargets:              flag.New[[]string](FlagDeploymentTarget, false),
+		ExcludeTargets:                 flag.New[[]string](FlagExcludeDeploymentTarget, false),
+		SpecificTargetTagNames:         flag.New[[]string](FlagSpecificTargetTagName, false),
+		ExcludedTargetTagNames:         flag.New[[]string](FlagExcludedTargetTagName, false),
+		DeploymentFreezeNames:          flag.New[[]string](FlagDeploymentFreezeName, false),
+		DeploymentFreezeOverrideReason: flag.New[string](FlagDeploymentFreezeOverrideReason, false),
+	}
+}
 func NewCmdDeploy(f factory.Factory) *cobra.Command {
 	deployFlags := NewDeployFlags()
 	cmd := &cobra.Command{
@@ -218,7 +222,7 @@ func AddCommonFlagsAndAliases(flags *pflag.FlagSet, deployFlags *CommonDeployFla
 	util.AddFlagAliasesStringSlice(flags, FlagTenantTag, aliasMap, FlagAliasTag, FlagAliasTenantTagLegacy)
 	util.AddFlagAliasesString(flags, FlagDeployAt, aliasMap, FlagAliasWhen, FlagAliasDeployAtLegacy)
 	util.AddFlagAliasesString(flags, FlagDeployAtExpiry, aliasMap, FlagDeployAtExpire, FlagAliasNoDeployAfterLegacy)
-	util.AddFlagAliasesString(flags, FlagUpdateVariables, aliasMap, FlagAliasUpdateVariablesLegacy)
+	util.AddFlagAliasesBool(flags, FlagUpdateVariables, aliasMap, FlagAliasUpdateVariablesLegacy)
 	util.AddFlagAliasesString(flags, FlagGuidedFailure, aliasMap, FlagAliasGuidedFailureMode, FlagAliasGuidedFailureModeLegacy)
 	util.AddFlagAliasesBool(flags, FlagForcePackageDownload, aliasMap, FlagAliasForcePackageDownloadLegacy)
 	util.AddFlagAliasesStringSlice(flags, FlagDeploymentTarget, aliasMap, FlagAliasTarget, FlagAliasSpecificMachines)

@@ -230,5 +230,6 @@ func NewRootResource() *octopusApiClient.RootResource {
 	root.Links[constants.LinkProjectGroups] = "/api/Spaces-1/projectgroups{/id}{?skip,take,ids,partialName}"
 	root.Links[constants.LinkUsers] = "/api/users"
 	root.Links[constants.LinkCurrentUser] = "/api/users/me"
+	root.Links[constants.LinkDashboardDynamic] = "/api/Spaces-1/dashboard/dynamic"
 	return root
 }

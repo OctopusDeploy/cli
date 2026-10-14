@@ -269,7 +269,7 @@ func releasePromote(octopus *client.Client, space *spaces.Space, input any) erro
 		return errors.New("to environment must be specified")
 	}
 
-	proj, err := projects.GetByName(octopus, space.ID, params.ProjectName)
+	proj, err := projects.GetByIdentifier(octopus, space.ID, params.ProjectName)
 	if err != nil {
 		return errors.New("project not found")
 	}
@@ -347,10 +347,17 @@ func releasePromote(octopus *client.Client, space *spaces.Space, input any) erro
 		return errors.New("release not found")
 	}
 
-	return releaseDeploy(octopus, space, TaskOptionsDeployRelease{
+	deployOptions := &TaskOptionsDeployRelease{
 		BaseTaskOptionsDeployRelease: params.BaseTaskOptionsDeployRelease,
 		ProjectName:                  proj.ID,
 		ReleaseVersion:               rel.Version,
 		Environments:                 []string{params.ToEnvironment},
-	})
+	}
+
+	err = releaseDeploy(octopus, space, deployOptions)
+
+	// update our params with the deploy response
+	params.Response = deployOptions.Response
+
+	return err
 }
