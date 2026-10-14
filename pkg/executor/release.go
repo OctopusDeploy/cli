@@ -271,18 +271,18 @@ func releasePromote(octopus *client.Client, space *spaces.Space, input any) erro
 
 	proj, err := projects.GetByIdentifier(octopus, space.ID, params.ProjectName)
 	if err != nil {
-		return errors.New("project not found")
+		return fmt.Errorf("project not found. %v", err)
 	}
 
 	envs, err := environments.Get(octopus, space.ID, environments.EnvironmentQuery{IDs: []string{params.FromEnvironment}})
 	if err != nil {
-		return errors.New("environment not found")
+		return fmt.Errorf("environment not found. %v", err)
 	}
 	//
 	if len(envs.Items) == 0 {
 		envs, err = environments.Get(octopus, space.ID, environments.EnvironmentQuery{Name: params.FromEnvironment})
 		if err != nil || len(envs.Items) == 0 {
-			return errors.New("environment not found")
+			return fmt.Errorf("environment not found. %v", err)
 		}
 	}
 	//just grab the first environment
@@ -332,6 +332,7 @@ func releasePromote(octopus *client.Client, space *spaces.Space, input any) erro
 		for _, item := range dashboardItems {
 			if item.State == "Success" {
 				dashboardItem = item
+				break
 			}
 		}
 	} else if len(dashboardItems) > 0 {
@@ -344,8 +345,10 @@ func releasePromote(octopus *client.Client, space *spaces.Space, input any) erro
 
 	rel, err := releases.GetReleaseInProject(octopus, space.ID, proj.ID, dashboardItem.ReleaseVersion)
 	if err != nil {
-		return errors.New("release not found")
+		return fmt.Errorf("release not found. %v", err)
 	}
+
+	params.ReleaseID = rel.ID
 
 	deployOptions := &TaskOptionsDeployRelease{
 		BaseTaskOptionsDeployRelease: params.BaseTaskOptionsDeployRelease,

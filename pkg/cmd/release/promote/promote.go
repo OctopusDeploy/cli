@@ -13,13 +13,11 @@ import (
 )
 
 const (
-	FlagProject       = "project"
-	FlagFrom          = "from"
-	FlagTo            = "to"
-	FlagAliasDeployTo = "deployTo"
+	FlagProject = "project"
+	FlagFrom    = "from"
 
-	FlagUpdateVariables            = "update-variables"
-	FlagAliasLegacyUpdateVariables = "updateVariables"
+	FlagTo                  = "to"
+	FlagAliasLegacyDeployTo = "deployTo"
 
 	FlagLatestSuccessful            = "latest-successful"
 	FlagAliasLegacyLatestSuccessful = "latestSuccessful"
@@ -52,7 +50,7 @@ func NewCmdPromote(f factory.Factory) *cobra.Command {
 		Long:  "Promote a release to a specific environment",
 		Example: heredoc.Docf(`
 			%[1]s release promote --project MyProject --from "Development" --to "Staging"\
-			%[1]s release promote -p MyProject --from "Staging" --to "Production" --update-variables --latest-successful\`,
+			%[1]s release promote -p MyProject --from "Staging" --to "Production" --latest-successful\`,
 			constants.ExecutableName),
 		RunE: func(cmd *cobra.Command, args []string) error { return createRun(cmd, f, promoteFlags) },
 	}
@@ -65,7 +63,7 @@ func NewCmdPromote(f factory.Factory) *cobra.Command {
 
 	// aliases for compatability with the old .NET CLI
 	flagAliases := make(map[string][]string, 10)
-	util.AddFlagAliasesString(flags, FlagTo, flagAliases, FlagAliasDeployTo)
+	util.AddFlagAliasesString(flags, FlagTo, flagAliases, FlagAliasLegacyDeployTo)
 	util.AddFlagAliasesBool(flags, FlagLatestSuccessful, flagAliases, FlagAliasLegacyLatestSuccessful)
 
 	deploy.AddCommonFlagsAndAliases(flags, &promoteFlags.CommonDeployFlags, flagAliases)
