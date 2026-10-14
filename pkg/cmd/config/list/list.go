@@ -2,9 +2,7 @@ package list
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
-	"io/fs"
 	"strings"
 
 	"github.com/MakeNowJust/heredoc/v2"
@@ -36,13 +34,8 @@ func NewCmdList(_ factory.Factory) *cobra.Command {
 func listRun(cmd *cobra.Command) error {
 	configFile := viper.New()
 	configFile.SetConfigFile(viper.ConfigFileUsed())
-	if err := configFile.ReadInConfig(); err != nil {
-		var notFoundErr viper.ConfigFileNotFoundError
-		// If there is no config file, continue. Other errors stop the command.
-		if !errors.As(err, &notFoundErr) && !errors.Is(err, fs.ErrNotExist) {
-			return err
-		}
-	}
+	// Ignore read errors. Users must be able to look at a config file that is not valid, and then fix it.
+	_ = configFile.ReadInConfig()
 
 	if configFile.IsSet(constants.ConfigApiKey) {
 		configFile.Set(constants.ConfigApiKey, "***")
