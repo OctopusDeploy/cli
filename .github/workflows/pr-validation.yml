@@ -20,6 +20,11 @@ jobs:
         with:
           go-version-file: go.mod
 
+      - name: Check formatting
+        uses: golangci/golangci-lint-action@v8
+        with:
+          version: v2.14.0
+
       # if we just run the unit tests then go doesn't compile the parts of the app that aren't covered by
       # unit tests; this forces it
       - name: Build binary
