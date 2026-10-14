@@ -255,9 +255,7 @@ func PromptMissing(opts *CreateOptions) error {
 		}
 	}
 
-	if err := question.AskDescription(opts.Ask, "", "Variable", &opts.Description.Value); err != nil {
-		return err
-	}
+	_ = question.AskDescription(opts.Ask, "", "Variable", &opts.Description.Value)
 
 	if opts.Type.Value == "" {
 		selectedType, err := selectors.SelectOptions(opts.Ask, "Select the type of the variable", getVariableTypeOptions)
@@ -268,12 +266,10 @@ func PromptMissing(opts *CreateOptions) error {
 	}
 
 	if !opts.IsPrompted.Value {
-		if err := opts.Ask(&survey.Confirm{
+		_ = opts.Ask(&survey.Confirm{
 			Message: "Is this a prompted variable?",
 			Default: false,
-		}, &opts.IsPrompted.Value); err != nil {
-			return err
-		}
+		}, &opts.IsPrompted.Value)
 	}
 
 	if opts.IsPrompted.Value {
@@ -285,9 +281,7 @@ func PromptMissing(opts *CreateOptions) error {
 			}
 		}
 
-		if err := question.AskDescription(opts.Ask, "Prompt ", "Prompted Variable", &opts.PromptDescription.Value); err != nil {
-			return err
-		}
+		_ = question.AskDescription(opts.Ask, "Prompt ", "Prompted Variable", &opts.PromptDescription.Value)
 
 		if opts.PromptType.Value == "" {
 			selectedPromptType, err := selectors.SelectOptions(opts.Ask, "Select the control type of the prompted variable", getControlTypeOptions)

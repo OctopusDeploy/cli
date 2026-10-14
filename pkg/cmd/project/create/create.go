@@ -127,9 +127,7 @@ func createRun(opts *CreateOptions) error {
 func PromptMissing(opts *CreateOptions) ([]cmd.Dependable, error) {
 	nestedOpts := []cmd.Dependable{}
 
-	if err := question.AskName(opts.Ask, "", "project", &opts.Name.Value); err != nil {
-		return nil, err
-	}
+	_ = question.AskName(opts.Ask, "", "project", &opts.Name.Value)
 
 	if opts.Lifecycle.Value == "" {
 		lc, err := selectors.Lifecycle("You have not specified a Lifecycle for this project. Please select one:", opts.Client, opts.Ask)
@@ -175,12 +173,10 @@ func PromptMissing(opts *CreateOptions) ([]cmd.Dependable, error) {
 
 func PromptForConfigAsCode(opts *CreateOptions) (cmd.Dependable, error) {
 	if !opts.ConfigAsCode.Value {
-		if err := opts.Ask(&survey.Confirm{
+		_ = opts.Ask(&survey.Confirm{
 			Message: "Would you like to use Config as Code?",
 			Default: false,
-		}, &opts.ConfigAsCode.Value); err != nil {
-			return nil, err
-		}
+		}, &opts.ConfigAsCode.Value)
 	}
 
 	if opts.ConfigAsCode.Value {

@@ -103,12 +103,9 @@ func DeleteRun(opts *DeleteOptions) error {
 
 	var projectVariables *variables.VariableSet
 	if project.IsVersionControlled && opts.GitRef.Value != "" {
-		projectVariables, err = opts.GetProjectVariablesByGitRef(opts.Space.GetID(), project.GetID(), opts.GitRef.Value)
+		projectVariables, _ = opts.GetProjectVariablesByGitRef(opts.Space.GetID(), project.GetID(), opts.GitRef.Value)
 	} else {
-		projectVariables, err = opts.GetProjectVariables(project.GetID())
-	}
-	if err != nil {
-		return err
+		projectVariables, _ = opts.GetProjectVariables(project.GetID())
 	}
 
 	filteredVars := util.SliceFilter(

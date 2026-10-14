@@ -84,10 +84,7 @@ func GetProjectMap(client *client.Client, tenants []*tenants.Tenant) (map[string
 	projectIds = util.SliceDistinct(projectIds)
 
 	projectMap := make(map[string]string)
-	queryResult, err := client.Projects.Get(projects.ProjectsQuery{IDs: projectIds})
-	if err != nil {
-		return nil, err
-	}
+	queryResult, _ := client.Projects.Get(projects.ProjectsQuery{IDs: projectIds})
 	allProjects, err := queryResult.GetAllPages(client.Projects.GetClient())
 	if err != nil {
 		return nil, err

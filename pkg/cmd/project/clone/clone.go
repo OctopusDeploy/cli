@@ -124,9 +124,7 @@ func cloneRun(opts *CloneOptions) error {
 func PromptMissing(opts *CloneOptions) ([]cmd.Dependable, error) {
 	nestedOpts := []cmd.Dependable{}
 
-	if err := question.AskName(opts.Ask, "", "project", &opts.Name.Value); err != nil {
-		return nil, err
-	}
+	_ = question.AskName(opts.Ask, "", "project", &opts.Name.Value)
 
 	if opts.Lifecycle.Value == "" {
 		lc, err := selectors.Lifecycle("You have not specified a Lifecycle for this project. Please select one:", opts.Client, opts.Ask)

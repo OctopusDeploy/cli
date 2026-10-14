@@ -133,10 +133,7 @@ func ConnectRun(opts *ConnectOptions) error {
 			return errors.New(getFailureMessageForUntenantedProject(project))
 		}
 		project.TenantedDeploymentMode = core.TenantedDeploymentModeTenantedOrUntenanted
-		project, err = opts.Client.Projects.Update(project)
-		if err != nil {
-			return err
-		}
+		project, _ = opts.Client.Projects.Update(project)
 	}
 
 	environments, err := executionscommon.FindEnvironments(opts.Client, opts.Environments.Value)
@@ -194,18 +191,12 @@ func PromptMissing(opts *ConnectOptions) error {
 			return err
 		}
 		var progression *projects.Progression
-		progression, err = opts.GetProjectProgressionCallback(project)
-		if err != nil {
-			return err
-		}
+		progression, _ = opts.GetProjectProgressionCallback(project)
 		if len(progression.Environments) == 1 {
 			opts.Environments.Value = append(opts.Environments.Value, progression.Environments[0].Name)
 		} else {
 			var selectedEnvironments []*resources.ReferenceDataItem
-			selectedEnvironments, err = question.MultiSelectMap(opts.Ask, "You have not specified any environments. Please select at least one:", progression.Environments, func(item *resources.ReferenceDataItem) string { return item.Name }, true)
-			if err != nil {
-				return err
-			}
+			selectedEnvironments, _ = question.MultiSelectMap(opts.Ask, "You have not specified any environments. Please select at least one:", progression.Environments, func(item *resources.ReferenceDataItem) string { return item.Name }, true)
 			for _, e := range selectedEnvironments {
 				opts.Environments.Value = append(opts.Environments.Value, e.Name)
 			}
@@ -222,13 +213,10 @@ func PromptForEnablingTenantedDeployments(opts *ConnectOptions, getProjectCallba
 			return err
 		}
 		if !supportsTenantedDeployments(project) {
-			err = opts.Ask(&survey.Confirm{
+			_ = opts.Ask(&survey.Confirm{
 				Message: fmt.Sprintf("Do you want to enable tenanted deployments for '%s'?", project.GetName()),
 				Default: false,
 			}, &opts.EnableTenantDeployments.Value)
-			if err != nil {
-				return err
-			}
 
 			if !opts.EnableTenantDeployments.Value {
 				return errors.New(getFailureMessageForUntenantedProject(project))

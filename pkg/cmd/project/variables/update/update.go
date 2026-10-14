@@ -263,22 +263,17 @@ func PromptMissing(opts *UpdateOptions) error {
 		opts.Id.Value = variable.GetID()
 		opts.Name.Value = variable.Name
 	} else {
-		variable, err = promptForVariable(opts, projectVariables)
-		if err != nil {
-			return err
-		}
+		variable, _ = promptForVariable(opts, projectVariables)
 		opts.Id.Value = variable.GetID()
 		opts.Name.Value = variable.Name
 	}
 
 	if opts.Value.Value == "" {
 		var updateValue bool
-		if err := opts.Ask(&survey.Confirm{
+		_ = opts.Ask(&survey.Confirm{
 			Message: "Do you want to update the variable value?",
 			Default: false,
-		}, &updateValue); err != nil {
-			return err
-		}
+		}, &updateValue)
 
 		if updateValue {
 			opts.Value.Value, err = sharedVariable.PromptValue(opts.Ask, sharedVariable.VariableType(variable.Type), opts.VariableCallbacks, nil)
@@ -297,9 +292,7 @@ func PromptMissing(opts *UpdateOptions) error {
 		case "unscope":
 			opts.Unscoped.Value = true
 		case "replace":
-			if err := sharedProjectVariable.PromptScopes(opts.Ask, projectVariables, opts.ScopeFlags, variable.Prompt != nil); err != nil {
-				return err
-			}
+			_ = sharedProjectVariable.PromptScopes(opts.Ask, projectVariables, opts.ScopeFlags, variable.Prompt != nil)
 		}
 	}
 

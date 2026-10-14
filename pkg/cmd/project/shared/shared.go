@@ -30,9 +30,7 @@ func CreateProjectGroup(dependencies *cmd.Dependencies) (string, cmd.Dependable,
 	projectGroupOpts := cmd.NewDependenciesFromExisting(dependencies, "octopus project-group create")
 
 	projectGroupCreateOpts := projectGroupCreate.NewCreateOptions(optValues, projectGroupOpts)
-	if err := projectGroupCreate.PromptMissing(projectGroupCreateOpts); err != nil {
-		return "", nil, err
-	}
+	_ = projectGroupCreate.PromptMissing(projectGroupCreateOpts)
 	returnValue := projectGroupCreateOpts.Name.Value
 	return returnValue, projectGroupCreateOpts, nil
 }

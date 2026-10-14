@@ -169,15 +169,9 @@ func loginWithApiKey(configProvider config.IConfigProvider, httpClient *http.Cli
 	cmd.Printf("Configuring CLI to use API key for Octopus Server: %s", serverLink)
 	cmd.Println()
 
-	if err := configProvider.Set(constants.ConfigUrl, server); err != nil {
-		return err
-	}
-	if err := configProvider.Set(constants.ConfigApiKey, apiKey); err != nil {
-		return err
-	}
-	if err := configProvider.Set(constants.ConfigAccessToken, ""); err != nil {
-		return err
-	}
+	_ = configProvider.Set(constants.ConfigUrl, server)
+	_ = configProvider.Set(constants.ConfigApiKey, apiKey)
+	_ = configProvider.Set(constants.ConfigAccessToken, "")
 
 	cmd.Printf("Login successful, happy deployments!")
 	cmd.Println()
@@ -248,15 +242,9 @@ func loginWithOpenIdConnect(configProvider config.IConfigProvider, httpClient *h
 	cmd.Printf("Configuring CLI to use access token for Octopus Server: %s", serverLink)
 	cmd.Println()
 
-	if err := configProvider.Set(constants.ConfigUrl, server); err != nil {
-		return err
-	}
-	if err := configProvider.Set(constants.ConfigAccessToken, tokenExchangeResponse.AccessToken); err != nil {
-		return err
-	}
-	if err := configProvider.Set(constants.ConfigApiKey, ""); err != nil {
-		return err
-	}
+	_ = configProvider.Set(constants.ConfigUrl, server)
+	_ = configProvider.Set(constants.ConfigAccessToken, tokenExchangeResponse.AccessToken)
+	_ = configProvider.Set(constants.ConfigApiKey, "")
 
 	cmd.Printf("Login successful, happy deployments!")
 	cmd.Println()

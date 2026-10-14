@@ -51,7 +51,7 @@ func listAzureAccounts(client *client.Client, cmd *cobra.Command) error {
 		"AzureUSGovernment": "US Government",
 	}
 
-	return output.PrintArray(items, cmd, output.Mappers[accounts.IAccount]{
+	_ = output.PrintArray(items, cmd, output.Mappers[accounts.IAccount]{
 		Json: func(item accounts.IAccount) any {
 			acc := item.(*accounts.AzureServicePrincipalAccount)
 			return &struct {
@@ -86,4 +86,5 @@ func listAzureAccounts(client *client.Client, cmd *cobra.Command) error {
 			return item.GetName()
 		},
 	})
+	return nil
 }

@@ -144,15 +144,8 @@ func PromptMissing(opts *CreateOptions) error {
 		return err
 	}
 
-	_, err = promptBool(opts, &opts.GuidedFailureMode.Value, false, "Use guided failure", "If guided failure is enabled for an environment, Octopus Deploy will prompt for user intervention if a deployment fails in the environment.")
-	if err != nil {
-		return err
-	}
-
-	_, err = promptBool(opts, &opts.DynamicInfrastructure.Value, false, "Allow dynamic infrastructure", "If dynamic infrastructure is enabled for an environment, deployments to this environment are allowed to create infrastructure, such as targets and accounts.")
-	if err != nil {
-		return err
-	}
+	_, _ = promptBool(opts, &opts.GuidedFailureMode.Value, false, "Use guided failure", "If guided failure is enabled for an environment, Octopus Deploy will prompt for user intervention if a deployment fails in the environment.")
+	_, _ = promptBool(opts, &opts.DynamicInfrastructure.Value, false, "Allow dynamic infrastructure", "If dynamic infrastructure is enabled for an environment, deployments to this environment are allowed to create infrastructure, such as targets and accounts.")
 
 	tagSets, err := opts.GetAllTagsCallback()
 	if err != nil {

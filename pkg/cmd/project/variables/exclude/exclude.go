@@ -154,10 +154,7 @@ func PromptMissing(opts *ExcludeOptions) error {
 		}
 	}
 
-	libraryVariableSets, err := opts.GetAllLibraryVariableSetsCallback()
-	if err != nil {
-		return err
-	}
+	libraryVariableSets, _ := opts.GetAllLibraryVariableSetsCallback()
 
 	linkedVariableSets := util.SliceFilter(libraryVariableSets, func(item *variables.LibraryVariableSet) bool {
 		return util.SliceContains(project.IncludedLibraryVariableSets, item.ID)

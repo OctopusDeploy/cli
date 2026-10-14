@@ -43,7 +43,7 @@ func listAwsAccounts(client *client.Client, cmd *cobra.Command) error {
 		return err
 	}
 
-	return output.PrintArray(items, cmd, output.Mappers[accounts.IAccount]{
+	_ = output.PrintArray(items, cmd, output.Mappers[accounts.IAccount]{
 		Json: func(item accounts.IAccount) any {
 			acc := item.(*accounts.AmazonWebServicesAccount)
 			return &struct {
@@ -71,4 +71,5 @@ func listAwsAccounts(client *client.Client, cmd *cobra.Command) error {
 			return item.GetName()
 		},
 	})
+	return nil
 }
