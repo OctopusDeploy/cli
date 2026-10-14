@@ -1,0 +1,295 @@
+package list
+
+import (
+	"fmt"
+	"strings"
+	"time"
+
+	"github.com/MakeNowJust/heredoc/v2"
+	"github.com/OctopusDeploy/cli/pkg/apiclient"
+	"github.com/OctopusDeploy/cli/pkg/constants"
+	"github.com/OctopusDeploy/cli/pkg/factory"
+	"github.com/OctopusDeploy/cli/pkg/output"
+	"github.com/OctopusDeploy/cli/pkg/question/selectors"
+	"github.com/OctopusDeploy/cli/pkg/util/flag"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/environments"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/environments/v2/ephemeralenvironments"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/tasks"
+	"github.com/spf13/cobra"
+)
+
+const (
+	FlagProject     = "project"
+	FlagEnvironment = "environment"
+	FlagState       = "state"
+	FlagLimit       = "limit"
+
+	DefaultLimit = 30
+
+	// allPagesPageSize keeps --limit 0 to a handful of requests, rather than paging
+	// with the server's small default page size and tripping its rate limit
+	allPagesPageSize = 1000
+)
+
+// taskStates are the states the server reports for a task, keyed by their lowercase
+// form so that --state is case insensitive.
+var taskStates = map[string]string{
+	"pending":    "Pending",
+	"queued":     "Queued",
+	"executing":  "Executing",
+	"cancelling": "Cancelling",
+	"success":    "Success",
+	"failed":     "Failed",
+	"canceled":   "Canceled",
+	"timedout":   "TimedOut",
+}
+
+type ListFlags struct {
+	Project     *flag.Flag[string]
+	Environment *flag.Flag[string]
+	State       *flag.Flag[[]string]
+	Limit       *flag.Flag[int]
+}
+
+func NewListFlags() *ListFlags {
+	return &ListFlags{
+		Project:     flag.New[string](FlagProject, false),
+		Environment: flag.New[string](FlagEnvironment, false),
+		State:       flag.New[[]string](FlagState, false),
+		Limit:       flag.New[int](FlagLimit, false),
+	}
+}
+
+type TaskViewModel struct {
+	ID            string
+	Description   string
+	State         string
+	StartTime     *time.Time
+	CompletedTime *time.Time
+	Duration      string
+}
+
+func NewCmdList(f factory.Factory) *cobra.Command {
+	listFlags := NewListFlags()
+	cmd := &cobra.Command{
+		Use:   "list",
+		Short: "List tasks",
+		Long:  "List tasks in Octopus Deploy, optionally filtered by project, environment and state",
+		Example: heredoc.Docf(`
+			%[1]s task list
+			%[1]s task ls --project "Deploy Web App"
+			%[1]s task list --project "Deploy Web App" --environment Production --state Queued --state Executing
+			%[1]s task list --environment 123-pr --state Queued,Executing,Cancelling --output-format basic
+		`, constants.ExecutableName),
+		Aliases: []string{"ls"},
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return listRun(cmd, f, listFlags)
+		},
+	}
+
+	flags := cmd.Flags()
+	flags.StringVarP(&listFlags.Project.Value, listFlags.Project.Name, "p", "", "Name or ID of the project to list tasks for")
+	flags.StringVarP(&listFlags.Environment.Value, listFlags.Environment.Name, "e", "", "Name or ID of the environment to list tasks for, including ephemeral environments")
+	flags.StringSliceVar(&listFlags.State.Value, listFlags.State.Name, nil, "Only list tasks in this state (Pending, Queued, Executing, Cancelling, Success, Failed, Canceled, TimedOut). Can be repeated or comma separated")
+	flags.IntVar(&listFlags.Limit.Value, listFlags.Limit.Name, DefaultLimit, "Maximum number of tasks to list, or 0 to list all matching tasks")
+	return cmd
+}
+
+func listRun(cmd *cobra.Command, f factory.Factory, flags *ListFlags) error {
+	if flags.Limit.Value < 0 {
+		return fmt.Errorf("--%s must be zero or greater", FlagLimit)
+	}
+
+	states, err := normaliseStates(flags.State.Value)
+	if err != nil {
+		return err
+	}
+
+	octopus, err := f.GetSpacedClient(apiclient.NewRequester(cmd))
+	if err != nil {
+		return err
+	}
+
+	query := tasks.TasksQuery{
+		Spaces: []string{octopus.GetSpaceID()},
+		States: states,
+		Take:   flags.Limit.Value,
+	}
+	if flags.Limit.Value == 0 {
+		query.Take = allPagesPageSize
+	}
+
+	if flags.Project.Value != "" {
+		project, err := selectors.FindProject(octopus, flags.Project.Value)
+		if err != nil {
+			return err
+		}
+		query.Project = project.GetID()
+	}
+
+	if flags.Environment.Value != "" {
+		environmentID, err := resolveEnvironmentID(octopus, flags.Environment.Value)
+		if err != nil {
+			return err
+		}
+		query.Environment = environmentID
+	}
+
+	foundTasks, err := octopus.Tasks.Get(query)
+	if err != nil {
+		return err
+	}
+
+	matchingTasks := foundTasks.Items
+	// no limit was asked for, so page through every match. The server's paging links
+	// drop the spaces filter, so page with skip on the query instead.
+	for flags.Limit.Value == 0 && len(foundTasks.Items) > 0 && len(matchingTasks) < foundTasks.TotalResults {
+		query.Skip = len(matchingTasks)
+		foundTasks, err = octopus.Tasks.Get(query)
+		if err != nil {
+			return err
+		}
+		matchingTasks = append(matchingTasks, foundTasks.Items...)
+	}
+
+	viewModels := make([]TaskViewModel, 0, len(matchingTasks))
+	for _, t := range matchingTasks {
+		viewModels = append(viewModels, toViewModel(t))
+	}
+
+	return output.PrintArray(viewModels, cmd, output.Mappers[TaskViewModel]{
+		Json: func(item TaskViewModel) any {
+			return item
+		},
+		Table: output.TableDefinition[TaskViewModel]{
+			Header: []string{"ID", "DESCRIPTION", "STATE", "STARTED", "COMPLETED", "DURATION"},
+			Row: func(item TaskViewModel) []string {
+				var startTime, completedTime string
+				if item.StartTime != nil {
+					startTime = item.StartTime.Format(time.RFC1123Z)
+				}
+				if item.CompletedTime != nil {
+					completedTime = item.CompletedTime.Format(time.RFC1123Z)
+				}
+				return []string{item.ID, item.Description, colourState(item.State), startTime, completedTime, item.Duration}
+			},
+		},
+		Basic: func(item TaskViewModel) string {
+			return item.ID
+		},
+	})
+}
+
+// normaliseStates validates the requested states and returns them in the casing the
+// server expects. Returns nil when no states were requested.
+func normaliseStates(requested []string) ([]string, error) {
+	if len(requested) == 0 {
+		return nil, nil
+	}
+
+	states := make([]string, 0, len(requested))
+	for _, s := range requested {
+		state, ok := taskStates[strings.ToLower(strings.TrimSpace(s))]
+		if !ok {
+			return nil, fmt.Errorf("unknown task state '%s'", s)
+		}
+		states = append(states, state)
+	}
+	return states, nil
+}
+
+// resolveEnvironmentID turns a name or ID into the environment ID that the tasks API
+// filters on. Ephemeral environments are not returned by the classic environments
+// endpoint, so they are looked up separately when no regular environment matches.
+//
+// A failed lookup (authentication, permissions, network, server error) is returned
+// as an error rather than being treated as "not found", so the real cause is not
+// hidden behind a misleading message.
+func resolveEnvironmentID(octopus *client.Client, nameOrID string) (string, error) {
+	if strings.HasPrefix(nameOrID, "Environments-") {
+		return nameOrID, nil
+	}
+
+	environment, err := findEnvironment(octopus, nameOrID)
+	if err != nil {
+		return "", fmt.Errorf("failed to look up environment '%s': %w", nameOrID, err)
+	}
+	if environment != nil {
+		return environment.GetID(), nil
+	}
+
+	ephemeralEnvironment, err := findEphemeralEnvironment(octopus, nameOrID)
+	if err != nil {
+		return "", fmt.Errorf("failed to look up ephemeral environment '%s': %w", nameOrID, err)
+	}
+	if ephemeralEnvironment != nil {
+		return ephemeralEnvironment.ID, nil
+	}
+
+	return "", fmt.Errorf("no environment or ephemeral environment found with name of %s", nameOrID)
+}
+
+// findEnvironment returns the regular environment with exactly this name, or nil when
+// there is none. An error means the lookup itself failed.
+func findEnvironment(octopus *client.Client, name string) (*environments.Environment, error) {
+	page, err := octopus.Environments.Get(environments.EnvironmentsQuery{PartialName: name})
+	if err != nil {
+		return nil, err
+	}
+	// the server only supports partial name matching, so exact matches are found client side
+	for page != nil && len(page.Items) > 0 {
+		for _, e := range page.Items {
+			if strings.EqualFold(e.Name, name) {
+				return e, nil
+			}
+		}
+		page, err = page.GetNextPage(octopus.Environments.GetClient())
+		if err != nil {
+			return nil, err
+		}
+	}
+	return nil, nil
+}
+
+// findEphemeralEnvironment returns the ephemeral environment with exactly this name,
+// or nil when there is none. An error means the lookup itself failed.
+func findEphemeralEnvironment(octopus *client.Client, name string) (*ephemeralenvironments.EphemeralEnvironment, error) {
+	found, err := ephemeralenvironments.GetByPartialName(octopus, octopus.GetSpaceID(), name)
+	if err != nil {
+		return nil, err
+	}
+	for _, e := range found.Items {
+		if strings.EqualFold(e.Name, name) {
+			return e, nil
+		}
+	}
+	return nil, nil
+}
+
+func toViewModel(t *tasks.Task) TaskViewModel {
+	var duration string
+	if t.StartTime != nil && t.CompletedTime != nil {
+		duration = t.CompletedTime.Sub(*t.StartTime).Round(time.Second).String()
+	}
+	return TaskViewModel{
+		ID:            t.ID,
+		Description:   t.Description,
+		State:         t.State,
+		StartTime:     t.StartTime,
+		CompletedTime: t.CompletedTime,
+		Duration:      duration,
+	}
+}
+
+func colourState(state string) string {
+	switch state {
+	case "Failed", "TimedOut":
+		return output.Red(state)
+	case "Success":
+		return output.Green(state)
+	case "Queued", "Executing", "Cancelling", "Canceled":
+		return output.Yellow(state)
+	}
+	return state
+}

@@ -1,6 +1,7 @@
 package config
 
 import (
+	listCmd "github.com/OctopusDeploy/cli/pkg/cmd/task/list"
 	waitCmd "github.com/OctopusDeploy/cli/pkg/cmd/task/wait"
 	"github.com/OctopusDeploy/cli/pkg/constants/annotations"
 	"github.com/OctopusDeploy/cli/pkg/factory"
@@ -17,6 +18,7 @@ func NewCmdTask(f factory.Factory) *cobra.Command {
 		},
 	}
 
+	cmd.AddCommand(listCmd.NewCmdList(f))
 	cmd.AddCommand(waitCmd.NewCmdWait(f))
 
 	return cmd

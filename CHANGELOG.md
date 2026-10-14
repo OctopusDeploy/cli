@@ -1,5 +1,29 @@
 # Changelog
 
+## [2.28.0](https://github.com/OctopusDeploy/cli/compare/v2.27.1...v2.28.0) (2026-10-14)
+
+
+### Features
+
+* add task list command ([b02e2b0](https://github.com/OctopusDeploy/cli/commit/b02e2b0c943eceba6bec37a910f51a1849d08143))
+
+
+### Bug Fixes
+
+* **deps:** bump github.com/bmatcuk/doublestar/v4 from 4.10.0 to 4.10.2 ([976ebc9](https://github.com/OctopusDeploy/cli/commit/976ebc9db210bbf7b076489de90781e19f8b4929))
+* **deps:** bump golang.org/x/term ([2232beb](https://github.com/OctopusDeploy/cli/commit/2232bebff3af0e31a2e236bb1ea3559834a22ab6))
+* scope task list to the current space ([6ccb5aa](https://github.com/OctopusDeploy/cli/commit/6ccb5aa3696e6df282eac8be431a9081b0e47c73))
+* surface real errors from environment lookups in task list ([712a4cb](https://github.com/OctopusDeploy/cli/commit/712a4cb5712a66e25db4a4b43839c93eccc1d53f))
+* use a large page size for task list --limit 0 ([951be21](https://github.com/OctopusDeploy/cli/commit/951be21bdcfdc7343d2ca0ab24435058c245223b))
+
+## [2.27.1](https://github.com/OctopusDeploy/cli/compare/v2.27.0...v2.27.1) (2026-10-13)
+
+
+### Bug Fixes
+
+* Support lowercase legacy aliases ([#745](https://github.com/OctopusDeploy/cli/issues/745)) ([38a413d](https://github.com/OctopusDeploy/cli/commit/38a413d39ae6e45646d926c01f66e85872f1d089))
+* Update to go 1.26.9 ([#746](https://github.com/OctopusDeploy/cli/issues/746)) ([b40b98d](https://github.com/OctopusDeploy/cli/commit/b40b98d5dcfff99f8ea669aa24d36b167f4c476d))
+
 ## [2.27.0](https://github.com/OctopusDeploy/cli/compare/v2.26.0...v2.27.0) (2026-10-02)
 
 
