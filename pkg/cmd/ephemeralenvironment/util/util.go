@@ -3,15 +3,48 @@ package util
 import (
 	"encoding/json"
 	"fmt"
+	"slices"
 	"strings"
 
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/channels"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/environments/v2/ephemeralenvironments"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
 	"github.com/spf13/cobra"
 
+	"github.com/OctopusDeploy/cli/pkg/cmd/runbook/shared"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/output"
 )
+
+// GetConfiguredProjects returns the projects that have an ephemeral environment channel.
+func GetConfiguredProjects(client *client.Client) ([]*projects.Project, error) {
+	allProjects, err := shared.GetAllProjects(client)
+	if err != nil {
+		return nil, err
+	}
+
+	var filteredProjects []*projects.Project
+
+	for _, project := range allProjects {
+		projectChannels, err := client.Projects.GetChannels(project)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get channels for project '%s': %w", project.GetName(), err)
+		}
+
+		if slices.ContainsFunc(projectChannels, func(channel *channels.Channel) bool {
+			return channel.Type == channels.ChannelTypeEphemeral
+		}) {
+			filteredProjects = append(filteredProjects, project)
+		}
+	}
+
+	if len(filteredProjects) == 0 {
+		return nil, fmt.Errorf("no configured projects - configure a project with an ephemeral environment channel first")
+	}
+
+	return filteredProjects, nil
+}
 
 func GetByName(client *client.Client, name string, spaceID string) (*ephemeralenvironments.EphemeralEnvironment, error) {
 	environments, err := ephemeralenvironments.GetByPartialName(client, spaceID, name)
