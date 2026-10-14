@@ -61,7 +61,7 @@ func setupMockAPI(t *testing.T, api *testutil.MockHttpServer) {
 
 // Helper function to mock the GetByPartialName API response
 func mockGetByPartialName(t *testing.T, api *testutil.MockHttpServer, searchName string, envs []*ephemeralenvironments.EphemeralEnvironment) {
-	api.ExpectRequest(t, "GET", fmt.Sprintf("/api/%s/environments/v2?skip=0&take=2147483647&partialName=%s&type=Ephemeral", testSpaceID, searchName)).
+	api.ExpectRequest(t, "GET", fmt.Sprintf("/api/%s/environments/v2?name=&skip==0&take=2147483647&partialName=%s&type=Ephemeral", testSpaceID, searchName)).
 		RespondWith(&resources.Resources[*ephemeralenvironments.EphemeralEnvironment]{
 			Items:        envs,
 			PagedResults: resources.PagedResults{TotalResults: len(envs)},
