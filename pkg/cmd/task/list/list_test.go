@@ -303,7 +303,7 @@ func TestTaskList(t *testing.T) {
 			expectSpaceLookup(t, api)
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/environments?partialName=123-pr").
 				RespondWith(resources.Resources[*environments.Environment]{})
-			api.ExpectRequest(t, "GET", "/api/Spaces-1/environments/v2?skip=0&take=2147483647&partialName=123-pr&type=Ephemeral").
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/environments/v2?name=&skip=0&take=2147483647&partialName=123-pr&type=Ephemeral").
 				RespondWith(resources.Resources[*ephemeralenvironments.EphemeralEnvironment]{
 					Items:        []*ephemeralenvironments.EphemeralEnvironment{prEnvironment},
 					PagedResults: resources.PagedResults{TotalResults: 1},
@@ -326,7 +326,7 @@ func TestTaskList(t *testing.T) {
 			expectSpaceLookup(t, api)
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/environments?partialName=Nowhere").
 				RespondWith(resources.Resources[*environments.Environment]{})
-			api.ExpectRequest(t, "GET", "/api/Spaces-1/environments/v2?skip=0&take=2147483647&partialName=Nowhere&type=Ephemeral").
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/environments/v2?name=&skip=0&take=2147483647&partialName=Nowhere&type=Ephemeral").
 				RespondWith(resources.Resources[*ephemeralenvironments.EphemeralEnvironment]{})
 
 			_, err := testutil.ReceivePair(cmdReceiver)
@@ -361,7 +361,7 @@ func TestTaskList(t *testing.T) {
 			expectSpaceLookup(t, api)
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/environments?partialName=123-pr").
 				RespondWith(resources.Resources[*environments.Environment]{})
-			api.ExpectRequest(t, "GET", "/api/Spaces-1/environments/v2?skip=0&take=2147483647&partialName=123-pr&type=Ephemeral").
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/environments/v2?name=&skip=0&take=2147483647&partialName=123-pr&type=Ephemeral").
 				RespondWithStatus(500, "InternalServerError", core.APIError{ErrorMessage: "the server fell over"})
 
 			_, err := testutil.ReceivePair(cmdReceiver)
