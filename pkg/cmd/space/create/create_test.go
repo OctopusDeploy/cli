@@ -34,7 +34,8 @@ func TestPromptMissing_AllOptionsSupplied(t *testing.T) {
 			}, nil
 		},
 	}
-	create.PromptMissing(opts)
+	err := create.PromptMissing(opts)
+	assert.NoError(t, err)
 	checkRemainingPrompts()
 }
 
@@ -74,7 +75,8 @@ func TestPromptMissing_NoOptionsSupplied(t *testing.T) {
 		},
 		GetAllUsersCallback: func() ([]*users.User, error) { return []*users.User{captain, vulcan}, nil },
 	}
-	create.PromptMissing(opts)
+	err := create.PromptMissing(opts)
+	assert.NoError(t, err)
 	checkRemainingPrompts()
 	assert.Equal(t, "Cray cray space", flags.Name.Value)
 	assert.Equal(t, "Crazy description", flags.Description.Value)

@@ -164,7 +164,7 @@ func listRun(cmd *cobra.Command, f factory.Factory, id string) error {
 		return err
 	}
 
-	toggleValue, err := featuretoggle.IsToggleEnabled(client, "CommonVariableScopingFeatureToggle")
+	toggleValue, _ := featuretoggle.IsToggleEnabled(client, "CommonVariableScopingFeatureToggle")
 
 	if toggleValue {
 		projectVariablesQuery := variables.GetTenantProjectVariablesQuery{
@@ -241,8 +241,6 @@ func listRun(cmd *cobra.Command, f factory.Factory, id string) error {
 				return item.Name
 			},
 		})
-
-		return nil
 	} else {
 		vars, err := client.Tenants.GetVariables(tenant)
 		if err != nil {
@@ -300,8 +298,6 @@ func listRun(cmd *cobra.Command, f factory.Factory, id string) error {
 				return item.Name
 			},
 		})
-
-		return nil
 	}
 }
 

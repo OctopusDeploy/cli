@@ -1,7 +1,6 @@
 package connect_test
 
 import (
-	"net/url"
 	"testing"
 
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/core"
@@ -13,12 +12,6 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/cmd"
 	"github.com/OctopusDeploy/cli/pkg/cmd/tenant/connect"
 	"github.com/OctopusDeploy/cli/test/testutil"
-)
-
-var (
-	serverUrl, _ = url.Parse("https://serverurl")
-	spinner      = &testutil.FakeSpinner{}
-	rootResource = testutil.NewRootResource()
 )
 
 func TestPromptMissing_AllOptionsSupplied(t *testing.T) {

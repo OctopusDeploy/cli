@@ -115,8 +115,12 @@ func PromptMissing(opts *CreateOptions) error {
 		messagePrefix = "Project Group "
 	}
 
-	question.AskName(opts.Ask, messagePrefix, "project group", &opts.Name.Value)
-	question.AskDescription(opts.Ask, messagePrefix, "project group", &opts.Description.Value)
+	if err := question.AskName(opts.Ask, messagePrefix, "project group", &opts.Name.Value); err != nil {
+		return err
+	}
+	if err := question.AskDescription(opts.Ask, messagePrefix, "project group", &opts.Description.Value); err != nil {
+		return err
+	}
 
 	return nil
 }

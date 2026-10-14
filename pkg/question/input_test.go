@@ -19,7 +19,7 @@ func TestQuestion_DeleteWithConfirmation_Success(t *testing.T) {
 		return question.DeleteWithConfirmation(qa.AsAsker(), "animal", "dog", "1", func() error { return nil })
 	})
 
-	qa.ExpectQuestion(t, &survey.Input{
+	_ = qa.ExpectQuestion(t, &survey.Input{
 		Message: `You are about to delete the animal "dog" (1). This action cannot be reversed. To confirm, type the animal name:`,
 	}).AnswerWith("dog")
 
@@ -33,7 +33,7 @@ func TestQuestion_DeleteWithConfirmation_invalidResponse(t *testing.T) {
 		return question.DeleteWithConfirmation(qa.AsAsker(), "animal", "dog", "1", func() error { return nil })
 	})
 
-	qa.ExpectQuestion(t, &survey.Input{
+	_ = qa.ExpectQuestion(t, &survey.Input{
 		Message: `You are about to delete the animal "dog" (1). This action cannot be reversed. To confirm, type the animal name:`,
 	}).AnswerWith("cat")
 
@@ -94,7 +94,7 @@ func TestQuestion_DeleteWithConfirmation_deleteError(t *testing.T) {
 		return question.DeleteWithConfirmation(qa.AsAsker(), "animal", "dog", "1", func() error { return errors.New("ouch") })
 	})
 
-	qa.ExpectQuestion(t, &survey.Input{
+	_ = qa.ExpectQuestion(t, &survey.Input{
 		Message: `You are about to delete the animal "dog" (1). This action cannot be reversed. To confirm, type the animal name:`,
 	}).AnswerWith("dog")
 

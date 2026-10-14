@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/MakeNowJust/heredoc/v2"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projectgroups"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
 	"github.com/spf13/cobra"
@@ -125,7 +124,9 @@ func cloneRun(opts *CloneOptions) error {
 func PromptMissing(opts *CloneOptions) ([]cmd.Dependable, error) {
 	nestedOpts := []cmd.Dependable{}
 
-	question.AskName(opts.Ask, "", "project", &opts.Name.Value)
+	if err := question.AskName(opts.Ask, "", "project", &opts.Name.Value); err != nil {
+		return nil, err
+	}
 
 	if opts.Lifecycle.Value == "" {
 		lc, err := selectors.Lifecycle("You have not specified a Lifecycle for this project. Please select one:", opts.Client, opts.Ask)
@@ -198,12 +199,4 @@ func (co *CloneOptions) GenerateAutomationCmd() {
 		autoCmd := flag.GenerateAutomationCmd(co.CmdPath, co.GetSpaceNameOrEmpty(), co.Name, co.Source, co.Group, co.Lifecycle)
 		fmt.Fprintf(co.Out, "%s\n", autoCmd)
 	}
-}
-
-func getAllGroups(client client.Client) ([]*projectgroups.ProjectGroup, error) {
-	res, err := client.ProjectGroups.GetAll()
-	if err != nil {
-		return nil, err
-	}
-	return res, nil
 }

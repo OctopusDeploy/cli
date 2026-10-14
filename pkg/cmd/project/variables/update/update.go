@@ -171,6 +171,9 @@ func updateRun(opts *UpdateOptions) error {
 		return err
 	}
 	_, err = fmt.Fprintf(opts.Out, "Successfully updated variable '%s' in project '%s'\n", variable.Name, project.GetName())
+	if err != nil {
+		return err
+	}
 
 	if !opts.NoPrompt {
 		autoCmd := flag.GenerateAutomationCmd(opts.CmdPath, opts.GetSpaceNameOrEmpty(), opts.Id, opts.Name, opts.Value, opts.Project, opts.EnvironmentsScopes, opts.ChannelScopes, opts.StepScopes, opts.TargetScopes, opts.TagScopes, opts.RoleScopes, opts.ProcessScopes, opts.Unscoped, opts.GitRef)
@@ -264,16 +267,21 @@ func PromptMissing(opts *UpdateOptions) error {
 		opts.Name.Value = variable.Name
 	} else {
 		variable, err = promptForVariable(opts, projectVariables)
+		if err != nil {
+			return err
+		}
 		opts.Id.Value = variable.GetID()
 		opts.Name.Value = variable.Name
 	}
 
 	if opts.Value.Value == "" {
 		var updateValue bool
-		opts.Ask(&survey.Confirm{
+		if err := opts.Ask(&survey.Confirm{
 			Message: "Do you want to update the variable value?",
 			Default: false,
-		}, &updateValue)
+		}, &updateValue); err != nil {
+			return err
+		}
 
 		if updateValue {
 			opts.Value.Value, err = sharedVariable.PromptValue(opts.Ask, sharedVariable.VariableType(variable.Type), opts.VariableCallbacks, nil)
@@ -292,7 +300,9 @@ func PromptMissing(opts *UpdateOptions) error {
 		case "unscope":
 			opts.Unscoped.Value = true
 		case "replace":
-			sharedProjectVariable.PromptScopes(opts.Ask, projectVariables, opts.ScopeFlags, variable.Prompt != nil)
+			if err := sharedProjectVariable.PromptScopes(opts.Ask, projectVariables, opts.ScopeFlags, variable.Prompt != nil); err != nil {
+				return err
+			}
 		}
 	}
 

@@ -264,8 +264,7 @@ func (d *DatePicker) consumeRune(r rune, t time.Time) time.Time {
 	}
 	// ignore things that are too big (e.g. they type 97 into 'seconds')
 	// also clear the buffer if they've typed all the characters
-	maxVal := 9999
-	maxBufLen := 4
+	var maxVal, maxBufLen int
 	switch d.selectedComponent {
 	case cmpYear:
 		maxVal, maxBufLen = 9999, 4

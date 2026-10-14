@@ -196,7 +196,7 @@ func viewRun(opts *ViewOptions, cmd *cobra.Command) error {
 			s.WriteString(fmt.Sprintf("View this tenant in Octopus Deploy: %s\n", output.Blue(link)))
 
 			if opts.flags.Web.Value {
-				browser.OpenURL(link)
+				_ = browser.OpenURL(link)
 			}
 
 			return s.String()

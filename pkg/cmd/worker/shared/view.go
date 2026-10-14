@@ -52,6 +52,9 @@ func ViewRun(opts *ViewOptions, contributeEndpoint ContributeEndpointCallback, d
 	data = append(data, output.NewDataRow("Current status", worker.StatusSummary))
 
 	workerPoolMap, err := GetWorkerPoolMap(opts)
+	if err != nil {
+		return err
+	}
 	workerPoolNames := resolveValues(worker.WorkerPoolIDs, workerPoolMap)
 	data = append(data, output.NewDataRow("Worker Pools", output.FormatAsList(workerPoolNames)))
 

@@ -76,6 +76,7 @@ func TestPromptForWebApp_NoFlagsSupplied(t *testing.T) {
 	}
 
 	account, err := accounts.NewAzureServicePrincipalAccount("azure", uuid.New(), uuid.New(), uuid.New(), core.NewSensitiveValue("password"))
+	assert.NoError(t, err)
 
 	err = create.PromptForWebApp(opts, account)
 

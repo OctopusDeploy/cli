@@ -173,7 +173,7 @@ func updateRunV1(opts *UpdateOptions) error {
 		return err
 	}
 
-	_, err = fmt.Fprintf(opts.Out, "Successfully updated variable '%s' for tenant '%s'\n", opts.Name.Value, tenant.Name)
+	fmt.Fprintf(opts.Out, "Successfully updated variable '%s' for tenant '%s'\n", opts.Name.Value, tenant.Name)
 
 	if !opts.NoPrompt {
 		autoCmd := flag.GenerateAutomationCmd(opts.CmdPath, opts.GetSpaceNameOrEmpty(), opts.Tenant, opts.Name, opts.Value, opts.Project, opts.LibraryVariableSet, opts.Environments)
@@ -215,6 +215,9 @@ func updateRun(opts *UpdateOptions) error {
 		}
 
 		_, err = tenants.UpdateCommonVariables(opts.Client, tenant.SpaceID, tenant.ID, &commonVariableCommand)
+		if err != nil {
+			return err
+		}
 	} else {
 		projectVariables, err := opts.GetTenantProjectVariables(tenant, true)
 		if err != nil {
@@ -229,13 +232,12 @@ func updateRun(opts *UpdateOptions) error {
 		}
 
 		_, err = tenants.UpdateProjectVariables(opts.Client, tenant.SpaceID, tenant.ID, &projectVariableCommand)
+		if err != nil {
+			return err
+		}
 	}
 
-	if err != nil {
-		return err
-	}
-
-	_, err = fmt.Fprintf(opts.Out, "Successfully updated variable '%s' for tenant '%s'\n", opts.Name.Value, tenant.Name)
+	fmt.Fprintf(opts.Out, "Successfully updated variable '%s' for tenant '%s'\n", opts.Name.Value, tenant.Name)
 
 	if !opts.NoPrompt {
 		autoCmd := flag.GenerateAutomationCmd(opts.CmdPath, opts.GetSpaceNameOrEmpty(), opts.Tenant, opts.Name, opts.Value, opts.Project, opts.LibraryVariableSet, opts.Environments)
@@ -307,9 +309,11 @@ func PromptMissingV1(opts *UpdateOptions) error {
 		}
 	}
 
-	variableControlType, err := getVariableTypeV1(opts, variables)
-
 	if opts.Value.Value == "" {
+		variableControlType, err := getVariableTypeV1(opts, variables)
+		if err != nil {
+			return err
+		}
 		variableType, err := mapVariableControlTypeToVariableType(variableControlType)
 		if err != nil {
 			return err
@@ -365,11 +369,10 @@ func PromptMissing(opts *UpdateOptions) error {
 	switch variableType {
 	case VariableOwnerTypeCommon:
 		variableResponse, err := opts.GetTenantCommonVariables(tenant, true)
-		allVariables := append(variableResponse.Variables, variableResponse.MissingVariables...)
-
 		if err != nil {
 			return err
 		}
+		allVariables := append(variableResponse.Variables, variableResponse.MissingVariables...)
 
 		if opts.LibraryVariableSet.Value == "" || opts.Name.Value == "" {
 			selectedVariable, err := promptForVariable(opts, &allVariables, findPossibleCommonVariables)
@@ -384,9 +387,17 @@ func PromptMissing(opts *UpdateOptions) error {
 			return err
 		}
 
-		template, err = getCommonVariableTemplate(opts, &allVariables)
+		if opts.Value.Value == "" {
+			template, err = getCommonVariableTemplate(opts, &allVariables)
+			if err != nil {
+				return err
+			}
+		}
 	case VariableOwnerTypeProject:
 		variableResponse, err := opts.GetTenantProjectVariables(tenant, true)
+		if err != nil {
+			return err
+		}
 		allVariables := append(variableResponse.Variables, variableResponse.MissingVariables...)
 
 		if opts.Project.Value == "" || opts.Name.Value == "" {
@@ -402,7 +413,12 @@ func PromptMissing(opts *UpdateOptions) error {
 			return err
 		}
 
-		template, err = getProjectVariableTemplate(opts, &allVariables)
+		if opts.Value.Value == "" {
+			template, err = getProjectVariableTemplate(opts, &allVariables)
+			if err != nil {
+				return err
+			}
+		}
 	}
 
 	if opts.Value.Value == "" {
@@ -1069,7 +1085,7 @@ func convertValue(opts *UpdateOptions, t *actiontemplates.ActionTemplateParamete
 			return nil, fmt.Errorf("matched multiple worker pools")
 		}
 
-		value, err = matchedWorkerPools[0].ID, nil
+		value = matchedWorkerPools[0].ID
 	case resources.ControlTypeCertificate:
 		allCertificates, err := opts.GetAllCertificates()
 		if err != nil {
@@ -1085,7 +1101,7 @@ func convertValue(opts *UpdateOptions, t *actiontemplates.ActionTemplateParamete
 			return nil, fmt.Errorf("matched multiple certificates")
 		}
 
-		value, err = matchedCertificate[0].ID, nil
+		value = matchedCertificate[0].ID
 	case resources.ControlTypeSelect:
 		selectionOptions := sharedVariable.GetSelectOptions(t)
 		for _, o := range selectionOptions {

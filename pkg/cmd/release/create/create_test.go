@@ -40,8 +40,6 @@ const (
 	packageOverrideQuestion = "Package override string (y to accept, u to undo, ? for help):"
 )
 
-var spinner = &testutil.FakeSpinner{}
-
 var rootResource = testutil.NewRootResource()
 
 func TestReleaseCreate_AskQuestions_RegularProject(t *testing.T) {

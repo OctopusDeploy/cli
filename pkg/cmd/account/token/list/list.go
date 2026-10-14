@@ -43,7 +43,7 @@ func listTokenAccounts(client *client.Client, cmd *cobra.Command) error {
 		return err
 	}
 
-	output.PrintArray(items, cmd, output.Mappers[accounts.IAccount]{
+	return output.PrintArray(items, cmd, output.Mappers[accounts.IAccount]{
 		Json: func(item accounts.IAccount) any {
 			acc := item.(*accounts.TokenAccount)
 			return &struct {
@@ -67,5 +67,4 @@ func listTokenAccounts(client *client.Client, cmd *cobra.Command) error {
 			return item.GetName()
 		},
 	})
-	return nil
 }

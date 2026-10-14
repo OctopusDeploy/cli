@@ -21,9 +21,9 @@ func TestLogout_SetsConfigCorrectly(t *testing.T) {
 
 	assert.Nil(t, err)
 
-	configProvider.Set(constants.ConfigUrl, "https://some.octopus.app")
-	configProvider.Set(constants.ConfigApiKey, "API-APIKEY01")
-	configProvider.Set(constants.ConfigUrl, "accesstoken")
+	assert.Nil(t, configProvider.Set(constants.ConfigUrl, "https://some.octopus.app"))
+	assert.Nil(t, configProvider.Set(constants.ConfigApiKey, "API-APIKEY01"))
+	assert.Nil(t, configProvider.Set(constants.ConfigUrl, "accesstoken"))
 
 	logoutCmd := logoutCmd.NewCmdLogout(fac)
 	stdout, stderr := &bytes.Buffer{}, &bytes.Buffer{}

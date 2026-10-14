@@ -134,6 +134,9 @@ func ConnectRun(opts *ConnectOptions) error {
 		}
 		project.TenantedDeploymentMode = core.TenantedDeploymentModeTenantedOrUntenanted
 		project, err = opts.Client.Projects.Update(project)
+		if err != nil {
+			return err
+		}
 	}
 
 	environments, err := executionscommon.FindEnvironments(opts.Client, opts.Environments.Value)
@@ -192,11 +195,17 @@ func PromptMissing(opts *ConnectOptions) error {
 		}
 		var progression *projects.Progression
 		progression, err = opts.GetProjectProgressionCallback(project)
+		if err != nil {
+			return err
+		}
 		if len(progression.Environments) == 1 {
 			opts.Environments.Value = append(opts.Environments.Value, progression.Environments[0].Name)
 		} else {
 			var selectedEnvironments []*resources.ReferenceDataItem
 			selectedEnvironments, err = question.MultiSelectMap(opts.Ask, "You have not specified any environments. Please select at least one:", progression.Environments, func(item *resources.ReferenceDataItem) string { return item.Name }, true)
+			if err != nil {
+				return err
+			}
 			for _, e := range selectedEnvironments {
 				opts.Environments.Value = append(opts.Environments.Value, e.Name)
 			}
@@ -213,10 +222,13 @@ func PromptForEnablingTenantedDeployments(opts *ConnectOptions, getProjectCallba
 			return err
 		}
 		if !supportsTenantedDeployments(project) {
-			opts.Ask(&survey.Confirm{
+			err = opts.Ask(&survey.Confirm{
 				Message: fmt.Sprintf("Do you want to enable tenanted deployments for '%s'?", project.GetName()),
 				Default: false,
 			}, &opts.EnableTenantDeployments.Value)
+			if err != nil {
+				return err
+			}
 
 			if !opts.EnableTenantDeployments.Value {
 				return errors.New(getFailureMessageForUntenantedProject(project))

@@ -85,6 +85,9 @@ func GetProjectMap(client *client.Client, tenants []*tenants.Tenant) (map[string
 
 	projectMap := make(map[string]string)
 	queryResult, err := client.Projects.Get(projects.ProjectsQuery{IDs: projectIds})
+	if err != nil {
+		return nil, err
+	}
 	allProjects, err := queryResult.GetAllPages(client.Projects.GetClient())
 	if err != nil {
 		return nil, err

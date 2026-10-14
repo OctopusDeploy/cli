@@ -212,6 +212,9 @@ func CreateRun(opts *CreateOptions) error {
 	}
 
 	_, err = fmt.Fprintf(opts.Out, "Successfully created variable '%s' in project '%s'\n", opts.Name.Value, project.GetName())
+	if err != nil {
+		return err
+	}
 
 	if !opts.NoPrompt {
 		autoCmd := flag.GenerateAutomationCmd(opts.CmdPath, opts.GetSpaceNameOrEmpty(), opts.Project, opts.Name, opts.Value, opts.Description, opts.Type, opts.EnvironmentsScopes, opts.ChannelScopes, opts.StepScopes, opts.TargetScopes, opts.TagScopes, opts.RoleScopes, opts.ProcessScopes, opts.IsPrompted, opts.PromptType, opts.PromptLabel, opts.PromptDescription, opts.PromptSelectOptions, opts.PromptRequired, opts.GitRef)
@@ -255,7 +258,9 @@ func PromptMissing(opts *CreateOptions) error {
 		}
 	}
 
-	question.AskDescription(opts.Ask, "", "Variable", &opts.Description.Value)
+	if err := question.AskDescription(opts.Ask, "", "Variable", &opts.Description.Value); err != nil {
+		return err
+	}
 
 	if opts.Type.Value == "" {
 		selectedType, err := selectors.SelectOptions(opts.Ask, "Select the type of the variable", getVariableTypeOptions)
@@ -266,10 +271,12 @@ func PromptMissing(opts *CreateOptions) error {
 	}
 
 	if !opts.IsPrompted.Value {
-		opts.Ask(&survey.Confirm{
+		if err := opts.Ask(&survey.Confirm{
 			Message: "Is this a prompted variable?",
 			Default: false,
-		}, &opts.IsPrompted.Value)
+		}, &opts.IsPrompted.Value); err != nil {
+			return err
+		}
 	}
 
 	if opts.IsPrompted.Value {
@@ -281,7 +288,9 @@ func PromptMissing(opts *CreateOptions) error {
 			}
 		}
 
-		question.AskDescription(opts.Ask, "Prompt ", "Prompted Variable", &opts.PromptDescription.Value)
+		if err := question.AskDescription(opts.Ask, "Prompt ", "Prompted Variable", &opts.PromptDescription.Value); err != nil {
+			return err
+		}
 
 		if opts.PromptType.Value == "" {
 			selectedPromptType, err := selectors.SelectOptions(opts.Ask, "Select the control type of the prompted variable", getControlTypeOptions)

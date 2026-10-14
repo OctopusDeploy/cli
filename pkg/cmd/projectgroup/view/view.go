@@ -172,7 +172,7 @@ func formatProjectGroupForBasic(opts *ViewOptions, projectGroup *projectgroups.P
 	result.WriteString(fmt.Sprintf("\nView this project group in Octopus Deploy: %s\n", output.Blue(url)))
 
 	if opts.flags.Web.Value {
-		browser.OpenURL(url)
+		_ = browser.OpenURL(url)
 	}
 
 	return result.String()

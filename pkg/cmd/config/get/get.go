@@ -1,8 +1,10 @@
 package get
 
 import (
+	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/spf13/cobra"
@@ -39,7 +41,13 @@ func getRun(isPromptEnabled bool, ask question.Asker, key string, out io.Writer)
 	value := ""
 	configFile := viper.New()
 	configFile.SetConfigFile(viper.ConfigFileUsed())
-	configFile.ReadInConfig()
+	if err := configFile.ReadInConfig(); err != nil {
+		var notFoundErr viper.ConfigFileNotFoundError
+		// If there is no config file, continue. Other errors stop the command.
+		if !errors.As(err, &notFoundErr) && !errors.Is(err, fs.ErrNotExist) {
+			return err
+		}
+	}
 	if isPromptEnabled && key == "" {
 		k, err := promptMissing(ask)
 		if err != nil {

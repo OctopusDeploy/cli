@@ -297,7 +297,7 @@ func formatVariableValueForBasic(opts *ViewOptions, item *VariableValueWithScope
 	fmt.Fprintf(&buf, "\nView this project's variables in Octopus Deploy: %s\n", output.Blue(url))
 
 	if opts.flags.Web.Value {
-		browser.OpenURL(url)
+		_ = browser.OpenURL(url)
 	}
 
 	return buf.String()

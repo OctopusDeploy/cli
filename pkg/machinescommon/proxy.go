@@ -21,10 +21,12 @@ type GetAllProxiesCallback func() ([]*proxies.Proxy, error)
 func PromptForProxy(opts *CreateTargetProxyOptions, flags *CreateTargetProxyFlags, description string) error {
 	if flags.Proxy.Value == "" {
 		directConnection := true
-		opts.Ask(&survey.Confirm{
+		if err := opts.Ask(&survey.Confirm{
 			Message: fmt.Sprintf("Should the connection to the %s be direct?", description),
 			Default: true,
-		}, &directConnection)
+		}, &directConnection); err != nil {
+			return err
+		}
 		if !directConnection {
 			selectedOption, err := selectors.Select(opts.Ask, "Select the proxy to use", opts.GetAllProxiesCallback, func(p *proxies.Proxy) string { return p.GetName() })
 			if err != nil {

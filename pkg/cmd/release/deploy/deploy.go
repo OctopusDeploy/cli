@@ -468,7 +468,7 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 		return err
 	}
 
-	indicateMissingPackagesForReleaseFeatureToggleValue, err := featuretoggle.IsToggleEnabled(octopus, "indicate-missing-packages-for-release")
+	indicateMissingPackagesForReleaseFeatureToggleValue, _ := featuretoggle.IsToggleEnabled(octopus, "indicate-missing-packages-for-release")
 	if indicateMissingPackagesForReleaseFeatureToggleValue {
 		proceed := promptMissingPackages(octopus, stdout, asker, selectedRelease)
 		if !proceed {

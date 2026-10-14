@@ -34,8 +34,9 @@ func TestPromptMissing_AllOptionsSupplied(t *testing.T) {
 	}
 
 	// Check that no unexpected prompts were triggered
-	create.PromptMissing(opts)
+	err := create.PromptMissing(opts)
 	checkRemainingPrompts()
+	assert.NoError(t, err)
 }
 
 func TestPromptMissing_NoOptionsSupplied(t *testing.T) {
@@ -59,10 +60,11 @@ func TestPromptMissing_NoOptionsSupplied(t *testing.T) {
 		},
 	}
 
-	create.PromptMissing(opts)
+	err := create.PromptMissing(opts)
 
 	// Check that all expected prompts were called
 	checkRemainingPrompts()
+	assert.NoError(t, err)
 	assert.Equal(t, "Hello Ephemeral Environment", flags.Name.Value)
 	assert.Equal(t, project1.Name, flags.Project.Value)
 }

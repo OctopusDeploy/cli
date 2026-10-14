@@ -457,7 +457,7 @@ func runRunbooksByTag(cmd *cobra.Command, f factory.Factory, flags *RunFlags, oc
 		t := output.NewTable(cmd.OutOrStdout())
 		t.AddRow(output.Bold("RUNBOOK"), output.Bold("ENVIRONMENT"), output.Bold("STATUS"), output.Bold("TASK ID"))
 		for _, result := range flatResults {
-			statusDisplay := result.Status
+			var statusDisplay string
 			if result.Status == "Started" {
 				statusDisplay = output.Cyan(result.Status)
 			} else {

@@ -99,7 +99,7 @@ func NewCmdRoot(f factory.Factory, clientFactory apiclient.ClientFactory, askPro
 
 	// Enable service messages flag is hidden as it's intended for internal CI/CD use only
 	cmdPFlags.BoolP(constants.FlagEnableServiceMessages, "", false, "Enable service messages for integration with Octopus CI/CD")
-	cmdPFlags.MarkHidden(constants.FlagEnableServiceMessages)
+	_ = cmdPFlags.MarkHidden(constants.FlagEnableServiceMessages)
 	// Legacy flags brought across from the .NET CLI.
 	// Consumers of these flags will have to explicitly check for them as well as the new
 	// flags. The pflag documentation says you can use SetNormalizeFunc to translate/alias flag
@@ -132,7 +132,7 @@ func NewCmdRoot(f factory.Factory, clientFactory apiclient.ClientFactory, askPro
 		if noPrompt := viper.GetBool(constants.ConfigNoPrompt); noPrompt {
 			askProvider.DisableInteractive()
 			if v, _ := cmdPFlags.GetString(constants.FlagOutputFormat); v == "" {
-				cmdPFlags.Set(constants.FlagOutputFormat, constants.OutputFormatBasic)
+				_ = cmdPFlags.Set(constants.FlagOutputFormat, constants.OutputFormatBasic)
 			}
 		}
 

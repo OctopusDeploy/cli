@@ -51,7 +51,8 @@ func TestAuthType_UsernamePassword(t *testing.T) {
 	opts := newTestOpts(asker, flags)
 	opts.AuthenticationType.Value = authType
 
-	k8s.PromptForAuthTypeInfo(opts)
+	err := k8s.PromptForAuthTypeInfo(opts)
+	assert.NoError(t, err)
 
 	checkRemainingPrompts()
 
@@ -70,7 +71,8 @@ func TestAuthType_Token(t *testing.T) {
 	opts := newTestOpts(asker, flags)
 	opts.AuthenticationType.Value = authType
 
-	k8s.PromptForAuthTypeInfo(opts)
+	err := k8s.PromptForAuthTypeInfo(opts)
+	assert.NoError(t, err)
 
 	checkRemainingPrompts()
 	assert.Equal(t, testAccountNames[0], opts.Account.Value)
@@ -92,7 +94,8 @@ func TestAuthType_Azure(t *testing.T) {
 	opts := newTestOpts(asker, flags)
 	opts.AuthenticationType.Value = authType
 
-	k8s.PromptForAuthTypeInfo(opts)
+	err := k8s.PromptForAuthTypeInfo(opts)
+	assert.NoError(t, err)
 
 	checkRemainingPrompts()
 	assert.Equal(t, testAccountNames[0], opts.Account.Value)
@@ -129,7 +132,8 @@ func TestAuthType_GCP(t *testing.T) {
 	opts := newTestOpts(asker, flags)
 	opts.AuthenticationType.Value = authType
 
-	k8s.PromptForAuthTypeInfo(opts)
+	err := k8s.PromptForAuthTypeInfo(opts)
+	assert.NoError(t, err)
 
 	checkRemainingPrompts()
 	assert.Equal(t, true, opts.UseVMServiceAccount.Value)
@@ -164,7 +168,8 @@ func TestAuthType_AWS(t *testing.T) {
 	opts := newTestOpts(asker, flags)
 	opts.AuthenticationType.Value = authType
 
-	k8s.PromptForAuthTypeInfo(opts)
+	err := k8s.PromptForAuthTypeInfo(opts)
+	assert.NoError(t, err)
 
 	checkRemainingPrompts()
 	assert.Equal(t, false, opts.UseServiceRole.Value)

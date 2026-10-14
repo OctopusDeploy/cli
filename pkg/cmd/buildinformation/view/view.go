@@ -168,7 +168,7 @@ func viewRun(opts *ViewOptions, cmd *cobra.Command) error {
 			s.WriteString(fmt.Sprintf("\nView this build information in Octopus Deploy: %s\n", output.Blue(link)))
 
 			if opts.Web.Value {
-				browser.OpenURL(link)
+				_ = browser.OpenURL(link)
 			}
 
 			return s.String()

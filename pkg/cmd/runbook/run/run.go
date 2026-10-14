@@ -1338,18 +1338,6 @@ func askTargetTagsFromOptions(asker question.Asker, results []string) ([]string,
 	return selectedSpecificTags, selectedExcludedTags, nil
 }
 
-// selectRunEnvironment selects a single environment for use in a tenanted run
-func selectRunEnvironment(ask question.Asker, octopus *octopusApiClient.Client, space *spaces.Space, project *projects.Project, runbook *runbooks.Runbook) (*environments.Environment, error) {
-	envs, err := runbooks.ListEnvironments(octopus, space.ID, project.ID, runbook.ID)
-	if err != nil {
-		return nil, err
-	}
-
-	return question.SelectMap(ask, "Select an environment", envs, func(p *environments.Environment) string {
-		return p.Name
-	})
-}
-
 // selectRunEnvironments selects multiple environments for use in an untenanted run
 func selectRunEnvironments(ask question.Asker, octopus *octopusApiClient.Client, space *spaces.Space, project *projects.Project, runbook *runbooks.Runbook) ([]*environments.Environment, error) {
 	envs, err := runbooks.ListEnvironments(octopus, space.ID, project.ID, runbook.ID)

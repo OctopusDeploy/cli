@@ -72,8 +72,6 @@ func ViewRun(opts *ViewOptions, contributeDetails ContributeDetailsCallback) err
 	fmt.Fprintf(opts.Out, "\n")
 	machinescommon.DoWebForWorkerPools(workerPool, opts.Dependencies, opts.WebFlags)
 	return nil
-
-	return nil
 }
 
 func getWorkerPoolTypeDescription(poolType workerpools.WorkerPoolType) string {

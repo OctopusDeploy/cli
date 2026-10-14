@@ -107,6 +107,9 @@ func DeleteRun(opts *DeleteOptions) error {
 	} else {
 		projectVariables, err = opts.GetProjectVariables(project.GetID())
 	}
+	if err != nil {
+		return err
+	}
 
 	filteredVars := util.SliceFilter(
 		projectVariables.Variables,

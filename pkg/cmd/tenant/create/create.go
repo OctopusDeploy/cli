@@ -99,8 +99,12 @@ func createRun(opts *CreateOptions) error {
 func PromptMissing(opts *CreateOptions) ([]cmd.Dependable, error) {
 	nestedOpts := []cmd.Dependable{}
 
-	question.AskName(opts.Ask, "", "tenant", &opts.Name.Value)
-	question.AskDescription(opts.Ask, "", "tenant", &opts.Description.Value)
+	if err := question.AskName(opts.Ask, "", "tenant", &opts.Name.Value); err != nil {
+		return nil, err
+	}
+	if err := question.AskDescription(opts.Ask, "", "tenant", &opts.Description.Value); err != nil {
+		return nil, err
+	}
 
 	tagSets, err := opts.GetAllTagsCallback()
 	if err != nil {

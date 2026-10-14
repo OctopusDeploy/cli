@@ -3,7 +3,6 @@ package wait_test
 import (
 	"bytes"
 	"fmt"
-	"net/url"
 	"testing"
 	"time"
 
@@ -13,13 +12,6 @@ import (
 
 	"github.com/OctopusDeploy/cli/pkg/cmd"
 	taskWaitCreate "github.com/OctopusDeploy/cli/pkg/cmd/task/wait"
-	"github.com/OctopusDeploy/cli/test/testutil"
-)
-
-var (
-	serverUrl, _ = url.Parse("https://serverurl")
-	spinner      = &testutil.FakeSpinner{}
-	rootResource = testutil.NewRootResource()
 )
 
 func TestWait(t *testing.T) {

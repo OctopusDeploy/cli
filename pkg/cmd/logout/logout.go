@@ -28,9 +28,15 @@ func logoutRun(f factory.Factory, cmd *cobra.Command) error {
 	if err != nil {
 		return err
 	}
-	configProvider.Set("Url", "")
-	configProvider.Set("ApiKey", "")
-	configProvider.Set("AccessToken", "")
+	if err := configProvider.Set("Url", ""); err != nil {
+		return err
+	}
+	if err := configProvider.Set("ApiKey", ""); err != nil {
+		return err
+	}
+	if err := configProvider.Set("AccessToken", ""); err != nil {
+		return err
+	}
 
 	cmd.Printf("Logout successful")
 

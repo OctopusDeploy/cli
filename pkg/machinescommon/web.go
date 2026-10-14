@@ -52,6 +52,6 @@ func doWeb(url string, description string, out io.Writer, flags *WebFlags) {
 	link := output.Blue(url)
 	fmt.Fprintf(out, "View this %s on Octopus Deploy: %s\n", description, link)
 	if flags.Web.Value {
-		browser.OpenURL(url)
+		_ = browser.OpenURL(url)
 	}
 }

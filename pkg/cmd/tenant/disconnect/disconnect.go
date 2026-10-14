@@ -161,10 +161,13 @@ func PromptMissing(opts *DisconnectOptions) error {
 	}
 
 	if !opts.Confirm.Value {
-		opts.Ask(&survey.Confirm{
+		err = opts.Ask(&survey.Confirm{
 			Message: fmt.Sprintf("Are you sure you wish to disconnect '%s' from '%s'?", selectedTenant.Name, selectedProject.GetName()),
 			Default: false,
 		}, &opts.Confirm.Value)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
