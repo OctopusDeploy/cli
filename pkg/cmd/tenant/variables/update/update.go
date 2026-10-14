@@ -214,7 +214,10 @@ func updateRun(opts *UpdateOptions) error {
 			return err
 		}
 
-		_, _ = tenants.UpdateCommonVariables(opts.Client, tenant.SpaceID, tenant.ID, &commonVariableCommand)
+		_, err = tenants.UpdateCommonVariables(opts.Client, tenant.SpaceID, tenant.ID, &commonVariableCommand)
+		if err != nil {
+			return err
+		}
 	} else {
 		projectVariables, err := opts.GetTenantProjectVariables(tenant, true)
 		if err != nil {
@@ -228,7 +231,10 @@ func updateRun(opts *UpdateOptions) error {
 			return err
 		}
 
-		_, _ = tenants.UpdateProjectVariables(opts.Client, tenant.SpaceID, tenant.ID, &projectVariableCommand)
+		_, err = tenants.UpdateProjectVariables(opts.Client, tenant.SpaceID, tenant.ID, &projectVariableCommand)
+		if err != nil {
+			return err
+		}
 	}
 
 	fmt.Fprintf(opts.Out, "Successfully updated variable '%s' for tenant '%s'\n", opts.Name.Value, tenant.Name)
