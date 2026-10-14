@@ -7,6 +7,7 @@ require (
 	github.com/MakeNowJust/heredoc/v2 v2.0.1
 	github.com/OctopusDeploy/go-octodiff v1.0.0
 	github.com/OctopusDeploy/go-octopusdeploy/v2 v2.120.1
+	github.com/OctopusDeploy/go-octopusversioning v0.0.0-20261014222804-8373130cd263
 	github.com/bmatcuk/doublestar/v4 v4.10.2
 	github.com/briandowns/spinner v1.23.2
 	github.com/google/uuid v1.6.0
@@ -16,7 +17,6 @@ require (
 	github.com/mgutz/ansi v0.0.0-20200706080929-d51e80ef957d
 	github.com/muesli/reflow v0.3.0
 	github.com/pkg/browser v0.0.0-20210911075715-681adbf594b8
-	github.com/rogpeppe/go-internal v1.9.0
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/pflag v1.0.10
 	github.com/spf13/viper v1.21.0

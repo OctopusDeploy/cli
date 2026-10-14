@@ -15,7 +15,7 @@ import (
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/releases"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/spaces"
-	"github.com/rogpeppe/go-internal/semver"
+	"github.com/OctopusDeploy/go-octopusversioning/pkg/versioning"
 )
 
 // ----- Create Release --------------------------------------
@@ -311,17 +311,18 @@ func releasePromote(octopus *client.Client, space *spaces.Space, input any) erro
 
 	//we need to order the dashboard items by the release so we get the latest release first
 	slices.SortFunc(dashboardItems, func(a, b *dashboard.DashboardItem) int {
-		aVersion := a.ReleaseVersion
-		if !strings.HasPrefix(aVersion, "v") {
-			aVersion = "v" + aVersion
+		aVersion, err := versioning.ParseOctopusVersion(a.ReleaseVersion)
+		if err != nil {
+			return -1
 		}
-		bVersion := b.ReleaseVersion
-		if !strings.HasPrefix(bVersion, "v") {
-			bVersion = "v" + bVersion
+
+		bVersion, err := versioning.ParseOctopusVersion(b.ReleaseVersion)
+		if err != nil {
+			return 1
 		}
 
 		//we multiply by -1 to order by descending
-		return semver.Compare(aVersion, bVersion) * -1
+		return versioning.Compare(aVersion, bVersion, (*versioning.OctopusVersion).Compare) * -1
 	})
 
 	var dashboardItem *dashboard.DashboardItem
