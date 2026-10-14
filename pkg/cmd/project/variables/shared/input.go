@@ -2,11 +2,13 @@ package shared
 
 import (
 	"fmt"
+
 	"github.com/AlecAivazis/survey/v2"
-	"github.com/OctopusDeploy/cli/pkg/question"
-	"github.com/OctopusDeploy/cli/pkg/util"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/resources"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/variables"
+
+	"github.com/OctopusDeploy/cli/pkg/question"
+	"github.com/OctopusDeploy/cli/pkg/util"
 )
 
 func PromptScopes(asker question.Asker, projectVariables *variables.VariableSet, flags *ScopeFlags, isPrompted bool) error {
@@ -65,7 +67,6 @@ func PromptScope(ask question.Asker, scopeDescription string, items []*resources
 		Message: fmt.Sprintf("%s scope", scopeDescription),
 		Options: util.SliceTransform(items, displaySelector),
 	}, &selectedItems)
-
 	if err != nil {
 		return nil, err
 	}

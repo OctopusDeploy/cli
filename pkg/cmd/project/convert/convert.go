@@ -7,6 +7,14 @@ import (
 
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/MakeNowJust/heredoc/v2"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/core"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/credentials"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
+	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
+	"golang.org/x/exp/slices"
+
 	"github.com/OctopusDeploy/cli/pkg/cmd"
 	"github.com/OctopusDeploy/cli/pkg/cmd/tenant/shared"
 	"github.com/OctopusDeploy/cli/pkg/constants"
@@ -15,13 +23,6 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/question/selectors"
 	"github.com/OctopusDeploy/cli/pkg/util"
 	"github.com/OctopusDeploy/cli/pkg/util/flag"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/core"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/credentials"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
-	"github.com/spf13/cobra"
-	"github.com/spf13/pflag"
-	"golang.org/x/exp/slices"
 )
 
 const (
@@ -47,8 +48,10 @@ const (
 	GitStorageLibrary = "library"
 )
 
-type ConvertProjectGroupCallback func(project *projects.Project) (cmd.Dependable, error)
-type GetAllGitCredentialsCallback func() ([]*credentials.Resource, error)
+type (
+	ConvertProjectGroupCallback  func(project *projects.Project) (cmd.Dependable, error)
+	GetAllGitCredentialsCallback func() ([]*credentials.Resource, error)
+)
 
 type ConvertFlags struct {
 	Project                    *flag.Flag[string]
@@ -229,7 +232,6 @@ func (co *ConvertOptions) GenerateAutomationCmd() {
 func PromptForConfigAsCode(opts *ConvertOptions) (cmd.Dependable, error) {
 	if opts.GitStorage.Value == "" {
 		selectedOption, err := selectors.SelectOptions(opts.Ask, "Select where to store the Git credentials", getGitStorageOptions)
-
 		if err != nil {
 			return nil, err
 		}
@@ -363,7 +365,6 @@ func promptProjectGitCredentials(opts *ConvertOptions) error {
 func promptLibraryGitCredentials(opts *ConvertOptions, gitCredentialsCallback GetAllGitCredentialsCallback) error {
 	if opts.GitCredentials.Value == "" {
 		selectedOption, err := selectors.Select(opts.Ask, "Select which Git credentials to use", gitCredentialsCallback, func(resource *credentials.Resource) string { return resource.Name })
-
 		if err != nil {
 			return err
 		}

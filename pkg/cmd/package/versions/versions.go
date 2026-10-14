@@ -6,17 +6,17 @@ import (
 	"math"
 	"time"
 
-	"github.com/OctopusDeploy/cli/pkg/apiclient"
-	"github.com/OctopusDeploy/cli/pkg/util"
-
 	"github.com/MakeNowJust/heredoc/v2"
-	"github.com/OctopusDeploy/cli/pkg/constants"
-	"github.com/OctopusDeploy/cli/pkg/factory"
-	"github.com/OctopusDeploy/cli/pkg/output"
-	"github.com/OctopusDeploy/cli/pkg/util/flag"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/feeds"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/packages"
 	"github.com/spf13/cobra"
+
+	"github.com/OctopusDeploy/cli/pkg/apiclient"
+	"github.com/OctopusDeploy/cli/pkg/constants"
+	"github.com/OctopusDeploy/cli/pkg/factory"
+	"github.com/OctopusDeploy/cli/pkg/output"
+	"github.com/OctopusDeploy/cli/pkg/util"
+	"github.com/OctopusDeploy/cli/pkg/util/flag"
 )
 
 const (
@@ -123,7 +123,8 @@ func versionsRun(cmd *cobra.Command, f factory.Factory, flags *VersionsFlags) er
 			Header: []string{"VERSION", "PUBLISHED", "SIZE"},
 			Row: func(item *packages.PackageVersion) []string {
 				return []string{item.Version, item.Published.Format("2006-01-02 15:04:05"), util.HumanReadableBytes(item.SizeBytes)} // TODO timezone?
-			}},
+			},
+		},
 		Basic: func(item *packages.PackageVersion) string {
 			return item.Version
 		},

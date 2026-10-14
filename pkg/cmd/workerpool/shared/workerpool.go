@@ -1,13 +1,16 @@
 package shared
 
 import (
-	"github.com/OctopusDeploy/cli/pkg/cmd"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/workerpools"
+
+	"github.com/OctopusDeploy/cli/pkg/cmd"
 )
 
-type GetWorkerPoolsCallback func() ([]*workerpools.WorkerPoolListResult, error)
-type GetWorkerPoolCallback func(identifer string) (workerpools.IWorkerPool, error)
+type (
+	GetWorkerPoolsCallback func() ([]*workerpools.WorkerPoolListResult, error)
+	GetWorkerPoolCallback  func(identifer string) (workerpools.IWorkerPool, error)
+)
 
 type GetWorkerPoolsOptions struct {
 	GetWorkerPoolsCallback

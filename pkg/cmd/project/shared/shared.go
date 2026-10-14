@@ -1,18 +1,21 @@
 package shared
 
 import (
-	"github.com/OctopusDeploy/cli/pkg/cmd"
-	projectGroupCreate "github.com/OctopusDeploy/cli/pkg/cmd/projectgroup/create"
-	"github.com/OctopusDeploy/cli/pkg/question"
-	"github.com/OctopusDeploy/cli/pkg/question/selectors"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/core"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projectgroups"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
+
+	"github.com/OctopusDeploy/cli/pkg/cmd"
+	projectGroupCreate "github.com/OctopusDeploy/cli/pkg/cmd/projectgroup/create"
+	"github.com/OctopusDeploy/cli/pkg/question"
+	"github.com/OctopusDeploy/cli/pkg/question/selectors"
 )
 
-type CreateProjectGroupCallback func() (string, cmd.Dependable, error)
-type GetAllGroupsCallback func() ([]*projectgroups.ProjectGroup, error)
+type (
+	CreateProjectGroupCallback func() (string, cmd.Dependable, error)
+	GetAllGroupsCallback       func() ([]*projectgroups.ProjectGroup, error)
+)
 
 func GetAllGroups(client client.Client) ([]*projectgroups.ProjectGroup, error) {
 	res, err := client.ProjectGroups.GetAll()

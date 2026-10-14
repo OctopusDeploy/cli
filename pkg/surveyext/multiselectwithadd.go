@@ -2,9 +2,9 @@ package surveyext
 
 import (
 	"fmt"
-	"github.com/AlecAivazis/survey/v2"
 	"strings"
 
+	"github.com/AlecAivazis/survey/v2"
 	"github.com/AlecAivazis/survey/v2/core"
 	"github.com/AlecAivazis/survey/v2/terminal"
 )

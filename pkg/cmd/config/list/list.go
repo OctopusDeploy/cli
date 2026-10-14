@@ -6,11 +6,12 @@ import (
 	"strings"
 
 	"github.com/MakeNowJust/heredoc/v2"
+	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
+
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/OctopusDeploy/cli/pkg/output"
-	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 )
 
 func NewCmdList(_ factory.Factory) *cobra.Command {

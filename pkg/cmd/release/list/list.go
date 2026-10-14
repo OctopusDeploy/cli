@@ -4,6 +4,10 @@ import (
 	"time"
 
 	"github.com/MakeNowJust/heredoc/v2"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/channels"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/releases"
+	"github.com/spf13/cobra"
+
 	"github.com/OctopusDeploy/cli/pkg/apiclient"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/factory"
@@ -11,9 +15,6 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/question/selectors"
 	"github.com/OctopusDeploy/cli/pkg/util"
 	"github.com/OctopusDeploy/cli/pkg/util/flag"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/channels"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/releases"
-	"github.com/spf13/cobra"
 )
 
 const (
@@ -136,7 +137,8 @@ func listRun(cmd *cobra.Command, f factory.Factory, flags *ListFlags) error {
 			Header: []string{"VERSION", "CHANNEL", "CREATED"},
 			Row: func(item ReleaseViewModel) []string {
 				return []string{item.Version, item.Channel, item.Assembled.Format(time.RFC1123Z)}
-			}},
+			},
+		},
 		Basic: func(item ReleaseViewModel) string {
 			return item.Version
 		},

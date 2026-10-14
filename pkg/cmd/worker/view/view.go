@@ -5,6 +5,9 @@ import (
 	"strings"
 
 	"github.com/MakeNowJust/heredoc/v2"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/machines"
+	"github.com/spf13/cobra"
+
 	"github.com/OctopusDeploy/cli/pkg/cmd"
 	"github.com/OctopusDeploy/cli/pkg/cmd/worker/shared"
 	"github.com/OctopusDeploy/cli/pkg/constants"
@@ -13,8 +16,6 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/output"
 	"github.com/OctopusDeploy/cli/pkg/usage"
 	"github.com/OctopusDeploy/cli/pkg/util"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/machines"
-	"github.com/spf13/cobra"
 )
 
 func NewCmdView(f factory.Factory) *cobra.Command {
@@ -39,7 +40,7 @@ func NewCmdView(f factory.Factory) *cobra.Command {
 }
 
 func ViewRun(opts *shared.ViewOptions) error {
-	var worker, err = opts.Client.Workers.GetByIdentifier(opts.IdOrName)
+	worker, err := opts.Client.Workers.GetByIdentifier(opts.IdOrName)
 	if err != nil {
 		return err
 	}

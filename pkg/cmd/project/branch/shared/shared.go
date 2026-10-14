@@ -1,10 +1,11 @@
 package shared
 
 import (
-	"github.com/OctopusDeploy/cli/pkg/cmd"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projectbranches"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
+
+	"github.com/OctopusDeploy/cli/pkg/cmd"
 )
 
 type GetAllBranchesCallback func(projectId string) ([]*projects.GitReference, error)

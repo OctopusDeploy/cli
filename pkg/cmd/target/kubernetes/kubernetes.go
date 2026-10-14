@@ -2,12 +2,13 @@ package kubernetes
 
 import (
 	"github.com/MakeNowJust/heredoc/v2"
+	"github.com/spf13/cobra"
+
 	cmdCreate "github.com/OctopusDeploy/cli/pkg/cmd/target/kubernetes/create"
 	cmdList "github.com/OctopusDeploy/cli/pkg/cmd/target/kubernetes/list"
 	cmdView "github.com/OctopusDeploy/cli/pkg/cmd/target/kubernetes/view"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/factory"
-	"github.com/spf13/cobra"
 )
 
 func NewCmdKubernetes(f factory.Factory) *cobra.Command {

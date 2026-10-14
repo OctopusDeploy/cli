@@ -2,11 +2,12 @@ package static
 
 import (
 	"github.com/MakeNowJust/heredoc/v2"
+	"github.com/spf13/cobra"
+
 	cmdCreate "github.com/OctopusDeploy/cli/pkg/cmd/workerpool/static/create"
 	cmdView "github.com/OctopusDeploy/cli/pkg/cmd/workerpool/static/view"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/factory"
-	"github.com/spf13/cobra"
 )
 
 func NewCmdStatic(f factory.Factory) *cobra.Command {

@@ -20,7 +20,7 @@ func SliceContains[T comparable](slice []T, target T) bool {
 
 // SliceContainsSlice returns true all items in the target are equal to items in the slice
 func SliceContainsSlice[T comparable](slice []T, target []T) bool {
-	var containsAllElementsOfTarget = true
+	containsAllElementsOfTarget := true
 	for _, targetElement := range target {
 		if SliceContains(slice, targetElement) {
 			containsAllElementsOfTarget = true
@@ -155,7 +155,7 @@ func MapCollectionWithLookups[T any, TResult any](
 	// first pass: walk the collection and see if there's anything we need to look up.
 	// if we detect a situation where all the lookups are already satisfied by the cache,
 	// then we may not need to do any lookups at all.
-	var allKeysToLookup = make([][]string, len(caches)) // preallocate the right number of nils
+	allKeysToLookup := make([][]string, len(caches)) // preallocate the right number of nils
 	for _, item := range collection {
 		keys := keySelector(item)
 		for i, key := range keys {

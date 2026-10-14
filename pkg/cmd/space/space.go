@@ -2,6 +2,8 @@ package space
 
 import (
 	"github.com/MakeNowJust/heredoc/v2"
+	"github.com/spf13/cobra"
+
 	cmdCreate "github.com/OctopusDeploy/cli/pkg/cmd/space/create"
 	cmdDelete "github.com/OctopusDeploy/cli/pkg/cmd/space/delete"
 	cmdList "github.com/OctopusDeploy/cli/pkg/cmd/space/list"
@@ -9,7 +11,6 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/constants/annotations"
 	"github.com/OctopusDeploy/cli/pkg/factory"
-	"github.com/spf13/cobra"
 )
 
 func NewCmdSpace(f factory.Factory) *cobra.Command {

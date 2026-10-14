@@ -6,15 +6,16 @@ import (
 
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/MakeNowJust/heredoc/v2"
-	cmdRoot "github.com/OctopusDeploy/cli/pkg/cmd/root"
-	"github.com/OctopusDeploy/cli/pkg/question"
-	"github.com/OctopusDeploy/cli/test/fixtures"
-	"github.com/OctopusDeploy/cli/test/testutil"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/resources"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/runbooks"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
+
+	cmdRoot "github.com/OctopusDeploy/cli/pkg/cmd/root"
+	"github.com/OctopusDeploy/cli/pkg/question"
+	"github.com/OctopusDeploy/cli/test/fixtures"
+	"github.com/OctopusDeploy/cli/test/testutil"
 )
 
 var rootResource = testutil.NewRootResource()
@@ -327,7 +328,6 @@ func TestRunbookList(t *testing.T) {
 			test.run(t, api, qa, rootCmd, stdout, stderr)
 		})
 	}
-
 }
 
 func TestGitRunbookList(t *testing.T) {
@@ -409,14 +409,16 @@ func TestGitRunbookList(t *testing.T) {
 				Items: []*projects.GitReference{
 					projects.NewGitBranchReference("main", "refs/heads/main"),
 					projects.NewGitBranchReference("develop", "refs/heads/develop"),
-				}})
+				},
+			})
 
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+fireProject.ID+"/git/tags").RespondWith(resources.Resources[*projects.GitReference]{
 				PagedResults: resources.PagedResults{ItemType: "GitTag"},
 				Items: []*projects.GitReference{
 					projects.NewGitTagReference("v2", "refs/tags/v2"),
 					projects.NewGitTagReference("v1", "refs/tags/v1"),
-				}})
+				},
+			})
 
 			_ = qa.ExpectQuestion(t, &survey.Select{
 				Message: "Select the Git reference to list runbooks for",
@@ -480,7 +482,7 @@ func TestGitRunbookList(t *testing.T) {
 
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/Fire Project").RespondWithStatus(404, "NotFound", nil)
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects?partialName=Fire+Project").
-			RespondWithJSON(fixtures.AsServerResponseArray([]*projects.Project{fireProject}))
+				RespondWithJSON(fixtures.AsServerResponseArray([]*projects.Project{fireProject}))
 
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/Projects-22/refs%2Fheads%2Fmain/runbooks?take=2147483647").
 				RespondWith(resources.Resources[*runbooks.Runbook]{
@@ -509,7 +511,7 @@ func TestGitRunbookList(t *testing.T) {
 
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/Fire Project").RespondWithStatus(404, "NotFound", nil)
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects?partialName=Fire+Project").
-			RespondWithJSON(fixtures.AsServerResponseArray([]*projects.Project{fireProject}))
+				RespondWithJSON(fixtures.AsServerResponseArray([]*projects.Project{fireProject}))
 
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/Projects-22/refs%2Fheads%2Fmain/runbooks?take=2147483647").
 				RespondWith(resources.Resources[*runbooks.Runbook]{
@@ -539,7 +541,7 @@ func TestGitRunbookList(t *testing.T) {
 
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/Fire Project").RespondWithStatus(404, "NotFound", nil)
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects?partialName=Fire+Project").
-			RespondWithJSON(fixtures.AsServerResponseArray([]*projects.Project{fireProject}))
+				RespondWithJSON(fixtures.AsServerResponseArray([]*projects.Project{fireProject}))
 
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/Projects-22/refs%2Fheads%2Fmain/runbooks?take=1&partialName=Apply").
 				RespondWith(resources.Resources[*runbooks.Runbook]{
@@ -567,7 +569,7 @@ func TestGitRunbookList(t *testing.T) {
 
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/Fire Project").RespondWithStatus(404, "NotFound", nil)
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects?partialName=Fire+Project").
-			RespondWithJSON(fixtures.AsServerResponseArray([]*projects.Project{fireProject}))
+				RespondWithJSON(fixtures.AsServerResponseArray([]*projects.Project{fireProject}))
 
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/Projects-22/refs%2Fheads%2Fmain/runbooks?take=2147483647").
 				RespondWith(resources.Resources[*runbooks.Runbook]{
@@ -608,7 +610,7 @@ func TestGitRunbookList(t *testing.T) {
 
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/Fire Project").RespondWithStatus(404, "NotFound", nil)
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects?partialName=Fire+Project").
-			RespondWithJSON(fixtures.AsServerResponseArray([]*projects.Project{fireProject}))
+				RespondWithJSON(fixtures.AsServerResponseArray([]*projects.Project{fireProject}))
 
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/Projects-22/refs%2Fheads%2Fmain/runbooks?take=2147483647").
 				RespondWith(resources.Resources[*runbooks.Runbook]{
@@ -666,5 +668,4 @@ func TestGitRunbookList(t *testing.T) {
 			test.run(t, api, qa, rootCmd, stdout, stderr)
 		})
 	}
-
 }

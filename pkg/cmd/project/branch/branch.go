@@ -2,13 +2,13 @@ package branch
 
 import (
 	"github.com/MakeNowJust/heredoc/v2"
-	"github.com/OctopusDeploy/cli/pkg/constants"
-	"github.com/OctopusDeploy/cli/pkg/constants/annotations"
-	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/spf13/cobra"
 
 	cmdCreate "github.com/OctopusDeploy/cli/pkg/cmd/project/branch/create"
 	cmdList "github.com/OctopusDeploy/cli/pkg/cmd/project/branch/list"
+	"github.com/OctopusDeploy/cli/pkg/constants"
+	"github.com/OctopusDeploy/cli/pkg/constants/annotations"
+	"github.com/OctopusDeploy/cli/pkg/factory"
 )
 
 func NewCmdBranch(f factory.Factory) *cobra.Command {

@@ -5,16 +5,17 @@ import (
 	"testing"
 
 	"github.com/AlecAivazis/survey/v2"
-	cmdRoot "github.com/OctopusDeploy/cli/pkg/cmd/root"
-	"github.com/OctopusDeploy/cli/pkg/question"
-	"github.com/OctopusDeploy/cli/test/fixtures"
-	"github.com/OctopusDeploy/cli/test/testutil"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/core"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/resources"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/runbooks"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
+
+	cmdRoot "github.com/OctopusDeploy/cli/pkg/cmd/root"
+	"github.com/OctopusDeploy/cli/pkg/question"
+	"github.com/OctopusDeploy/cli/test/fixtures"
+	"github.com/OctopusDeploy/cli/test/testutil"
 )
 
 var rootResource = testutil.NewRootResource()
@@ -91,11 +92,13 @@ func TestRunbookSnapshotVariables(t *testing.T) {
 		{"noprompt with --snapshot: posts to named snapshot", func(t *testing.T, api *testutil.MockHttpServer, qa *testutil.AskMocker, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
 			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
 				defer api.Close()
-				rootCmd.SetArgs([]string{"runbook", "snapshot", "snapshot-variables",
+				rootCmd.SetArgs([]string{
+					"runbook", "snapshot", "snapshot-variables",
 					"--project", fireProject.Name,
 					"--runbook", rebuildIndexes.Name,
 					"--snapshot", otherSnapshot.Name,
-					"--no-prompt"})
+					"--no-prompt",
+				})
 				return rootCmd.ExecuteC()
 			})
 
@@ -117,11 +120,13 @@ func TestRunbookSnapshotVariables(t *testing.T) {
 
 			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
 				defer api.Close()
-				rootCmd.SetArgs([]string{"runbook", "snapshot", "snapshot-variables",
+				rootCmd.SetArgs([]string{
+					"runbook", "snapshot", "snapshot-variables",
 					"--project", fireProject.Name,
 					"--runbook", rebuildIndexes.Name,
 					"--snapshot", foreignSnapshot.Name,
-					"--no-prompt"})
+					"--no-prompt",
+				})
 				return rootCmd.ExecuteC()
 			})
 
@@ -139,10 +144,12 @@ func TestRunbookSnapshotVariables(t *testing.T) {
 
 			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
 				defer api.Close()
-				rootCmd.SetArgs([]string{"runbook", "snapshot", "snapshot-variables",
+				rootCmd.SetArgs([]string{
+					"runbook", "snapshot", "snapshot-variables",
 					"--project", fireProject.Name,
 					"--runbook", foreignRunbook.GetID(),
-					"--no-prompt"})
+					"--no-prompt",
+				})
 				return rootCmd.ExecuteC()
 			})
 
@@ -162,10 +169,12 @@ func TestRunbookSnapshotVariables(t *testing.T) {
 		{"noprompt without --snapshot: defaults to published snapshot and announces it", func(t *testing.T, api *testutil.MockHttpServer, qa *testutil.AskMocker, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
 			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
 				defer api.Close()
-				rootCmd.SetArgs([]string{"runbook", "snapshot", "snapshot-variables",
+				rootCmd.SetArgs([]string{
+					"runbook", "snapshot", "snapshot-variables",
 					"--project", fireProject.Name,
 					"--runbook", rebuildIndexes.Name,
-					"--no-prompt"})
+					"--no-prompt",
+				})
 				return rootCmd.ExecuteC()
 			})
 
@@ -186,10 +195,12 @@ func TestRunbookSnapshotVariables(t *testing.T) {
 
 			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
 				defer api.Close()
-				rootCmd.SetArgs([]string{"runbook", "snapshot", "snapshot-variables",
+				rootCmd.SetArgs([]string{
+					"runbook", "snapshot", "snapshot-variables",
 					"--project", fireProject.Name,
 					"--runbook", noPublished.Name,
-					"--no-prompt"})
+					"--no-prompt",
+				})
 				return rootCmd.ExecuteC()
 			})
 
@@ -209,10 +220,12 @@ func TestRunbookSnapshotVariables(t *testing.T) {
 		{"server returns non-2xx status returns wrapped error including body", func(t *testing.T, api *testutil.MockHttpServer, qa *testutil.AskMocker, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
 			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
 				defer api.Close()
-				rootCmd.SetArgs([]string{"runbook", "snapshot", "snapshot-variables",
+				rootCmd.SetArgs([]string{
+					"runbook", "snapshot", "snapshot-variables",
 					"--project", fireProject.Name,
 					"--runbook", rebuildIndexes.Name,
-					"--no-prompt"})
+					"--no-prompt",
+				})
 				return rootCmd.ExecuteC()
 			})
 

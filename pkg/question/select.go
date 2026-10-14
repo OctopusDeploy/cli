@@ -2,11 +2,12 @@ package question
 
 import (
 	"fmt"
-	"github.com/OctopusDeploy/cli/pkg/util"
 
 	"github.com/AlecAivazis/survey/v2"
+
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/surveyext"
+	"github.com/OctopusDeploy/cli/pkg/util"
 )
 
 func MultiSelectMap[T any](ask Asker, message string, items []T, getKey func(item T) string, required bool) ([]T, error) {

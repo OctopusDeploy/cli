@@ -3,9 +3,10 @@ package output
 import (
 	"strings"
 
-	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+
+	"github.com/OctopusDeploy/cli/pkg/constants"
 )
 
 // ResolveOutputFormat returns the lower-cased output format that PrintArray and

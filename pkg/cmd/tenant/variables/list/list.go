@@ -5,6 +5,13 @@ import (
 	"sort"
 
 	"github.com/MakeNowJust/heredoc/v2"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/actiontemplates"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/core"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/tenants"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/variables"
+	"github.com/spf13/cobra"
+
 	"github.com/OctopusDeploy/cli/pkg/apiclient"
 	"github.com/OctopusDeploy/cli/pkg/cmd/tenant/shared"
 	"github.com/OctopusDeploy/cli/pkg/constants"
@@ -15,12 +22,6 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/usage"
 	"github.com/OctopusDeploy/cli/pkg/util/featuretoggle"
 	"github.com/OctopusDeploy/cli/pkg/util/flag"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/actiontemplates"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/core"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/tenants"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/variables"
-	"github.com/spf13/cobra"
 )
 
 const (
@@ -375,7 +376,7 @@ func unwrapProjectVariablesV1(variables variables.ProjectVariable, environmentMa
 
 func unwrapCommonVariables(variable variables.TenantCommonVariable, environmentMap map[string]string) []*VariableValue {
 	var results []*VariableValue = nil
-	var isDefault = variable.ID == ""
+	isDefault := variable.ID == ""
 	var displayValue string
 
 	if isDefault {
@@ -400,7 +401,6 @@ func unwrapCommonVariables(variable variables.TenantCommonVariable, environmentM
 	}
 
 	for _, environmentId := range variable.Scope.EnvironmentIds {
-
 		results = append(results, &VariableValue{
 			Type:            LibraryVariableSetType,
 			OwnerName:       variable.LibraryVariableSetName,
@@ -418,7 +418,7 @@ func unwrapCommonVariables(variable variables.TenantCommonVariable, environmentM
 
 func unwrapProjectVariables(variable variables.TenantProjectVariable, environmentMap map[string]string) []*VariableValue {
 	var results []*VariableValue = nil
-	var isDefault = variable.ID == ""
+	isDefault := variable.ID == ""
 	var displayValue string
 
 	if isDefault {
@@ -443,7 +443,6 @@ func unwrapProjectVariables(variable variables.TenantProjectVariable, environmen
 	}
 
 	for _, environmentId := range variable.Scope.EnvironmentIds {
-
 		results = append(results, &VariableValue{
 			Type:            ProjectType,
 			OwnerName:       variable.ProjectName,

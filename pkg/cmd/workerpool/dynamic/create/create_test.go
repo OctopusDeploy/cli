@@ -1,12 +1,14 @@
 package create_test
 
 import (
+	"testing"
+
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/workerpools"
+	"github.com/stretchr/testify/assert"
+
 	"github.com/OctopusDeploy/cli/pkg/cmd"
 	"github.com/OctopusDeploy/cli/pkg/cmd/workerpool/dynamic/create"
 	"github.com/OctopusDeploy/cli/test/testutil"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/workerpools"
-	"github.com/stretchr/testify/assert"
-	"testing"
 )
 
 func TestPromptMissing_FlagsSupplied(t *testing.T) {
@@ -37,12 +39,12 @@ func TestPromptMissing_ShouldPrompt(t *testing.T) {
 	opts := create.NewCreateOptions(flags, &cmd.Dependencies{Ask: asker})
 	opts.GetDynamicWorkerPoolTypes = func() ([]*workerpools.DynamicWorkerPoolType, error) {
 		return []*workerpools.DynamicWorkerPoolType{
-			&workerpools.DynamicWorkerPoolType{
+			{
 				ID:          "UbuntuDefault",
 				Type:        "UbuntuDefault",
 				Description: "Ubuntu",
 			},
-			&workerpools.DynamicWorkerPoolType{
+			{
 				ID:          "WindowsDefault",
 				Type:        "WindowsDefault",
 				Description: "Windows",

@@ -4,14 +4,15 @@ import (
 	"fmt"
 
 	"github.com/MakeNowJust/heredoc/v2"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/accounts"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
+	"github.com/spf13/cobra"
+
 	"github.com/OctopusDeploy/cli/pkg/apiclient"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/OctopusDeploy/cli/pkg/question"
 	"github.com/OctopusDeploy/cli/pkg/question/selectors"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/accounts"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
-	"github.com/spf13/cobra"
 )
 
 func NewCmdDelete(f factory.Factory) *cobra.Command {
@@ -33,7 +34,6 @@ func NewCmdDelete(f factory.Factory) *cobra.Command {
 			itemIDOrName := args[0]
 
 			client, err := f.GetSpacedClient(apiclient.NewRequester(cmd))
-
 			if err != nil {
 				return err
 			}

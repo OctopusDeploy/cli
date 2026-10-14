@@ -7,6 +7,10 @@ import (
 	"time"
 
 	"github.com/MakeNowJust/heredoc/v2"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/runbooks"
+	"github.com/spf13/cobra"
+
 	"github.com/OctopusDeploy/cli/pkg/cmd"
 	"github.com/OctopusDeploy/cli/pkg/cmd/runbook/shared"
 	"github.com/OctopusDeploy/cli/pkg/constants"
@@ -14,9 +18,6 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/output"
 	"github.com/OctopusDeploy/cli/pkg/question/selectors"
 	"github.com/OctopusDeploy/cli/pkg/util/flag"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/runbooks"
-	"github.com/spf13/cobra"
 )
 
 const (
@@ -99,7 +100,6 @@ func publishRun(opts *PublishOptions) error {
 	}
 
 	runbook, err := selectors.FindRunbook(opts.Client, project, opts.Runbook.Value)
-
 	if err != nil {
 		return err
 	}
@@ -175,7 +175,7 @@ func getSnapshot(opts *PublishOptions, runbook *runbooks.Runbook) (*runbooks.Run
 			return nil, err
 		}
 
-		var availableSnapshots = make([]*runbooks.RunbookSnapshot, 0)
+		availableSnapshots := make([]*runbooks.RunbookSnapshot, 0)
 		for _, s := range allSnapshots.Items {
 			if s.GetID() != runbook.PublishedRunbookSnapshotID {
 				availableSnapshots = append(availableSnapshots, s)
@@ -185,7 +185,6 @@ func getSnapshot(opts *PublishOptions, runbook *runbooks.Runbook) (*runbooks.Run
 	}, func(s *runbooks.RunbookSnapshot) string {
 		return fmt.Sprintf("%s (Assembled: %s)", s.Name, s.Assembled.Format(time.RFC1123Z))
 	})
-
 	if err != nil {
 		return nil, err
 	}
@@ -226,7 +225,6 @@ func getRunbook(opts *PublishOptions, project *projects.Project) (*runbooks.Runb
 
 func findSnapshot(opts *PublishOptions, runbook *runbooks.Runbook) (*runbooks.RunbookSnapshot, error) {
 	snapshot, err := runbooks.GetSnapshot(opts.Client, opts.Space.GetID(), runbook.ProjectID, opts.Snapshot.Value)
-
 	if err != nil {
 		return nil, err
 	}

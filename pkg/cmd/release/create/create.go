@@ -9,10 +9,18 @@ import (
 	"strings"
 	"time"
 
-	"github.com/OctopusDeploy/cli/pkg/apiclient"
-
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/MakeNowJust/heredoc/v2"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/channels"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/deployments"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/feeds"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/releases"
+	"github.com/spf13/cobra"
+
+	octopusApiClient "github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
+
+	"github.com/OctopusDeploy/cli/pkg/apiclient"
 	"github.com/OctopusDeploy/cli/pkg/cmd/release/list"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	cliErrors "github.com/OctopusDeploy/cli/pkg/errors"
@@ -26,13 +34,6 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/surveyext"
 	"github.com/OctopusDeploy/cli/pkg/util"
 	"github.com/OctopusDeploy/cli/pkg/util/flag"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/channels"
-	octopusApiClient "github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/deployments"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/feeds"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/releases"
-	"github.com/spf13/cobra"
 )
 
 const (
@@ -386,7 +387,6 @@ func createRun(cmd *cobra.Command, f factory.Factory, flags *CreateFlags) error 
 // finds the latest available version satisfying the channel version rules. Result is the list of step+package+versions
 // to use as a baseline. The package version override process takes this as an input and layers on top of it
 func BuildPackageVersionBaselineForChannel(octopus *octopusApiClient.Client, deploymentProcessTemplate *deployments.DeploymentProcessTemplate, channel *channels.Channel) ([]*packages.StepPackageVersion, error) {
-
 	result, err := packages.BuildPackageVersionBaseline(octopus, deploymentProcessTemplate.Packages, func(packageRef releases.ReleaseTemplatePackage, query feeds.SearchPackageVersionsQuery) (feeds.SearchPackageVersionsQuery, error) {
 		// look in the channel rules for a version filter for this step+package
 
@@ -412,7 +412,6 @@ func BuildPackageVersionBaselineForChannel(octopus *octopusApiClient.Client, dep
 
 		return query, nil
 	})
-
 	if err != nil {
 		return nil, err
 	}
@@ -523,7 +522,6 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 			options.PackageVersionOverrides,
 			asker,
 			stdout)
-
 		if err != nil {
 			return err
 		}
@@ -547,7 +545,6 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 			options.GitResourceRefs,
 			asker,
 			stdout)
-
 		if err != nil {
 			return err
 		}
@@ -707,7 +704,6 @@ func selectGitReference(octopus *octopusApiClient.Client, ask question.Asker, pr
 	}
 
 	tags, err := octopus.Projects.GetGitTags(project)
-
 	if err != nil {
 		return nil, err
 	}

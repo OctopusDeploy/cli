@@ -5,21 +5,24 @@ package executionscommon
 
 import (
 	"fmt"
+	"sort"
+	"strconv"
+	"strings"
+	"time"
+
 	"github.com/AlecAivazis/survey/v2"
-	cliErrors "github.com/OctopusDeploy/cli/pkg/errors"
-	"github.com/OctopusDeploy/cli/pkg/question"
-	"github.com/OctopusDeploy/cli/pkg/surveyext"
-	"github.com/OctopusDeploy/cli/pkg/util"
-	octopusApiClient "github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/deployments"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/environments"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/resources"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/tenants"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/variables"
-	"sort"
-	"strconv"
-	"strings"
-	"time"
+
+	octopusApiClient "github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
+
+	cliErrors "github.com/OctopusDeploy/cli/pkg/errors"
+	"github.com/OctopusDeploy/cli/pkg/question"
+	"github.com/OctopusDeploy/cli/pkg/surveyext"
+	"github.com/OctopusDeploy/cli/pkg/util"
 )
 
 func findTenantsAndTags(octopus *octopusApiClient.Client, projectID string, environmentIDs []string) ([]string, []string, error) {
@@ -250,7 +253,8 @@ func AskVariableSpecificPrompt(asker question.Asker, message string, variableTyp
 				Message:  "message",
 				FileName: "*.txt",
 			},
-			Optional: !isRequired}, &response)
+			Optional: !isRequired,
+		}, &response)
 		return response, err
 
 	case resources.ControlTypeSelect:

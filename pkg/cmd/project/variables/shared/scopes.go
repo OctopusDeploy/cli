@@ -2,12 +2,14 @@ package shared
 
 import (
 	"fmt"
-	"github.com/OctopusDeploy/cli/pkg/util/flag"
+	"strings"
+
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/resources"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/variables"
 	"github.com/spf13/cobra"
-	"strings"
+
+	"github.com/OctopusDeploy/cli/pkg/util/flag"
 )
 
 const (

@@ -1,9 +1,10 @@
 package logout
 
 import (
+	"github.com/spf13/cobra"
+
 	"github.com/OctopusDeploy/cli/pkg/constants/annotations"
 	"github.com/OctopusDeploy/cli/pkg/factory"
-	"github.com/spf13/cobra"
 )
 
 func NewCmdLogout(f factory.Factory) *cobra.Command {
@@ -24,7 +25,6 @@ func NewCmdLogout(f factory.Factory) *cobra.Command {
 
 func logoutRun(f factory.Factory, cmd *cobra.Command) error {
 	configProvider, err := f.GetConfigProvider()
-
 	if err != nil {
 		return err
 	}

@@ -2,12 +2,13 @@ package ssh
 
 import (
 	"github.com/MakeNowJust/heredoc/v2"
+	"github.com/spf13/cobra"
+
 	cmdCreate "github.com/OctopusDeploy/cli/pkg/cmd/target/ssh/create"
 	cmdList "github.com/OctopusDeploy/cli/pkg/cmd/target/ssh/list"
 	cmdView "github.com/OctopusDeploy/cli/pkg/cmd/target/ssh/view"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/factory"
-	"github.com/spf13/cobra"
 )
 
 func NewCmdSsh(f factory.Factory) *cobra.Command {

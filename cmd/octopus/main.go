@@ -1,30 +1,28 @@
 package main
 
 import (
-	_ "embed"
 	"fmt"
 	"os"
 	"strings"
 	"time"
 
-	"github.com/OctopusDeploy/cli/pkg/util"
-
+	"github.com/AlecAivazis/survey/v2"
 	"github.com/AlecAivazis/survey/v2/terminal"
-	version "github.com/OctopusDeploy/cli"
-	"github.com/OctopusDeploy/cli/pkg/servicemessages"
 	"github.com/briandowns/spinner"
+	"github.com/joho/godotenv"
 	"github.com/spf13/viper"
 
-	"github.com/AlecAivazis/survey/v2"
+	_ "embed"
+
+	version "github.com/OctopusDeploy/cli"
+	"github.com/OctopusDeploy/cli/pkg/apiclient"
+	"github.com/OctopusDeploy/cli/pkg/cmd/root"
 	"github.com/OctopusDeploy/cli/pkg/config"
 	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/OctopusDeploy/cli/pkg/question"
+	"github.com/OctopusDeploy/cli/pkg/servicemessages"
 	"github.com/OctopusDeploy/cli/pkg/usage"
-
-	"github.com/joho/godotenv"
-
-	"github.com/OctopusDeploy/cli/pkg/apiclient"
-	"github.com/OctopusDeploy/cli/pkg/cmd/root"
+	"github.com/OctopusDeploy/cli/pkg/util"
 )
 
 func main() {

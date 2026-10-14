@@ -7,12 +7,14 @@ import (
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/AlecAivazis/survey/v2/core"
 	"github.com/AlecAivazis/survey/v2/terminal"
+
 	"github.com/OctopusDeploy/cli/pkg/constants"
 )
 
 /*
 Select is a prompt that presents a list of various options to the user
 for them to select using the arrow keys and enter. Response type is a string.
+
 	color := ""
 	prompt := &survey.Select{
 		Message: "Choose a color:",
@@ -94,7 +96,6 @@ func (s *Select) OnChange(key rune, config *survey.PromptConfig) bool {
 	if key == terminal.KeyEnter || key == '\n' {
 		// if the selected index is a valid option
 		if len(options) > 0 && s.selectedIndex < len(options) {
-
 			// we're done (stop prompting the user)
 			return true
 		}

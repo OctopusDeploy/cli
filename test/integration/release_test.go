@@ -2,10 +2,10 @@ package integration_test
 
 import (
 	"fmt"
-	"github.com/OctopusDeploy/cli/test/integration"
-	"github.com/OctopusDeploy/cli/test/testutil"
+	"os/exec"
+	"testing"
+
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/channels"
-	octopusApiClient "github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/core"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/deployments"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
@@ -13,8 +13,11 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"os/exec"
-	"testing"
+
+	octopusApiClient "github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
+
+	"github.com/OctopusDeploy/cli/test/integration"
+	"github.com/OctopusDeploy/cli/test/testutil"
 )
 
 const space1ID = "Spaces-1"

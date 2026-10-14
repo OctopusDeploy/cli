@@ -2,6 +2,7 @@ package question
 
 import (
 	"github.com/AlecAivazis/survey/v2"
+
 	cliErrors "github.com/OctopusDeploy/cli/pkg/errors"
 )
 

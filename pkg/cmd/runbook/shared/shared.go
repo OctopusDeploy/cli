@@ -3,23 +3,26 @@ package shared
 import (
 	"math"
 
-	"github.com/OctopusDeploy/cli/pkg/cmd"
-	"github.com/OctopusDeploy/cli/pkg/util"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/newclient"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/runbooks"
+
+	"github.com/OctopusDeploy/cli/pkg/cmd"
+	"github.com/OctopusDeploy/cli/pkg/util"
 )
 
-type GetDbRunbooksCallback func(projectID string) ([]*runbooks.Runbook, error)
-type GetDbRunbookCallback func(projectID string, runbookID string) (*runbooks.Runbook, error)
-type GetGitRunbooksCallback func(projectID string, gitRef string) ([]*runbooks.Runbook, error)
-type GetGitRunbookCallback func(projectID string, gitRef string, runbookID string) (*runbooks.Runbook, error)
-type GetGitReferencesCallback func(project *projects.Project) ([]*projects.GitReference, error)
-type DeleteDbRunbookCallback func(runbook *runbooks.Runbook) error
-type DeleteGitRunbookCallback func(runbook *runbooks.Runbook, gitRef string) error
-type GetProjectCallback func(projectIdentifier string) (*projects.Project, error)
-type GetAllProjectsCallback func() ([]*projects.Project, error)
+type (
+	GetDbRunbooksCallback    func(projectID string) ([]*runbooks.Runbook, error)
+	GetDbRunbookCallback     func(projectID string, runbookID string) (*runbooks.Runbook, error)
+	GetGitRunbooksCallback   func(projectID string, gitRef string) ([]*runbooks.Runbook, error)
+	GetGitRunbookCallback    func(projectID string, gitRef string, runbookID string) (*runbooks.Runbook, error)
+	GetGitReferencesCallback func(project *projects.Project) ([]*projects.GitReference, error)
+	DeleteDbRunbookCallback  func(runbook *runbooks.Runbook) error
+	DeleteGitRunbookCallback func(runbook *runbooks.Runbook, gitRef string) error
+	GetProjectCallback       func(projectIdentifier string) (*projects.Project, error)
+	GetAllProjectsCallback   func() ([]*projects.Project, error)
+)
 
 type RunbooksOptions struct {
 	GetDbRunbooksCallback
@@ -109,7 +112,6 @@ func GetAllGitReferences(client *client.Client, project *projects.Project) ([]*p
 	}
 
 	tags, err := client.Projects.GetGitTags(project)
-
 	if err != nil {
 		return nil, err
 	}

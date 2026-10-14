@@ -11,9 +11,10 @@ import (
 
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/AlecAivazis/survey/v2/terminal"
-	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/kballard/go-shellquote"
 	"github.com/spf13/viper"
+
+	"github.com/OctopusDeploy/cli/pkg/constants"
 )
 
 var (

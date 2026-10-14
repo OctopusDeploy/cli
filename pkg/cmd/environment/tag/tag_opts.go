@@ -12,9 +12,11 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/util/flag"
 )
 
-type GetAllTagSetsCallback func() ([]*tagsets.TagSet, error)
-type GetEnvironmentCallback func(environmentIdentifier string) (*environments.Environment, error)
-type GetEnvironmentsCallback func() ([]*environments.Environment, error)
+type (
+	GetAllTagSetsCallback   func() ([]*tagsets.TagSet, error)
+	GetEnvironmentCallback  func(environmentIdentifier string) (*environments.Environment, error)
+	GetEnvironmentsCallback func() ([]*environments.Environment, error)
+)
 
 type TagOptions struct {
 	*TagFlags

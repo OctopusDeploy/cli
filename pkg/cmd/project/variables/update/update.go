@@ -6,6 +6,10 @@ import (
 
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/MakeNowJust/heredoc/v2"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/variables"
+	"github.com/spf13/cobra"
+
 	"github.com/OctopusDeploy/cli/pkg/cmd"
 	sharedProjectVariable "github.com/OctopusDeploy/cli/pkg/cmd/project/variables/shared"
 	"github.com/OctopusDeploy/cli/pkg/cmd/tenant/shared"
@@ -17,9 +21,6 @@ import (
 	sharedVariable "github.com/OctopusDeploy/cli/pkg/question/shared/variables"
 	"github.com/OctopusDeploy/cli/pkg/util"
 	"github.com/OctopusDeploy/cli/pkg/util/flag"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/variables"
-	"github.com/spf13/cobra"
 )
 
 const (
@@ -300,7 +301,6 @@ func PromptMissing(opts *UpdateOptions) error {
 
 func promptForVariable(opts *UpdateOptions, projectVariables *variables.VariableSet) (*variables.Variable, error) {
 	selectedOption, err := selectors.Select(opts.Ask, "Select the variable you wish to update", func() ([]*variables.Variable, error) { return projectVariables.Variables, nil }, func(v *variables.Variable) string { return formatVariableSelection(v) })
-
 	if err != nil {
 		return nil, err
 	}

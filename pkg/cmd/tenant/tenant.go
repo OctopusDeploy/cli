@@ -2,6 +2,8 @@ package tenant
 
 import (
 	"github.com/MakeNowJust/heredoc/v2"
+	"github.com/spf13/cobra"
+
 	cmdClone "github.com/OctopusDeploy/cli/pkg/cmd/tenant/clone"
 	cmdConnect "github.com/OctopusDeploy/cli/pkg/cmd/tenant/connect"
 	cmdCreate "github.com/OctopusDeploy/cli/pkg/cmd/tenant/create"
@@ -16,7 +18,6 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/constants/annotations"
 	"github.com/OctopusDeploy/cli/pkg/factory"
-	"github.com/spf13/cobra"
 )
 
 func NewCmdTenant(f factory.Factory) *cobra.Command {

@@ -1,10 +1,12 @@
 package question_test
 
 import (
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+
 	"github.com/OctopusDeploy/cli/pkg/question"
 	"github.com/OctopusDeploy/cli/test/testutil"
-	"github.com/stretchr/testify/assert"
-	"testing"
 )
 
 func TestMultiSelectMap_NoItems(t *testing.T) {

@@ -3,14 +3,14 @@ package question_test
 import (
 	"errors"
 	"fmt"
-	"github.com/AlecAivazis/survey/v2"
 	"testing"
 
-	"github.com/OctopusDeploy/cli/test/testutil"
+	"github.com/AlecAivazis/survey/v2"
+	"github.com/stretchr/testify/assert"
 
 	cliErrors "github.com/OctopusDeploy/cli/pkg/errors"
 	"github.com/OctopusDeploy/cli/pkg/question"
-	"github.com/stretchr/testify/assert"
+	"github.com/OctopusDeploy/cli/test/testutil"
 )
 
 func TestQuestion_DeleteWithConfirmation_Success(t *testing.T) {

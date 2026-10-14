@@ -2,10 +2,11 @@ package zip
 
 import (
 	"github.com/MakeNowJust/heredoc/v2"
+	"github.com/spf13/cobra"
+
 	cmdZipCreate "github.com/OctopusDeploy/cli/pkg/cmd/package/zip/create"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/factory"
-	"github.com/spf13/cobra"
 )
 
 func NewCmdPackageZip(f factory.Factory) *cobra.Command {

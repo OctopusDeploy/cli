@@ -5,6 +5,8 @@ import (
 
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/MakeNowJust/heredoc/v2"
+	"github.com/spf13/cobra"
+
 	"github.com/OctopusDeploy/cli/pkg/cmd"
 	awsCreate "github.com/OctopusDeploy/cli/pkg/cmd/account/aws/create"
 	azureOidcCreate "github.com/OctopusDeploy/cli/pkg/cmd/account/azure-oidc/create"
@@ -15,7 +17,6 @@ import (
 	usernameCreate "github.com/OctopusDeploy/cli/pkg/cmd/account/username/create"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/factory"
-	"github.com/spf13/cobra"
 )
 
 const (

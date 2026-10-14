@@ -4,12 +4,13 @@ import (
 	"bytes"
 	"testing"
 
-	logoutCmd "github.com/OctopusDeploy/cli/pkg/cmd/logout"
-	"github.com/OctopusDeploy/cli/pkg/constants"
-	"github.com/OctopusDeploy/cli/test/testutil"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
+
+	logoutCmd "github.com/OctopusDeploy/cli/pkg/cmd/logout"
+	"github.com/OctopusDeploy/cli/pkg/constants"
+	"github.com/OctopusDeploy/cli/test/testutil"
 )
 
 func TestLogout_SetsConfigCorrectly(t *testing.T) {

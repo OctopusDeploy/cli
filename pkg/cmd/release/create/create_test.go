@@ -9,6 +9,21 @@ import (
 
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/MakeNowJust/heredoc/v2"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/channels"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/constants"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/credentials"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/deployments"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/feeds"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/releases"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/resources"
+	"github.com/spf13/cobra"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	octopusApiClient "github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
+	octopusPackages "github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/packages"
+
 	"github.com/OctopusDeploy/cli/pkg/cmd/release/create"
 	cmdRoot "github.com/OctopusDeploy/cli/pkg/cmd/root"
 	"github.com/OctopusDeploy/cli/pkg/executor"
@@ -16,25 +31,14 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/surveyext"
 	"github.com/OctopusDeploy/cli/test/fixtures"
 	"github.com/OctopusDeploy/cli/test/testutil"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/channels"
-	octopusApiClient "github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/constants"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/credentials"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/deployments"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/feeds"
-	octopusPackages "github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/packages"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/releases"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/resources"
-	"github.com/spf13/cobra"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 var serverUrl, _ = url.Parse("http://server")
 
-const placeholderApiKey = "API-XXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
-const packageOverrideQuestion = "Package override string (y to accept, u to undo, ? for help):"
+const (
+	placeholderApiKey       = "API-XXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+	packageOverrideQuestion = "Package override string (y to accept, u to undo, ? for help):"
+)
 
 var spinner = &testutil.FakeSpinner{}
 
@@ -210,7 +214,8 @@ func TestReleaseCreate_AskQuestions_RegularProject(t *testing.T) {
 					ID: "feeds-builtin",
 					Links: map[string]string{
 						constants.LinkSearchPackageVersionsTemplate: "/api/Spaces-1/feeds/feeds-builtin/packages/versions{?packageId,take,skip,includePreRelease,versionRange,preReleaseTag,filter,includeReleaseNotes}",
-					}}},
+					},
+				}},
 			}})
 
 			// then it will look for versions
@@ -259,7 +264,7 @@ func TestReleaseCreate_AskQuestions_RegularProject(t *testing.T) {
 			api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
 			api.ExpectRequest(t, "GET", "/api/spaces").RespondWith(rootResource)
 
-			var fireProject2 = *fireProject // clone the struct value
+			fireProject2 := *fireProject // clone the struct value
 			fireProject2.VersioningStrategy = &projects.VersioningStrategy{
 				DonorPackage: &octopusPackages.DeploymentActionPackage{
 					DeploymentAction: "Verify",
@@ -315,7 +320,8 @@ func TestReleaseCreate_AskQuestions_RegularProject(t *testing.T) {
 					ID: "feeds-builtin",
 					Links: map[string]string{
 						constants.LinkSearchPackageVersionsTemplate: "/api/Spaces-1/feeds/feeds-builtin/packages/versions{?packageId,take,skip,includePreRelease,versionRange,preReleaseTag,filter,includeReleaseNotes}",
-					}}},
+					},
+				}},
 			}})
 
 			// then it will look for versions
@@ -370,7 +376,7 @@ func TestReleaseCreate_AskQuestions_RegularProject(t *testing.T) {
 			api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
 			api.ExpectRequest(t, "GET", "/api/spaces").RespondWith(rootResource)
 
-			var fireProject2 = *fireProject // clone the struct value
+			fireProject2 := *fireProject // clone the struct value
 			fireProject2.VersioningStrategy = &projects.VersioningStrategy{
 				DonorPackage: &octopusPackages.DeploymentActionPackage{
 					DeploymentAction: "Verify",
@@ -411,7 +417,8 @@ func TestReleaseCreate_AskQuestions_RegularProject(t *testing.T) {
 					ID: "feeds-builtin",
 					Links: map[string]string{
 						constants.LinkSearchPackageVersionsTemplate: "/api/Spaces-1/feeds/feeds-builtin/packages/versions{?packageId,take,skip,includePreRelease,versionRange,preReleaseTag,filter,includeReleaseNotes}",
-					}}},
+					},
+				}},
 			}})
 
 			// then it will look for versions
@@ -493,14 +500,16 @@ func TestReleaseCreate_AskQuestions_VersionControlledProject(t *testing.T) {
 				Items: []*projects.GitReference{
 					projects.NewGitBranchReference("main", "refs/heads/main"),
 					projects.NewGitBranchReference("develop", "refs/heads/develop"),
-				}})
+				},
+			})
 
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+projectID+"/git/tags").RespondWith(resources.Resources[*projects.GitReference]{
 				PagedResults: resources.PagedResults{ItemType: "GitTag"},
 				Items: []*projects.GitReference{
 					projects.NewGitTagReference("v2", "refs/tags/v2"),
 					projects.NewGitTagReference("v1", "refs/tags/v1"),
-				}})
+				},
+			})
 
 			_ = qa.ExpectQuestion(t, &survey.Select{
 				Message: "Select the Git Reference to use",
@@ -581,14 +590,16 @@ func TestReleaseCreate_AskQuestions_VersionControlledProject(t *testing.T) {
 				Items: []*projects.GitReference{
 					projects.NewGitBranchReference("main", "refs/heads/main"),
 					projects.NewGitBranchReference("develop", "refs/heads/develop"),
-				}})
+				},
+			})
 
 			api.ExpectRequest(t, "GET", "/api/Spaces-1/projects/"+projectID+"/git/tags").RespondWith(resources.Resources[*projects.GitReference]{
 				PagedResults: resources.PagedResults{ItemType: "GitTag"},
 				Items: []*projects.GitReference{
 					projects.NewGitTagReference("v2", "refs/tags/v2"),
 					projects.NewGitTagReference("v1", "refs/tags/v1"),
-				}})
+				},
+			})
 
 			// NOTE we still ask for git ref even though commit is specified, this is so the server
 			// can give us nice audit logs capturing the INTENT of the release (a commit may exist in more than one branch)
@@ -704,7 +715,6 @@ func TestReleaseCreate_AskQuestions_VersionControlledProject(t *testing.T) {
 }
 
 func TestReleaseCreate_AskQuestions_AskPackageOverrideLoop(t *testing.T) {
-
 	baseline := []*packages.StepPackageVersion{
 		{ActionName: "Install", PackageID: "pterm", PackageReferenceName: "pterm", Version: "0.12"},
 		{ActionName: "Install", PackageID: "NuGet.CommandLine", PackageReferenceName: "NuGet.CommandLine", Version: "6.1.2"},
@@ -1579,7 +1589,8 @@ func TestReleaseCreate_AutomationMode(t *testing.T) {
 
 		{"can't specify release-notes and release-notes-file at the same time", func(t *testing.T, api *testutil.MockHttpServer, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
 			// doesn't even do any API stuff, we get kicked out immediately
-			rootCmd.SetArgs([]string{"release", "create",
+			rootCmd.SetArgs([]string{
+				"release", "create",
 				"--project", cacProject.Name,
 				"--release-notes", "Here are some **release notes**.",
 				"--release-notes-file", "foo.md",
@@ -1591,7 +1602,8 @@ func TestReleaseCreate_AutomationMode(t *testing.T) {
 		{"release creation with all the flags", func(t *testing.T, api *testutil.MockHttpServer, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
 			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
 				defer api.Close()
-				rootCmd.SetArgs([]string{"release", "create",
+				rootCmd.SetArgs([]string{
+					"release", "create",
 					"--project", cacProject.Name,
 					"--package-version", "5.6.7-beta",
 					"--package", "pterm:2.5",
@@ -1662,7 +1674,8 @@ func TestReleaseCreate_AutomationMode(t *testing.T) {
 		{"release creation with all the flags (legacy aliases)", func(t *testing.T, api *testutil.MockHttpServer, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
 			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
 				defer api.Close()
-				rootCmd.SetArgs([]string{"release", "create",
+				rootCmd.SetArgs([]string{
+					"release", "create",
 					"--project=" + cacProject.Name,
 					"--packageVersion=5.6.7-beta",
 					"--package=pterm:2.5",
@@ -1732,7 +1745,8 @@ func TestReleaseCreate_AutomationMode(t *testing.T) {
 		{"release creation with all the flags (short flags where available)", func(t *testing.T, api *testutil.MockHttpServer, rootCmd *cobra.Command, stdOut *bytes.Buffer, stdErr *bytes.Buffer) {
 			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
 				defer api.Close()
-				rootCmd.SetArgs([]string{"release", "create",
+				rootCmd.SetArgs([]string{
+					"release", "create",
 					"-p", cacProject.Name,
 					"--package-version", "5.6.7-beta",
 					"-r", "refs/heads/main",
@@ -1805,7 +1819,8 @@ func TestReleaseCreate_AutomationMode(t *testing.T) {
 
 			cmdReceiver := testutil.GoBegin2(func() (*cobra.Command, error) {
 				defer api.Close()
-				rootCmd.SetArgs([]string{"release", "create",
+				rootCmd.SetArgs([]string{
+					"release", "create",
 					"--project", cacProject.Name,
 					"--channel", "BetaChannel",
 					"--release-notes-file", file.Name(),
@@ -1935,7 +1950,8 @@ func TestReleaseCreate_BuildPackageVersionBaseline(t *testing.T) {
 				ID: builtinFeedID,
 				Links: map[string]string{
 					constants.LinkSearchPackageVersionsTemplate: "/api/Spaces-1/feeds/feeds-builtin/packages/versions{?packageId,take,skip,includePreRelease,versionRange,preReleaseTag,filter,includeReleaseNotes}",
-				}}},
+				},
+			}},
 		}})
 
 		// now it will search for the package versions
@@ -2029,7 +2045,8 @@ func TestReleaseCreate_BuildPackageVersionBaseline(t *testing.T) {
 				ID: builtinFeedID,
 				Links: map[string]string{
 					constants.LinkSearchPackageVersionsTemplate: "/api/Spaces-1/feeds/feeds-builtin/packages/versions{?packageId,take,skip,includePreRelease,versionRange,preReleaseTag,filter,includeReleaseNotes}",
-				}}},
+				},
+			}},
 		}})
 
 		// now it will search for the package versions
@@ -2104,12 +2121,14 @@ func TestReleaseCreate_BuildPackageVersionBaseline(t *testing.T) {
 				ID: builtinFeedID,
 				Links: map[string]string{
 					constants.LinkSearchPackageVersionsTemplate: "/api/Spaces-1/feeds/feeds-builtin/packages/versions{?packageId,take,skip,includePreRelease,versionRange,preReleaseTag,filter,includeReleaseNotes}",
-				}}},
+				},
+			}},
 			&feeds.FeedResource{Name: "External Nuget", FeedType: feeds.FeedTypeNuGet, Resource: resources.Resource{
 				ID: externalFeedID,
 				Links: map[string]string{
 					constants.LinkSearchPackageVersionsTemplate: "/api/Spaces-1/feeds/Feeds-1001/packages/versions{?packageId,take,skip,includePreRelease,versionRange,preReleaseTag,filter,includeReleaseNotes}",
-				}}},
+				},
+			}},
 		}})
 
 		// now it will search for the package versions
@@ -2227,12 +2246,14 @@ func TestReleaseCreate_BuildPackageVersionBaseline(t *testing.T) {
 				ID: builtinFeedID,
 				Links: map[string]string{
 					constants.LinkSearchPackageVersionsTemplate: "/api/Spaces-1/feeds/feeds-builtin/packages/versions{?packageId,take,skip,includePreRelease,versionRange,preReleaseTag,filter,includeReleaseNotes}",
-				}}},
+				},
+			}},
 			&feeds.FeedResource{Name: "External Nuget", FeedType: feeds.FeedTypeNuGet, Resource: resources.Resource{
 				ID: externalFeedID,
 				Links: map[string]string{
 					constants.LinkSearchPackageVersionsTemplate: "/api/Spaces-1/feeds/Feeds-1001/packages/versions{?packageId,take,skip,includePreRelease,versionRange,preReleaseTag,filter,includeReleaseNotes}",
-				}}},
+				},
+			}},
 		}})
 
 		// now it will search for the package versions
@@ -2329,7 +2350,8 @@ func TestReleaseCreate_BuildPackageVersionBaseline(t *testing.T) {
 				ID: externalFeedID,
 				Links: map[string]string{
 					constants.LinkSearchPackageVersionsTemplate: "/api/Spaces-1/feeds/Feeds-1001/packages/versions{?packageId,take,skip,includePreRelease,versionRange,preReleaseTag,versioningStrategy,versionTagRegex,filter,includeReleaseNotes}",
-				}}},
+				},
+			}},
 		}})
 
 		// all four filters must be sent; the client emits query params in alphabetical order
@@ -2380,7 +2402,8 @@ func TestReleaseCreate_BuildPackageVersionBaseline(t *testing.T) {
 				ID: builtinFeedID,
 				Links: map[string]string{
 					constants.LinkSearchPackageVersionsTemplate: "/api/Spaces-1/feeds/feeds-builtin/packages/versions{?packageId,take,skip,includePreRelease,versionRange,preReleaseTag,filter,includeReleaseNotes}",
-				}}},
+				},
+			}},
 		}})
 
 		// now it will search for the package versions
@@ -2438,7 +2461,8 @@ func TestReleaseCreate_BuildPackageVersionBaseline(t *testing.T) {
 				ID: builtinFeedID,
 				Links: map[string]string{
 					constants.LinkSearchPackageVersionsTemplate: "/api/Spaces-1/feeds/feeds-builtin/packages/versions{?packageId,take,skip,includePreRelease,versionRange,preReleaseTag,filter,includeReleaseNotes}",
-				}}},
+				},
+			}},
 		}})
 
 		// now it will search for the package versions (the first one said resolvable:true so we ask the server, even though there's a variable template)
@@ -2470,7 +2494,6 @@ func TestReleaseCreate_BuildPackageVersionBaseline(t *testing.T) {
 			},
 		}, packageVersions)
 	})
-
 }
 
 func TestReleaseCreate_ToPackageOverrideString(t *testing.T) {

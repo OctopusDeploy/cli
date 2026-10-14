@@ -10,8 +10,9 @@ import (
 	"path"
 	"runtime"
 
-	"github.com/OctopusDeploy/cli/pkg/output"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
+
+	"github.com/OctopusDeploy/cli/pkg/output"
 )
 
 // This file contains utilities to help with integration testing

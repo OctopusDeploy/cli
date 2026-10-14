@@ -1,11 +1,12 @@
 package config
 
 import (
+	"github.com/spf13/cobra"
+
 	listCmd "github.com/OctopusDeploy/cli/pkg/cmd/task/list"
 	waitCmd "github.com/OctopusDeploy/cli/pkg/cmd/task/wait"
 	"github.com/OctopusDeploy/cli/pkg/constants/annotations"
 	"github.com/OctopusDeploy/cli/pkg/factory"
-	"github.com/spf13/cobra"
 )
 
 func NewCmdTask(f factory.Factory) *cobra.Command {

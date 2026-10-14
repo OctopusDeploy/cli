@@ -7,12 +7,13 @@ import (
 	"testing"
 
 	"github.com/AlecAivazis/survey/v2"
-	"github.com/OctopusDeploy/cli/pkg/executionscommon"
-	"github.com/OctopusDeploy/cli/test/fixtures"
-	"github.com/OctopusDeploy/cli/test/testutil"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/resources"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/variables"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/OctopusDeploy/cli/pkg/executionscommon"
+	"github.com/OctopusDeploy/cli/test/fixtures"
+	"github.com/OctopusDeploy/cli/test/testutil"
 )
 
 func TestAskVariables(t *testing.T) {
@@ -205,7 +206,6 @@ func TestAskVariables(t *testing.T) {
 
 			assert.Nil(t, err)
 			assert.Equal(t, make(map[string]string, 0), output)
-
 		}},
 
 		{"prompts for a combo box value", func(t *testing.T, qa *testutil.AskMocker, stdout *bytes.Buffer) {

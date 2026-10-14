@@ -3,10 +3,11 @@ package create_test
 import (
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/OctopusDeploy/cli/pkg/cmd"
 	projectCreate "github.com/OctopusDeploy/cli/pkg/cmd/project/create"
 	"github.com/OctopusDeploy/cli/test/testutil"
-	"github.com/stretchr/testify/assert"
 )
 
 func TestPromptForConfigAsCode_NotUsingCac(t *testing.T) {

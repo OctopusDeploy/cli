@@ -1,11 +1,13 @@
 package create_test
 
 import (
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+
 	"github.com/OctopusDeploy/cli/pkg/cmd"
 	"github.com/OctopusDeploy/cli/pkg/cmd/workerpool/static/create"
 	"github.com/OctopusDeploy/cli/test/testutil"
-	"github.com/stretchr/testify/assert"
-	"testing"
 )
 
 func TestPromptMissing_FlagsSupplied(t *testing.T) {

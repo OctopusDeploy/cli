@@ -5,10 +5,11 @@ import (
 	"net/url"
 	"testing"
 
-	"github.com/OctopusDeploy/cli/pkg/cmd/target/shared"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/machines"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/OctopusDeploy/cli/pkg/cmd/target/shared"
 )
 
 // An AWS ECS target as the API returns it, trimmed to the fields the CLI reads.

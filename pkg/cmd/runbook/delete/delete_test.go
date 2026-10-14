@@ -5,13 +5,14 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/runbooks"
+	"github.com/stretchr/testify/assert"
+
 	"github.com/OctopusDeploy/cli/pkg/cmd"
 	"github.com/OctopusDeploy/cli/pkg/cmd/runbook/delete"
 	"github.com/OctopusDeploy/cli/test/fixtures"
 	"github.com/OctopusDeploy/cli/test/testutil"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/runbooks"
-	"github.com/stretchr/testify/assert"
 )
 
 func TestDeleteDbRunbook_AllFlagsProvided_DeletesRunbook(t *testing.T) {
@@ -60,7 +61,6 @@ func TestDeleteDbRunbook_AllFlagsProvided_DeletesRunbook(t *testing.T) {
 }
 
 func TestDeleteDbRunbook_NoFlagsProvided_AsksForRequiredFlags_DeletesRunbook(t *testing.T) {
-
 	const spaceID = "Spaces-1"
 
 	project1 := fixtures.NewProject(spaceID, "Projects-1", "Test1", "Lifecycles-1", "ProjectGroups-1", "DeploymentProcesses-1")
@@ -139,7 +139,6 @@ func TestDeleteGitRunbook_AllFlagsProvided_DeletesRunbook(t *testing.T) {
 	}
 
 	opts.DeleteGitRunbookCallback = func(runbookToDelete *runbooks.Runbook, gitRef string) error {
-
 		if runbookToDelete.ID != runbook.ID || gitRef != "main" {
 			return errors.New("Runbook not found")
 		}
@@ -152,7 +151,6 @@ func TestDeleteGitRunbook_AllFlagsProvided_DeletesRunbook(t *testing.T) {
 }
 
 func TestDeleteGitRunbook_NoFlagsProvided_AsksForRequiredFlags_DeletesRunbook(t *testing.T) {
-
 	const spaceID = "Spaces-1"
 
 	project1 := fixtures.NewVersionControlledProject(spaceID, "Projects-1", "Test1", "Lifecycles-1", "ProjectGroups-1", "DeploymentProcesses-1")
@@ -196,7 +194,8 @@ func TestDeleteGitRunbook_NoFlagsProvided_AsksForRequiredFlags_DeletesRunbook(t 
 				Type:          projects.GitRefTypeTag,
 				Name:          "v1",
 				CanonicalName: "refs/tags/v1",
-			}}, nil
+			},
+		}, nil
 	}
 
 	opts.GetGitRunbooksCallback = func(projectID string, gitRef string) ([]*runbooks.Runbook, error) {

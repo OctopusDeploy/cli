@@ -1,4 +1,4 @@
-﻿package gitresources
+package gitresources
 
 import (
 	"errors"
@@ -8,11 +8,12 @@ import (
 
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/MakeNowJust/heredoc/v2"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/releases"
+	"golang.org/x/exp/slices"
+
 	"github.com/OctopusDeploy/cli/pkg/output"
 	"github.com/OctopusDeploy/cli/pkg/question"
 	"github.com/OctopusDeploy/cli/pkg/util"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/releases"
-	"golang.org/x/exp/slices"
 )
 
 var gitResourceGitRefLoopHelpText = heredoc.Doc(`
@@ -69,13 +70,13 @@ func AskGitResourceOverrideLoop(
 	gitResourcesBaseline []*GitResourceGitRef,
 	initialGitResourceOverrideFlags []string, // the --git-resource command line flag (multiple occurrences)
 	asker question.Asker,
-	stdout io.Writer) ([]*GitResourceGitRef, error) {
-
+	stdout io.Writer,
+) ([]*GitResourceGitRef, error) {
 	overriddenGitResourceGitRefs := make([]*GitResourceGitRef, 0)
 
 	// Parse the command line flags into overrides
 	for _, s := range initialGitResourceOverrideFlags {
-		//take the string from the command line and parse it into a GitResourceGitRef
+		// take the string from the command line and parse it into a GitResourceGitRef
 		parsedOverride, err := ParseGitResourceGitRefString(s)
 		if err != nil {
 			continue
@@ -89,7 +90,7 @@ func AskGitResourceOverrideLoop(
 		overriddenGitResourceGitRefs = append(overriddenGitResourceGitRefs, resolvedOverride)
 	}
 
-	//now merge the parsed overrides with the baseline resources, applying any overrides that match
+	// now merge the parsed overrides with the baseline resources, applying any overrides that match
 	gitResourceGitRefsWithOverrides := ApplyGitResourceOverrides(gitResourcesBaseline, overriddenGitResourceGitRefs)
 
 outerLoop:
@@ -100,7 +101,7 @@ outerLoop:
 		}
 
 		var resolvedOverride *GitResourceGitRef = nil
-		var answer = ""
+		answer := ""
 		err = asker(&survey.Input{
 			Message: GitResourceOverrideQuestion,
 		}, &answer, survey.WithValidator(func(ans interface{}) error {
@@ -125,9 +126,8 @@ outerLoop:
 				return err
 			}
 
-			return nil //all good!
+			return nil // all good!
 		}))
-
 		// if validators return an error, survey retries itself; the errors don't end up at this level.
 		if err != nil {
 			return nil, err
@@ -140,7 +140,7 @@ outerLoop:
 			_, _ = fmt.Fprint(stdout, output.FormatDoc(gitResourceGitRefLoopHelpText))
 		case "u": // undo!
 			if len(overriddenGitResourceGitRefs) > 0 {
-				//strip the last override from the list
+				// strip the last override from the list
 				overriddenGitResourceGitRefs = overriddenGitResourceGitRefs[:len(overriddenGitResourceGitRefs)-1]
 				gitResourceGitRefsWithOverrides = ApplyGitResourceOverrides(gitResourcesBaseline, overriddenGitResourceGitRefs)
 			} else {
@@ -149,19 +149,19 @@ outerLoop:
 
 		case "r": // reset! All the way back to the calculated versions, discarding even the stuff that came in from the cmdline
 			overriddenGitResourceGitRefs = make([]*GitResourceGitRef, 0)
-			gitResourceGitRefsWithOverrides = ApplyGitResourceOverrides(gitResourcesBaseline, overriddenGitResourceGitRefs) //applying any empty array gives us the original list
+			gitResourceGitRefsWithOverrides = ApplyGitResourceOverrides(gitResourcesBaseline, overriddenGitResourceGitRefs) // applying any empty array gives us the original list
 		default:
 			if resolvedOverride != nil {
 				existingIndex := slices.IndexFunc(overriddenGitResourceGitRefs, func(ref *GitResourceGitRef) bool {
 					return ref.Equals(resolvedOverride)
 				})
 
-				//if the override already exists, just overwrite it in the array
-				//this handles the case where they override the same git resource multiple times
+				// if the override already exists, just overwrite it in the array
+				// this handles the case where they override the same git resource multiple times
 				if existingIndex >= 0 {
 					overriddenGitResourceGitRefs[existingIndex] = resolvedOverride
 				} else {
-					//otherwise just append it
+					// otherwise just append it
 					overriddenGitResourceGitRefs = append(overriddenGitResourceGitRefs, resolvedOverride)
 				}
 
@@ -188,7 +188,7 @@ func ParseGitResourceGitRefString(gitResourceRef string) (*GitResourceGitRef, er
 		return nil, fmt.Errorf("git resource git reference specification \"%s\" does not use an expected format", gitResourceRef)
 	}
 
-	//for consistency with the server-side code, we only support one type of delimiter at once
+	// for consistency with the server-side code, we only support one type of delimiter at once
 	components := util.SplitString(gitResourceRef, []rune{delimiters[chosenDelimiterIndex]})
 	actionName, gitResourceName, gitRef := "", "", ""
 
@@ -231,7 +231,7 @@ func ResolveGitResourceOverride(override *GitResourceGitRef, baseline []*GitReso
 		return nil, fmt.Errorf("could not resolve step name \"%s\" or git resource name \"%s\"", override.ActionName, override.GitResourceName)
 	}
 
-	//If the user override matches a git resource in the "baseline"
+	// If the user override matches a git resource in the "baseline"
 	var gitRef string
 	if override.GitRef == "*" {
 		gitRef = baseline[index].GitRef
@@ -251,7 +251,7 @@ func ApplyGitResourceOverrides(gitResourcesBaseline []*GitResourceGitRef, overri
 
 	for _, gitResourceGitRef := range gitResourcesBaseline {
 
-		//Try and find any override
+		// Try and find any override
 		overrideIdx := slices.IndexFunc(overrides, func(override *GitResourceGitRef) bool {
 			return override.Equals(gitResourceGitRef)
 		})
@@ -270,7 +270,7 @@ func ApplyGitResourceOverrides(gitResourcesBaseline []*GitResourceGitRef, overri
 				GitResourceName: gitResourceGitRef.GitResourceName,
 			})
 		} else {
-			//no override, just return a copy of the original
+			// no override, just return a copy of the original
 			result = append(result, &GitResourceGitRef{
 				ActionName:      gitResourceGitRef.ActionName,
 				GitRef:          gitResourceGitRef.GitRef,
@@ -292,7 +292,7 @@ func printGitResourceGitRefs(ioWriter io.Writer, gitResourceGitRefs []*GitResour
 	)
 
 	for _, grgr := range gitResourceGitRefs {
-		var name = grgr.GitResourceName
+		name := grgr.GitResourceName
 		if name == "" {
 			name = "<primary>"
 		}

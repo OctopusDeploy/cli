@@ -2,10 +2,12 @@ package validation
 
 import (
 	"fmt"
-	"github.com/AlecAivazis/survey/v2"
-	uuid "github.com/google/uuid"
 	"os"
 	"reflect"
+
+	"github.com/AlecAivazis/survey/v2"
+
+	uuid "github.com/google/uuid"
 )
 
 // NotEquals requires that the string does not equal any of the specified values

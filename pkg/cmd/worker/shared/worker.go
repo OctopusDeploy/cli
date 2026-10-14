@@ -1,13 +1,16 @@
 package shared
 
 import (
-	"github.com/OctopusDeploy/cli/pkg/cmd"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/machines"
+
+	"github.com/OctopusDeploy/cli/pkg/cmd"
 )
 
-type GetWorkersCallback func() ([]*machines.Worker, error)
-type GetWorkerCallback func(identifer string) (*machines.Worker, error)
+type (
+	GetWorkersCallback func() ([]*machines.Worker, error)
+	GetWorkerCallback  func(identifer string) (*machines.Worker, error)
+)
 
 type GetWorkersOptions struct {
 	GetWorkersCallback

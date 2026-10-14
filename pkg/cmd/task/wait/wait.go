@@ -6,14 +6,15 @@ import (
 	"time"
 
 	"github.com/MakeNowJust/heredoc/v2"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/tasks"
+	"github.com/spf13/cobra"
+
 	"github.com/OctopusDeploy/cli/pkg/cmd"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/OctopusDeploy/cli/pkg/output"
 	"github.com/OctopusDeploy/cli/pkg/util"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/tasks"
-	"github.com/spf13/cobra"
 )
 
 const (
@@ -38,8 +39,10 @@ type WaitOptions struct {
 	Command                   *cobra.Command
 }
 
-type ServerTasksCallback func([]string) ([]*tasks.Task, error)
-type TaskDetailsCallback func(string) (*tasks.TaskDetailsResource, error)
+type (
+	ServerTasksCallback func([]string) ([]*tasks.Task, error)
+	TaskDetailsCallback func(string) (*tasks.TaskDetailsResource, error)
+)
 
 type TaskAsJson struct {
 	Id                   string     `json:"Id"`

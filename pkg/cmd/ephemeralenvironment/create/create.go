@@ -5,6 +5,11 @@ import (
 	"slices"
 
 	"github.com/MakeNowJust/heredoc/v2"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/channels"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/environments/v2/ephemeralenvironments"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
+	"github.com/spf13/cobra"
+
 	"github.com/OctopusDeploy/cli/pkg/cmd"
 	"github.com/OctopusDeploy/cli/pkg/cmd/runbook/shared"
 	"github.com/OctopusDeploy/cli/pkg/constants"
@@ -13,10 +18,6 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/question"
 	"github.com/OctopusDeploy/cli/pkg/question/selectors"
 	"github.com/OctopusDeploy/cli/pkg/util/flag"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/channels"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/environments/v2/ephemeralenvironments"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
-	"github.com/spf13/cobra"
 )
 
 const (
@@ -104,7 +105,6 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 }
 
 func createRun(opts *CreateOptions) error {
-
 	if !opts.NoPrompt {
 		err := PromptMissing(opts)
 		if err != nil {
@@ -140,7 +140,6 @@ func createRun(opts *CreateOptions) error {
 }
 
 func PromptMissing(opts *CreateOptions) error {
-
 	err := question.AskName(opts.Ask, "", "ephemeral environment", &opts.Name.Value)
 	if err != nil {
 		return err

@@ -11,8 +11,12 @@ import (
 	"time"
 
 	"github.com/AlecAivazis/survey/v2"
-
 	"github.com/MakeNowJust/heredoc/v2"
+	"github.com/pkg/browser"
+	"github.com/spf13/cobra"
+
+	octopusApiClient "github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
+
 	"github.com/OctopusDeploy/cli/pkg/apiclient"
 	"github.com/OctopusDeploy/cli/pkg/config"
 	"github.com/OctopusDeploy/cli/pkg/constants"
@@ -21,10 +25,6 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/output"
 	"github.com/OctopusDeploy/cli/pkg/question"
 	"github.com/OctopusDeploy/cli/pkg/util/flag"
-	"github.com/pkg/browser"
-	"github.com/spf13/cobra"
-
-	octopusApiClient "github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
 )
 
 const (
@@ -91,9 +91,7 @@ type LoginInputs struct {
 }
 
 func loginRun(cmd *cobra.Command, f factory.Factory, isPromptEnabled bool, ask question.Asker, flags *LoginFlags) error {
-
 	configProvider, err := f.GetConfigProvider()
-
 	if err != nil {
 		return err
 	}
@@ -116,7 +114,6 @@ func loginRun(cmd *cobra.Command, f factory.Factory, isPromptEnabled bool, ask q
 	}
 
 	httpClient, err := f.GetHttpClient()
-
 	if err != nil {
 		return err
 	}
@@ -159,13 +156,11 @@ func loginWithApiKey(configProvider config.IConfigProvider, httpClient *http.Cli
 	serverLink := output.Cyan(server)
 
 	apiKeyCredentials, err := octopusApiClient.NewApiKey(apiKey)
-
 	if err != nil {
 		return err
 	}
 
 	err = testLogin(cmd, httpClient, server, apiKeyCredentials)
-
 	if err != nil {
 		cmd.Println(err)
 		return errors.New("login unsuccessful, please check that your API key is valid")
@@ -218,13 +213,11 @@ func loginWithOpenIdConnect(configProvider config.IConfigProvider, httpClient *h
 	}
 
 	tokenExchangeResponse, err := performTokenExchange(httpClient, serviceAccountId, idToken, openIdConfiguration)
-
 	if err != nil {
 		return err
 	}
 
 	expiresIn, err := time.ParseDuration(fmt.Sprintf("%ds", tokenExchangeResponse.ExpiresIn))
-
 	if err != nil {
 		return err
 	}
@@ -232,7 +225,6 @@ func loginWithOpenIdConnect(configProvider config.IConfigProvider, httpClient *h
 	expiryTime := time.Now().Add(expiresIn)
 
 	accessTokenCredentials, err := octopusApiClient.NewAccessToken(tokenExchangeResponse.AccessToken)
-
 	if err != nil {
 		return err
 	}
@@ -242,7 +234,6 @@ func loginWithOpenIdConnect(configProvider config.IConfigProvider, httpClient *h
 	cmd.Println()
 
 	err = testLogin(cmd, httpClient, server, accessTokenCredentials)
-
 	if err != nil {
 		cmd.Println(err)
 		return errors.New("login unsuccessful using access token obtained via OpenID Connect")
@@ -269,7 +260,6 @@ func performTokenExchange(httpClient *http.Client, serviceAccountId string, idTo
 	}
 
 	tokenExchangeBody, err := json.Marshal(tokenExchangeData)
-
 	if err != nil {
 		return nil, err
 	}
@@ -277,7 +267,6 @@ func performTokenExchange(httpClient *http.Client, serviceAccountId string, idTo
 	bodyReader := bytes.NewReader(tokenExchangeBody)
 
 	resp, err := httpClient.Post(openIdConfiguration.TokenEndpoint, "application/json", bodyReader)
-
 	if err != nil {
 		return nil, err
 	}
@@ -291,7 +280,6 @@ func performTokenExchange(httpClient *http.Client, serviceAccountId string, idTo
 	var tokenExchangeErrorResponse TokenExchangeErrorResponse
 
 	err = json.Unmarshal([]byte(sb), &tokenExchangeErrorResponse)
-
 	if err != nil {
 		return nil, err
 	}
@@ -303,7 +291,6 @@ func performTokenExchange(httpClient *http.Client, serviceAccountId string, idTo
 	var tokenExchangeResponse TokenExchangeResponse
 
 	err = json.Unmarshal([]byte(sb), &tokenExchangeResponse)
-
 	if err != nil {
 		return nil, err
 	}
@@ -314,7 +301,6 @@ func getOpenIdConfiguration(httpClient *http.Client, server string) (*OpenIdConf
 	openIdConfigurationEndpoint := fmt.Sprintf("%s/.well-known/openid-configuration", server)
 
 	resp, err := httpClient.Get(openIdConfigurationEndpoint)
-
 	if err != nil {
 		return nil, err
 	}
@@ -328,7 +314,6 @@ func getOpenIdConfiguration(httpClient *http.Client, server string) (*OpenIdConf
 	var openIdConfiguration OpenIdConfigurationResponse
 
 	err = json.Unmarshal([]byte(sb), &openIdConfiguration)
-
 	if err != nil {
 		return nil, err
 	}
@@ -371,7 +356,6 @@ func getInputs(configProvider config.IConfigProvider, flags *LoginFlags, isPromp
 				cmd.Println()
 
 				err := browser.OpenURL(createApiKeyUrl)
-
 				if err != nil {
 					return nil, err
 				}
@@ -404,19 +388,16 @@ func testLogin(cmd *cobra.Command, httpClient *http.Client, server string, crede
 	askProvider := question.NewAskProvider(survey.AskOne)
 
 	clientFactory, err := apiclient.NewClientFactory(httpClient, server, credentials, "", askProvider)
-
 	if err != nil {
 		return err
 	}
 
 	octopus, err := clientFactory.GetSystemClient(apiclient.NewRequester(cmd))
-
 	if err != nil {
 		return err
 	}
 
 	_, err = octopus.Users.GetMe()
-
 	if err != nil {
 		return err
 	}

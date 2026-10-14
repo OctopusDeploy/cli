@@ -4,10 +4,12 @@ import (
 	"errors"
 	"math"
 
-	"github.com/OctopusDeploy/cli/pkg/question"
-	octopusApiClient "github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/runbooks"
+
+	octopusApiClient "github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
+
+	"github.com/OctopusDeploy/cli/pkg/question"
 )
 
 func Runbook(questionText string, client *octopusApiClient.Client, ask question.Asker, projectID string) (*runbooks.Runbook, error) {

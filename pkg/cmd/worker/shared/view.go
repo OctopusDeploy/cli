@@ -2,11 +2,13 @@ package shared
 
 import (
 	"fmt"
+
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/machines"
+	"github.com/spf13/cobra"
+
 	"github.com/OctopusDeploy/cli/pkg/cmd"
 	"github.com/OctopusDeploy/cli/pkg/machinescommon"
 	"github.com/OctopusDeploy/cli/pkg/output"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/machines"
-	"github.com/spf13/cobra"
 )
 
 type ContributeEndpointCallback func(opts *ViewOptions, endpoint machines.IEndpoint) ([]*output.DataRow, error)
@@ -19,7 +21,7 @@ type ViewOptions struct {
 	*cmd.Dependencies
 	IdOrName string
 	*ViewFlags
-	Command  *cobra.Command
+	Command *cobra.Command
 }
 
 func NewViewFlags() *ViewFlags {
@@ -38,7 +40,7 @@ func NewViewOptions(viewFlags *ViewFlags, dependencies *cmd.Dependencies, args [
 }
 
 func ViewRun(opts *ViewOptions, contributeEndpoint ContributeEndpointCallback, description string) error {
-	var worker, err = opts.Client.Workers.GetByIdentifier(opts.IdOrName)
+	worker, err := opts.Client.Workers.GetByIdentifier(opts.IdOrName)
 	if err != nil {
 		return err
 	}
