@@ -19,7 +19,7 @@ type ViewOptions struct {
 	*cmd.Dependencies
 	IdOrName string
 	*ViewFlags
-	Command  *cobra.Command
+	Command *cobra.Command
 }
 
 func NewViewFlags() *ViewFlags {

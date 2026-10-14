@@ -19,10 +19,10 @@ type GetProjectsCallback func() ([]*projects.Project, error)
 type TagOptions struct {
 	*TagFlags
 	*cmd.Dependencies
-	GetAllTagsCallback   GetAllTagSetsCallback
-	GetProjectCallback   GetProjectCallback
-	GetProjectsCallback  GetProjectsCallback
-	project              *projects.Project
+	GetAllTagsCallback  GetAllTagSetsCallback
+	GetProjectCallback  GetProjectCallback
+	GetProjectsCallback GetProjectsCallback
+	project             *projects.Project
 }
 
 func NewTagOptions(tagFlags *TagFlags, dependencies *cmd.Dependencies) *TagOptions {
