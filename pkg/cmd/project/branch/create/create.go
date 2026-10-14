@@ -102,10 +102,7 @@ func CreateRun(opts *CreateOptions) error {
 		return err
 	}
 
-	_, err = fmt.Fprintf(opts.Out, "Successfully created branch '%s' (%s) in project '%s'\n", opts.Name.Value, newBranch.CanonicalName, project.GetName())
-	if err != nil {
-		return err
-	}
+	fmt.Fprintf(opts.Out, "Successfully created branch '%s' (%s) in project '%s'\n", opts.Name.Value, newBranch.CanonicalName, project.GetName())
 
 	if !opts.NoPrompt {
 		autoCmd := flag.GenerateAutomationCmd(opts.CmdPath, opts.GetSpaceNameOrEmpty(), opts.Project, opts.Name, opts.BaseBranch)
