@@ -3,13 +3,19 @@ package executor
 import (
 	"errors"
 	"fmt"
+	"math"
+	"slices"
 	"strconv"
 	"strings"
 
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/dashboard"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/deployments"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/environments/v2/environments"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/releases"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/spaces"
+	"github.com/OctopusDeploy/go-octopusversioning/pkg/versioning"
 
 	"github.com/OctopusDeploy/cli/pkg/executionscommon"
 )
@@ -93,14 +99,11 @@ func releaseCreate(octopus *client.Client, space *spaces.Space, input any) error
 
 // ----- Deploy Release --------------------------------------
 
-type TaskOptionsDeployRelease struct {
-	ProjectName                    string   // required
-	ReleaseVersion                 string   // the release to deploy
-	Environments                   []string // multiple for untenanted deployment, only one entry for tenanted deployment
-	Tenants                        []string
-	TenantTags                     []string
+type BaseTaskOptionsDeployRelease struct {
 	ScheduledStartTime             string
 	ScheduledExpiryTime            string
+	Tenants                        []string
+	TenantTags                     []string
 	ExcludedSteps                  []string
 	GuidedFailureMode              string // ["", "true", "false", "default"]. Note default and "" are the same, the only difference is whether interactive mode prompts you
 	Priority                       string // ["", "true", "false", "default"]. "" and "default" both defer to the lifecycle's priority setting
@@ -113,6 +116,13 @@ type TaskOptionsDeployRelease struct {
 	UpdateVariables                bool
 	DeploymentFreezeNames          []string
 	DeploymentFreezeOverrideReason string
+}
+
+type TaskOptionsDeployRelease struct {
+	BaseTaskOptionsDeployRelease
+	ProjectName    string   // required
+	ReleaseVersion string   // the release to deploy
+	Environments   []string // multiple for untenanted deployment, only one entry for tenanted deployment
 
 	// extra behaviour commands
 
@@ -124,7 +134,7 @@ type TaskOptionsDeployRelease struct {
 
 	// printing a link to the release (to check deployment status) requires the release ID, not version.
 	// the interactive process looks this up, so we can cache it here to avoid a second lookup when generating
-	// the link for the browser. It isn't neccessary though
+	// the link for the browser. It isn't necessary though
 	ReleaseID string
 
 	// After we send the request to the server, the response is stored here
@@ -221,7 +231,148 @@ func releaseDeploy(octopus *client.Client, space *spaces.Space, input any) error
 			return err
 		}
 		params.Response = createDeploymentResponse
+
 	}
 
 	return nil
+}
+
+// ----- Promote Release --------------------------------------
+
+type TaskOptionsPromoteRelease struct {
+	BaseTaskOptionsDeployRelease
+	ProjectName      string
+	FromEnvironment  string
+	ToEnvironment    string
+	LatestSuccessful bool
+
+	// After we send the request to the server, the response is stored here
+	Response  *deployments.CreateDeploymentResponseV1
+	ReleaseID string
+}
+
+func releasePromote(octopus *client.Client, space *spaces.Space, input any) error {
+	params, ok := input.(*TaskOptionsPromoteRelease)
+	if !ok {
+		return errors.New("invalid input type; expecting TaskOptionsPromoteRelease")
+	}
+	if space == nil {
+		return errors.New("space must be specified")
+	}
+
+	// we have the provided project name; go look it up
+	if params.ProjectName == "" {
+		return errors.New("project must be specified")
+	}
+	if params.FromEnvironment == "" {
+		return errors.New("from environment must be specified")
+	}
+	if params.ToEnvironment == "" {
+		return errors.New("to environment must be specified")
+	}
+
+	proj, err := projects.GetByIdentifier(octopus, space.ID, params.ProjectName)
+	if err != nil {
+		return fmt.Errorf("project not found. %v", err)
+	}
+
+	envs, err := environments.Get(octopus, space.ID, environments.EnvironmentQuery{
+		IDs:  []string{params.FromEnvironment},
+		Skip: 0,
+		Take: math.MaxInt32,
+	})
+	if err != nil {
+		return fmt.Errorf("environment not found. %v", err)
+	}
+	//
+	if len(envs.Items) == 0 {
+		envs, err = environments.Get(octopus, space.ID, environments.EnvironmentQuery{
+			Name: params.FromEnvironment,
+			Skip: 0,
+			Take: math.MaxInt32,
+		})
+		if err != nil || len(envs.Items) == 0 {
+			return fmt.Errorf("environment not found. %v", err)
+		}
+	}
+	// just grab the first environment
+	sourceEnv := envs.Items[0]
+
+	dashboardQuery := dashboard.DashboardDynamicQuery{
+		Environments: []string{sourceEnv.ID},
+		Projects:     []string{proj.ID},
+		// If using latest successful, we need previous dashboard items as well
+		// so that we can ensure we get a previous successful deployment
+		IncludePrevious: params.LatestSuccessful,
+	}
+
+	dynamicDashboard, err := octopus.Dashboards.GetDynamicDashboard(dashboardQuery)
+	if err != nil {
+		return err
+	}
+
+	// filter the dashboard items based on project & environment
+	// this is probably unnecessary, but it mimics the existing logic
+	var dashboardItems []*dashboard.DashboardItem
+	for _, item := range dynamicDashboard.Items {
+		if item.EnvironmentID == sourceEnv.ID && item.ProjectID == proj.ID {
+			dashboardItems = append(dashboardItems, item)
+		}
+	}
+
+	// we need to order the dashboard items by the release so we get the latest release first
+	slices.SortFunc(dashboardItems, compareDashboardItemsByRelease)
+
+	var dashboardItem *dashboard.DashboardItem
+	deploymentType := "deployment"
+
+	if params.LatestSuccessful {
+		deploymentType = "successful deployment"
+		for _, item := range dashboardItems {
+			if item.State == "Success" {
+				dashboardItem = item
+				break
+			}
+		}
+	} else if len(dashboardItems) > 0 {
+		dashboardItem = dashboardItems[0]
+	}
+
+	if dashboardItem == nil {
+		return errors.New(fmt.Sprintf("Could not find the latest %[1]s of the project for this environment. Please check that a %[1]s for this project/environment exists on the dashboard.", deploymentType))
+	}
+
+	params.ReleaseID = dashboardItem.ID
+
+	deployOptions := &TaskOptionsDeployRelease{
+		BaseTaskOptionsDeployRelease: params.BaseTaskOptionsDeployRelease,
+		ProjectName:                  proj.ID,
+		ReleaseVersion:               dashboardItem.ReleaseVersion,
+		Environments:                 []string{params.ToEnvironment},
+	}
+
+	err = releaseDeploy(octopus, space, deployOptions)
+
+	// update our params with the deploy response
+	params.Response = deployOptions.Response
+
+	return err
+}
+
+func compareDashboardItemsByRelease(a, b *dashboard.DashboardItem) int {
+	aVersion, err1 := versioning.ParseOctopusVersion(a.ReleaseVersion)
+	bVersion, err2 := versioning.ParseOctopusVersion(b.ReleaseVersion)
+
+	if err1 != nil {
+		if err2 != nil {
+			return 0
+		}
+		return 1
+	}
+	if err2 != nil {
+		return -1
+	}
+
+	// we multiply by -1 to order by descending
+	return versioning.Compare(aVersion, bVersion, (*versioning.OctopusVersion).Compare) * -1
 }

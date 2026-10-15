@@ -62,16 +62,11 @@ jobs:
       - name: Setup gotestsum
         run: go install gotest.tools/gotestsum@latest
 
-      # we don't technically need to run the unit tests but they're fast so why not
-      - name: Unit Tests
-        run: gotestsum --format testname --junitfile ../unit-tests.xml
-        working-directory: ./pkg
-
       - name: Integration Tests
         env:
           OCTOPUS_TEST_URL: ${{ env.SERVER_URL }}
           OCTOPUS_TEST_APIKEY: ${{ env.ADMIN_API_KEY }}
-        run: gotestsum --format testname --junitfile ../integration-tests.xml
+        run: gotestsum --format testname --junitfile ../../integration-tests.xml
         working-directory: ./test/integration
 
       - name: Test Report

@@ -21,6 +21,7 @@ import (
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/spaces"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/variables"
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 	"golang.org/x/exp/maps"
 
 	octopusApiClient "github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
@@ -100,10 +101,7 @@ const (
 // DEPLOYMENT TRACKING (Server Tasks): - this might be a separate `octopus task follow ID1, ID2, ID3`
 // DESIGN CHOICE: We are not going to show servertask progress in the CLI.
 
-type DeployFlags struct {
-	Project                        *flag.Flag[string]
-	ReleaseVersion                 *flag.Flag[string]   // the release to deploy
-	Environments                   *flag.Flag[[]string] // multiple for untenanted deployment
+type CommonDeployFlags struct {
 	Tenants                        *flag.Flag[[]string]
 	TenantTags                     *flag.Flag[[]string]
 	DeployAt                       *flag.Flag[string]
@@ -122,11 +120,24 @@ type DeployFlags struct {
 	DeploymentFreezeOverrideReason *flag.Flag[string]
 }
 
+type DeployFlags struct {
+	CommonDeployFlags
+	Project        *flag.Flag[string]
+	ReleaseVersion *flag.Flag[string]   // the release to deploy
+	Environments   *flag.Flag[[]string] // multiple for untenanted deployment
+}
+
 func NewDeployFlags() *DeployFlags {
 	return &DeployFlags{
-		Project:                        flag.New[string](FlagProject, false),
-		ReleaseVersion:                 flag.New[string](FlagReleaseVersion, false),
-		Environments:                   flag.New[[]string](FlagEnvironment, false),
+		Project:           flag.New[string](FlagProject, false),
+		ReleaseVersion:    flag.New[string](FlagReleaseVersion, false),
+		Environments:      flag.New[[]string](FlagEnvironment, false),
+		CommonDeployFlags: NewCommonDeployFlags(),
+	}
+}
+
+func NewCommonDeployFlags() CommonDeployFlags {
+	return CommonDeployFlags{
 		Tenants:                        flag.New[[]string](FlagTenant, false),
 		TenantTags:                     flag.New[[]string](FlagTenantTag, false),
 		MaxQueueTime:                   flag.New[string](FlagDeployAtExpiry, false),
@@ -169,9 +180,27 @@ func NewCmdDeploy(f factory.Factory) *cobra.Command {
 	}
 
 	flags := cmd.Flags()
+	flags.SortFlags = false
+
 	flags.StringVarP(&deployFlags.Project.Value, deployFlags.Project.Name, "p", "", "Name or ID of the project to deploy the release from")
 	flags.StringVarP(&deployFlags.ReleaseVersion.Value, deployFlags.ReleaseVersion.Name, "", "", "Release version to deploy")
 	flags.StringArrayVarP(&deployFlags.Environments.Value, deployFlags.Environments.Name, "e", nil, "Deploy to this environment (can be specified multiple times)")
+
+	// flags aliases for compat with old .NET CLI
+	flagAliases := make(map[string][]string, 10)
+	util.AddFlagAliasesString(flags, FlagReleaseVersion, flagAliases, FlagAliasReleaseNumberLegacy)
+	util.AddFlagAliasesStringSlice(flags, FlagEnvironment, flagAliases, FlagAliasDeployToLegacy, FlagAliasEnv)
+
+	AddCommonFlagsAndAliases(flags, &deployFlags.CommonDeployFlags, flagAliases)
+
+	cmd.PreRunE = func(cmd *cobra.Command, _ []string) error {
+		util.ApplyFlagAliases(cmd.Flags(), flagAliases)
+		return nil
+	}
+	return cmd
+}
+
+func AddCommonFlagsAndAliases(flags *pflag.FlagSet, deployFlags *CommonDeployFlags, aliasMap map[string][]string) {
 	flags.StringArrayVarP(&deployFlags.Tenants.Value, deployFlags.Tenants.Name, "", nil, "Deploy to this tenant (can be specified multiple times)")
 	flags.StringArrayVarP(&deployFlags.TenantTags.Value, deployFlags.TenantTags.Name, "", nil, "Deploy to tenants matching this tag (can be specified multiple times). Format is 'Tag Set Name/Tag Name', such as 'Regions/South'.")
 	flags.StringVarP(&deployFlags.DeployAt.Value, deployFlags.DeployAt.Name, "", "", "Deploy at a later time. Deploy now if omitted. TODO date formats and timezones!")
@@ -189,26 +218,15 @@ func NewCmdDeploy(f factory.Factory) *cobra.Command {
 	flags.StringArrayVarP(&deployFlags.DeploymentFreezeNames.Value, deployFlags.DeploymentFreezeNames.Name, "", nil, "Override this deployment freeze (can be specified multiple times)")
 	flags.StringVarP(&deployFlags.DeploymentFreezeOverrideReason.Value, deployFlags.DeploymentFreezeOverrideReason.Name, "", "", "Reason for overriding a deployment freeze")
 
-	flags.SortFlags = false
-
-	// flags aliases for compat with old .NET CLI
-	flagAliases := make(map[string][]string, 10)
-	util.AddFlagAliasesString(flags, FlagReleaseVersion, flagAliases, FlagAliasReleaseNumberLegacy)
-	util.AddFlagAliasesStringSlice(flags, FlagEnvironment, flagAliases, FlagAliasDeployToLegacy, FlagAliasEnv)
-	util.AddFlagAliasesStringSlice(flags, FlagTenantTag, flagAliases, FlagAliasTag, FlagAliasTenantTagLegacy)
-	util.AddFlagAliasesString(flags, FlagDeployAt, flagAliases, FlagAliasWhen, FlagAliasDeployAtLegacy)
-	util.AddFlagAliasesString(flags, FlagDeployAtExpiry, flagAliases, FlagDeployAtExpire, FlagAliasNoDeployAfterLegacy)
-	util.AddFlagAliasesString(flags, FlagUpdateVariables, flagAliases, FlagAliasUpdateVariablesLegacy)
-	util.AddFlagAliasesString(flags, FlagGuidedFailure, flagAliases, FlagAliasGuidedFailureMode, FlagAliasGuidedFailureModeLegacy)
-	util.AddFlagAliasesBool(flags, FlagForcePackageDownload, flagAliases, FlagAliasForcePackageDownloadLegacy)
-	util.AddFlagAliasesStringSlice(flags, FlagDeploymentTarget, flagAliases, FlagAliasTarget, FlagAliasSpecificMachines)
-	util.AddFlagAliasesStringSlice(flags, FlagExcludeDeploymentTarget, flagAliases, FlagAliasExcludeTarget, FlagAliasExcludeMachines)
-
-	cmd.PreRunE = func(cmd *cobra.Command, _ []string) error {
-		util.ApplyFlagAliases(cmd.Flags(), flagAliases)
-		return nil
-	}
-	return cmd
+	// add the common aliases
+	util.AddFlagAliasesStringSlice(flags, FlagTenantTag, aliasMap, FlagAliasTag, FlagAliasTenantTagLegacy)
+	util.AddFlagAliasesString(flags, FlagDeployAt, aliasMap, FlagAliasWhen, FlagAliasDeployAtLegacy)
+	util.AddFlagAliasesString(flags, FlagDeployAtExpiry, aliasMap, FlagDeployAtExpire, FlagAliasNoDeployAfterLegacy)
+	util.AddFlagAliasesBool(flags, FlagUpdateVariables, aliasMap, FlagAliasUpdateVariablesLegacy)
+	util.AddFlagAliasesString(flags, FlagGuidedFailure, aliasMap, FlagAliasGuidedFailureMode, FlagAliasGuidedFailureModeLegacy)
+	util.AddFlagAliasesBool(flags, FlagForcePackageDownload, aliasMap, FlagAliasForcePackageDownloadLegacy)
+	util.AddFlagAliasesStringSlice(flags, FlagDeploymentTarget, aliasMap, FlagAliasTarget, FlagAliasSpecificMachines)
+	util.AddFlagAliasesStringSlice(flags, FlagExcludeDeploymentTarget, aliasMap, FlagAliasExcludeTarget, FlagAliasExcludeMachines)
 }
 
 func deployRun(cmd *cobra.Command, f factory.Factory, flags *DeployFlags) error {
@@ -226,31 +244,16 @@ func deployRun(cmd *cobra.Command, f factory.Factory, flags *DeployFlags) error 
 		return err
 	}
 
-	parsedVariables, err := executionscommon.ParseVariableStringArray(flags.Variables.Value)
+	baseOptions, err := NewBaseTaskOptionsDeployRelease(flags.CommonDeployFlags)
 	if err != nil {
 		return err
 	}
 
 	options := &executor.TaskOptionsDeployRelease{
-		ProjectName:                    flags.Project.Value,
-		ReleaseVersion:                 flags.ReleaseVersion.Value,
-		Environments:                   flags.Environments.Value,
-		Tenants:                        flags.Tenants.Value,
-		TenantTags:                     flags.TenantTags.Value,
-		ScheduledStartTime:             flags.DeployAt.Value,
-		ScheduledExpiryTime:            flags.MaxQueueTime.Value,
-		ExcludedSteps:                  flags.ExcludedSteps.Value,
-		GuidedFailureMode:              flags.GuidedFailureMode.Value,
-		Priority:                       flags.Priority.Value,
-		ForcePackageDownload:           flags.ForcePackageDownload.Value,
-		DeploymentTargets:              flags.DeploymentTargets.Value,
-		ExcludeTargets:                 flags.ExcludeTargets.Value,
-		SpecificTargetTagNames:         flags.SpecificTargetTagNames.Value,
-		ExcludedTargetTagNames:         flags.ExcludedTargetTagNames.Value,
-		DeploymentFreezeNames:          flags.DeploymentFreezeNames.Value,
-		DeploymentFreezeOverrideReason: flags.DeploymentFreezeOverrideReason.Value,
-		Variables:                      parsedVariables,
-		UpdateVariables:                flags.UpdateVariables.Value,
+		ProjectName:                  flags.Project.Value,
+		ReleaseVersion:               flags.ReleaseVersion.Value,
+		Environments:                 flags.Environments.Value,
+		BaseTaskOptionsDeployRelease: *baseOptions,
 	}
 
 	// special case for FlagForcePackageDownload bool so we can tell if it was set on the cmdline or missing
@@ -356,47 +359,50 @@ func deployRun(cmd *cobra.Command, f factory.Factory, flags *DeployFlags) error 
 	}
 
 	if options.Response != nil {
-		switch outputFormat {
-		case constants.OutputFormatBasic:
-			for _, task := range options.Response.DeploymentServerTasks {
-				cmd.Printf("%s\n", task.ServerTaskID)
-			}
-
-		case constants.OutputFormatJson:
-			data, err := json.Marshal(options.Response.DeploymentServerTasks)
-			if err != nil { // shouldn't happen but fallback in case
-				cmd.PrintErrln(err)
-			} else {
-				_, _ = cmd.OutOrStdout().Write(data)
-				cmd.Println()
-			}
-		default: // table
-			cmd.Printf("Successfully started %d deployment(s)\n", len(options.Response.DeploymentServerTasks))
-		}
-
-		// output web URL all the time, so long as output format is not JSON or basic
-		if err == nil && !constants.IsProgrammaticOutputFormat(outputFormat) {
-			releaseID := options.ReleaseID
-			if releaseID == "" {
-				// we may already have the release ID from AskQuestions. If not, we need to go and look up the release ID to link to it
-				// which needs the project ID. Errors here are ignorable; it's not the end of the world if we can't print the web link
-				prj, err := selectors.FindProject(octopus, options.ProjectName)
+		releaseID := options.ReleaseID
+		// we only resolve the release id if we aren't showing programmatic output
+		if releaseID == "" && !constants.IsProgrammaticOutputFormat(outputFormat) {
+			// we may already have the release ID from AskQuestions. If not, we need to go and look up the release ID to link to it
+			// which needs the project ID. Errors here are ignorable; it's not the end of the world if we can't print the web link
+			prj, err := selectors.FindProject(octopus, options.ProjectName)
+			if err == nil {
+				rel, err := releases.GetReleaseInProject(octopus, f.GetCurrentSpace().ID, prj.ID, options.ReleaseVersion)
 				if err == nil {
-					rel, err := releases.GetReleaseInProject(octopus, f.GetCurrentSpace().ID, prj.ID, options.ReleaseVersion)
-					if err == nil {
-						releaseID = rel.ID
-					}
+					releaseID = rel.ID
 				}
 			}
-
-			if releaseID != "" {
-				link := output.Bluef("%s/app#/%s/releases/%s", f.GetCurrentHost(), f.GetCurrentSpace().ID, releaseID)
-				cmd.Printf("\nView this release on Octopus Deploy: %s\n", link)
-			}
 		}
+
+		OutputCreateDeploymentResponseV1(cmd, f, options.Response, releaseID, outputFormat)
 	}
 
 	return nil
+}
+
+func NewBaseTaskOptionsDeployRelease(commonFlags CommonDeployFlags) (*executor.BaseTaskOptionsDeployRelease, error) {
+	parsedVariables, err := executionscommon.ParseVariableStringArray(commonFlags.Variables.Value)
+	if err != nil {
+		return nil, err
+	}
+
+	return &executor.BaseTaskOptionsDeployRelease{
+		Tenants:                        commonFlags.Tenants.Value,
+		TenantTags:                     commonFlags.TenantTags.Value,
+		ScheduledStartTime:             commonFlags.DeployAt.Value,
+		ScheduledExpiryTime:            commonFlags.MaxQueueTime.Value,
+		ExcludedSteps:                  commonFlags.ExcludedSteps.Value,
+		GuidedFailureMode:              commonFlags.GuidedFailureMode.Value,
+		Priority:                       commonFlags.Priority.Value,
+		ForcePackageDownload:           commonFlags.ForcePackageDownload.Value,
+		DeploymentTargets:              commonFlags.DeploymentTargets.Value,
+		ExcludeTargets:                 commonFlags.ExcludeTargets.Value,
+		SpecificTargetTagNames:         commonFlags.SpecificTargetTagNames.Value,
+		ExcludedTargetTagNames:         commonFlags.ExcludedTargetTagNames.Value,
+		DeploymentFreezeNames:          commonFlags.DeploymentFreezeNames.Value,
+		DeploymentFreezeOverrideReason: commonFlags.DeploymentFreezeOverrideReason.Value,
+		Variables:                      parsedVariables,
+		UpdateVariables:                commonFlags.UpdateVariables.Value,
+	}, nil
 }
 
 func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker question.Asker, space *spaces.Space, options *executor.TaskOptionsDeployRelease, now func() time.Time) error {
@@ -1228,5 +1234,33 @@ func determineIsTenanted(project *projects.Project, ask question.Asker) (bool, e
 
 	default: // should not get here
 		return false, fmt.Errorf("unhandled tenanted deployment mode %s", project.TenantedDeploymentMode)
+	}
+}
+
+func OutputCreateDeploymentResponseV1(cmd *cobra.Command, f factory.Factory, response *deployments.CreateDeploymentResponseV1, releaseID string, outputFormat string) {
+	switch outputFormat {
+	case constants.OutputFormatBasic:
+		for _, task := range response.DeploymentServerTasks {
+			cmd.Printf("%s\n", task.ServerTaskID)
+		}
+
+	case constants.OutputFormatJson:
+		data, err := json.Marshal(response.DeploymentServerTasks)
+		if err != nil { // shouldn't happen but fallback in case
+			cmd.PrintErrln(err)
+		} else {
+			_, _ = cmd.OutOrStdout().Write(data)
+			cmd.Println()
+		}
+	default: // table
+		cmd.Printf("Successfully started %d deployment(s)\n", len(response.DeploymentServerTasks))
+	}
+
+	// output web URL all the time, so long as output format is not JSON or basic
+	if !constants.IsProgrammaticOutputFormat(outputFormat) {
+		if releaseID != "" {
+			link := output.Bluef("%s/app#/%s/releases/%s", f.GetCurrentHost(), f.GetCurrentSpace().ID, releaseID)
+			cmd.Printf("\nView this release on Octopus Deploy: %s\n", link)
+		}
 	}
 }

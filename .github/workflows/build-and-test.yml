@@ -1,4 +1,4 @@
-name: 'PR and Commit Validation'
+name: 'Build and Unit Test'
 on:
   workflow_dispatch:
   push:
