@@ -312,7 +312,7 @@ func releasePromote(octopus *client.Client, space *spaces.Space, input any) erro
 	}
 
 	// filter the dashboard items based on project & environment
-	// this is probably unnecessary, but it mimic's the existing logic
+	// this is probably unnecessary, but it mimics the existing logic
 	var dashboardItems []*dashboard.DashboardItem
 	for _, item := range dynamicDashboard.Items {
 		if item.EnvironmentID == sourceEnv.ID && item.ProjectID == proj.ID {
@@ -321,20 +321,7 @@ func releasePromote(octopus *client.Client, space *spaces.Space, input any) erro
 	}
 
 	// we need to order the dashboard items by the release so we get the latest release first
-	slices.SortFunc(dashboardItems, func(a, b *dashboard.DashboardItem) int {
-		aVersion, err := versioning.ParseOctopusVersion(a.ReleaseVersion)
-		if err != nil {
-			return -1
-		}
-
-		bVersion, err := versioning.ParseOctopusVersion(b.ReleaseVersion)
-		if err != nil {
-			return 1
-		}
-
-		// we multiply by -1 to order by descending
-		return versioning.Compare(aVersion, bVersion, (*versioning.OctopusVersion).Compare) * -1
-	})
+	slices.SortFunc(dashboardItems, compareDashboardItemsByRelease)
 
 	var dashboardItem *dashboard.DashboardItem
 	deploymentType := "deployment"
@@ -355,17 +342,12 @@ func releasePromote(octopus *client.Client, space *spaces.Space, input any) erro
 		return errors.New(fmt.Sprintf("Could not find the latest %[1]s of the project for this environment. Please check that a %[1]s for this project/environment exists on the dashboard.", deploymentType))
 	}
 
-	rel, err := releases.GetReleaseInProject(octopus, space.ID, proj.ID, dashboardItem.ReleaseVersion)
-	if err != nil {
-		return fmt.Errorf("release not found. %v", err)
-	}
-
-	params.ReleaseID = rel.ID
+	params.ReleaseID = dashboardItem.ID
 
 	deployOptions := &TaskOptionsDeployRelease{
 		BaseTaskOptionsDeployRelease: params.BaseTaskOptionsDeployRelease,
 		ProjectName:                  proj.ID,
-		ReleaseVersion:               rel.Version,
+		ReleaseVersion:               dashboardItem.ReleaseVersion,
 		Environments:                 []string{params.ToEnvironment},
 	}
 
@@ -375,4 +357,22 @@ func releasePromote(octopus *client.Client, space *spaces.Space, input any) erro
 	params.Response = deployOptions.Response
 
 	return err
+}
+
+func compareDashboardItemsByRelease(a, b *dashboard.DashboardItem) int {
+	aVersion, err1 := versioning.ParseOctopusVersion(a.ReleaseVersion)
+	bVersion, err2 := versioning.ParseOctopusVersion(b.ReleaseVersion)
+
+	if err1 != nil {
+		if err2 != nil {
+			return 0
+		}
+		return 1
+	}
+	if err2 != nil {
+		return -1
+	}
+
+	// we multiply by -1 to order by descending
+	return versioning.Compare(aVersion, bVersion, (*versioning.OctopusVersion).Compare) * -1
 }
