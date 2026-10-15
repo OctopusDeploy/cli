@@ -39,7 +39,11 @@ func NewCmdDisable(f factory.Factory) *cobra.Command {
 				args = append(args, "")
 			}
 
-			opts := NewDisableOptions(args, cmd.NewDependencies(f, c))
+			deps, err := cmd.NewDependencies(f, c)
+			if err != nil {
+				return err
+			}
+			opts := NewDisableOptions(args, deps)
 			return disableRun(opts)
 		},
 	}

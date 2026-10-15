@@ -76,7 +76,11 @@ func NewCmdUpload(f factory.Factory) *cobra.Command {
 			// any bare args are assumed to be package ids to upload build information for
 			uploadFlags.PackageId.Value = append(uploadFlags.PackageId.Value, args...)
 
-			opts := NewUploadOptions(uploadFlags, cmd.NewDependencies(f, c))
+			deps, err := cmd.NewDependencies(f, c)
+			if err != nil {
+				return err
+			}
+			opts := NewUploadOptions(uploadFlags, deps)
 			return uploadRun(opts)
 		},
 	}

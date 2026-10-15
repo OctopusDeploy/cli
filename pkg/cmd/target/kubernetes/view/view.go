@@ -25,7 +25,11 @@ func NewCmdView(f factory.Factory) *cobra.Command {
 			%[1]s deployment-target kubernetes view 'target-name'
 		`, constants.ExecutableName),
 		RunE: func(c *cobra.Command, args []string) error {
-			opts := shared.NewViewOptions(flags, cmd.NewDependencies(f, c), args, c)
+			deps, err := cmd.NewDependencies(f, c)
+			if err != nil {
+				return err
+			}
+			opts := shared.NewViewOptions(flags, deps, args, c)
 			return ViewRun(opts)
 		},
 	}

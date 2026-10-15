@@ -82,7 +82,10 @@ func NewCmdWait(f factory.Factory) *cobra.Command {
 		Example: heredoc.Docf("%s task wait", constants.ExecutableName),
 		RunE: func(c *cobra.Command, args []string) error {
 			taskIDs := ResolveTaskIDs(args, util.ReadValuesFromPipe)
-			dependencies := cmd.NewDependencies(f, c)
+			dependencies, err := cmd.NewDependencies(f, c)
+			if err != nil {
+				return err
+			}
 			opts := NewWaitOps(dependencies, taskIDs, timeout, pollInterval, cancelOnTimeout, showProgress, c)
 
 			return WaitRun(opts)

@@ -37,7 +37,11 @@ func NewCmdList(f factory.Factory) *cobra.Command {
 		Aliases: []string{"ls"},
 		Example: heredoc.Docf("%s worker list", constants.ExecutableName),
 		RunE: func(c *cobra.Command, args []string) error {
-			return ListRun(NewListOptions(cmd.NewDependencies(f, c), c, nil))
+			deps, err := cmd.NewDependencies(f, c)
+			if err != nil {
+				return err
+			}
+			return ListRun(NewListOptions(deps, c, nil))
 		},
 	}
 

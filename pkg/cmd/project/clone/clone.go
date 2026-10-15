@@ -76,7 +76,11 @@ func NewCmdClone(f factory.Factory) *cobra.Command {
 			%[1]s project clone --name 'Deploy web app 2' --source 'Deploy web app' --lifecycle 'Test Only Lifecycle' --group 'Web App Project Group'
 		`, constants.ExecutableName),
 		RunE: func(c *cobra.Command, _ []string) error {
-			opts := NewCloneOptions(createFlags, cmd.NewDependencies(f, c))
+			deps, err := cmd.NewDependencies(f, c)
+			if err != nil {
+				return err
+			}
+			opts := NewCloneOptions(createFlags, deps)
 
 			return cloneRun(opts)
 		},

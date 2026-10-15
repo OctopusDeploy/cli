@@ -43,7 +43,11 @@ func NewCmdTag(f factory.Factory) *cobra.Command {
 		Long:    "Override tags for a project in Octopus Deploy",
 		Example: heredoc.Docf("%s project tag Project-1", constants.ExecutableName),
 		RunE: func(c *cobra.Command, _ []string) error {
-			opts := NewTagOptions(createFlags, cmd.NewDependencies(f, c))
+			deps, err := cmd.NewDependencies(f, c)
+			if err != nil {
+				return err
+			}
+			opts := NewTagOptions(createFlags, deps)
 
 			return createRun(opts)
 		},

@@ -67,7 +67,11 @@ func NewCmdPrevent(f factory.Factory) *cobra.Command {
 		`, constants.ExecutableName),
 		Aliases: []string{"prevent-releaseprogression"},
 		RunE: func(c *cobra.Command, _ []string) error {
-			opts := NewPreventOptions(preventFlags, cmd.NewDependencies(f, c))
+			deps, err := cmd.NewDependencies(f, c)
+			if err != nil {
+				return err
+			}
+			opts := NewPreventOptions(preventFlags, deps)
 			return createReleaseDefectRun(opts)
 		},
 	}

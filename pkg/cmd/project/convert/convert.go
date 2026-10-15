@@ -116,7 +116,11 @@ func NewCmdConvert(f factory.Factory) *cobra.Command {
 			%[1]s project convert --project "Deploy web site" --git-url https://github.com/orgname/reponame"
 		`, constants.ExecutableName),
 		RunE: func(c *cobra.Command, args []string) error {
-			opts := NewConvertOptions(convertProjectFlags, cmd.NewDependencies(f, c))
+			deps, err := cmd.NewDependencies(f, c)
+			if err != nil {
+				return err
+			}
+			opts := NewConvertOptions(convertProjectFlags, deps)
 			return convertRun(opts)
 		},
 	}

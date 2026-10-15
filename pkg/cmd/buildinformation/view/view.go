@@ -59,7 +59,11 @@ func NewCmdView(f factory.Factory) *cobra.Command {
 			%[1]s build-info view BuildInformation-1
 		`, constants.ExecutableName),
 		RunE: func(c *cobra.Command, args []string) error {
-			opts := NewViewOptions(viewFlags, cmd.NewDependencies(f, c))
+			deps, err := cmd.NewDependencies(f, c)
+			if err != nil {
+				return err
+			}
+			opts := NewViewOptions(viewFlags, deps)
 
 			if len(args) == 0 {
 				return fmt.Errorf("build information identifier is required")

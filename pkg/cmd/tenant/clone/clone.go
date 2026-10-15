@@ -70,7 +70,11 @@ func NewCmdClone(f factory.Factory) *cobra.Command {
 			%[1]s tenant clone --name "Gary's Cakes" --source-tenant "Bob's Wood Shop" 
 		`, constants.ExecutableName),
 		RunE: func(c *cobra.Command, args []string) error {
-			opts := NewCloneOptions(cloneFlags, cmd.NewDependencies(f, c))
+			deps, err := cmd.NewDependencies(f, c)
+			if err != nil {
+				return err
+			}
+			opts := NewCloneOptions(cloneFlags, deps)
 
 			return cloneRun(opts)
 		},

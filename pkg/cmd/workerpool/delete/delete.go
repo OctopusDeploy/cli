@@ -44,7 +44,10 @@ func NewCmdDelete(f factory.Factory) *cobra.Command {
 			%[1]s worker-pool rm
 		`, constants.ExecutableName),
 		RunE: func(c *cobra.Command, args []string) error {
-			deps := cmd.NewDependencies(f, c)
+			deps, err := cmd.NewDependencies(f, c)
+			if err != nil {
+				return err
+			}
 
 			if util.Empty(args) {
 				opts := NewDeleteOptions(deps)

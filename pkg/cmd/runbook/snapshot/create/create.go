@@ -100,7 +100,11 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 			%[1]s runbook snapshot create -p MyProject -r "Restart App" --git-resource "Script step from Git:refs/heads/dev-branch" --publish --no-prompt
 		`, constants.ExecutableName),
 		RunE: func(c *cobra.Command, args []string) error {
-			opts := NewCreateOptions(createFlags, cmd.NewDependencies(f, c))
+			deps, err := cmd.NewDependencies(f, c)
+			if err != nil {
+				return err
+			}
+			opts := NewCreateOptions(createFlags, deps)
 			outputFormat, err := c.Flags().GetString(constants.FlagOutputFormat)
 			if err != nil {
 				outputFormat = constants.OutputFormatTable

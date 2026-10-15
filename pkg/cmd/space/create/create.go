@@ -12,7 +12,6 @@ import (
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/users"
 	"github.com/spf13/cobra"
 
-	"github.com/OctopusDeploy/cli/pkg/apiclient"
 	"github.com/OctopusDeploy/cli/pkg/cmd"
 	"github.com/OctopusDeploy/cli/pkg/cmd/tenant/shared"
 	"github.com/OctopusDeploy/cli/pkg/constants"
@@ -46,20 +45,19 @@ type CreateOptions struct {
 	GetAllUsersCallback  shared.GetAllUsersCallback
 }
 
-func NewCreateOptions(f factory.Factory, flags *CreateFlags, c *cobra.Command) *CreateOptions {
-	dependencies := cmd.NewSystemDependencies(f, c)
-	client, err := f.GetSystemClient(apiclient.NewRequester(c))
-	dependencies.Client = client // override the default space client
+func NewCreateOptions(f factory.Factory, flags *CreateFlags, c *cobra.Command) (*CreateOptions, error) {
+	dependencies, err := cmd.NewSystemDependencies(f, c)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
+	client := dependencies.Client
 	return &CreateOptions{
 		CreateFlags:          flags,
 		Dependencies:         dependencies,
 		GetAllSpacesCallback: func() ([]*spaces.Space, error) { return shared.GetAllSpaces(*client) },
 		GetAllTeamsCallback:  func() ([]*teams.Team, error) { return shared.GetAllTeams(*client) },
 		GetAllUsersCallback:  func() ([]*users.User, error) { return shared.GetAllUsers(*client) },
-	}
+	}, nil
 }
 
 func NewCreateFlags() *CreateFlags {
@@ -80,7 +78,10 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 		Example: heredoc.Docf("%s space create", constants.ExecutableName),
 		Aliases: []string{"new"},
 		RunE: func(c *cobra.Command, args []string) error {
-			opts := NewCreateOptions(f, createFlags, c)
+			opts, err := NewCreateOptions(f, createFlags, c)
+			if err != nil {
+				return err
+			}
 
 			return createRun(opts)
 		},

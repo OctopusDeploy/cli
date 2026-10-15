@@ -62,7 +62,11 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 			%[1]s project create --name 'Deploy web app' --lifecycle 'Default Lifecycle' --group 'Default Project Group'
 		`, constants.ExecutableName),
 		RunE: func(c *cobra.Command, _ []string) error {
-			opts := NewCreateOptions(createFlags, cmd.NewDependencies(f, c))
+			deps, err := cmd.NewDependencies(f, c)
+			if err != nil {
+				return err
+			}
+			opts := NewCreateOptions(createFlags, deps)
 
 			return createRun(opts)
 		},

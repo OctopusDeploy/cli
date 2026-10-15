@@ -67,7 +67,11 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 			%[1]s channel create --name "The Channel" --project "The Project" --lifecycle "Default Lifecycle" --default
 		`, constants.ExecutableName),
 		RunE: func(c *cobra.Command, args []string) error {
-			opts := NewCreateOptions(createFlags, cmd.NewDependencies(f, c))
+			deps, err := cmd.NewDependencies(f, c)
+			if err != nil {
+				return err
+			}
+			opts := NewCreateOptions(createFlags, deps)
 
 			return createRun(opts)
 		},

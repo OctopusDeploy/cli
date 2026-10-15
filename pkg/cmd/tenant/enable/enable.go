@@ -39,7 +39,11 @@ func NewCmdEnable(f factory.Factory) *cobra.Command {
 				args = append(args, "")
 			}
 
-			opts := NewEnableOptions(args, cmd.NewDependencies(f, c))
+			deps, err := cmd.NewDependencies(f, c)
+			if err != nil {
+				return err
+			}
+			opts := NewEnableOptions(args, deps)
 			return enableRun(opts)
 		},
 	}

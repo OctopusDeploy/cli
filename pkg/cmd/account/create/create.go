@@ -45,7 +45,10 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 }
 
 func createRun(f factory.Factory, c *cobra.Command) error {
-	dependencies := cmd.NewDependencies(f, c)
+	dependencies, err := cmd.NewDependencies(f, c)
+	if err != nil {
+		return err
+	}
 
 	accountTypes := []string{
 		AwsAccount,
@@ -58,7 +61,7 @@ func createRun(f factory.Factory, c *cobra.Command) error {
 	}
 
 	var accountType string
-	err := f.Ask(&survey.Select{
+	err = f.Ask(&survey.Select{
 		Help:    "The type of account being created.",
 		Message: "Account Type",
 		Options: accountTypes,

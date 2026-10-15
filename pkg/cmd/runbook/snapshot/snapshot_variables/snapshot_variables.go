@@ -65,7 +65,11 @@ func NewCmdSnapshotVariables(f factory.Factory) *cobra.Command {
 			$ %[1]s runbook snapshot snapshot-variables --project MyProject --runbook "Rebuild DB Indexes" --snapshot "Snapshot 40C9ENM"
 		`, constants.ExecutableName),
 		RunE: func(c *cobra.Command, args []string) error {
-			opts := NewSnapshotVariablesOptions(snapshotVariablesFlags, cmd.NewDependencies(f, c))
+			deps, err := cmd.NewDependencies(f, c)
+			if err != nil {
+				return err
+			}
+			opts := NewSnapshotVariablesOptions(snapshotVariablesFlags, deps)
 			return snapshotVariablesRun(opts)
 		},
 	}

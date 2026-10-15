@@ -22,7 +22,10 @@ func NewCmdList(f factory.Factory) *cobra.Command {
 		`, constants.ExecutableName),
 		Aliases: []string{"ls"},
 		RunE: func(c *cobra.Command, args []string) error {
-			dependencies := cmd.NewDependencies(f, c)
+			dependencies, err := cmd.NewDependencies(f, c)
+			if err != nil {
+				return err
+			}
 			options := list.NewListOptions(dependencies, c, machines.MachinesQuery{DeploymentTargetTypes: []string{"TentaclePassive"}})
 			return list.ListRun(options)
 		},
