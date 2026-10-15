@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"os"
 	"strings"
 
 	"github.com/MakeNowJust/heredoc/v2"
@@ -28,16 +29,16 @@ func NewCmdCall(f factory.Factory) *cobra.Command {
 		Long:  "Call a tool exposed by the Octopus Server's MCP endpoint and print its result",
 		Example: heredoc.Docf(`
 			%[1]s mcp call get_current_user
-			%[1]s mcp call find_projects --params '{"SpaceId": "Spaces-1", "PartialName": "web"}'
-			%[1]s mcp call find_projects --params '{"SpaceId": "Spaces-1"}' -f json
+			%[1]s mcp call find_projects --space Default --params '{"PartialName": "web"}'
+			%[1]s mcp call find_projects --params '{"SpaceId": "Spaces-2"}' -f json
+			%[1]s mcp call create_release --space Default --params @release.json
+			echo '{"PartialName": "web"}' | %[1]s mcp call find_projects --space Default --params -
 		`, constants.ExecutableName),
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			arguments := map[string]any{}
-			if strings.TrimSpace(params) != "" {
-				if err := json.Unmarshal([]byte(params), &arguments); err != nil {
-					return fmt.Errorf("--%s must be a JSON object: %w", FlagParams, err)
-				}
+			arguments, err := readParams(params, cmd.InOrStdin())
+			if err != nil {
+				return err
 			}
 
 			result, err := mcpclient.CallTool(cmd.Context(), f, apiclient.NewRequester(cmd), cmd.ErrOrStderr(), args[0], arguments)
@@ -59,8 +60,45 @@ func NewCmdCall(f factory.Factory) *cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringVarP(&params, FlagParams, "p", "", "The tool's arguments, as a JSON object")
+	cmd.Flags().StringVarP(&params, FlagParams, "p", "", "The tool's arguments, as a JSON object. Use @path to read them from a file, or - to read them from stdin")
 	return cmd
+}
+
+// readParams parses the tool's arguments from the --params value: inline JSON, @path to read a file, or - for stdin.
+// Reading from a file or stdin saves callers from quoting JSON for their shell.
+func readParams(value string, stdin io.Reader) (map[string]any, error) {
+	source := "--" + FlagParams
+	var raw []byte
+	switch {
+	case value == "-":
+		b, err := io.ReadAll(stdin)
+		if err != nil {
+			return nil, fmt.Errorf("cannot read %s from stdin: %w", source, err)
+		}
+		raw, source = b, "the JSON on stdin"
+	case strings.HasPrefix(value, "@"):
+		path := strings.TrimPrefix(value, "@")
+		b, err := os.ReadFile(path)
+		if err != nil {
+			return nil, fmt.Errorf("cannot read %s: %w", source, err)
+		}
+		raw, source = b, fmt.Sprintf("the JSON in '%s'", path)
+	default:
+		raw = []byte(value)
+	}
+
+	arguments := map[string]any{}
+	if strings.TrimSpace(string(raw)) == "" {
+		return arguments, nil
+	}
+	if err := json.Unmarshal(raw, &arguments); err != nil {
+		return nil, fmt.Errorf("%s must be a JSON object: %w", source, err)
+	}
+	// "null" unmarshals without error but leaves us with no map
+	if arguments == nil {
+		return nil, fmt.Errorf("%s must be a JSON object, not null", source)
+	}
+	return arguments, nil
 }
 
 // printJson prints the tool's structured result if it has one, otherwise its content blocks
