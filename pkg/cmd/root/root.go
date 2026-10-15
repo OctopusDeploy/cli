@@ -11,6 +11,7 @@ import (
 	channelCmd "github.com/OctopusDeploy/cli/pkg/cmd/channel"
 	configCmd "github.com/OctopusDeploy/cli/pkg/cmd/config"
 	environmentCmd "github.com/OctopusDeploy/cli/pkg/cmd/environment"
+	kubernetesCmd "github.com/OctopusDeploy/cli/pkg/cmd/kubernetes"
 	ephemeralEnvironmentCmd "github.com/OctopusDeploy/cli/pkg/cmd/ephemeralenvironment"
 	loginCmd "github.com/OctopusDeploy/cli/pkg/cmd/login"
 	logoutCmd "github.com/OctopusDeploy/cli/pkg/cmd/logout"
@@ -79,6 +80,9 @@ func NewCmdRoot(f factory.Factory, clientFactory apiclient.ClientFactory, askPro
 	cmd.AddCommand(runbookCmd.NewCmdRunbook(f))
 
 	cmd.AddCommand(apiCmd.NewCmdAPI(f))
+
+	// observability
+	cmd.AddCommand(kubernetesCmd.NewCmdKubernetes(f))
 
 	// ----- Configuration -----
 
