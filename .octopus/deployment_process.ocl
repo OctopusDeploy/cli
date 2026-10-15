@@ -194,6 +194,102 @@ step "push-homebrew-formula-updates-to-the-homebrew-taps-repo" {
     }
 }
 
+step "push-scoop-manifest-to-the-scoop-bucket-repo" {
+    name = "Push scoop manifest to the scoop bucket repo"
+    start_trigger = "StartWithPrevious"
+
+    action {
+        action_type = "Octopus.Script"
+        environments = ["production"]
+        properties = {
+            Octopus.Action.Script.ScriptBody = <<-EOT
+                # push-scoop-manifest.ps1
+                param(
+                    [String]$packageVersion, # e.g. "0.2.2"
+                    [String]$extractedPath, # e.g.  "C:\Users\Orion\Downloads\octopus-cli.0.2.2"
+                    [String]$githubtoken
+                )
+
+                $ErrorActionPreference = "Stop"
+
+                $repo = "OctopusDeploy/scoop-octopus"
+                $origin = "https://github.com/$repo"
+
+                if ($OctopusParameters) {
+                    $packageVersion = $OctopusParameters["Octopus.Action.Package[cli].PackageVersion"]
+                    $extractedPath = $OctopusParameters["Octopus.Action.Package[cli].ExtractedPath"]
+                    $gitUserName = $OctopusParameters["Publish:Scoop:Username"]
+                    $gitUserEmail = $OctopusParameters["Publish:Scoop:UserEmail"]
+
+                    $githubtoken = $OctopusParameters["Publish:Scoop:ApiKey"]
+                    $origin = "https://$($gitUserName):$($githubtoken)@github.com/$repo"
+
+                }
+
+                if ([string]::IsNullOrWhiteSpace($packageVersion) -or [string]::IsNullOrWhiteSpace($extractedPath)) {
+                    throw "Error: packageVersion or extractedPath are not set"
+                }
+
+                Write-Host "Using: packageVersion $packageVersion from $extractedPath"
+
+                git clone --depth 1 $origin octopus-scoop-bucket
+                if ($LASTEXITCODE -ne 0) { throw "Failed to clone $repo" }
+
+                Set-Location octopus-scoop-bucket
+
+                if ($gitUserName) {
+                    git config user.name $gitUserName
+                    git config user.email $gitUserEmail
+                }
+
+                # a scoop bucket is machine-maintained; commit straight to the default branch
+                New-Item -ItemType Directory -Path "bucket" -Force | Out-Null
+                Copy-Item -Path "$extractedPath/scoop/*" -Filter "*.json" -Destination "bucket" -Force
+
+                # On the first release the manifest is a new, untracked file, and neither
+                # `git diff-index HEAD` nor `git commit -a` looks at untracked files. Stage
+                # it first, then compare the index against HEAD.
+                git add bucket
+                if ($LASTEXITCODE -ne 0) { throw "Failed to stage the manifest" }
+
+                git diff-index --quiet --cached HEAD
+                if ($LASTEXITCODE -eq 0) {
+                    Write-Host "Manifest already matches $packageVersion; nothing to publish."
+                    Set-Location ..
+                    exit 0
+                }
+
+                git commit -m "Update for release $packageVersion"
+                if ($LASTEXITCODE -ne 0) { throw "Failed to commit the manifest update" }
+
+                git push --repo $origin
+                if ($LASTEXITCODE -ne 0) { throw "Failed to push the manifest update" }
+
+                Set-Location ..
+                EOT
+            Octopus.Action.Script.ScriptSource = "Inline"
+            Octopus.Action.Script.Syntax = "PowerShell"
+        }
+        worker_pool = "hosted-ubuntu"
+
+        container {
+            feed = "docker-hub"
+            image = "octopusdeploy/worker-tools:6.6.4-ubuntu.24.04"
+        }
+
+        packages "cli" {
+            acquisition_location = "Server"
+            feed = "octopus-server-built-in"
+            package_id = "octopus-cli"
+            properties = {
+                Extract = "True"
+                Purpose = ""
+                SelectionMode = "immediate"
+            }
+        }
+    }
+}
+
 step "publish-to-apt-repo" {
     name = "Publish to APT repo"
     start_trigger = "StartWithPrevious"

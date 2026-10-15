@@ -80,6 +80,7 @@ jobs:
           dist/*.rpm
           dist/*.deb
           dist/**/*.rb
+          dist/scoop/*.json
 
   msi:
     needs: goreleaser
