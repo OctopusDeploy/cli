@@ -125,7 +125,6 @@ type DeployFlags struct {
 	Project        *flag.Flag[string]
 	ReleaseVersion *flag.Flag[string]   // the release to deploy
 	Environments   *flag.Flag[[]string] // multiple for untenanted deployment
-
 }
 
 func NewDeployFlags() *DeployFlags {
@@ -157,6 +156,7 @@ func NewCommonDeployFlags() CommonDeployFlags {
 		DeploymentFreezeOverrideReason: flag.New[string](FlagDeploymentFreezeOverrideReason, false),
 	}
 }
+
 func NewCmdDeploy(f factory.Factory) *cobra.Command {
 	deployFlags := NewDeployFlags()
 	cmd := &cobra.Command{
@@ -218,7 +218,7 @@ func AddCommonFlagsAndAliases(flags *pflag.FlagSet, deployFlags *CommonDeployFla
 	flags.StringArrayVarP(&deployFlags.DeploymentFreezeNames.Value, deployFlags.DeploymentFreezeNames.Name, "", nil, "Override this deployment freeze (can be specified multiple times)")
 	flags.StringVarP(&deployFlags.DeploymentFreezeOverrideReason.Value, deployFlags.DeploymentFreezeOverrideReason.Name, "", "", "Reason for overriding a deployment freeze")
 
-	//add the common aliases
+	// add the common aliases
 	util.AddFlagAliasesStringSlice(flags, FlagTenantTag, aliasMap, FlagAliasTag, FlagAliasTenantTagLegacy)
 	util.AddFlagAliasesString(flags, FlagDeployAt, aliasMap, FlagAliasWhen, FlagAliasDeployAtLegacy)
 	util.AddFlagAliasesString(flags, FlagDeployAtExpiry, aliasMap, FlagDeployAtExpire, FlagAliasNoDeployAfterLegacy)

@@ -1661,7 +1661,8 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 					DeploymentTargets:      []string{"vm-1"},
 					SpecificTargetTagNames: []string{"Role/WebServer", "Environment/Production"},
 					ExcludedTargetTagNames: nil,
-					ScheduledStartTime:     "now"},
+					ScheduledStartTime:     "now",
+				},
 			}, options)
 		}},
 
@@ -1675,7 +1676,8 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 					ExcludedSteps:      []string{"Cleanup"},
 					GuidedFailureMode:  "false",
 					DeploymentTargets:  []string{"vm-1"},
-					ScheduledStartTime: "now"},
+					ScheduledStartTime: "now",
+				},
 			}
 
 			errReceiver := testutil.GoBegin(func() error {
@@ -1745,7 +1747,8 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 					DeploymentTargets:      []string{"vm-1"},
 					SpecificTargetTagNames: nil,
 					ExcludedTargetTagNames: []string{"Role/Legacy"},
-					ScheduledStartTime:     "now"},
+					ScheduledStartTime:     "now",
+				},
 			}, options)
 		}},
 	}
