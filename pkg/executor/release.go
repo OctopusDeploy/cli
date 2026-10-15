@@ -3,6 +3,7 @@ package executor
 import (
 	"errors"
 	"fmt"
+	"math"
 	"slices"
 	"strconv"
 	"strings"
@@ -275,13 +276,21 @@ func releasePromote(octopus *client.Client, space *spaces.Space, input any) erro
 		return fmt.Errorf("project not found. %v", err)
 	}
 
-	envs, err := environments.Get(octopus, space.ID, environments.EnvironmentQuery{IDs: []string{params.FromEnvironment}})
+	envs, err := environments.Get(octopus, space.ID, environments.EnvironmentQuery{
+		IDs:  []string{params.FromEnvironment},
+		Skip: 0,
+		Take: math.MaxInt32,
+	})
 	if err != nil {
 		return fmt.Errorf("environment not found. %v", err)
 	}
 	//
 	if len(envs.Items) == 0 {
-		envs, err = environments.Get(octopus, space.ID, environments.EnvironmentQuery{Name: params.FromEnvironment})
+		envs, err = environments.Get(octopus, space.ID, environments.EnvironmentQuery{
+			Name: params.FromEnvironment,
+			Skip: 0,
+			Take: math.MaxInt32,
+		})
 		if err != nil || len(envs.Items) == 0 {
 			return fmt.Errorf("environment not found. %v", err)
 		}
