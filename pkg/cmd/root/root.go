@@ -28,6 +28,7 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/cmd/version"
 	workerCmd "github.com/OctopusDeploy/cli/pkg/cmd/worker"
 	workerPoolCmd "github.com/OctopusDeploy/cli/pkg/cmd/workerpool"
+	"github.com/OctopusDeploy/cli/pkg/config"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/OctopusDeploy/cli/pkg/question"
@@ -80,7 +81,9 @@ func NewCmdRoot(f factory.Factory, clientFactory apiclient.ClientFactory, askPro
 	cmd.AddCommand(runbookCmd.NewCmdRunbook(f))
 
 	cmd.AddCommand(apiCmd.NewCmdAPI(f))
-	cmd.AddCommand(mcpCmd.NewCmdMcp(f))
+	if config.IsMcpEnabled() {
+		cmd.AddCommand(mcpCmd.NewCmdMcp(f))
+	}
 
 	// ----- Configuration -----
 

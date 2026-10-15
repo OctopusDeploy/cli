@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 
 	"github.com/spf13/viper"
@@ -48,8 +49,10 @@ func bindEnvironment(v *viper.Viper) error {
 	if err := v.BindEnv(constants.ConfigAccessToken, constants.EnvOctopusAccessToken); err != nil {
 		return err
 	}
-	if err := v.BindEnv(constants.ConfigMcpApiKey, constants.EnvOctopusMcpApiKey); err != nil {
-		return err
+	if IsMcpEnabled() {
+		if err := v.BindEnv(constants.ConfigMcpApiKey, constants.EnvOctopusMcpApiKey); err != nil {
+			return err
+		}
 	}
 	if err := v.BindEnv(constants.ConfigUrl, constants.EnvOctopusUrl); err != nil {
 		return err
@@ -123,6 +126,13 @@ func getConfigPath() (string, error) {
 	}
 	configPath := filepath.Join(home, ".config", "octopus")
 	return configPath, nil
+}
+
+// IsMcpEnabled reports whether the experimental MCP commands are switched on, by setting OCTOPUS_CLI_ENABLE_MCP to true.
+// When they're off, the CLI doesn't expose them or their config at all.
+func IsMcpEnabled() bool {
+	enabled, _ := strconv.ParseBool(os.Getenv(constants.EnvOctopusCliEnableMcp))
+	return enabled
 }
 
 func IsValidKey(key string) bool {

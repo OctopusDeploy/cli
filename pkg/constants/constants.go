@@ -42,14 +42,15 @@ const (
 )
 
 const (
-	EnvOctopusUrl         = "OCTOPUS_URL"
-	EnvOctopusApiKey      = "OCTOPUS_API_KEY"
-	EnvOctopusAccessToken = "OCTOPUS_ACCESS_TOKEN"
-	EnvOctopusMcpApiKey   = "OCTOPUS_MCP_API_KEY"
-	EnvOctopusSpace       = "OCTOPUS_SPACE"
-	EnvEditor             = "EDITOR"
-	EnvVisual             = "VISUAL"
-	EnvCI                 = "CI"
+	EnvOctopusUrl          = "OCTOPUS_URL"
+	EnvOctopusApiKey       = "OCTOPUS_API_KEY"
+	EnvOctopusAccessToken  = "OCTOPUS_ACCESS_TOKEN"
+	EnvOctopusMcpApiKey    = "OCTOPUS_MCP_API_KEY"
+	EnvOctopusCliEnableMcp = "OCTOPUS_CLI_ENABLE_MCP"
+	EnvOctopusSpace        = "OCTOPUS_SPACE"
+	EnvEditor              = "EDITOR"
+	EnvVisual              = "VISUAL"
+	EnvCI                  = "CI"
 )
 
 const (
