@@ -75,7 +75,11 @@ func NewDeleteCmd(f factory.Factory) *cobra.Command {
 			%[1]s project variable delete --name "variable Name" --project "Deploy Site" --git-ref "refs/heads/main"
 		`, constants.ExecutableName),
 		RunE: func(c *cobra.Command, args []string) error {
-			opts := NewDeleteOptions(deleteFlags, cmd.NewDependencies(f, c))
+			deps, err := cmd.NewDependencies(f, c)
+			if err != nil {
+				return err
+			}
+			opts := NewDeleteOptions(deleteFlags, deps)
 
 			return DeleteRun(opts)
 		},

@@ -111,7 +111,11 @@ func NewCmdUpdate(f factory.Factory) *cobra.Command {
 			%[1]s tenant variables update --tenant "Sally's Tackle Truck" --name dbPassword --value "12345" --library-variable-set "Shared Variables"
 			`, constants.ExecutableName),
 		RunE: func(c *cobra.Command, args []string) error {
-			opts := NewUpdateOptions(updateFlags, cmd.NewDependencies(f, c))
+			deps, err := cmd.NewDependencies(f, c)
+			if err != nil {
+				return err
+			}
+			opts := NewUpdateOptions(updateFlags, deps)
 
 			toggleValue, _ := opts.FeatureToggleCallback("CommonVariableScopingFeatureToggle")
 

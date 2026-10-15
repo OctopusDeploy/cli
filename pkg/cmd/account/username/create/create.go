@@ -69,7 +69,11 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 			%s account username create"
 		`, constants.ExecutableName),
 		RunE: func(c *cobra.Command, _ []string) error {
-			opts := NewCreateOptions(createFlags, cmd.NewDependencies(f, c))
+			deps, err := cmd.NewDependencies(f, c)
+			if err != nil {
+				return err
+			}
+			opts := NewCreateOptions(createFlags, deps)
 			if descriptionFilePath != "" {
 				if err := validation.IsExistingFile(descriptionFilePath); err != nil {
 					return err

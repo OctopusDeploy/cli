@@ -60,7 +60,11 @@ func NewCmdSnapshotVariables(f factory.Factory) *cobra.Command {
 			$ %[1]s release snapshot-variables -p MyProject -v 1.2.3
 		`, constants.ExecutableName),
 		RunE: func(c *cobra.Command, args []string) error {
-			opts := NewSnapshotVariablesOptions(snapshotVariablesFlags, cmd.NewDependencies(f, c))
+			deps, err := cmd.NewDependencies(f, c)
+			if err != nil {
+				return err
+			}
+			opts := NewSnapshotVariablesOptions(snapshotVariablesFlags, deps)
 			return snapshotVariablesRun(opts)
 		},
 	}

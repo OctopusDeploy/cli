@@ -30,7 +30,11 @@ func NewCmdView(f factory.Factory) *cobra.Command {
 			%[1]s worker view 'worker'
 		`, constants.ExecutableName),
 		RunE: func(c *cobra.Command, args []string) error {
-			return ViewRun(shared.NewViewOptions(flags, cmd.NewDependencies(f, c), args, c))
+			deps, err := cmd.NewDependencies(f, c)
+			if err != nil {
+				return err
+			}
+			return ViewRun(shared.NewViewOptions(flags, deps, args, c))
 		},
 	}
 

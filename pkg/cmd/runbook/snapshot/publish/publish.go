@@ -66,7 +66,11 @@ func NewCmdPublish(f factory.Factory) *cobra.Command {
 			%[1]s runbook snapshot publish --project MyProject --runbook "Rebuild DB Indexes" --snapshot "Snapshot 40C9ENM"
 		`, constants.ExecutableName),
 		RunE: func(c *cobra.Command, args []string) error {
-			opts := NewPublishOptions(publishFlags, cmd.NewDependencies(f, c))
+			deps, err := cmd.NewDependencies(f, c)
+			if err != nil {
+				return err
+			}
+			opts := NewPublishOptions(publishFlags, deps)
 			return publishRun(opts)
 		},
 	}

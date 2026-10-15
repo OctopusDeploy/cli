@@ -20,7 +20,10 @@ func NewCmdList(f factory.Factory) *cobra.Command {
 		Aliases: []string{"ls"},
 		Example: heredoc.Docf("%s worker polling-tentacle list", constants.ExecutableName),
 		RunE: func(c *cobra.Command, args []string) error {
-			dependencies := cmd.NewDependencies(f, c)
+			dependencies, err := cmd.NewDependencies(f, c)
+			if err != nil {
+				return err
+			}
 			options := list.NewListOptions(dependencies, c, func(worker *machines.Worker) bool {
 				return machinescommon.GetCommunicationStyle(worker.Endpoint) == "TentacleActive"
 			})

@@ -63,7 +63,11 @@ func NewCmdAllow(f factory.Factory) *cobra.Command {
 		`, constants.ExecutableName),
 		Aliases: []string{"allow-releaseprogression"},
 		RunE: func(c *cobra.Command, _ []string) error {
-			opts := NewAllowOptions(allowFlags, cmd.NewDependencies(f, c))
+			deps, err := cmd.NewDependencies(f, c)
+			if err != nil {
+				return err
+			}
+			opts := NewAllowOptions(allowFlags, deps)
 			return resolveReleaseDefectRun(opts)
 		},
 	}

@@ -70,7 +70,10 @@ func NewCmdDelete(f factory.Factory) *cobra.Command {
 			%[1]s runbook rm
 		`, constants.ExecutableName),
 		RunE: func(c *cobra.Command, args []string) error {
-			deps := cmd.NewDependencies(f, c)
+			deps, err := cmd.NewDependencies(f, c)
+			if err != nil {
+				return err
+			}
 
 			opts := NewDeleteOptions(deps, deleteFlags)
 			if deleteFlags.Runbook.Value == "" && len(args) > 0 {

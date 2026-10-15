@@ -73,7 +73,11 @@ func NewCmdList(f factory.Factory) *cobra.Command {
 		`, constants.ExecutableName),
 		Aliases: []string{"ls"},
 		RunE: func(c *cobra.Command, args []string) error {
-			opts := NewListOptions(listFlags, cmd.NewDependencies(f, c), c)
+			deps, err := cmd.NewDependencies(f, c)
+			if err != nil {
+				return err
+			}
+			opts := NewListOptions(listFlags, deps, c)
 
 			if opts.Project.Value == "" && len(args) > 0 {
 				opts.Project.Value = args[0]

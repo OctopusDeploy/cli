@@ -66,7 +66,11 @@ func NewCmdDelete(f factory.Factory) *cobra.Command {
 				args = append(args, "")
 			}
 
-			opts := NewDeleteOptions(args[0], deleteFlags, confirmFlags, cmd.NewDependencies(f, c))
+			deps, err := cmd.NewDependencies(f, c)
+			if err != nil {
+				return err
+			}
+			opts := NewDeleteOptions(args[0], deleteFlags, confirmFlags, deps)
 
 			return deleteRun(opts)
 		},

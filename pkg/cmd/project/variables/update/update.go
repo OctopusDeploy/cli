@@ -90,7 +90,11 @@ func NewUpdateCmd(f factory.Factory) *cobra.Command {
 			%[1]s project variable update -p "Deploy Website" --name "variable name" --value "updated" --git-ref refs/heads/main
 		`, constants.ExecutableName),
 		RunE: func(c *cobra.Command, args []string) error {
-			opts := NewUpdateOptions(updateFlags, cmd.NewDependencies(f, c))
+			deps, err := cmd.NewDependencies(f, c)
+			if err != nil {
+				return err
+			}
+			opts := NewUpdateOptions(updateFlags, deps)
 
 			return updateRun(opts)
 		},

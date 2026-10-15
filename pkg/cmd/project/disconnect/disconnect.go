@@ -22,7 +22,11 @@ func NewCmdDisconnect(f factory.Factory) *cobra.Command {
 			%[1]s project disconnect --tenant "Test Tenant" --project "Deploy web site" --confirm
 		`, constants.ExecutableName),
 		RunE: func(c *cobra.Command, args []string) error {
-			opts := tenantDisconnect.NewDisconnectOptions(disconnectFlags, cmd.NewDependencies(f, c))
+			deps, err := cmd.NewDependencies(f, c)
+			if err != nil {
+				return err
+			}
+			opts := tenantDisconnect.NewDisconnectOptions(disconnectFlags, deps)
 			return tenantDisconnect.DisconnectRun(opts)
 		},
 	}

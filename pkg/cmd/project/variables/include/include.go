@@ -70,7 +70,11 @@ func NewIncludeVariableSetCmd(f factory.Factory) *cobra.Command {
 			%[1]s project variable include --variable-set "Slack Variables"
 		`, constants.ExecutableName),
 		RunE: func(c *cobra.Command, args []string) error {
-			opts := NewIncludeOptions(createFlags, cmd.NewDependencies(f, c))
+			deps, err := cmd.NewDependencies(f, c)
+			if err != nil {
+				return err
+			}
+			opts := NewIncludeOptions(createFlags, deps)
 
 			return includeRun(opts)
 		},

@@ -63,7 +63,11 @@ func NewCmdBulkDelete(f factory.Factory) *cobra.Command {
 			%[1]s build-info --package-id ThePackage --version 1.0.0 --version 1.0.1
 		`, constants.ExecutableName),
 		RunE: func(c *cobra.Command, args []string) error {
-			opts := NewDeleteOptions(deleteFlags, cmd.NewDependencies(f, c), confirmFlags)
+			deps, err := cmd.NewDependencies(f, c)
+			if err != nil {
+				return err
+			}
+			opts := NewDeleteOptions(deleteFlags, deps, confirmFlags)
 
 			return deleteRun(opts)
 		},

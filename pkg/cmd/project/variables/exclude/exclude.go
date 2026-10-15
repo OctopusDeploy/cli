@@ -70,7 +70,11 @@ func NewExcludeVariableSetCmd(f factory.Factory) *cobra.Command {
 			%[1]s project variable exclude --variable-set "Slack Variables"
 		`, constants.ExecutableName),
 		RunE: func(c *cobra.Command, args []string) error {
-			opts := NewExcludeOptions(createFlags, cmd.NewDependencies(f, c))
+			deps, err := cmd.NewDependencies(f, c)
+			if err != nil {
+				return err
+			}
+			opts := NewExcludeOptions(createFlags, deps)
 
 			return excludeRun(opts)
 		},

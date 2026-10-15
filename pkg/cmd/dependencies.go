@@ -28,21 +28,21 @@ type Dependencies struct {
 	ShowMessagePrefix bool
 }
 
-func NewDependencies(f factory.Factory, cmd *cobra.Command) *Dependencies {
+func NewDependencies(f factory.Factory, cmd *cobra.Command) (*Dependencies, error) {
 	client, err := f.GetSpacedClient(apiclient.NewRequester(cmd))
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 
-	return newDependencies(f, cmd, client)
+	return newDependencies(f, cmd, client), nil
 }
 
-func NewSystemDependencies(f factory.Factory, cmd *cobra.Command) *Dependencies {
+func NewSystemDependencies(f factory.Factory, cmd *cobra.Command) (*Dependencies, error) {
 	client, err := f.GetSystemClient(apiclient.NewRequester(cmd))
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
-	return newDependencies(f, cmd, client)
+	return newDependencies(f, cmd, client), nil
 }
 
 func newDependencies(f factory.Factory, cmd *cobra.Command, client *client.Client) *Dependencies {

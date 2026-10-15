@@ -21,7 +21,11 @@ func NewCmdConnect(f factory.Factory) *cobra.Command {
 			%[1]s project connect --tenant "Bobs Wood Shop" --project "Deploy web site" --environment "Production"
 		`, constants.ExecutableName),
 		RunE: func(c *cobra.Command, args []string) error {
-			opts := connectTenant.NewConnectOptions(connectFlags, cmd.NewDependencies(f, c))
+			deps, err := cmd.NewDependencies(f, c)
+			if err != nil {
+				return err
+			}
+			opts := connectTenant.NewConnectOptions(connectFlags, deps)
 
 			return connectTenant.ConnectRun(opts)
 		},

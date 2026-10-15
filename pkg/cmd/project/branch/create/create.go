@@ -70,7 +70,11 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 			%[1]s project branch create --project "Deploy Website" --name branch-name --base-branch refs/heads/main
 		`, constants.ExecutableName),
 		RunE: func(c *cobra.Command, args []string) error {
-			opts := NewCreateOptions(createFlags, cmd.NewDependencies(f, c))
+			deps, err := cmd.NewDependencies(f, c)
+			if err != nil {
+				return err
+			}
+			opts := NewCreateOptions(createFlags, deps)
 
 			return CreateRun(opts)
 		},
