@@ -709,7 +709,7 @@ func TestPromoteCommand_Documentation(t *testing.T) {
 
 	// Verify examples are present
 	assert.Contains(t, cmd.Example, "release promote --project MyProject --from \"Development\" --to \"Staging\"")
-	assert.Contains(t, cmd.Example, "release promote -p MyProject --from \"Staging\" --to \"Production\" --update-variables --latest-successful")
+	assert.Contains(t, cmd.Example, "release promote -p MyProject --from \"Staging\" --to \"Production\" --latest-successful")
 }
 
 func TestPromoteCommand_FlagAliases(t *testing.T) {
