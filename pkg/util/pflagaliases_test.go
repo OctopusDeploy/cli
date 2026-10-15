@@ -3,9 +3,10 @@ package util_test
 import (
 	"testing"
 
-	"github.com/OctopusDeploy/cli/pkg/util"
 	"github.com/spf13/pflag"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/OctopusDeploy/cli/pkg/util"
 )
 
 func Test_FlagAliases_string(t *testing.T) {

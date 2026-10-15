@@ -1,13 +1,15 @@
 package shared_test
 
 import (
-	"github.com/OctopusDeploy/cli/pkg/cmd"
-	"github.com/OctopusDeploy/cli/pkg/cmd/target/shared"
-	"github.com/OctopusDeploy/cli/test/testutil"
+	"testing"
+
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/tagsets"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/tenants"
 	"github.com/stretchr/testify/assert"
-	"testing"
+
+	"github.com/OctopusDeploy/cli/pkg/cmd"
+	"github.com/OctopusDeploy/cli/pkg/cmd/target/shared"
+	"github.com/OctopusDeploy/cli/test/testutil"
 )
 
 func TestPromptForTenant_FlagSupplied(t *testing.T) {
@@ -66,5 +68,4 @@ func TestPromptForTenant_NoFlagsSupplied_ShouldPrompt(t *testing.T) {
 	assert.Equal(t, "Tenanted", flags.TenantedDeploymentMode.Value)
 	assert.Equal(t, []string{"Tenant 1"}, flags.Tenants.Value)
 	assert.Equal(t, []string{"Tag Set 1/tag 1"}, flags.TenantTags.Value)
-
 }

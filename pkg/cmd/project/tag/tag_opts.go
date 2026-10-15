@@ -12,17 +12,19 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/util/flag"
 )
 
-type GetAllTagSetsCallback func() ([]*tagsets.TagSet, error)
-type GetProjectCallback func(projectIdentifier string) (*projects.Project, error)
-type GetProjectsCallback func() ([]*projects.Project, error)
+type (
+	GetAllTagSetsCallback func() ([]*tagsets.TagSet, error)
+	GetProjectCallback    func(projectIdentifier string) (*projects.Project, error)
+	GetProjectsCallback   func() ([]*projects.Project, error)
+)
 
 type TagOptions struct {
 	*TagFlags
 	*cmd.Dependencies
-	GetAllTagsCallback   GetAllTagSetsCallback
-	GetProjectCallback   GetProjectCallback
-	GetProjectsCallback  GetProjectsCallback
-	project              *projects.Project
+	GetAllTagsCallback  GetAllTagSetsCallback
+	GetProjectCallback  GetProjectCallback
+	GetProjectsCallback GetProjectsCallback
+	project             *projects.Project
 }
 
 func NewTagOptions(tagFlags *TagFlags, dependencies *cmd.Dependencies) *TagOptions {

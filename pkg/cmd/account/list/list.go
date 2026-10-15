@@ -2,12 +2,13 @@ package list
 
 import (
 	"github.com/MakeNowJust/heredoc/v2"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/accounts"
+	"github.com/spf13/cobra"
+
 	"github.com/OctopusDeploy/cli/pkg/apiclient"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/OctopusDeploy/cli/pkg/output"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/accounts"
-	"github.com/spf13/cobra"
 )
 
 func NewCmdList(f factory.Factory) *cobra.Command {
@@ -59,7 +60,8 @@ func NewCmdList(f factory.Factory) *cobra.Command {
 					Header: []string{"NAME", "TYPE", "SLUG"},
 					Row: func(item accounts.IAccount) []string {
 						return []string{item.GetName(), accountTypeMap[item.GetAccountType()], item.GetSlug()}
-					}},
+					},
+				},
 				Basic: func(item accounts.IAccount) string {
 					return item.GetName()
 				},

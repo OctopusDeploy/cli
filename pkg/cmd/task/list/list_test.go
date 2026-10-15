@@ -6,10 +6,6 @@ import (
 	"testing"
 	"time"
 
-	cmdRoot "github.com/OctopusDeploy/cli/pkg/cmd/root"
-	"github.com/OctopusDeploy/cli/pkg/question"
-	"github.com/OctopusDeploy/cli/test/fixtures"
-	"github.com/OctopusDeploy/cli/test/testutil"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/constants"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/core"
@@ -20,6 +16,11 @@ import (
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/tasks"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
+
+	cmdRoot "github.com/OctopusDeploy/cli/pkg/cmd/root"
+	"github.com/OctopusDeploy/cli/pkg/question"
+	"github.com/OctopusDeploy/cli/test/fixtures"
+	"github.com/OctopusDeploy/cli/test/testutil"
 )
 
 var rootResource = newRootResource()

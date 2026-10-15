@@ -2,14 +2,16 @@ package machinescommon
 
 import (
 	"fmt"
+	"strings"
+
 	"github.com/AlecAivazis/survey/v2"
-	"github.com/OctopusDeploy/cli/pkg/cmd"
-	"github.com/OctopusDeploy/cli/pkg/question/selectors"
-	"github.com/OctopusDeploy/cli/pkg/util/flag"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/proxies"
 	"github.com/spf13/cobra"
-	"strings"
+
+	"github.com/OctopusDeploy/cli/pkg/cmd"
+	"github.com/OctopusDeploy/cli/pkg/question/selectors"
+	"github.com/OctopusDeploy/cli/pkg/util/flag"
 )
 
 const FlagProxy = "proxy"
@@ -19,7 +21,7 @@ type GetAllProxiesCallback func() ([]*proxies.Proxy, error)
 func PromptForProxy(opts *CreateTargetProxyOptions, flags *CreateTargetProxyFlags, description string) error {
 	if flags.Proxy.Value == "" {
 		directConnection := true
-		opts.Ask(&survey.Confirm{
+		_ = opts.Ask(&survey.Confirm{
 			Message: fmt.Sprintf("Should the connection to the %s be direct?", description),
 			Default: true,
 		}, &directConnection)

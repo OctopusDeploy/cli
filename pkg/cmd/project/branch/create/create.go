@@ -5,6 +5,9 @@ import (
 
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/MakeNowJust/heredoc/v2"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
+	"github.com/spf13/cobra"
+
 	"github.com/OctopusDeploy/cli/pkg/cmd"
 	sharedBranches "github.com/OctopusDeploy/cli/pkg/cmd/project/branch/shared"
 	"github.com/OctopusDeploy/cli/pkg/cmd/tenant/shared"
@@ -13,8 +16,6 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/question"
 	"github.com/OctopusDeploy/cli/pkg/util"
 	"github.com/OctopusDeploy/cli/pkg/util/flag"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
-	"github.com/spf13/cobra"
 )
 
 const (
@@ -101,7 +102,7 @@ func CreateRun(opts *CreateOptions) error {
 		return err
 	}
 
-	_, err = fmt.Fprintf(opts.Out, "Successfully created branch '%s' (%s) in project '%s'\n", opts.Name.Value, newBranch.CanonicalName, project.GetName())
+	fmt.Fprintf(opts.Out, "Successfully created branch '%s' (%s) in project '%s'\n", opts.Name.Value, newBranch.CanonicalName, project.GetName())
 
 	if !opts.NoPrompt {
 		autoCmd := flag.GenerateAutomationCmd(opts.CmdPath, opts.GetSpaceNameOrEmpty(), opts.Project, opts.Name, opts.BaseBranch)

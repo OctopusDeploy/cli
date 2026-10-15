@@ -2,9 +2,9 @@ package surveyext
 
 import (
 	"fmt"
-	"github.com/AlecAivazis/survey/v2"
 	"strings"
 
+	"github.com/AlecAivazis/survey/v2"
 	"github.com/AlecAivazis/survey/v2/core"
 	"github.com/AlecAivazis/survey/v2/terminal"
 )
@@ -276,10 +276,10 @@ func (m *MultiSelectWithAdd) Prompt(config *survey.PromptConfig) (interface{}, e
 	opts, idx := paginate(pageSize, core.OptionAnswerList(m.Options), m.selectedIndex)
 
 	cursor := m.NewCursor()
-	cursor.Save()          // for proper cursor placement during selection
-	cursor.Hide()          // hide the cursor
-	defer cursor.Show()    // show the cursor when we're done
-	defer cursor.Restore() // clear any accessibility offsetting on exit
+	_ = cursor.Save()                       // for proper cursor placement during selection
+	_ = cursor.Hide()                       // hide the cursor
+	defer func() { _ = cursor.Show() }()    // show the cursor when we're done
+	defer func() { _ = cursor.Restore() }() // clear any accessibility offsetting on exit
 
 	tmplData := MultiSelectTemplateData{
 		MultiSelectWithAdd: *m,

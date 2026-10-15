@@ -2,13 +2,16 @@ package selectors
 
 import (
 	"fmt"
-	"github.com/OctopusDeploy/cli/pkg/output"
-	"github.com/OctopusDeploy/cli/pkg/question"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/channels"
-	octopusApiClient "github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
 	"io"
 	"strings"
+
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/channels"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
+
+	octopusApiClient "github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
+
+	"github.com/OctopusDeploy/cli/pkg/output"
+	"github.com/OctopusDeploy/cli/pkg/question"
 )
 
 func Channel(octopus *octopusApiClient.Client, ask question.Asker, io io.Writer, questionText string, project *projects.Project) (*channels.Channel, error) {

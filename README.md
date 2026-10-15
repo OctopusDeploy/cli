@@ -4,7 +4,6 @@
   <p align="center">Command Line Interface for <a href="https://octopus.com/">Octopus Deploy</a> 🐙</p>
   <p align="center">
     <a href="https://github.com/OctopusDeploy/cli/releases/latest"><img alt="GitHub release" src="https://img.shields.io/github/v/release/OctopusDeploy/cli.svg?logo=github&style=flat-square"></a>
-    <a href="https://goreportcard.com/badge/github.com/OctopusDeploy/cli"><img src="https://goreportcard.com/badge/github.com/OctopusDeploy/cli" alt="Go Report"></a>
   </p>
 </div>
 
@@ -325,6 +324,22 @@ OCTOPUS_TEST_APIKEY: "API-XXXXXXXXXXXXXXXXXXXXXXXXXXXXX" # replace with your API
 If your server contains existing data, the tests may fail, and they may modify or delete any existing data.
 
 The easiest way to run the tests is to `cd integrationtest` and run `go test ./...` or `gotestsum`
+
+### Linting and formatting
+
+We use [golangci-lint](https://golangci-lint.run) to lint and format the code. The configuration is in `.golangci.yml`.
+The pull request workflow runs golangci-lint, and your pull request must pass it.
+
+See the [golangci-lint website](https://golangci-lint.run) for the install instructions.
+
+To format the code, and then find lint issues, run these commands in the cli root folder:
+
+```shell
+golangci-lint fmt ./...
+golangci-lint run ./...
+```
+
+If you have `make`, you can run `make fmt` and `make lint` instead.
 
 ## Guidance and Example of how to create and test new commands
 

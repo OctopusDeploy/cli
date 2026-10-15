@@ -2,15 +2,17 @@ package machinescommon
 
 import (
 	"fmt"
+	"strconv"
+	"strings"
+
 	"github.com/AlecAivazis/survey/v2"
-	"github.com/OctopusDeploy/cli/pkg/cmd"
-	"github.com/OctopusDeploy/cli/pkg/question/selectors"
-	"github.com/OctopusDeploy/cli/pkg/util/flag"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/accounts"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
 	"github.com/spf13/cobra"
-	"strconv"
-	"strings"
+
+	"github.com/OctopusDeploy/cli/pkg/cmd"
+	"github.com/OctopusDeploy/cli/pkg/question/selectors"
+	"github.com/OctopusDeploy/cli/pkg/util/flag"
 )
 
 type GetAllAccountsForSshMachine func() ([]accounts.IAccount, error)
@@ -75,7 +77,6 @@ func RegisterSshCommonFlags(cmd *cobra.Command, flags *SshCommonFlags, entityTyp
 	cmd.Flags().IntVar(&flags.Port.Value, flags.Port.Name, 0, fmt.Sprintf("The port to connect to the %s on.", entityType))
 	cmd.Flags().StringVar(&flags.Runtime.Value, flags.Runtime.Name, "", fmt.Sprintf("The runtime to use to run Calamari on the %s. Options are '%s' or '%s'", entityType, SelfContainedCalamari, MonoCalamari))
 	cmd.Flags().StringVar(&flags.Platform.Value, flags.Platform.Name, "", fmt.Sprintf("The platform to use for the %s Calamari. Options are '%s', '%s', '%s' or '%s'", SelfContainedCalamari, LinuxX64, LinuxArm64, LinuxArm, OsxX64))
-
 }
 
 func PromptForSshEndpoint(opts *SshCommonOptions, flags *SshCommonFlags, entityType string) error {

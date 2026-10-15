@@ -1,10 +1,12 @@
 package selectors
 
 import (
-	"github.com/AlecAivazis/survey/v2"
-	"github.com/OctopusDeploy/cli/test/testutil"
-	"github.com/stretchr/testify/assert"
 	"testing"
+
+	"github.com/AlecAivazis/survey/v2"
+	"github.com/stretchr/testify/assert"
+
+	"github.com/OctopusDeploy/cli/test/testutil"
 )
 
 type Item struct {

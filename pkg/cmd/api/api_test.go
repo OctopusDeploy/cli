@@ -6,10 +6,11 @@ import (
 	"net/http"
 	"testing"
 
-	cmdRoot "github.com/OctopusDeploy/cli/pkg/cmd/root"
-	"github.com/OctopusDeploy/cli/test/testutil"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
+
+	cmdRoot "github.com/OctopusDeploy/cli/pkg/cmd/root"
+	"github.com/OctopusDeploy/cli/test/testutil"
 )
 
 // respondToSdkInit handles the two HTTP requests that the Octopus SDK makes

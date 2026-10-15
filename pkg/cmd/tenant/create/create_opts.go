@@ -29,7 +29,6 @@ func NewCreateOptions(createFlags *CreateFlags, dependencies *cmd.Dependencies) 
 }
 
 func (co *CreateOptions) Commit() error {
-
 	tenant := tenants.NewTenant(co.Name.Value)
 	tenant.Description = co.Description.Value
 	tenant.TenantTags = co.Tag.Value

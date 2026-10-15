@@ -1,15 +1,17 @@
 package shared_test
 
 import (
+	"testing"
+
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projectgroups"
+	"github.com/stretchr/testify/assert"
+
 	"github.com/OctopusDeploy/cli/pkg/cmd"
 	"github.com/OctopusDeploy/cli/pkg/cmd/project/shared"
 	projectGroupCreate "github.com/OctopusDeploy/cli/pkg/cmd/projectgroup/create"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/surveyext"
 	"github.com/OctopusDeploy/cli/test/testutil"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projectgroups"
-	"github.com/stretchr/testify/assert"
-	"testing"
 )
 
 func TestAskProjectGroup_WithProvidedName(t *testing.T) {

@@ -3,14 +3,17 @@ package surveyext
 import (
 	"errors"
 	"fmt"
-	"github.com/AlecAivazis/survey/v2"
-	surveyCore "github.com/AlecAivazis/survey/v2/core"
-	"github.com/AlecAivazis/survey/v2/terminal"
-	"github.com/OctopusDeploy/cli/pkg/output"
-	"github.com/mgutz/ansi"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/AlecAivazis/survey/v2"
+	"github.com/AlecAivazis/survey/v2/terminal"
+	"github.com/mgutz/ansi"
+
+	surveyCore "github.com/AlecAivazis/survey/v2/core"
+
+	"github.com/OctopusDeploy/cli/pkg/output"
 )
 
 /*
@@ -110,8 +113,10 @@ func (d *DatePicker) Error(*survey.PromptConfig, error) error {
 	return nil // do nothing; our prompt loop is self-contained
 }
 
-var invertedCyan = ansi.ColorFunc("black:cyan+h")
-var invertedBlackWhite = ansi.ColorFunc("black:white")
+var (
+	invertedCyan       = ansi.ColorFunc("black:cyan+h")
+	invertedBlackWhite = ansi.ColorFunc("black:white")
+)
 
 func invertedCyanf(s string, args ...any) string {
 	if !output.IsColorEnabled {
@@ -259,8 +264,7 @@ func (d *DatePicker) consumeRune(r rune, t time.Time) time.Time {
 	}
 	// ignore things that are too big (e.g. they type 97 into 'seconds')
 	// also clear the buffer if they've typed all the characters
-	maxVal := 9999
-	maxBufLen := 4
+	var maxVal, maxBufLen int
 	switch d.selectedComponent {
 	case cmpYear:
 		maxVal, maxBufLen = 9999, 4

@@ -2,10 +2,12 @@ package selectors
 
 import (
 	"fmt"
-	"github.com/OctopusDeploy/cli/pkg/question"
+	"strings"
+
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/environments"
-	"strings"
+
+	"github.com/OctopusDeploy/cli/pkg/question"
 )
 
 type GetAllEnvironmentsCallback func() ([]*environments.Environment, error)

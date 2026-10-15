@@ -10,27 +10,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/OctopusDeploy/cli/pkg/cmd/runbook/shared"
-	"github.com/OctopusDeploy/cli/pkg/packages"
-	"golang.org/x/exp/maps"
-
-	"github.com/OctopusDeploy/cli/pkg/apiclient"
-
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/MakeNowJust/heredoc/v2"
-	"github.com/OctopusDeploy/cli/pkg/constants"
-	cliErrors "github.com/OctopusDeploy/cli/pkg/errors"
-	"github.com/OctopusDeploy/cli/pkg/executionscommon"
-	"github.com/OctopusDeploy/cli/pkg/executor"
-	"github.com/OctopusDeploy/cli/pkg/factory"
-	"github.com/OctopusDeploy/cli/pkg/gitresources"
-	"github.com/OctopusDeploy/cli/pkg/output"
-	"github.com/OctopusDeploy/cli/pkg/question"
-	"github.com/OctopusDeploy/cli/pkg/question/selectors"
-	"github.com/OctopusDeploy/cli/pkg/surveyext"
-	"github.com/OctopusDeploy/cli/pkg/util"
-	"github.com/OctopusDeploy/cli/pkg/util/flag"
-	octopusApiClient "github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/core"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/deployments"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/environments"
@@ -39,6 +20,25 @@ import (
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/runbooks"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/spaces"
 	"github.com/spf13/cobra"
+	"golang.org/x/exp/maps"
+
+	octopusApiClient "github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
+
+	"github.com/OctopusDeploy/cli/pkg/apiclient"
+	"github.com/OctopusDeploy/cli/pkg/cmd/runbook/shared"
+	"github.com/OctopusDeploy/cli/pkg/constants"
+	cliErrors "github.com/OctopusDeploy/cli/pkg/errors"
+	"github.com/OctopusDeploy/cli/pkg/executionscommon"
+	"github.com/OctopusDeploy/cli/pkg/executor"
+	"github.com/OctopusDeploy/cli/pkg/factory"
+	"github.com/OctopusDeploy/cli/pkg/gitresources"
+	"github.com/OctopusDeploy/cli/pkg/output"
+	"github.com/OctopusDeploy/cli/pkg/packages"
+	"github.com/OctopusDeploy/cli/pkg/question"
+	"github.com/OctopusDeploy/cli/pkg/question/selectors"
+	"github.com/OctopusDeploy/cli/pkg/surveyext"
+	"github.com/OctopusDeploy/cli/pkg/util"
+	"github.com/OctopusDeploy/cli/pkg/util/flag"
 )
 
 const (
@@ -239,7 +239,6 @@ func runbookRun(cmd *cobra.Command, f factory.Factory, flags *RunFlags) error {
 	}
 
 	project, err := selectProject(octopus, f, flags.Project.Value)
-
 	if err != nil {
 		return err
 	}
@@ -296,7 +295,6 @@ func runbookRun(cmd *cobra.Command, f factory.Factory, flags *RunFlags) error {
 }
 
 func runDbRunbook(cmd *cobra.Command, f factory.Factory, flags *RunFlags, octopus *octopusApiClient.Client, project *projects.Project, parsedVariables map[string]string, outputFormat string) error {
-
 	commonOptions := &executor.TaskOptionsRunbookRunBase{
 		ProjectName:            project.Name,
 		RunbookName:            flags.RunbookName.Value,
@@ -436,7 +434,6 @@ func runDbRunbook(cmd *cobra.Command, f factory.Factory, flags *RunFlags, octopu
 }
 
 func runGitRunbook(cmd *cobra.Command, f factory.Factory, flags *RunFlags, octopus *octopusApiClient.Client, project *projects.Project, parsedVariables map[string]string, outputFormat string) error {
-
 	commonOptions := &executor.TaskOptionsRunbookRunBase{
 		ProjectName:            project.Name,
 		RunbookName:            flags.RunbookName.Value,
@@ -954,7 +951,6 @@ func AskGitRunbookRunQuestions(octopus *octopusApiClient.Client, stdout io.Write
 			options.PackageVersionOverrides,
 			asker,
 			stdout)
-
 		if err != nil {
 			return err
 		}
@@ -975,7 +971,6 @@ func AskGitRunbookRunQuestions(octopus *octopusApiClient.Client, stdout io.Write
 			options.GitResourceRefs,
 			asker,
 			stdout)
-
 		if err != nil {
 			return err
 		}
@@ -1341,18 +1336,6 @@ func askTargetTagsFromOptions(asker question.Asker, results []string) ([]string,
 	}
 
 	return selectedSpecificTags, selectedExcludedTags, nil
-}
-
-// selectRunEnvironment selects a single environment for use in a tenanted run
-func selectRunEnvironment(ask question.Asker, octopus *octopusApiClient.Client, space *spaces.Space, project *projects.Project, runbook *runbooks.Runbook) (*environments.Environment, error) {
-	envs, err := runbooks.ListEnvironments(octopus, space.ID, project.ID, runbook.ID)
-	if err != nil {
-		return nil, err
-	}
-
-	return question.SelectMap(ask, "Select an environment", envs, func(p *environments.Environment) string {
-		return p.Name
-	})
 }
 
 // selectRunEnvironments selects multiple environments for use in an untenanted run

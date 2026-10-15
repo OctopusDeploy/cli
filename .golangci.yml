@@ -1,0 +1,43 @@
+version: "2"
+linters:
+  settings:
+    staticcheck:
+      checks:
+        # S1002 - should omit comparison to bool constant
+        # Justification (opinion): comparison to bool constant can be clearer in some cases
+        - -S1002
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
+formatters:
+  enable:
+    - gofumpt
+    # Disabled this formatter temporarily because it reports too many issues.
+    # - golines
+    - gci
+  settings:
+    # Disabled this formatter temporarily because it reports too many issues.
+    # golines:
+    #   max-len: 120
+    gci:
+      sections:
+        - standard
+        - default
+        - blank
+        - dot
+        - alias
+        - localmodule
+  exclusions:
+    generated: lax
+    paths:
+      - third_party$
+      - builtin$
+      - examples$

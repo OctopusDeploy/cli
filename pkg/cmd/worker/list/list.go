@@ -2,6 +2,9 @@ package list
 
 import (
 	"github.com/MakeNowJust/heredoc/v2"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/machines"
+	"github.com/spf13/cobra"
+
 	"github.com/OctopusDeploy/cli/pkg/cmd"
 	"github.com/OctopusDeploy/cli/pkg/cmd/model"
 	"github.com/OctopusDeploy/cli/pkg/cmd/worker/shared"
@@ -10,8 +13,6 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/OctopusDeploy/cli/pkg/machinescommon"
 	"github.com/OctopusDeploy/cli/pkg/output"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/machines"
-	"github.com/spf13/cobra"
 )
 
 type ListOptions struct {
@@ -70,7 +71,6 @@ func ListRun(opts *ListOptions) error {
 
 	return output.PrintArray(allTargets, opts.Command, output.Mappers[*machines.Worker]{
 		Json: func(item *machines.Worker) any {
-
 			return TargetAsJson{
 				Id:            item.GetID(),
 				Name:          item.Name,

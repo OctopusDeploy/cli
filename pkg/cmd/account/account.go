@@ -2,6 +2,8 @@ package account
 
 import (
 	"github.com/MakeNowJust/heredoc/v2"
+	"github.com/spf13/cobra"
+
 	cmdAWS "github.com/OctopusDeploy/cli/pkg/cmd/account/aws"
 	cmdAzure "github.com/OctopusDeploy/cli/pkg/cmd/account/azure"
 	cmdAzureOidc "github.com/OctopusDeploy/cli/pkg/cmd/account/azure-oidc"
@@ -16,7 +18,6 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/constants/annotations"
 	"github.com/OctopusDeploy/cli/pkg/factory"
-	"github.com/spf13/cobra"
 )
 
 func NewCmdAccount(f factory.Factory) *cobra.Command {

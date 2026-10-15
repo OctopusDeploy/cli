@@ -7,17 +7,19 @@ import (
 	"testing"
 
 	"github.com/AlecAivazis/survey/v2"
-	"github.com/OctopusDeploy/cli/pkg/cmd"
-	deprovisionProject "github.com/OctopusDeploy/cli/pkg/cmd/ephemeralenvironment/deprovision-project"
-	"github.com/OctopusDeploy/cli/pkg/util/flag"
-	"github.com/OctopusDeploy/cli/test/testutil"
-	octopusApiClient "github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/environments/v2/ephemeralenvironments"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/resources"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/spaces"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
+
+	octopusApiClient "github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
+
+	"github.com/OctopusDeploy/cli/pkg/cmd"
+	deprovisionProject "github.com/OctopusDeploy/cli/pkg/cmd/ephemeralenvironment/deprovision-project"
+	"github.com/OctopusDeploy/cli/pkg/util/flag"
+	"github.com/OctopusDeploy/cli/test/testutil"
 )
 
 var serverUrl, _ = url.Parse("http://server")
@@ -191,7 +193,6 @@ func TestDeprovisionProject_EnvironmentNotFound(t *testing.T) {
 }
 
 func TestDeprovisionProject_EmptyName(t *testing.T) {
-
 	api := testutil.NewMockHttpServer()
 	defer api.Close()
 

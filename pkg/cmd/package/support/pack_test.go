@@ -4,16 +4,18 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
-	"github.com/OctopusDeploy/cli/pkg/constants"
-	flag "github.com/OctopusDeploy/cli/pkg/util/flag"
-	"github.com/OctopusDeploy/cli/test/testutil"
-	"github.com/spf13/cobra"
-	"github.com/stretchr/testify/assert"
 	"os"
 	"path/filepath"
 	"runtime"
 	"testing"
 	"time"
+
+	"github.com/spf13/cobra"
+	"github.com/stretchr/testify/assert"
+
+	"github.com/OctopusDeploy/cli/pkg/constants"
+	flag "github.com/OctopusDeploy/cli/pkg/util/flag"
+	"github.com/OctopusDeploy/cli/test/testutil"
 )
 
 const windowsPackagePath = `c:\temp\test.package.0.0.1.zip`
@@ -123,8 +125,8 @@ func setupForExclude(t *testing.T) string {
 		"conf/settings.local.env",
 	} {
 		fullPath := filepath.Join(dir, relativePath)
-		assert.NoError(t, os.MkdirAll(filepath.Dir(fullPath), 0755))
-		assert.NoError(t, os.WriteFile(fullPath, []byte("x"), 0644))
+		assert.NoError(t, os.MkdirAll(filepath.Dir(fullPath), 0o755))
+		assert.NoError(t, os.WriteFile(fullPath, []byte("x"), 0o644))
 	}
 
 	return dir
@@ -215,7 +217,7 @@ func TestBuildPackage_VerboseOutput(t *testing.T) {
 	}
 
 	outFolder := filepath.Join(basePath, "out")
-	err := os.MkdirAll(outFolder, 0755)
+	err := os.MkdirAll(outFolder, 0o755)
 	assert.NoError(t, err)
 
 	var buf bytes.Buffer

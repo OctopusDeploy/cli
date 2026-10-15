@@ -5,6 +5,10 @@ import (
 	"strings"
 
 	"github.com/MakeNowJust/heredoc/v2"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/variables"
+	"github.com/spf13/cobra"
+
 	"github.com/OctopusDeploy/cli/pkg/cmd"
 	"github.com/OctopusDeploy/cli/pkg/cmd/tenant/shared"
 	"github.com/OctopusDeploy/cli/pkg/constants"
@@ -13,9 +17,6 @@ import (
 	sharedVariable "github.com/OctopusDeploy/cli/pkg/question/shared/variables"
 	"github.com/OctopusDeploy/cli/pkg/util"
 	"github.com/OctopusDeploy/cli/pkg/util/flag"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/variables"
-	"github.com/spf13/cobra"
 )
 
 const (
@@ -41,7 +42,6 @@ type DeleteOptions struct {
 }
 
 func NewDeleteFlags() *DeleteFlags {
-
 	return &DeleteFlags{
 		Id:           flag.New[string](FlagId, false),
 		Name:         flag.New[string](FlagName, false),
@@ -52,7 +52,6 @@ func NewDeleteFlags() *DeleteFlags {
 }
 
 func NewDeleteOptions(flags *DeleteFlags, dependencies *cmd.Dependencies) *DeleteOptions {
-
 	return &DeleteOptions{
 		DeleteFlags:  flags,
 		Dependencies: dependencies,
@@ -104,9 +103,9 @@ func DeleteRun(opts *DeleteOptions) error {
 
 	var projectVariables *variables.VariableSet
 	if project.IsVersionControlled && opts.GitRef.Value != "" {
-		projectVariables, err = opts.GetProjectVariablesByGitRef(opts.Space.GetID(), project.GetID(), opts.GitRef.Value)
+		projectVariables, _ = opts.GetProjectVariablesByGitRef(opts.Space.GetID(), project.GetID(), opts.GitRef.Value)
 	} else {
-		projectVariables, err = opts.GetProjectVariables(project.GetID())
+		projectVariables, _ = opts.GetProjectVariables(project.GetID())
 	}
 
 	filteredVars := util.SliceFilter(

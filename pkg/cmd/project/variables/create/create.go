@@ -6,6 +6,11 @@ import (
 
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/MakeNowJust/heredoc/v2"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/resources"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/variables"
+	"github.com/spf13/cobra"
+
 	"github.com/OctopusDeploy/cli/pkg/cmd"
 	sharedProjectVariable "github.com/OctopusDeploy/cli/pkg/cmd/project/variables/shared"
 	"github.com/OctopusDeploy/cli/pkg/cmd/tenant/shared"
@@ -16,10 +21,6 @@ import (
 	sharedVariable "github.com/OctopusDeploy/cli/pkg/question/shared/variables"
 	"github.com/OctopusDeploy/cli/pkg/util"
 	"github.com/OctopusDeploy/cli/pkg/util/flag"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/resources"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/variables"
-	"github.com/spf13/cobra"
 )
 
 const (
@@ -210,7 +211,7 @@ func CreateRun(opts *CreateOptions) error {
 		return err
 	}
 
-	_, err = fmt.Fprintf(opts.Out, "Successfully created variable '%s' in project '%s'\n", opts.Name.Value, project.GetName())
+	fmt.Fprintf(opts.Out, "Successfully created variable '%s' in project '%s'\n", opts.Name.Value, project.GetName())
 
 	if !opts.NoPrompt {
 		autoCmd := flag.GenerateAutomationCmd(opts.CmdPath, opts.GetSpaceNameOrEmpty(), opts.Project, opts.Name, opts.Value, opts.Description, opts.Type, opts.EnvironmentsScopes, opts.ChannelScopes, opts.StepScopes, opts.TargetScopes, opts.TagScopes, opts.RoleScopes, opts.ProcessScopes, opts.IsPrompted, opts.PromptType, opts.PromptLabel, opts.PromptDescription, opts.PromptSelectOptions, opts.PromptRequired, opts.GitRef)
@@ -254,7 +255,7 @@ func PromptMissing(opts *CreateOptions) error {
 		}
 	}
 
-	question.AskDescription(opts.Ask, "", "Variable", &opts.Description.Value)
+	_ = question.AskDescription(opts.Ask, "", "Variable", &opts.Description.Value)
 
 	if opts.Type.Value == "" {
 		selectedType, err := selectors.SelectOptions(opts.Ask, "Select the type of the variable", getVariableTypeOptions)
@@ -265,7 +266,7 @@ func PromptMissing(opts *CreateOptions) error {
 	}
 
 	if !opts.IsPrompted.Value {
-		opts.Ask(&survey.Confirm{
+		_ = opts.Ask(&survey.Confirm{
 			Message: "Is this a prompted variable?",
 			Default: false,
 		}, &opts.IsPrompted.Value)
@@ -280,7 +281,7 @@ func PromptMissing(opts *CreateOptions) error {
 			}
 		}
 
-		question.AskDescription(opts.Ask, "Prompt ", "Prompted Variable", &opts.PromptDescription.Value)
+		_ = question.AskDescription(opts.Ask, "Prompt ", "Prompted Variable", &opts.PromptDescription.Value)
 
 		if opts.PromptType.Value == "" {
 			selectedPromptType, err := selectors.SelectOptions(opts.Ask, "Select the control type of the prompted variable", getControlTypeOptions)

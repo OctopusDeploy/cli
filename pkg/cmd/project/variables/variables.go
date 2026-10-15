@@ -2,6 +2,8 @@ package variables
 
 import (
 	"github.com/MakeNowJust/heredoc/v2"
+	"github.com/spf13/cobra"
+
 	cmdCreate "github.com/OctopusDeploy/cli/pkg/cmd/project/variables/create"
 	cmdDelete "github.com/OctopusDeploy/cli/pkg/cmd/project/variables/delete"
 	cmdExclude "github.com/OctopusDeploy/cli/pkg/cmd/project/variables/exclude"
@@ -12,7 +14,6 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/constants/annotations"
 	"github.com/OctopusDeploy/cli/pkg/factory"
-	"github.com/spf13/cobra"
 )
 
 func NewCmdVariables(f factory.Factory) *cobra.Command {

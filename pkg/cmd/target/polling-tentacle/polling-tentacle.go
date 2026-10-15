@@ -2,11 +2,12 @@ package polling_tentacle
 
 import (
 	"github.com/MakeNowJust/heredoc/v2"
+	"github.com/spf13/cobra"
+
 	cmdList "github.com/OctopusDeploy/cli/pkg/cmd/target/polling-tentacle/list"
 	cmdView "github.com/OctopusDeploy/cli/pkg/cmd/target/polling-tentacle/view"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/factory"
-	"github.com/spf13/cobra"
 )
 
 func NewCmdPollingTentacle(f factory.Factory) *cobra.Command {

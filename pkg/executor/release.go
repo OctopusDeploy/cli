@@ -7,7 +7,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/OctopusDeploy/cli/pkg/executionscommon"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/dashboard"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/deployments"
@@ -15,6 +14,8 @@ import (
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/releases"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/spaces"
+
+	"github.com/OctopusDeploy/cli/pkg/executionscommon"
 	"github.com/OctopusDeploy/go-octopusversioning/pkg/versioning"
 )
 
@@ -38,7 +39,7 @@ type TaskOptionsCreateRelease struct {
 	IgnoreIfAlreadyExists   bool              // optional
 	IgnoreChannelRules      bool              // optional
 	PackageVersionOverrides []string          // optional
-	GitResourceRefs         []string          //optional
+	GitResourceRefs         []string          // optional
 	CustomFields            map[string]string // optional
 	// if the task succeeds, the resulting output will be stored here
 	Response *releases.CreateReleaseResponseV1

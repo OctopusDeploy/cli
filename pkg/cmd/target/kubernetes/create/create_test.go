@@ -4,14 +4,15 @@ import (
 	"testing"
 
 	"github.com/AlecAivazis/survey/v2"
-	"github.com/OctopusDeploy/cli/pkg/cmd"
-	k8s "github.com/OctopusDeploy/cli/pkg/cmd/target/kubernetes/create"
-	"github.com/OctopusDeploy/cli/pkg/question"
-	"github.com/OctopusDeploy/cli/test/testutil"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/accounts"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/certificates"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/core"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/OctopusDeploy/cli/pkg/cmd"
+	k8s "github.com/OctopusDeploy/cli/pkg/cmd/target/kubernetes/create"
+	"github.com/OctopusDeploy/cli/pkg/question"
+	"github.com/OctopusDeploy/cli/test/testutil"
 )
 
 var (
@@ -50,7 +51,8 @@ func TestAuthType_UsernamePassword(t *testing.T) {
 	opts := newTestOpts(asker, flags)
 	opts.AuthenticationType.Value = authType
 
-	k8s.PromptForAuthTypeInfo(opts)
+	err := k8s.PromptForAuthTypeInfo(opts)
+	assert.NoError(t, err)
 
 	checkRemainingPrompts()
 
@@ -69,7 +71,8 @@ func TestAuthType_Token(t *testing.T) {
 	opts := newTestOpts(asker, flags)
 	opts.AuthenticationType.Value = authType
 
-	k8s.PromptForAuthTypeInfo(opts)
+	err := k8s.PromptForAuthTypeInfo(opts)
+	assert.NoError(t, err)
 
 	checkRemainingPrompts()
 	assert.Equal(t, testAccountNames[0], opts.Account.Value)
@@ -91,7 +94,8 @@ func TestAuthType_Azure(t *testing.T) {
 	opts := newTestOpts(asker, flags)
 	opts.AuthenticationType.Value = authType
 
-	k8s.PromptForAuthTypeInfo(opts)
+	err := k8s.PromptForAuthTypeInfo(opts)
+	assert.NoError(t, err)
 
 	checkRemainingPrompts()
 	assert.Equal(t, testAccountNames[0], opts.Account.Value)
@@ -128,7 +132,8 @@ func TestAuthType_GCP(t *testing.T) {
 	opts := newTestOpts(asker, flags)
 	opts.AuthenticationType.Value = authType
 
-	k8s.PromptForAuthTypeInfo(opts)
+	err := k8s.PromptForAuthTypeInfo(opts)
+	assert.NoError(t, err)
 
 	checkRemainingPrompts()
 	assert.Equal(t, true, opts.UseVMServiceAccount.Value)
@@ -163,7 +168,8 @@ func TestAuthType_AWS(t *testing.T) {
 	opts := newTestOpts(asker, flags)
 	opts.AuthenticationType.Value = authType
 
-	k8s.PromptForAuthTypeInfo(opts)
+	err := k8s.PromptForAuthTypeInfo(opts)
+	assert.NoError(t, err)
 
 	checkRemainingPrompts()
 	assert.Equal(t, false, opts.UseServiceRole.Value)

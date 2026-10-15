@@ -6,6 +6,10 @@ import (
 
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/MakeNowJust/heredoc/v2"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/variables"
+	"github.com/spf13/cobra"
+
 	"github.com/OctopusDeploy/cli/pkg/cmd"
 	sharedProjectVariable "github.com/OctopusDeploy/cli/pkg/cmd/project/variables/shared"
 	"github.com/OctopusDeploy/cli/pkg/cmd/tenant/shared"
@@ -17,9 +21,6 @@ import (
 	sharedVariable "github.com/OctopusDeploy/cli/pkg/question/shared/variables"
 	"github.com/OctopusDeploy/cli/pkg/util"
 	"github.com/OctopusDeploy/cli/pkg/util/flag"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/variables"
-	"github.com/spf13/cobra"
 )
 
 const (
@@ -169,7 +170,7 @@ func updateRun(opts *UpdateOptions) error {
 	if err != nil {
 		return err
 	}
-	_, err = fmt.Fprintf(opts.Out, "Successfully updated variable '%s' in project '%s'\n", variable.Name, project.GetName())
+	fmt.Fprintf(opts.Out, "Successfully updated variable '%s' in project '%s'\n", variable.Name, project.GetName())
 
 	if !opts.NoPrompt {
 		autoCmd := flag.GenerateAutomationCmd(opts.CmdPath, opts.GetSpaceNameOrEmpty(), opts.Id, opts.Name, opts.Value, opts.Project, opts.EnvironmentsScopes, opts.ChannelScopes, opts.StepScopes, opts.TargetScopes, opts.TagScopes, opts.RoleScopes, opts.ProcessScopes, opts.Unscoped, opts.GitRef)
@@ -262,14 +263,14 @@ func PromptMissing(opts *UpdateOptions) error {
 		opts.Id.Value = variable.GetID()
 		opts.Name.Value = variable.Name
 	} else {
-		variable, err = promptForVariable(opts, projectVariables)
+		variable, _ = promptForVariable(opts, projectVariables)
 		opts.Id.Value = variable.GetID()
 		opts.Name.Value = variable.Name
 	}
 
 	if opts.Value.Value == "" {
 		var updateValue bool
-		opts.Ask(&survey.Confirm{
+		_ = opts.Ask(&survey.Confirm{
 			Message: "Do you want to update the variable value?",
 			Default: false,
 		}, &updateValue)
@@ -291,7 +292,7 @@ func PromptMissing(opts *UpdateOptions) error {
 		case "unscope":
 			opts.Unscoped.Value = true
 		case "replace":
-			sharedProjectVariable.PromptScopes(opts.Ask, projectVariables, opts.ScopeFlags, variable.Prompt != nil)
+			_ = sharedProjectVariable.PromptScopes(opts.Ask, projectVariables, opts.ScopeFlags, variable.Prompt != nil)
 		}
 	}
 
@@ -300,7 +301,6 @@ func PromptMissing(opts *UpdateOptions) error {
 
 func promptForVariable(opts *UpdateOptions, projectVariables *variables.VariableSet) (*variables.Variable, error) {
 	selectedOption, err := selectors.Select(opts.Ask, "Select the variable you wish to update", func() ([]*variables.Variable, error) { return projectVariables.Variables, nil }, func(v *variables.Variable) string { return formatVariableSelection(v) })
-
 	if err != nil {
 		return nil, err
 	}

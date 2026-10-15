@@ -3,19 +3,25 @@ package apiclient_test
 import (
 	"testing"
 
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/spaces"
+	"github.com/stretchr/testify/assert"
+
+	octopusApiClient "github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
+
 	"github.com/OctopusDeploy/cli/pkg/apiclient"
 	"github.com/OctopusDeploy/cli/pkg/question"
 	"github.com/OctopusDeploy/cli/test/testutil"
-	octopusApiClient "github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/spaces"
-	"github.com/stretchr/testify/assert"
 )
 
-const serverUrl = "http://server"
-const placeholderApiKey = "API-XXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+const (
+	serverUrl         = "http://server"
+	placeholderApiKey = "API-XXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+)
 
-var root = testutil.NewRootResource()
-var qa = question.NewAskProvider(nil)
+var (
+	root = testutil.NewRootResource()
+	qa   = question.NewAskProvider(nil)
+)
 
 func TestClient_GetSystemClient(t *testing.T) {
 	api := testutil.NewMockHttpServer()
@@ -30,7 +36,7 @@ func TestClient_GetSystemClient(t *testing.T) {
 				return factory.GetSystemClient(&apiclient.FakeRequesterContext{})
 			})
 
-		//clientReceiver2 := testutil.GoBegin2(func () (*octopusApiClient.Client, error) { factory.GetSystemClient(&apiclient.FakeRequesterContext{})
+		// clientReceiver2 := testutil.GoBegin2(func () (*octopusApiClient.Client, error) { factory.GetSystemClient(&apiclient.FakeRequesterContext{})
 		api.ExpectRequest(t, "GET", "/api/").RespondWith(root)
 		api.ExpectRequest(t, "GET", "/api/spaces").RespondWith(root)
 
@@ -117,7 +123,7 @@ func TestClient_GetSpacedClient_NoPrompt(t *testing.T) {
 
 		api.ExpectRequest(t, "GET", "/api/").RespondWith(root)
 		api.ExpectRequest(t, "GET", "/api/spaces").RespondWith(root)
-		//api.ExpectRequest(t, "GET", "/api/spaces/all").RespondWith(root)
+		// api.ExpectRequest(t, "GET", "/api/spaces/all").RespondWith(root)
 		// it doesn't actually matter how many spaces there are because the CLI doesn't even ask for them
 
 		apiClient, err := testutil.ReceivePair(clientReceiver)

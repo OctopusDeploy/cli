@@ -1,12 +1,14 @@
 package clone_test
 
 import (
+	"testing"
+
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/tenants"
+	"github.com/stretchr/testify/assert"
+
 	"github.com/OctopusDeploy/cli/pkg/cmd"
 	"github.com/OctopusDeploy/cli/pkg/cmd/tenant/clone"
 	"github.com/OctopusDeploy/cli/test/testutil"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/tenants"
-	"github.com/stretchr/testify/assert"
-	"testing"
 )
 
 func TestPromptMissing_AllFlagsSupplied(t *testing.T) {
@@ -30,7 +32,7 @@ func TestPromptMissing_AllFlagsSupplied(t *testing.T) {
 
 func TestPromptMissing_NoFlagsSupplied(t *testing.T) {
 	pa := []*testutil.PA{
-		testutil.NewInputPrompt("Name", "A short, memorable, unique name for this Tenant.",  "cloned tenant"),
+		testutil.NewInputPrompt("Name", "A short, memorable, unique name for this Tenant.", "cloned tenant"),
 		testutil.NewInputPrompt("Description", "A short, memorable, description for this Tenant.", "the description"),
 		testutil.NewSelectPrompt("You have not specified a source Tenant to clone from. Please select one:", "", []string{"source tenant", "source tenant 2"}, "source tenant"),
 	}
@@ -41,11 +43,11 @@ func TestPromptMissing_NoFlagsSupplied(t *testing.T) {
 	opts.GetTenantCallback = func(identifier string) (*tenants.Tenant, error) {
 		return tenants.NewTenant("source tenant"), nil
 	}
-	opts.GetAllTenantsCallback= func () ([]*tenants.Tenant, error) {
+	opts.GetAllTenantsCallback = func() ([]*tenants.Tenant, error) {
 		return []*tenants.Tenant{
-		 tenants.NewTenant("source tenant"),
-		 tenants.NewTenant("source tenant 2"),
-		},nil
+			tenants.NewTenant("source tenant"),
+			tenants.NewTenant("source tenant 2"),
+		}, nil
 	}
 
 	err := clone.PromptMissing(opts)

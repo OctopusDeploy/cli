@@ -7,14 +7,17 @@ import (
 	"runtime"
 	"strings"
 
+	"github.com/spf13/viper"
+
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/util"
-	"github.com/spf13/viper"
 )
 
-const configName = "cli_config"
-const defaultConfigFileType = "json"
-const appData = "AppData"
+const (
+	configName            = "cli_config"
+	defaultConfigFileType = "json"
+	appData               = "AppData"
+)
 
 func SetupConfigFile(v *viper.Viper, configPath string) {
 	v.SetConfigName(configName)

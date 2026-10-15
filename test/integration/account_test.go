@@ -5,15 +5,15 @@ import (
 	"testing"
 
 	"github.com/MakeNowJust/heredoc/v2"
-	"github.com/stretchr/testify/require"
-
-	"github.com/OctopusDeploy/cli/test/integration"
-	"github.com/OctopusDeploy/cli/test/testutil"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/accounts"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/core"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/spaces"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/teams"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	"github.com/OctopusDeploy/cli/test/integration"
+	"github.com/OctopusDeploy/cli/test/testutil"
 )
 
 func TestAccountList(t *testing.T) {
@@ -152,7 +152,7 @@ user-pw-b  Username/Password  user-pw-b
 	`), stdOut)
 		})
 
-		//tests for JSON and Table are redundant here because the CLI is calling the same API's in the server
-		//that we have just tested. The only difference is output format, which is tested elsewhere
+		// tests for JSON and Table are redundant here because the CLI is calling the same API's in the server
+		// that we have just tested. The only difference is output format, which is tested elsewhere
 	})
 }

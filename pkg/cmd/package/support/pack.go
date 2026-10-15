@@ -5,19 +5,21 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/AlecAivazis/survey/v2"
-	"github.com/OctopusDeploy/cli/pkg/constants"
-	"github.com/OctopusDeploy/cli/pkg/factory"
-	"github.com/OctopusDeploy/cli/pkg/question"
-	"github.com/OctopusDeploy/cli/pkg/util"
-	"github.com/OctopusDeploy/cli/pkg/util/flag"
-	"github.com/bmatcuk/doublestar/v4"
-	"github.com/spf13/cobra"
 	"io"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/AlecAivazis/survey/v2"
+	"github.com/bmatcuk/doublestar/v4"
+	"github.com/spf13/cobra"
+
+	"github.com/OctopusDeploy/cli/pkg/constants"
+	"github.com/OctopusDeploy/cli/pkg/factory"
+	"github.com/OctopusDeploy/cli/pkg/question"
+	"github.com/OctopusDeploy/cli/pkg/util"
+	"github.com/OctopusDeploy/cli/pkg/util/flag"
 )
 
 const (
@@ -360,7 +362,7 @@ func buildArchive(out io.Writer, outFilePath string, basePath string, filesToArc
 
 	for _, entry := range extraEntries {
 		header := &zip.FileHeader{Name: entry.Name, Method: zip.Deflate}
-		header.SetMode(0644)
+		header.SetMode(0o644)
 
 		headerWriter, err := writer.CreateHeader(header)
 		if err != nil {

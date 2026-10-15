@@ -4,14 +4,15 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/OctopusDeploy/cli/pkg/cmd"
-	"github.com/OctopusDeploy/cli/pkg/cmd/space/create"
-	"github.com/OctopusDeploy/cli/pkg/output"
-	"github.com/OctopusDeploy/cli/test/testutil"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/spaces"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/teams"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/users"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/OctopusDeploy/cli/pkg/cmd"
+	"github.com/OctopusDeploy/cli/pkg/cmd/space/create"
+	"github.com/OctopusDeploy/cli/pkg/output"
+	"github.com/OctopusDeploy/cli/test/testutil"
 )
 
 func TestPromptMissing_AllOptionsSupplied(t *testing.T) {
@@ -29,10 +30,12 @@ func TestPromptMissing_AllOptionsSupplied(t *testing.T) {
 		Dependencies: &cmd.Dependencies{Ask: asker},
 		GetAllSpacesCallback: func() ([]*spaces.Space, error) {
 			return []*spaces.Space{
-				spaces.NewSpace("Explored space")}, nil
+				spaces.NewSpace("Explored space"),
+			}, nil
 		},
 	}
-	create.PromptMissing(opts)
+	err := create.PromptMissing(opts)
+	assert.NoError(t, err)
 	checkRemainingPrompts()
 }
 
@@ -61,10 +64,10 @@ func TestPromptMissing_NoOptionsSupplied(t *testing.T) {
 		Dependencies: &cmd.Dependencies{Ask: asker},
 		GetAllSpacesCallback: func() ([]*spaces.Space, error) {
 			return []*spaces.Space{
-				spaces.NewSpace("Explored space")}, nil
+				spaces.NewSpace("Explored space"),
+			}, nil
 		},
 		GetAllTeamsCallback: func() ([]*teams.Team, error) {
-
 			return []*teams.Team{
 				bridgeTeam,
 				engineeringTeam,
@@ -72,7 +75,8 @@ func TestPromptMissing_NoOptionsSupplied(t *testing.T) {
 		},
 		GetAllUsersCallback: func() ([]*users.User, error) { return []*users.User{captain, vulcan}, nil },
 	}
-	create.PromptMissing(opts)
+	err := create.PromptMissing(opts)
+	assert.NoError(t, err)
 	checkRemainingPrompts()
 	assert.Equal(t, "Cray cray space", flags.Name.Value)
 	assert.Equal(t, "Crazy description", flags.Description.Value)

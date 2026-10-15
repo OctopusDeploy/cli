@@ -4,12 +4,13 @@ import (
 	"net/http"
 
 	"github.com/AlecAivazis/survey/v2"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/spaces"
+
 	"github.com/OctopusDeploy/cli/pkg/apiclient"
 	"github.com/OctopusDeploy/cli/pkg/config"
 	"github.com/OctopusDeploy/cli/pkg/question"
 	"github.com/OctopusDeploy/cli/pkg/servicemessages"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/spaces"
 )
 
 // wrapper over the underlying spinner so we can mock it
@@ -46,7 +47,8 @@ func New(clientFactory apiclient.ClientFactory,
 	s Spinner,
 	buildVersion string,
 	config config.IConfigProvider,
-	serviceMessageProvider servicemessages.Provider) Factory {
+	serviceMessageProvider servicemessages.Provider,
+) Factory {
 	return &factory{
 		client:                 clientFactory,
 		asker:                  asker,

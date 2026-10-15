@@ -10,11 +10,13 @@ import (
 
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/MakeNowJust/heredoc/v2"
-	"github.com/OctopusDeploy/cli/pkg/output"
-	"github.com/OctopusDeploy/cli/pkg/question"
-	octopusApiClient "github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/feeds"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/releases"
+
+	octopusApiClient "github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
+
+	"github.com/OctopusDeploy/cli/pkg/output"
+	"github.com/OctopusDeploy/cli/pkg/question"
 )
 
 var packageOverrideLoopHelpText = heredoc.Doc(`
@@ -66,7 +68,8 @@ type StepPackageVersion struct {
 // Result is the list of step+package+versions to use as a baseline.
 // The package version override process takes this as an input and layers on top of it
 func BuildPackageVersionBaseline(octopus *octopusApiClient.Client, packages []releases.ReleaseTemplatePackage,
-	setAdditionalFeedQueryParameters func(releases.ReleaseTemplatePackage, feeds.SearchPackageVersionsQuery) (feeds.SearchPackageVersionsQuery, error)) ([]*StepPackageVersion, error) {
+	setAdditionalFeedQueryParameters func(releases.ReleaseTemplatePackage, feeds.SearchPackageVersionsQuery) (feeds.SearchPackageVersionsQuery, error),
+) ([]*StepPackageVersion, error) {
 	result := make([]*StepPackageVersion, 0, len(packages))
 
 	// step 1: pass over all the packages in the deployment process, group them
@@ -133,7 +136,6 @@ func BuildPackageVersionBaseline(octopus *octopusApiClient.Client, packages []re
 
 			if setAdditionalFeedQueryParameters != nil {
 				query, err = setAdditionalFeedQueryParameters(packageRef, query)
-
 				if err != nil {
 					return nil, err
 				}
@@ -538,7 +540,8 @@ func AskPackageOverrideLoop(
 	defaultPackageVersion string, // the --package-version command line flag
 	initialPackageOverrideFlags []string, // the --package command line flag (multiple occurrences)
 	asker question.Asker,
-	stdout io.Writer) ([]*StepPackageVersion, []*PackageVersionOverride, error) {
+	stdout io.Writer,
+) ([]*StepPackageVersion, []*PackageVersionOverride, error) {
 	packageVersionOverrides := make([]*PackageVersionOverride, 0)
 
 	// pickup any partial package specifications that may have arrived on the commandline
@@ -572,7 +575,7 @@ outerLoop:
 		for _, pkgVersionEntry := range overriddenPackageVersions {
 			if strings.TrimSpace(pkgVersionEntry.Version) == "" {
 
-				var answer = ""
+				answer := ""
 				for strings.TrimSpace(answer) == "" { // if they enter a blank line just ask again repeatedly
 					err = asker(&survey.Input{
 						Message: output.Yellowf("Unable to find a version for \"%s\". Specify a version:", pkgVersionEntry.PackageID),
@@ -586,7 +589,6 @@ outerLoop:
 						}
 						return nil
 					}))
-
 					if err != nil {
 						return nil, nil, err
 					}
@@ -605,7 +607,7 @@ outerLoop:
 
 		// side-channel return value from the validator
 		var resolvedOverride *PackageVersionOverride = nil
-		var answer = ""
+		answer := ""
 		err = asker(&survey.Input{
 			Message: "Package override string (y to accept, u to undo, ? for help):",
 		}, &answer, survey.WithValidator(func(ans interface{}) error {
@@ -631,7 +633,6 @@ outerLoop:
 
 			return nil // good!
 		}))
-
 		// if validators return an error, survey retries itself; the errors don't end up at this level.
 		if err != nil {
 			return nil, nil, err

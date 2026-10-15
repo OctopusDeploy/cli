@@ -5,16 +5,16 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/OctopusDeploy/cli/pkg/constants"
-	"github.com/OctopusDeploy/cli/pkg/output"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/environments/v2/ephemeralenvironments"
 	"github.com/spf13/cobra"
+
+	"github.com/OctopusDeploy/cli/pkg/constants"
+	"github.com/OctopusDeploy/cli/pkg/output"
 )
 
 func GetByName(client *client.Client, name string, spaceID string) (*ephemeralenvironments.EphemeralEnvironment, error) {
 	environments, err := ephemeralenvironments.GetByPartialName(client, spaceID, name)
-
 	if err != nil {
 		return nil, err
 	}
@@ -23,7 +23,7 @@ func GetByName(client *client.Client, name string, spaceID string) (*ephemeralen
 		return nil, fmt.Errorf("no ephemeral environment found with the name '%s'", name)
 	} else {
 		var exactMatch *ephemeralenvironments.EphemeralEnvironment
-		var toLowerName = strings.ToLower(name)
+		toLowerName := strings.ToLower(name)
 
 		for _, environment := range environments.Items {
 			if strings.ToLower(environment.Name) == toLowerName {

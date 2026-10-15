@@ -4,12 +4,13 @@ import (
 	"bytes"
 	"testing"
 
-	logoutCmd "github.com/OctopusDeploy/cli/pkg/cmd/logout"
-	"github.com/OctopusDeploy/cli/pkg/constants"
-	"github.com/OctopusDeploy/cli/test/testutil"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
+
+	logoutCmd "github.com/OctopusDeploy/cli/pkg/cmd/logout"
+	"github.com/OctopusDeploy/cli/pkg/constants"
+	"github.com/OctopusDeploy/cli/test/testutil"
 )
 
 func TestLogout_SetsConfigCorrectly(t *testing.T) {
@@ -20,9 +21,9 @@ func TestLogout_SetsConfigCorrectly(t *testing.T) {
 
 	assert.Nil(t, err)
 
-	configProvider.Set(constants.ConfigUrl, "https://some.octopus.app")
-	configProvider.Set(constants.ConfigApiKey, "API-APIKEY01")
-	configProvider.Set(constants.ConfigUrl, "accesstoken")
+	assert.Nil(t, configProvider.Set(constants.ConfigUrl, "https://some.octopus.app"))
+	assert.Nil(t, configProvider.Set(constants.ConfigApiKey, "API-APIKEY01"))
+	assert.Nil(t, configProvider.Set(constants.ConfigAccessToken, "accesstoken"))
 
 	logoutCmd := logoutCmd.NewCmdLogout(fac)
 	stdout, stderr := &bytes.Buffer{}, &bytes.Buffer{}

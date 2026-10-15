@@ -2,13 +2,14 @@ package snapshot
 
 import (
 	"github.com/MakeNowJust/heredoc/v2"
+	"github.com/spf13/cobra"
+
 	cmdCreate "github.com/OctopusDeploy/cli/pkg/cmd/runbook/snapshot/create"
 	cmdList "github.com/OctopusDeploy/cli/pkg/cmd/runbook/snapshot/list"
 	cmdPublish "github.com/OctopusDeploy/cli/pkg/cmd/runbook/snapshot/publish"
 	cmdSnapshotVariables "github.com/OctopusDeploy/cli/pkg/cmd/runbook/snapshot/snapshot_variables"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/factory"
-	"github.com/spf13/cobra"
 )
 
 func NewCmdSnapshot(f factory.Factory) *cobra.Command {

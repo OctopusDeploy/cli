@@ -4,19 +4,18 @@ import (
 	"errors"
 	"math"
 
-	"github.com/OctopusDeploy/cli/pkg/cmd/runbook/shared"
+	"github.com/MakeNowJust/heredoc/v2"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/resources"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/runbooks"
+	"github.com/spf13/cobra"
 
 	"github.com/OctopusDeploy/cli/pkg/apiclient"
-
-	"github.com/MakeNowJust/heredoc/v2"
+	"github.com/OctopusDeploy/cli/pkg/cmd/runbook/shared"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/OctopusDeploy/cli/pkg/output"
 	"github.com/OctopusDeploy/cli/pkg/question/selectors"
 	"github.com/OctopusDeploy/cli/pkg/util/flag"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/resources"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/runbooks"
-	"github.com/spf13/cobra"
 )
 
 const (
@@ -130,13 +129,11 @@ func listRun(cmd *cobra.Command, f factory.Factory, flags *ListFlags) error {
 		}
 
 		foundRunbooks, err = runbooks.ListGitRunbooks(octopus, f.GetCurrentSpace().ID, selectedProject.ID, gitReference, filter, int(limit))
-
 		if err != nil {
 			return err
 		}
 	} else {
 		foundRunbooks, err = runbooks.List(octopus, f.GetCurrentSpace().ID, selectedProject.ID, filter, int(limit))
-
 		if err != nil {
 			return err
 		}
@@ -154,7 +151,8 @@ func listRun(cmd *cobra.Command, f factory.Factory, flags *ListFlags) error {
 			Header: []string{"NAME", "DESCRIPTION"},
 			Row: func(item *runbooks.Runbook) []string {
 				return []string{item.Name, item.Description}
-			}},
+			},
+		},
 		Basic: func(item *runbooks.Runbook) string {
 			return item.Name
 		},

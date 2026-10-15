@@ -5,8 +5,9 @@ import (
 	"testing"
 
 	"github.com/AlecAivazis/survey/v2"
-	"github.com/OctopusDeploy/cli/pkg/apiclient"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/OctopusDeploy/cli/pkg/apiclient"
 )
 
 type fakeAskProvider struct{ interactive bool }

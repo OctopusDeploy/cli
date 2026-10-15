@@ -5,12 +5,14 @@ import (
 	"net/url"
 	"testing"
 
-	"github.com/OctopusDeploy/cli/pkg/cmd/ephemeralenvironment/util"
-	"github.com/OctopusDeploy/cli/test/testutil"
-	octopusApiClient "github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/environments/v2/ephemeralenvironments"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/resources"
 	"github.com/stretchr/testify/assert"
+
+	octopusApiClient "github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
+
+	"github.com/OctopusDeploy/cli/pkg/cmd/ephemeralenvironment/util"
+	"github.com/OctopusDeploy/cli/test/testutil"
 )
 
 var serverUrl, _ = url.Parse("http://server")

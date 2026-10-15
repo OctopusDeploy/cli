@@ -4,14 +4,15 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/OctopusDeploy/cli/pkg/cmd"
-	"github.com/OctopusDeploy/cli/pkg/output"
-	"github.com/OctopusDeploy/cli/pkg/util"
-	"github.com/OctopusDeploy/cli/pkg/util/flag"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/machines"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/workerpools"
 	"github.com/pkg/browser"
 	"github.com/spf13/cobra"
+
+	"github.com/OctopusDeploy/cli/pkg/cmd"
+	"github.com/OctopusDeploy/cli/pkg/output"
+	"github.com/OctopusDeploy/cli/pkg/util"
+	"github.com/OctopusDeploy/cli/pkg/util/flag"
 )
 
 const (
@@ -51,6 +52,6 @@ func doWeb(url string, description string, out io.Writer, flags *WebFlags) {
 	link := output.Blue(url)
 	fmt.Fprintf(out, "View this %s on Octopus Deploy: %s\n", description, link)
 	if flags.Web.Value {
-		browser.OpenURL(url)
+		_ = browser.OpenURL(url)
 	}
 }

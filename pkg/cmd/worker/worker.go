@@ -2,6 +2,8 @@ package worker
 
 import (
 	"github.com/MakeNowJust/heredoc/v2"
+	"github.com/spf13/cobra"
+
 	cmdDelete "github.com/OctopusDeploy/cli/pkg/cmd/worker/delete"
 	cmdList "github.com/OctopusDeploy/cli/pkg/cmd/worker/list"
 	listeningTentacle "github.com/OctopusDeploy/cli/pkg/cmd/worker/listening-tentacle"
@@ -11,7 +13,6 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/constants/annotations"
 	"github.com/OctopusDeploy/cli/pkg/factory"
-	"github.com/spf13/cobra"
 )
 
 func NewCmdWorker(f factory.Factory) *cobra.Command {

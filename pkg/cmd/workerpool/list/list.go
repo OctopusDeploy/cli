@@ -2,13 +2,14 @@ package list
 
 import (
 	"github.com/MakeNowJust/heredoc/v2"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/workerpools"
+	"github.com/spf13/cobra"
+
 	"github.com/OctopusDeploy/cli/pkg/cmd"
 	"github.com/OctopusDeploy/cli/pkg/cmd/workerpool/shared"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/OctopusDeploy/cli/pkg/output"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/workerpools"
-	"github.com/spf13/cobra"
 )
 
 type ListOptions struct {
@@ -55,7 +56,6 @@ func ListRun(opts *ListOptions) error {
 
 	return output.PrintArray(allPools, opts.Command, output.Mappers[*workerpools.WorkerPoolListResult]{
 		Json: func(item *workerpools.WorkerPoolListResult) any {
-
 			return TargetAsJson{
 				Id:   item.ID,
 				Name: item.Name,

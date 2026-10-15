@@ -6,14 +6,15 @@ import (
 	"strings"
 
 	"github.com/MakeNowJust/heredoc/v2"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/buildinformation"
+	"github.com/spf13/cobra"
+
 	"github.com/OctopusDeploy/cli/pkg/apiclient"
 	"github.com/OctopusDeploy/cli/pkg/cmd/buildinformation/shared"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/OctopusDeploy/cli/pkg/output"
 	"github.com/OctopusDeploy/cli/pkg/util/flag"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/buildinformation"
-	"github.com/spf13/cobra"
 )
 
 const (
@@ -121,7 +122,8 @@ func listRun(cmd *cobra.Command, f factory.Factory, listFlags *ListFlags) error 
 				"BUILD NO",
 				"BRANCH",
 				"COMMITS",
-				"WORKITEMS"},
+				"WORKITEMS",
+			},
 			Row: func(b *buildinformation.BuildInformation) []string {
 				return []string{
 					output.Bold(b.PackageID),
@@ -130,7 +132,8 @@ func listRun(cmd *cobra.Command, f factory.Factory, listFlags *ListFlags) error 
 					b.BuildNumber,
 					b.Branch,
 					strconv.Itoa(len(b.Commits)),
-					strconv.Itoa(len(b.WorkItems))}
+					strconv.Itoa(len(b.WorkItems)),
+				}
 			},
 		},
 		Basic: func(b *buildinformation.BuildInformation) string {

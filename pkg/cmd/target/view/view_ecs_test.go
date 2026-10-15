@@ -5,11 +5,6 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/OctopusDeploy/cli/pkg/cmd/target/view"
-	"github.com/OctopusDeploy/cli/pkg/constants"
-	"github.com/OctopusDeploy/cli/test/testutil"
-	octopusApiClient "github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
-	octopusConstants "github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/constants"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/environments"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/resources"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/spaces"
@@ -18,6 +13,13 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	octopusApiClient "github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
+	octopusConstants "github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/constants"
+
+	"github.com/OctopusDeploy/cli/pkg/cmd/target/view"
+	"github.com/OctopusDeploy/cli/pkg/constants"
+	"github.com/OctopusDeploy/cli/test/testutil"
 )
 
 // The shared root resource has no infrastructure links; the target commands need them.

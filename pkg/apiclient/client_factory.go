@@ -4,20 +4,20 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
+	"net/http"
 	"net/url"
 	"strings"
 
 	"github.com/MakeNowJust/heredoc/v2"
-	"github.com/OctopusDeploy/cli/pkg/constants"
-	"github.com/OctopusDeploy/cli/pkg/output"
-	"github.com/OctopusDeploy/cli/pkg/question"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/spaces"
 	"github.com/spf13/viper"
 
-	"net/http"
-
-	cliErrors "github.com/OctopusDeploy/cli/pkg/errors"
 	octopusApiClient "github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
+
+	"github.com/OctopusDeploy/cli/pkg/constants"
+	cliErrors "github.com/OctopusDeploy/cli/pkg/errors"
+	"github.com/OctopusDeploy/cli/pkg/output"
+	"github.com/OctopusDeploy/cli/pkg/question"
 )
 
 type ClientFactory interface {
@@ -134,7 +134,6 @@ func NewClientFactoryFromConfig(ask question.AskProvider) (ClientFactory, error)
 
 	if apiKey != "" {
 		apiKeyCredential, err := octopusApiClient.NewApiKey(apiKey)
-
 		if err != nil {
 			return nil, err
 		}
@@ -142,7 +141,6 @@ func NewClientFactoryFromConfig(ask question.AskProvider) (ClientFactory, error)
 		credentials = apiKeyCredential
 	} else if accessToken != "" {
 		accessTokenCredential, err := octopusApiClient.NewAccessToken(accessToken)
-
 		if err != nil {
 			return nil, err
 		}
@@ -154,7 +152,6 @@ func NewClientFactoryFromConfig(ask question.AskProvider) (ClientFactory, error)
 }
 
 func ValidateMandatoryEnvironment(host string, apiKey string, accessToken string, isInteractive bool) error {
-
 	if host == "" || (apiKey == "" && accessToken == "") {
 
 		if isInteractive {
@@ -170,7 +167,6 @@ func ValidateMandatoryEnvironment(host string, apiKey string, accessToken string
 }
 
 func GetInteractiveMandatoryEnvironmentErrorMessage() string {
-
 	octopusLogo := ""
 
 	if viper.GetBool(constants.ConfigShowOctopus) {
@@ -305,7 +301,6 @@ func (c *Client) GetSpacedClient(requester Requester) (*octopusApiClient.Client,
 			selectedSpace, err := question.SelectMap(
 				c.Ask.Ask,
 				"You have not specified a Space. Please select one:", allSpaces, func(item *spaces.Space) string { return item.GetName() })
-
 			if err != nil {
 				return nil, err
 			}

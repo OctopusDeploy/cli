@@ -1,12 +1,14 @@
 package convert_test
 
 import (
+	"testing"
+
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/credentials"
+	"github.com/stretchr/testify/assert"
+
 	"github.com/OctopusDeploy/cli/pkg/cmd"
 	projectConvert "github.com/OctopusDeploy/cli/pkg/cmd/project/convert"
 	"github.com/OctopusDeploy/cli/test/testutil"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/credentials"
-	"github.com/stretchr/testify/assert"
-	"testing"
 )
 
 func TestPromptForConfigAsCode_UsingCacWithProjectStorage(t *testing.T) {

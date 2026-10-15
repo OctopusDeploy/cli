@@ -3,15 +3,15 @@ package list
 import (
 	"math"
 
-	"github.com/OctopusDeploy/cli/pkg/apiclient"
-
 	"github.com/MakeNowJust/heredoc/v2"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/packages"
+	"github.com/spf13/cobra"
+
+	"github.com/OctopusDeploy/cli/pkg/apiclient"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/OctopusDeploy/cli/pkg/output"
 	"github.com/OctopusDeploy/cli/pkg/util/flag"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/packages"
-	"github.com/spf13/cobra"
 )
 
 const (
@@ -94,7 +94,8 @@ func listRun(cmd *cobra.Command, f factory.Factory, flags *ListFlags) error {
 			Header: []string{"ID", "HIGHEST VERSION", "DESCRIPTION"},
 			Row: func(item *packages.Package) []string {
 				return []string{item.PackageID, item.Version, item.Description}
-			}},
+			},
+		},
 		Basic: func(item *packages.Package) string {
 			return item.PackageID
 		},

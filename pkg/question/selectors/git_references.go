@@ -3,11 +3,13 @@ package selectors
 import (
 	"fmt"
 
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
+
+	octopusApiClient "github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
+
 	"github.com/OctopusDeploy/cli/pkg/output"
 	"github.com/OctopusDeploy/cli/pkg/question"
 	"github.com/OctopusDeploy/cli/pkg/util"
-	octopusApiClient "github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
 )
 
 func GitReference(questionText string, octopus *octopusApiClient.Client, ask question.Asker, project *projects.Project) (*projects.GitReference, error) {
@@ -17,7 +19,6 @@ func GitReference(questionText string, octopus *octopusApiClient.Client, ask que
 	}
 
 	tags, err := octopus.Projects.GetGitTags(project)
-
 	if err != nil {
 		return nil, err
 	}

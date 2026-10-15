@@ -5,20 +5,20 @@ import (
 	"io"
 	"strings"
 
-	"github.com/OctopusDeploy/cli/pkg/apiclient"
-
 	"github.com/MakeNowJust/heredoc/v2"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projectgroups"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
+	"github.com/pkg/browser"
+	"github.com/spf13/cobra"
+
+	"github.com/OctopusDeploy/cli/pkg/apiclient"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/OctopusDeploy/cli/pkg/output"
 	"github.com/OctopusDeploy/cli/pkg/usage"
 	"github.com/OctopusDeploy/cli/pkg/util"
 	"github.com/OctopusDeploy/cli/pkg/util/flag"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projectgroups"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
-	"github.com/pkg/browser"
-	"github.com/spf13/cobra"
 )
 
 const (
@@ -172,7 +172,7 @@ func formatProjectGroupForBasic(opts *ViewOptions, projectGroup *projectgroups.P
 	result.WriteString(fmt.Sprintf("\nView this project group in Octopus Deploy: %s\n", output.Blue(url)))
 
 	if opts.flags.Web.Value {
-		browser.OpenURL(url)
+		_ = browser.OpenURL(url)
 	}
 
 	return result.String()

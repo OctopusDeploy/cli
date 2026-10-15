@@ -4,13 +4,14 @@ import (
 	"strconv"
 
 	"github.com/MakeNowJust/heredoc/v2"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/tenants"
+	"github.com/spf13/cobra"
+
 	"github.com/OctopusDeploy/cli/pkg/apiclient"
 	"github.com/OctopusDeploy/cli/pkg/cmd/tenant/shared"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/OctopusDeploy/cli/pkg/output"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/tenants"
-	"github.com/spf13/cobra"
 )
 
 func NewCmdList(f factory.Factory) *cobra.Command {
@@ -54,7 +55,6 @@ func listRun(cmd *cobra.Command, f factory.Factory) error {
 
 	return output.PrintArray(allTenants, cmd, output.Mappers[*tenants.Tenant]{
 		Json: func(t *tenants.Tenant) any {
-
 			projectEnvironments := []shared.ProjectEnvironment{}
 
 			for p := range t.ProjectEnvironments {

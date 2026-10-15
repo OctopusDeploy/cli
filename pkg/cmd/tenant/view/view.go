@@ -6,10 +6,14 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/MakeNowJust/heredoc/v2"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/tenants"
+	"github.com/pkg/browser"
+	"github.com/spf13/cobra"
+
 	"github.com/OctopusDeploy/cli/pkg/apiclient"
 	"github.com/OctopusDeploy/cli/pkg/cmd/tenant/shared"
-
-	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/OctopusDeploy/cli/pkg/output"
@@ -18,10 +22,6 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/usage"
 	"github.com/OctopusDeploy/cli/pkg/util"
 	"github.com/OctopusDeploy/cli/pkg/util/flag"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/tenants"
-	"github.com/pkg/browser"
-	"github.com/spf13/cobra"
 )
 
 const (
@@ -147,7 +147,6 @@ func viewRun(opts *ViewOptions, cmd *cobra.Command) error {
 
 	return output.PrintResource(tenant, cmd, output.Mappers[*tenants.Tenant]{
 		Json: func(t *tenants.Tenant) any {
-
 			projectEnvironments := []shared.ProjectEnvironment{}
 
 			for p := range t.ProjectEnvironments {
@@ -197,7 +196,7 @@ func viewRun(opts *ViewOptions, cmd *cobra.Command) error {
 			s.WriteString(fmt.Sprintf("View this tenant in Octopus Deploy: %s\n", output.Blue(link)))
 
 			if opts.flags.Web.Value {
-				browser.OpenURL(link)
+				_ = browser.OpenURL(link)
 			}
 
 			return s.String()

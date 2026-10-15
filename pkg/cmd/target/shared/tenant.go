@@ -3,20 +3,22 @@ package shared
 import (
 	"errors"
 	"fmt"
-	"github.com/OctopusDeploy/cli/pkg/cmd"
-	sharedTenants "github.com/OctopusDeploy/cli/pkg/cmd/tenant/shared"
-	"github.com/OctopusDeploy/cli/pkg/question"
-	"github.com/OctopusDeploy/cli/pkg/question/selectors"
-	"github.com/OctopusDeploy/cli/pkg/util"
-	"github.com/OctopusDeploy/cli/pkg/util/flag"
+	"sort"
+	"strings"
+
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/core"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/machines"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/tagsets"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/tenants"
 	"github.com/spf13/cobra"
-	"sort"
-	"strings"
+
+	"github.com/OctopusDeploy/cli/pkg/cmd"
+	sharedTenants "github.com/OctopusDeploy/cli/pkg/cmd/tenant/shared"
+	"github.com/OctopusDeploy/cli/pkg/question"
+	"github.com/OctopusDeploy/cli/pkg/question/selectors"
+	"github.com/OctopusDeploy/cli/pkg/util"
+	"github.com/OctopusDeploy/cli/pkg/util/flag"
 )
 
 const (
@@ -198,5 +200,4 @@ func ConfigureTenant(target *machines.DeploymentTarget, flags *CreateTargetTenan
 		}
 	}
 	return nil
-
 }

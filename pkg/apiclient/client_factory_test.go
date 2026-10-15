@@ -3,15 +3,18 @@ package apiclient_test
 import (
 	"testing"
 
-	"github.com/OctopusDeploy/cli/pkg/apiclient"
-	"github.com/OctopusDeploy/cli/test/testutil"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/OctopusDeploy/cli/pkg/apiclient"
+	"github.com/OctopusDeploy/cli/test/testutil"
 )
 
-const hostUrl = "http://octopus.com"
-const apiKey = "API-APIKEY01"
-const accessToken = "token"
+const (
+	hostUrl     = "http://octopus.com"
+	apiKey      = "API-APIKEY01"
+	accessToken = "token"
+)
 
 func TestValidateMandatoryEnvironment_WhenHostIsNotSupplied_ReturnsError(t *testing.T) {
 	err := apiclient.ValidateMandatoryEnvironment("", apiKey, accessToken, false)

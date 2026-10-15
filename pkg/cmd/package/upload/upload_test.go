@@ -4,24 +4,27 @@ import (
 	"archive/zip"
 	"bytes"
 	"context"
-	cryptoRand "crypto/rand"
 	"encoding/base64"
 	"encoding/hex"
+	"io"
+	"os"
+	"strings"
+	"testing"
+
 	"github.com/MakeNowJust/heredoc/v2"
-	cmdRoot "github.com/OctopusDeploy/cli/pkg/cmd/root"
-	"github.com/OctopusDeploy/cli/pkg/constants"
-	"github.com/OctopusDeploy/cli/test/fixtures"
-	"github.com/OctopusDeploy/cli/test/testutil"
 	"github.com/OctopusDeploy/go-octodiff/pkg/octodiff"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/packages"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/resources"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"io"
-	"os"
-	"strings"
-	"testing"
+
+	cryptoRand "crypto/rand"
+
+	cmdRoot "github.com/OctopusDeploy/cli/pkg/cmd/root"
+	"github.com/OctopusDeploy/cli/pkg/constants"
+	"github.com/OctopusDeploy/cli/test/fixtures"
+	"github.com/OctopusDeploy/cli/test/testutil"
 )
 
 var rootResource = testutil.NewRootResource()
@@ -111,7 +114,7 @@ func TestPackageUpload(t *testing.T) {
 			req := api.ExpectRequest(t, "POST", "/api/Spaces-1/packages/raw?overwriteMode=FailIfExists")
 
 			buf := make([]byte, 8192)
-			bytesRead, err := req.Request.Body.Read(buf)
+			bytesRead, _ := req.Request.Body.Read(buf)
 
 			boundary := string(buf[2:62]) // the boundary will be random but is always in the same place/format so we can extract it
 			assert.Equal(t, crlf(heredoc.Docf(`
@@ -154,7 +157,7 @@ func TestPackageUpload(t *testing.T) {
 
 			req := api.ExpectRequest(t, "POST", "/api/Spaces-1/packages/raw?overwriteMode=FailIfExists")
 
-			bytesRead, err := req.Request.Body.Read(buf)
+			bytesRead, _ := req.Request.Body.Read(buf)
 			require.Greater(t, bytesRead, 100)
 			boundary := string(buf[2:62])
 			assert.Equal(t, crlf(heredoc.Docf(`
@@ -179,7 +182,7 @@ func TestPackageUpload(t *testing.T) {
 
 			req = api.ExpectRequest(t, "POST", "/api/Spaces-1/packages/raw?overwriteMode=FailIfExists")
 
-			bytesRead, err = req.Request.Body.Read(buf)
+			bytesRead, _ = req.Request.Body.Read(buf)
 			require.Greater(t, bytesRead, 100)
 			boundary = string(buf[2:62])
 			assert.Equal(t, crlf(heredoc.Docf(`
@@ -221,7 +224,7 @@ func TestPackageUpload(t *testing.T) {
 			req := api.ExpectRequest(t, "POST", "/api/Spaces-1/packages/raw?overwriteMode=OverwriteExisting")
 
 			buf := make([]byte, 8192)
-			bytesRead, err := req.Request.Body.Read(buf)
+			bytesRead, _ := req.Request.Body.Read(buf)
 			assert.Equal(t, 258, bytesRead)
 
 			req.RespondWithStatus(200, "200 OK", &packages.PackageUploadResponse{
@@ -285,7 +288,7 @@ func TestPackageUpload(t *testing.T) {
 			req = api.ExpectRequest(t, "POST", "/api/Spaces-1/packages/raw?overwriteMode=FailIfExists")
 
 			buf := make([]byte, 8192)
-			bytesRead, err := req.Request.Body.Read(buf)
+			bytesRead, _ := req.Request.Body.Read(buf)
 			assert.Equal(t, 259, bytesRead)
 
 			req.RespondWithStatus(201, "201 Created", &packages.PackageUploadResponse{
@@ -318,7 +321,7 @@ func TestPackageUpload(t *testing.T) {
 			req := api.ExpectRequest(t, "POST", "/api/Spaces-1/packages/raw?overwriteMode=FailIfExists")
 
 			buf := make([]byte, 8192)
-			bytesRead, err := req.Request.Body.Read(buf)
+			bytesRead, _ := req.Request.Body.Read(buf)
 			assert.Equal(t, 258, bytesRead)
 
 			req.RespondWithStatus(201, "201 Created", &packages.PackageUploadResponse{
@@ -360,7 +363,7 @@ func TestPackageUpload(t *testing.T) {
 			req = api.ExpectRequest(t, "POST", "/api/Spaces-1/packages/raw?overwriteMode=FailIfExists")
 
 			buf := make([]byte, 8192)
-			bytesRead, err := req.Request.Body.Read(buf)
+			bytesRead, _ := req.Request.Body.Read(buf)
 			assert.Equal(t, 259, bytesRead)
 
 			req.RespondWithStatus(201, "201 Created", &packages.PackageUploadResponse{
@@ -413,7 +416,7 @@ func TestPackageUpload(t *testing.T) {
 			req = api.ExpectRequest(t, "POST", "/api/Spaces-1/packages/raw?overwriteMode=FailIfExists")
 
 			buf := make([]byte, 8192)
-			bytesRead, err := req.Request.Body.Read(buf)
+			bytesRead, _ := req.Request.Body.Read(buf)
 
 			boundary := string(buf[2:62]) // the boundary will be random but is always in the same place/format so we can extract it
 			assert.Equal(t, crlf(heredoc.Docf(`
@@ -479,7 +482,7 @@ func TestPackageUpload(t *testing.T) {
 			req := api.ExpectRequest(t, "POST", "/api/Spaces-1/packages/deltapkg/1.0/delta?overwriteMode=FailIfExists")
 
 			buf := make([]byte, 8192)
-			bytesRead, err := req.Request.Body.Read(buf)
+			bytesRead, _ := req.Request.Body.Read(buf)
 
 			boundary := string(buf[2:62]) // the boundary will be random but is always in the same place/format so we can extract it
 

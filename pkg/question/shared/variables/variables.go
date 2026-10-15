@@ -2,11 +2,9 @@ package variables
 
 import (
 	"fmt"
+	"strings"
+
 	"github.com/AlecAivazis/survey/v2"
-	"github.com/OctopusDeploy/cli/pkg/cmd"
-	"github.com/OctopusDeploy/cli/pkg/question"
-	"github.com/OctopusDeploy/cli/pkg/question/selectors"
-	"github.com/OctopusDeploy/cli/pkg/util"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/accounts"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/actiontemplates"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/certificates"
@@ -14,7 +12,11 @@ import (
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/tenants"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/variables"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/workerpools"
-	"strings"
+
+	"github.com/OctopusDeploy/cli/pkg/cmd"
+	"github.com/OctopusDeploy/cli/pkg/question"
+	"github.com/OctopusDeploy/cli/pkg/question/selectors"
+	"github.com/OctopusDeploy/cli/pkg/util"
 )
 
 type VariableType string
@@ -31,16 +33,18 @@ const (
 	VariableTypeSelect             = VariableType("Select")
 )
 
-type GetAccountsByTypeCallback func(accountType accounts.AccountType) ([]accounts.IAccount, error)
-type GetAllWorkerPoolsCallback func() ([]*workerpools.WorkerPoolListResult, error)
-type GetAllCertificatesCallback func() ([]*certificates.CertificateResource, error)
-type GetProjectVariablesCallback func(projectId string) (*variables.VariableSet, error)
-type GetProjectVariablesByGitRefCallback func(spaceId string, projectId string, gitRef string) (*variables.VariableSet, error)
-type GetTenantVariablesCallback func(tenant *tenants.Tenant) (*variables.TenantVariables, error)
-type GetVariableByIdCallback func(ownerId, variableId string) (*variables.Variable, error)
-type GetAllLibraryVariableSetsCallback func() ([]*variables.LibraryVariableSet, error)
-type GetTenantProjectVariablesCallback func(tenant *tenants.Tenant, includeMissingVariables bool) (*variables.GetTenantProjectVariablesResponse, error)
-type GetTenantCommonVariablesCallback func(tenant *tenants.Tenant, includeMissingVariables bool) (*variables.GetTenantCommonVariablesResponse, error)
+type (
+	GetAccountsByTypeCallback           func(accountType accounts.AccountType) ([]accounts.IAccount, error)
+	GetAllWorkerPoolsCallback           func() ([]*workerpools.WorkerPoolListResult, error)
+	GetAllCertificatesCallback          func() ([]*certificates.CertificateResource, error)
+	GetProjectVariablesCallback         func(projectId string) (*variables.VariableSet, error)
+	GetProjectVariablesByGitRefCallback func(spaceId string, projectId string, gitRef string) (*variables.VariableSet, error)
+	GetTenantVariablesCallback          func(tenant *tenants.Tenant) (*variables.TenantVariables, error)
+	GetVariableByIdCallback             func(ownerId, variableId string) (*variables.Variable, error)
+	GetAllLibraryVariableSetsCallback   func() ([]*variables.LibraryVariableSet, error)
+	GetTenantProjectVariablesCallback   func(tenant *tenants.Tenant, includeMissingVariables bool) (*variables.GetTenantProjectVariablesResponse, error)
+	GetTenantCommonVariablesCallback    func(tenant *tenants.Tenant, includeMissingVariables bool) (*variables.GetTenantCommonVariablesResponse, error)
+)
 
 type VariableCallbacks struct {
 	GetAccountsByType           GetAccountsByTypeCallback

@@ -1,4 +1,4 @@
-﻿package gitresources_test
+package gitresources_test
 
 import (
 	"bytes"
@@ -6,9 +6,10 @@ import (
 	"testing"
 
 	"github.com/AlecAivazis/survey/v2"
+	"github.com/stretchr/testify/assert"
+
 	"github.com/OctopusDeploy/cli/pkg/gitresources"
 	"github.com/OctopusDeploy/cli/test/testutil"
-	"github.com/stretchr/testify/assert"
 )
 
 func TestReleaseCreate_ParseGitResourceOverrideString(t *testing.T) {
@@ -17,7 +18,7 @@ func TestReleaseCreate_ParseGitResourceOverrideString(t *testing.T) {
 		expect          *gitresources.GitResourceGitRef
 		isErrorExpected bool
 	}{
-		//Valid inputs
+		// Valid inputs
 		{input: "Action:main", expect: &gitresources.GitResourceGitRef{ActionName: "Action", GitRef: "main", GitResourceName: ""}},
 		{input: "Action:*", expect: &gitresources.GitResourceGitRef{ActionName: "Action", GitRef: "*", GitResourceName: ""}},
 		{input: "Action=refs/heads/main", expect: &gitresources.GitResourceGitRef{ActionName: "Action", GitRef: "refs/heads/main", GitResourceName: ""}},
@@ -26,10 +27,10 @@ func TestReleaseCreate_ParseGitResourceOverrideString(t *testing.T) {
 		{input: "Action:Name1:*", expect: &gitresources.GitResourceGitRef{ActionName: "Action", GitRef: "*", GitResourceName: "Name1"}},
 		{input: "Action=Name1=refs/heads/main", expect: &gitresources.GitResourceGitRef{ActionName: "Action", GitRef: "refs/heads/main", GitResourceName: "Name1"}},
 		{input: "Action=Name1=*", expect: &gitresources.GitResourceGitRef{ActionName: "Action", GitRef: "*", GitResourceName: "Name1"}},
-		//Mixing delimiters is NOT supported (consistent with server-side) this results in an Action name that contains an = (as : is the high preference delimiter)
+		// Mixing delimiters is NOT supported (consistent with server-side) this results in an Action name that contains an = (as : is the high preference delimiter)
 		{input: "Action=Name1:*", expect: &gitresources.GitResourceGitRef{ActionName: "Action=Name1", GitRef: "*", GitResourceName: ""}},
 
-		//Invalid inputs
+		// Invalid inputs
 		{input: "", isErrorExpected: true},
 		{input: "    ", isErrorExpected: true},
 		{input: "Action", isErrorExpected: true},
@@ -64,7 +65,6 @@ func TestReleaseCreate_ToGitResourceGitRefString(t *testing.T) {
 			assert.Equal(t, test.expect, result)
 		})
 	}
-
 }
 
 func TestReleaseCreate_ResolveGitResourceOverride(t *testing.T) {
@@ -81,33 +81,44 @@ func TestReleaseCreate_ResolveGitResourceOverride(t *testing.T) {
 		expect          *gitresources.GitResourceGitRef
 		isErrorExpected bool
 	}{
-		//matching cases
-		{name: "matches primary git resource",
+		// matching cases
+		{
+			name:   "matches primary git resource",
 			input:  &gitresources.GitResourceGitRef{ActionName: "Action1", GitRef: "refs/heads/elephant", GitResourceName: ""},
-			expect: &gitresources.GitResourceGitRef{ActionName: "Action1", GitRef: "refs/heads/elephant", GitResourceName: ""}},
+			expect: &gitresources.GitResourceGitRef{ActionName: "Action1", GitRef: "refs/heads/elephant", GitResourceName: ""},
+		},
 
-		{name: "matches secondary git resource",
+		{
+			name:   "matches secondary git resource",
 			input:  &gitresources.GitResourceGitRef{ActionName: "Action1", GitRef: "refs/heads/elephant", GitResourceName: "Name1"},
-			expect: &gitresources.GitResourceGitRef{ActionName: "Action1", GitRef: "refs/heads/elephant", GitResourceName: "Name1"}},
+			expect: &gitresources.GitResourceGitRef{ActionName: "Action1", GitRef: "refs/heads/elephant", GitResourceName: "Name1"},
+		},
 
-		{name: "matches primary git resource with wildcard",
+		{
+			name:   "matches primary git resource with wildcard",
 			input:  &gitresources.GitResourceGitRef{ActionName: "Action1", GitRef: "*", GitResourceName: ""},
-			expect: &gitresources.GitResourceGitRef{ActionName: "Action1", GitRef: "refs/heads/main", GitResourceName: ""}},
+			expect: &gitresources.GitResourceGitRef{ActionName: "Action1", GitRef: "refs/heads/main", GitResourceName: ""},
+		},
 
-		{name: "matches secondary git resource with wildcard",
+		{
+			name:   "matches secondary git resource with wildcard",
 			input:  &gitresources.GitResourceGitRef{ActionName: "Action3", GitRef: "*", GitResourceName: "Name1"},
-			expect: &gitresources.GitResourceGitRef{ActionName: "Action3", GitRef: "refs/tags/v1", GitResourceName: "Name1"}},
+			expect: &gitresources.GitResourceGitRef{ActionName: "Action3", GitRef: "refs/tags/v1", GitResourceName: "Name1"},
+		},
 
-		//non-matching cases
-		{name: "does not match secondary git resource by action name",
+		// non-matching cases
+		{
+			name:            "does not match secondary git resource by action name",
 			input:           &gitresources.GitResourceGitRef{ActionName: "Action2", GitRef: "*", GitResourceName: "Name1"},
 			isErrorExpected: true,
 		},
-		{name: "does not match secondary git resource by git resource name",
+		{
+			name:            "does not match secondary git resource by git resource name",
 			input:           &gitresources.GitResourceGitRef{ActionName: "Action1", GitRef: "*", GitResourceName: "Name2"},
 			isErrorExpected: true,
 		},
-		{name: "does not match primary git resource",
+		{
+			name:            "does not match primary git resource",
 			input:           &gitresources.GitResourceGitRef{ActionName: "Action3", GitRef: "*", GitResourceName: ""},
 			isErrorExpected: true,
 		},
@@ -119,7 +130,7 @@ func TestReleaseCreate_ResolveGitResourceOverride(t *testing.T) {
 			assert.Equal(t, test.isErrorExpected, err != nil)
 			assert.Equal(t, test.expect, result)
 
-			//we always want to validate that the result object is a new object than the input
+			// we always want to validate that the result object is a new object than the input
 			assert.NotSame(t, test.input, result)
 		})
 	}
@@ -221,7 +232,7 @@ func TestReleaseCreate_AskQuestions_AskGitResourceOverrideLoop(t *testing.T) {
 
 			overrides, err := testutil.ReceivePair(receiver)
 			assert.Nil(t, err)
-			//nothing was overridden, so an empty array
+			// nothing was overridden, so an empty array
 			assert.Equal(t, make([]*gitresources.GitResourceGitRef, 0), overrides)
 		}},
 

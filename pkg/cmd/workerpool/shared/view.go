@@ -2,11 +2,13 @@ package shared
 
 import (
 	"fmt"
+
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/workerpools"
+	"github.com/spf13/cobra"
+
 	"github.com/OctopusDeploy/cli/pkg/cmd"
 	"github.com/OctopusDeploy/cli/pkg/machinescommon"
 	"github.com/OctopusDeploy/cli/pkg/output"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/workerpools"
-	"github.com/spf13/cobra"
 )
 
 type ContributeDetailsCallback func(opts *ViewOptions, workerPool workerpools.IWorkerPool) ([]*output.DataRow, error)
@@ -19,7 +21,7 @@ type ViewOptions struct {
 	*cmd.Dependencies
 	IdOrName string
 	*ViewFlags
-	Command  *cobra.Command
+	Command *cobra.Command
 }
 
 func NewViewFlags() *ViewFlags {
@@ -38,7 +40,7 @@ func NewViewOptions(viewFlags *ViewFlags, dependencies *cmd.Dependencies, args [
 }
 
 func ViewRun(opts *ViewOptions, contributeDetails ContributeDetailsCallback) error {
-	var workerPool, err = opts.Client.WorkerPools.GetByIdentifier(opts.IdOrName)
+	workerPool, err := opts.Client.WorkerPools.GetByIdentifier(opts.IdOrName)
 	if err != nil {
 		return err
 	}
@@ -69,8 +71,6 @@ func ViewRun(opts *ViewOptions, contributeDetails ContributeDetailsCallback) err
 
 	fmt.Fprintf(opts.Out, "\n")
 	machinescommon.DoWebForWorkerPools(workerPool, opts.Dependencies, opts.WebFlags)
-	return nil
-
 	return nil
 }
 

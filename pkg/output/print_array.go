@@ -5,11 +5,10 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/OctopusDeploy/cli/pkg/constants"
-
-	"github.com/OctopusDeploy/cli/pkg/usage"
-
 	"github.com/spf13/cobra"
+
+	"github.com/OctopusDeploy/cli/pkg/constants"
+	"github.com/OctopusDeploy/cli/pkg/usage"
 )
 
 func PrintArray[T any](items []T, cmd *cobra.Command, mappers Mappers[T]) error {

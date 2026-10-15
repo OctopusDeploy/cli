@@ -17,7 +17,6 @@ func GitCredentialStorage(questionText string, ask question.Asker) (string, erro
 	selectedOption, err := Select(ask, questionText, optionsCallback, func(option *SelectOption[string]) string {
 		return option.Display
 	})
-
 	if err != nil {
 		return "", err
 	}

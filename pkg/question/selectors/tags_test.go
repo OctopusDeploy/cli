@@ -3,9 +3,10 @@ package selectors
 import (
 	"testing"
 
-	"github.com/OctopusDeploy/cli/test/testutil"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/tagsets"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/OctopusDeploy/cli/test/testutil"
 )
 
 func createTestTagSets() []*tagsets.TagSet {

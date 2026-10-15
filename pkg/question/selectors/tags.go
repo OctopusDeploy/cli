@@ -5,8 +5,9 @@ import (
 	"strings"
 
 	"github.com/AlecAivazis/survey/v2"
-	"github.com/OctopusDeploy/cli/pkg/question"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/tagsets"
+
+	"github.com/OctopusDeploy/cli/pkg/question"
 )
 
 // ValidateTags validates that the provided tags follow tag set rules.

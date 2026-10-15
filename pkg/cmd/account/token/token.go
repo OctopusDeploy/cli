@@ -3,11 +3,12 @@ package token
 import (
 	"fmt"
 
+	"github.com/spf13/cobra"
+
 	cmdCreate "github.com/OctopusDeploy/cli/pkg/cmd/account/token/create"
 	cmdList "github.com/OctopusDeploy/cli/pkg/cmd/account/token/list"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/factory"
-	"github.com/spf13/cobra"
 )
 
 func NewCmdToken(f factory.Factory) *cobra.Command {

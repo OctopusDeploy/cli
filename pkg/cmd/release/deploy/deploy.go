@@ -9,15 +9,24 @@ import (
 	"strings"
 	"time"
 
-	"github.com/OctopusDeploy/cli/pkg/util/featuretoggle"
+	"github.com/AlecAivazis/survey/v2"
+	"github.com/MakeNowJust/heredoc/v2"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/channels"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/core"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/deployments"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/environments"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/environments/v2/ephemeralenvironments"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/releases"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/spaces"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/variables"
+	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"golang.org/x/exp/maps"
 
-	"github.com/OctopusDeploy/cli/pkg/apiclient"
+	octopusApiClient "github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
 
-	"github.com/AlecAivazis/survey/v2"
-	"github.com/MakeNowJust/heredoc/v2"
+	"github.com/OctopusDeploy/cli/pkg/apiclient"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	cliErrors "github.com/OctopusDeploy/cli/pkg/errors"
 	"github.com/OctopusDeploy/cli/pkg/executionscommon"
@@ -28,17 +37,8 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/question/selectors"
 	"github.com/OctopusDeploy/cli/pkg/surveyext"
 	"github.com/OctopusDeploy/cli/pkg/util"
+	"github.com/OctopusDeploy/cli/pkg/util/featuretoggle"
 	"github.com/OctopusDeploy/cli/pkg/util/flag"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/channels"
-	octopusApiClient "github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/core"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/deployments"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/environments"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/releases"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/spaces"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/variables"
-	"github.com/spf13/cobra"
 )
 
 const (
@@ -348,7 +348,6 @@ func deployRun(cmd *cobra.Command, f factory.Factory, flags *DeployFlags) error 
 			}
 			options.ProjectName = project.GetName()
 		}
-
 	}
 
 	// the executor will raise errors if any required options are missing
@@ -474,7 +473,7 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 		return err
 	}
 
-	indicateMissingPackagesForReleaseFeatureToggleValue, err := featuretoggle.IsToggleEnabled(octopus, "indicate-missing-packages-for-release")
+	indicateMissingPackagesForReleaseFeatureToggleValue, _ := featuretoggle.IsToggleEnabled(octopus, "indicate-missing-packages-for-release")
 	if indicateMissingPackagesForReleaseFeatureToggleValue {
 		proceed := promptMissingPackages(octopus, stdout, asker, selectedRelease)
 		if !proceed {
@@ -514,7 +513,6 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 			deploymentEnvironmentIDs = util.SliceTransform(selectedEnvironments, func(env *environments.Environment) string { return env.ID })
 		} else if selectedChannel.Type == channels.ChannelTypeEphemeral {
 			deploymentEnvironmentIDs, err = findEphemeralEnvironmentIDs(octopus, space, options.Environments)
-
 			if err != nil {
 				return err
 			}
@@ -1079,7 +1077,6 @@ func selectEphemeralDeploymentEnvironments(asker question.Asker, deployableEnvir
 		Options: options,
 		Default: nil,
 	}, &selectedKeys, survey.WithValidator(survey.Required))
-
 	if err != nil {
 		return nil, err
 	}
@@ -1105,7 +1102,6 @@ func selectDeploymentEnvironments(asker question.Asker, octopus *octopusApiClien
 		Options: options,
 		Default: []string{nextDeployEnvironmentName},
 	}, &selectedKeys, survey.WithValidator(survey.Required))
-
 	if err != nil {
 		return nil, err
 	}

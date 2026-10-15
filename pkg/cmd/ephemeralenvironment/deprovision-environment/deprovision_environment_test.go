@@ -7,16 +7,18 @@ import (
 	"testing"
 
 	"github.com/AlecAivazis/survey/v2"
-	"github.com/OctopusDeploy/cli/pkg/cmd"
-	deprovisionEnvironment "github.com/OctopusDeploy/cli/pkg/cmd/ephemeralenvironment/deprovision-environment"
-	"github.com/OctopusDeploy/cli/pkg/util/flag"
-	"github.com/OctopusDeploy/cli/test/testutil"
-	octopusApiClient "github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/environments/v2/ephemeralenvironments"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/resources"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/spaces"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
+
+	octopusApiClient "github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
+
+	"github.com/OctopusDeploy/cli/pkg/cmd"
+	deprovisionEnvironment "github.com/OctopusDeploy/cli/pkg/cmd/ephemeralenvironment/deprovision-environment"
+	"github.com/OctopusDeploy/cli/pkg/util/flag"
+	"github.com/OctopusDeploy/cli/test/testutil"
 )
 
 var serverUrl, _ = url.Parse("http://server")

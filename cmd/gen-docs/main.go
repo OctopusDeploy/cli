@@ -13,20 +13,20 @@ import (
 	"text/template"
 	"time"
 
-	"github.com/OctopusDeploy/cli/pkg/config"
-	"github.com/OctopusDeploy/cli/pkg/servicemessages"
-	"github.com/spf13/viper"
-
 	"github.com/AlecAivazis/survey/v2"
-	version "github.com/OctopusDeploy/cli"
-	"github.com/OctopusDeploy/cli/pkg/apiclient"
-	"github.com/OctopusDeploy/cli/pkg/cmd/root"
-	"github.com/OctopusDeploy/cli/pkg/factory"
-	"github.com/OctopusDeploy/cli/pkg/question"
 	"github.com/briandowns/spinner"
 	"github.com/spf13/cobra"
 	"github.com/spf13/cobra/doc"
 	"github.com/spf13/pflag"
+	"github.com/spf13/viper"
+
+	version "github.com/OctopusDeploy/cli"
+	"github.com/OctopusDeploy/cli/pkg/apiclient"
+	"github.com/OctopusDeploy/cli/pkg/cmd/root"
+	"github.com/OctopusDeploy/cli/pkg/config"
+	"github.com/OctopusDeploy/cli/pkg/factory"
+	"github.com/OctopusDeploy/cli/pkg/question"
+	"github.com/OctopusDeploy/cli/pkg/servicemessages"
 )
 
 type TemplateInformation struct {
@@ -117,7 +117,7 @@ func run(args []string) error {
 		*dir = filepath.Join(home, (*dir)[2:])
 	}
 
-	if err := os.MkdirAll(*dir, 0755); err != nil {
+	if err := os.MkdirAll(*dir, 0o755); err != nil {
 		return err
 	}
 
@@ -147,7 +147,7 @@ func run(args []string) error {
 			return nil
 		}
 
-		if err := os.MkdirAll(filepath.Dir(*commandListPath), 0755); err != nil {
+		if err := os.MkdirAll(filepath.Dir(*commandListPath), 0o755); err != nil {
 			return err
 		}
 
@@ -244,7 +244,7 @@ func GenMarkdownTreeCustom(cmd *cobra.Command, dir string, relativeBasePath stri
 		}
 	}
 
-	return os.WriteFile(info.OutputFile, updatedContent, 0644)
+	return os.WriteFile(info.OutputFile, updatedContent, 0o644)
 }
 
 var modDatePattern = regexp.MustCompile(`(?m)^modDate: .+$`)
