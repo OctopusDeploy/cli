@@ -14,9 +14,9 @@ import (
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/releases"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/spaces"
+	"github.com/OctopusDeploy/go-octopusversioning/pkg/versioning"
 
 	"github.com/OctopusDeploy/cli/pkg/executionscommon"
-	"github.com/OctopusDeploy/go-octopusversioning/pkg/versioning"
 )
 
 // ----- Create Release --------------------------------------
@@ -286,7 +286,7 @@ func releasePromote(octopus *client.Client, space *spaces.Space, input any) erro
 			return fmt.Errorf("environment not found. %v", err)
 		}
 	}
-	//just grab the first environment
+	// just grab the first environment
 	sourceEnv := envs.Items[0]
 
 	dashboardQuery := dashboard.DashboardDynamicQuery{
@@ -301,8 +301,8 @@ func releasePromote(octopus *client.Client, space *spaces.Space, input any) erro
 		return err
 	}
 
-	//filter the dashboard items based on project & environment
-	//this is probably unnecessary, but it mimic's the existing logic
+	// filter the dashboard items based on project & environment
+	// this is probably unnecessary, but it mimic's the existing logic
 	var dashboardItems []*dashboard.DashboardItem
 	for _, item := range dynamicDashboard.Items {
 		if item.EnvironmentID == sourceEnv.ID && item.ProjectID == proj.ID {
@@ -310,7 +310,7 @@ func releasePromote(octopus *client.Client, space *spaces.Space, input any) erro
 		}
 	}
 
-	//we need to order the dashboard items by the release so we get the latest release first
+	// we need to order the dashboard items by the release so we get the latest release first
 	slices.SortFunc(dashboardItems, func(a, b *dashboard.DashboardItem) int {
 		aVersion, err := versioning.ParseOctopusVersion(a.ReleaseVersion)
 		if err != nil {
@@ -322,7 +322,7 @@ func releasePromote(octopus *client.Client, space *spaces.Space, input any) erro
 			return 1
 		}
 
-		//we multiply by -1 to order by descending
+		// we multiply by -1 to order by descending
 		return versioning.Compare(aVersion, bVersion, (*versioning.OctopusVersion).Compare) * -1
 	})
 

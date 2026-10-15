@@ -2,6 +2,8 @@ package promote
 
 import (
 	"github.com/MakeNowJust/heredoc/v2"
+	"github.com/spf13/cobra"
+
 	"github.com/OctopusDeploy/cli/pkg/apiclient"
 	"github.com/OctopusDeploy/cli/pkg/cmd/release/deploy"
 	"github.com/OctopusDeploy/cli/pkg/constants"
@@ -9,7 +11,6 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/OctopusDeploy/cli/pkg/util"
 	"github.com/OctopusDeploy/cli/pkg/util/flag"
-	"github.com/spf13/cobra"
 )
 
 const (

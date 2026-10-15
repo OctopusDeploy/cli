@@ -6,11 +6,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/OctopusDeploy/cli/pkg/cmd/release/promote"
-	cmdRoot "github.com/OctopusDeploy/cli/pkg/cmd/root"
-	"github.com/OctopusDeploy/cli/pkg/constants"
-	"github.com/OctopusDeploy/cli/test/fixtures"
-	"github.com/OctopusDeploy/cli/test/testutil"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/dashboard"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/deployments"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/environments"
@@ -18,6 +13,12 @@ import (
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/resources"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/OctopusDeploy/cli/pkg/cmd/release/promote"
+	cmdRoot "github.com/OctopusDeploy/cli/pkg/cmd/root"
+	"github.com/OctopusDeploy/cli/pkg/constants"
+	"github.com/OctopusDeploy/cli/test/fixtures"
+	"github.com/OctopusDeploy/cli/test/testutil"
 )
 
 var rootResource = testutil.NewRootResource()
