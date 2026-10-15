@@ -37,7 +37,7 @@ func setupMockAPI(t *testing.T, api *testutil.MockHttpServer) {
 }
 
 func mockGetEnvironmentByName(t *testing.T, api *testutil.MockHttpServer, envs []*ephemeralenvironments.EphemeralEnvironment) {
-	api.ExpectRequest(t, "GET", fmt.Sprintf("/api/%s/environments/v2?skip=0&take=2147483647&partialName=%s&type=Ephemeral", testSpaceID, envName)).
+	api.ExpectRequest(t, "GET", fmt.Sprintf("/api/%s/environments/v2?name=&skip=0&take=2147483647&partialName=%s&type=Ephemeral", testSpaceID, envName)).
 		RespondWith(&resources.Resources[*ephemeralenvironments.EphemeralEnvironment]{
 			Items:        envs,
 			PagedResults: resources.PagedResults{TotalResults: len(envs)},
@@ -189,9 +189,16 @@ func TestDelete_EnvironmentNotFound(t *testing.T) {
 
 func TestDelete_RequiresName(t *testing.T) {
 	api := testutil.NewMockHttpServer()
-	defer api.Close()
 
-	opts, _ := createOptions(t, api, "", true, true, nil)
+	errReceiver := testutil.GoBegin(func() error {
+		defer api.Close()
+		opts, _ := createOptions(t, api, "", true, true, nil)
+		assert.EqualError(t, deleteCmd.DeleteRun(opts), "environment name is required")
 
-	assert.EqualError(t, deleteCmd.DeleteRun(opts), "environment name is required")
+		return nil
+	})
+
+	setupMockAPI(t, api)
+
+	assert.NoError(t, <-errReceiver)
 }

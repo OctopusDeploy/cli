@@ -56,7 +56,7 @@ func testEnvironment(id string, name string) *ephemeralenvironments.EphemeralEnv
 }
 
 func mockGetAllEnvironments(t *testing.T, api *testutil.MockHttpServer, envs []*ephemeralenvironments.EphemeralEnvironment) {
-	api.ExpectRequest(t, "GET", fmt.Sprintf("/api/%s/environments/v2?skip=0&take=2147483647&type=Ephemeral", testSpaceID)).
+	api.ExpectRequest(t, "GET", fmt.Sprintf("/api/%s/environments/v2?name=&skip=0&take=2147483647&type=Ephemeral", testSpaceID)).
 		RespondWith(&resources.Resources[*ephemeralenvironments.EphemeralEnvironment]{
 			Items:        envs,
 			PagedResults: resources.PagedResults{TotalResults: len(envs)},
