@@ -105,10 +105,6 @@ func TestPromoteRelease_Success(t *testing.T) {
 				Items: []*dashboard.DashboardItem{dashboardItem},
 			})
 
-			// Get the release
-			api.ExpectRequest(t, "GET", "/api/"+spaceID+"/projects/"+fireProjectID+"/releases/"+release19.Version).
-				RespondWith(release19)
-
 			// Deploy the release to staging
 			req := api.ExpectRequest(t, "POST", "/api/"+spaceID+"/deployments/create/untenanted/v1")
 			requestBody, err := testutil.ReadJson[deployments.CreateDeploymentUntenantedCommandV1](req.Request.Body)
@@ -169,10 +165,6 @@ func TestPromoteRelease_Success(t *testing.T) {
 			api.ExpectRequest(t, "GET", "/api/"+spaceID+"/dashboard/dynamic?environments=Environments-12&projects=Projects-22").RespondWith(&dashboard.Dashboard{
 				Items: []*dashboard.DashboardItem{release20DashboardItem, dashboardItem, release21DashboardItem},
 			})
-
-			// Get the release
-			api.ExpectRequest(t, "GET", "/api/"+spaceID+"/projects/"+fireProjectID+"/releases/"+release21.Version).
-				RespondWith(release21)
 
 			// Deploy the release to staging
 			req := api.ExpectRequest(t, "POST", "/api/"+spaceID+"/deployments/create/untenanted/v1")
@@ -235,10 +227,6 @@ func TestPromoteRelease_Success(t *testing.T) {
 				Items: []*dashboard.DashboardItem{release20DashboardItem, dashboardItem},
 			})
 
-			// Get the release
-			api.ExpectRequest(t, "GET", "/api/"+spaceID+"/projects/"+fireProjectID+"/releases/"+release19.Version).
-				RespondWith(release19)
-
 			// Deploy the release to staging
 			api.ExpectRequest(t, "POST", "/api/"+spaceID+"/deployments/create/untenanted/v1").
 				RespondWith(&deployments.CreateDeploymentResponseV1{
@@ -287,10 +275,6 @@ func TestPromoteRelease_Success(t *testing.T) {
 			api.ExpectRequest(t, "GET", "/api/"+spaceID+"/dashboard/dynamic?environments=Environments-12&projects=Projects-22").RespondWith(&dashboard.Dashboard{
 				Items: []*dashboard.DashboardItem{dashboardItem},
 			})
-
-			// Get the release
-			api.ExpectRequest(t, "GET", "/api/"+spaceID+"/projects/"+fireProjectID+"/releases/"+release19.Version).
-				RespondWith(release19)
 
 			// Deploy the release to staging with update variables
 			api.ExpectRequest(t, "POST", "/api/"+spaceID+"/deployments/create/untenanted/v1").
@@ -341,10 +325,6 @@ func TestPromoteRelease_Success(t *testing.T) {
 				Items: []*dashboard.DashboardItem{dashboardItem},
 			})
 
-			// Get the release
-			api.ExpectRequest(t, "GET", "/api/"+spaceID+"/projects/"+fireProjectID+"/releases/"+release19.Version).
-				RespondWith(release19)
-
 			// Deploy the release to staging with tenants
 			api.ExpectRequest(t, "POST", "/api/"+spaceID+"/deployments/create/tenanted/v1").
 				RespondWith(&deployments.CreateDeploymentResponseV1{
@@ -393,10 +373,6 @@ func TestPromoteRelease_Success(t *testing.T) {
 			api.ExpectRequest(t, "GET", "/api/"+spaceID+"/dashboard/dynamic?environments=Environments-12&projects=Projects-22").RespondWith(&dashboard.Dashboard{
 				Items: []*dashboard.DashboardItem{dashboardItem},
 			})
-
-			// Get the release
-			api.ExpectRequest(t, "GET", "/api/"+spaceID+"/projects/"+fireProjectID+"/releases/"+release19.Version).
-				RespondWith(release19)
 
 			// Deploy the release to staging
 			api.ExpectRequest(t, "POST", "/api/"+spaceID+"/deployments/create/untenanted/v1").
@@ -447,10 +423,6 @@ func TestPromoteRelease_Success(t *testing.T) {
 				Items: []*dashboard.DashboardItem{dashboardItem},
 			})
 
-			// Get the release
-			api.ExpectRequest(t, "GET", "/api/"+spaceID+"/projects/"+fireProjectID+"/releases/"+release19.Version).
-				RespondWith(release19)
-
 			// Deploy the release to staging
 			api.ExpectRequest(t, "POST", "/api/"+spaceID+"/deployments/create/untenanted/v1").
 				RespondWith(&deployments.CreateDeploymentResponseV1{
@@ -499,10 +471,6 @@ func TestPromoteRelease_Success(t *testing.T) {
 			api.ExpectRequest(t, "GET", "/api/"+spaceID+"/dashboard/dynamic?environments=Environments-12&projects=Projects-22").RespondWith(&dashboard.Dashboard{
 				Items: []*dashboard.DashboardItem{dashboardItem},
 			})
-
-			// Get the release
-			api.ExpectRequest(t, "GET", "/api/"+spaceID+"/projects/"+fireProjectID+"/releases/"+release19.Version).
-				RespondWith(release19)
 
 			// Deploy the release to staging with update variables
 			api.ExpectRequest(t, "POST", "/api/"+spaceID+"/deployments/create/untenanted/v1").
