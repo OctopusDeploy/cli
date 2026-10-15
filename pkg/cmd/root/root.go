@@ -15,6 +15,7 @@ import (
 	loginCmd "github.com/OctopusDeploy/cli/pkg/cmd/login"
 	logoutCmd "github.com/OctopusDeploy/cli/pkg/cmd/logout"
 	packageCmd "github.com/OctopusDeploy/cli/pkg/cmd/package"
+	platformHubCmd "github.com/OctopusDeploy/cli/pkg/cmd/platformhub"
 	projectCmd "github.com/OctopusDeploy/cli/pkg/cmd/project"
 	projectGroupCmd "github.com/OctopusDeploy/cli/pkg/cmd/projectgroup"
 	releaseCmd "github.com/OctopusDeploy/cli/pkg/cmd/release"
@@ -73,6 +74,7 @@ func NewCmdRoot(f factory.Factory, clientFactory apiclient.ClientFactory, askPro
 	cmd.AddCommand(spaceCmd.NewCmdSpace(f))
 	cmd.AddCommand(loginCmd.NewCmdLogin(f))
 	cmd.AddCommand(logoutCmd.NewCmdLogout(f))
+	cmd.AddCommand(platformHubCmd.NewCmdPlatformHub(f))
 
 	cmd.AddCommand(userCmd.NewCmdUser(f))
 	cmd.AddCommand(releaseCmd.NewCmdRelease(f))
