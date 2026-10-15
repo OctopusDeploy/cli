@@ -301,7 +301,8 @@ func releasePromote(octopus *client.Client, space *spaces.Space, input any) erro
 	dashboardQuery := dashboard.DashboardDynamicQuery{
 		Environments: []string{sourceEnv.ID},
 		Projects:     []string{proj.ID},
-		// If latest successful, this corresponds to IncludePrevious
+		// If using latest successful, we need previous dashboard items as well
+		// so that we can ensure we get a previous successful deployment
 		IncludePrevious: params.LatestSuccessful,
 	}
 
