@@ -1,5 +1,17 @@
 # Changelog
 
+## [2.29.0](https://github.com/OctopusDeploy/cli/compare/v2.28.0...v2.29.0) (2026-10-15)
+
+
+### Features
+
+* Add release promote command ([#749](https://github.com/OctopusDeploy/cli/issues/749)) ([c3c2e27](https://github.com/OctopusDeploy/cli/commit/c3c2e272fdf5f4414e05ade848895453e6ea109a))
+
+
+### Bug Fixes
+
+* Return errors from NewDependencies instead of panicking ([#756](https://github.com/OctopusDeploy/cli/issues/756)) ([82f7bc9](https://github.com/OctopusDeploy/cli/commit/82f7bc988b33bbe73166c64ba3900d12528fc45c))
+
 ## [2.28.0](https://github.com/OctopusDeploy/cli/compare/v2.27.1...v2.28.0) (2026-10-14)
 
 
