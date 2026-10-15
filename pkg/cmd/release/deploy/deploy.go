@@ -360,7 +360,8 @@ func deployRun(cmd *cobra.Command, f factory.Factory, flags *DeployFlags) error 
 
 	if options.Response != nil {
 		releaseID := options.ReleaseID
-		if releaseID == "" {
+		// we only resolve the release id if we aren't showing programmatic output
+		if releaseID == "" && !constants.IsProgrammaticOutputFormat(outputFormat) {
 			// we may already have the release ID from AskQuestions. If not, we need to go and look up the release ID to link to it
 			// which needs the project ID. Errors here are ignorable; it's not the end of the world if we can't print the web link
 			prj, err := selectors.FindProject(octopus, options.ProjectName)
