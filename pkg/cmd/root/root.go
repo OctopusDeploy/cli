@@ -14,6 +14,7 @@ import (
 	ephemeralEnvironmentCmd "github.com/OctopusDeploy/cli/pkg/cmd/ephemeralenvironment"
 	loginCmd "github.com/OctopusDeploy/cli/pkg/cmd/login"
 	logoutCmd "github.com/OctopusDeploy/cli/pkg/cmd/logout"
+	mcpCmd "github.com/OctopusDeploy/cli/pkg/cmd/mcp"
 	packageCmd "github.com/OctopusDeploy/cli/pkg/cmd/package"
 	projectCmd "github.com/OctopusDeploy/cli/pkg/cmd/project"
 	projectGroupCmd "github.com/OctopusDeploy/cli/pkg/cmd/projectgroup"
@@ -79,6 +80,7 @@ func NewCmdRoot(f factory.Factory, clientFactory apiclient.ClientFactory, askPro
 	cmd.AddCommand(runbookCmd.NewCmdRunbook(f))
 
 	cmd.AddCommand(apiCmd.NewCmdAPI(f))
+	cmd.AddCommand(mcpCmd.NewCmdMcp(f))
 
 	// ----- Configuration -----
 

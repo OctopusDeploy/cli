@@ -48,6 +48,9 @@ func bindEnvironment(v *viper.Viper) error {
 	if err := v.BindEnv(constants.ConfigAccessToken, constants.EnvOctopusAccessToken); err != nil {
 		return err
 	}
+	if err := v.BindEnv(constants.ConfigMcpApiKey, constants.EnvOctopusMcpApiKey); err != nil {
+		return err
+	}
 	if err := v.BindEnv(constants.ConfigUrl, constants.EnvOctopusUrl); err != nil {
 		return err
 	}

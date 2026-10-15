@@ -45,6 +45,10 @@ func listRun(cmd *cobra.Command) error {
 		configFile.Set(constants.ConfigAccessToken, "***")
 	}
 
+	if configFile.IsSet(constants.ConfigMcpApiKey) {
+		configFile.Set(constants.ConfigMcpApiKey, "***")
+	}
+
 	type ConfigData struct {
 		ApiKey       string `json:"apikey"`
 		Editor       string `json:"editor"`
