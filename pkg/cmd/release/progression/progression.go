@@ -2,11 +2,12 @@ package progression
 
 import (
 	"github.com/MakeNowJust/heredoc/v2"
+	"github.com/spf13/cobra"
+
 	cmdAllow "github.com/OctopusDeploy/cli/pkg/cmd/release/progression/allow"
 	cmdPrevent "github.com/OctopusDeploy/cli/pkg/cmd/release/progression/prevent"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/factory"
-	"github.com/spf13/cobra"
 )
 
 func NewCmdProgression(f factory.Factory) *cobra.Command {

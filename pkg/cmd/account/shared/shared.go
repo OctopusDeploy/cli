@@ -6,12 +6,14 @@ var AzureEnvMap = map[string]string{
 	"German Cloud":           "AzureGermanCloud",
 	"US Government":          "AzureUSGovernment",
 }
+
 var AzureADEndpointBaseUri = map[string]string{
 	"AzureCloud":        "https://login.microsoftonline.com/",
 	"AzureChinaCloud":   "https://login.chinacloudapi.cn/",
 	"AzureGermanCloud":  "https://login.microsoftonline.de/",
 	"AzureUSGovernment": "https://login.microsoftonline.us/",
 }
+
 var AzureResourceManagementBaseUri = map[string]string{
 	"AzureCloud":        "https://management.azure.com/",
 	"AzureChinaCloud":   "https://management.chinacloudapi.cn/",

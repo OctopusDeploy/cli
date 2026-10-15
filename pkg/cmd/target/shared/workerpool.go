@@ -2,14 +2,16 @@ package shared
 
 import (
 	"fmt"
+	"strings"
+
 	"github.com/AlecAivazis/survey/v2"
-	"github.com/OctopusDeploy/cli/pkg/cmd"
-	"github.com/OctopusDeploy/cli/pkg/question/selectors"
-	"github.com/OctopusDeploy/cli/pkg/util/flag"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/workerpools"
 	"github.com/spf13/cobra"
-	"strings"
+
+	"github.com/OctopusDeploy/cli/pkg/cmd"
+	"github.com/OctopusDeploy/cli/pkg/question/selectors"
+	"github.com/OctopusDeploy/cli/pkg/util/flag"
 )
 
 const FlagWorkerPool = "worker-pool"
@@ -29,7 +31,6 @@ func NewWorkerPoolFlags() *WorkerPoolFlags {
 	return &WorkerPoolFlags{
 		WorkerPool: flag.New[string](FlagWorkerPool, false),
 	}
-
 }
 
 func NewWorkerPoolOptionsForCreateTarget(dependencies *cmd.Dependencies) *WorkerPoolOptions {

@@ -11,8 +11,10 @@ import (
 )
 
 // account type values match the UI
-const AccountTypeUsernamePassword = "Username/Password"
-const AccountTypeToken = "Token"
+const (
+	AccountTypeUsernamePassword = "Username/Password"
+	AccountTypeToken            = "Token"
+)
 
 type TaskOptionsCreateAccount struct {
 	Type           string   // REQUIRED. refer to AccountType constant strings

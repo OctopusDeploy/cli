@@ -3,6 +3,8 @@ package buildinformation
 import (
 	"fmt"
 
+	"github.com/spf13/cobra"
+
 	cmdBulkDelete "github.com/OctopusDeploy/cli/pkg/cmd/buildinformation/bulkdelete"
 	cmdDelete "github.com/OctopusDeploy/cli/pkg/cmd/buildinformation/delete"
 	cmdList "github.com/OctopusDeploy/cli/pkg/cmd/buildinformation/list"
@@ -11,7 +13,6 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/constants/annotations"
 	"github.com/OctopusDeploy/cli/pkg/factory"
-	"github.com/spf13/cobra"
 )
 
 func NewCmdBuildInformation(f factory.Factory) *cobra.Command {

@@ -1,14 +1,16 @@
 package create_test
 
 import (
-	"github.com/OctopusDeploy/cli/pkg/cmd"
-	"github.com/OctopusDeploy/cli/pkg/cmd/project/variables/create"
-	"github.com/OctopusDeploy/cli/test/testutil"
+	"testing"
+
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/resources"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/variables"
 	"github.com/stretchr/testify/assert"
-	"testing"
+
+	"github.com/OctopusDeploy/cli/pkg/cmd"
+	"github.com/OctopusDeploy/cli/pkg/cmd/project/variables/create"
+	"github.com/OctopusDeploy/cli/test/testutil"
 )
 
 func TestPromptMissing_AllFlagsProvided(t *testing.T) {
@@ -130,7 +132,6 @@ func TestPromptMissing_NoFlags(t *testing.T) {
 	assert.Equal(t, "prompt description", opts.PromptDescription.Value)
 	assert.Equal(t, create.PromptTypeText, opts.PromptType.Value)
 	assert.Equal(t, true, opts.PromptRequired.Value)
-
 }
 
 func TestPromptMissing_PromptedVariableForSelectOptions(t *testing.T) {

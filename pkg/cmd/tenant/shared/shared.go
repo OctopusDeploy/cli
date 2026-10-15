@@ -1,8 +1,6 @@
 package shared
 
 import (
-	"github.com/OctopusDeploy/cli/pkg/output"
-	"github.com/OctopusDeploy/cli/pkg/util"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/environments"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
@@ -11,6 +9,9 @@ import (
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/tenants"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/users"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/variables"
+
+	"github.com/OctopusDeploy/cli/pkg/output"
+	"github.com/OctopusDeploy/cli/pkg/util"
 )
 
 type ProjectEnvironment struct {
@@ -23,15 +24,17 @@ type TenantAsJson struct {
 	ProjectEnvironments []ProjectEnvironment
 }
 
-type GetAllSpacesCallback func() ([]*spaces.Space, error)
-type GetAllTeamsCallback func() ([]*teams.Team, error)
-type GetAllUsersCallback func() ([]*users.User, error)
-type GetAllTenantsCallback func() ([]*tenants.Tenant, error)
-type GetTenantCallback func(identifier string) (*tenants.Tenant, error)
-type GetAllProjectsCallback func() ([]*projects.Project, error)
-type GetProjectCallback func(identifier string) (*projects.Project, error)
-type GetProjectProgression func(project *projects.Project) (*projects.Progression, error)
-type GetAllLibraryVariableSetsCallback func() ([]*variables.LibraryVariableSet, error)
+type (
+	GetAllSpacesCallback              func() ([]*spaces.Space, error)
+	GetAllTeamsCallback               func() ([]*teams.Team, error)
+	GetAllUsersCallback               func() ([]*users.User, error)
+	GetAllTenantsCallback             func() ([]*tenants.Tenant, error)
+	GetTenantCallback                 func(identifier string) (*tenants.Tenant, error)
+	GetAllProjectsCallback            func() ([]*projects.Project, error)
+	GetProjectCallback                func(identifier string) (*projects.Project, error)
+	GetProjectProgression             func(project *projects.Project) (*projects.Progression, error)
+	GetAllLibraryVariableSetsCallback func() ([]*variables.LibraryVariableSet, error)
+)
 
 func ResolveEntities(keys []string, lookup map[string]string) ([]output.IdAndName, error) {
 	var entities []output.IdAndName
@@ -81,7 +84,7 @@ func GetProjectMap(client *client.Client, tenants []*tenants.Tenant) (map[string
 	projectIds = util.SliceDistinct(projectIds)
 
 	projectMap := make(map[string]string)
-	queryResult, err := client.Projects.Get(projects.ProjectsQuery{IDs: projectIds})
+	queryResult, _ := client.Projects.Get(projects.ProjectsQuery{IDs: projectIds})
 	allProjects, err := queryResult.GetAllPages(client.Projects.GetClient())
 	if err != nil {
 		return nil, err

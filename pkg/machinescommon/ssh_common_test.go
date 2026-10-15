@@ -1,13 +1,15 @@
 package machinescommon_test
 
 import (
-	"github.com/OctopusDeploy/cli/pkg/cmd"
-	"github.com/OctopusDeploy/cli/pkg/machinescommon"
-	"github.com/OctopusDeploy/cli/test/testutil"
+	"testing"
+
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/accounts"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/core"
 	"github.com/stretchr/testify/assert"
-	"testing"
+
+	"github.com/OctopusDeploy/cli/pkg/cmd"
+	"github.com/OctopusDeploy/cli/pkg/machinescommon"
+	"github.com/OctopusDeploy/cli/test/testutil"
 )
 
 func TestPromptForAccount_FlagsSupplied(t *testing.T) {

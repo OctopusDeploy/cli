@@ -3,14 +3,14 @@ package question_test
 import (
 	"errors"
 	"fmt"
-	"github.com/AlecAivazis/survey/v2"
 	"testing"
 
-	"github.com/OctopusDeploy/cli/test/testutil"
+	"github.com/AlecAivazis/survey/v2"
+	"github.com/stretchr/testify/assert"
 
 	cliErrors "github.com/OctopusDeploy/cli/pkg/errors"
 	"github.com/OctopusDeploy/cli/pkg/question"
-	"github.com/stretchr/testify/assert"
+	"github.com/OctopusDeploy/cli/test/testutil"
 )
 
 func TestQuestion_DeleteWithConfirmation_Success(t *testing.T) {
@@ -19,7 +19,7 @@ func TestQuestion_DeleteWithConfirmation_Success(t *testing.T) {
 		return question.DeleteWithConfirmation(qa.AsAsker(), "animal", "dog", "1", func() error { return nil })
 	})
 
-	qa.ExpectQuestion(t, &survey.Input{
+	_ = qa.ExpectQuestion(t, &survey.Input{
 		Message: `You are about to delete the animal "dog" (1). This action cannot be reversed. To confirm, type the animal name:`,
 	}).AnswerWith("dog")
 
@@ -33,7 +33,7 @@ func TestQuestion_DeleteWithConfirmation_invalidResponse(t *testing.T) {
 		return question.DeleteWithConfirmation(qa.AsAsker(), "animal", "dog", "1", func() error { return nil })
 	})
 
-	qa.ExpectQuestion(t, &survey.Input{
+	_ = qa.ExpectQuestion(t, &survey.Input{
 		Message: `You are about to delete the animal "dog" (1). This action cannot be reversed. To confirm, type the animal name:`,
 	}).AnswerWith("cat")
 
@@ -94,7 +94,7 @@ func TestQuestion_DeleteWithConfirmation_deleteError(t *testing.T) {
 		return question.DeleteWithConfirmation(qa.AsAsker(), "animal", "dog", "1", func() error { return errors.New("ouch") })
 	})
 
-	qa.ExpectQuestion(t, &survey.Input{
+	_ = qa.ExpectQuestion(t, &survey.Input{
 		Message: `You are about to delete the animal "dog" (1). This action cannot be reversed. To confirm, type the animal name:`,
 	}).AnswerWith("dog")
 

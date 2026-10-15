@@ -1,12 +1,13 @@
 package config
 
 import (
+	"github.com/spf13/cobra"
+
 	getCmd "github.com/OctopusDeploy/cli/pkg/cmd/config/get"
 	listCmd "github.com/OctopusDeploy/cli/pkg/cmd/config/list"
 	setCmd "github.com/OctopusDeploy/cli/pkg/cmd/config/set"
 	"github.com/OctopusDeploy/cli/pkg/constants/annotations"
 	"github.com/OctopusDeploy/cli/pkg/factory"
-	"github.com/spf13/cobra"
 )
 
 func NewCmdConfig(f factory.Factory) *cobra.Command {

@@ -5,6 +5,8 @@ import (
 
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/MakeNowJust/heredoc/v2"
+	"github.com/spf13/cobra"
+
 	"github.com/OctopusDeploy/cli/pkg/cmd"
 	"github.com/OctopusDeploy/cli/pkg/cmd/project/convert"
 	projectShared "github.com/OctopusDeploy/cli/pkg/cmd/project/shared"
@@ -13,7 +15,6 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/question"
 	"github.com/OctopusDeploy/cli/pkg/question/selectors"
 	"github.com/OctopusDeploy/cli/pkg/util/flag"
-	"github.com/spf13/cobra"
 )
 
 const (
@@ -126,7 +127,7 @@ func createRun(opts *CreateOptions) error {
 func PromptMissing(opts *CreateOptions) ([]cmd.Dependable, error) {
 	nestedOpts := []cmd.Dependable{}
 
-	question.AskName(opts.Ask, "", "project", &opts.Name.Value)
+	_ = question.AskName(opts.Ask, "", "project", &opts.Name.Value)
 
 	if opts.Lifecycle.Value == "" {
 		lc, err := selectors.Lifecycle("You have not specified a Lifecycle for this project. Please select one:", opts.Client, opts.Ask)
@@ -172,7 +173,7 @@ func PromptMissing(opts *CreateOptions) ([]cmd.Dependable, error) {
 
 func PromptForConfigAsCode(opts *CreateOptions) (cmd.Dependable, error) {
 	if !opts.ConfigAsCode.Value {
-		opts.Ask(&survey.Confirm{
+		_ = opts.Ask(&survey.Confirm{
 			Message: "Would you like to use Config as Code?",
 			Default: false,
 		}, &opts.ConfigAsCode.Value)

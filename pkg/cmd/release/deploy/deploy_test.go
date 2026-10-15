@@ -10,18 +10,8 @@ import (
 	"time"
 
 	"github.com/AlecAivazis/survey/v2"
-	surveyCore "github.com/AlecAivazis/survey/v2/core"
 	"github.com/MakeNowJust/heredoc/v2"
-	"github.com/OctopusDeploy/cli/pkg/cmd/release/deploy"
-	cmdRoot "github.com/OctopusDeploy/cli/pkg/cmd/root"
-	"github.com/OctopusDeploy/cli/pkg/constants"
-	"github.com/OctopusDeploy/cli/pkg/executor"
-	"github.com/OctopusDeploy/cli/pkg/question"
-	"github.com/OctopusDeploy/cli/pkg/surveyext"
-	"github.com/OctopusDeploy/cli/test/fixtures"
-	"github.com/OctopusDeploy/cli/test/testutil"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/channels"
-	octopusApiClient "github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/configuration"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/core"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/deployments"
@@ -34,6 +24,18 @@ import (
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/variables"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
+
+	surveyCore "github.com/AlecAivazis/survey/v2/core"
+	octopusApiClient "github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
+
+	"github.com/OctopusDeploy/cli/pkg/cmd/release/deploy"
+	cmdRoot "github.com/OctopusDeploy/cli/pkg/cmd/root"
+	"github.com/OctopusDeploy/cli/pkg/constants"
+	"github.com/OctopusDeploy/cli/pkg/executor"
+	"github.com/OctopusDeploy/cli/pkg/question"
+	"github.com/OctopusDeploy/cli/pkg/surveyext"
+	"github.com/OctopusDeploy/cli/test/fixtures"
+	"github.com/OctopusDeploy/cli/test/testutil"
 )
 
 var serverUrl, _ = url.Parse("http://server")
@@ -1307,7 +1309,6 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 				ReleaseID:                        release19.ID,
 				ScheduledStartTime:               "some-sort-of-garbage(passthru to server)",
 			}, options)
-
 		}},
 
 		{"advanced options pickup from command line; doesn't ask if all opts are supplied", func(t *testing.T, api *testutil.MockHttpServer, qa *testutil.AskMocker, stdout *bytes.Buffer) {

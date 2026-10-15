@@ -6,11 +6,12 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
+
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/constants/annotations"
 	"github.com/OctopusDeploy/cli/pkg/output"
-	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 )
 
 func isRootCmd(cmd *cobra.Command) bool {

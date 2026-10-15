@@ -4,8 +4,9 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/spf13/viper"
+
+	"github.com/OctopusDeploy/cli/pkg/constants"
 )
 
 func TestServiceMessage(t *testing.T) {

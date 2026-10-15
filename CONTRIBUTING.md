@@ -24,6 +24,8 @@ Issues will be triaged and modified (if necessary) by the [CODEOWNERS](CODEOWNER
 
 This project employs [branch protection](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/defining-the-mergeability-of-pull-requests/managing-a-branch-protection-rule); the `main` branch is protected. Therefore, your changes MUST be committed to a branch and submitted as a pull request. Also, this project requires the use of [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) for all commit messages. Using Conventional Commits enables this project to autogenerate its [CHANGELOG.md](CHANGELOG.md) and release notes.
 
+Your pull request must pass `golangci-lint`. For instructions, see "Linting and formatting" in the [Developer Guide](README.md#linting-and-formatting).
+
 ### Your Pull Request is Merged! Now What?
 
 Congratulations! :tada: And thank you very much for your contribution to this project!

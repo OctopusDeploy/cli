@@ -2,6 +2,8 @@ package release
 
 import (
 	"github.com/MakeNowJust/heredoc/v2"
+	"github.com/spf13/cobra"
+
 	cmdCreate "github.com/OctopusDeploy/cli/pkg/cmd/release/create"
 	cmdDelete "github.com/OctopusDeploy/cli/pkg/cmd/release/delete"
 	cmdDeploy "github.com/OctopusDeploy/cli/pkg/cmd/release/deploy"
@@ -11,7 +13,6 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/constants/annotations"
 	"github.com/OctopusDeploy/cli/pkg/factory"
-	"github.com/spf13/cobra"
 )
 
 func NewCmdRelease(f factory.Factory) *cobra.Command {

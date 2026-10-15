@@ -2,15 +2,17 @@ package create
 
 import (
 	"fmt"
+
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projectgroups"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/tagsets"
+
 	"github.com/OctopusDeploy/cli/pkg/cmd"
 	projectConvert "github.com/OctopusDeploy/cli/pkg/cmd/project/convert"
 	"github.com/OctopusDeploy/cli/pkg/cmd/project/shared"
 	"github.com/OctopusDeploy/cli/pkg/output"
 	"github.com/OctopusDeploy/cli/pkg/util/flag"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projectgroups"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/tagsets"
 )
 
 type ConvertProjectToConfigAsCodeCallback func() (cmd.Dependable, error)

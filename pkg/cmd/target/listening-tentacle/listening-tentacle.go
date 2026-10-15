@@ -2,12 +2,13 @@ package listening_tentacle
 
 import (
 	"github.com/MakeNowJust/heredoc/v2"
+	"github.com/spf13/cobra"
+
 	cmdCreate "github.com/OctopusDeploy/cli/pkg/cmd/target/listening-tentacle/create"
 	cmdList "github.com/OctopusDeploy/cli/pkg/cmd/target/listening-tentacle/list"
 	cmdView "github.com/OctopusDeploy/cli/pkg/cmd/target/listening-tentacle/view"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/factory"
-	"github.com/spf13/cobra"
 )
 
 func NewCmdListeningTentacle(f factory.Factory) *cobra.Command {

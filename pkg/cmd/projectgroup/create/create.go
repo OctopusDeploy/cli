@@ -3,16 +3,16 @@ package create
 import (
 	"fmt"
 
-	"github.com/OctopusDeploy/cli/pkg/constants"
-	"github.com/OctopusDeploy/cli/pkg/question"
-
 	"github.com/MakeNowJust/heredoc/v2"
-	"github.com/OctopusDeploy/cli/pkg/cmd"
-	"github.com/OctopusDeploy/cli/pkg/factory"
-	"github.com/OctopusDeploy/cli/pkg/output"
-	"github.com/OctopusDeploy/cli/pkg/util/flag"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projectgroups"
 	"github.com/spf13/cobra"
+
+	"github.com/OctopusDeploy/cli/pkg/cmd"
+	"github.com/OctopusDeploy/cli/pkg/constants"
+	"github.com/OctopusDeploy/cli/pkg/factory"
+	"github.com/OctopusDeploy/cli/pkg/output"
+	"github.com/OctopusDeploy/cli/pkg/question"
+	"github.com/OctopusDeploy/cli/pkg/util/flag"
 )
 
 const (
@@ -115,8 +115,8 @@ func PromptMissing(opts *CreateOptions) error {
 		messagePrefix = "Project Group "
 	}
 
-	question.AskName(opts.Ask, messagePrefix, "project group", &opts.Name.Value)
-	question.AskDescription(opts.Ask, messagePrefix, "project group", &opts.Description.Value)
+	_ = question.AskName(opts.Ask, messagePrefix, "project group", &opts.Name.Value)
+	_ = question.AskDescription(opts.Ask, messagePrefix, "project group", &opts.Description.Value)
 
 	return nil
 }

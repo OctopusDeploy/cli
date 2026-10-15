@@ -3,21 +3,16 @@ package wait_test
 import (
 	"bytes"
 	"fmt"
-	"net/url"
 	"testing"
 	"time"
 
 	"github.com/MakeNowJust/heredoc/v2"
-	"github.com/OctopusDeploy/cli/pkg/cmd"
-	taskWaitCreate "github.com/OctopusDeploy/cli/pkg/cmd/task/wait"
-	"github.com/OctopusDeploy/cli/test/testutil"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/tasks"
 	"github.com/stretchr/testify/assert"
-)
 
-var serverUrl, _ = url.Parse("https://serverurl")
-var spinner = &testutil.FakeSpinner{}
-var rootResource = testutil.NewRootResource()
+	"github.com/OctopusDeploy/cli/pkg/cmd"
+	taskWaitCreate "github.com/OctopusDeploy/cli/pkg/cmd/task/wait"
+)
 
 func TestWait(t *testing.T) {
 	out := bytes.Buffer{}

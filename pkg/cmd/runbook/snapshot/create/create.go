@@ -8,6 +8,15 @@ import (
 
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/MakeNowJust/heredoc/v2"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/feeds"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/releases"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/runbooks"
+	"github.com/spf13/cobra"
+
+	clientGit "github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/gitdependencies"
+	clientPackages "github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/packages"
+
 	"github.com/OctopusDeploy/cli/pkg/cmd"
 	"github.com/OctopusDeploy/cli/pkg/cmd/runbook/shared"
 	"github.com/OctopusDeploy/cli/pkg/cmd/runbook/snapshot/list"
@@ -19,13 +28,6 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/question/selectors"
 	"github.com/OctopusDeploy/cli/pkg/util"
 	"github.com/OctopusDeploy/cli/pkg/util/flag"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/feeds"
-	clientGit "github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/gitdependencies"
-	clientPackages "github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/packages"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/releases"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/runbooks"
-	"github.com/spf13/cobra"
 )
 
 const (
@@ -155,7 +157,6 @@ func createRun(opts *CreateOptions, outputFormat string) error {
 	}
 
 	runbook, err := selectors.FindRunbook(opts.Client, project, opts.Runbook.Value)
-
 	if err != nil {
 		return err
 	}
@@ -287,7 +288,8 @@ func buildPackageVersionBaseline(opts *CreateOptions, runbookTemplate *runbooks.
 		pkg := &packages.StepPackageVersion{
 			PackageID:            p.PackageID,
 			ActionName:           p.ActionName,
-			PackageReferenceName: p.PackageReferenceName}
+			PackageReferenceName: p.PackageReferenceName,
+		}
 		if !p.IsResolvable {
 			pkg.Version = ""
 		} else {
@@ -327,7 +329,6 @@ func PromptMissing(opts *CreateOptions) error {
 	opts.Runbook.Value = selectedRunbook.Name
 
 	template, err := opts.Client.Runbooks.GetRunbookSnapshotTemplate(selectedRunbook)
-
 	if err != nil {
 		return err
 	}
@@ -354,7 +355,6 @@ func PromptMissing(opts *CreateOptions) error {
 			opts.PackageVersionOverrides,
 			opts.Ask,
 			opts.Out)
-
 		if err != nil {
 			return err
 		}
@@ -374,7 +374,6 @@ func PromptMissing(opts *CreateOptions) error {
 			opts.GitResourceRefsSpec.Value,
 			opts.Ask,
 			opts.Out)
-
 		if err != nil {
 			return err
 		}

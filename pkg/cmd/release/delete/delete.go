@@ -4,10 +4,16 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/OctopusDeploy/cli/pkg/apiclient"
-
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/MakeNowJust/heredoc/v2"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/releases"
+	"github.com/hashicorp/go-multierror"
+	"github.com/spf13/cobra"
+
+	octopusApiClient "github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
+
+	"github.com/OctopusDeploy/cli/pkg/apiclient"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/OctopusDeploy/cli/pkg/output"
@@ -15,11 +21,6 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/question/selectors"
 	"github.com/OctopusDeploy/cli/pkg/util"
 	"github.com/OctopusDeploy/cli/pkg/util/flag"
-	octopusApiClient "github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/releases"
-	"github.com/hashicorp/go-multierror"
-	"github.com/spf13/cobra"
 )
 
 const (
@@ -155,7 +156,7 @@ func deleteRun(cmd *cobra.Command, f factory.Factory, flags *Flags, args []strin
 		return nil
 	}
 
-	var releaseDeleteErrors = &multierror.Error{}
+	releaseDeleteErrors := &multierror.Error{}
 	for _, r := range releasesToDelete {
 		err = octopus.Releases.DeleteByID(r.ID)
 		if err != nil {

@@ -9,9 +9,10 @@ import (
 	"sync/atomic"
 	"testing"
 
-	octopusApiClient "github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/constants"
 	"github.com/stretchr/testify/assert"
+
+	octopusApiClient "github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
 )
 
 func GoBegin[TResult any](action func() TResult) chan TResult {

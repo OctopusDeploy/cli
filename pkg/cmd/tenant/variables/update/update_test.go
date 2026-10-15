@@ -1,9 +1,8 @@
 package update_test
 
 import (
-	"github.com/OctopusDeploy/cli/pkg/cmd"
-	"github.com/OctopusDeploy/cli/pkg/cmd/tenant/variables/update"
-	"github.com/OctopusDeploy/cli/test/testutil"
+	"testing"
+
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/actiontemplates"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/core"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/environments"
@@ -12,7 +11,10 @@ import (
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/tenants"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/variables"
 	"github.com/stretchr/testify/assert"
-	"testing"
+
+	"github.com/OctopusDeploy/cli/pkg/cmd"
+	"github.com/OctopusDeploy/cli/pkg/cmd/tenant/variables/update"
+	"github.com/OctopusDeploy/cli/test/testutil"
 )
 
 func TestUpdate_UnscopedCommonVariable_ScopeExactMatch(t *testing.T) {
@@ -27,12 +29,12 @@ func TestUpdate_UnscopedCommonVariable_ScopeExactMatch(t *testing.T) {
 	flags.Environments.Value = []string{}
 	opts := update.NewUpdateOptions(flags, &cmd.Dependencies{Ask: asker})
 
-	var existingCommonVariables = []variables.TenantCommonVariable{
+	existingCommonVariables := []variables.TenantCommonVariable{
 		createCommonVariable("TenantVariables-1", "LibraryVariableSets-1", "Set 1", "Templates-1", "Template 1", "existing value 1", []string{}, false),
 		createCommonVariable("TenantVariables-2", "LibraryVariableSets-1", "Set 1", "Templates-1", "Template 1", "existing value 2", []string{"Environments-3"}, false),
 	}
 
-	var environmentMap = map[string]string{
+	environmentMap := map[string]string{
 		"Environments-1": "Dev",
 		"Environments-2": "Test",
 		"Environments-3": "Prod",
@@ -69,13 +71,13 @@ func TestUpdate_CommonVariable_ScopeExactMatch(t *testing.T) {
 	flags.Environments.Value = []string{"Dev", "Test"}
 	opts := update.NewUpdateOptions(flags, &cmd.Dependencies{Ask: asker})
 
-	var existingCommonVariables = []variables.TenantCommonVariable{
+	existingCommonVariables := []variables.TenantCommonVariable{
 		createCommonVariable("TenantVariables-1", "LibraryVariableSets-1", "Set 1", "Templates-1", "Template 1", "existing value 1", []string{"Environments-1", "Environments-2"}, false),
 		createCommonVariable("TenantVariables-2", "LibraryVariableSets-1", "Set 1", "Templates-1", "Template 1", "existing value 2", []string{"Environments-3"}, false),
 		createCommonVariable("TenantVariables-3", "LibraryVariableSets-2", "Set 2", "Templates-2", "Template 2", "existing value 3", []string{}, false),
 	}
 
-	var environmentMap = map[string]string{
+	environmentMap := map[string]string{
 		"Environments-1": "Dev",
 		"Environments-2": "Test",
 		"Environments-3": "Prod",
@@ -119,12 +121,12 @@ func TestUpdate_CommonVariable_ScopePartialMatch(t *testing.T) {
 	flags.Environments.Value = []string{"Dev"}
 	opts := update.NewUpdateOptions(flags, &cmd.Dependencies{Ask: asker})
 
-	var existingCommonVariables = []variables.TenantCommonVariable{
+	existingCommonVariables := []variables.TenantCommonVariable{
 		createCommonVariable("TenantVariables-1", "LibraryVariableSets-1", "Set 1", "Templates-1", "Template 1", "existing value 1", []string{"Environments-1", "Environments-2"}, false),
 		createCommonVariable("TenantVariables-2", "LibraryVariableSets-1", "Set 1", "Templates-1", "Template 1", "existing value 2", []string{"Environments-3"}, false),
 	}
 
-	var environmentMap = map[string]string{
+	environmentMap := map[string]string{
 		"Environments-1": "Dev",
 		"Environments-2": "Test",
 		"Environments-3": "Prod",
@@ -147,12 +149,12 @@ func TestUpdate_UnscopedCommonVariable_ScopeNoMatch(t *testing.T) {
 	flags.Environments.Value = []string{}
 	opts := update.NewUpdateOptions(flags, &cmd.Dependencies{Ask: asker})
 
-	var existingCommonVariables = []variables.TenantCommonVariable{
+	existingCommonVariables := []variables.TenantCommonVariable{
 		createCommonVariable("TenantVariables-1", "LibraryVariableSets-1", "Set 1", "Templates-1", "Template 1", "existing value 1", []string{"Environments-1", "Environments-2"}, false),
 		createCommonVariable("TenantVariables-2", "LibraryVariableSets-1", "Set 1", "Templates-1", "Template 1", "existing value 2", []string{"Environments-3"}, false),
 	}
 
-	var environmentMap = map[string]string{
+	environmentMap := map[string]string{
 		"Environments-1": "Dev",
 		"Environments-2": "Test",
 		"Environments-3": "Prod",
@@ -195,12 +197,12 @@ func TestUpdate_CommonVariable_ScopeNoMatch(t *testing.T) {
 	flags.Environments.Value = []string{"Dev", "Prod"}
 	opts := update.NewUpdateOptions(flags, &cmd.Dependencies{Ask: asker})
 
-	var existingCommonVariables = []variables.TenantCommonVariable{
+	existingCommonVariables := []variables.TenantCommonVariable{
 		createCommonVariable("TenantVariables-1", "LibraryVariableSets-1", "Set 1", "Templates-1", "Template 1", "existing value 1", []string{"Environments-1", "Environments-2"}, false),
 		createCommonVariable("TenantVariables-2", "LibraryVariableSets-1", "Set 1", "Templates-1", "Template 1", "existing value 2", []string{"Environments-3"}, false),
 	}
 
-	var environmentMap = map[string]string{
+	environmentMap := map[string]string{
 		"Environments-1": "Dev",
 		"Environments-2": "Test",
 		"Environments-3": "Prod",
@@ -223,16 +225,16 @@ func TestUpdate_CommonVariable_WhenExistingValueIsMissingForScope(t *testing.T) 
 	flags.Environments.Value = []string{"Dev", "Test"}
 	opts := update.NewUpdateOptions(flags, &cmd.Dependencies{Ask: asker})
 
-	var existingCommonVariables = []variables.TenantCommonVariable{
+	existingCommonVariables := []variables.TenantCommonVariable{
 		createCommonVariable("TenantVariables-2", "LibraryVariableSets-1", "Set 1", "Templates-1", "Template 1", "existing value 2", []string{"Environments-3"}, false),
 		createCommonVariable("TenantVariables-3", "LibraryVariableSets-2", "Set 2", "Templates-2", "Template 2", "existing value 3", []string{"Environments-3"}, false),
 	}
 
-	var missingCommonVariables = []variables.TenantCommonVariable{
+	missingCommonVariables := []variables.TenantCommonVariable{
 		createCommonVariable("TenantVariables-1", "LibraryVariableSets-1", "Set 1", "Templates-1", "Template 1", "", []string{"Environments-1", "Environments-2"}, false),
 	}
 
-	var environmentMap = map[string]string{
+	environmentMap := map[string]string{
 		"Environments-1": "Dev",
 		"Environments-2": "Test",
 		"Environments-3": "Prod",
@@ -275,11 +277,11 @@ func TestUpdate_CommonVariable_WhenExistingValueIsMissingForScope_AndAnUnscopedV
 	flags.Environments.Value = []string{"Dev", "Test"}
 	opts := update.NewUpdateOptions(flags, &cmd.Dependencies{Ask: asker})
 
-	var existingCommonVariables = []variables.TenantCommonVariable{
+	existingCommonVariables := []variables.TenantCommonVariable{
 		createCommonVariable("TenantVariables-1", "LibraryVariableSets-1", "Set 1", "Templates-1", "Template 1", "unscoped value", []string{}, false),
 	}
 
-	var environmentMap = map[string]string{
+	environmentMap := map[string]string{
 		"Environments-1": "Dev",
 		"Environments-2": "Test",
 		"Environments-3": "Prod",
@@ -316,12 +318,12 @@ func TestUpdate_UnscopedProjectVariable_ScopeExactMatch(t *testing.T) {
 	flags.Environments.Value = []string{}
 	opts := update.NewUpdateOptions(flags, &cmd.Dependencies{Ask: asker})
 
-	var existingProjectVariables = []variables.TenantProjectVariable{
+	existingProjectVariables := []variables.TenantProjectVariable{
 		createProjectVariable("TenantVariables-1", "Projects-1", "Project 1", "Templates-1", "Template 1", "existing value 1", []string{}, false),
 		createProjectVariable("TenantVariables-2", "Projects-1", "Project 1", "Templates-1", "Template 1", "existing value 2", []string{"Environments-3"}, false),
 	}
 
-	var environmentMap = map[string]string{
+	environmentMap := map[string]string{
 		"Environments-1": "Dev",
 		"Environments-2": "Test",
 		"Environments-3": "Prod",
@@ -358,13 +360,13 @@ func TestUpdate_ProjectVariable_ScopeExactMatch(t *testing.T) {
 	flags.Environments.Value = []string{"Dev", "Test"}
 	opts := update.NewUpdateOptions(flags, &cmd.Dependencies{Ask: asker})
 
-	var existingProjectVariables = []variables.TenantProjectVariable{
+	existingProjectVariables := []variables.TenantProjectVariable{
 		createProjectVariable("TenantVariables-1", "Projects-1", "Project 1", "Templates-1", "Template 1", "existing value 1", []string{"Environments-1", "Environments-2"}, false),
 		createProjectVariable("TenantVariables-2", "Projects-1", "Project 1", "Templates-1", "Template 1", "existing value 2", []string{"Environments-3"}, false),
 		createProjectVariable("TenantVariables-3", "Projects-2", "Project 2", "Templates-2", "Template 2", "existing value 3", []string{}, false),
 	}
 
-	var environmentMap = map[string]string{
+	environmentMap := map[string]string{
 		"Environments-1": "Dev",
 		"Environments-2": "Test",
 		"Environments-3": "Prod",
@@ -407,12 +409,12 @@ func TestUpdate_ProjectVariable_ScopePartialMatch(t *testing.T) {
 	flags.Environments.Value = []string{"Dev"}
 	opts := update.NewUpdateOptions(flags, &cmd.Dependencies{Ask: asker})
 
-	var existingProjectVariables = []variables.TenantProjectVariable{
+	existingProjectVariables := []variables.TenantProjectVariable{
 		createProjectVariable("TenantVariables-1", "Projects-1", "Project 1", "Templates-1", "Template 1", "existing value 1", []string{"Environments-1", "Environments-2"}, false),
 		createProjectVariable("TenantVariables-2", "Projects-1", "Project 1", "Templates-1", "Template 1", "existing value 2", []string{"Environments-3"}, false),
 	}
 
-	var environmentMap = map[string]string{
+	environmentMap := map[string]string{
 		"Environments-1": "Dev",
 		"Environments-2": "Test",
 		"Environments-3": "Prod",
@@ -435,12 +437,12 @@ func TestUpdate_UnscopedProjectVariable_ScopeNoMatch(t *testing.T) {
 	flags.Environments.Value = []string{}
 	opts := update.NewUpdateOptions(flags, &cmd.Dependencies{Ask: asker})
 
-	var existingProjectVariables = []variables.TenantProjectVariable{
+	existingProjectVariables := []variables.TenantProjectVariable{
 		createProjectVariable("TenantVariables-1", "Projects-1", "Project 1", "Templates-1", "Template 1", "existing value 1", []string{"Environments-1", "Environments-2"}, false),
 		createProjectVariable("TenantVariables-2", "Projects-1", "Project 1", "Templates-1", "Template 1", "existing value 2", []string{"Environments-3"}, false),
 	}
 
-	var environmentMap = map[string]string{
+	environmentMap := map[string]string{
 		"Environments-1": "Dev",
 		"Environments-2": "Test",
 		"Environments-3": "Prod",
@@ -483,12 +485,12 @@ func TestUpdate_ProjectVariable_ScopeNoMatch(t *testing.T) {
 	flags.Environments.Value = []string{"Dev", "Prod"}
 	opts := update.NewUpdateOptions(flags, &cmd.Dependencies{Ask: asker})
 
-	var existingProjectVariables = []variables.TenantProjectVariable{
+	existingProjectVariables := []variables.TenantProjectVariable{
 		createProjectVariable("TenantVariables-1", "Projects-1", "Project 1", "Templates-1", "Template 1", "existing value 1", []string{"Environments-1", "Environments-2"}, false),
 		createProjectVariable("TenantVariables-2", "Projects-1", "Project 1", "Templates-1", "Template 1", "existing value 2", []string{"Environments-3"}, false),
 	}
 
-	var environmentMap = map[string]string{
+	environmentMap := map[string]string{
 		"Environments-1": "Dev",
 		"Environments-2": "Test",
 		"Environments-3": "Prod",
@@ -511,16 +513,16 @@ func TestUpdate_ProjectVariable_WhenExistingValueIsMissingForScope(t *testing.T)
 	flags.Environments.Value = []string{"Dev", "Test"}
 	opts := update.NewUpdateOptions(flags, &cmd.Dependencies{Ask: asker})
 
-	var existingProjectVariables = []variables.TenantProjectVariable{
+	existingProjectVariables := []variables.TenantProjectVariable{
 		createProjectVariable("TenantVariables-2", "Projects-1", "Project 1", "Templates-1", "Template 1", "existing value 2", []string{"Environments-3"}, false),
 		createProjectVariable("TenantVariables-3", "Projects-2", "Project 2", "Templates-2", "Template 2", "existing value 3", []string{"Environments-3"}, false),
 	}
 
-	var missingProjectVariables = []variables.TenantProjectVariable{
+	missingProjectVariables := []variables.TenantProjectVariable{
 		createProjectVariable("TenantVariables-1", "Projects-1", "Project 1", "Templates-1", "Template 1", "", []string{"Environments-1", "Environments-2"}, false),
 	}
 
-	var environmentMap = map[string]string{
+	environmentMap := map[string]string{
 		"Environments-1": "Dev",
 		"Environments-2": "Test",
 		"Environments-3": "Prod",
@@ -563,11 +565,11 @@ func TestUpdate_ProjectVariable_WhenExistingValueIsMissingForScope_AndAnUnscoped
 	flags.Environments.Value = []string{"Dev", "Test"}
 	opts := update.NewUpdateOptions(flags, &cmd.Dependencies{Ask: asker})
 
-	var existingProjectVariables = []variables.TenantProjectVariable{
+	existingProjectVariables := []variables.TenantProjectVariable{
 		createProjectVariable("TenantVariables-2", "Projects-1", "Project 1", "Templates-1", "Template 1", "existing value 2", []string{}, false),
 	}
 
-	var environmentMap = map[string]string{
+	environmentMap := map[string]string{
 		"Environments-1": "Dev",
 		"Environments-2": "Test",
 		"Environments-3": "Prod",

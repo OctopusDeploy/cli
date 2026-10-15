@@ -2,10 +2,12 @@ package apiclient
 
 import (
 	"fmt"
+	"strings"
+
+	"github.com/spf13/cobra"
+
 	version "github.com/OctopusDeploy/cli"
 	"github.com/OctopusDeploy/cli/pkg/constants"
-	"github.com/spf13/cobra"
-	"strings"
 )
 
 type Requester interface {
@@ -16,8 +18,7 @@ type RequesterContext struct {
 	cmd *cobra.Command
 }
 
-type FakeRequesterContext struct {
-}
+type FakeRequesterContext struct{}
 
 func NewRequester(c *cobra.Command) *RequesterContext {
 	return &RequesterContext{

@@ -1,13 +1,14 @@
 package create_test
 
 import (
-	"github.com/OctopusDeploy/cli/pkg/cmd"
-	"github.com/OctopusDeploy/cli/test/fixtures"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/environments"
-	"github.com/stretchr/testify/assert"
 	"testing"
 
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/environments"
+	"github.com/stretchr/testify/assert"
+
+	"github.com/OctopusDeploy/cli/pkg/cmd"
 	"github.com/OctopusDeploy/cli/pkg/cmd/account/azure-oidc/create"
+	"github.com/OctopusDeploy/cli/test/fixtures"
 	"github.com/OctopusDeploy/cli/test/testutil"
 )
 

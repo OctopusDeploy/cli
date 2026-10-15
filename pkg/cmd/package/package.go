@@ -3,6 +3,8 @@ package _package
 import (
 	"fmt"
 
+	"github.com/spf13/cobra"
+
 	cmdDelete "github.com/OctopusDeploy/cli/pkg/cmd/package/delete"
 	cmdList "github.com/OctopusDeploy/cli/pkg/cmd/package/list"
 	cmdNuget "github.com/OctopusDeploy/cli/pkg/cmd/package/nuget"
@@ -12,7 +14,6 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/constants/annotations"
 	"github.com/OctopusDeploy/cli/pkg/factory"
-	"github.com/spf13/cobra"
 )
 
 func NewCmdPackage(f factory.Factory) *cobra.Command {

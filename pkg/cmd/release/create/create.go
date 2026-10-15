@@ -9,10 +9,18 @@ import (
 	"strings"
 	"time"
 
-	"github.com/OctopusDeploy/cli/pkg/apiclient"
-
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/MakeNowJust/heredoc/v2"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/channels"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/deployments"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/feeds"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/releases"
+	"github.com/spf13/cobra"
+
+	octopusApiClient "github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
+
+	"github.com/OctopusDeploy/cli/pkg/apiclient"
 	"github.com/OctopusDeploy/cli/pkg/cmd/release/list"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	cliErrors "github.com/OctopusDeploy/cli/pkg/errors"
@@ -26,13 +34,6 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/surveyext"
 	"github.com/OctopusDeploy/cli/pkg/util"
 	"github.com/OctopusDeploy/cli/pkg/util/flag"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/channels"
-	octopusApiClient "github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/deployments"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/feeds"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/releases"
-	"github.com/spf13/cobra"
 )
 
 const (
@@ -78,40 +79,6 @@ const (
 	//FlagPackagePrerelease            = "package-prerelease"
 	//FlagAliasPackagePrereleaseLegacy = "packagePrerelease"
 )
-
-var packageOverrideLoopHelpText = heredoc.Doc(`
-bold(PACKAGE SELECTION)
- This screen presents the list of packages used by your project, and the steps
- which reference them. 
- If an item is dimmed (gray text) this indicates that the attribute is duplicated.
- For example if you reference the same package in two steps, the second will be dimmed. 
-
-bold(COMMANDS)
- Any any point, you can enter one of the following:
- - green(?) to access this help screen
- - green(y) to accept the list of packages and proceed with creating the release
- - green(u) to undo the last edit you made to package versions
- - green(r) to reset all package version edits
- - A package override string.
-
-bold(PACKAGE OVERRIDE STRINGS)
- Package override strings must have 2 or 3 components, separated by a :
- The last component must always be a version number.
- 
- When specifying 2 components, the first component is either a Package ID or a Step Name.
- You can also specify a * which will match all packages
- Examples:
-   bold(octopustools:9.1)   dim(# sets package 'octopustools' in all steps to v 9.1)
-   bold(Push Package:3.0)   dim(# sets all packages in the 'Push Package' step to v 3.0)
-   bold(*:5.1)              dim(# sets all packages in all steps to v 5.1)
-
- The 3-component syntax is for advanced use cases where you reference the same package twice
- in a single step, and need to distinguish between the two.
- The syntax is bold(packageIDorStepName:packageReferenceName:version)
- Please refer to the octopus server documentation for more information regarding package reference names. 
-
-dim(---------------------------------------------------------------------)
-`) // note this expects to have prettifyHelp run over it
 
 type CreateFlags struct {
 	Project             *flag.Flag[string]
@@ -386,7 +353,6 @@ func createRun(cmd *cobra.Command, f factory.Factory, flags *CreateFlags) error 
 // finds the latest available version satisfying the channel version rules. Result is the list of step+package+versions
 // to use as a baseline. The package version override process takes this as an input and layers on top of it
 func BuildPackageVersionBaselineForChannel(octopus *octopusApiClient.Client, deploymentProcessTemplate *deployments.DeploymentProcessTemplate, channel *channels.Channel) ([]*packages.StepPackageVersion, error) {
-
 	result, err := packages.BuildPackageVersionBaseline(octopus, deploymentProcessTemplate.Packages, func(packageRef releases.ReleaseTemplatePackage, query feeds.SearchPackageVersionsQuery) (feeds.SearchPackageVersionsQuery, error) {
 		// look in the channel rules for a version filter for this step+package
 
@@ -412,7 +378,6 @@ func BuildPackageVersionBaselineForChannel(octopus *octopusApiClient.Client, dep
 
 		return query, nil
 	})
-
 	if err != nil {
 		return nil, err
 	}
@@ -523,7 +488,6 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 			options.PackageVersionOverrides,
 			asker,
 			stdout)
-
 		if err != nil {
 			return err
 		}
@@ -547,7 +511,6 @@ func AskQuestions(octopus *octopusApiClient.Client, stdout io.Writer, asker ques
 			options.GitResourceRefs,
 			asker,
 			stdout)
-
 		if err != nil {
 			return err
 		}
@@ -707,7 +670,6 @@ func selectGitReference(octopus *octopusApiClient.Client, ask question.Asker, pr
 	}
 
 	tags, err := octopus.Projects.GetGitTags(project)
-
 	if err != nil {
 		return nil, err
 	}

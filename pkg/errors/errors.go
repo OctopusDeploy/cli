@@ -24,6 +24,7 @@ type ArgumentNullOrEmptyError struct{ ArgumentName string }
 func (e *ArgumentNullOrEmptyError) Error() string {
 	return fmt.Sprintf("argument %s was nil or empty", e.ArgumentName)
 }
+
 func NewArgumentNullOrEmptyError(argumentName string) *ArgumentNullOrEmptyError {
 	return &ArgumentNullOrEmptyError{ArgumentName: argumentName}
 }

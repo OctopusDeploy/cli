@@ -11,9 +11,11 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/util/flag"
 )
 
-type GetAllTagSetsCallback func() ([]*tagsets.TagSet, error)
-type GetTenantCallback func(tenantIdentifier string) (*tenants.Tenant, error)
-type GetTenantsCallback func() ([]*tenants.Tenant, error)
+type (
+	GetAllTagSetsCallback func() ([]*tagsets.TagSet, error)
+	GetTenantCallback     func(tenantIdentifier string) (*tenants.Tenant, error)
+	GetTenantsCallback    func() ([]*tenants.Tenant, error)
+)
 
 type TagOptions struct {
 	*TagFlags

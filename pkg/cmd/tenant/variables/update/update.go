@@ -6,15 +6,6 @@ import (
 	"strings"
 
 	"github.com/MakeNowJust/heredoc/v2"
-	"github.com/OctopusDeploy/cli/pkg/cmd"
-	"github.com/OctopusDeploy/cli/pkg/cmd/tenant/shared"
-	"github.com/OctopusDeploy/cli/pkg/constants"
-	"github.com/OctopusDeploy/cli/pkg/factory"
-	"github.com/OctopusDeploy/cli/pkg/question/selectors"
-	sharedVariable "github.com/OctopusDeploy/cli/pkg/question/shared/variables"
-	"github.com/OctopusDeploy/cli/pkg/util"
-	"github.com/OctopusDeploy/cli/pkg/util/featuretoggle"
-	"github.com/OctopusDeploy/cli/pkg/util/flag"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/accounts"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/actiontemplates"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/certificates"
@@ -26,6 +17,16 @@ import (
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/variables"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/workerpools"
 	"github.com/spf13/cobra"
+
+	"github.com/OctopusDeploy/cli/pkg/cmd"
+	"github.com/OctopusDeploy/cli/pkg/cmd/tenant/shared"
+	"github.com/OctopusDeploy/cli/pkg/constants"
+	"github.com/OctopusDeploy/cli/pkg/factory"
+	"github.com/OctopusDeploy/cli/pkg/question/selectors"
+	sharedVariable "github.com/OctopusDeploy/cli/pkg/question/shared/variables"
+	"github.com/OctopusDeploy/cli/pkg/util"
+	"github.com/OctopusDeploy/cli/pkg/util/featuretoggle"
+	"github.com/OctopusDeploy/cli/pkg/util/flag"
 )
 
 const (
@@ -172,7 +173,7 @@ func updateRunV1(opts *UpdateOptions) error {
 		return err
 	}
 
-	_, err = fmt.Fprintf(opts.Out, "Successfully updated variable '%s' for tenant '%s'\n", opts.Name.Value, tenant.Name)
+	fmt.Fprintf(opts.Out, "Successfully updated variable '%s' for tenant '%s'\n", opts.Name.Value, tenant.Name)
 
 	if !opts.NoPrompt {
 		autoCmd := flag.GenerateAutomationCmd(opts.CmdPath, opts.GetSpaceNameOrEmpty(), opts.Tenant, opts.Name, opts.Value, opts.Project, opts.LibraryVariableSet, opts.Environments)
@@ -214,9 +215,11 @@ func updateRun(opts *UpdateOptions) error {
 		}
 
 		_, err = tenants.UpdateCommonVariables(opts.Client, tenant.SpaceID, tenant.ID, &commonVariableCommand)
+		if err != nil {
+			return err
+		}
 	} else {
 		projectVariables, err := opts.GetTenantProjectVariables(tenant, true)
-
 		if err != nil {
 			return err
 		}
@@ -229,13 +232,12 @@ func updateRun(opts *UpdateOptions) error {
 		}
 
 		_, err = tenants.UpdateProjectVariables(opts.Client, tenant.SpaceID, tenant.ID, &projectVariableCommand)
+		if err != nil {
+			return err
+		}
 	}
 
-	if err != nil {
-		return err
-	}
-
-	_, err = fmt.Fprintf(opts.Out, "Successfully updated variable '%s' for tenant '%s'\n", opts.Name.Value, tenant.Name)
+	fmt.Fprintf(opts.Out, "Successfully updated variable '%s' for tenant '%s'\n", opts.Name.Value, tenant.Name)
 
 	if !opts.NoPrompt {
 		autoCmd := flag.GenerateAutomationCmd(opts.CmdPath, opts.GetSpaceNameOrEmpty(), opts.Tenant, opts.Name, opts.Value, opts.Project, opts.LibraryVariableSet, opts.Environments)
@@ -264,7 +266,7 @@ func PromptMissingV1(opts *UpdateOptions) error {
 		}
 	}
 
-	var variableType = ""
+	variableType := ""
 	if opts.LibraryVariableSet.Value != "" {
 		variableType = VariableOwnerTypeCommon
 	} else if opts.Project.Value != "" {
@@ -307,7 +309,7 @@ func PromptMissingV1(opts *UpdateOptions) error {
 		}
 	}
 
-	variableControlType, err := getVariableTypeV1(opts, variables)
+	variableControlType, _ := getVariableTypeV1(opts, variables)
 
 	if opts.Value.Value == "" {
 		variableType, err := mapVariableControlTypeToVariableType(variableControlType)
@@ -347,7 +349,7 @@ func PromptMissing(opts *UpdateOptions) error {
 		}
 	}
 
-	var variableType = ""
+	variableType := ""
 	if opts.LibraryVariableSet.Value != "" {
 		variableType = VariableOwnerTypeCommon
 	} else if opts.Project.Value != "" {
@@ -365,7 +367,7 @@ func PromptMissing(opts *UpdateOptions) error {
 	switch variableType {
 	case VariableOwnerTypeCommon:
 		variableResponse, err := opts.GetTenantCommonVariables(tenant, true)
-		var allVariables = append(variableResponse.Variables, variableResponse.MissingVariables...)
+		allVariables := append(variableResponse.Variables, variableResponse.MissingVariables...)
 
 		if err != nil {
 			return err
@@ -384,10 +386,10 @@ func PromptMissing(opts *UpdateOptions) error {
 			return err
 		}
 
-		template, err = getCommonVariableTemplate(opts, &allVariables)
+		template, _ = getCommonVariableTemplate(opts, &allVariables)
 	case VariableOwnerTypeProject:
-		variableResponse, err := opts.GetTenantProjectVariables(tenant, true)
-		var allVariables = append(variableResponse.Variables, variableResponse.MissingVariables...)
+		variableResponse, _ := opts.GetTenantProjectVariables(tenant, true)
+		allVariables := append(variableResponse.Variables, variableResponse.MissingVariables...)
 
 		if opts.Project.Value == "" || opts.Name.Value == "" {
 			selectedVariable, err := promptForVariable(opts, &allVariables, findPossibleProjectVariables)
@@ -402,7 +404,7 @@ func PromptMissing(opts *UpdateOptions) error {
 			return err
 		}
 
-		template, err = getProjectVariableTemplate(opts, &allVariables)
+		template, _ = getProjectVariableTemplate(opts, &allVariables)
 	}
 
 	if opts.Value.Value == "" {
@@ -431,7 +433,7 @@ func PromptForEnvironmentV1(opts *UpdateOptions, variables *variables.TenantVari
 
 		for _, p := range variables.ProjectVariables {
 			if strings.EqualFold(p.ProjectName, opts.Project.Value) {
-				for k, _ := range p.Variables {
+				for k := range p.Variables {
 					environmentSelections = append(environmentSelections, selectors.NewSelectOption[string](environmentMap[k], environmentMap[k]))
 				}
 			}
@@ -612,7 +614,7 @@ func findPossibleCommonVariables(opts *UpdateOptions, tenantVariables *[]variabl
 		template := v.Template
 
 		if (opts.Name.Value == "" && opts.LibraryVariableSet.Value == "") || (opts.Name.Value != "" && strings.EqualFold(opts.Name.Value, template.Name)) || (opts.LibraryVariableSet.Value != "" && strings.EqualFold(v.LibraryVariableSetName, opts.LibraryVariableSet.Value)) {
-			var possibleVariable = &PossibleVariable{
+			possibleVariable := &PossibleVariable{
 				Owner:        v.LibraryVariableSetName,
 				VariableName: template.Name,
 				TemplateID:   template.GetID(),
@@ -660,7 +662,7 @@ func findPossibleProjectVariables(opts *UpdateOptions, tenantVariables *[]variab
 		template := v.Template
 
 		if (opts.Name.Value == "" && opts.Project.Value == "") || (opts.Name.Value != "" && strings.EqualFold(opts.Name.Value, template.Name)) || (opts.LibraryVariableSet.Value != "" && strings.EqualFold(v.ProjectName, opts.Project.Value)) {
-			var possibleVariable = &PossibleVariable{
+			possibleVariable := &PossibleVariable{
 				Owner:        v.ProjectName,
 				VariableName: template.Name,
 				TemplateID:   template.GetID(),
@@ -764,14 +766,14 @@ func UpdateProjectVariableValue(opts *UpdateOptions, vars []variables.TenantProj
 		}
 	}
 
-	var template = variablesWithMatchingTemplate[0].Template
+	template := variablesWithMatchingTemplate[0].Template
 	newValue, err := convertValue(opts, &template)
 	if err != nil {
 		return false, nil, err
 	}
 
 	if len(variablesWithMatchingTemplate) > 0 && len(variablesWithMatchingScope) == 0 {
-		var variableToCreate = variables.TenantProjectVariable{
+		variableToCreate := variables.TenantProjectVariable{
 			ProjectID:   variablesWithMatchingTemplate[0].ProjectID,
 			ProjectName: variablesWithMatchingTemplate[0].ProjectName,
 			TemplateID:  variablesWithMatchingTemplate[0].Template.ID,
@@ -789,7 +791,7 @@ func UpdateProjectVariableValue(opts *UpdateOptions, vars []variables.TenantProj
 	}
 
 	if len(variablesWithMatchingScope) == 1 {
-		var updateVariablePayloads, isSensitive, err = createProjectVariablePayload(variablesWithMatchingScope[0], newValue, vars)
+		updateVariablePayloads, isSensitive, err := createProjectVariablePayload(variablesWithMatchingScope[0], newValue, vars)
 		if err != nil {
 			return false, nil, err
 		}
@@ -882,14 +884,14 @@ func UpdateCommonVariableValue(opts *UpdateOptions, vars []variables.TenantCommo
 		}
 	}
 
-	var template = variablesWithMatchingTemplate[0].Template
+	template := variablesWithMatchingTemplate[0].Template
 	newValue, err := convertValue(opts, &template)
 	if err != nil {
 		return false, nil, err
 	}
 
 	if len(matchingMissingVariables) > 0 {
-		var variableToCreate = variables.TenantCommonVariable{
+		variableToCreate := variables.TenantCommonVariable{
 			LibraryVariableSetId:   matchingMissingVariables[0].LibraryVariableSetId,
 			LibraryVariableSetName: matchingMissingVariables[0].LibraryVariableSetName,
 			TemplateID:             matchingMissingVariables[0].Template.ID,
@@ -907,7 +909,7 @@ func UpdateCommonVariableValue(opts *UpdateOptions, vars []variables.TenantCommo
 	}
 
 	if len(variablesWithMatchingScope) == 1 {
-		var updateVariablePayloads, isSensitive, err = createCommonVariablePayload(variablesWithMatchingScope[0], newValue, vars)
+		updateVariablePayloads, isSensitive, err := createCommonVariablePayload(variablesWithMatchingScope[0], newValue, vars)
 		if err != nil {
 			return false, nil, err
 		}
@@ -1069,7 +1071,7 @@ func convertValue(opts *UpdateOptions, t *actiontemplates.ActionTemplateParamete
 			return nil, fmt.Errorf("matched multiple worker pools")
 		}
 
-		value, err = matchedWorkerPools[0].ID, nil
+		value = matchedWorkerPools[0].ID
 	case resources.ControlTypeCertificate:
 		allCertificates, err := opts.GetAllCertificates()
 		if err != nil {
@@ -1085,7 +1087,7 @@ func convertValue(opts *UpdateOptions, t *actiontemplates.ActionTemplateParamete
 			return nil, fmt.Errorf("matched multiple certificates")
 		}
 
-		value, err = matchedCertificate[0].ID, nil
+		value = matchedCertificate[0].ID
 	case resources.ControlTypeSelect:
 		selectionOptions := sharedVariable.GetSelectOptions(t)
 		for _, o := range selectionOptions {

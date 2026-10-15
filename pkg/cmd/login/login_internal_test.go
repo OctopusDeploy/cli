@@ -4,8 +4,9 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/OctopusDeploy/cli/pkg/apiclient"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/OctopusDeploy/cli/pkg/apiclient"
 )
 
 func TestSkipTlsVerification_OnATransport(t *testing.T) {

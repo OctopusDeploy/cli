@@ -13,13 +13,14 @@ import (
 
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/MakeNowJust/heredoc/v2"
+	"github.com/spf13/cobra"
+
 	pack "github.com/OctopusDeploy/cli/pkg/cmd/package/support"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/OctopusDeploy/cli/pkg/surveyext"
 	"github.com/OctopusDeploy/cli/pkg/util"
 	"github.com/OctopusDeploy/cli/pkg/util/flag"
-	"github.com/spf13/cobra"
 )
 
 const (
@@ -337,7 +338,6 @@ func hasSuppliedNuSpec(basePath string, nuspecFileName string) (bool, error) {
 }
 
 func GenerateNuSpec(opts *NuPkgCreateOptions) (string, error) {
-
 	releaseNotes := opts.ReleaseNotes.Value
 	if opts.ReleaseNotesFile.Value != "" {
 		if releaseNotes != "" {

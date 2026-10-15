@@ -3,13 +3,14 @@ package shared
 import (
 	"fmt"
 
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/machines"
+	"github.com/spf13/cobra"
+
 	"github.com/OctopusDeploy/cli/pkg/cmd"
 	"github.com/OctopusDeploy/cli/pkg/machinescommon"
 	"github.com/OctopusDeploy/cli/pkg/output"
 	"github.com/OctopusDeploy/cli/pkg/util"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/machines"
-	"github.com/spf13/cobra"
 )
 
 type ContributeEndpointCallback func(opts *ViewOptions, endpoint machines.IEndpoint) ([]*output.DataRow, error)
@@ -41,7 +42,7 @@ func NewViewOptions(viewFlags *ViewFlags, dependencies *cmd.Dependencies, args [
 }
 
 func ViewRun(opts *ViewOptions, contributeEndpoint ContributeEndpointCallback, description string) error {
-	var target, err = opts.Client.Machines.GetByIdentifier(opts.IdOrName)
+	target, err := opts.Client.Machines.GetByIdentifier(opts.IdOrName)
 	if err != nil {
 		return err
 	}

@@ -6,13 +6,15 @@ import (
 	"testing"
 
 	"github.com/AlecAivazis/survey/v2"
-	"github.com/OctopusDeploy/cli/test/fixtures"
-	"github.com/OctopusDeploy/cli/test/testutil"
-	octopusApiClient "github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/deployments"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/environments"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/runbooks"
 	"github.com/stretchr/testify/assert"
+
+	octopusApiClient "github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
+
+	"github.com/OctopusDeploy/cli/test/fixtures"
+	"github.com/OctopusDeploy/cli/test/testutil"
 )
 
 // newTagSetStep builds a preview step offering a single tag set, which is the shape

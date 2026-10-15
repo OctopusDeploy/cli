@@ -5,6 +5,10 @@ import (
 	"fmt"
 
 	"github.com/MakeNowJust/heredoc/v2"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/runbooks"
+	"github.com/spf13/cobra"
+
 	"github.com/OctopusDeploy/cli/pkg/cmd"
 	"github.com/OctopusDeploy/cli/pkg/cmd/runbook/shared"
 	"github.com/OctopusDeploy/cli/pkg/constants"
@@ -13,9 +17,6 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/question"
 	"github.com/OctopusDeploy/cli/pkg/question/selectors"
 	"github.com/OctopusDeploy/cli/pkg/util/flag"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/runbooks"
-	"github.com/spf13/cobra"
 )
 
 const resourceDescription = "runbook"
@@ -127,7 +128,6 @@ func DeleteRun(opts *DeleteOptions) error {
 			})
 		}
 	}
-
 }
 
 func getDbRunbook(opts *DeleteOptions, project *projects.Project) (*runbooks.Runbook, error) {

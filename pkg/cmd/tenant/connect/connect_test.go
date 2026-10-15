@@ -1,21 +1,18 @@
 package connect_test
 
 import (
-	"github.com/OctopusDeploy/cli/pkg/cmd"
-	"github.com/OctopusDeploy/cli/pkg/cmd/tenant/connect"
-	"github.com/OctopusDeploy/cli/test/testutil"
+	"testing"
+
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/core"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/resources"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/tenants"
 	"github.com/stretchr/testify/assert"
-	"net/url"
-	"testing"
-)
 
-var serverUrl, _ = url.Parse("https://serverurl")
-var spinner = &testutil.FakeSpinner{}
-var rootResource = testutil.NewRootResource()
+	"github.com/OctopusDeploy/cli/pkg/cmd"
+	"github.com/OctopusDeploy/cli/pkg/cmd/tenant/connect"
+	"github.com/OctopusDeploy/cli/test/testutil"
+)
 
 func TestPromptMissing_AllOptionsSupplied(t *testing.T) {
 	pa := []*testutil.PA{}

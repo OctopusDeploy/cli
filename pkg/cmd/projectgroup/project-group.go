@@ -2,6 +2,8 @@ package projectgroup
 
 import (
 	"github.com/MakeNowJust/heredoc/v2"
+	"github.com/spf13/cobra"
+
 	createCmd "github.com/OctopusDeploy/cli/pkg/cmd/projectgroup/create"
 	deleteCmd "github.com/OctopusDeploy/cli/pkg/cmd/projectgroup/delete"
 	listCmd "github.com/OctopusDeploy/cli/pkg/cmd/projectgroup/list"
@@ -9,7 +11,6 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/constants/annotations"
 	"github.com/OctopusDeploy/cli/pkg/factory"
-	"github.com/spf13/cobra"
 )
 
 func NewCmdProjectGroup(f factory.Factory) *cobra.Command {

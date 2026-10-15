@@ -6,6 +6,10 @@ import (
 	"strconv"
 
 	"github.com/MakeNowJust/heredoc/v2"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/variables"
+	"github.com/spf13/cobra"
+
 	"github.com/OctopusDeploy/cli/pkg/cmd"
 	variableShared "github.com/OctopusDeploy/cli/pkg/cmd/project/variables/shared"
 	"github.com/OctopusDeploy/cli/pkg/cmd/tenant/shared"
@@ -15,9 +19,6 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/question/selectors"
 	sharedVariable "github.com/OctopusDeploy/cli/pkg/question/shared/variables"
 	"github.com/OctopusDeploy/cli/pkg/util/flag"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/variables"
-	"github.com/spf13/cobra"
 )
 
 const (
@@ -157,7 +158,8 @@ func listRun(opts *ListOptions) error {
 			}
 			return VariableAsJson{
 				Variable: v,
-				Scope:    *enhancedScope}
+				Scope:    *enhancedScope,
+			}
 		},
 		Table: output.TableDefinition[*variables.Variable]{
 			Header: []string{"NAME", "DESCRIPTION", "VALUE", "IS PROMPTED", "ID"},

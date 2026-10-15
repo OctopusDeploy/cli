@@ -1,15 +1,17 @@
 package update_test
 
 import (
-	"github.com/OctopusDeploy/cli/pkg/cmd"
-	"github.com/OctopusDeploy/cli/pkg/cmd/project/variables/update"
-	"github.com/OctopusDeploy/cli/test/testutil"
+	"testing"
+
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/resources"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/spaces"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/variables"
 	"github.com/stretchr/testify/assert"
-	"testing"
+
+	"github.com/OctopusDeploy/cli/pkg/cmd"
+	"github.com/OctopusDeploy/cli/pkg/cmd/project/variables/update"
+	"github.com/OctopusDeploy/cli/test/testutil"
 )
 
 func TestPromptMissing_AllFlagsProvided(t *testing.T) {

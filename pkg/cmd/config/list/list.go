@@ -6,11 +6,12 @@ import (
 	"strings"
 
 	"github.com/MakeNowJust/heredoc/v2"
+	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
+
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/OctopusDeploy/cli/pkg/output"
-	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 )
 
 func NewCmdList(_ factory.Factory) *cobra.Command {
@@ -33,7 +34,8 @@ func NewCmdList(_ factory.Factory) *cobra.Command {
 func listRun(cmd *cobra.Command) error {
 	configFile := viper.New()
 	configFile.SetConfigFile(viper.ConfigFileUsed())
-	configFile.ReadInConfig()
+	// Ignore read errors. Users must be able to look at a config file that is not valid, and then fix it.
+	_ = configFile.ReadInConfig()
 
 	if configFile.IsSet(constants.ConfigApiKey) {
 		configFile.Set(constants.ConfigApiKey, "***")

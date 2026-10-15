@@ -1,12 +1,14 @@
 package machinescommon_test
 
 import (
+	"testing"
+
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/machines"
+	"github.com/stretchr/testify/assert"
+
 	"github.com/OctopusDeploy/cli/pkg/cmd"
 	"github.com/OctopusDeploy/cli/pkg/machinescommon"
 	"github.com/OctopusDeploy/cli/test/testutil"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/machines"
-	"github.com/stretchr/testify/assert"
-	"testing"
 )
 
 func TestMachinePolicyFlagSupplied_ShouldNotPrompt(t *testing.T) {

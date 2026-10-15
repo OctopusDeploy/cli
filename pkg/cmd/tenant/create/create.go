@@ -4,13 +4,14 @@ import (
 	"fmt"
 
 	"github.com/MakeNowJust/heredoc/v2"
+	"github.com/spf13/cobra"
+
 	"github.com/OctopusDeploy/cli/pkg/cmd"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/OctopusDeploy/cli/pkg/question"
 	"github.com/OctopusDeploy/cli/pkg/question/selectors"
 	"github.com/OctopusDeploy/cli/pkg/util/flag"
-	"github.com/spf13/cobra"
 )
 
 const (
@@ -98,8 +99,8 @@ func createRun(opts *CreateOptions) error {
 func PromptMissing(opts *CreateOptions) ([]cmd.Dependable, error) {
 	nestedOpts := []cmd.Dependable{}
 
-	question.AskName(opts.Ask, "", "tenant", &opts.Name.Value)
-	question.AskDescription(opts.Ask, "", "tenant", &opts.Description.Value)
+	_ = question.AskName(opts.Ask, "", "tenant", &opts.Name.Value)
+	_ = question.AskDescription(opts.Ask, "", "tenant", &opts.Description.Value)
 
 	tagSets, err := opts.GetAllTagsCallback()
 	if err != nil {

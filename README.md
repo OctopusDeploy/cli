@@ -325,6 +325,22 @@ If your server contains existing data, the tests may fail, and they may modify o
 
 The easiest way to run the tests is to `cd integrationtest` and run `go test ./...` or `gotestsum`
 
+### Linting and formatting
+
+We use [golangci-lint](https://golangci-lint.run) to lint and format the code. The configuration is in `.golangci.yml`.
+The pull request workflow runs golangci-lint, and your pull request must pass it.
+
+See the [golangci-lint website](https://golangci-lint.run) for the install instructions.
+
+To format the code, and then find lint issues, run these commands in the cli root folder:
+
+```shell
+golangci-lint fmt ./...
+golangci-lint run ./...
+```
+
+If you have `make`, you can run `make fmt` and `make lint` instead.
+
 ## Guidance and Example of how to create and test new commands
 
 Imagine that the CLI did not contain an "account create" command, and we wished to add one.

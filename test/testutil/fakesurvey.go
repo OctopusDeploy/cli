@@ -3,14 +3,15 @@ package testutil
 import (
 	"errors"
 	"fmt"
-	"github.com/OctopusDeploy/cli/pkg/surveyext"
-	"golang.org/x/exp/slices"
 	"testing"
 
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/AlecAivazis/survey/v2/core"
-	"github.com/OctopusDeploy/cli/pkg/question"
 	"github.com/stretchr/testify/assert"
+	"golang.org/x/exp/slices"
+
+	"github.com/OctopusDeploy/cli/pkg/question"
+	"github.com/OctopusDeploy/cli/pkg/surveyext"
 )
 
 type PA struct {

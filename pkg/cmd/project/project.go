@@ -2,6 +2,8 @@ package project
 
 import (
 	"github.com/MakeNowJust/heredoc/v2"
+	"github.com/spf13/cobra"
+
 	cmdBranch "github.com/OctopusDeploy/cli/pkg/cmd/project/branch"
 	cmdClone "github.com/OctopusDeploy/cli/pkg/cmd/project/clone"
 	cmdConnect "github.com/OctopusDeploy/cli/pkg/cmd/project/connect"
@@ -18,7 +20,6 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/constants/annotations"
 	"github.com/OctopusDeploy/cli/pkg/factory"
-	"github.com/spf13/cobra"
 )
 
 func NewCmdProject(f factory.Factory) *cobra.Command {

@@ -5,12 +5,13 @@ import (
 	"io"
 
 	"github.com/AlecAivazis/survey/v2"
+	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
+
 	"github.com/OctopusDeploy/cli/pkg/config"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/OctopusDeploy/cli/pkg/question"
-	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 )
 
 func NewCmdGet(f factory.Factory) *cobra.Command {
@@ -24,7 +25,6 @@ func NewCmdGet(f factory.Factory) *cobra.Command {
 				key = args[0]
 			}
 			return getRun(f.IsPromptEnabled(), f.Ask, key, cmd.OutOrStdout())
-
 		},
 	}
 	return cmd
@@ -39,7 +39,8 @@ func getRun(isPromptEnabled bool, ask question.Asker, key string, out io.Writer)
 	value := ""
 	configFile := viper.New()
 	configFile.SetConfigFile(viper.ConfigFileUsed())
-	configFile.ReadInConfig()
+	// Ignore read errors. Users must be able to look at a config file that is not valid, and then fix it.
+	_ = configFile.ReadInConfig()
 	if isPromptEnabled && key == "" {
 		k, err := promptMissing(ask)
 		if err != nil {

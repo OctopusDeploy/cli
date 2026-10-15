@@ -4,10 +4,11 @@ import (
 	"net/url"
 	"testing"
 
-	"github.com/OctopusDeploy/cli/pkg/machinescommon"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/machines"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/OctopusDeploy/cli/pkg/machinescommon"
 )
 
 func TestGetCommunicationStyle_KnownEndpoint(t *testing.T) {

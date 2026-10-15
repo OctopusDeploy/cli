@@ -4,9 +4,10 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/OctopusDeploy/cli/test/testutil"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/tenants"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/OctopusDeploy/cli/test/testutil"
 )
 
 func TestResolveTenantIdentifier(t *testing.T) {

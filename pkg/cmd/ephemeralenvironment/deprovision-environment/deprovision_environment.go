@@ -4,14 +4,15 @@ import (
 	"fmt"
 
 	"github.com/MakeNowJust/heredoc/v2"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/environments/v2/ephemeralenvironments"
+	"github.com/spf13/cobra"
+
 	"github.com/OctopusDeploy/cli/pkg/cmd"
 	"github.com/OctopusDeploy/cli/pkg/cmd/ephemeralenvironment/util"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/OctopusDeploy/cli/pkg/question/selectors"
 	"github.com/OctopusDeploy/cli/pkg/util/flag"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/environments/v2/ephemeralenvironments"
-	"github.com/spf13/cobra"
 )
 
 const (
@@ -48,7 +49,6 @@ func NewDeprovisionEnvironmentOptions(deprovisionEnvironmentFlags *DeprovisionEn
 
 func getAllEphemeralEnvironments(dependencies *cmd.Dependencies) ([]*ephemeralenvironments.EphemeralEnvironment, error) {
 	allEphemeralEnvironments, err := ephemeralenvironments.GetAll(dependencies.Client, dependencies.Client.GetSpaceID())
-
 	if err != nil {
 		return nil, err
 	}
@@ -119,7 +119,6 @@ func DeprovisionEnvironmentRun(deprovisionEnvironmentOptions *DeprovisionEnviron
 
 func deprovisionEnvironment(deprovisionEnvironmentOptions *DeprovisionEnvironmentOptions, environment *ephemeralenvironments.EphemeralEnvironment) (*ephemeralenvironments.DeprovisionEphemeralEnvironmentResponse, error) {
 	response, err := ephemeralenvironments.Deprovision(deprovisionEnvironmentOptions.Client, deprovisionEnvironmentOptions.Space.ID, environment.ID)
-
 	if err != nil {
 		return nil, err
 	}
@@ -133,7 +132,6 @@ func PromptMissing(options *DeprovisionEnvironmentOptions) error {
 	}
 
 	environment, err := selectors.Select(options.Ask, "Please select the name of the environment you wish to deprovision", options.GetAllEphemeralEnvironments, func(environment *ephemeralenvironments.EphemeralEnvironment) string { return environment.Name })
-
 	if err != nil {
 		return err
 	}

@@ -4,8 +4,9 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/OctopusDeploy/cli/pkg/question"
 	"github.com/briandowns/spinner"
+
+	"github.com/OctopusDeploy/cli/pkg/question"
 )
 
 type SpinnerRoundTripper struct {

@@ -3,9 +3,11 @@ package selectors
 import (
 	"errors"
 
-	"github.com/OctopusDeploy/cli/pkg/question"
-	octopusApiClient "github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
+
+	octopusApiClient "github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
+
+	"github.com/OctopusDeploy/cli/pkg/question"
 )
 
 func Project(questionText string, octopus *octopusApiClient.Client, ask question.Asker) (*projects.Project, error) {

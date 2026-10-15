@@ -5,6 +5,11 @@ import (
 
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/MakeNowJust/heredoc/v2"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/environments"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/tagsets"
+	"github.com/spf13/cobra"
+
 	"github.com/OctopusDeploy/cli/pkg/cmd"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/factory"
@@ -12,10 +17,6 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/question"
 	"github.com/OctopusDeploy/cli/pkg/question/selectors"
 	"github.com/OctopusDeploy/cli/pkg/util/flag"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/environments"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/tagsets"
-	"github.com/spf13/cobra"
 )
 
 const (
@@ -143,8 +144,8 @@ func PromptMissing(opts *CreateOptions) error {
 		return err
 	}
 
-	_, err = promptBool(opts, &opts.GuidedFailureMode.Value, false, "Use guided failure", "If guided failure is enabled for an environment, Octopus Deploy will prompt for user intervention if a deployment fails in the environment.")
-	_, err = promptBool(opts, &opts.DynamicInfrastructure.Value, false, "Allow dynamic infrastructure", "If dynamic infrastructure is enabled for an environment, deployments to this environment are allowed to create infrastructure, such as targets and accounts.")
+	_, _ = promptBool(opts, &opts.GuidedFailureMode.Value, false, "Use guided failure", "If guided failure is enabled for an environment, Octopus Deploy will prompt for user intervention if a deployment fails in the environment.")
+	_, _ = promptBool(opts, &opts.DynamicInfrastructure.Value, false, "Allow dynamic infrastructure", "If dynamic infrastructure is enabled for an environment, deployments to this environment are allowed to create infrastructure, such as targets and accounts.")
 
 	tagSets, err := opts.GetAllTagsCallback()
 	if err != nil {

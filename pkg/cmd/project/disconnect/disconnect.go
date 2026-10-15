@@ -2,11 +2,12 @@ package disconnect
 
 import (
 	"github.com/MakeNowJust/heredoc/v2"
+	"github.com/spf13/cobra"
+
 	"github.com/OctopusDeploy/cli/pkg/cmd"
 	tenantDisconnect "github.com/OctopusDeploy/cli/pkg/cmd/tenant/disconnect"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/factory"
-	"github.com/spf13/cobra"
 )
 
 func NewCmdDisconnect(f factory.Factory) *cobra.Command {

@@ -1,15 +1,17 @@
 package create_test
 
 import (
-	"github.com/OctopusDeploy/cli/pkg/cmd"
-	"github.com/OctopusDeploy/cli/pkg/cmd/target/azure-web-app/create"
-	"github.com/OctopusDeploy/cli/test/testutil"
+	"testing"
+
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/accounts"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/accounts/azure"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/core"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
-	"testing"
+
+	"github.com/OctopusDeploy/cli/pkg/cmd"
+	"github.com/OctopusDeploy/cli/pkg/cmd/target/azure-web-app/create"
+	"github.com/OctopusDeploy/cli/test/testutil"
 )
 
 func TestPromptForWebApp_FlagsSupplied(t *testing.T) {
@@ -74,6 +76,7 @@ func TestPromptForWebApp_NoFlagsSupplied(t *testing.T) {
 	}
 
 	account, err := accounts.NewAzureServicePrincipalAccount("azure", uuid.New(), uuid.New(), uuid.New(), core.NewSensitiveValue("password"))
+	assert.NoError(t, err)
 
 	err = create.PromptForWebApp(opts, account)
 

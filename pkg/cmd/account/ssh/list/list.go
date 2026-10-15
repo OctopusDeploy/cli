@@ -2,13 +2,14 @@ package list
 
 import (
 	"github.com/MakeNowJust/heredoc/v2"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/accounts"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
+	"github.com/spf13/cobra"
+
 	"github.com/OctopusDeploy/cli/pkg/apiclient"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/OctopusDeploy/cli/pkg/output"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/accounts"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
-	"github.com/spf13/cobra"
 )
 
 func NewCmdList(f factory.Factory) *cobra.Command {
@@ -42,7 +43,7 @@ func listSshAccounts(client *client.Client, cmd *cobra.Command) error {
 		return err
 	}
 
-	output.PrintArray(items, cmd, output.Mappers[accounts.IAccount]{
+	_ = output.PrintArray(items, cmd, output.Mappers[accounts.IAccount]{
 		Json: func(item accounts.IAccount) any {
 			acc := item.(*accounts.SSHKeyAccount)
 			return &struct {
@@ -62,7 +63,8 @@ func listSshAccounts(client *client.Client, cmd *cobra.Command) error {
 			Row: func(item accounts.IAccount) []string {
 				acc := item.(*accounts.SSHKeyAccount)
 				return []string{output.Bold(acc.GetName()), acc.GetSlug(), acc.Username}
-			}},
+			},
+		},
 		Basic: func(item accounts.IAccount) string {
 			return item.GetName()
 		},

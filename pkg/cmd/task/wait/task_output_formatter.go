@@ -6,8 +6,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/OctopusDeploy/cli/pkg/output"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/tasks"
+
+	"github.com/OctopusDeploy/cli/pkg/output"
 )
 
 const (

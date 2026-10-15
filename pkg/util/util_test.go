@@ -3,9 +3,11 @@ package util_test
 import (
 	"errors"
 	"fmt"
-	"github.com/OctopusDeploy/cli/pkg/util"
-	"github.com/stretchr/testify/assert"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+
+	"github.com/OctopusDeploy/cli/pkg/util"
 )
 
 func TestExtractValuesMatchingKeys(t *testing.T) {

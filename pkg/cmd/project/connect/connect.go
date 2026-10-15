@@ -2,11 +2,12 @@ package connect
 
 import (
 	"github.com/MakeNowJust/heredoc/v2"
+	"github.com/spf13/cobra"
+
 	"github.com/OctopusDeploy/cli/pkg/cmd"
 	connectTenant "github.com/OctopusDeploy/cli/pkg/cmd/tenant/connect"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/factory"
-	"github.com/spf13/cobra"
 )
 
 func NewCmdConnect(f factory.Factory) *cobra.Command {

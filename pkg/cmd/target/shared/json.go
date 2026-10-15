@@ -3,10 +3,11 @@ package shared
 import (
 	"fmt"
 
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/machines"
+
 	"github.com/OctopusDeploy/cli/pkg/cmd"
 	"github.com/OctopusDeploy/cli/pkg/machinescommon"
 	"github.com/OctopusDeploy/cli/pkg/util"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/machines"
 )
 
 type DeploymentTargetAsJson struct {

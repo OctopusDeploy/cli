@@ -6,6 +6,10 @@ import (
 	"strings"
 
 	"github.com/MakeNowJust/heredoc/v2"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/buildinformation"
+	"github.com/pkg/browser"
+	"github.com/spf13/cobra"
+
 	"github.com/OctopusDeploy/cli/pkg/cmd"
 	"github.com/OctopusDeploy/cli/pkg/cmd/buildinformation/shared"
 	"github.com/OctopusDeploy/cli/pkg/constants"
@@ -14,9 +18,6 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/usage"
 	"github.com/OctopusDeploy/cli/pkg/util"
 	"github.com/OctopusDeploy/cli/pkg/util/flag"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/buildinformation"
-	"github.com/pkg/browser"
-	"github.com/spf13/cobra"
 )
 
 const (
@@ -116,7 +117,8 @@ func viewRun(opts *ViewOptions, cmd *cobra.Command) error {
 				"BUILD NO",
 				"BRANCH",
 				"COMMITS",
-				"WORKITEMS"},
+				"WORKITEMS",
+			},
 			Row: func(b *buildinformation.BuildInformation) []string {
 				return []string{
 					output.Bold(b.PackageID),
@@ -125,7 +127,8 @@ func viewRun(opts *ViewOptions, cmd *cobra.Command) error {
 					b.BuildNumber,
 					b.Branch,
 					strconv.Itoa(len(b.Commits)),
-					strconv.Itoa(len(b.WorkItems))}
+					strconv.Itoa(len(b.WorkItems)),
+				}
 			},
 		},
 		Basic: func(b *buildinformation.BuildInformation) string {
@@ -165,7 +168,7 @@ func viewRun(opts *ViewOptions, cmd *cobra.Command) error {
 			s.WriteString(fmt.Sprintf("\nView this build information in Octopus Deploy: %s\n", output.Blue(link)))
 
 			if opts.Web.Value {
-				browser.OpenURL(link)
+				_ = browser.OpenURL(link)
 			}
 
 			return s.String()

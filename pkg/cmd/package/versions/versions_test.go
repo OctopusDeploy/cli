@@ -6,14 +6,15 @@ import (
 	"time"
 
 	"github.com/MakeNowJust/heredoc/v2"
-	cmdRoot "github.com/OctopusDeploy/cli/pkg/cmd/root"
-	"github.com/OctopusDeploy/cli/test/fixtures"
-	"github.com/OctopusDeploy/cli/test/testutil"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/feeds"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/packages"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/resources"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
+
+	cmdRoot "github.com/OctopusDeploy/cli/pkg/cmd/root"
+	"github.com/OctopusDeploy/cli/test/fixtures"
+	"github.com/OctopusDeploy/cli/test/testutil"
 )
 
 var rootResource = testutil.NewRootResource()

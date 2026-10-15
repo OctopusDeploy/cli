@@ -2,10 +2,10 @@ package integration_test
 
 import (
 	"fmt"
-	"github.com/OctopusDeploy/cli/test/integration"
-	"github.com/OctopusDeploy/cli/test/testutil"
+	"os/exec"
+	"testing"
+
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/channels"
-	octopusApiClient "github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/core"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/deployments"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
@@ -13,8 +13,11 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"os/exec"
-	"testing"
+
+	octopusApiClient "github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
+
+	"github.com/OctopusDeploy/cli/test/integration"
+	"github.com/OctopusDeploy/cli/test/testutil"
 )
 
 const space1ID = "Spaces-1"
@@ -80,6 +83,9 @@ func TestReleaseCreateBasics(t *testing.T) {
 		t.Cleanup(func() { deleteAllReleasesInProject(t, apiClient, project) })
 
 		projectReleases, err := apiClient.Projects.GetReleases(project)
+		if !testutil.AssertSuccess(t, err) {
+			return
+		}
 		assert.Equal(t, 1, len(projectReleases))
 		r1 := projectReleases[0]
 
@@ -106,6 +112,9 @@ func TestReleaseCreateBasics(t *testing.T) {
 		t.Cleanup(func() { deleteAllReleasesInProject(t, apiClient, project) })
 
 		projectReleases, err := apiClient.Projects.GetReleases(project)
+		if !testutil.AssertSuccess(t, err) {
+			return
+		}
 		assert.Equal(t, 2, len(projectReleases))
 		r1 := projectReleases[0] // API returns newer releases first
 
@@ -125,6 +134,9 @@ func TestReleaseCreateBasics(t *testing.T) {
 		t.Cleanup(func() { deleteAllReleasesInProject(t, apiClient, project) })
 
 		projectReleases, err := apiClient.Projects.GetReleases(project)
+		if !testutil.AssertSuccess(t, err) {
+			return
+		}
 		assert.Equal(t, 1, len(projectReleases))
 		r1 := projectReleases[0]
 
@@ -151,6 +163,9 @@ func TestReleaseCreateBasics(t *testing.T) {
 		t.Cleanup(func() { deleteAllReleasesInProject(t, apiClient, project) })
 
 		projectReleases, err := apiClient.Projects.GetReleases(project)
+		if !testutil.AssertSuccess(t, err) {
+			return
+		}
 		assert.Equal(t, 2, len(projectReleases))
 		r1 := projectReleases[0]
 

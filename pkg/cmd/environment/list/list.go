@@ -3,14 +3,14 @@ package list
 import (
 	"strconv"
 
-	"github.com/OctopusDeploy/cli/pkg/apiclient"
-
 	"github.com/MakeNowJust/heredoc/v2"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/environments"
+	"github.com/spf13/cobra"
+
+	"github.com/OctopusDeploy/cli/pkg/apiclient"
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	"github.com/OctopusDeploy/cli/pkg/factory"
 	"github.com/OctopusDeploy/cli/pkg/output"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/environments"
-	"github.com/spf13/cobra"
 )
 
 func NewCmdList(f factory.Factory) *cobra.Command {
@@ -53,7 +53,6 @@ func NewCmdList(f factory.Factory) *cobra.Command {
 				Table: output.TableDefinition[*environments.Environment]{
 					Header: []string{"NAME", "GUIDED FAILURE", "TAGS"},
 					Row: func(item *environments.Environment) []string {
-
 						return []string{output.Bold(item.Name), strconv.FormatBool(item.UseGuidedFailure), output.FormatAsList(item.EnvironmentTags)}
 					},
 				},

@@ -6,6 +6,13 @@ import (
 
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/MakeNowJust/heredoc/v2"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/core"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/resources"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/tenants"
+	"github.com/spf13/cobra"
+
 	"github.com/OctopusDeploy/cli/pkg/cmd"
 	"github.com/OctopusDeploy/cli/pkg/cmd/tenant/shared"
 	"github.com/OctopusDeploy/cli/pkg/constants"
@@ -15,12 +22,6 @@ import (
 	"github.com/OctopusDeploy/cli/pkg/question"
 	"github.com/OctopusDeploy/cli/pkg/question/selectors"
 	"github.com/OctopusDeploy/cli/pkg/util/flag"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/core"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/projects"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/resources"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/tenants"
-	"github.com/spf13/cobra"
 )
 
 const (
@@ -132,7 +133,7 @@ func ConnectRun(opts *ConnectOptions) error {
 			return errors.New(getFailureMessageForUntenantedProject(project))
 		}
 		project.TenantedDeploymentMode = core.TenantedDeploymentModeTenantedOrUntenanted
-		project, err = opts.Client.Projects.Update(project)
+		project, _ = opts.Client.Projects.Update(project)
 	}
 
 	environments, err := executionscommon.FindEnvironments(opts.Client, opts.Environments.Value)
@@ -190,12 +191,12 @@ func PromptMissing(opts *ConnectOptions) error {
 			return err
 		}
 		var progression *projects.Progression
-		progression, err = opts.GetProjectProgressionCallback(project)
+		progression, _ = opts.GetProjectProgressionCallback(project)
 		if len(progression.Environments) == 1 {
 			opts.Environments.Value = append(opts.Environments.Value, progression.Environments[0].Name)
 		} else {
 			var selectedEnvironments []*resources.ReferenceDataItem
-			selectedEnvironments, err = question.MultiSelectMap(opts.Ask, "You have not specified any environments. Please select at least one:", progression.Environments, func(item *resources.ReferenceDataItem) string { return item.Name }, true)
+			selectedEnvironments, _ = question.MultiSelectMap(opts.Ask, "You have not specified any environments. Please select at least one:", progression.Environments, func(item *resources.ReferenceDataItem) string { return item.Name }, true)
 			for _, e := range selectedEnvironments {
 				opts.Environments.Value = append(opts.Environments.Value, e.Name)
 			}
@@ -212,7 +213,7 @@ func PromptForEnablingTenantedDeployments(opts *ConnectOptions, getProjectCallba
 			return err
 		}
 		if !supportsTenantedDeployments(project) {
-			opts.Ask(&survey.Confirm{
+			_ = opts.Ask(&survey.Confirm{
 				Message: fmt.Sprintf("Do you want to enable tenanted deployments for '%s'?", project.GetName()),
 				Default: false,
 			}, &opts.EnableTenantDeployments.Value)
@@ -243,7 +244,6 @@ func getProjectDisplay() func(p *projects.Project) string {
 	return func(p *projects.Project) string {
 		if supportsTenantedDeployments(p) {
 			return p.GetName()
-
 		}
 
 		return output.Dim(fmt.Sprintf("%s (Tenanted deployments not currently supported)", p.Name))

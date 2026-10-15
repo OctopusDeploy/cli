@@ -9,9 +9,10 @@ import (
 	"strings"
 	"testing"
 
-	pack "github.com/OctopusDeploy/cli/pkg/cmd/package/support"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	pack "github.com/OctopusDeploy/cli/pkg/cmd/package/support"
 )
 
 // nuspec is the subset of the manifest these tests care about, used to assert
@@ -142,7 +143,7 @@ func TestPackageIsStillUsableWhenUserLookupFails(t *testing.T) {
 func TestExistingNuSpecIsDetected(t *testing.T) {
 	basePath := t.TempDir()
 	existing := filepath.Join(basePath, "Acme.Web.nuspec")
-	require.NoError(t, os.WriteFile(existing, []byte("<package><metadata><id>Acme.Web</id></metadata></package>"), 0644))
+	require.NoError(t, os.WriteFile(existing, []byte("<package><metadata><id>Acme.Web</id></metadata></package>"), 0o644))
 
 	supplied, err := hasSuppliedNuSpec(basePath, "Acme.Web.nuspec")
 

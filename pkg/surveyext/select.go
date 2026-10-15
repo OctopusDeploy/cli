@@ -7,12 +7,14 @@ import (
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/AlecAivazis/survey/v2/core"
 	"github.com/AlecAivazis/survey/v2/terminal"
+
 	"github.com/OctopusDeploy/cli/pkg/constants"
 )
 
 /*
 Select is a prompt that presents a list of various options to the user
 for them to select using the arrow keys and enter. Response type is a string.
+
 	color := ""
 	prompt := &survey.Select{
 		Message: "Choose a color:",
@@ -94,7 +96,6 @@ func (s *Select) OnChange(key rune, config *survey.PromptConfig) bool {
 	if key == terminal.KeyEnter || key == '\n' {
 		// if the selected index is a valid option
 		if len(options) > 0 && s.selectedIndex < len(options) {
-
 			// we're done (stop prompting the user)
 			return true
 		}
@@ -271,10 +272,10 @@ func (s *Select) Prompt(config *survey.PromptConfig) (interface{}, error) {
 	}), s.selectedIndex)
 
 	cursor := s.NewCursor()
-	cursor.Save()          // for proper cursor placement during selection
-	cursor.Hide()          // hide the cursor
-	defer cursor.Show()    // show the cursor when we're done
-	defer cursor.Restore() // clear any accessibility offsetting on exit
+	_ = cursor.Save()                       // for proper cursor placement during selection
+	_ = cursor.Hide()                       // hide the cursor
+	defer func() { _ = cursor.Show() }()    // show the cursor when we're done
+	defer func() { _ = cursor.Restore() }() // clear any accessibility offsetting on exit
 
 	tmplData := SelectTemplateData{
 		Select:        *s,
@@ -327,7 +328,7 @@ func (s *Select) Prompt(config *survey.PromptConfig) (interface{}, error) {
 
 func (s *Select) Cleanup(config *survey.PromptConfig, val interface{}) error {
 	cursor := s.NewCursor()
-	cursor.Restore()
+	_ = cursor.Restore()
 	return s.Render(
 		SelectQuestionTemplate,
 		SelectTemplateData{
