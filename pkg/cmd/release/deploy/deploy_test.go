@@ -322,7 +322,7 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 				},
 			})
 
-			api.ExpectRequest(t, "GET", "/api/Spaces-1/environments/v2?skip=0&take=2147483647&type=Ephemeral").RespondWith(resources.Resources[*ephemeralenvironments.EphemeralEnvironment]{
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/environments/v2?name=&skip=0&take=2147483647&type=Ephemeral").RespondWith(resources.Resources[*ephemeralenvironments.EphemeralEnvironment]{
 				Items: []*ephemeralenvironments.EphemeralEnvironment{ephemeralEnvironment},
 				PagedResults: resources.PagedResults{
 					TotalResults: 1,
@@ -486,7 +486,7 @@ func TestDeployCreate_AskQuestions(t *testing.T) {
 			`), stdout.String())
 			stdout.Reset()
 
-			api.ExpectRequest(t, "GET", "/api/Spaces-1/environments/v2?skip=0&take=2147483647&type=Ephemeral").RespondWith(resources.Resources[*ephemeralenvironments.EphemeralEnvironment]{
+			api.ExpectRequest(t, "GET", "/api/Spaces-1/environments/v2?name=&skip=0&take=2147483647&type=Ephemeral").RespondWith(resources.Resources[*ephemeralenvironments.EphemeralEnvironment]{
 				Items: []*ephemeralenvironments.EphemeralEnvironment{ephemeralEnvironment},
 				PagedResults: resources.PagedResults{
 					TotalResults: 1,
