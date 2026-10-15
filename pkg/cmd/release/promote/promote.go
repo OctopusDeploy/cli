@@ -57,9 +57,9 @@ func NewCmdPromote(f factory.Factory) *cobra.Command {
 
 	flags := cmd.Flags()
 	flags.StringVarP(&promoteFlags.Project.Value, promoteFlags.Project.Name, "p", "", "Name or ID of the project")
-	flags.StringVarP(&promoteFlags.From.Value, promoteFlags.From.Name, "", "", "Name or ID of the environment to get the current deployment from")
-	flags.StringVarP(&promoteFlags.To.Value, promoteFlags.To.Name, "", "", "Name or ID of the environment to deploy to")
-	flags.BoolVarP(&promoteFlags.LatestSuccessful.Value, promoteFlags.LatestSuccessful.Name, "", false, "Use the latest successful release to promote")
+	flags.StringVar(&promoteFlags.From.Value, promoteFlags.From.Name, "", "Name or ID of the environment to get the current deployment from")
+	flags.StringVar(&promoteFlags.To.Value, promoteFlags.To.Name, "", "Name or ID of the environment to deploy to")
+	flags.BoolVar(&promoteFlags.LatestSuccessful.Value, promoteFlags.LatestSuccessful.Name, false, "Use the latest successful release to promote")
 
 	// aliases for compatability with the old .NET CLI
 	flagAliases := make(map[string][]string, 10)

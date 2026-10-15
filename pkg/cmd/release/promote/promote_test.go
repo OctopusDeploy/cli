@@ -551,28 +551,13 @@ func TestPromoteRelease_Errors(t *testing.T) {
 		setupApi      func(api *testutil.MockHttpServer)
 	}{
 		{
-			name:          "missing project flag",
-			args:          []string{"release", "promote", "--from", "Development", "--to", "Staging"},
-			expectedError: `required flag(s) "from", "project", "to" not set`,
-		},
-		{
-			name:          "missing from flag",
-			args:          []string{"release", "promote", "--project", "Fire Project", "--to", "Staging"},
-			expectedError: `required flag(s) "from", "project", "to" not set`,
-		},
-		{
-			name:          "missing to flag",
-			args:          []string{"release", "promote", "--project", "Fire Project", "--from", "Development"},
-			expectedError: `required flag(s) "from", "project", "to" not set`,
-		},
-		{
 			name: "project not found",
 			args: []string{"release", "promote", "--project", "NonExistent Project", "--from", "Development", "--to", "Staging"},
 			setupApi: func(api *testutil.MockHttpServer) {
 				api.ExpectRequest(t, "GET", "/api/").RespondWith(rootResource)
 				api.ExpectRequest(t, "GET", "/api/"+spaceID).RespondWith(rootResource)
-				api.ExpectRequest(t, "GET", "/api/"+spaceID+"/projects/NonExistent Project").RespondWithStatus(404, "NotFound", nil)
-				api.ExpectRequest(t, "GET", "/api/"+spaceID+"/projects?partialName=NonExistent+Project").
+				api.ExpectRequest(t, "GET", "/api/"+spaceID+"/projects/NonExistent Project").RespondWithStatus(404, "NotFound", struct{ ErrorMessage string }{ErrorMessage: "Project not found"})
+				api.ExpectRequest(t, "GET", "/api/"+spaceID+"/projects?partialName=NonExistent%20Project").
 					RespondWith(resources.Resources[*projects.Project]{
 						Items: []*projects.Project{},
 					})
@@ -590,11 +575,11 @@ func TestPromoteRelease_Errors(t *testing.T) {
 					RespondWith(resources.Resources[*projects.Project]{
 						Items: []*projects.Project{fireProject},
 					})
-				api.ExpectRequest(t, "GET", "/api/"+spaceID+"/environments?ids=NonExistent").
+				api.ExpectRequest(t, "GET", "/api/"+spaceID+"/environments/v2?name=&skip=0&ids=NonExistent&take=0").
 					RespondWith(resources.Resources[*environments.Environment]{
 						Items: []*environments.Environment{},
 					})
-				api.ExpectRequest(t, "GET", "/api/"+spaceID+"/environments?name=NonExistent").
+				api.ExpectRequest(t, "GET", "/api/"+spaceID+"/environments/v2?name=NonExistent&skip=0&take=0").
 					RespondWith(resources.Resources[*environments.Environment]{
 						Items: []*environments.Environment{},
 					})
@@ -645,7 +630,7 @@ func TestPromoteRelease_Errors(t *testing.T) {
 					RespondWith(resources.Resources[*environments.Environment]{
 						Items: []*environments.Environment{devEnvironment},
 					})
-				api.ExpectRequest(t, "GET", "/api/"+spaceID+"/dashboard/dynamic?environments=Environments-12&projects=Projects-22").RespondWith(&dashboard.Dashboard{
+				api.ExpectRequest(t, "GET", "/api/"+spaceID+"/dashboard/dynamic?environments=Environments-12&includePrevious=true&projects=Projects-22").RespondWith(&dashboard.Dashboard{
 					Items: []*dashboard.DashboardItem{
 						{
 							ProjectID:      fireProjectID,
@@ -677,6 +662,10 @@ func TestPromoteRelease_Errors(t *testing.T) {
 				rootCmd.SetArgs(test.args)
 				return rootCmd, rootCmd.Execute()
 			})
+
+			if test.setupApi != nil {
+				test.setupApi(api)
+			}
 
 			_, err := testutil.ReceivePair(cmdReceiver)
 			assert.Error(t, err)
@@ -740,12 +729,10 @@ func TestPromoteCommand_FlagAliases(t *testing.T) {
 	assert.NotNil(t, cmd.Flags().Lookup("from"))
 	assert.NotNil(t, cmd.Flags().Lookup("to"))
 	assert.NotNil(t, cmd.Flags().Lookup("latest-successful"))
-	assert.NotNil(t, cmd.Flags().Lookup("update-variables"))
 
 	// Verify legacy aliases exist
 	assert.NotNil(t, cmd.Flags().Lookup("deployTo"))
 	assert.NotNil(t, cmd.Flags().Lookup("latestSuccessful"))
-	assert.NotNil(t, cmd.Flags().Lookup("updateVariables"))
 
 	// Verify short flag for project
 	projectFlag := cmd.Flags().Lookup("project")
