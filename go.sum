@@ -6,8 +6,8 @@ github.com/Netflix/go-expect v0.0.0-20220104043353-73e0943537d2 h1:+vx7roKuyA63n
 github.com/Netflix/go-expect v0.0.0-20220104043353-73e0943537d2/go.mod h1:HBCaDeC1lPdgDeDbhX8XFpy1jqjK0IBG8W5K+xYqA0w=
 github.com/OctopusDeploy/go-octodiff v1.0.0 h1:U+ORg6azniwwYo+O44giOw6TiD5USk8S4VDhOQ0Ven0=
 github.com/OctopusDeploy/go-octodiff v1.0.0/go.mod h1:Mze0+EkOWTgTmi8++fyUc6r0aLZT7qD9gX+31t8MmIU=
-github.com/OctopusDeploy/go-octopusdeploy/v2 v2.120.1 h1:tEzyCSmtPFKNnlVpkEbV/Cf988LYMkpJkQCPGqJLHJY=
-github.com/OctopusDeploy/go-octopusdeploy/v2 v2.120.1/go.mod h1:y/waaa0IIa4fYeALqKd3NDoNlwhEbMLkrDPS8D+nRxg=
+github.com/OctopusDeploy/go-octopusdeploy/v2 v2.120.2-0.20261015050823-db6bf135b752 h1:FBwuQQJxS3RCW/pg185+EQZCoSagFxWbsX2JTJRa9nI=
+github.com/OctopusDeploy/go-octopusdeploy/v2 v2.120.2-0.20261015050823-db6bf135b752/go.mod h1:y/waaa0IIa4fYeALqKd3NDoNlwhEbMLkrDPS8D+nRxg=
 github.com/OctopusDeploy/go-octopusversioning v1.0.0 h1:doAb5zfPTJ8neaOuJLtP/ZyBjTqlEQejjX+FRW5ggkw=
 github.com/OctopusDeploy/go-octopusversioning v1.0.0/go.mod h1:i2j1FPBKueJkWh/mk36sstqCuUPkOde8ayZeDIDIcZs=
 github.com/bmatcuk/doublestar/v4 v4.10.2 h1:eF7W7HWKg3z9NrWV9pTLnNeoXaqq3Tq9DNKXVMfoCnw=

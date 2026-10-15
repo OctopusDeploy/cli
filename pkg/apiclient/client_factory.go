@@ -13,6 +13,7 @@ import (
 	"github.com/spf13/viper"
 
 	octopusApiClient "github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client/ratelimit"
 
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	cliErrors "github.com/OctopusDeploy/cli/pkg/errors"
@@ -126,9 +127,9 @@ func NewClientFactoryFromConfig(ask question.AskProvider) (ClientFactory, error)
 	// The spinner is only wanted in interactive mode, but that is not settled
 	// yet: this runs before cobra parses --no-prompt. The round-tripper decides
 	// per request instead.
-	httpClient := &http.Client{
+	httpClient := ratelimit.NewHttpClient(&http.Client{
 		Transport: NewSpinnerRoundTripper(ask),
-	}
+	}, ratelimit.DefaultOptions())
 
 	var credentials octopusApiClient.ICredential
 

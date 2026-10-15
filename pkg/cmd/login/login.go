@@ -16,6 +16,7 @@ import (
 	"github.com/spf13/cobra"
 
 	octopusApiClient "github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client/ratelimit"
 
 	"github.com/OctopusDeploy/cli/pkg/apiclient"
 	"github.com/OctopusDeploy/cli/pkg/config"
@@ -414,6 +415,8 @@ func skipTlsVerification(roundTripper http.RoundTripper) error {
 		return nil
 	case *apiclient.SpinnerRoundTripper:
 		return skipTlsVerification(transport.Next)
+	case *ratelimit.Transport:
+		return skipTlsVerification(transport.Base())
 	default:
 		// Better to say so than to quietly leave verification on after the
 		// caller asked for the opposite.
