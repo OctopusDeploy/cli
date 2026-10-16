@@ -9,11 +9,11 @@ import (
 	"strings"
 
 	"github.com/MakeNowJust/heredoc/v2"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client/ratelimit"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/spaces"
 	"github.com/spf13/viper"
 
 	octopusApiClient "github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client/ratelimit"
 
 	"github.com/OctopusDeploy/cli/pkg/constants"
 	cliErrors "github.com/OctopusDeploy/cli/pkg/errors"

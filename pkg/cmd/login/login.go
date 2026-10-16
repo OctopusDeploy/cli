@@ -12,11 +12,11 @@ import (
 
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/MakeNowJust/heredoc/v2"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client/ratelimit"
 	"github.com/pkg/browser"
 	"github.com/spf13/cobra"
 
 	octopusApiClient "github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client"
-	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client/ratelimit"
 
 	"github.com/OctopusDeploy/cli/pkg/apiclient"
 	"github.com/OctopusDeploy/cli/pkg/config"
