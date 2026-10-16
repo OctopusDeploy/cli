@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.30.1](https://github.com/OctopusDeploy/cli/compare/v2.30.0...v2.30.1) (2026-10-16)
+
+
+### Bug Fixes
+
+* Project not found with release promote ([#762](https://github.com/OctopusDeploy/cli/issues/762)) ([62cd06e](https://github.com/OctopusDeploy/cli/commit/62cd06e59a0c33d658355c2459c0850b3abc1f21))
+
 ## [2.30.0](https://github.com/OctopusDeploy/cli/compare/v2.29.0...v2.30.0) (2026-10-16)
 
 

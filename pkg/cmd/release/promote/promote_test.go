@@ -116,7 +116,7 @@ func TestPromoteRelease_Success(t *testing.T) {
 				EnvironmentNames: []string{stagingEnvironment.Name},
 				CreateExecutionAbstractCommandV1: deployments.CreateExecutionAbstractCommandV1{
 					SpaceID:         spaceID,
-					ProjectIDOrName: fireProject.ID,
+					ProjectIDOrName: fireProject.Name,
 				},
 			}, requestBody)
 
@@ -177,7 +177,7 @@ func TestPromoteRelease_Success(t *testing.T) {
 				EnvironmentNames: []string{stagingEnvironment.Name},
 				CreateExecutionAbstractCommandV1: deployments.CreateExecutionAbstractCommandV1{
 					SpaceID:         spaceID,
-					ProjectIDOrName: fireProject.ID,
+					ProjectIDOrName: fireProject.Name,
 				},
 			}, requestBody)
 
@@ -336,7 +336,7 @@ func TestPromoteRelease_Success(t *testing.T) {
 				EnvironmentNames: []string{stagingEnvironment.Name, uatEnvironment.ID},
 				CreateExecutionAbstractCommandV1: deployments.CreateExecutionAbstractCommandV1{
 					SpaceID:         spaceID,
-					ProjectIDOrName: fireProject.ID,
+					ProjectIDOrName: fireProject.Name,
 				},
 			}, requestBody)
 
