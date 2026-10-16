@@ -342,11 +342,11 @@ func releasePromote(octopus *client.Client, space *spaces.Space, input any) erro
 		return errors.New(fmt.Sprintf("Could not find the latest %[1]s of the project for this environment. Please check that a %[1]s for this project/environment exists on the dashboard.", deploymentType))
 	}
 
-	params.ReleaseID = dashboardItem.ID
+	params.ReleaseID = dashboardItem.ReleaseID
 
 	deployOptions := &TaskOptionsDeployRelease{
 		BaseTaskOptionsDeployRelease: params.BaseTaskOptionsDeployRelease,
-		ProjectName:                  proj.ID,
+		ProjectName:                  proj.Name,
 		ReleaseVersion:               dashboardItem.ReleaseVersion,
 		Environments:                 params.ToEnvironments,
 	}
