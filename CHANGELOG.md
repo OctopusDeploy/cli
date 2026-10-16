@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.30.0](https://github.com/OctopusDeploy/cli/compare/v2.29.0...v2.30.0) (2026-10-16)
+
+
+### Features
+
+* Support promoting to multiple environments ([#760](https://github.com/OctopusDeploy/cli/issues/760)) ([f3d6ab3](https://github.com/OctopusDeploy/cli/commit/f3d6ab314fac6060438b2ee24e543f8cc6e6d6ec))
+
 ## [2.29.0](https://github.com/OctopusDeploy/cli/compare/v2.28.0...v2.29.0) (2026-10-15)
 
 
