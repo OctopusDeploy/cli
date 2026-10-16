@@ -12,6 +12,7 @@ import (
 
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/MakeNowJust/heredoc/v2"
+	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/client/ratelimit"
 	"github.com/pkg/browser"
 	"github.com/spf13/cobra"
 
@@ -414,6 +415,8 @@ func skipTlsVerification(roundTripper http.RoundTripper) error {
 		return nil
 	case *apiclient.SpinnerRoundTripper:
 		return skipTlsVerification(transport.Next)
+	case *ratelimit.Transport:
+		return skipTlsVerification(transport.Base())
 	default:
 		// Better to say so than to quietly leave verification on after the
 		// caller asked for the opposite.
