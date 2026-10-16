@@ -3,6 +3,9 @@ on:
     branches:
       - main
 name: release-please
+# release-please authenticates with INTEGRATIONS_MD_BOT_TOKEN, so the default GITHUB_TOKEN needs nothing beyond read
+permissions:
+  contents: read
 jobs:
   release-please-release:
     runs-on: ubuntu-latest

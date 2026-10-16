@@ -3,6 +3,9 @@ on:
     branches:
       - release-please--**
 name: "Update Install Script Version"
+# Checkout persists INTEGRATIONS_MD_BOT_TOKEN, which is what the push uses; the default GITHUB_TOKEN only needs read
+permissions:
+  contents: read
 jobs:
   build:
     runs-on: ubuntu-latest
