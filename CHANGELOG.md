@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.31.0](https://github.com/OctopusDeploy/cli/compare/v2.30.1...v2.31.0) (2026-10-16)
+
+
+### Features
+
+* Obey Octopus Server rate limits ([#757](https://github.com/OctopusDeploy/cli/issues/757)) ([ca31c83](https://github.com/OctopusDeploy/cli/commit/ca31c83561ab94ac4312ba472780e4d5db9abf5d))
+
 ## [2.30.1](https://github.com/OctopusDeploy/cli/compare/v2.30.0...v2.30.1) (2026-10-16)
 
 
