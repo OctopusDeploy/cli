@@ -28,7 +28,7 @@ type PromoteFlags struct {
 	deploy.CommonDeployFlags
 	Project          *flag.Flag[string]
 	From             *flag.Flag[string]
-	To               *flag.Flag[string]
+	To               *flag.Flag[[]string]
 	LatestSuccessful *flag.Flag[bool]
 }
 
@@ -36,7 +36,7 @@ func NewPromoteFlags() *PromoteFlags {
 	return &PromoteFlags{
 		Project:           flag.New[string](FlagProject, false),
 		From:              flag.New[string](FlagFrom, false),
-		To:                flag.New[string](FlagTo, false),
+		To:                flag.New[[]string](FlagTo, false),
 		LatestSuccessful:  flag.New[bool](FlagLatestSuccessful, false),
 		CommonDeployFlags: deploy.NewCommonDeployFlags(),
 	}
@@ -59,12 +59,12 @@ func NewCmdPromote(f factory.Factory) *cobra.Command {
 	flags := cmd.Flags()
 	flags.StringVarP(&promoteFlags.Project.Value, promoteFlags.Project.Name, "p", "", "Name or ID of the project")
 	flags.StringVar(&promoteFlags.From.Value, promoteFlags.From.Name, "", "Name or ID of the environment to get the current deployment from")
-	flags.StringVar(&promoteFlags.To.Value, promoteFlags.To.Name, "", "Name or ID of the environment to deploy to")
+	flags.StringArrayVar(&promoteFlags.To.Value, promoteFlags.To.Name, nil, "Name or ID of the environment(s) to promote to")
 	flags.BoolVar(&promoteFlags.LatestSuccessful.Value, promoteFlags.LatestSuccessful.Name, false, "Use the latest successful release to promote")
 
 	// aliases for compatability with the old .NET CLI
 	flagAliases := make(map[string][]string, 10)
-	util.AddFlagAliasesString(flags, FlagTo, flagAliases, FlagAliasLegacyDeployTo)
+	util.AddFlagAliasesStringSlice(flags, FlagTo, flagAliases, FlagAliasLegacyDeployTo)
 	util.AddFlagAliasesBool(flags, FlagLatestSuccessful, flagAliases, FlagAliasLegacyLatestSuccessful)
 
 	deploy.AddCommonFlagsAndAliases(flags, &promoteFlags.CommonDeployFlags, flagAliases)
@@ -96,7 +96,7 @@ func createRun(cmd *cobra.Command, f factory.Factory, flags *PromoteFlags) error
 	options := &executor.TaskOptionsPromoteRelease{
 		ProjectName:                  flags.Project.Value,
 		FromEnvironment:              flags.From.Value,
-		ToEnvironment:                flags.To.Value,
+		ToEnvironments:               flags.To.Value,
 		LatestSuccessful:             flags.LatestSuccessful.Value,
 		BaseTaskOptionsDeployRelease: *baseOptions,
 	}
