@@ -243,7 +243,7 @@ type TaskOptionsPromoteRelease struct {
 	BaseTaskOptionsDeployRelease
 	ProjectName      string
 	FromEnvironment  string
-	ToEnvironment    string
+	ToEnvironments   []string
 	LatestSuccessful bool
 
 	// After we send the request to the server, the response is stored here
@@ -267,8 +267,8 @@ func releasePromote(octopus *client.Client, space *spaces.Space, input any) erro
 	if params.FromEnvironment == "" {
 		return errors.New("from environment must be specified")
 	}
-	if params.ToEnvironment == "" {
-		return errors.New("to environment must be specified")
+	if len(params.ToEnvironments) == 0 {
+		return errors.New("at least one to environment must be specified")
 	}
 
 	proj, err := projects.GetByIdentifier(octopus, space.ID, params.ProjectName)
@@ -348,7 +348,7 @@ func releasePromote(octopus *client.Client, space *spaces.Space, input any) erro
 		BaseTaskOptionsDeployRelease: params.BaseTaskOptionsDeployRelease,
 		ProjectName:                  proj.ID,
 		ReleaseVersion:               dashboardItem.ReleaseVersion,
-		Environments:                 []string{params.ToEnvironment},
+		Environments:                 params.ToEnvironments,
 	}
 
 	err = releaseDeploy(octopus, space, deployOptions)
