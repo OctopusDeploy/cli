@@ -90,7 +90,7 @@ func TestPromoteRelease_Success(t *testing.T) {
 				})
 
 			// Lookup from environment by ID
-			api.ExpectRequest(t, "GET", "/api/"+spaceID+"/environments/v2?name=&skip=0&ids=Development&take=2147483647").
+			api.ExpectRequest(t, "GET", "/api/"+spaceID+"/environments/v2?name=&skip=0&ids=Development&take=1").
 				RespondWith(resources.Resources[*environments.Environment]{
 					Items: []*environments.Environment{},
 				})
@@ -151,7 +151,7 @@ func TestPromoteRelease_Success(t *testing.T) {
 				})
 
 			// Lookup from environment by ID
-			api.ExpectRequest(t, "GET", "/api/"+spaceID+"/environments/v2?name=&skip=0&ids=Development&take=2147483647").
+			api.ExpectRequest(t, "GET", "/api/"+spaceID+"/environments/v2?name=&skip=0&ids=Development&take=1").
 				RespondWith(resources.Resources[*environments.Environment]{
 					Items: []*environments.Environment{},
 				})
@@ -212,7 +212,7 @@ func TestPromoteRelease_Success(t *testing.T) {
 				})
 
 			// Lookup from environment by ID
-			api.ExpectRequest(t, "GET", "/api/"+spaceID+"/environments/v2?name=&skip=0&ids=Development&take=2147483647").
+			api.ExpectRequest(t, "GET", "/api/"+spaceID+"/environments/v2?name=&skip=0&ids=Development&take=1").
 				RespondWith(resources.Resources[*environments.Environment]{
 					Items: []*environments.Environment{},
 				})
@@ -261,7 +261,7 @@ func TestPromoteRelease_Success(t *testing.T) {
 				})
 
 			// Lookup from environment by ID
-			api.ExpectRequest(t, "GET", "/api/"+spaceID+"/environments/v2?name=&skip=0&ids=Development&take=2147483647").
+			api.ExpectRequest(t, "GET", "/api/"+spaceID+"/environments/v2?name=&skip=0&ids=Development&take=1").
 				RespondWith(resources.Resources[*environments.Environment]{
 					Items: []*environments.Environment{},
 				})
@@ -310,7 +310,7 @@ func TestPromoteRelease_Success(t *testing.T) {
 				})
 
 			// Lookup from environment by ID
-			api.ExpectRequest(t, "GET", "/api/"+spaceID+"/environments/v2?name=&skip=0&ids=Development&take=2147483647").
+			api.ExpectRequest(t, "GET", "/api/"+spaceID+"/environments/v2?name=&skip=0&ids=Development&take=1").
 				RespondWith(resources.Resources[*environments.Environment]{
 					Items: []*environments.Environment{},
 				})
@@ -371,7 +371,7 @@ func TestPromoteRelease_Success(t *testing.T) {
 				})
 
 			// Lookup from environment by ID
-			api.ExpectRequest(t, "GET", "/api/"+spaceID+"/environments/v2?name=&skip=0&ids=Development&take=2147483647").
+			api.ExpectRequest(t, "GET", "/api/"+spaceID+"/environments/v2?name=&skip=0&ids=Development&take=1").
 				RespondWith(resources.Resources[*environments.Environment]{
 					Items: []*environments.Environment{},
 				})
@@ -420,7 +420,7 @@ func TestPromoteRelease_Success(t *testing.T) {
 				})
 
 			// Lookup from environment by ID
-			api.ExpectRequest(t, "GET", "/api/"+spaceID+"/environments/v2?name=&skip=0&ids=Development&take=2147483647").
+			api.ExpectRequest(t, "GET", "/api/"+spaceID+"/environments/v2?name=&skip=0&ids=Development&take=1").
 				RespondWith(resources.Resources[*environments.Environment]{
 					Items: []*environments.Environment{},
 				})
@@ -469,7 +469,7 @@ func TestPromoteRelease_Success(t *testing.T) {
 				})
 
 			// Lookup from environment by ID
-			api.ExpectRequest(t, "GET", "/api/"+spaceID+"/environments/v2?name=&skip=0&ids=Development&take=2147483647").
+			api.ExpectRequest(t, "GET", "/api/"+spaceID+"/environments/v2?name=&skip=0&ids=Development&take=1").
 				RespondWith(resources.Resources[*environments.Environment]{
 					Items: []*environments.Environment{},
 				})
@@ -518,7 +518,7 @@ func TestPromoteRelease_Success(t *testing.T) {
 				})
 
 			// Lookup from environment by ID
-			api.ExpectRequest(t, "GET", "/api/"+spaceID+"/environments/v2?name=&skip=0&ids=Development&take=2147483647").
+			api.ExpectRequest(t, "GET", "/api/"+spaceID+"/environments/v2?name=&skip=0&ids=Development&take=1").
 				RespondWith(resources.Resources[*environments.Environment]{
 					Items: []*environments.Environment{},
 				})
@@ -606,7 +606,7 @@ func TestPromoteRelease_Errors(t *testing.T) {
 					RespondWith(resources.Resources[*projects.Project]{
 						Items: []*projects.Project{fireProject},
 					})
-				api.ExpectRequest(t, "GET", "/api/"+spaceID+"/environments/v2?name=&skip=0&ids=NonExistent&take=2147483647").
+				api.ExpectRequest(t, "GET", "/api/"+spaceID+"/environments/v2?name=&skip=0&ids=NonExistent&take=1").
 					RespondWith(resources.Resources[*environments.Environment]{
 						Items: []*environments.Environment{},
 					})
@@ -628,7 +628,7 @@ func TestPromoteRelease_Errors(t *testing.T) {
 					RespondWith(resources.Resources[*projects.Project]{
 						Items: []*projects.Project{fireProject},
 					})
-				api.ExpectRequest(t, "GET", "/api/"+spaceID+"/environments/v2?name=&skip=0&ids=Development&take=2147483647").
+				api.ExpectRequest(t, "GET", "/api/"+spaceID+"/environments/v2?name=&skip=0&ids=Development&take=1").
 					RespondWith(resources.Resources[*environments.Environment]{
 						Items: []*environments.Environment{},
 					})
@@ -653,7 +653,7 @@ func TestPromoteRelease_Errors(t *testing.T) {
 					RespondWith(resources.Resources[*projects.Project]{
 						Items: []*projects.Project{fireProject},
 					})
-				api.ExpectRequest(t, "GET", "/api/"+spaceID+"/environments/v2?name=&skip=0&ids=Development&take=2147483647").
+				api.ExpectRequest(t, "GET", "/api/"+spaceID+"/environments/v2?name=&skip=0&ids=Development&take=1").
 					RespondWith(resources.Resources[*environments.Environment]{
 						Items: []*environments.Environment{},
 					})
