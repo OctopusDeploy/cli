@@ -364,14 +364,14 @@ func getEnvironment(octopus *client.Client, space *spaces.Space, err error, name
 	envResponse, err := environments.Get(octopus, space.ID, environments.EnvironmentQuery{
 		IDs:  []string{nameOrID},
 		Skip: 0,
-		Take: math.MaxInt32,
+		Take: 1, // we are matching on ID, so there should only be one
 	})
 	if err != nil {
 		return nil, fmt.Errorf("environment not found. %v", err)
 	}
 
-	// return the matching item (as it's by ID)
-	if len(envResponse.Items) == 1 {
+	// double check the ID and return if true
+	if len(envResponse.Items) == 1 && envResponse.Items[0].ID == nameOrID {
 		return envResponse.Items[0], nil
 	}
 
@@ -392,7 +392,7 @@ func getEnvironment(octopus *client.Client, space *spaces.Space, err error, name
 	switch {
 	case len(envResponse.Items) == 0:
 		return nil, fmt.Errorf("environment not found")
-	case len(envResponse.Items) == 1:
+	case len(envResponse.Items) == 1 && envResponse.Items[0].Name == nameOrID:
 		return envResponse.Items[0], nil
 	case len(envResponse.Items) > 1:
 		for _, item := range envResponse.Items {
