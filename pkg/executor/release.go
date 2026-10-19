@@ -392,12 +392,12 @@ func getEnvironment(octopus *client.Client, space *spaces.Space, err error, name
 	switch {
 	case len(envResponse.Items) == 0:
 		return nil, fmt.Errorf("environment not found")
-	case len(envResponse.Items) == 1 && envResponse.Items[0].Name == nameOrID:
+	case len(envResponse.Items) == 1 && strings.EqualFold(envResponse.Items[0].Name, nameOrID):
 		return envResponse.Items[0], nil
 	case len(envResponse.Items) > 1:
 		for _, item := range envResponse.Items {
 			// find an exact match to the partial match responses
-			if item.Name == nameOrID {
+			if strings.EqualFold(item.Name, nameOrID) {
 				return item, nil
 			}
 		}
