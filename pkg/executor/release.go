@@ -370,6 +370,11 @@ func getEnvironment(octopus *client.Client, space *spaces.Space, err error, name
 		return nil, fmt.Errorf("environment not found. %v", err)
 	}
 
+	// return the matching item (as it's by ID)
+	if len(envResponse.Items) == 1 {
+		return envResponse.Items[0], nil
+	}
+
 	// fallback on checking by name
 	if len(envResponse.Items) == 0 {
 		envResponse, err = environments.Get(octopus, space.ID, environments.EnvironmentQuery{
@@ -382,38 +387,22 @@ func getEnvironment(octopus *client.Client, space *spaces.Space, err error, name
 		}
 	}
 
-	envItems := envResponse.Items
-
-	// older versions of Server didn't support name, so try partial name
-	if len(envItems) == 0 {
-		envResponse, err = environments.Get(octopus, space.ID, environments.EnvironmentQuery{
-			Skip:        0,
-			Take:        math.MaxInt32,
-			PartialName: nameOrID,
-		})
-		if err != nil {
-			return nil, fmt.Errorf("environment not found. %v", err)
-		}
-
-		var matchingEnv *environments.Environment
+	// if we have multiple responses, this means that the `Name` filter didn't work
+	// so we do the filtering ourselves
+	switch {
+	case len(envResponse.Items) == 0:
+		return nil, fmt.Errorf("environment not found")
+	case len(envResponse.Items) == 1:
+		return envResponse.Items[0], nil
+	case len(envResponse.Items) > 1:
 		for _, item := range envResponse.Items {
 			// find an exact match to the partial match responses
 			if item.Name == nameOrID {
-				matchingEnv = item
-				break
+				return item, nil
 			}
 		}
-
-		// if we didn't exact match on name, we must not have found anything
-		if matchingEnv == nil {
-			return nil, fmt.Errorf("environment not found")
-		}
-
-		// update the envItems with the single item
-		envItems = []*environments.Environment{matchingEnv}
-
 	}
 
-	// just grab the first environment
-	return envItems[0], nil
+	// final fallback
+	return nil, fmt.Errorf("environment not found")
 }
