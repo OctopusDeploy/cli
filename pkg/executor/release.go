@@ -276,30 +276,13 @@ func releasePromote(octopus *client.Client, space *spaces.Space, input any) erro
 		return fmt.Errorf("project not found. %v", err)
 	}
 
-	envs, err := environments.Get(octopus, space.ID, environments.EnvironmentQuery{
-		IDs:  []string{params.FromEnvironment},
-		Skip: 0,
-		Take: math.MaxInt32,
-	})
+	fromEnv, err := getEnvironment(octopus, space, err, params.FromEnvironment)
 	if err != nil {
-		return fmt.Errorf("environment not found. %v", err)
+		return err
 	}
-	//
-	if len(envs.Items) == 0 {
-		envs, err = environments.Get(octopus, space.ID, environments.EnvironmentQuery{
-			Name: params.FromEnvironment,
-			Skip: 0,
-			Take: math.MaxInt32,
-		})
-		if err != nil || len(envs.Items) == 0 {
-			return fmt.Errorf("environment not found. %v", err)
-		}
-	}
-	// just grab the first environment
-	sourceEnv := envs.Items[0]
 
 	dashboardQuery := dashboard.DashboardDynamicQuery{
-		Environments: []string{sourceEnv.ID},
+		Environments: []string{fromEnv.ID},
 		Projects:     []string{proj.ID},
 		// If using latest successful, we need previous dashboard items as well
 		// so that we can ensure we get a previous successful deployment
@@ -315,7 +298,7 @@ func releasePromote(octopus *client.Client, space *spaces.Space, input any) erro
 	// this is probably unnecessary, but it mimics the existing logic
 	var dashboardItems []*dashboard.DashboardItem
 	for _, item := range dynamicDashboard.Items {
-		if item.EnvironmentID == sourceEnv.ID && item.ProjectID == proj.ID {
+		if item.EnvironmentID == fromEnv.ID && item.ProjectID == proj.ID {
 			dashboardItems = append(dashboardItems, item)
 		}
 	}
@@ -375,4 +358,62 @@ func compareDashboardItemsByRelease(a, b *dashboard.DashboardItem) int {
 
 	// we multiply by -1 to order by descending
 	return versioning.Compare(aVersion, bVersion, (*versioning.OctopusVersion).Compare) * -1
+}
+
+func getEnvironment(octopus *client.Client, space *spaces.Space, err error, nameOrID string) (*environments.Environment, error) {
+	envResponse, err := environments.Get(octopus, space.ID, environments.EnvironmentQuery{
+		IDs:  []string{nameOrID},
+		Skip: 0,
+		Take: math.MaxInt32,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("environment not found. %v", err)
+	}
+
+	// fallback on checking by name
+	if len(envResponse.Items) == 0 {
+		envResponse, err = environments.Get(octopus, space.ID, environments.EnvironmentQuery{
+			Name: nameOrID,
+			Skip: 0,
+			Take: math.MaxInt32,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("environment not found. %v", err)
+		}
+	}
+
+	envItems := envResponse.Items
+
+	// older versions of Server didn't support name, so try partial name
+	if len(envItems) == 0 {
+		envResponse, err = environments.Get(octopus, space.ID, environments.EnvironmentQuery{
+			Skip:        0,
+			Take:        math.MaxInt32,
+			PartialName: nameOrID,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("environment not found. %v", err)
+		}
+
+		var matchingEnv *environments.Environment
+		for _, item := range envResponse.Items {
+			// find an exact match to the partial match responses
+			if item.Name == nameOrID {
+				matchingEnv = item
+				break
+			}
+		}
+
+		// if we didn't exact match on name, we must not have found anything
+		if matchingEnv == nil {
+			return nil, fmt.Errorf("environment not found")
+		}
+
+		// update the envItems with the single item
+		envItems = []*environments.Environment{matchingEnv}
+
+	}
+
+	// just grab the first environment
+	return envItems[0], nil
 }
