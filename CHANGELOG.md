@@ -1,5 +1,17 @@
 # Changelog
 
+## [2.31.0](https://github.com/OctopusDeploy/cli/compare/v2.30.1...v2.31.0) (2026-10-19)
+
+
+### Features
+
+* Obey Octopus Server rate limits ([#757](https://github.com/OctopusDeploy/cli/issues/757)) ([ca31c83](https://github.com/OctopusDeploy/cli/commit/ca31c83561ab94ac4312ba472780e4d5db9abf5d))
+
+
+### Bug Fixes
+
+* Handle scenario where environment name query field isn't respected ([#771](https://github.com/OctopusDeploy/cli/issues/771)) ([93425bb](https://github.com/OctopusDeploy/cli/commit/93425bb834d5f3120f2d33244ea3e153bdc96162))
+
 ## [2.30.1](https://github.com/OctopusDeploy/cli/compare/v2.30.0...v2.30.1) (2026-10-16)
 
 
