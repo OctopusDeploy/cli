@@ -8,7 +8,7 @@ require (
 	github.com/OctopusDeploy/go-octodiff v1.0.0
 	github.com/OctopusDeploy/go-octopusdeploy/v2 v2.122.0
 	github.com/OctopusDeploy/go-octopusversioning v1.0.0
-	github.com/bmatcuk/doublestar/v4 v4.10.2
+	github.com/bmatcuk/doublestar/v4 v4.10.3
 	github.com/briandowns/spinner v1.23.2
 	github.com/google/uuid v1.6.0
 	github.com/hashicorp/go-multierror v1.1.1
