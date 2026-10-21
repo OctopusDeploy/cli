@@ -68,7 +68,11 @@ func NewCmdList(f factory.Factory) *cobra.Command {
 		`, constants.ExecutableName),
 		Aliases: []string{"ls"},
 		RunE: func(c *cobra.Command, _ []string) error {
-			opts := NewListOptions(listFlags, cmd.NewDependencies(f, c), c)
+			deps, err := cmd.NewDependencies(f, c)
+			if err != nil {
+				return err
+			}
+			opts := NewListOptions(listFlags, deps, c)
 
 			return ListRun(opts)
 		},

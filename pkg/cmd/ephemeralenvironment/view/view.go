@@ -86,7 +86,11 @@ func NewCmdView(f factory.Factory) *cobra.Command {
 			%[1]s ephemeral-environment view --name PR-1234 --project "MyProject" --output-format json
 		`, constants.ExecutableName),
 		RunE: func(c *cobra.Command, _ []string) error {
-			opts := NewViewOptions(viewFlags, cmd.NewDependencies(f, c), c)
+			deps, err := cmd.NewDependencies(f, c)
+			if err != nil {
+				return err
+			}
+			opts := NewViewOptions(viewFlags, deps, c)
 
 			return ViewRun(opts)
 		},
