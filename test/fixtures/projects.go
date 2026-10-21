@@ -232,6 +232,24 @@ func NewVariableSetForProject(spaceID string, projectID string) *variables.Varia
 	return result
 }
 
+func NewLibraryVariableSet(spaceID string, libraryVariableSetID string, name string) *variables.LibraryVariableSet {
+	result := variables.NewLibraryVariableSet(name)
+	result.ID = libraryVariableSetID
+	result.SpaceID = spaceID
+	result.VariableSetID = "variableset-" + libraryVariableSetID
+	return result
+}
+
+func NewVariableSetForLibraryVariableSet(spaceID string, libraryVariableSetID string) *variables.VariableSet {
+	result := variables.NewVariableSet()
+	result.OwnerID = libraryVariableSetID
+	result.SpaceID = spaceID
+	result.Variables = make([]*variables.Variable, 0)
+	result.ID = "variableset-" + libraryVariableSetID
+	result.Links = map[string]string{}
+	return result
+}
+
 func NewTenant(spaceID string, tenantID string, name string, tenantTags ...string) *tenants.Tenant {
 	result := tenants.NewTenant(name)
 	result.ID = tenantID
