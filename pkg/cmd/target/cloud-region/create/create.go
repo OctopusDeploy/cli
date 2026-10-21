@@ -29,6 +29,7 @@ type CreateFlags struct {
 	*shared.CreateTargetRoleFlags
 	*shared.WorkerPoolFlags
 	*shared.CreateTargetTenantFlags
+	*machinescommon.CreateTargetDisabledFlags
 	*machinescommon.WebFlags
 }
 
@@ -48,6 +49,7 @@ func NewCreateFlags() *CreateFlags {
 		CreateTargetEnvironmentFlags: shared.NewCreateTargetEnvironmentFlags(),
 		CreateTargetRoleFlags:        shared.NewCreateTargetRoleFlags(),
 		CreateTargetTenantFlags:      shared.NewCreateTargetTenantFlags(),
+		CreateTargetDisabledFlags:    machinescommon.NewCreateTargetDisabledFlags(),
 		WebFlags:                     machinescommon.NewWebFlags(),
 	}
 }
@@ -89,6 +91,7 @@ func NewCmdCreate(f factory.Factory) *cobra.Command {
 	shared.RegisterCreateTargetRoleFlags(cmd, createFlags.CreateTargetRoleFlags)
 	shared.RegisterCreateTargetWorkerPoolFlags(cmd, createFlags.WorkerPoolFlags)
 	shared.RegisterCreateTargetTenantFlags(cmd, createFlags.CreateTargetTenantFlags)
+	machinescommon.RegisterCreateTargetDisabledFlags(cmd, createFlags.CreateTargetDisabledFlags)
 	machinescommon.RegisterWebFlag(cmd, createFlags.WebFlags)
 
 	return cmd
@@ -127,13 +130,15 @@ func createRun(opts *CreateOptions) error {
 		return err
 	}
 
+	target.IsDisabled = opts.Disabled.Value
+
 	createdTarget, err := opts.Client.Machines.Add(target)
 	if err != nil {
 		return err
 	}
 	fmt.Fprintf(opts.Out, "Successfully created cloud region '%s'.\n", target.Name)
 	if !opts.NoPrompt {
-		autoCmd := flag.GenerateAutomationCmd(opts.CmdPath, opts.GetSpaceNameOrEmpty(), opts.Name, opts.WorkerPool, opts.Environments, opts.Roles, opts.Tags, opts.TenantedDeploymentMode, opts.Tenants, opts.TenantTags)
+		autoCmd := flag.GenerateAutomationCmd(opts.CmdPath, opts.GetSpaceNameOrEmpty(), opts.Name, opts.WorkerPool, opts.Environments, opts.Roles, opts.Tags, opts.TenantedDeploymentMode, opts.Tenants, opts.TenantTags, opts.Disabled)
 		fmt.Fprintf(opts.Out, "\nAutomation Command: %s\n", autoCmd)
 	}
 
