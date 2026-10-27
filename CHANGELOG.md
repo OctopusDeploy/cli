@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.31.1](https://github.com/OctopusDeploy/cli/compare/v2.31.0...v2.31.1) (2026-10-27)
+
+
+### Bug Fixes
+
+* Create output directory when creating zip package ([#774](https://github.com/OctopusDeploy/cli/issues/774)) ([8b3647a](https://github.com/OctopusDeploy/cli/commit/8b3647a732ee5254433b5c72137820a8a62374e2))
+* Update to Go 1.26.10 to fix crypto/x509 CVE ([#775](https://github.com/OctopusDeploy/cli/issues/775)) ([597f876](https://github.com/OctopusDeploy/cli/commit/597f8763f19e9083f43ef5bcf41f551434b5acb8))
+
 ## [2.31.0](https://github.com/OctopusDeploy/cli/compare/v2.30.1...v2.31.0) (2026-10-19)
 
 
