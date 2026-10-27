@@ -307,4 +307,4 @@ jobs:
           run: |
             curl -X POST -H "Accept: application/vnd.github+json" -H "Authorization: Bearer $INTEGRATIONS_TOKEN" \
             https://api.github.com/repos/OctopusDeploy/cli/pulls \
-            -d '{"title":"update cli releases.json","body":"An automated update of the releases.json for octopus CLI\nCreated by GitHub Actions [go-releaser](https://github.com/OctopusDeploy/cli/actions/workflows/go-releaser.yml)","head":"'$BRANCH_NAME'","base":"main"}'
+            -d '{"title":"chore: update cli releases.json","body":"An automated update of the releases.json for octopus CLI\nCreated by GitHub Actions [go-releaser](https://github.com/OctopusDeploy/cli/actions/workflows/go-releaser.yml)","head":"'$BRANCH_NAME'","base":"main"}'
