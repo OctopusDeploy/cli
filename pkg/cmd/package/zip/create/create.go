@@ -78,9 +78,9 @@ func createRun(cmd *cobra.Command, opts *pack.PackageCreateOptions) error {
 		fmt.Fprintf(opts.Writer, "\nAutomation Command: %s\n", autoCmd)
 	}
 
-	outFilePath := pack.BuildOutFileName("zip", opts.Id.Value, opts.Version.Value)
+	outFileName := pack.BuildOutFileName("zip", opts.Id.Value, opts.Version.Value)
 
-	zip, err := pack.BuildPackage(opts, outFilePath)
+	zip, err := pack.BuildPackage(opts, outFileName)
 	if zip != nil {
 		pack.PrintPackageCreated(cmd, outputFormat, zip.Name())
 	}

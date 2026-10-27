@@ -235,6 +235,12 @@ func BuildPackage(opts *PackageCreateOptions, outFileName string) (*os.File, err
 }
 
 func BuildPackageWithContents(opts *PackageCreateOptions, outFileName string, contents *PackageContents) (*os.File, error) {
+	// Try and create the output folder
+	err := os.MkdirAll(opts.OutFolder.Value, os.ModePerm)
+	if err != nil {
+		return nil, fmt.Errorf("could not create output directory: %w", err)
+	}
+
 	outFilePath := filepath.Join(opts.OutFolder.Value, outFileName)
 	outPath, err := filepath.Abs(opts.OutFolder.Value)
 	if err != nil {
