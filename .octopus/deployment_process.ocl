@@ -178,7 +178,7 @@ step "push-homebrew-formula-updates-to-the-homebrew-taps-repo" {
 
         container {
             feed = "docker-hub"
-            image = "octopusdeploy/worker-tools:6.6.6-ubuntu.24.04"
+            image = "octopusdeploy/worker-tools:6.6.6"
         }
 
         packages "cli" {
