@@ -1,7 +1,6 @@
 name: "Integration tests"
 on:
   workflow_dispatch:
-  # no push trigger, this only runs nightly
   schedule:
     # Daily 5am australian/brisbane time (7pm UTC)
     - cron: "0 19 * * *"
