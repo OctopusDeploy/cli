@@ -106,7 +106,7 @@ step "push-homebrew-formula-updates-to-the-homebrew-taps-repo" {
                     git config user.name $gitUserName
                     git config user.email $gitUserEmail
                 }
-
+                
                 # The tap holds a single formula, so redeploying an older release would open a downgrade PR.
                 $versionLine = Select-String -Path "octopus-cli.rb" -Pattern '^\s*version\s+"([^"]+)"' -ErrorAction SilentlyContinue | Select-Object -First 1
                 if ($versionLine) {
@@ -120,7 +120,7 @@ step "push-homebrew-formula-updates-to-the-homebrew-taps-repo" {
                 else {
                     Write-Warning "Could not read the published version from octopus-cli.rb; skipping the downgrade check."
                 }
-
+                
                 $branchName = "releases/$packageVersion"
                 git checkout -b $branchName
                 if ($LASTEXITCODE -ne 0) { throw "Failed to create branch $branchName" }
@@ -136,10 +136,10 @@ step "push-homebrew-formula-updates-to-the-homebrew-taps-repo" {
                     Set-Location ..
                     exit 0
                 }
-
+                
                 git add --all
                 if ($LASTEXITCODE -ne 0) { throw "Failed to stage the formula update" }
-
+                
                 git commit -m "Update for release $packageVersion"
                 if ($LASTEXITCODE -ne 0) { throw "Failed to commit the formula update" }
                 
@@ -309,7 +309,7 @@ step "publish-winget-update-pr" {
                 $forkRepo = "$githubAccount/winget-pkgs"
                 $version = $OctopusParameters["Octopus.Action.Package[cli].PackageVersion"]
                 $authHeaders = $headers + @{ 'Authorization' = "Bearer $githubPat" }
-
+                
                 # A re-run must not open a second PR for a version that is already published or in review.
                 try {
                     Invoke-RestMethod -Uri "https://api.github.com/repos/microsoft/winget-pkgs/contents/manifests/o/OctopusDeploy/Cli/$version" -Headers $authHeaders | Out-Null
@@ -319,7 +319,7 @@ step "publish-winget-update-pr" {
                 catch {
                     if ($_.Exception.Response.StatusCode.value__ -ne 404) { throw }
                 }
-
+                
                 $expectedTitle = "New version: OctopusDeploy.Cli version $version"
                 $query = [uri]::EscapeDataString("repo:microsoft/winget-pkgs is:pr is:open in:title `"$expectedTitle`"")
                 $search = Invoke-RestMethod -Uri "https://api.github.com/search/issues?q=$query" -Headers $authHeaders
@@ -329,7 +329,7 @@ step "publish-winget-update-pr" {
                     Write-Host "A winget PR for $version is already open: $($openPr.html_url)"
                     exit 0
                 }
-
+                
                 try {
                     # Delete the fork of the winget-pkgs repo using the bot's token
                     $response = Invoke-WebRequest -Method "DELETE" -Uri "https://api.github.com/repos/$forkRepo" -Authentication "Bearer" -Token $githubPat -Headers $headers
@@ -349,7 +349,7 @@ step "publish-winget-update-pr" {
                 
                 # Install winget-create
                 Invoke-WebRequest https://aka.ms/wingetcreate/latest -OutFile wingetcreate.exe
-
+                
                 $packageUrls = "https://github.com/OctopusDeploy/cli/releases/download/v$version/octopus_$($version)_windows_amd64.msi|x64"
                 
                 echo "SDKs"
