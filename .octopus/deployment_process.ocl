@@ -304,6 +304,8 @@ step "publish-winget-update-pr" {
             Octopus.Action.AutoRetry.MinimumBackoff = "120"
             Octopus.Action.ExecutionTimeout.Minutes = "5"
             Octopus.Action.Script.ScriptBody = <<-EOT
+                $ErrorActionPreference = "Stop"
+
                 #Headers
                 $headers = @{
                     'Accept'               = "application/vnd.github+json";
@@ -338,37 +340,25 @@ step "publish-winget-update-pr" {
                 
                 try {
                     # Delete the fork of the winget-pkgs repo using the bot's token
-                    $response = Invoke-WebRequest -Method "DELETE" -Uri "https://api.github.com/repos/$forkRepo" -Authentication "Bearer" -Token $githubPat -Headers $headers
-                    $statusCode = $Response.StatusCode
+                    Invoke-RestMethod -Method Delete -Uri "https://api.github.com/repos/$forkRepo" -Headers $authHeaders | Out-Null
+                    Write-Host "Deleted fork repo '$forkRepo'."
                 }
                 catch {
                     $statusCode = $_.Exception.Response.StatusCode.value__
+                    # The status and body say why: 403 is usually a token without permission to delete repos.
+                    $detail = if ($_.ErrorDetails.Message) { $_.ErrorDetails.Message } else { $_.Exception.Message }
+                    Write-Warning "Failed to delete fork repo '$forkRepo' (status $statusCode): $detail. If this fork is too far behind its source, winget-create may fail."
                 }
-                
-                if (!($statusCode -ge 200 -and $statusCode -le 299 )) {
-                    Write-Warning "Failed to delete fork repo '$forkRepo'. If this fork is too far behind its source, winget-create may fail."
-                }
-                
-                # Install dotnet 9 runtime
-                Invoke-WebRequest 'https://dotnet.microsoft.com/download/dotnet/scripts/v1/dotnet-install.ps1' -outFile 'dotnet-install.ps1';
-                .\dotnet-install.ps1 -Channel 9.0 -Runtime dotnet -InstallDir 'C:\Program Files\dotnet';
                 
                 # Install winget-create
                 Invoke-WebRequest https://aka.ms/wingetcreate/latest -OutFile wingetcreate.exe
-                
+
                 $packageUrls = "https://github.com/OctopusDeploy/cli/releases/download/v$version/octopus_$($version)_windows_amd64.msi|x64"
-                
-                echo "SDKs"
-                dotnet --list-sdks
-                
-                echo "runtimes"
-                dotnet --list-runtimes
-                
-                $Env:DOTNET_ROOT = "C:\Users\ContainerAdministrator\AppData\Local\Microsoft\dotnet"
-                
+
                 # This will perform the update and also create a PR with the relevant update
                 .\wingetcreate.exe update OctopusDeploy.Cli --urls $packageUrls --version $version --token $githubPat --submit
-                
+                if ($LASTEXITCODE -ne 0) { throw "wingetcreate failed with exit code $LASTEXITCODE" }
+
                 EOT
             Octopus.Action.Script.ScriptSource = "Inline"
             Octopus.Action.Script.Syntax = "PowerShell"
