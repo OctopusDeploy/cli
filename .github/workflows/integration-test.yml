@@ -1,28 +1,53 @@
 name: "Integration tests"
 on:
   workflow_dispatch:
-  # no push trigger, this only runs nightly
   schedule:
     # Daily 5am australian/brisbane time (7pm UTC)
     - cron: "0 19 * * *"
   push:
-    paths-ignore:
-      - "**.md"
-      - "releases.json"
-      - ".github/**"
 env:
   SA_PASSWORD: ${{ secrets.DB_IMAGE_SA_PASSWORD }}
   ADMIN_API_KEY: ${{ secrets.OD_IMAGE_ADMIN_API_KEY }}
   SERVER_URL: "http://localhost:8080"
 jobs:
+  # Decides in a separate job because the service containers below start before any step runs, so
+  # gating steps would still pay for SQL Server and Octopus Server on every releases.json PR.
+  changes:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      any_changed: ${{ steps.changed-files.outputs.any_changed }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Check for significant changes
+        id: changed-files
+        if: github.event_name == 'push'
+        uses: tj-actions/changed-files@9426d40962ed5378910ee2e21d5f8c6fcbf2dd96 # v47.0.6
+        with:
+          files_ignore: |
+            **.md
+            releases.json
+            .github/**
+
   test:
+    needs: changes
     # Dependabot-triggered runs cannot read Actions secrets -- GitHub scopes those
     # to a separate Dependabot secrets store -- so SA_PASSWORD resolves to empty,
     # SQL Server rejects every login, and the service container never turns
     # healthy. Skip rather than fail red: the nightly run on main covers merged
     # bumps, and `gh workflow run integration-test.yml --ref <branch>` still works
     # on a Dependabot branch, because the triggering actor is then a human.
-    if: github.actor != 'dependabot[bot]'
+    #
+    # A skipped job satisfies a required check, so pushes that only touch ignored files skip too.
+    # If change detection itself fails, run the tests rather than silently skipping them.
+    if: >-
+      ${{ !cancelled() &&
+      github.actor != 'dependabot[bot]' &&
+      (github.event_name != 'push' ||
+       needs.changes.result != 'success' ||
+       needs.changes.outputs.any_changed == 'true') }}
     runs-on: ubuntu-latest
     services:
       sqlserver:
