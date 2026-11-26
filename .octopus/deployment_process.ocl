@@ -260,6 +260,9 @@ step "publish-to-rpm-repo" {
         action_type = "Octopus.Script"
         environments = ["production"]
         properties = {
+            Octopus.Action.AutoRetry.MaximumCount = "3"
+            Octopus.Action.AutoRetry.MinimumBackoff = "30"
+            Octopus.Action.ExecutionTimeout.Minutes = "3"
             Octopus.Action.Script.ScriptBody = <<-EOT
                 cd cli || exit
                 
@@ -383,6 +386,43 @@ step "publish-winget-update-pr" {
                 Extract = "False"
                 SelectionMode = "immediate"
             }
+        }
+    }
+}
+
+step "send-slack-alert-on-failure" {
+    condition = "Failure"
+    name = "Send Slack alert on failure"
+
+    action {
+        action_type = "Octopus.SendSlackMessage"
+        properties = {
+            Octopus.Action.Slack.Blocks = <<-EOT
+                [
+                  {
+                    "type": "section",
+                    "text": {
+                      "type": "mrkdwn",
+                      "text": "*#{Octopus.Project.Name}* #{Octopus.Release.Number} to #{Octopus.Environment.Name} has failed."
+                    }
+                  },
+                  {
+                    "type": "actions",
+                    "elements": [
+                      {
+                        "type": "button",
+                        "text": { "type": "plain_text", "text": "View deployment" },
+                        "url": "#{Octopus.Web.ServerUri}#{Octopus.Web.DeploymentLink}"
+                      }
+                    ]
+                  }
+                ]
+                EOT
+            Octopus.Action.Slack.ChannelIds = "C0711ENCTB5"
+            Octopus.Action.Slack.ChannelNames = "feed-modern-deployments"
+            Octopus.Action.Slack.Message = "#{Octopus.Project.Name} #{Octopus.Release.Number} to #{Octopus.Environment.Name} has failed. <#{Octopus.Web.ServerUri}#{Octopus.Web.DeploymentLink}|View deployment>"
+            Octopus.Action.Slack.MessageFormat = "BlockKit"
+            Octopus.Action.Slack.Title = "Failed CLI Deployment #{Octopus.Release.Number} to #{Octopus.Environment.Name}"
         }
     }
 }
