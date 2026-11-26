@@ -222,6 +222,9 @@ step "publish-to-apt-repo" {
         action_type = "Octopus.Script"
         environments = ["production"]
         properties = {
+            Octopus.Action.AutoRetry.MaximumCount = "3"
+            Octopus.Action.AutoRetry.MinimumBackoff = "30"
+            Octopus.Action.ExecutionTimeout.Minutes = "10"
             Octopus.Action.Script.ScriptBody = <<-EOT
                 cd cli || exit
                 
@@ -262,7 +265,7 @@ step "publish-to-rpm-repo" {
         properties = {
             Octopus.Action.AutoRetry.MaximumCount = "3"
             Octopus.Action.AutoRetry.MinimumBackoff = "30"
-            Octopus.Action.ExecutionTimeout.Minutes = "3"
+            Octopus.Action.ExecutionTimeout.Minutes = "10"
             Octopus.Action.Script.ScriptBody = <<-EOT
                 cd cli || exit
                 
@@ -397,6 +400,7 @@ step "send-slack-alert-on-failure" {
     action {
         action_type = "Octopus.SendSlackMessage"
         properties = {
+            Octopus.Action.RunOnServer = "false"
             Octopus.Action.Slack.Blocks = <<-EOT
                 [
                   {
