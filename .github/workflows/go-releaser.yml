@@ -287,7 +287,15 @@ jobs:
 
         - name: Generate cli releases json
           working-directory: cli
-          run: curl -s https://api.github.com/repos/OctopusDeploy/cli/releases?per_page=100 > releases.json
+          env:
+            GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          run: |
+            curl --fail --silent --show-error \
+              -H "Authorization: Bearer $GH_TOKEN" \
+              -H "Accept: application/vnd.github+json" \
+              "https://api.github.com/repos/OctopusDeploy/cli/releases?per_page=100" > "$RUNNER_TEMP/releases.json"
+            jq -e 'type == "array" and length > 0' "$RUNNER_TEMP/releases.json" > /dev/null
+            mv "$RUNNER_TEMP/releases.json" releases.json
 
         - name: Commit
           uses: EndBug/add-and-commit@v11

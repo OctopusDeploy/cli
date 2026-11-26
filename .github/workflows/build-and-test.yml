@@ -2,9 +2,6 @@ name: 'Build and Unit Test'
 on:
   workflow_dispatch:
   push:
-    paths-ignore:
-      - '**.md'
-      - "releases.json"
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -16,12 +13,23 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      # The job always runs, even when only ignored files change, so the required check still reports.
+      - name: Check for significant changes
+        id: changed-files
+        uses: tj-actions/changed-files@9426d40962ed5378910ee2e21d5f8c6fcbf2dd96 # v47.0.6
+        with:
+          files_ignore: |
+            **.md
+            releases.json
+
       - name: Set up Go
+        if: github.event_name == 'workflow_dispatch' || steps.changed-files.outputs.any_changed == 'true'
         uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
 
       - name: Lint
+        if: github.event_name == 'workflow_dispatch' || steps.changed-files.outputs.any_changed == 'true'
         uses: golangci/golangci-lint-action@v8
         with:
           version: v2.14.0
@@ -29,18 +37,21 @@ jobs:
       # if we just run the unit tests then go doesn't compile the parts of the app that aren't covered by
       # unit tests; this forces it
       - name: Build binary
+        if: github.event_name == 'workflow_dispatch' || steps.changed-files.outputs.any_changed == 'true'
         run: go build -o bin/octopus cmd/octopus/main.go
 
       - name: Setup gotestsum
+        if: github.event_name == 'workflow_dispatch' || steps.changed-files.outputs.any_changed == 'true'
         run: go install gotest.tools/gotestsum@v1.13.0
 
       - name: Unit Tests
+        if: github.event_name == 'workflow_dispatch' || steps.changed-files.outputs.any_changed == 'true'
         run: gotestsum --format testname --junitfile ../unit-tests.xml
         working-directory: ./pkg
 
       - name: Test Report
         uses: dorny/test-reporter@v3
-        if: success() || failure()
+        if: (success() || failure()) && (github.event_name == 'workflow_dispatch' || steps.changed-files.outputs.any_changed == 'true')
         with:
           name: Test Results
           path: '*-tests.xml'
