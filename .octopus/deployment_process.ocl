@@ -18,7 +18,7 @@ step "push-cli-to-chocolatey" {
                 while ($currentAttempt -le $maxAttempts)
                 {
                     write-host "Pushing package ($fullPackagePath) to Chocolatey (attempt $currentAttempt)"
-                    . $nugetExe push "$fullPackagePath" -source $OctopusParameters["Publish:Chocolatey:FeedUrl"] -apikey $OctopusParameters["Publish:Chocolatey:ApiKey"] -NonInteractive -Verbosity detailed
+                    . $nugetExe push "$fullPackagePath" -source $OctopusParameters["Publish:Chocolatey:FeedUrl"] -apikey $OctopusParameters["Publish:Chocolatey:ApiKey"] -NonInteractive -SkipDuplicate -Verbosity detailed
                     if ($LastExitCode -eq 0) {
                         exit 0
                     } else {
@@ -113,14 +113,20 @@ step "push-homebrew-formula-updates-to-the-homebrew-taps-repo" {
                 
                 Copy-Item -Path "$extractedPath/homebrew/*" -Filter "*.rb" -Destination "." -Force
                 
-                git diff-index --quiet HEAD
-                if ($LASTEXITCODE -eq 0) {
+                # Not diff-index: Copy-Item rewrites unchanged files, and diff-index compares file stats without
+                # refreshing the index, so it reports a change that commit then rejects as "nothing to commit".
+                $changes = git status --porcelain
+                if ($LASTEXITCODE -ne 0) { throw "Failed to check for formula changes" }
+                if (-not $changes) {
                     Write-Host "Formula already matches $packageVersion; nothing to publish."
                     Set-Location ..
                     exit 0
                 }
-                
-                git commit -a -m "Update for release $packageVersion"
+
+                git add --all
+                if ($LASTEXITCODE -ne 0) { throw "Failed to stage the formula update" }
+
+                git commit -m "Update for release $packageVersion"
                 if ($LASTEXITCODE -ne 0) { throw "Failed to commit the formula update" }
                 
                 # Force, because a re-run branches from master again and so its commit is a
@@ -287,7 +293,29 @@ step "publish-winget-update-pr" {
                 $githubAccount = $OctopusParameters["Publish:Winget:GithubAccount"]
                 $githubPat = $OctopusParameters["Publish:Winget:GitHubPAT"]
                 $forkRepo = "$githubAccount/winget-pkgs"
-                
+                $version = $OctopusParameters["Octopus.Action.Package[cli].PackageVersion"]
+                $authHeaders = $headers + @{ 'Authorization' = "Bearer $githubPat" }
+
+                # A re-run must not open a second PR for a version that is already published or in review.
+                try {
+                    Invoke-RestMethod -Uri "https://api.github.com/repos/microsoft/winget-pkgs/contents/manifests/o/OctopusDeploy/Cli/$version" -Headers $authHeaders | Out-Null
+                    Write-Host "winget-pkgs already has OctopusDeploy.Cli $version; nothing to publish."
+                    exit 0
+                }
+                catch {
+                    if ($_.Exception.Response.StatusCode.value__ -ne 404) { throw }
+                }
+
+                $expectedTitle = "New version: OctopusDeploy.Cli version $version"
+                $query = [uri]::EscapeDataString("repo:microsoft/winget-pkgs is:pr is:open in:title `"$expectedTitle`"")
+                $search = Invoke-RestMethod -Uri "https://api.github.com/search/issues?q=$query" -Headers $authHeaders
+                # Search matches loosely, so 2.31.1 would also find 2.31.10; compare titles exactly.
+                $openPr = $search.items | Where-Object { $_.title -eq $expectedTitle } | Select-Object -First 1
+                if ($openPr) {
+                    Write-Host "A winget PR for $version is already open: $($openPr.html_url)"
+                    exit 0
+                }
+
                 try {
                     # Delete the fork of the winget-pkgs repo using the bot's token
                     $response = Invoke-WebRequest -Method "DELETE" -Uri "https://api.github.com/repos/$forkRepo" -Authentication "Bearer" -Token $githubPat -Headers $headers
@@ -307,9 +335,7 @@ step "publish-winget-update-pr" {
                 
                 # Install winget-create
                 Invoke-WebRequest https://aka.ms/wingetcreate/latest -OutFile wingetcreate.exe
-                
-                $version = $OctopusParameters["Octopus.Action.Package[cli].PackageVersion"]
-                
+
                 $packageUrls = "https://github.com/OctopusDeploy/cli/releases/download/v$version/octopus_$($version)_windows_amd64.msi|x64"
                 
                 echo "SDKs"
