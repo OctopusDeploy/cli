@@ -106,7 +106,21 @@ step "push-homebrew-formula-updates-to-the-homebrew-taps-repo" {
                     git config user.name $gitUserName
                     git config user.email $gitUserEmail
                 }
-                
+
+                # The tap holds a single formula, so redeploying an older release would open a downgrade PR.
+                $versionLine = Select-String -Path "octopus-cli.rb" -Pattern '^\s*version\s+"([^"]+)"' -ErrorAction SilentlyContinue | Select-Object -First 1
+                if ($versionLine) {
+                    $publishedVersion = $versionLine.Matches[0].Groups[1].Value
+                    if ([semver]$publishedVersion -gt [semver]$packageVersion) {
+                        Write-Host "The tap already has $publishedVersion, which is newer than $packageVersion; not downgrading."
+                        Set-Location ..
+                        exit 0
+                    }
+                }
+                else {
+                    Write-Warning "Could not read the published version from octopus-cli.rb; skipping the downgrade check."
+                }
+
                 $branchName = "releases/$packageVersion"
                 git checkout -b $branchName
                 if ($LASTEXITCODE -ne 0) { throw "Failed to create branch $branchName" }
