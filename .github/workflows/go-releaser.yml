@@ -290,10 +290,10 @@ jobs:
           env:
             GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           run: |
-            curl --fail --silent --show-error \
-              -H "Authorization: Bearer $GH_TOKEN" \
-              -H "Accept: application/vnd.github+json" \
-              "https://api.github.com/repos/OctopusDeploy/cli/releases?per_page=100" > "$RUNNER_TEMP/releases.json"
+            # Paginate so releases.json includes every release, not just the most recent 100
+            set -o pipefail
+            gh api --paginate --slurp "repos/OctopusDeploy/cli/releases?per_page=100" \
+              | jq 'add' > "$RUNNER_TEMP/releases.json"
             jq -e 'type == "array" and length > 0' "$RUNNER_TEMP/releases.json" > /dev/null
             mv "$RUNNER_TEMP/releases.json" releases.json
 
