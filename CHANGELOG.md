@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.31.2](https://github.com/OctopusDeploy/cli/compare/v2.31.1...v2.31.2) (2026-11-27)
+
+
+### Bug Fixes
+
+* Paginate releases when generating releases.json ([#789](https://github.com/OctopusDeploy/cli/issues/789)) ([9a62194](https://github.com/OctopusDeploy/cli/commit/9a62194c95c149dc652c0e5fcdfa385b19472f93))
+* Update to Go 1.26.11 and fix releases.json automation ([#786](https://github.com/OctopusDeploy/cli/issues/786)) ([7b29cd3](https://github.com/OctopusDeploy/cli/commit/7b29cd31282756e7afbd3a55feff759d900e7087))
+
 ## [2.31.1](https://github.com/OctopusDeploy/cli/compare/v2.31.0...v2.31.1) (2026-10-27)
 
 
