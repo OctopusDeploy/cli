@@ -30,7 +30,7 @@ jobs:
 
       - name: Lint
         if: github.event_name == 'workflow_dispatch' || steps.changed-files.outputs.any_changed == 'true'
-        uses: golangci/golangci-lint-action@v8
+        uses: golangci/golangci-lint-action@v9
         with:
           version: v2.14.0
 
