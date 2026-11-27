@@ -89,3 +89,17 @@ brews:
       # bash_completion.install "completions/octopus.bash" => "octopus"
       # zsh_completion.install "completions/octopus.zsh" => "_octopus"
       # fish_completion.install "completions/octopus.fish"
+
+scoops:
+  - name: "octopus-cli"
+
+    repository:
+      owner: OctopusDeploy
+      name: scoop-octopus
+
+    homepage: "https://github.com/OctopusDeploy/cli"
+    description: "The New CLI (octopus) for Octopus Deploy, a user-friendly DevOps tool for developers that supports release management, deployment automation, and operations runbooks"
+    license: "Apache-2.0"
+
+    # as with brews, Octopus pushes the generated manifest to the bucket repo
+    skip_upload: true
