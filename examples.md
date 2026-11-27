@@ -122,6 +122,32 @@ octopus deployment-target ssh create \
 
 Note: The `--role` flag continues to work for backwards compatibility but will be deprecated in favor of `--tag` once target tag sets are widely adopted.
 
+# View Kubernetes live object status
+
+Check the live status of Kubernetes resources deployed to an environment:
+
+```
+octopus kubernetes live-status --project "K8s Smoke Test Demo" --environment Development --no-prompt
+```
+
+Get a summary of the overall health status:
+
+```
+octopus kubernetes live-status --project "K8s Smoke Test Demo" --environment Development --summary-only --no-prompt
+```
+
+For tenanted deployments:
+
+```
+octopus kubernetes live-status --project "K8s Smoke Test Demo" --environment Production --tenant "My Tenant" --no-prompt
+```
+
+The `k8s` alias can be used as a shorthand:
+
+```
+octopus k8s live-status --project "K8s Smoke Test Demo" --environment Development -f json --no-prompt
+```
+
 # Bulk deleting releases by created date
 
 This example will delete all releases created before 2AM 6 Dec 2022 UTC
